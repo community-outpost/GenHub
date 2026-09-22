@@ -257,23 +257,17 @@ public partial class AddContentDialogViewModel(
 
         if (existing.Metadata?.ScreenshotUrls != null)
         {
-            foreach (var shot in existing.Metadata.ScreenshotUrls)
+            foreach (var shot in existing.Metadata.ScreenshotUrls.Where(shot => !string.IsNullOrWhiteSpace(shot)))
             {
-                if (!string.IsNullOrWhiteSpace(shot))
-                {
-                    Screenshots.Add(shot);
-                }
+                Screenshots.Add(shot);
             }
         }
 
         if (existing.Metadata?.VideoUrls != null)
         {
-            foreach (var vid in existing.Metadata.VideoUrls)
+            foreach (var vid in existing.Metadata.VideoUrls.Where(vid => !string.IsNullOrWhiteSpace(vid)))
             {
-                if (!string.IsNullOrWhiteSpace(vid))
-                {
-                    Videos.Add(vid);
-                }
+                Videos.Add(vid);
             }
         }
         else if (!string.IsNullOrWhiteSpace(existing.Metadata?.VideoUrl))
@@ -419,59 +413,7 @@ public partial class AddContentDialogViewModel(
     {
         foreach (var path in paths)
         {
-            if (string.IsNullOrWhiteSpace(path)) continue;
-            var cleanPath = path.Trim();
-            if (File.Exists(cleanPath))
-            {
-                string sha256 = string.Empty;
-                try
-                {
-                    using var stream = File.OpenRead(cleanPath);
-                    using var sha = SHA256.Create();
-                    var hashBytes = await sha.ComputeHashAsync(stream);
-                    sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
-                }
-                catch
-                {
-                    // ignore
-                }
-
-                var targetUrl = cleanPath;
-                if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
-                {
-                    var match = dialogService.DuplicateAssetLookup(sha256);
-                    if (match.HasValue)
-                    {
-                        var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
-                        var prompt = string.Format(
-                            GetLocalizedString(
-                                "Tools.PublisherStudio.Duplicate.MessageFormat",
-                                "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
-                            match.Value.Name,
-                            match.Value.Url);
-                        var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
-                        var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
-
-                        var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
-                        if (useExisting)
-                        {
-                            targetUrl = match.Value.Url;
-                        }
-                    }
-                }
-
-                if (!Screenshots.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
-                {
-                    Screenshots.Add(targetUrl);
-                }
-            }
-            else if (Uri.TryCreate(cleanPath, UriKind.Absolute, out _))
-            {
-                if (!Screenshots.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
-                {
-                    Screenshots.Add(cleanPath);
-                }
-            }
+            await ProcessScreenshotPathAsync(path);
         }
     }
 
@@ -485,59 +427,7 @@ public partial class AddContentDialogViewModel(
         var existing = ParseUrls(ReleaseImageUrlsInput);
         foreach (var path in paths)
         {
-            if (string.IsNullOrWhiteSpace(path)) continue;
-            var cleanPath = path.Trim();
-            if (File.Exists(cleanPath))
-            {
-                string sha256 = string.Empty;
-                try
-                {
-                    using var stream = File.OpenRead(cleanPath);
-                    using var sha = SHA256.Create();
-                    var hashBytes = await sha.ComputeHashAsync(stream);
-                    sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
-                }
-                catch
-                {
-                    // ignore
-                }
-
-                var targetUrl = cleanPath;
-                if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
-                {
-                    var match = dialogService.DuplicateAssetLookup(sha256);
-                    if (match.HasValue)
-                    {
-                        var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
-                        var prompt = string.Format(
-                            GetLocalizedString(
-                                "Tools.PublisherStudio.Duplicate.MessageFormat",
-                                "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
-                            match.Value.Name,
-                            match.Value.Url);
-                        var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
-                        var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
-
-                        var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
-                        if (useExisting)
-                        {
-                            targetUrl = match.Value.Url;
-                        }
-                    }
-                }
-
-                if (!existing.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
-                {
-                    existing.Add(targetUrl);
-                }
-            }
-            else if (Uri.TryCreate(cleanPath, UriKind.Absolute, out _))
-            {
-                if (!existing.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
-                {
-                    existing.Add(cleanPath);
-                }
-            }
+            await ProcessReleaseImagePathAsync(path, existing);
         }
 
         ReleaseImageUrlsInput = string.Join(Environment.NewLine, existing);
@@ -552,60 +442,7 @@ public partial class AddContentDialogViewModel(
     {
         foreach (var rawPath in paths)
         {
-            if (string.IsNullOrWhiteSpace(rawPath)) continue;
-            var path = rawPath.Trim('"', '\x27', ' ');
-            if (File.Exists(path))
-            {
-                string sha256 = string.Empty;
-                try
-                {
-                    using var stream = File.OpenRead(path);
-                    using var sha = SHA256.Create();
-                    var hashBytes = await sha.ComputeHashAsync(stream);
-                    sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
-                }
-                catch
-                {
-                    // ignore
-                }
-
-                if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
-                {
-                    var match = dialogService.DuplicateAssetLookup(sha256);
-                    if (match.HasValue)
-                    {
-                        var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
-                        var prompt = string.Format(
-                            GetLocalizedString(
-                                "Tools.PublisherStudio.Duplicate.MessageFormat",
-                                "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
-                            match.Value.Name,
-                            match.Value.Url);
-                        var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
-                        var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
-
-                        var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
-                        if (useExisting)
-                        {
-                            var art = new ReleaseArtifact
-                            {
-                                Filename = Path.GetFileName(path),
-                                DownloadUrl = match.Value.Url,
-                                LocalFilePath = null,
-                                Size = match.Value.Size > 0 ? match.Value.Size : new FileInfo(path).Length,
-                                Sha256 = sha256,
-                                ContentType = MimeTypeHelper.FromFileName(path),
-                                IsPrimary = ReleaseArtifacts.Count == 0 && StagedFiles.Count == 0,
-                            };
-                            ReleaseArtifacts.Add(art);
-                            IncludeInitialRelease = true;
-                            continue;
-                        }
-                    }
-                }
-            }
-
-            TryStagePath(path, autofill: false);
+            await ProcessReleaseArtifactPathAsync(rawPath);
         }
 
         IncludeInitialRelease = true;
@@ -815,6 +652,21 @@ public partial class AddContentDialogViewModel(
             DefinitionUrl = source.DefinitionUrl,
             ConflictsWith = [.. source.ConflictsWith],
         };
+    }
+
+    private static async Task<string> ComputeFileSha256SafeAsync(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            using var sha = SHA256.Create();
+            var hashBytes = await sha.ComputeHashAsync(stream);
+            return Convert.ToHexString(hashBytes).ToLowerInvariant();
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     partial void OnSelectedContentTypeChanged(ContentType value)
@@ -1649,12 +1501,9 @@ public partial class AddContentDialogViewModel(
         var source = _existingItem?.Metadata;
 
         var allScreenshots = new List<string>(Screenshots);
-        foreach (var s in ParseUrls(ScreenshotUrlsInput))
+        foreach (var s in ParseUrls(ScreenshotUrlsInput).Where(s => !allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase))
-            {
-                allScreenshots.Add(s);
-            }
+            allScreenshots.Add(s);
         }
 
         var allVideos = new List<string>(Videos);
@@ -1843,6 +1692,118 @@ public partial class AddContentDialogViewModel(
         ValidationError = HasErrors
             ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
             : null;
+    }
+
+    private async Task<(string Url, long Size)?> PromptDuplicateAssetAsync(string sha256)
+    {
+        if (string.IsNullOrEmpty(sha256) || dialogService?.DuplicateAssetLookup == null)
+        {
+            return null;
+        }
+
+        var match = dialogService.DuplicateAssetLookup(sha256);
+        if (!match.HasValue)
+        {
+            return null;
+        }
+
+        var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
+        var prompt = string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Duplicate.MessageFormat",
+                "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
+            match.Value.Name,
+            match.Value.Url);
+        var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
+        var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
+
+        var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
+        return useExisting ? (match.Value.Url, match.Value.Size) : null;
+    }
+
+    private async Task ProcessScreenshotPathAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var cleanPath = path.Trim();
+        if (File.Exists(cleanPath))
+        {
+            var sha256 = await ComputeFileSha256SafeAsync(cleanPath);
+            var duplicate = await PromptDuplicateAssetAsync(sha256);
+            var targetUrl = duplicate?.Url ?? cleanPath;
+
+            if (!Screenshots.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
+            {
+                Screenshots.Add(targetUrl);
+            }
+        }
+        else if (Uri.TryCreate(cleanPath, UriKind.Absolute, out _) &&
+                 !Screenshots.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
+        {
+            Screenshots.Add(cleanPath);
+        }
+    }
+
+    private async Task ProcessReleaseImagePathAsync(string path, List<string> existing)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var cleanPath = path.Trim();
+        if (File.Exists(cleanPath))
+        {
+            var sha256 = await ComputeFileSha256SafeAsync(cleanPath);
+            var duplicate = await PromptDuplicateAssetAsync(sha256);
+            var targetUrl = duplicate?.Url ?? cleanPath;
+
+            if (!existing.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
+            {
+                existing.Add(targetUrl);
+            }
+        }
+        else if (Uri.TryCreate(cleanPath, UriKind.Absolute, out _) &&
+                 !existing.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
+        {
+            existing.Add(cleanPath);
+        }
+    }
+
+    private async Task ProcessReleaseArtifactPathAsync(string rawPath)
+    {
+        if (string.IsNullOrWhiteSpace(rawPath))
+        {
+            return;
+        }
+
+        var path = rawPath.Trim('"', '\'', ' ');
+        if (File.Exists(path))
+        {
+            var sha256 = await ComputeFileSha256SafeAsync(path);
+            var duplicate = await PromptDuplicateAssetAsync(sha256);
+            if (duplicate.HasValue)
+            {
+                var art = new ReleaseArtifact
+                {
+                    Filename = Path.GetFileName(path),
+                    DownloadUrl = duplicate.Value.Url,
+                    LocalFilePath = null,
+                    Size = duplicate.Value.Size > 0 ? duplicate.Value.Size : new FileInfo(path).Length,
+                    Sha256 = sha256,
+                    ContentType = MimeTypeHelper.FromFileName(path),
+                    IsPrimary = ReleaseArtifacts.Count == 0 && StagedFiles.Count == 0,
+                };
+                ReleaseArtifacts.Add(art);
+                IncludeInitialRelease = true;
+                return;
+            }
+        }
+
+        TryStagePath(path, autofill: false);
     }
 
     private string GetLocalizedString(string key, string fallback)

@@ -100,6 +100,7 @@ public partial class ContentDetailViewModel(
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
+    private const string DefaultAddonName = "Addon";
     private const string DeleteFailedTitleKey = "Downloads.ContentDetail.DeleteFailedTitle";
     private const string DeleteFailedTitleFallback = "Delete Failed";
     private const string DeleteFailedMessageKey = "Downloads.ContentDetail.DeleteFailedMessage";
@@ -3683,7 +3684,7 @@ public partial class ContentDetailViewModel(
                 var name = !string.IsNullOrWhiteSpace(addonRel.Title) ? addonRel.Title : (primary?.Filename ?? $"Addon v{addonRel.Version}");
                 var url = primary?.DownloadUrl ?? string.Empty;
                 var size = addonRel.Artifacts.Sum(a => a.Size);
-                var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : "Addon";
+                var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : DefaultAddonName;
                 var description = !string.IsNullOrWhiteSpace(addonRel.Changelog) ? addonRel.Changelog : $"Addon for {catalogItem.Name}";
 
                 var file = new DownloadableFile(
@@ -3708,7 +3709,7 @@ public partial class ContentDetailViewModel(
             foreach (var addonDep in catalogItem.Addons)
             {
                 var file = new DownloadableFile(
-                    Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : "Addon",
+                    Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : DefaultAddonName,
                     DownloadUrl: addonDep.DefinitionUrl ?? addonDep.CatalogUrl ?? string.Empty,
                     SizeBytes: null,
                     UploadDate: null,
@@ -3782,7 +3783,7 @@ public partial class ContentDetailViewModel(
                 var aIdx = 1;
                 foreach (var vid in addon.VideoUrls)
                 {
-                    AddVideo(vid, $"{addon.Title ?? "Addon"} Video {aIdx++}");
+                    AddVideo(vid, $"{addon.Title ?? DefaultAddonName} Video {aIdx++}");
                 }
             }
         }
@@ -3831,7 +3832,7 @@ public partial class ContentDetailViewModel(
                 var aShotIndex = 1;
                 foreach (var shot in addon.ImageUrls)
                 {
-                    AddImage(shot, $"{addon.Title ?? "Addon"} Screenshot {aShotIndex++}");
+                    AddImage(shot, $"{addon.Title ?? DefaultAddonName} Screenshot {aShotIndex++}");
                 }
             }
         }

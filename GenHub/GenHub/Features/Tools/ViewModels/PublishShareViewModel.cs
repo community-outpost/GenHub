@@ -1002,68 +1002,9 @@ public partial class PublishShareViewModel(
             return null;
         }
 
-        var hosted = HostedAssets.FirstOrDefault(a =>
-            !string.IsNullOrWhiteSpace(a.Url) &&
-            string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
-        if (hosted != null)
-        {
-            return (hosted.Name, hosted.Url, hosted.FileSize);
-        }
-
-        foreach (var state in _hostingStates.Values)
-        {
-            var art = state.Artifacts.FirstOrDefault(a =>
-                !string.IsNullOrWhiteSpace(a.Url) &&
-                string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
-            if (art != null)
-            {
-                return (art.FileName, art.Url, art.FileSize);
-            }
-        }
-
-        if (project?.Catalogs != null)
-        {
-            foreach (var namedCat in project.Catalogs)
-            {
-                if (namedCat.Catalog?.Content == null)
-                {
-                    continue;
-                }
-
-                foreach (var content in namedCat.Catalog.Content)
-                {
-                    if (content.Releases != null)
-                    {
-                        foreach (var release in content.Releases)
-                        {
-                            var match = release.Artifacts.FirstOrDefault(a =>
-                                !string.IsNullOrWhiteSpace(a.DownloadUrl) &&
-                                string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
-                            if (match != null)
-                            {
-                                return (match.Filename, match.DownloadUrl!, match.Size);
-                            }
-                        }
-                    }
-
-                    if (content.AddonReleases != null)
-                    {
-                        foreach (var addon in content.AddonReleases)
-                        {
-                            var match = addon.Artifacts.FirstOrDefault(a =>
-                                !string.IsNullOrWhiteSpace(a.DownloadUrl) &&
-                                string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
-                            if (match != null)
-                            {
-                                return (match.Filename, match.DownloadUrl!, match.Size);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return null;
+        return FindInHostedAssets(sha256) ??
+               FindInHostingStates(sha256) ??
+               FindInProjectCatalogs(sha256);
     }
 
     /// <inheritdoc />
@@ -1216,6 +1157,105 @@ public partial class PublishShareViewModel(
         }
 
         return url;
+    }
+
+    private static (string Name, string Url, long Size)? FindInArtifacts(IEnumerable<ReleaseArtifact>? artifacts, string sha256)
+    {
+        if (artifacts == null)
+        {
+            return null;
+        }
+
+        var match = artifacts.FirstOrDefault(a =>
+            !string.IsNullOrWhiteSpace(a.DownloadUrl) &&
+            string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
+
+        return match?.DownloadUrl != null ? (match.Filename, match.DownloadUrl, match.Size) : null;
+    }
+
+    private static (string Name, string Url, long Size)? FindInContentItem(CatalogContentItem content, string sha256)
+    {
+        if (content.Releases != null)
+        {
+            foreach (var release in content.Releases)
+            {
+                var match = FindInArtifacts(release.Artifacts, sha256);
+                if (match != null)
+                {
+                    return match;
+                }
+            }
+        }
+
+        if (content.AddonReleases != null)
+        {
+            foreach (var addon in content.AddonReleases)
+            {
+                var match = FindInArtifacts(addon.Artifacts, sha256);
+                if (match != null)
+                {
+                    return match;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private (string Name, string Url, long Size)? FindInHostedAssets(string sha256)
+    {
+        var hosted = HostedAssets.FirstOrDefault(a =>
+            !string.IsNullOrWhiteSpace(a.Url) &&
+            string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
+        if (hosted != null)
+        {
+            return (hosted.Name, hosted.Url, hosted.FileSize);
+        }
+
+        return null;
+    }
+
+    private (string Name, string Url, long Size)? FindInHostingStates(string sha256)
+    {
+        foreach (var state in _hostingStates.Values)
+        {
+            var art = state.Artifacts.FirstOrDefault(a =>
+                !string.IsNullOrWhiteSpace(a.Url) &&
+                string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
+            if (art != null)
+            {
+                return (art.FileName, art.Url, art.FileSize);
+            }
+        }
+
+        return null;
+    }
+
+    private (string Name, string Url, long Size)? FindInProjectCatalogs(string sha256)
+    {
+        if (project?.Catalogs == null)
+        {
+            return null;
+        }
+
+        foreach (var catalog in project.Catalogs.Select(namedCat => namedCat.Catalog))
+        {
+            if (catalog?.Content == null)
+            {
+                continue;
+            }
+
+            foreach (var content in catalog.Content)
+            {
+                var match = FindInContentItem(content, sha256);
+                if (match != null)
+                {
+                    return match;
+                }
+            }
+        }
+
+        return null;
     }
 
     private string GetLocalizedString(string key, string defaultValue) =>

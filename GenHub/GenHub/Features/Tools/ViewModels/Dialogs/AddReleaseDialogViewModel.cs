@@ -173,22 +173,40 @@ public partial class AddReleaseDialogViewModel(
     /// <summary>
     /// Gets the dialog title based on the current mode.
     /// </summary>
-    public string DialogTitle => IsAddonMode
-        ? (IsEditMode
-            ? GetLocalizedString("Tools.PublisherStudio.Addon.EditTitle", "Edit Addon")
-            : GetLocalizedString("Tools.PublisherStudio.Addon.AddTitle", "Add Addon"))
-        : (IsEditMode
-            ? GetLocalizedString("Tools.PublisherStudio.Release.EditTitle", "Edit Release")
-            : GetLocalizedString("Tools.PublisherStudio.Release.AddTitle", "Add New Release"));
+    public string DialogTitle
+    {
+        get
+        {
+            if (IsAddonMode)
+            {
+                return IsEditMode
+                    ? GetLocalizedString("Tools.PublisherStudio.Addon.EditTitle", "Edit Addon")
+                    : GetLocalizedString("Tools.PublisherStudio.Addon.AddTitle", "Add Addon");
+            }
+
+            return IsEditMode
+                ? GetLocalizedString("Tools.PublisherStudio.Release.EditTitle", "Edit Release")
+                : GetLocalizedString("Tools.PublisherStudio.Release.AddTitle", "Add New Release");
+        }
+    }
 
     /// <summary>
     /// Gets the submit button text based on the current mode.
     /// </summary>
-    public string SubmitButtonText => IsEditMode
-        ? GetLocalizedString("Tools.PublisherStudio.Common.SaveChanges", "Save Changes")
-        : (IsAddonMode
-            ? GetLocalizedString("Tools.PublisherStudio.Addon.AddButton", "Add Addon")
-            : GetLocalizedString("Tools.PublisherStudio.Release.CreateRelease", "Create Release"));
+    public string SubmitButtonText
+    {
+        get
+        {
+            if (IsEditMode)
+            {
+                return GetLocalizedString("Tools.PublisherStudio.Common.SaveChanges", "Save Changes");
+            }
+
+            return IsAddonMode
+                ? GetLocalizedString("Tools.PublisherStudio.Addon.AddButton", "Add Addon")
+                : GetLocalizedString("Tools.PublisherStudio.Release.CreateRelease", "Create Release");
+        }
+    }
 
     /// <summary>
     /// Gets the content item name for display in the dialog title.
@@ -270,58 +288,7 @@ public partial class AddReleaseDialogViewModel(
         var existingUrls = ParseUrls(ImageUrlsInput);
         foreach (var rawPath in paths)
         {
-            if (string.IsNullOrWhiteSpace(rawPath))
-            {
-                continue;
-            }
-
-            var path = rawPath.Trim('"', '\'', ' ');
-            if (!File.Exists(path) || !IsImageFile(path))
-            {
-                continue;
-            }
-
-            var sha256 = string.Empty;
-            try
-            {
-                await using var stream = File.OpenRead(path);
-                using var hasher = SHA256.Create();
-                var hashBytes = await hasher.ComputeHashAsync(stream, cancellationToken);
-                sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
-            {
-                sha256 = string.Empty;
-            }
-
-            var targetUrl = path;
-            if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
-            {
-                var match = dialogService.DuplicateAssetLookup(sha256);
-                if (match.HasValue)
-                {
-                    var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
-                    var prompt = string.Format(
-                        GetLocalizedString(
-                            "Tools.PublisherStudio.Duplicate.MessageFormat",
-                            "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
-                        match.Value.Name,
-                        match.Value.Url);
-                    var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
-                    var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
-
-                    var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
-                    if (useExisting)
-                    {
-                        targetUrl = match.Value.Url;
-                    }
-                }
-            }
-
-            if (!existingUrls.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
-            {
-                existingUrls.Add(targetUrl);
-            }
+            await ProcessImagePathAsync(rawPath, existingUrls, cancellationToken);
         }
 
         ImageUrlsInput = string.Join(Environment.NewLine, existingUrls);
@@ -419,6 +386,21 @@ public partial class AddReleaseDialogViewModel(
             .ToList();
     }
 
+    private static async Task<string> ComputeFileSha256SafeAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = File.OpenRead(path);
+            using var hasher = SHA256.Create();
+            var hashBytes = await hasher.ComputeHashAsync(stream, cancellationToken);
+            return Convert.ToHexString(hashBytes).ToLowerInvariant();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            return string.Empty;
+        }
+    }
+
     partial void OnIsVariantsModeChanged(bool value)
     {
         if (BundleArtifacts == value)
@@ -468,6 +450,56 @@ public partial class AddReleaseDialogViewModel(
 
             Artifacts.Add(artifact);
             Validate();
+        }
+    }
+
+    private async Task<string?> PromptDuplicateAssetUrlAsync(string sha256)
+    {
+        if (string.IsNullOrEmpty(sha256) || dialogService?.DuplicateAssetLookup == null)
+        {
+            return null;
+        }
+
+        var match = dialogService.DuplicateAssetLookup(sha256);
+        if (!match.HasValue)
+        {
+            return null;
+        }
+
+        var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
+        var prompt = string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Duplicate.MessageFormat",
+                "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
+            match.Value.Name,
+            match.Value.Url);
+        var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
+        var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
+
+        var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
+        return useExisting ? match.Value.Url : null;
+    }
+
+    private async Task ProcessImagePathAsync(string rawPath, List<string> existingUrls, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(rawPath))
+        {
+            return;
+        }
+
+        var path = rawPath.Trim('"', '\'', ' ');
+        if (!File.Exists(path) || !IsImageFile(path))
+        {
+            return;
+        }
+
+        var sha256 = await ComputeFileSha256SafeAsync(path, cancellationToken);
+        var duplicateUrl = await PromptDuplicateAssetUrlAsync(sha256);
+        var targetUrl = duplicateUrl ?? path;
+
+        if (!existingUrls.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
+        {
+            existingUrls.Add(targetUrl);
         }
     }
 
