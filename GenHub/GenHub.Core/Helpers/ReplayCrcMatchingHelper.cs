@@ -251,6 +251,15 @@ public static class ReplayCrcMatchingHelper
         var id = client.Id?.ToLowerInvariant() ?? string.Empty;
         var name = client.Name?.Trim() ?? string.Empty;
 
+        var isCommunityOutpostRetail = (string.Equals(normalizedPub, PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                                       string.Equals(normalizedPub, "community outpost", StringComparison.OrdinalIgnoreCase)) &&
+                                       ((!string.IsNullOrEmpty(id) && id.Contains(".retail", StringComparison.OrdinalIgnoreCase)) ||
+                                        (!string.IsNullOrEmpty(name) && name.Contains("(Retail)", StringComparison.OrdinalIgnoreCase)));
+        if (isCommunityOutpostRetail)
+        {
+            return true;
+        }
+
         if (client.GameType == GameType.Generals)
         {
             return ver.StartsWith("1.08", StringComparison.OrdinalIgnoreCase) ||
@@ -318,7 +327,7 @@ public static class ReplayCrcMatchingHelper
             }
         }
 
-        return true;
+        return IsOfficialBaseClient(client);
     }
 
     /// <summary>
@@ -338,33 +347,9 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var isExplicitGenerals = client.GameType == GameType.Generals &&
-                                 !(!string.IsNullOrEmpty(client.Id) && client.Id.Contains("zerohour", StringComparison.OrdinalIgnoreCase)) &&
-                                 !(!string.IsNullOrEmpty(client.Name) && client.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase));
-
-        if (isExplicitGenerals)
+        if (IsExplicitGeneralsClient(client))
         {
-            if (IsGeneralsOnlineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
-            {
-                return false;
-            }
-
-            if (TryGetCachedExeCrc(client, out var cachedCrc))
-            {
-                return IsGeneralsRetailExeCrc(cachedCrc);
-            }
-
-            var exePath = ResolveProfileFullExePath(client);
-            if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
-            {
-                var sha = GetCachedExeSha256(exePath);
-                if (!string.IsNullOrEmpty(sha))
-                {
-                    return IsRetailExeSha256(sha);
-                }
-            }
-
-            return true;
+            return IsGeneralsRetailCompatible(client, enabledContentIds);
         }
 
         return IsZeroHourRetailCompatible(client, enabledContentIds);
@@ -602,6 +587,62 @@ public static class ReplayCrcMatchingHelper
         ExeCrcCache.Clear();
         ExeShaCache.Clear();
         GameCrcCalculatorService.ClearCache();
+    }
+
+    /// <summary>
+    /// Determines whether the specified client is explicitly for Generals rather than Zero Hour.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if explicitly Generals; otherwise, <c>false</c>.</returns>
+    private static bool IsExplicitGeneralsClient(GameClient client)
+    {
+        if (client.GameType != GameType.Generals)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(client.Id) && client.Id.Contains("zerohour", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(client.Name) && client.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Determines whether the Generals game client is compatible with retail executables.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <param name="enabledContentIds">Optional list of enabled content manifest IDs.</param>
+    /// <returns><c>true</c> if compatible with retail executables; otherwise, <c>false</c>.</returns>
+    private static bool IsGeneralsRetailCompatible(GameClient client, IReadOnlyList<string>? enabledContentIds)
+    {
+        if (IsGeneralsOnlineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
+        {
+            return false;
+        }
+
+        if (TryGetCachedExeCrc(client, out var cachedCrc))
+        {
+            return IsGeneralsRetailExeCrc(cachedCrc);
+        }
+
+        var exePath = ResolveProfileFullExePath(client);
+        if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+        {
+            var sha = GetCachedExeSha256(exePath);
+            if (!string.IsNullOrEmpty(sha))
+            {
+                return IsRetailExeSha256(sha);
+            }
+        }
+
+        return IsOfficialBaseClient(client);
     }
 
     /// <summary>

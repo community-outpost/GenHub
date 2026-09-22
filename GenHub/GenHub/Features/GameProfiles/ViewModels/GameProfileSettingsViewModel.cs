@@ -265,7 +265,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         var enabledClients = EnabledContent.Where(c => c.ContentType == ContentType.GameClient).ToList();
         var activeInstallation = EnabledContent.FirstOrDefault(c => c.ContentType == ContentType.GameInstallation)
-            ?? (SelectedGameInstallation?.IsEnabled == true ? SelectedGameInstallation : null);
+            ?? (SelectedGameInstallation is { IsEnabled: true } ? SelectedGameInstallation : null);
 
         bool hasGo;
         bool hasTsh;
@@ -560,36 +560,30 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private static bool MatchesTheSuperHackersIdentifiers(string? id, string? publisher, string? name)
     {
-        if (!string.IsNullOrEmpty(publisher))
+        if (!string.IsNullOrEmpty(publisher) &&
+            (string.Equals(publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(publisher, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
+             publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+             publisher.Contains("superhackers", StringComparison.OrdinalIgnoreCase)))
         {
-            if (string.Equals(publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(publisher, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                publisher.Contains("superhackers", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (!string.IsNullOrEmpty(id))
+        if (!string.IsNullOrEmpty(id) &&
+            (id.Contains("thesuperhackers", StringComparison.OrdinalIgnoreCase) ||
+             id.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
+             id.Contains("community-patch", StringComparison.OrdinalIgnoreCase) ||
+             id.Contains("communitypatch", StringComparison.OrdinalIgnoreCase)))
         {
-            if (id.Contains("thesuperhackers", StringComparison.OrdinalIgnoreCase) ||
-                id.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
-                id.Contains("community-patch", StringComparison.OrdinalIgnoreCase) ||
-                id.Contains("communitypatch", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (!string.IsNullOrEmpty(name))
+        if (!string.IsNullOrEmpty(name) &&
+            (name.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+             name.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
+             name.Contains("community patch", StringComparison.OrdinalIgnoreCase)))
         {
-            if (name.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("community patch", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         return false;
@@ -629,6 +623,34 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static bool? CheckSuperHackersExecutable(string? exePath)
+    {
+        if (string.IsNullOrEmpty(exePath) || !System.IO.File.Exists(exePath))
+        {
+            return null;
+        }
+
+        var sha = ReplayCrcMatchingHelper.GetCachedExeSha256(exePath);
+        if (!string.IsNullOrEmpty(sha) && ReplayCrcMatchingHelper.IsRetailExeSha256(sha))
+        {
+            return false;
+        }
+
+        var crc = ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
+        if (!string.IsNullOrEmpty(crc) && (ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) || ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc)))
+        {
+            return false;
+        }
+
+        var fileName = System.IO.Path.GetFileName(exePath);
+        if (string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return null;
+    }
+
     private static bool IsTheSuperHackersClientItem(ContentDisplayItem item, GameProfile? profile)
     {
         if (IsGeneralsOnlineItem(item))
@@ -647,25 +669,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             ? item.SourcePath
             : ReplayCrcMatchingHelper.ResolveProfileFullExePath(client);
 
-        if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
+        var exeCheck = CheckSuperHackersExecutable(exePath);
+        if (exeCheck.HasValue)
         {
-            var sha = ReplayCrcMatchingHelper.GetCachedExeSha256(exePath);
-            if (!string.IsNullOrEmpty(sha) && ReplayCrcMatchingHelper.IsRetailExeSha256(sha))
-            {
-                return false;
-            }
-
-            var crc = ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
-            if (!string.IsNullOrEmpty(crc) && (ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) || ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc)))
-            {
-                return false;
-            }
-
-            var fileName = System.IO.Path.GetFileName(exePath);
-            if (string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return exeCheck.Value;
         }
 
         if (MatchesTheSuperHackersIdentifiers(item.ManifestId.Value, item.Publisher, item.DisplayName))
@@ -696,25 +703,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         var exePath = ReplayCrcMatchingHelper.ResolveProfileFullExePath(client);
-        if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
+        var exeCheck = CheckSuperHackersExecutable(exePath);
+        if (exeCheck.HasValue)
         {
-            var sha = ReplayCrcMatchingHelper.GetCachedExeSha256(exePath);
-            if (!string.IsNullOrEmpty(sha) && ReplayCrcMatchingHelper.IsRetailExeSha256(sha))
-            {
-                return false;
-            }
-
-            var crc = ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
-            if (!string.IsNullOrEmpty(crc) && (ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) || ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc)))
-            {
-                return false;
-            }
-
-            var fileName = System.IO.Path.GetFileName(exePath);
-            if (string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return exeCheck.Value;
         }
 
         if (MatchesTheSuperHackersIdentifiers(client.Id, client.PublisherType, client.Name))
@@ -986,49 +978,40 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private sealed record ProfileBranding(string Name, string Color, string IconPath, string CoverPath, Core.Models.Enums.GameType GameType);
 
-    private ProfileBranding ResolveDefaultBranding()
+    private ProfileBranding ResolveFallbackBranding()
     {
-        var activeClientItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
-        var activeInstallationItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameInstallation)
-            ?? (SelectedGameInstallation?.IsEnabled == true ? SelectedGameInstallation : null);
+        var fallbackGameType = GameTypeFilter != Core.Models.Enums.GameType.Unknown ? GameTypeFilter : Core.Models.Enums.GameType.ZeroHour;
+        var fallbackColor = fallbackGameType == Core.Models.Enums.GameType.Generals ? UiConstants.GeneralsThemeColor : UiConstants.ZeroHourThemeColor;
+        var fallbackIcon = fallbackGameType == Core.Models.Enums.GameType.Generals ? UriConstants.GeneralsIconUri : UriConstants.ZeroHourIconUri;
+        var fallbackCover = fallbackGameType == Core.Models.Enums.GameType.Generals
+            ? NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("Generals"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.GeneralsCoverFilename}")
+            : NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
 
-        var primaryItem = activeClientItem ?? activeInstallationItem;
-        if (primaryItem == null)
+        return new ProfileBranding(ProfileConstants.DefaultProfileName, fallbackColor, fallbackIcon, fallbackCover, fallbackGameType);
+    }
+
+    private Core.Models.Enums.GameType ResolvePrimaryItemGameType(ContentDisplayItem primaryItem)
+    {
+        if (primaryItem.GameType != Core.Models.Enums.GameType.Unknown)
         {
-            var fallbackGameType = GameTypeFilter != Core.Models.Enums.GameType.Unknown ? GameTypeFilter : Core.Models.Enums.GameType.ZeroHour;
-            var fallbackColor = fallbackGameType == Core.Models.Enums.GameType.Generals ? UiConstants.GeneralsThemeColor : UiConstants.ZeroHourThemeColor;
-            var fallbackIcon = fallbackGameType == Core.Models.Enums.GameType.Generals ? UriConstants.GeneralsIconUri : UriConstants.ZeroHourIconUri;
-            var fallbackCover = fallbackGameType == Core.Models.Enums.GameType.Generals
-                ? NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("Generals"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.GeneralsCoverFilename}")
-                : NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
-
-            return new ProfileBranding(ProfileConstants.DefaultProfileName, fallbackColor, fallbackIcon, fallbackCover, fallbackGameType);
+            return primaryItem.GameType;
         }
 
-        var gameType = primaryItem.GameType != Core.Models.Enums.GameType.Unknown
-            ? primaryItem.GameType
-            : (primaryItem.GameClient?.GameType ?? (GameTypeFilter != Core.Models.Enums.GameType.Unknown ? GameTypeFilter : Core.Models.Enums.GameType.ZeroHour));
+        if (primaryItem.GameClient?.GameType is { } clientGameType and not Core.Models.Enums.GameType.Unknown)
+        {
+            return clientGameType;
+        }
 
-        var displayName = primaryItem.DisplayName;
-        var publisher = primaryItem.Publisher ?? primaryItem.GameClient?.PublisherType ?? string.Empty;
-        var itemName = primaryItem.DisplayName ?? primaryItem.GameClient?.Name ?? string.Empty;
+        return GameTypeFilter != Core.Models.Enums.GameType.Unknown ? GameTypeFilter : Core.Models.Enums.GameType.ZeroHour;
+    }
 
+    private ProfileBranding? TryResolveSpecialPublisherBranding(string displayName, string publisher, string itemName, Core.Models.Enums.GameType gameType)
+    {
         bool isTsh = publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
                      publisher.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
                      publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                      itemName.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
                      itemName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase);
-
-        bool isGo = publisher.Contains(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                    publisher.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains("Generals Online", StringComparison.OrdinalIgnoreCase);
-
-        bool isCo = publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                    publisher.Contains(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
-                    publisher.Contains(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains("CommunityOutpost", StringComparison.OrdinalIgnoreCase);
 
         if (isTsh)
         {
@@ -1038,6 +1021,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
 
+        bool isGo = publisher.Contains(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("Generals Online", StringComparison.OrdinalIgnoreCase);
+
         if (isGo)
         {
             var color = GeneralsOnlineConstants.ThemeColor;
@@ -1045,6 +1033,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             var icon = UriConstants.GeneralsOnlineLogoUri;
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
+
+        bool isCo = publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("CommunityOutpost", StringComparison.OrdinalIgnoreCase);
 
         if (isCo)
         {
@@ -1054,6 +1048,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
 
+        return null;
+    }
+
+    private ProfileBranding ResolveStandardGameBranding(string displayName, Core.Models.Enums.GameType gameType)
+    {
         if (gameType == Core.Models.Enums.GameType.Generals)
         {
             var color = UiConstants.GeneralsThemeColor;
@@ -1068,6 +1067,27 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             var cover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
+    }
+
+    private ProfileBranding ResolveDefaultBranding()
+    {
+        var activeClientItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
+        var activeInstallationItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameInstallation)
+            ?? (SelectedGameInstallation is { IsEnabled: true } ? SelectedGameInstallation : null);
+
+        var primaryItem = activeClientItem ?? activeInstallationItem;
+        if (primaryItem == null)
+        {
+            return ResolveFallbackBranding();
+        }
+
+        var gameType = ResolvePrimaryItemGameType(primaryItem);
+        var displayName = primaryItem.DisplayName;
+        var publisher = primaryItem.Publisher ?? primaryItem.GameClient?.PublisherType ?? string.Empty;
+        var itemName = primaryItem.DisplayName ?? primaryItem.GameClient?.Name ?? string.Empty;
+
+        return TryResolveSpecialPublisherBranding(displayName, publisher, itemName, gameType)
+            ?? ResolveStandardGameBranding(displayName, gameType);
     }
 
     private void ApplyPrimaryBranding()
@@ -1293,18 +1313,16 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             SelectedGameInstallation = contentItem;
         }
-        else if (contentItem.ContentType == ContentType.GameClient)
+        else if (contentItem.ContentType == ContentType.GameClient &&
+                 contentItem.GameType != Core.Models.Enums.GameType.Unknown &&
+                 (SelectedGameInstallation == null || SelectedGameInstallation.GameType != contentItem.GameType))
         {
-            if (contentItem.GameType != Core.Models.Enums.GameType.Unknown &&
-                (SelectedGameInstallation == null || SelectedGameInstallation.GameType != contentItem.GameType))
+            var matchingInstallation = AvailableGameInstallations
+                .OrderBy(GetInstallationPriority)
+                .FirstOrDefault(i => i.GameType == contentItem.GameType);
+            if (matchingInstallation != null)
             {
-                var matchingInstallation = AvailableGameInstallations
-                    .OrderBy(GetInstallationPriority)
-                    .FirstOrDefault(i => i.GameType == contentItem.GameType);
-                if (matchingInstallation != null)
-                {
-                    SelectedGameInstallation = matchingInstallation;
-                }
+                SelectedGameInstallation = matchingInstallation;
             }
         }
 
