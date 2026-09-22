@@ -1336,6 +1336,117 @@ public sealed class WndEditorViewModelTests : IDisposable
             Times.Once);
     }
 
+    /// <summary>
+    /// Tests that ParseControlBarSchemeIni parses retail space-separated INI format,
+    /// extracts ImageName from multi-line ImagePart blocks, and prefers America scheme.
+    /// </summary>
+    [Fact]
+    public void ParseControlBarSchemeIni_RetailSchemeExcerpt_ParsesCorrectOverrides()
+    {
+        // Arrange
+        const string retailIni =
+            "; Retail Zero Hour ControlBarScheme.ini excerpt\n" +
+            "ControlBarScheme ControlBarSchemeAmerica\n" +
+            "  ScreenHeight 768\n" +
+            "  Side America\n" +
+            "  QueueButtonImage SCBigButton\n" +
+            "  RightHUDImage SALogo\n" +
+            "  OptionsButtonEnable SAOptions\n" +
+            "  IdleWorkerButtonEnable SAWorker\n" +
+            "  BuddyButtonEnable SAChat\n" +
+            "  BeaconButtonEnable SABeacon\n" +
+            "  GeneralButtonEnable SAGeneral\n" +
+            "  UAttackButtonEnable SAUAttackI\n" +
+            "  ExpBarForegroundImage SAExpBar\n" +
+            "  ImagePart\n" +
+            "    Position X:0 Y:0\n" +
+            "    Size X:1024 Y:192\n" +
+            "    ImageName InGameUIAmericaBase\n" +
+            "  End\n" +
+            "End\n" +
+            "\n" +
+            "ControlBarScheme ControlBarSchemeChina\n" +
+            "  ScreenHeight 768\n" +
+            "  Side China\n" +
+            "  QueueButtonImage SCBigButton\n" +
+            "  RightHUDImage SNLogo\n" +
+            "  OptionsButtonEnable SNOptions\n" +
+            "  ImagePart\n" +
+            "    Position X:0 Y:0\n" +
+            "    Size X:1024 Y:192\n" +
+            "    ImageName InGameUIChinaBase\n" +
+            "  End\n" +
+            "End\n";
+
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndEditorViewModel.ParseControlBarSchemeIni(retailIni, dict);
+
+        // Assert
+        dict["BackgroundMarker"].Should().Be("InGameUIAmericaBase");
+        dict["RightHUD"].Should().Be("SALogo");
+        dict["ButtonOptions"].Should().Be("SAOptions");
+        dict["ButtonIdleWorker"].Should().Be("SAWorker");
+        dict["ButtonChat"].Should().Be("SAChat");
+        dict["ButtonPlaceBeacon"].Should().Be("SABeacon");
+        dict["ButtonGeneral"].Should().Be("SAGeneral");
+        dict["ButtonUAttack"].Should().Be("SAUAttackI");
+        dict["ExpBarForeground"].Should().Be("SAExpBar");
+        dict["QueueButtonImage"].Should().Be("SCBigButton");
+    }
+
+    /// <summary>
+    /// Tests that ParseControlBarSchemeIni falls back to the first scheme if America is absent.
+    /// </summary>
+    [Fact]
+    public void ParseControlBarSchemeIni_CustomSingleScheme_FallsBackToFirstScheme()
+    {
+        // Arrange
+        const string ini =
+            "ControlBarScheme CustomFactionScheme\n" +
+            "  RightHUDImage CustomLogo\n" +
+            "  OptionsButtonEnable CustomOptions\n" +
+            "  ImagePart\n" +
+            "    ImageName CustomHUDImage\n" +
+            "  End\n" +
+            "End\n";
+
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndEditorViewModel.ParseControlBarSchemeIni(ini, dict);
+
+        // Assert
+        dict["RightHUD"].Should().Be("CustomLogo");
+        dict["ButtonOptions"].Should().Be("CustomOptions");
+        dict["BackgroundMarker"].Should().Be("CustomHUDImage");
+    }
+
+    /// <summary>
+    /// Tests that ParseControlBarSchemeIni parses flat format with equals signs and inline comments.
+    /// </summary>
+    [Fact]
+    public void ParseControlBarSchemeIni_FlatFormatWithComments_ParsesCorrectly()
+    {
+        // Arrange
+        const string ini =
+            "; Top-level comment\n" +
+            "RightHUDImage = CustomLogo ; inline comment\n" +
+            "OptionsButtonEnable = CustomOptions // c++ style comment\n" +
+            "ImagePart ImageName: CustomHUDImage\n";
+
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndEditorViewModel.ParseControlBarSchemeIni(ini, dict);
+
+        // Assert
+        dict["RightHUD"].Should().Be("CustomLogo");
+        dict["ButtonOptions"].Should().Be("CustomOptions");
+        dict["BackgroundMarker"].Should().Be("CustomHUDImage");
+    }
+
     private static string DrawDataWith(string name, int index)
     {
         var entries = new List<WndDrawDataEntry>();

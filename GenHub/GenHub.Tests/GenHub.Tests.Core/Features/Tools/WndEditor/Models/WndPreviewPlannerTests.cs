@@ -298,8 +298,8 @@ public sealed class WndPreviewPlannerTests
         var plan = WndPreviewPlanner.Plan(window);
 
         // Assert
-        plan.SingleImage.Should().Be("AmericaProCommandBar");
-        plan.ReferencedImages.Should().Contain("AmericaProCommandBar");
+        plan.SingleImage.Should().Be("InGameUIAmericaBase");
+        plan.ReferencedImages.Should().Contain("InGameUIAmericaBase");
     }
 
     /// <summary>

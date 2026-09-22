@@ -254,12 +254,12 @@ public static class WndPreviewPlanner
     {
         if (IsCommandBarBackground(name, drawCallback))
         {
-            return ResolveOverrideOrFallback(overrides, "BackgroundMarker", "AmericaProCommandBar");
+            return ResolveOverrideOrFallback(overrides, "BackgroundMarker", "InGameUIAmericaBase");
         }
 
         if (name.EndsWith(":RightHUD", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "RightHUD", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "RightHUD", "AmericaProLogo");
+            return ResolveOverrideOrFallback(overrides, "RightHUD", "SALogo");
         }
 
         return ResolveButtonOrMarkerFallback(name, overrides);
@@ -276,37 +276,37 @@ public static class WndPreviewPlanner
     {
         if (name.EndsWith(":ButtonOptions", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonOptions", "AmericaProOptions");
+            return ResolveOverrideOrFallback(overrides, "ButtonOptions", "SAOptions");
         }
 
         if (name.EndsWith(":ButtonIdleWorker", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonIdleWorker", "AmericaProWorker");
+            return ResolveOverrideOrFallback(overrides, "ButtonIdleWorker", "SAWorker");
         }
 
         if (name.EndsWith(":ButtonChat", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonChat", "AmericaProChat");
+            return ResolveOverrideOrFallback(overrides, "ButtonChat", "SAChat");
         }
 
         if (name.EndsWith(":ButtonPlaceBeacon", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonPlaceBeacon", "AmericaProBeacon");
+            return ResolveOverrideOrFallback(overrides, "ButtonPlaceBeacon", "SABeacon");
         }
 
         if (name.EndsWith(":ButtonGeneral", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonGeneral", "AmericaProGeneral");
+            return ResolveOverrideOrFallback(overrides, "ButtonGeneral", "SAGeneral");
         }
 
         if (name.EndsWith(":ButtonUAttack", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonUAttack", "AmericaProUAttack");
+            return ResolveOverrideOrFallback(overrides, "ButtonUAttack", "SAUAttackI");
         }
 
         if (name.EndsWith(":ExpBarForeground", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ExpBarForeground", "AmericaProExpBar");
+            return ResolveOverrideOrFallback(overrides, "ExpBarForeground", "SAExpBar");
         }
 
         if (name.Contains("ButtonCommand", StringComparison.OrdinalIgnoreCase) || name.Contains("CommandMarker", StringComparison.OrdinalIgnoreCase))

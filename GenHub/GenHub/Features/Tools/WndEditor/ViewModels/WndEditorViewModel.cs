@@ -2334,15 +2334,15 @@ public sealed partial class WndEditorViewModel(
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["BackgroundMarker"] = "AmericaProCommandBar",
-            ["RightHUD"] = "AmericaProLogo",
-            ["ButtonOptions"] = "AmericaProOptions",
-            ["ButtonIdleWorker"] = "AmericaProWorker",
-            ["ButtonChat"] = "AmericaProChat",
-            ["ButtonPlaceBeacon"] = "AmericaProBeacon",
-            ["ButtonGeneral"] = "AmericaProGeneral",
-            ["ButtonUAttack"] = "AmericaProUAttack",
-            ["ExpBarForeground"] = "AmericaProExpBar",
+            ["BackgroundMarker"] = "InGameUIAmericaBase",
+            ["RightHUD"] = "SALogo",
+            ["ButtonOptions"] = "SAOptions",
+            ["ButtonIdleWorker"] = "SAWorker",
+            ["ButtonChat"] = "SAChat",
+            ["ButtonPlaceBeacon"] = "SABeacon",
+            ["ButtonGeneral"] = "SAGeneral",
+            ["ButtonUAttack"] = "SAUAttackI",
+            ["ExpBarForeground"] = "SAExpBar",
             ["QueueButtonImage"] = "SCBigButton",
             ["ShellMenuBackdrop"] = "MainMenuBackdrop",
         };
@@ -2378,50 +2378,177 @@ public sealed partial class WndEditorViewModel(
         ["QueueButtonImage"] = "QueueButtonImage",
     };
 
-    private static void ParseControlBarSchemeIni(string iniText, Dictionary<string, string> result)
+    /// <summary>
+    /// Parses a ControlBarScheme INI file and populates the given dictionary with scheme image overrides.
+    /// </summary>
+    /// <param name="iniText">The INI file content.</param>
+    /// <param name="result">The dictionary to populate with image overrides.</param>
+    /// <param name="preferredScheme">The optional preferred scheme name to match.</param>
+    internal static void ParseControlBarSchemeIni(string iniText, Dictionary<string, string> result, string? preferredScheme = "ControlBarSchemeAmerica")
     {
         var lines = iniText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        var schemes = new List<(string Name, Dictionary<string, string> Overrides)>();
+        Dictionary<string, string>? currentSchemeDict = null;
+        var flatOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var inImagePart = false;
+
+        foreach (var rawLine in lines)
         {
-            var trimmed = line.Trim();
-            if (trimmed.StartsWith(';') || trimmed.StartsWith("//", StringComparison.Ordinal))
+            var line = StripComments(rawLine).Trim();
+            if (string.IsNullOrEmpty(line))
             {
                 continue;
             }
 
-            if (trimmed.StartsWith("ImagePart", StringComparison.OrdinalIgnoreCase))
+            var tokens = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0)
             {
-                ParseControlBarImagePart(trimmed, result);
+                continue;
             }
-            else if (trimmed.Contains('='))
+
+            var firstToken = tokens[0];
+
+            if (string.Equals(firstToken, "ControlBarScheme", StringComparison.OrdinalIgnoreCase))
             {
-                ParseControlBarKeyValue(trimmed, result);
+                var schemeName = tokens.Length > 1 ? tokens[1] : "Default";
+                currentSchemeDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                schemes.Add((schemeName, currentSchemeDict));
+                inImagePart = false;
+                continue;
+            }
+
+            if (string.Equals(firstToken, "ImagePart", StringComparison.OrdinalIgnoreCase))
+            {
+                inImagePart = true;
+                ParseInlineImagePart(line, currentSchemeDict ?? flatOverrides);
+                continue;
+            }
+
+            if (string.Equals(firstToken, "End", StringComparison.OrdinalIgnoreCase))
+            {
+                if (inImagePart)
+                {
+                    inImagePart = false;
+                }
+                else
+                {
+                    currentSchemeDict = null;
+                }
+
+                continue;
+            }
+
+            var targetDict = currentSchemeDict ?? flatOverrides;
+
+            if (inImagePart)
+            {
+                if (string.Equals(firstToken, "ImageName", StringComparison.OrdinalIgnoreCase) ||
+                    firstToken.StartsWith("ImageName:", StringComparison.OrdinalIgnoreCase) ||
+                    firstToken.StartsWith("ImageName=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var imageName = ExtractValueAfterKey(line, "ImageName");
+                    if (!string.IsNullOrEmpty(imageName))
+                    {
+                        targetDict["BackgroundMarker"] = imageName;
+                    }
+                }
+
+                continue;
+            }
+
+            string key;
+            string val;
+            if (line.Contains('='))
+            {
+                var parts = line.Split('=', 2);
+                key = parts[0].Trim();
+                val = parts[1].Trim();
+            }
+            else if (tokens.Length >= 2)
+            {
+                key = tokens[0];
+                val = tokens[1];
+            }
+            else
+            {
+                continue;
+            }
+
+            if (ControlBarKeyMap.TryGetValue(key, out var mappedKey))
+            {
+                targetDict[mappedKey] = val;
+            }
+        }
+
+        Dictionary<string, string>? selectedOverrides = null;
+        if (schemes.Count > 0)
+        {
+            selectedOverrides = schemes.Find(s =>
+                s.Name.Equals(preferredScheme, StringComparison.OrdinalIgnoreCase) ||
+                s.Name.Contains("America", StringComparison.OrdinalIgnoreCase)).Overrides;
+
+            selectedOverrides ??= schemes[0].Overrides;
+        }
+        else if (flatOverrides.Count > 0)
+        {
+            selectedOverrides = flatOverrides;
+        }
+
+        if (selectedOverrides != null)
+        {
+            foreach (var (k, v) in selectedOverrides)
+            {
+                result[k] = v;
             }
         }
     }
 
-    private static void ParseControlBarImagePart(string line, Dictionary<string, string> result)
+    private static string StripComments(string line)
+    {
+        var commentIdx = -1;
+        var semiIdx = line.IndexOf(';');
+        var slashIdx = line.IndexOf("//", StringComparison.Ordinal);
+
+        if (semiIdx >= 0 && slashIdx >= 0)
+        {
+            commentIdx = Math.Min(semiIdx, slashIdx);
+        }
+        else if (semiIdx >= 0)
+        {
+            commentIdx = semiIdx;
+        }
+        else if (slashIdx >= 0)
+        {
+            commentIdx = slashIdx;
+        }
+
+        return commentIdx >= 0 ? line[..commentIdx] : line;
+    }
+
+    private static void ParseInlineImagePart(string line, Dictionary<string, string> targetDict)
     {
         const string marker = "ImageName:";
         var idx = line.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
         if (idx >= 0)
         {
-            var imageName = line.Substring(idx + marker.Length).Trim();
+            var imageName = line[(idx + marker.Length)..].Trim();
             if (!string.IsNullOrEmpty(imageName))
             {
-                result["BackgroundMarker"] = imageName;
+                targetDict["BackgroundMarker"] = imageName;
             }
         }
     }
 
-    private static void ParseControlBarKeyValue(string line, Dictionary<string, string> result)
+    private static string ExtractValueAfterKey(string line, string keyName)
     {
-        var parts = line.Split('=', 2);
-        var key = parts[0].Trim();
-        var val = parts[1].Trim();
-        if (ControlBarKeyMap.TryGetValue(key, out var mappedKey))
+        var idx = line.IndexOf(keyName, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
         {
-            result[mappedKey] = val;
+            return string.Empty;
         }
+
+        var after = line[(idx + keyName.Length)..].TrimStart(':', '=', ' ', '\t').Trim();
+        var tokens = after.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Length > 0 ? tokens[0] : string.Empty;
     }
 }

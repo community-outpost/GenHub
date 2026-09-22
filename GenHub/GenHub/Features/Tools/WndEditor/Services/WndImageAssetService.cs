@@ -220,12 +220,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     private static IEnumerable<string> YieldStemVariants(IEnumerable<string> stems, IReadOnlyList<string> extensions, HashSet<string> returned)
     {
         var stemList = stems.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        foreach (var stem in stemList)
+        foreach (var stem in stemList.Where(s => !string.IsNullOrEmpty(Path.GetExtension(s)) && returned.Add(s)))
         {
-            if (!string.IsNullOrEmpty(Path.GetExtension(stem)) && returned.Add(stem))
-            {
-                yield return stem;
-            }
+            yield return stem;
         }
 
         foreach (var stem in stemList)
