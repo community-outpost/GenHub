@@ -39,6 +39,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private const string DropboxContentUrl = HostingConstants.DropboxContentUrl;
     private const string PublisherFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
     private const string MissingScopeTag = "missing_scope";
+    private const string DropboxApiArgHeader = "Dropbox-API-Arg";
 
     private readonly HttpClient _httpClient = InitializeHttpClient(httpClientFactory);
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -557,14 +558,20 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     /// <param name="disposing">True if disposing managed resources.</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (!_disposed)
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
         {
             // Note: _httpClient was created by IHttpClientFactory, which manages the lifecycle
             // and handler pooling. Disposing the factory-managed client is skipped to prevent
             // ObjectDisposedException on shared handlers.
             _refreshLock.Dispose();
-            _disposed = true;
         }
+
+        _disposed = true;
     }
 
     private static HttpClient InitializeHttpClient(IHttpClientFactory factory)
@@ -727,15 +734,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
 
         return totalRead;
-    }
-
-    private sealed record ChunkedSessionResult(bool Success, string FileId, long FileSize, bool IsExpiredToken, string? Error)
-    {
-        public static ChunkedSessionResult Expired() => new(false, string.Empty, 0, true, "Expired access token");
-
-        public static ChunkedSessionResult Failed(string error) => new(false, string.Empty, 0, false, error);
-
-        public static ChunkedSessionResult Succeeded(string fileId, long fileSize) => new(true, fileId, fileSize, false, null);
     }
 
     private async Task<OperationResult<HostingUploadResult>> UploadSeekableChunkedAsync(
@@ -958,7 +956,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         var startArgs = new { close = false };
 
         using var startRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload_session/start", _accessToken);
-        startRequest.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(startArgs));
+        startRequest.Headers.Add(DropboxApiArgHeader, JsonSerializer.Serialize(startArgs));
         startRequest.Content = new ByteArrayContent(buffer, 0, bytesRead);
         startRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
 
@@ -999,7 +997,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                     close = false,
                 };
                 using var appendRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload_session/append_v2", _accessToken);
-                appendRequest.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(appendArgs));
+                appendRequest.Headers.Add(DropboxApiArgHeader, JsonSerializer.Serialize(appendArgs));
                 appendRequest.Content = new ByteArrayContent(buffer, 0, bytesRead);
                 appendRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
 
@@ -1052,7 +1050,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         };
 
         using var finishRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload_session/finish", _accessToken);
-        finishRequest.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(finishArgs));
+        finishRequest.Headers.Add(DropboxApiArgHeader, JsonSerializer.Serialize(finishArgs));
         finishRequest.Content = new ByteArrayContent(buffer, 0, count);
         finishRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
 
@@ -1189,7 +1187,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private HttpRequestMessage CreateUploadRequest(object uploadArgs, byte[] payload)
     {
         var request = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload", _accessToken);
-        request.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(uploadArgs));
+        request.Headers.Add(DropboxApiArgHeader, JsonSerializer.Serialize(uploadArgs));
         request.Content = new ByteArrayContent(payload);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
         return request;
@@ -1522,5 +1520,14 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
 
         return null;
+    }
+
+    private sealed record ChunkedSessionResult(bool Success, string FileId, long FileSize, bool IsExpiredToken, string? Error)
+    {
+        public static ChunkedSessionResult Expired() => new(false, string.Empty, 0, true, "Expired access token");
+
+        public static ChunkedSessionResult Failed(string error) => new(false, string.Empty, 0, false, error);
+
+        public static ChunkedSessionResult Succeeded(string fileId, long fileSize) => new(true, fileId, fileSize, false, null);
     }
 }

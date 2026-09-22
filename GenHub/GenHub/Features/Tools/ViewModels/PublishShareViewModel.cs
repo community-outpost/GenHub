@@ -560,6 +560,10 @@ public partial class PublishShareViewModel(
     /// </summary>
     public bool IsDefinitionPublished => !string.IsNullOrEmpty(_currentHostingState?.Definition?.Url);
 
+    private string PleaseSelectHostingProviderMessage => GetLocalizedString("Tools.PublisherStudio.Publish.SelectHostingProvider", "Please select a hosting provider");
+
+    private string UploadAlreadyInProgressMessage => GetLocalizedString("Tools.PublisherStudio.Publish.UploadAlreadyInProgress", "An upload is already in progress.");
+
     /// <summary>
     /// Uploads a single artifact chosen from the Content Library tab.
     /// Applies the same guards and notifications as hosted-asset uploads.
@@ -683,10 +687,6 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(HostedAssetsCountText));
         OnPropertyChanged(nameof(CatalogStatusesCountText));
     }
-
-    private string PleaseSelectHostingProviderMessage => GetLocalizedString("Tools.PublisherStudio.Publish.SelectHostingProvider", "Please select a hosting provider");
-
-    private string UploadAlreadyInProgressMessage => GetLocalizedString("Tools.PublisherStudio.Publish.UploadAlreadyInProgress", "An upload is already in progress.");
 
     /// <summary>
     /// Updates the catalog ID, name, and file name in the hosting state if present and persists the change.
@@ -1069,10 +1069,10 @@ public partial class PublishShareViewModel(
             _authCts?.Cancel();
             _authCts?.Dispose();
             _authCts = null;
-            _publishGate.Dispose();
             _activeUploadCts?.Cancel();
             _activeUploadCts?.Dispose();
             _activeUploadCts = null;
+            _publishGate.Dispose();
             _uploadCts?.Cancel();
             _uploadCts?.Dispose();
             _uploadCts = null;
@@ -2290,7 +2290,7 @@ public partial class PublishShareViewModel(
 
     private async Task<(bool Acquired, CancellationTokenSource? Cts)> TryBeginPublishAsync()
     {
-        if (IsUploading || !await _publishGate.WaitAsync(0).ConfigureAwait(false))
+        if (IsUploading || !await _publishGate.WaitAsync(0, CancellationToken.None).ConfigureAwait(false))
         {
             return (false, null);
         }
@@ -2315,7 +2315,14 @@ public partial class PublishShareViewModel(
         finally
         {
             IsUploading = false;
-            _publishGate.Release();
+            try
+            {
+                _publishGate.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Gate was disposed during shutdown.
+            }
         }
     }
 

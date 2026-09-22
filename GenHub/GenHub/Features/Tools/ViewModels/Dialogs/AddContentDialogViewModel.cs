@@ -660,10 +660,10 @@ public partial class AddContentDialogViewModel(
         {
             using var stream = File.OpenRead(path);
             using var sha = SHA256.Create();
-            var hashBytes = await sha.ComputeHashAsync(stream);
+            var hashBytes = await sha.ComputeHashAsync(stream).ConfigureAwait(false);
             return Convert.ToHexString(hashBytes).ToLowerInvariant();
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return string.Empty;
         }

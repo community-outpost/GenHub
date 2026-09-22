@@ -250,75 +250,86 @@ public class HostingCredentialStore(
 
     private static string GetMachineSecret()
     {
-        if (File.Exists("/etc/machine-id"))
+        var linuxId = TryReadLinuxMachineId();
+        if (!string.IsNullOrEmpty(linuxId))
         {
-            try
-            {
-                var id = File.ReadAllText("/etc/machine-id").Trim();
-                if (!string.IsNullOrEmpty(id))
-                {
-                    return id;
-                }
-            }
-            catch
-            {
-                // Fallback below
-            }
-        }
-
-        if (File.Exists("/var/lib/dbus/machine-id"))
-        {
-            try
-            {
-                var id = File.ReadAllText("/var/lib/dbus/machine-id").Trim();
-                if (!string.IsNullOrEmpty(id))
-                {
-                    return id;
-                }
-            }
-            catch
-            {
-                // Fallback below
-            }
+            return linuxId;
         }
 
         if (OperatingSystem.IsMacOS())
         {
-            try
+            var macId = TryReadMacOsMachineId();
+            if (!string.IsNullOrEmpty(macId))
             {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "ioreg",
-                    Arguments = "-rd1 -c IOPlatformExpertDevice",
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
-                using var process = Process.Start(startInfo);
-                if (process != null)
-                {
-                    var output = process.StandardOutput.ReadToEnd();
-                    process.WaitForExit(1000);
-                    const string marker = "\"IOPlatformUUID\" = \"";
-                    var idx = output.IndexOf(marker, StringComparison.Ordinal);
-                    if (idx >= 0)
-                    {
-                        var start = idx + marker.Length;
-                        var end = output.IndexOf('"', start);
-                        if (end > start)
-                        {
-                            return output[start..end];
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // Fallback below
+                return macId;
             }
         }
 
         return Environment.MachineName;
+    }
+
+    private static string? TryReadLinuxMachineId()
+    {
+        string[] candidates = ["/etc/machine-id", "/var/lib/dbus/machine-id"];
+        foreach (var candidatePath in candidates)
+        {
+            if (File.Exists(candidatePath))
+            {
+                try
+                {
+                    var id = File.ReadAllText(candidatePath).Trim();
+                    if (!string.IsNullOrEmpty(id))
+                    {
+                        return id;
+                    }
+                }
+                catch
+                {
+                    // Fallback to next candidate
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string? TryReadMacOsMachineId()
+    {
+        try
+        {
+            var ioregPath = File.Exists("/usr/sbin/ioreg") ? "/usr/sbin/ioreg" : "ioreg";
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = ioregPath,
+                Arguments = "-rd1 -c IOPlatformExpertDevice",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var process = Process.Start(startInfo);
+            if (process != null)
+            {
+                var output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit(1000);
+                const string marker = ""IOPlatformUUID" = "";
+                var idx = output.IndexOf(marker, StringComparison.Ordinal);
+                if (idx >= 0)
+                {
+                    var start = idx + marker.Length;
+                    var end = output.IndexOf('"', start);
+                    if (end > start)
+                    {
+                        return output[start..end];
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Fallback below
+        }
+
+        return null;
     }
 
     private static void VerifySecureUnixPermissions(string filePath)
