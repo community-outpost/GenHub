@@ -555,11 +555,17 @@ public sealed class ProjectConfigService(
                     ? recentProjectsResult.Data
                     : new List<string>();
 
+                // Preserve existing casing if already present and valid on disk
+                var existing = recentProjects.FirstOrDefault(p => string.Equals(p, projectPath, StringComparison.OrdinalIgnoreCase));
+                var pathToInsert = existing != null && File.Exists(existing) && !File.Exists(projectPath)
+                    ? existing
+                    : projectPath;
+
                 // Remove if already exists (to move to front)
                 recentProjects.RemoveAll(p => string.Equals(p, projectPath, StringComparison.OrdinalIgnoreCase));
 
                 // Add to front
-                recentProjects.Insert(0, projectPath);
+                recentProjects.Insert(0, pathToInsert);
 
                 // Keep only top 20
                 if (recentProjects.Count > 20)
@@ -2541,13 +2547,24 @@ public sealed class ProjectConfigService(
 
         try
         {
+            var dir = Path.GetDirectoryName(path);
+            var filename = Path.GetFileName(path);
+            if (!string.IsNullOrEmpty(dir) && !string.IsNullOrEmpty(filename) && Directory.Exists(dir))
+            {
+                // On case-sensitive filesystems, check if matching file exists with different casing
+                if (Directory.EnumerateFiles(dir).Any(f => string.Equals(Path.GetFileName(f), filename, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+            }
+
             var root = Path.GetPathRoot(path);
             if (!string.IsNullOrEmpty(root) && !Directory.Exists(root))
             {
                 return true;
             }
         }
-        catch (ArgumentException)
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
         {
             return true;
         }

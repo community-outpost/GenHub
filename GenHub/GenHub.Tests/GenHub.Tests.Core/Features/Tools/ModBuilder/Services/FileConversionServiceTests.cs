@@ -153,6 +153,7 @@ public sealed class FileConversionServiceTests : IDisposable
 
         _mockExternalToolService.Setup(x => x.ExecuteToolAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, IProgress<string>?, CancellationToken>((tool, args, wd, prog, ct) => File.WriteAllText(destPath, "w3d output"))
             .ReturnsAsync(ToolOperationResult.CreateSuccess());
 
         // Act
@@ -162,6 +163,26 @@ public sealed class FileConversionServiceTests : IDisposable
         result.Success.Should().BeTrue();
         _mockExternalToolService.Verify(x => x.ExecuteToolAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConvertFileAsync_WithBlenderFile_WhenOutputFileNotCreated_ReturnsFailure()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "test_missing_output.blend");
+        var destPath = Path.Combine(_tempDirectory, "test_missing_output.w3d");
+        await File.WriteAllTextAsync(sourcePath, "dummy");
+
+        _mockExternalToolService.Setup(x => x.ExecuteToolAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ToolOperationResult.CreateSuccess());
+
+        // Act
+        var result = await _service.ConvertFileAsync(sourcePath, destPath);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("producing the expected output file");
     }
 
     [Fact]

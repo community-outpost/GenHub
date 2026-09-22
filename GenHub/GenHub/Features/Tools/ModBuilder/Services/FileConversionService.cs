@@ -1,3 +1,4 @@
+using System.Globalization;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Results.ModBuilder;
@@ -46,24 +47,23 @@ public sealed class FileConversionService(
             // Route to appropriate conversion service based on file type
             ConversionOperationResult result;
 
-            if ((sourceExt == ".psd" || sourceExt == ".tga" || sourceExt == ".tiff" ||
-                 sourceExt == ".tif" || sourceExt == ".dds" || sourceExt == ".bmp") &&
-                IsImageTarget(targetExt))
+            if (IsImageSource(sourceExt) && IsImageTarget(targetExt))
             {
                 result = await ConvertImageAsync(sourcePath, destinationPath, progress, cancellationToken)
                     .ConfigureAwait(false);
             }
-            else if ((sourceExt == ".str" && targetExt == ".csf") || (sourceExt == ".csf" && targetExt == ".str"))
+            else if ((sourceExt == ModBuilderConstants.FileExtensions.Str && targetExt == ModBuilderConstants.FileExtensions.Csf) ||
+                     (sourceExt == ModBuilderConstants.FileExtensions.Csf && targetExt == ModBuilderConstants.FileExtensions.Str))
             {
                 result = await ConvertStringTableAsync(sourcePath, destinationPath, progress, cancellationToken)
                     .ConfigureAwait(false);
             }
-            else if (sourceExt == ".blend")
+            else if (sourceExt == ModBuilderConstants.FileExtensions.Blend)
             {
                 result = await ExecuteBlenderConversionAsync(sourcePath, destinationPath, progress, cancellationToken)
                     .ConfigureAwait(false);
             }
-            else if (sourceExt is ".ini" or ".txt")
+            else if (sourceExt is ModBuilderConstants.FileExtensions.Ini or ModBuilderConstants.FileExtensions.Txt)
             {
                 result = await ProcessTextFileAsync(sourcePath, destinationPath, progress, cancellationToken)
                     .ConfigureAwait(false);
@@ -89,11 +89,31 @@ public sealed class FileConversionService(
     }
 
     /// <summary>
+    /// Checks if the source extension is a supported image format.
+    /// </summary>
+    private static bool IsImageSource(string extension)
+    {
+        return extension is ModBuilderConstants.FileExtensions.Psd
+            or ModBuilderConstants.FileExtensions.Tga
+            or ModBuilderConstants.FileExtensions.Tiff
+            or ModBuilderConstants.FileExtensions.Tif
+            or ModBuilderConstants.FileExtensions.Dds
+            or ModBuilderConstants.FileExtensions.Bmp;
+    }
+
+    /// <summary>
     /// Checks if the target extension is an image format.
     /// </summary>
     private static bool IsImageTarget(string extension)
     {
-        return extension is ".dds" or ".tga" or ".bmp" or ".tiff" or ".tif" or ".png" or ".jpg" or ".jpeg";
+        return extension is ModBuilderConstants.FileExtensions.Dds
+            or ModBuilderConstants.FileExtensions.Tga
+            or ModBuilderConstants.FileExtensions.Bmp
+            or ModBuilderConstants.FileExtensions.Tiff
+            or ModBuilderConstants.FileExtensions.Tif
+            or ModBuilderConstants.FileExtensions.Png
+            or ModBuilderConstants.FileExtensions.Jpg
+            or ModBuilderConstants.FileExtensions.Jpeg;
     }
 
     /// <summary>
@@ -165,8 +185,12 @@ public sealed class FileConversionService(
 
         logger.LogInformation("Executing Blender conversion: {Source} -> {Destination}", sourcePath, destinationPath);
 
-        var blenderPath = "blender";
-        var arguments = $"-b \"{sourcePath}\" -o \"{destinationPath}\" --python-exit-code 1";
+        var blenderPath = ModBuilderConstants.BlenderExecutable;
+        var arguments = string.Format(
+            CultureInfo.InvariantCulture,
+            ModBuilderConstants.BlenderExportArgumentFormat,
+            sourcePath,
+            destinationPath);
 
         var toolProgress = new Progress<string>(msg =>
         {
@@ -183,9 +207,18 @@ public sealed class FileConversionService(
 
         progress?.Report(1.0);
 
-        return result.Success
-            ? ConversionOperationResult.CreateSuccess()
-            : ConversionOperationResult.CreateFailure(result.Errors);
+        if (!result.Success)
+        {
+            return ConversionOperationResult.CreateFailure(result.Errors);
+        }
+
+        if (!File.Exists(destinationPath))
+        {
+            return ConversionOperationResult.CreateFailure(
+                $"Blender conversion completed without producing the expected output file: \"{destinationPath}\"");
+        }
+
+        return ConversionOperationResult.CreateSuccess();
     }
 
     /// <summary>
@@ -310,11 +343,11 @@ public sealed class FileConversionService(
 
             var isSupported = sourceExt switch
             {
-                ".psd" or ".tga" or ".tiff" or ".tif" or ".dds" or ".bmp" => IsImageTarget(targetExt),
-                ".str" => targetExt == ".csf",
-                ".csf" => targetExt == ".str",
-                ".blend" => targetExt is ".w3d" or ".blend",
-                _ => sourceExt == targetExt
+                _ when IsImageSource(sourceExt) => IsImageTarget(targetExt),
+                ModBuilderConstants.FileExtensions.Str => targetExt == ModBuilderConstants.FileExtensions.Csf,
+                ModBuilderConstants.FileExtensions.Csf => targetExt == ModBuilderConstants.FileExtensions.Str,
+                ModBuilderConstants.FileExtensions.Blend => targetExt is ModBuilderConstants.FileExtensions.W3d or ModBuilderConstants.FileExtensions.Blend,
+                _ => string.Equals(sourceExt, targetExt, StringComparison.OrdinalIgnoreCase)
             };
 
             return Task.FromResult(ConversionOperationResult<bool>.CreateSuccess(isSupported));

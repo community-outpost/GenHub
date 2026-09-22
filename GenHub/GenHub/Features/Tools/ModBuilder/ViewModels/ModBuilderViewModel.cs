@@ -1790,12 +1790,19 @@ public partial class ModBuilderViewModel(
             {
                 try
                 {
-                    Directory.Delete(staleDir, recursive: true);
-                    logger.LogInformation("Removed deprecated sample directory: {Dir}", staleDir);
+                    // Move deprecated sample directory to backup rather than silently deleting user data
+                    var backupDir = Path.Combine(userSamplesDir, $"{name}.backup");
+                    if (Directory.Exists(backupDir))
+                    {
+                        Directory.Delete(backupDir, recursive: true);
+                    }
+
+                    Directory.Move(staleDir, backupDir);
+                    logger.LogInformation("Preserved deprecated sample directory as backup: {Dir} -> {Backup}", staleDir, backupDir);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogDebug(ex, "Failed to clean deprecated sample directory {Dir}", staleDir);
+                    logger.LogDebug(ex, "Failed to preserve deprecated sample directory {Dir}", staleDir);
                 }
             }
         }

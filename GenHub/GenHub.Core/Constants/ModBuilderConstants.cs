@@ -444,6 +444,16 @@ public static class ModBuilderConstants
     public const string CrunchFallbackExecutable = "crunch.exe";
 
     /// <summary>
+    /// Name of the Blender tool executable.
+    /// </summary>
+    public const string BlenderExecutable = "blender";
+
+    /// <summary>
+    /// Command-line argument format for invoking Blender in headless background mode.
+    /// </summary>
+    public const string BlenderExportArgumentFormat = "-b \"{0}\" -o \"{1}\" --python-exit-code 1";
+
+    /// <summary>
     /// DXT1 texture format identifier (no alpha).
     /// </summary>
     public const string Dxt1Format = "DXT1";
@@ -670,6 +680,21 @@ public static class ModBuilderConstants
 
         /// <summary>File extension for ModBuilder project files.</summary>
         public const string Mbproj = ".mbproj";
+
+        /// <summary>File extension for TIFF image files.</summary>
+        public const string Tif = ".tif";
+
+        /// <summary>File extension for TIFF image files.</summary>
+        public const string Tiff = ".tiff";
+
+        /// <summary>File extension for plain text files.</summary>
+        public const string Txt = ".txt";
+
+        /// <summary>File extension for JPEG image files.</summary>
+        public const string Jpg = ".jpg";
+
+        /// <summary>File extension for JPEG image files.</summary>
+        public const string Jpeg = ".jpeg";
     }
 
     /// <summary>
