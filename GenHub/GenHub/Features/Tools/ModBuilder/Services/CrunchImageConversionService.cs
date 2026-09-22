@@ -434,7 +434,7 @@ public class CrunchImageConversionService(
     /// <summary>
     /// Prepares a 32-bit tga intermediate file with multi-alpha compositing and channel-split resizing.
     /// </summary>
-    private async Task<bool> PrepareTgaIntermediateAsync(
+    private static async Task<bool> PrepareTgaIntermediateAsync(
         string sourcePath,
         string targetTgaPath,
         string sourceExt,
@@ -447,59 +447,7 @@ public class CrunchImageConversionService(
 
             if (sourceExt == ".psd")
             {
-                using var magickImage = new MagickImage(sourcePath);
-
-                if (magickImage.ChannelCount <= 3)
-                {
-                    using var ms = new MemoryStream();
-                    magickImage.Format = MagickFormat.Png;
-                    magickImage.Write(ms);
-                    ms.Position = 0;
-                    using var loaded = Image.Load(ms);
-                    var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
-                    using var resizedLoadedScope = ReferenceEquals(resized, loaded) ? null : resized;
-                    resized.SaveAsTga(targetTgaPath, new TgaEncoder
-                    {
-                        BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                        Compression = TgaCompression.None
-                    });
-                    return true;
-                }
-
-                // multi-alpha compositing for psd files with > 3 channels
-                var channels = magickImage.Separate().ToList();
-                var r = channels[0];
-                var g = channels[1];
-                var b = channels[2];
-
-                var alpha = new MagickImage(MagickColors.White, magickImage.Width, magickImage.Height);
-                for (int i = 3; i < magickImage.ChannelCount; i++)
-                {
-                    alpha.Composite(channels[i], CompositeOperator.Multiply);
-                }
-
-                var collection = new MagickImageCollection { r, g, b, alpha };
-                using var merged = collection.Combine(ColorSpace.sRGB);
-                using var msPsd = new MemoryStream();
-                merged.Format = MagickFormat.Png;
-                merged.Write(msPsd);
-                msPsd.Position = 0;
-
-                foreach (var ch in channels)
-                {
-                    ch.Dispose();
-                }
-
-                alpha.Dispose();
-
-                using var psdLoaded = Image.Load(msPsd);
-                var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
-                using var resizedPsdScope = ReferenceEquals(resizedPsd, psdLoaded) ? null : resizedPsd;
-                resizedPsd.SaveAsTga(targetTgaPath, new TgaEncoder
-                {
-                    BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                    Compression = TgaCompression.None
-                });
+                PreparePsdIntermediate(sourcePath, targetTgaPath, parameters);
                 return true;
             }
 
@@ -510,20 +458,116 @@ public class CrunchImageConversionService(
                 return true;
             }
 
-            using var image = Image.Load(sourcePath);
-            var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-            using var resizedImageScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            resizedImage.SaveAsTga(targetTgaPath, new TgaEncoder
-            {
-                BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                Compression = TgaCompression.None
-            });
-
+            PrepareStandardImageIntermediate(sourcePath, targetTgaPath, parameters, cancellationToken);
             return true;
         }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Saves an ImageSharp image instance to target TGA path as uncompressed 32-bit TGA.
+    /// </summary>
+    private static void SaveImageAsTga(Image image, string targetTgaPath)
+    {
+        image.SaveAsTga(targetTgaPath, new TgaEncoder
+        {
+            BitsPerPixel = TgaBitsPerPixel.Pixel32,
+            Compression = TgaCompression.None,
+        });
+    }
+
+    /// <summary>
+    /// Prepares a PSD intermediate by delegating based on channel count.
+    /// </summary>
+    private static void PreparePsdIntermediate(
+        string sourcePath,
+        string targetTgaPath,
+        IDictionary<string, object>? parameters)
+    {
+        using var magickImage = new MagickImage(sourcePath);
+        if (magickImage.ChannelCount <= 3)
+        {
+            PrepareStandardPsdIntermediate(magickImage, targetTgaPath, parameters);
+            return;
+        }
+
+        PrepareMultiAlphaPsdIntermediate(magickImage, targetTgaPath, parameters);
+    }
+
+    /// <summary>
+    /// Prepares a standard 3-channel or fewer PSD intermediate.
+    /// </summary>
+    private static void PrepareStandardPsdIntermediate(
+        MagickImage magickImage,
+        string targetTgaPath,
+        IDictionary<string, object>? parameters)
+    {
+        using var ms = new MemoryStream();
+        magickImage.Format = MagickFormat.Png;
+        magickImage.Write(ms);
+        ms.Position = 0;
+        using var loaded = Image.Load(ms);
+        var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
+        using var resizedLoadedScope = ReferenceEquals(resized, loaded) ? null : resized;
+        SaveImageAsTga(resized, targetTgaPath);
+    }
+
+    /// <summary>
+    /// Prepares a multi-alpha (>3 channels) PSD intermediate with channel compositing.
+    /// </summary>
+    private static void PrepareMultiAlphaPsdIntermediate(
+        MagickImage magickImage,
+        string targetTgaPath,
+        IDictionary<string, object>? parameters)
+    {
+        var channels = magickImage.Separate().ToList();
+        try
+        {
+            var r = channels[0];
+            var g = channels[1];
+            var b = channels[2];
+
+            using var alpha = new MagickImage(MagickColors.White, magickImage.Width, magickImage.Height);
+            for (var i = 3; i < magickImage.ChannelCount; i++)
+            {
+                alpha.Composite(channels[i], CompositeOperator.Multiply);
+            }
+
+            using var collection = new MagickImageCollection { r, g, b, alpha };
+            using var merged = collection.Combine(ColorSpace.sRGB);
+            using var msPsd = new MemoryStream();
+            merged.Format = MagickFormat.Png;
+            merged.Write(msPsd);
+            msPsd.Position = 0;
+
+            using var psdLoaded = Image.Load(msPsd);
+            var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
+            using var resizedPsdScope = ReferenceEquals(resizedPsd, psdLoaded) ? null : resizedPsd;
+            SaveImageAsTga(resizedPsd, targetTgaPath);
+        }
+        finally
+        {
+            foreach (var ch in channels)
+            {
+                ch.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Prepares standard non-PSD/non-DDS intermediate image.
+    /// </summary>
+    private static void PrepareStandardImageIntermediate(
+        string sourcePath,
+        string targetTgaPath,
+        IDictionary<string, object>? parameters,
+        CancellationToken cancellationToken)
+    {
+        using var image = Image.Load(sourcePath);
+        var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+        using var resizedImageScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
+
+        cancellationToken.ThrowIfCancellationRequested();
+        SaveImageAsTga(resizedImage, targetTgaPath);
     }
 
     /// <summary>
