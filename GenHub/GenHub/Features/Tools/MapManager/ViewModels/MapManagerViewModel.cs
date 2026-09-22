@@ -1068,21 +1068,14 @@ public partial class MapManagerViewModel(
             }
             else
             {
-                var defaultError = GetLocalizedString("Maps.MapPack.Notification.UnknownError", "Unknown error");
-                var error = result.FirstError ?? defaultError;
-                notificationService.ShowError(
-                    GetLocalizedString("Maps.MapPack.Notification.CreationFailedTitle", MapManagerConstants.DefaultCreationFailedTitle),
-                    error);
-                StatusMessage = GetLocalizedString("Maps.MapPack.Status.CreationFailed", MapManagerConstants.DefaultCreationFailedStatus);
+                var defaultError = GetLocalizedString(MapManagerConstants.UnknownErrorKey, MapManagerConstants.DefaultUnknownError);
+                HandleMapPackCreationFailed(result.FirstError ?? defaultError);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create MapPack");
-            notificationService.ShowError(
-                GetLocalizedString("Maps.MapPack.Notification.CreationFailedTitle", MapManagerConstants.DefaultCreationFailedTitle),
-                ex.Message);
-            StatusMessage = GetLocalizedString("Maps.MapPack.Status.CreationFailed", MapManagerConstants.DefaultCreationFailedStatus);
+            HandleMapPackCreationFailed(ex.Message);
         }
         finally
         {
@@ -1338,27 +1331,28 @@ public partial class MapManagerViewModel(
             }
             else
             {
-                var defaultError = GetLocalizedString("Maps.MapPack.Notification.UnknownError", "Unknown error");
-                var error = result.FirstError ?? defaultError;
-                notificationService.ShowError(
-                    GetLocalizedString("Maps.MapPack.Notification.CreationFailedTitle", "Creation Failed"),
-                    error);
-                StatusMessage = GetLocalizedString("Maps.MapPack.Status.CreationFailed", "Creation failed.");
+                var defaultError = GetLocalizedString(MapManagerConstants.UnknownErrorKey, MapManagerConstants.DefaultUnknownError);
+                HandleMapPackCreationFailed(result.FirstError ?? defaultError);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create MapPack");
-            notificationService.ShowError(
-                GetLocalizedString("Maps.MapPack.Notification.CreationFailedTitle", "Creation Failed"),
-                ex.Message);
-            StatusMessage = GetLocalizedString("Maps.MapPack.Status.CreationFailed", "Creation failed.");
+            HandleMapPackCreationFailed(ex.Message);
         }
         finally
         {
             IsBusy = false;
             Progress = 0;
         }
+    }
+
+    private void HandleMapPackCreationFailed(string errorMessage)
+    {
+        notificationService.ShowError(
+            GetLocalizedString(MapManagerConstants.CreationFailedTitleKey, MapManagerConstants.DefaultCreationFailedTitle),
+            errorMessage);
+        StatusMessage = GetLocalizedString(MapManagerConstants.CreationFailedStatusKey, MapManagerConstants.DefaultCreationFailedStatus);
     }
 
     private string GetLocalizedString(string key, string fallback)

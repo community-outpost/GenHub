@@ -151,6 +151,26 @@ public static class MapManagerConstants
     public const string DefaultCreationFailedStatus = "Creation failed.";
 
     /// <summary>
+    /// Localization key for the MapPack creation failure notification title.
+    /// </summary>
+    public const string CreationFailedTitleKey = "Maps.MapPack.Notification.CreationFailedTitle";
+
+    /// <summary>
+    /// Localization key for the MapPack creation failure status text.
+    /// </summary>
+    public const string CreationFailedStatusKey = "Maps.MapPack.Status.CreationFailed";
+
+    /// <summary>
+    /// Localization key for the unknown error notification message.
+    /// </summary>
+    public const string UnknownErrorKey = "Maps.MapPack.Notification.UnknownError";
+
+    /// <summary>
+    /// Default fallback message for unknown errors.
+    /// </summary>
+    public const string DefaultUnknownError = "Unknown error";
+
+    /// <summary>
     /// Allowed file extensions for map packages.
     /// </summary>
     public static readonly string[] AllowedExtensions = [".map", ".tga", ".ini", ".str", ".txt"];
