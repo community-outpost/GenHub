@@ -289,9 +289,9 @@ public sealed class WndPreviewPlannerTests
         // Arrange
         var window = new WndWindow
         {
-            Name = "ControlBar.wnd:BackgroundMarker",
             ControlTypeName = WndConstants.ControlTypes.User,
         };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "ControlBar.wnd:BackgroundMarker");
         window.SetProperty(WndConstants.PropertyKeys.DrawCallback, "W3DCommandBarBackgroundDraw");
 
         // Act
@@ -311,9 +311,9 @@ public sealed class WndPreviewPlannerTests
         // Arrange
         var window = new WndWindow
         {
-            Name = "LanGameOptionsMenu.wnd:LanGameOptionsMenuParent",
             ControlTypeName = WndConstants.ControlTypes.User,
         };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "LanGameOptionsMenu.wnd:LanGameOptionsMenuParent");
         window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("MainMenuRuler", 0)));
 
         // Act
