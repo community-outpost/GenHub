@@ -2,7 +2,9 @@ using GenHub.Core.Constants;
 using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 
 namespace GenHub.Core.Services.Tools.WndEditor;
@@ -49,12 +51,9 @@ public static class WndGameFileSystem
 
         if (additionalBigFiles != null)
         {
-            foreach (var bigFile in additionalBigFiles)
+            foreach (var bigFile in additionalBigFiles.Where(f => !string.IsNullOrWhiteSpace(f) && File.Exists(f)))
             {
-                if (!string.IsNullOrWhiteSpace(bigFile) && File.Exists(bigFile))
-                {
-                    fileSystem.AddMod(bigFile);
-                }
+                fileSystem.AddMod(bigFile);
             }
         }
 

@@ -13,6 +13,8 @@ namespace GenHub.Features.Tools.WndEditor.ViewModels;
 /// <summary>
 /// A selectable rectangle on the preview canvas representing one window.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance properties required for Avalonia UI compiled data bindings")]
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance properties required for Avalonia UI compiled data bindings")]
 public sealed partial class WndCanvasItemViewModel : ObservableObject
 {
     /// <summary>
@@ -65,25 +67,35 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HeightMinusHandle))]
     private double _height;
 
+#pragma warning disable S2325 // Instance properties required for Avalonia UI compiled data bindings
     /// <summary>
     /// Gets the half-width offset for center resize handles.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public double HalfWidthMinusHandle => Math.Max(0, (Width / 2.0) - 5.0);
 
     /// <summary>
     /// Gets the half-height offset for middle resize handles.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public double HalfHeightMinusHandle => Math.Max(0, (Height / 2.0) - 5.0);
 
     /// <summary>
     /// Gets the right offset for east resize handles.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public double WidthMinusHandle => Math.Max(0, Width - 5.0);
 
     /// <summary>
     /// Gets the bottom offset for south resize handles.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public double HeightMinusHandle => Math.Max(0, Height - 5.0);
+#pragma warning restore S2325
 
     /// <summary>
     /// Gets or sets the label shown inside the rectangle.
