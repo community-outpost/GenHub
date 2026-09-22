@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using System;
 
@@ -79,6 +80,32 @@ public partial class WndEditorView : UserControl
         {
             e.Pointer.Capture(CanvasHost);
             viewModel.BeginCanvasDrag(item, e.GetPosition(CanvasHost));
+            e.Handled = true;
+        }
+    }
+
+    private void OnResizeHandlePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is not WndEditorViewModel viewModel || CanvasHost == null)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(this);
+        if (viewModel.IsPanMode || point.Properties.IsMiddleButtonPressed)
+        {
+            TryBeginPan(e);
+            return;
+        }
+
+        if (sender is Control control
+            && control.DataContext is WndCanvasItemViewModel item
+            && point.Properties.IsLeftButtonPressed
+            && control.Tag is string tagStr
+            && Enum.TryParse<WndResizeDirection>(tagStr, out var direction))
+        {
+            e.Pointer.Capture(CanvasHost);
+            viewModel.BeginCanvasResize(item, direction, e.GetPosition(CanvasHost));
             e.Handled = true;
         }
     }

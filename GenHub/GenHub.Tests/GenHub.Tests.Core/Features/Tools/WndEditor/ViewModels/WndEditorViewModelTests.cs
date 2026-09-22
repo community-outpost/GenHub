@@ -78,7 +78,8 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyCollection<string>?>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)));
         _mockStringTableService = new Mock<IWndStringTableService>();
@@ -88,7 +89,8 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyCollection<string>?>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
         var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
@@ -288,6 +290,120 @@ public sealed class WndEditorViewModelTests : IDisposable
         // Assert
         item.Window.TryGetScreenRect(out var restored).Should().BeTrue();
         restored.Should().Be(new WndScreenRect(10, 20, 110, 60, 800, 600));
+    }
+
+    /// <summary>
+    /// Tests that resizing a canvas item updates the window screen rect and records an undo step.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CanvasResize_ResizesWindowAndRecordsUndo()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        var item = _viewModel.CanvasItems.First(i => i.Window.ControlType == WndControlType.PushButton);
+
+        // Act - resize SouthEast (drag corner by +20, +30)
+        _viewModel.BeginCanvasResize(item, WndResizeDirection.SouthEast, new Point(110, 60));
+        _viewModel.UpdateCanvasDrag(new Point(130, 90));
+        _viewModel.EndCanvasDrag();
+
+        // Assert
+        item.Window.TryGetScreenRect(out var resized).Should().BeTrue();
+        resized.Should().Be(new WndScreenRect(10, 20, 130, 90, 800, 600));
+        _viewModel.CanUndo.Should().BeTrue();
+
+        // Act - Undo
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        item.Window.TryGetScreenRect(out var restored).Should().BeTrue();
+        restored.Should().Be(new WndScreenRect(10, 20, 110, 60, 800, 600));
+    }
+
+    /// <summary>
+    /// Tests that custom font specified in the window is applied to the canvas item.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentFontFamily_AppliesWhenSpecifiedInWnd()
+    {
+        // Arrange
+        const string fontDoc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = STATICTEXT;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 200 50, CREATIONRESOLUTION: 800 600;\n" +
+            "  TEXT = \"Test\";\n" +
+            "  FONT = NAME: \"Courier New\", SIZE: 14, BOLD: 0;\n" +
+            "END\n";
+
+        // Act
+        await _viewModel.LoadFromTextAsync(fontDoc, null);
+
+        // Assert
+        var item = _viewModel.CanvasItems.Should().ContainSingle().Subject;
+        item.ContentFontFamily.Should().NotBeNull();
+        item.ContentFontFamily!.Name.Should().Be("Courier New");
+    }
+
+    /// <summary>
+    /// Tests that linking mod folders and .big archives updates summary and properties.
+    /// </summary>
+    [Fact]
+    public void LinkedAssets_ManagingModFolderAndBigFiles_UpdatesProperties()
+    {
+        // Assert initial
+        _viewModel.HasLinkedAssets.Should().BeFalse();
+        _viewModel.LinkedAssetsSummary.Should().BeEmpty();
+
+        // Act - set linked mod folder and big archive
+        _viewModel.LinkedModFolder = Path.Combine(_tempDirectory, "MyMod");
+        _viewModel.LinkedBigFiles.Add(Path.Combine(_tempDirectory, "Textures.big"));
+        _viewModel.GetType().GetMethod("UpdateLinkedAssetsSummary", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.Invoke(_viewModel, null);
+
+        // Assert
+        _viewModel.HasLinkedAssets.Should().BeTrue();
+        _viewModel.LinkedAssetsSummary.Should().Contain("MyMod");
+        _viewModel.LinkedAssetsSummary.Should().Contain("1 .big");
+        _viewModel.LinkedAssetsTooltip.Should().Contain("Textures.big");
+
+        // Act - remove big file
+        _viewModel.RemoveLinkedBigFileCommand.Execute(Path.Combine(_tempDirectory, "Textures.big"));
+
+        // Assert
+        _viewModel.LinkedBigFiles.Should().BeEmpty();
+        _viewModel.HasLinkedAssets.Should().BeTrue();
+
+        // Act - clear all
+        _viewModel.ClearLinkedAssetsCommand.Execute(null);
+
+        // Assert
+        _viewModel.HasLinkedAssets.Should().BeFalse();
+        _viewModel.LinkedModFolder.Should().BeNull();
+        _viewModel.LinkedAssetsSummary.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Tests that Sibling Generals path is discovered from parent directory.
+    /// </summary>
+    [Fact]
+    public void FindSiblingGeneralsPath_DiscoversSiblingGeneralsDirectory()
+    {
+        // Arrange
+        var root = Path.Combine(_tempDirectory, "SteamLibrary", "GeneralsZeroHour");
+        var generalsDir = Path.Combine(root, "Command and Conquer Generals");
+        var zhDir = Path.Combine(root, "Command and Conquer Generals Zero Hour");
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zhDir);
+
+        // Act
+        var method = typeof(WndEditorViewModel).GetMethod("FindSiblingGeneralsPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var result = (string?)method?.Invoke(null, [zhDir]);
+
+        // Assert
+        result.Should().Be(generalsDir);
     }
 
     /// <summary>
@@ -741,7 +857,8 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyCollection<string>?>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -822,8 +939,9 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<IReadOnlyCollection<string>, string, string?, string?, CancellationToken>((names, _, _, _, _) => requested = names)
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyCollection<string>?>()))
+            .Callback<IReadOnlyCollection<string>, string, string?, string?, CancellationToken, IReadOnlyCollection<string>?>((names, _, _, _, _, _) => requested = names)
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)));
         SetupSingleInstallation();
@@ -942,7 +1060,8 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyCollection<string>?>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -1022,7 +1141,8 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyCollection<string>?>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -1073,7 +1193,8 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyCollection<string>?>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -1158,7 +1279,8 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyCollection<string>?>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {

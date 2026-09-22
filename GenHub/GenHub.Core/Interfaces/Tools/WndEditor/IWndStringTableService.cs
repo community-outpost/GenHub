@@ -18,13 +18,15 @@ public interface IWndStringTableService
     /// <param name="overrideRoot">Optional higher-priority root layered over the base.</param>
     /// <param name="projectDirectory">Optional mod project directory layered above game files.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
     /// <returns>Operation result with values per resolved label; unresolved labels are absent.</returns>
     Task<OperationResult<IReadOnlyDictionary<string, string>>> GetStringsAsync(
         IReadOnlyCollection<string> labels,
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<string>? additionalBigFiles = null);
 
     /// <summary>
     /// Invalidates cached string tables.

@@ -38,7 +38,8 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<string>? additionalBigFiles = null)
     {
         ArgumentNullException.ThrowIfNull(labels);
         ArgumentNullException.ThrowIfNull(baseRoot);
@@ -60,7 +61,7 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
 
         try
         {
-            var table = await GetOrLoadTableAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            var table = await GetOrLoadTableAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles).ConfigureAwait(false);
             var resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var label in labels)
             {
@@ -90,18 +91,20 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         }
     }
 
-    private static string TableKey(string baseRoot, string? overrideRoot, string? projectDirectory)
+    private static string TableKey(string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null)
     {
-        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty);
+        var extra = additionalBigFiles != null && additionalBigFiles.Count > 0 ? string.Join(";", additionalBigFiles) : string.Empty;
+        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty, "|", extra);
     }
 
     private async Task<IReadOnlyDictionary<string, string>> GetOrLoadTableAsync(
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? additionalBigFiles = null)
     {
-        var key = TableKey(baseRoot, overrideRoot, projectDirectory);
+        var key = TableKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles);
         if (_tables.TryGetValue(key, out var cached))
         {
             return cached;
@@ -115,7 +118,7 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
                 return cached;
             }
 
-            var loaded = await Task.Run(() => LoadTable(baseRoot, overrideRoot, projectDirectory, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var loaded = await Task.Run(() => LoadTable(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles), cancellationToken).ConfigureAwait(false);
             if (_tables.Count >= MaxCachedTables)
             {
                 _tables.Clear();
@@ -138,9 +141,10 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? additionalBigFiles = null)
     {
-        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken);
+        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles);
         foreach (var language in WndConstants.StringTables.Languages)
         {
             cancellationToken.ThrowIfCancellationRequested();

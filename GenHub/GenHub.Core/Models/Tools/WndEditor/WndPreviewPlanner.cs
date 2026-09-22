@@ -10,7 +10,7 @@ namespace GenHub.Core.Models.Tools.WndEditor;
 /// </summary>
 public static class WndPreviewPlanner
 {
-    private sealed record WndTextStyle(string? Text, WndRgbaColor? TextColor, int FontSize, bool FontBold);
+    private sealed record WndTextStyle(string? Text, WndRgbaColor? TextColor, int FontSize, bool FontBold, string? FontName = null);
 
     /// <summary>
     /// Plans the preview presentation for a window.
@@ -27,9 +27,9 @@ public static class WndPreviewPlanner
         var isSeeThru = status.Flags.Contains(WndConstants.StatusFlags.SeeThru, StringComparer.OrdinalIgnoreCase);
         var isImageWindow = status.Flags.Contains(WndConstants.StatusFlags.Image, StringComparer.OrdinalIgnoreCase);
         var text = PlanText(window);
-        var (textColor, fontSize, fontBold) = PlanTextStyle(window);
+        var (textColor, fontSize, fontBold, fontName) = PlanTextStyle(window);
         var textCentered = IsCenteredText(window);
-        var style = new WndTextStyle(text, textColor, fontSize, fontBold);
+        var style = new WndTextStyle(text, textColor, fontSize, fontBold, fontName);
 
         var plan = window.ControlType switch
         {
@@ -57,11 +57,11 @@ public static class WndPreviewPlanner
         if (left != null && middle != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
-            return new WndPreviewPlan(null, left, middle, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, true, isHidden);
+            return new WndPreviewPlan(null, left, middle, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, true, isHidden, FontName: style.FontName);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
-        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, true, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, true, isHidden, FontName: style.FontName);
     }
 
     private static WndPreviewPlan PlanTextEntry(
@@ -77,11 +77,11 @@ public static class WndPreviewPlanner
         if (left != null && center != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
-            return new WndPreviewPlan(null, left, center, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden);
+            return new WndPreviewPlan(null, left, center, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden, FontName: style.FontName);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
-        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden, FontName: style.FontName);
     }
 
     private static WndPreviewPlan PlanGeneric(
@@ -114,7 +114,8 @@ public static class WndPreviewPlanner
             style.FontSize,
             style.FontBold,
             textCentered,
-            isHidden);
+            isHidden,
+            FontName: style.FontName);
     }
 
     private static WndPreviewPlan PlanListbox(
@@ -153,7 +154,8 @@ public static class WndPreviewPlanner
             style.FontSize,
             style.FontBold,
             false,
-            isHidden);
+            isHidden,
+            FontName: style.FontName);
     }
 
     private static WndPreviewPlan PlanComboBox(
@@ -187,7 +189,8 @@ public static class WndPreviewPlanner
             style.FontSize,
             style.FontBold,
             false,
-            isHidden);
+            isHidden,
+            FontName: style.FontName);
     }
 
     private static WndPreviewPlan PlanSlider(
@@ -392,7 +395,7 @@ public static class WndPreviewPlanner
         return text.Length == 0 ? null : text;
     }
 
-    private static (WndRgbaColor? TextColor, int FontSize, bool FontBold) PlanTextStyle(WndWindow window)
+    private static (WndRgbaColor? TextColor, int FontSize, bool FontBold, string? FontName) PlanTextStyle(WndWindow window)
     {
         WndRgbaColor? textColor = null;
         if (WndTextColorValue.TryParse(window.GetProperty(WndConstants.PropertyKeys.TextColor), out var colors) && colors != null)
@@ -402,13 +405,23 @@ public static class WndPreviewPlanner
 
         var fontSize = WndConstants.Editor.DefaultFontSize;
         var fontBold = false;
+        string? fontName = null;
         if (WndFontValue.TryParse(window.GetProperty(WndConstants.PropertyKeys.Font), out var font) && font != null)
         {
             fontSize = Math.Max(1, font.Size);
             fontBold = font.Bold;
+            fontName = string.IsNullOrWhiteSpace(font.Name) ? null : font.Name.Trim();
+        }
+        else
+        {
+            var rawFont = window.GetProperty(WndConstants.PropertyKeys.Font)?.Trim(' ', '"', '\x27', ';');
+            if (!string.IsNullOrWhiteSpace(rawFont))
+            {
+                fontName = rawFont;
+            }
         }
 
-        return (textColor, fontSize, fontBold);
+        return (textColor, fontSize, fontBold, fontName);
     }
 
     private static bool IsCenteredText(WndWindow window)

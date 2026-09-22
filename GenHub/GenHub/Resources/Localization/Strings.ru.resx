@@ -12518,6 +12518,36 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>Клиент игры больше не определяет варианты для разных платформ.</value>
   </data>
+  <data name="Tools.WndEditor.Assets.LinkMenu" xml:space="preserve">
+    <value>Связать ресурсы</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkTooltip" xml:space="preserve">
+    <value>Связать папку мода или архивы .BIG для ресурсов холста</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkModFolder" xml:space="preserve">
+    <value>Связать папку мода...</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkModFolderTitle" xml:space="preserve">
+    <value>Выберите корневую папку мода</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkBigArchive" xml:space="preserve">
+    <value>Связать архив .BIG...</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkBigArchiveTitle" xml:space="preserve">
+    <value>Выберите архив .BIG</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.BigArchiveFilter" xml:space="preserve">
+    <value>Архивы BIG (*.big)</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Reload" xml:space="preserve">
+    <value>Перезагрузить ресурсы</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Clear" xml:space="preserve">
+    <value>Очистить связанные ресурсы</value>
+  </data>
+  <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
+    <value>Изменить размер окна</value>
+  </data>
   <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
     <value>Добавить в профиль</value>
   </data>

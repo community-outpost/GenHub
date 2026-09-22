@@ -508,6 +508,63 @@
                     </DataTemplate>
                   </ComboBox.ItemTemplate>
                 </ComboBox>
+                <Button Content="{localization:Localize Tools.WndEditor.Assets.LinkMenu}"
+                        Padding="8,4"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        FontSize="11" FontWeight="SemiBold"
+                        ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.LinkTooltip}">
+                  <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                      <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.LinkModFolder}"
+                                Command="{Binding LinkModFolderWithDialogCommand}">
+                        <MenuItem.Icon>
+                          <material:MaterialIcon Kind="FolderOpen" Width="14" Height="14"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.LinkBigArchive}"
+                                Command="{Binding LinkBigArchiveWithDialogCommand}">
+                        <MenuItem.Icon>
+                          <material:MaterialIcon Kind="PackageVariant" Width="14" Height="14"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                      <Separator/>
+                      <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.Reload}"
+                                Command="{Binding ReloadAssetsCommand}">
+                        <MenuItem.Icon>
+                          <material:MaterialIcon Kind="Refresh" Width="14" Height="14"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                      <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.Clear}"
+                                Command="{Binding ClearLinkedAssetsCommand}"
+                                IsEnabled="{Binding HasLinkedAssets}">
+                        <MenuItem.Icon>
+                          <material:MaterialIcon Kind="CloseCircleOutline" Width="14" Height="14"/>
+                        </MenuItem.Icon>
+                      </MenuItem>
+                    </MenuFlyout>
+                  </Button.Flyout>
+                </Button>
+                <Border Background="{DynamicResource AccentTintBrush}"
+                        BorderBrush="{DynamicResource AccentBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        Padding="6,3"
+                        IsVisible="{Binding HasLinkedAssets}"
+                        ToolTip.Tip="{Binding LinkedAssetsTooltip}">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="{Binding LinkedAssetsSummary}"
+                               FontSize="10" FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentBrush}"
+                               VerticalAlignment="Center"/>
+                    <Button Content="✕"
+                            Command="{Binding ClearLinkedAssetsCommand}"
+                            Background="Transparent" BorderThickness="0"
+                            Padding="2,0" FontSize="9"
+                            Cursor="Hand"
+                            ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.Clear}"/>
+                  </StackPanel>
+                </Border>
               </StackPanel>
             </Grid>
             <Border Grid.Row="1"
@@ -591,6 +648,7 @@
                           <TextBlock Text="{Binding ContentText}"
                                      Width="{Binding Width}" Height="{Binding Height}"
                                      Padding="{Binding ContentTextPadding}"
+                                     FontFamily="{Binding ContentFontFamily}"
                                      FontSize="{Binding ContentFontSize}"
                                      FontWeight="{Binding ContentFontWeight}"
                                      Foreground="{Binding ContentTextBrush}"
@@ -613,6 +671,40 @@
                                      MaxWidth="{Binding Width}"
                                      IsVisible="{Binding ShowFallbackNameTag}"
                                      IsHitTestVisible="False"/>
+                          <Canvas Width="{Binding Width}" Height="{Binding Height}" IsVisible="{Binding IsSelected}" IsHitTestVisible="True">
+                            <Border Canvas.Left="-5" Canvas.Top="-5" Width="10" Height="10"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopLeftCorner" Tag="NorthWest"
+                                    PointerPressed="OnResizeHandlePointerPressed"/>
+                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="-5" Width="10" Height="10"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopSide" Tag="North"
+                                    PointerPressed="OnResizeHandlePointerPressed"/>
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="-5" Width="10" Height="10"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1.5" CornerRadius="2" Cursor="TopRightCorner" Tag="NorthEast"
+                                    PointerPressed="OnResizeHandlePointerPressed"/>
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HalfHeightMinusHandle}" Width="10" Height="10"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1.5" CornerRadius="2" Cursor="RightSide" Tag="East"
+                                    PointerPressed="OnResizeHandlePointerPressed"/>
+                            <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomRightCorner" Tag="SouthEast"
+                                    PointerPressed="OnResizeHandlePointerPressed"/>
+                            <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomSide" Tag="South"
+                                    PointerPressed="OnResizeHandlePointerPressed"/>
+                            <Border Canvas.Left="-5" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1.5" CornerRadius="2" Cursor="BottomLeftCorner" Tag="SouthWest"
+                                    PointerPressed="OnResizeHandlePointerPressed"/>
+                            <Border Canvas.Left="-5" Canvas.Top="{Binding HalfHeightMinusHandle}" Width="10" Height="10"
+                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1.5" CornerRadius="2" Cursor="LeftSide" Tag="West"
+                                    PointerPressed="OnResizeHandlePointerPressed"/>
+                          </Canvas>
                         </Panel>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>

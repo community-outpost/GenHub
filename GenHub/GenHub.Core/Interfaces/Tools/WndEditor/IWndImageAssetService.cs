@@ -18,13 +18,15 @@ public interface IWndImageAssetService
     /// <param name="overrideRoot">Optional higher-priority root layered over the base.</param>
     /// <param name="projectDirectory">Optional mod project directory layered above game files.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
     /// <returns>Operation result with PNG bytes per resolved name; unresolved names are absent.</returns>
     Task<OperationResult<IReadOnlyDictionary<string, byte[]>>> GetImagesAsync(
         IReadOnlyCollection<string> mappedImageNames,
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<string>? additionalBigFiles = null);
 
     /// <summary>
     /// Invalidates cached asset indexes and decoded preview images.

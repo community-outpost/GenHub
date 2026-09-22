@@ -22,13 +22,15 @@ public static class WndGameFileSystem
     /// <param name="projectDirectory">Optional mod project directory layered above game files.</param>
     /// <param name="logger">The logger sink.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
     /// <returns>The layered virtual file system.</returns>
     public static SageVirtualFileSystem Open(
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
         ILogger logger,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<string>? additionalBigFiles = null)
     {
         ArgumentNullException.ThrowIfNull(baseRoot);
         ArgumentNullException.ThrowIfNull(logger);
@@ -43,6 +45,17 @@ public static class WndGameFileSystem
         if (!string.IsNullOrWhiteSpace(projectDirectory) && Directory.Exists(projectDirectory))
         {
             LayerProjectDirectory(fileSystem, projectDirectory);
+        }
+
+        if (additionalBigFiles != null)
+        {
+            foreach (var bigFile in additionalBigFiles)
+            {
+                if (!string.IsNullOrWhiteSpace(bigFile) && File.Exists(bigFile))
+                {
+                    fileSystem.AddMod(bigFile);
+                }
+            }
         }
 
         return fileSystem;

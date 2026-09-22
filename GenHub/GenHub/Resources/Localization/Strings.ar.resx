@@ -12518,6 +12518,36 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>لم يعد عميل اللعبة يحدد نسخًا مخصصة للمنصات.</value>
   </data>
+  <data name="Tools.WndEditor.Assets.LinkMenu" xml:space="preserve">
+    <value>ربط الموارد</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkTooltip" xml:space="preserve">
+    <value>ربط مجلد المود أو أرشيفات .BIG لموارد اللوحة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkModFolder" xml:space="preserve">
+    <value>ربط مجلد المود...</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkModFolderTitle" xml:space="preserve">
+    <value>حدد المجلد الجذر للمود</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkBigArchive" xml:space="preserve">
+    <value>ربط أرشيف .BIG...</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkBigArchiveTitle" xml:space="preserve">
+    <value>حدد أرشيف .BIG</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.BigArchiveFilter" xml:space="preserve">
+    <value>أرشيفات BIG (*.big)</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Reload" xml:space="preserve">
+    <value>إعادة تحميل الموارد</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Clear" xml:space="preserve">
+    <value>مسح الموارد المرتبطة</value>
+  </data>
+  <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
+    <value>تغيير حجم النافذة</value>
+  </data>
   <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
     <value>إضافة إلى الملف التعريفي</value>
   </data>

@@ -4,6 +4,7 @@ using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
@@ -52,13 +53,37 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// Gets or sets the width in device-independent pixels.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HalfWidthMinusHandle))]
+    [NotifyPropertyChangedFor(nameof(WidthMinusHandle))]
     private double _width;
 
     /// <summary>
     /// Gets or sets the height in device-independent pixels.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HalfHeightMinusHandle))]
+    [NotifyPropertyChangedFor(nameof(HeightMinusHandle))]
     private double _height;
+
+    /// <summary>
+    /// Gets the half-width offset for center resize handles.
+    /// </summary>
+    public double HalfWidthMinusHandle => Math.Max(0, (Width / 2.0) - 5.0);
+
+    /// <summary>
+    /// Gets the half-height offset for middle resize handles.
+    /// </summary>
+    public double HalfHeightMinusHandle => Math.Max(0, (Height / 2.0) - 5.0);
+
+    /// <summary>
+    /// Gets the right offset for east resize handles.
+    /// </summary>
+    public double WidthMinusHandle => Math.Max(0, Width - 5.0);
+
+    /// <summary>
+    /// Gets the bottom offset for south resize handles.
+    /// </summary>
+    public double HeightMinusHandle => Math.Max(0, Height - 5.0);
 
     /// <summary>
     /// Gets or sets the label shown inside the rectangle.
@@ -151,6 +176,12 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// Gets a value indicating whether the fallback control-type tag shows muted.
     /// </summary>
     public bool ShowFallbackNameTag => ShowNameTag && IsFallbackLabel;
+
+    /// <summary>
+    /// Gets or sets the control text font family.
+    /// </summary>
+    [ObservableProperty]
+    private FontFamily? _contentFontFamily;
 
     /// <summary>
     /// Gets or sets the control text brush.

@@ -49,7 +49,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<string>? additionalBigFiles = null)
     {
         ArgumentNullException.ThrowIfNull(mappedImageNames);
         ArgumentNullException.ThrowIfNull(baseRoot);
@@ -71,7 +72,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         try
         {
-            var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles).ConfigureAwait(false);
             var requests = CollectRequests(mappedImageNames, index);
             var resolved = await Task.Run(() => DecodeRequests(mappedImageNames, requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (_imageCache.Count > MaxCachedImages)
@@ -104,9 +105,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
     }
 
-    private static string IndexKey(string baseRoot, string? overrideRoot, string? projectDirectory)
+    private static string IndexKey(string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null)
     {
-        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty);
+        var extra = additionalBigFiles != null && additionalBigFiles.Count > 0 ? string.Join(";", additionalBigFiles) : string.Empty;
+        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty, "|", extra);
     }
 
     private static string CacheKey(string indexKey, string name)
@@ -285,9 +287,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? additionalBigFiles = null)
     {
-        var key = IndexKey(baseRoot, overrideRoot, projectDirectory);
+        var key = IndexKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles);
         if (_indexes.TryGetValue(key, out var cached))
         {
             return cached;
@@ -301,7 +304,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 return cached;
             }
 
-            var built = await Task.Run(() => BuildIndex(key, baseRoot, overrideRoot, projectDirectory, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var built = await Task.Run(() => BuildIndex(key, baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles), cancellationToken).ConfigureAwait(false);
             if (_indexes.Count >= MaxCachedIndexes)
             {
                 _indexes.Clear();
@@ -321,9 +324,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? additionalBigFiles = null)
     {
-        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken);
+        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles);
 
         var searchDirs = new List<string>
         {

@@ -70,6 +70,8 @@ public sealed partial class WndEditorViewModel(
     private WndCanvasItemViewModel? _dragItem;
     private Point _dragStart;
     private WndScreenRect? _dragOriginal;
+    private bool _isResizing;
+    private WndResizeDirection _resizeDirection = WndResizeDirection.None;
     private IReadOnlyList<GameInstallation> _installations = [];
     private Dictionary<string, Bitmap> _previewBitmaps = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, byte[]> _previewPngs = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
@@ -252,6 +254,35 @@ public sealed partial class WndEditorViewModel(
     private string? _assetStatusTooltip;
 
     /// <summary>
+    /// Gets or sets an optional user-linked mod folder to load loose assets from.
+    /// </summary>
+    [ObservableProperty]
+    private string? _linkedModFolder;
+
+    /// <summary>
+    /// Gets the collection of user-linked .BIG archives to load assets from.
+    /// </summary>
+    public ObservableCollection<string> LinkedBigFiles { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the summary string of currently linked custom assets.
+    /// </summary>
+    [ObservableProperty]
+    private string _linkedAssetsSummary = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the tooltip showing details of linked custom assets.
+    /// </summary>
+    [ObservableProperty]
+    private string? _linkedAssetsTooltip;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether custom assets are currently linked.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasLinkedAssets;
+
+    /// <summary>
     /// Gets a value indicating whether undo is available.
     /// </summary>
     public bool CanUndo => _undoStack.Count > 0;
@@ -383,13 +414,45 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
-    /// Moves the dragged canvas item.
+    /// Starts resizing a canvas item in the specified direction.
+    /// </summary>
+    /// <param name="item">The resized item.</param>
+    /// <param name="direction">The resize handle direction.</param>
+    /// <param name="canvasPoint">The pointer position in canvas coordinates.</param>
+    public void BeginCanvasResize(WndCanvasItemViewModel? item, WndResizeDirection direction, Point canvasPoint)
+    {
+        _dragItem = null;
+        _dragOriginal = null;
+        _isResizing = false;
+        _resizeDirection = WndResizeDirection.None;
+
+        if (item == null || direction == WndResizeDirection.None || !item.Window.TryGetScreenRect(out var rect) || rect == null)
+        {
+            return;
+        }
+
+        SelectWindow(item.Window);
+        _dragItem = item;
+        _dragStart = canvasPoint;
+        _dragOriginal = rect;
+        _isResizing = true;
+        _resizeDirection = direction;
+    }
+
+    /// <summary>
+    /// Moves or resizes the dragged canvas item.
     /// </summary>
     /// <param name="canvasPoint">The pointer position in canvas coordinates.</param>
     public void UpdateCanvasDrag(Point canvasPoint)
     {
         if (_dragItem == null || _dragOriginal == null)
         {
+            return;
+        }
+
+        if (_isResizing)
+        {
+            UpdateCanvasResize(canvasPoint);
             return;
         }
 
@@ -410,28 +473,36 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
-    /// Finishes dragging a canvas item and records the move as one undoable edit.
+    /// Finishes dragging or resizing a canvas item and records the edit as an undoable action.
     /// </summary>
     public void EndCanvasDrag()
     {
         var item = _dragItem;
         var original = _dragOriginal;
+        var wasResizing = _isResizing;
         _dragItem = null;
         _dragOriginal = null;
+        _isResizing = false;
+        _resizeDirection = WndResizeDirection.None;
+
         if (item == null || original == null)
         {
             return;
         }
 
-        if (!item.Window.TryGetScreenRect(out var moved) || moved == null || moved.Equals(original))
+        if (!item.Window.TryGetScreenRect(out var changed) || changed == null || changed.Equals(original))
         {
             SyncAfterEdit(item.Window);
             return;
         }
 
-        var finalRect = moved;
+        var finalRect = changed;
+        var actionName = wasResizing
+            ? localizationService.GetString("Tools.WndEditor.History.ResizeWindow")
+            : localizationService.GetString("Tools.WndEditor.History.MoveWindow");
+
         PushUndo(new WndEditAction(
-            localizationService.GetString("Tools.WndEditor.History.MoveWindow"),
+            actionName,
             () =>
             {
                 item.Window.SetProperty(WndConstants.PropertyKeys.ScreenRect, finalRect.ToString());
@@ -463,7 +534,7 @@ public sealed partial class WndEditorViewModel(
         _previewBitmaps.Clear();
     }
 
-    /// <summary>
+/// <summary>
     /// Parses a ControlBarScheme INI file and populates the given dictionary with scheme image overrides.
     /// </summary>
     /// <param name="iniText">The INI file content.</param>
@@ -482,6 +553,70 @@ public sealed partial class WndEditorViewModel(
         }
 
         return TopLevel.GetTopLevel(lifetime.MainWindow);
+    }
+
+    private void UpdateCanvasResize(Point canvasPoint)
+    {
+        if (_dragItem == null || _dragOriginal == null)
+        {
+            return;
+        }
+
+        var deltaX = (int)Math.Round((canvasPoint.X - _dragStart.X) / Zoom);
+        var deltaY = (int)Math.Round((canvasPoint.Y - _dragStart.Y) / Zoom);
+
+        const int minDimension = 8;
+        var left = _dragOriginal.UpperLeftX;
+        var top = _dragOriginal.UpperLeftY;
+        var right = _dragOriginal.BottomRightX;
+        var bottom = _dragOriginal.BottomRightY;
+
+        switch (_resizeDirection)
+        {
+            case WndResizeDirection.East:
+                right = Math.Max(left + minDimension, _dragOriginal.BottomRightX + deltaX);
+                break;
+            case WndResizeDirection.West:
+                left = Math.Min(right - minDimension, _dragOriginal.UpperLeftX + deltaX);
+                break;
+            case WndResizeDirection.South:
+                bottom = Math.Max(top + minDimension, _dragOriginal.BottomRightY + deltaY);
+                break;
+            case WndResizeDirection.North:
+                top = Math.Min(bottom - minDimension, _dragOriginal.UpperLeftY + deltaY);
+                break;
+            case WndResizeDirection.SouthEast:
+                right = Math.Max(left + minDimension, _dragOriginal.BottomRightX + deltaX);
+                bottom = Math.Max(top + minDimension, _dragOriginal.BottomRightY + deltaY);
+                break;
+            case WndResizeDirection.NorthEast:
+                right = Math.Max(left + minDimension, _dragOriginal.BottomRightX + deltaX);
+                top = Math.Min(bottom - minDimension, _dragOriginal.UpperLeftY + deltaY);
+                break;
+            case WndResizeDirection.SouthWest:
+                left = Math.Min(right - minDimension, _dragOriginal.UpperLeftX + deltaX);
+                bottom = Math.Max(top + minDimension, _dragOriginal.BottomRightY + deltaY);
+                break;
+            case WndResizeDirection.NorthWest:
+                left = Math.Min(right - minDimension, _dragOriginal.UpperLeftX + deltaX);
+                top = Math.Min(bottom - minDimension, _dragOriginal.UpperLeftY + deltaY);
+                break;
+            default:
+                break;
+        }
+
+        var resized = new WndScreenRect(
+            left,
+            top,
+            right,
+            bottom,
+            _dragOriginal.CreationWidth,
+            _dragOriginal.CreationHeight);
+        _dragItem.Window.SetProperty(WndConstants.PropertyKeys.ScreenRect, resized.ToString());
+        _dragItem.X = (resized.UpperLeftX + WndConstants.Editor.CanvasPadding) * Zoom;
+        _dragItem.Y = (resized.UpperLeftY + WndConstants.Editor.CanvasPadding) * Zoom;
+        _dragItem.Width = Math.Max(0, resized.Width) * Zoom;
+        _dragItem.Height = Math.Max(0, resized.Height) * Zoom;
     }
 
     private static WndWindow CreateDefaultWindow()
@@ -732,6 +867,158 @@ public sealed partial class WndEditorViewModel(
                 await OpenFileAsync(localPath, cancellationToken);
             }
         }
+    }
+
+    /// <summary>
+    /// Links a mod root folder to load assets from.
+    /// </summary>
+    [RelayCommand]
+    private async Task LinkModFolderWithDialogAsync(CancellationToken cancellationToken = default)
+    {
+        var topLevel = GetTopLevel();
+        if (topLevel == null)
+        {
+            return;
+        }
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = localizationService.GetString("Tools.WndEditor.Assets.LinkModFolderTitle"),
+            AllowMultiple = false,
+        });
+
+        if (folders.Count == 0)
+        {
+            return;
+        }
+
+        var localPath = folders[0].TryGetLocalPath();
+        if (!string.IsNullOrEmpty(localPath))
+        {
+            LinkedModFolder = localPath;
+            UpdateLinkedAssetsSummary();
+            assetService.InvalidateCache();
+            RefreshAssetPreviews();
+        }
+    }
+
+    /// <summary>
+    /// Links one or more .BIG archives to load assets from.
+    /// </summary>
+    [RelayCommand]
+    private async Task LinkBigArchiveWithDialogAsync(CancellationToken cancellationToken = default)
+    {
+        var topLevel = GetTopLevel();
+        if (topLevel == null)
+        {
+            return;
+        }
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = localizationService.GetString("Tools.WndEditor.Assets.LinkBigArchiveTitle"),
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(localizationService.GetString("Tools.WndEditor.Assets.BigArchiveFilter"))
+                {
+                    Patterns = ["*.big"],
+                },
+            ],
+        });
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        var added = false;
+        foreach (var file in files)
+        {
+            var localPath = file.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(localPath) && !LinkedBigFiles.Contains(localPath))
+            {
+                LinkedBigFiles.Add(localPath);
+                added = true;
+            }
+        }
+
+        if (added)
+        {
+            UpdateLinkedAssetsSummary();
+            assetService.InvalidateCache();
+            RefreshAssetPreviews();
+        }
+    }
+
+    /// <summary>
+    /// Clears all linked custom mod folders and .BIG archives.
+    /// </summary>
+    [RelayCommand]
+    private void ClearLinkedAssets()
+    {
+        LinkedModFolder = null;
+        LinkedBigFiles.Clear();
+        UpdateLinkedAssetsSummary();
+        assetService.InvalidateCache();
+        RefreshAssetPreviews();
+    }
+
+    /// <summary>
+    /// Removes a specific linked .BIG archive.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveLinkedBigFile(string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        if (LinkedBigFiles.Remove(path))
+        {
+            UpdateLinkedAssetsSummary();
+            assetService.InvalidateCache();
+            RefreshAssetPreviews();
+        }
+    }
+
+    /// <summary>
+    /// Reloads asset previews by invalidating cached indexes.
+    /// </summary>
+    [RelayCommand]
+    private void ReloadAssets()
+    {
+        assetService.InvalidateCache();
+        RefreshAssetPreviews();
+    }
+
+    private void UpdateLinkedAssetsSummary()
+    {
+        HasLinkedAssets = !string.IsNullOrEmpty(LinkedModFolder) || LinkedBigFiles.Count > 0;
+        if (!HasLinkedAssets)
+        {
+            LinkedAssetsSummary = string.Empty;
+            LinkedAssetsTooltip = null;
+            return;
+        }
+
+        var parts = new List<string>();
+        var tooltipLines = new List<string>();
+        if (!string.IsNullOrEmpty(LinkedModFolder))
+        {
+            parts.Add($"📁 {Path.GetFileName(LinkedModFolder)}");
+            tooltipLines.Add($"Mod: {LinkedModFolder}");
+        }
+
+        if (LinkedBigFiles.Count > 0)
+        {
+            parts.Add($"📦 {LinkedBigFiles.Count} .big");
+            tooltipLines.AddRange(LinkedBigFiles.Select(b => $"BIG: {b}"));
+        }
+
+        LinkedAssetsSummary = string.Join(" + ", parts);
+        LinkedAssetsTooltip = string.Join("\n", tooltipLines);
     }
 
     /// <summary>
@@ -1838,10 +2125,28 @@ public sealed partial class WndEditorViewModel(
             var parent = Directory.GetParent(zeroHourPath)?.FullName;
             if (!string.IsNullOrEmpty(parent))
             {
-                var siblingGenerals = Path.Combine(parent, GameClientConstants.GeneralsRetailDirectoryName);
-                if (Directory.Exists(siblingGenerals))
+                if (File.Exists(Path.Combine(parent, "Window.big")) || File.Exists(Path.Combine(parent, "generals.exe")))
                 {
-                    return siblingGenerals;
+                    return parent;
+                }
+
+                string[] candidates =
+                [
+                    GameClientConstants.GeneralsRetailDirectoryName,
+                    "Command & Conquer Generals",
+                    "Command and Conquer Generals",
+                    "Command & Conquer Generals and Zero Hour",
+                    "Generals",
+                    "generals",
+                ];
+
+                foreach (var candidate in candidates)
+                {
+                    var siblingGenerals = Path.Combine(parent, candidate);
+                    if (Directory.Exists(siblingGenerals) && !string.Equals(siblingGenerals, zeroHourPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return siblingGenerals;
+                    }
                 }
             }
         }
@@ -1863,6 +2168,7 @@ public sealed partial class WndEditorViewModel(
         item.ContentFontSize = Math.Max(WndConstants.Preview.MinContentFontSize, plan.FontSize * Zoom);
         item.ContentFontWeight = plan.FontBold ? FontWeight.Bold : FontWeight.Normal;
         item.ContentTextAlignment = plan.TextCentered ? TextAlignment.Center : TextAlignment.Left;
+        item.ContentFontFamily = ResolveFontFamily(plan.FontName);
         item.CanvasOpacity = plan.IsHidden ? WndConstants.Preview.HiddenOpacity : 1.0;
         item.Image = ResolvePlanImage(plan, item);
         RefreshItemGlyph(item, plan);
@@ -1935,6 +2241,23 @@ public sealed partial class WndEditorViewModel(
         var width = thumb.PixelSize.Width * Zoom;
         var height = thumb.PixelSize.Height * Zoom;
         overlays.Add(new WndCanvasOverlayViewModel(thumb, (item.Width - width) / 2, (item.Height - height) / 2, width, height));
+    }
+
+    private static FontFamily? ResolveFontFamily(string? fontName)
+    {
+        if (string.IsNullOrWhiteSpace(fontName))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new FontFamily(fontName.Trim());
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
     }
 
     private void RefreshItemGlyph(WndCanvasItemViewModel item, WndPreviewPlan plan)
@@ -2151,13 +2474,14 @@ public sealed partial class WndEditorViewModel(
             }
 
             var roots = ResolveAssetRoots(selection);
-            var projectDirectory = ResolveProjectDirectory(FilePath, roots);
-            var schemeOverrides = await Task.Run(() => ResolveSchemeOverrides(roots, projectDirectory, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var projectDirectory = LinkedModFolder ?? ResolveProjectDirectory(FilePath, roots);
+            var linkedBigs = LinkedBigFiles.Count > 0 ? LinkedBigFiles.ToList() : null;
+            var schemeOverrides = await Task.Run(() => ResolveSchemeOverrides(roots, projectDirectory, cancellationToken, linkedBigs), cancellationToken).ConfigureAwait(false);
             _schemeOverrides = schemeOverrides;
             var names = CollectPreviewImageNames(document, _schemeOverrides);
             var labels = CollectPreviewLabels(document, _schemeOverrides);
-            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
-            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken, linkedBigs).ConfigureAwait(false);
+            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken, linkedBigs).ConfigureAwait(false);
             if ((!images.Success && !strings.Success) || generation != _previewGeneration)
             {
                 return;
@@ -2345,7 +2669,11 @@ public sealed partial class WndEditorViewModel(
         return candidateWithGameFolders;
     }
 
-    private IReadOnlyDictionary<string, string> ResolveSchemeOverrides(AssetRoots roots, string? projectDirectory, CancellationToken cancellationToken)
+    private IReadOnlyDictionary<string, string> ResolveSchemeOverrides(
+        AssetRoots roots,
+        string? projectDirectory,
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? additionalBigFiles = null)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -2363,7 +2691,7 @@ public sealed partial class WndEditorViewModel(
 
         try
         {
-            var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, cancellationToken);
+            var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles);
             var iniBytes = fs.Read(WndConstants.ControlBarScheme.DataIniPath) ?? fs.Read(WndConstants.ControlBarScheme.IniPath);
             if (iniBytes != null && iniBytes.Length > 0)
             {

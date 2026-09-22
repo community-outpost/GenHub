@@ -1147,6 +1147,16 @@ public sealed class BuildEngineService(
             }
 
             var packFileName = Path.GetFileName(packFilePath);
+            if (!string.IsNullOrEmpty(manifest.BigFileName)
+                && !string.Equals(manifest.BigFileName, packFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogDebug(
+                    "Manifest BigFileName '{ManifestBig}' does not match pack file '{PackFile}'; skipping integrity verification",
+                    manifest.BigFileName,
+                    packFileName);
+                return;
+            }
+
             if (manifest.EntryOrder.Count > 0 && TryReadBigEntryCount(packFilePath, out var entryCount) && entryCount != manifest.EntryOrder.Count)
             {
                 var countMismatchMsg = $"Archive {packFileName} contains {entryCount} entries but the manifest lists {manifest.EntryOrder.Count}; entry count mismatch";

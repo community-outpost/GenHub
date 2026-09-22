@@ -24,7 +24,8 @@ public sealed record WndPreviewPlan(
     bool FontBold,
     bool TextCentered,
     bool IsHidden,
-    string? UnderlayImage = null)
+    string? UnderlayImage = null,
+    string? FontName = null)
 {
     /// <summary>
     /// Gets a value indicating whether a three-piece (left, tiled center, right) bar should be drawn.
