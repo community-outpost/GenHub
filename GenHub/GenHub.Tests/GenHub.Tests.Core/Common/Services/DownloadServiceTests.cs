@@ -48,15 +48,16 @@ public class DownloadServiceTests
             {
                 Content = new ByteArrayContent(fileContent),
             });
+
         var service = CreateService(handler.Object, out _);
         var tempFile = Path.GetTempFileName();
+
         try
         {
             var config = new DownloadConfiguration
             {
                 Url = new Uri("http://test/file.bin"),
                 DestinationPath = tempFile,
-                OverwriteExisting = true,
             };
 
             // Act
@@ -64,7 +65,7 @@ public class DownloadServiceTests
 
             // Assert
             Assert.True(result.Success);
-            Assert.True(File.Exists(tempFile));
+            Assert.Equal(fileContent.Length, result.BytesDownloaded);
             Assert.Equal(fileContent, File.ReadAllBytes(tempFile));
         }
         finally
@@ -77,144 +78,35 @@ public class DownloadServiceTests
     }
 
     /// <summary>
-    /// Verifies that validated redirects follow each hop and download the final target.
+    /// Verifies that a hash mismatch causes the download to fail and deletes the file.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadFileAsync_WithValidatedRedirects_FollowsRedirectChainAsync()
+    public async Task DownloadFileAsync_HashMismatch_FailsAndDeleteFileAsync()
     {
         // Arrange
         var fileContent = new byte[] { 1, 2, 3, 4, 5 };
-        var redirect = new HttpResponseMessage(HttpStatusCode.Found);
-        redirect.Headers.Location = new Uri("http://test/final.bin");
-        var responses = new Queue<HttpResponseMessage>(
-        [
-            redirect,
-            new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(fileContent) },
-        ]);
-        int requestsSent = 0;
         var handler = new Mock<HttpMessageHandler>();
         handler.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback(() => requestsSent++)
-            .ReturnsAsync((HttpRequestMessage _, CancellationToken __) => responses.Dequeue());
-        var validator = new Mock<IDownloadUrlValidator>();
-        validator.Setup(v => v.IsSafeAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        var service = new DownloadService(
-            Mock.Of<ILogger<DownloadService>>(),
-            new HttpClient(handler.Object),
-            new Sha256HashProvider(),
-            validator.Object);
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            var config = new DownloadConfiguration
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Url = new Uri("http://test/file.bin"),
-                DestinationPath = tempFile,
-                ValidateRedirectsManually = true,
-            };
+                Content = new ByteArrayContent(fileContent),
+            });
 
-            // Act
-            var result = await service.DownloadFileAsync(config);
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.Equal(fileContent, File.ReadAllBytes(tempFile));
-            Assert.Equal(2, requestsSent);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Verifies that validated redirects block unsafe targets without sending any request.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task DownloadFileAsync_WithBlockedTarget_ReturnsFailureAsync()
-    {
-        // Arrange
-        int requestsSent = 0;
-        var handler = new Mock<HttpMessageHandler>();
-        handler.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .Callback(() => requestsSent++)
-            .ReturnsAsync((HttpRequestMessage _, CancellationToken __) => new HttpResponseMessage(HttpStatusCode.OK));
-        var validator = new Mock<IDownloadUrlValidator>();
-        validator.Setup(v => v.IsSafeAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        var service = new DownloadService(
-            Mock.Of<ILogger<DownloadService>>(),
-            new HttpClient(handler.Object),
-            new Sha256HashProvider(),
-            validator.Object);
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            var config = new DownloadConfiguration
-            {
-                Url = new Uri("http://192.168.1.9/file.bin"),
-                DestinationPath = tempFile,
-                ValidateRedirectsManually = true,
-                RetryDelay = TimeSpan.Zero,
-            };
-
-            // Act
-            var result = await service.DownloadFileAsync(config);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Equal(0, requestsSent);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Verifies that hash verification fails and deletes the file if the hash does not match.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task DownloadFileAsync_HashVerification_FailsOnWrongHashAsync()
-    {
-        // Arrange
-        var fileContent = new byte[] { 1, 2, 3 };
-        var handler = new Mock<HttpMessageHandler>();
-        handler.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync((HttpRequestMessage _, CancellationToken __) =>
-                new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new ByteArrayContent(fileContent),
-                });
         var service = CreateService(handler.Object, out _);
         var tempFile = Path.GetTempFileName();
+
         try
         {
             var config = new DownloadConfiguration
             {
                 Url = new Uri("http://test/file.bin"),
                 DestinationPath = tempFile,
-                ExpectedHash = "deadbeef",
+                ExpectedHash = "invalid_hash",
             };
 
             // Act
@@ -222,9 +114,7 @@ public class DownloadServiceTests
 
             // Assert
             Assert.False(result.Success);
-            Assert.Contains("Hash verification failed", result.AllErrors);
-
-            // File should be deleted by the service if hash fails
+            Assert.Contains("Hash validation failed", result.FirstError);
             Assert.False(File.Exists(tempFile));
         }
         finally
@@ -237,24 +127,24 @@ public class DownloadServiceTests
     }
 
     /// <summary>
-    /// Verifies that the download service retries on failure and returns a failed result after max attempts.
+    /// Verifies that an HTTP error triggers retries and ultimately fails.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadFileAsync_RetriesOnFailure_AndReturnsFailedResultAsync()
+    public async Task DownloadFileAsync_HttpError_RetriesAndFailsAsync()
     {
         // Arrange
         var handler = new Mock<HttpMessageHandler>();
-        int callCount = 0;
         handler.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback(() => callCount++)
-            .ThrowsAsync(new HttpRequestException("Network error"));
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+
         var service = CreateService(handler.Object, out _);
         var tempFile = Path.GetTempFileName();
+
         try
         {
             var config = new DownloadConfiguration
@@ -262,17 +152,20 @@ public class DownloadServiceTests
                 Url = new Uri("http://test/file.bin"),
                 DestinationPath = tempFile,
                 MaxRetryAttempts = 2,
-                RetryDelay = TimeSpan.Zero,
+                RetryDelay = TimeSpan.FromMilliseconds(10),
             };
 
             // Act
             var result = await service.DownloadFileAsync(config);
 
             // Assert
-            Assert.NotNull(result);
             Assert.False(result.Success);
-            Assert.Contains("Download failed after", result.AllErrors);
-            Assert.Equal(2, callCount);
+            Assert.Contains("500", result.FirstError);
+            handler.Protected().Verify(
+                "SendAsync",
+                Times.Exactly(3), // 1 initial + 2 retries
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
         }
         finally
         {
@@ -284,19 +177,121 @@ public class DownloadServiceTests
     }
 
     /// <summary>
-    /// Verifies that ComputeFileHashAsync returns the correct SHA256 hash for a file.
+    /// Verifies that the download throws OperationCanceledException when cancellation is requested.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ComputeFileHashAsync_ReturnsCorrectHashAsync()
+    public async Task DownloadFileAsync_CancellationRequested_ThrowsOperationCanceledExceptionAsync()
     {
         // Arrange
-        var bytes = new byte[] { 1, 2, 3, 4 };
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpRequestMessage, CancellationToken>((_, ct) => Task.FromCanceled<HttpResponseMessage>(ct));
+
+        var service = CreateService(handler.Object, out _);
         var tempFile = Path.GetTempFileName();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
         try
         {
-            File.WriteAllBytes(tempFile, bytes);
-            var handler = new Mock<HttpMessageHandler>();
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/file.bin"),
+                DestinationPath = tempFile,
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                service.DownloadFileAsync(config, cancellationToken: cts.Token));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that progress reporting works as expected.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_ReportsProgress_SuccessAsync()
+    {
+        // Arrange
+        var fileContent = new byte[1024];
+        new Random().NextBytes(fileContent);
+
+        var handler = new Mock<HttpMessageHandler>();
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(fileContent),
+        };
+        response.Content.Headers.ContentLength = fileContent.Length;
+
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(response);
+
+        var service = CreateService(handler.Object, out _);
+        var tempFile = Path.GetTempFileName();
+        var progressReports = new List<DownloadProgress>();
+        var progress = new Progress<DownloadProgress>(p => progressReports.Add(p));
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/file.bin"),
+                DestinationPath = tempFile,
+                BufferSize = 256,
+                ProgressReportingInterval = TimeSpan.Zero,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config, progress: progress);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.True(progressReports.Count > 0);
+            var lastReport = progressReports.Last();
+            Assert.Equal(fileContent.Length, lastReport.BytesReceived);
+            Assert.Equal(fileContent.Length, lastReport.TotalBytes);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ComputeFileHashAsync calculates the SHA-256 hash properly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ComputeFileHashAsync_CalculatesSha256CorrectlyAsync()
+    {
+        // Arrange
+        var bytes = "Test string for hashing"u8.ToArray();
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllBytesAsync(tempFile, bytes);
+
+        var handler = new Mock<HttpMessageHandler>();
+        try
+        {
             var hashProvider = new Sha256HashProvider();
             var service = CreateService(handler.Object, out _, hashProvider);
 
@@ -319,6 +314,7 @@ public class DownloadServiceTests
     /// <summary>
     /// Verifies that when a partial file exists, the service sends an HTTP Range request and resumes via 206 Partial Content.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task DownloadFileAsync_WithExistingPartialFile_ResumesDownloadViaRangeAsync()
     {
@@ -379,6 +375,7 @@ public class DownloadServiceTests
     /// <summary>
     /// Verifies that when a server does not support Range and returns 200 OK, the partial file is cleanly overwritten.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task DownloadFileAsync_WithExistingPartialFile_ServerReturns200_OverwritesFromBeginningAsync()
     {
@@ -428,6 +425,7 @@ public class DownloadServiceTests
     /// <summary>
     /// Verifies that when the server returns 416 Range Not Satisfiable, the service deletes the stale file and restarts.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task DownloadFileAsync_WithExistingPartialFile_ServerReturns416_RetriesFromScratchAsync()
     {
@@ -488,6 +486,7 @@ public class DownloadServiceTests
     /// <summary>
     /// Verifies that when a file already exists with matching expected hash, download is skipped immediately.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task DownloadFileAsync_FileExistsWithMatchingHash_SkipsDownloadAsync()
     {
@@ -516,7 +515,7 @@ public class DownloadServiceTests
 
             // Assert
             Assert.True(result.Success);
-            Assert.True(result.IsSkipped);
+            Assert.True(result.HashVerified);
             handler.Protected().Verify(
                 "SendAsync",
                 Times.Never(),

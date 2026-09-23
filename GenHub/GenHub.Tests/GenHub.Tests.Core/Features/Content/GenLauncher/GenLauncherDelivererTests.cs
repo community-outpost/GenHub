@@ -219,7 +219,7 @@ public sealed class GenLauncherDelivererTests
         _manifestPoolMock.Setup(m => m.AddManifestAsync(
             It.IsAny<ContentManifest>(),
             It.IsAny<string>(),
-            It.IsAny<string?>(),
+            It.IsAny<IProgress<ContentStorageProgress>?>(),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
