@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -597,26 +597,26 @@
   </data>
   <data name="GameProfiles.Badge.RetailCompatible" xml:space="preserve">
     <value>Совместимо с 1.04</value>
-    <comment>Badge indicating the profile game client rules/INIs and executable match retail</comment>
+    <comment>Badge indicating the profile game client executable CRC matches retail 1.04</comment>
   </data>
   <data name="GameProfiles.Badge.NonRetailCompatible" xml:space="preserve">
     <value>Несовместимо с 1.04</value>
-    <comment>Badge indicating the profile uses non-retail rules/INIs or custom executables</comment>
+    <comment>Badge indicating the profile game client uses a non-retail executable</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatible" xml:space="preserve">
-    <value>Совместимо с оригинальной версией 1.04 / 1.05 (официальные правила/INI)</value>
+    <value>Совместимо с оригинальной версией 1.04 (совпадение CRC exe)</value>
     <comment>Tooltip for retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatible" xml:space="preserve">
-    <value>Конфигурация не из розничной версии (правила/INI отличаются от 1.04 / 1.05)</value>
+    <value>Используется модифицированный exe; несовместимо с версией 1.04</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
-    <value>Совместимо с оригинальной версией Generals 1.08 / 1.09 (официальные правила/INI)</value>
+    <value>Совместимо с оригинальной версией Generals 1.08 / 1.09 (официальный exe)</value>
     <comment>Tooltip for retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
-    <value>Конфигурация не из розничной версии (правила/INI отличаются от Generals 1.08 / 1.09)</value>
+    <value>Используется модифицированный exe; несовместимо с версией Generals 1.08 / 1.09</value>
     <comment>Tooltip for non-retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">
@@ -9117,6 +9117,7 @@ GenHub передает официальный идентификатор AppID 
 
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
     <value>Пропуск очистки для небезопасного или внешнего каталога сборки: {0}</value>
+  </data>
   <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
     <value>Файл проекта уже существует: {0}</value>
   </data>
@@ -9164,7 +9165,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ModBuilder.Notification.Busy.NewProject" xml:space="preserve">
     <value>Невозможно создать новый проект, пока выполняется другая операция.</value>
-  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>Очистка пропущена</value>
@@ -10209,71 +10209,5 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>Клиент игры больше не определяет варианты для разных платформ.</value>
-  </data>
-  <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
-    <value>Добавить в профиль</value>
-  </data>
-  <data name="Maps.MapPack.Button.CreateAndAddToProfile" xml:space="preserve">
-    <value>Создать и добавить в профиль</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.ActionBadge" xml:space="preserve">
-    <value>Добавить</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.CreateCardSubtitle" xml:space="preserve">
-    <value>Создать новый профиль с этим набором карт</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.DialogTitle" xml:space="preserve">
-    <value>Добавить набор карт в профиль</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.HeaderSubtitle" xml:space="preserve">
-    <value>Выберите профиль для добавления «{0}» или создайте новый</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.HeaderTitle" xml:space="preserve">
-    <value>Добавить набор карт в профиль</value>
-  </data>
-  <data name="Maps.MapPack.Tooltip.AddToProfile" xml:space="preserve">
-    <value>Добавить этот набор карт в существующий профиль или создать новый профиль с ним.</value>
-  </data>
-  <data name="Maps.MapPack.Tooltip.CreateAndAddToProfile" xml:space="preserve">
-    <value>Создать этот набор карт и открыть окно выбора профиля для немедленного добавления.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.AddError" xml:space="preserve">
-    <value>Произошла ошибка при добавлении набора карт в профиль.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.CreationFailedTitle" xml:space="preserve">
-    <value>Сбой создания</value>
-  </data>
-  <data name="Maps.MapPack.Notification.DemoAddToProfile" xml:space="preserve">
-    <value>Добавляет выбранный набор карт в существующий игровой профиль или создает новый профиль с включенным набором карт.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.DemoCreateAndAddToProfile" xml:space="preserve">
-    <value>Создает набор карт и открывает диалог выбора профиля для немедленного добавления в профиль.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.InvalidInputMessage" xml:space="preserve">
-    <value>Пожалуйста, укажите имя и выберите карты.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.InvalidInputTitle" xml:space="preserve">
-    <value>Недопустимый ввод</value>
-  </data>
-  <data name="Maps.MapPack.Notification.MissingManifestId" xml:space="preserve">
-    <value>У этого набора карт нет действительного идентификатора манифеста содержимого.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.ProfileSelectionTitle" xml:space="preserve">
-    <value>Выбор профиля</value>
-  </data>
-  <data name="Maps.MapPack.Notification.UnableToOpenDialog" xml:space="preserve">
-    <value>Не удалось открыть диалоговое окно выбора профиля.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.UnknownError" xml:space="preserve">
-    <value>Неизвестная ошибка</value>
-  </data>
-  <data name="Maps.MapPack.Status.CreatedSuccessfully" xml:space="preserve">
-    <value>Набор карт успешно создан.</value>
-  </data>
-  <data name="Maps.MapPack.Status.CreationFailed" xml:space="preserve">
-    <value>Сбой создания.</value>
-  </data>
-  <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
-    <value>Создание набора карт...</value>
   </data>
 </root>

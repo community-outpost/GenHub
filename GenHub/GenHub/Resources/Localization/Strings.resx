@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -597,26 +597,26 @@
   </data>
   <data name="GameProfiles.Badge.RetailCompatible" xml:space="preserve">
     <value>Retail Compatible</value>
-    <comment>Badge indicating the profile game client rules/INIs and executable match retail</comment>
+    <comment>Badge indicating the profile game client executable CRC matches retail 1.04</comment>
   </data>
   <data name="GameProfiles.Badge.NonRetailCompatible" xml:space="preserve">
     <value>Non-Retail Compatible</value>
-    <comment>Badge indicating the profile uses non-retail rules/INIs or custom executables</comment>
+    <comment>Badge indicating the profile game client uses a non-retail executable</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatible" xml:space="preserve">
-    <value>Compatible with retail 1.04 / 1.05 (official rules/INIs)</value>
+    <value>Compatible with retail 1.04 (EXE CRC match)</value>
     <comment>Tooltip for retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatible" xml:space="preserve">
-    <value>Non-retail configuration (different rules/INIs from 1.04 / 1.05)</value>
+    <value>Non-retail executable (different EXE CRC from 1.04)</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
-    <value>Compatible with retail Generals 1.08 / 1.09 (official rules/INIs)</value>
+    <value>Compatible with retail Generals 1.08 / 1.09 (official executable)</value>
     <comment>Tooltip for retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
-    <value>Non-retail configuration (different rules/INIs from Generals 1.08 / 1.09)</value>
+    <value>Non-retail executable (different executable from Generals 1.08 / 1.09)</value>
     <comment>Tooltip for non-retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">
@@ -9226,6 +9226,7 @@ Install location:
 
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
     <value>Skipping clean for unsafe or external build directory: {0}</value>
+  </data>
   <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
     <value>Project file already exists at: {0}</value>
   </data>
@@ -9273,7 +9274,6 @@ Install location:
   </data>
   <data name="Tools.ModBuilder.Notification.Busy.NewProject" xml:space="preserve">
     <value>Cannot create a new project while another operation is running.</value>
-  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>Clean Skipped</value>
@@ -10302,71 +10302,5 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>The game client no longer declares platform variants.</value>
-  </data>
-  <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
-    <value>Add to Profile</value>
-  </data>
-  <data name="Maps.MapPack.Button.CreateAndAddToProfile" xml:space="preserve">
-    <value>Create &amp; Add to Profile</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.ActionBadge" xml:space="preserve">
-    <value>Add</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.CreateCardSubtitle" xml:space="preserve">
-    <value>Create a new profile with this MapPack</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.DialogTitle" xml:space="preserve">
-    <value>Add MapPack to Profile</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.HeaderSubtitle" xml:space="preserve">
-    <value>Choose a profile to add '{0}' to, or create a new profile</value>
-  </data>
-  <data name="Maps.MapPack.ProfileSelection.HeaderTitle" xml:space="preserve">
-    <value>Add MapPack to Profile</value>
-  </data>
-  <data name="Maps.MapPack.Tooltip.AddToProfile" xml:space="preserve">
-    <value>Add this MapPack to an existing profile or create a new profile with it.</value>
-  </data>
-  <data name="Maps.MapPack.Tooltip.CreateAndAddToProfile" xml:space="preserve">
-    <value>Create this MapPack and open the profile window to add it immediately.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.AddError" xml:space="preserve">
-    <value>An error occurred while adding MapPack to profile.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.CreationFailedTitle" xml:space="preserve">
-    <value>Creation Failed</value>
-  </data>
-  <data name="Maps.MapPack.Notification.DemoAddToProfile" xml:space="preserve">
-    <value>Adds the selected MapPack to an existing game profile or creates a new profile with the MapPack enabled.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.DemoCreateAndAddToProfile" xml:space="preserve">
-    <value>Creates a MapPack and opens the profile selection dialog to immediately add it to a profile.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.InvalidInputMessage" xml:space="preserve">
-    <value>Please provide a name and select maps.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.InvalidInputTitle" xml:space="preserve">
-    <value>Invalid Input</value>
-  </data>
-  <data name="Maps.MapPack.Notification.MissingManifestId" xml:space="preserve">
-    <value>This MapPack does not have a valid content manifest ID.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.ProfileSelectionTitle" xml:space="preserve">
-    <value>Profile Selection</value>
-  </data>
-  <data name="Maps.MapPack.Notification.UnableToOpenDialog" xml:space="preserve">
-    <value>Unable to open profile selection dialog.</value>
-  </data>
-  <data name="Maps.MapPack.Notification.UnknownError" xml:space="preserve">
-    <value>Unknown error</value>
-  </data>
-  <data name="Maps.MapPack.Status.CreatedSuccessfully" xml:space="preserve">
-    <value>MapPack created successfully.</value>
-  </data>
-  <data name="Maps.MapPack.Status.CreationFailed" xml:space="preserve">
-    <value>Creation failed.</value>
-  </data>
-  <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
-    <value>Creating MapPack...</value>
   </data>
 </root>
