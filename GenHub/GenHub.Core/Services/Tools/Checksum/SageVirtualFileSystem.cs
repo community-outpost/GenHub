@@ -240,33 +240,16 @@ public sealed class SageVirtualFileSystem
         {
             var currentTier = (SageFileTier)tier;
 
-            // Check loose roots in reverse order (later sideloads and mods win within same tier)
-            for (int i = _looseRoots.Count - 1; i >= 0; i--)
+            var looseBytes = TryReadLooseRootsAtTier(fsRel, currentTier);
+            if (looseBytes != null)
             {
-                var (root, rootTier) = _looseRoots[i];
-                if (rootTier != currentTier)
-                {
-                    continue;
-                }
-
-                string loosePath = Path.Combine(root, fsRel);
-                var looseBytes = TryReadLoosePath(loosePath, root, fsRel);
-                if (looseBytes != null)
-                {
-                    return looseBytes;
-                }
+                return looseBytes;
             }
 
-            if (_modLooseFiles.TryGetValue(lowerRel, out var modEntry) && modEntry.Tier == currentTier && File.Exists(modEntry.Path))
+            var modBytes = TryReadModLooseFileAtTier(lowerRel, currentTier);
+            if (modBytes != null)
             {
-                try
-                {
-                    return File.ReadAllBytes(modEntry.Path);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    _logger?.LogDebug(ex, "Failed to read indexed mod loose file at {Path}", modEntry.Path);
-                }
+                return modBytes;
             }
 
             var archiveBytes = TryReadArchiveEntry(normalizedRel, currentTier);
@@ -295,19 +278,9 @@ public sealed class SageVirtualFileSystem
         {
             var currentTier = (SageFileTier)tier;
 
-            for (int i = _looseRoots.Count - 1; i >= 0; i--)
+            if (HasLooseRootAtTier(fsRel, currentTier))
             {
-                var (root, rootTier) = _looseRoots[i];
-                if (rootTier != currentTier)
-                {
-                    continue;
-                }
-
-                string loosePath = Path.Combine(root, fsRel);
-                if (File.Exists(loosePath) || TryResolveLoosePath(root, fsRel) != null)
-                {
-                    return currentTier;
-                }
+                return currentTier;
             }
 
             if (_modLooseFiles.TryGetValue(lowerRel, out var modEntry) && modEntry.Tier == currentTier)
@@ -380,22 +353,9 @@ public sealed class SageVirtualFileSystem
                 continue;
             }
 
-            if (key.EndsWith(searchKey, StringComparison.OrdinalIgnoreCase)
-                && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\'))
+            if (MatchesEntryFileName(key, searchKey) && IsBetterArchiveMatch(pair, bestMatch))
             {
-                if (bestMatch == null || pair.Tier > bestMatch.Value.Tier)
-                {
-                    bestMatch = pair;
-                }
-                else if (pair.Tier == bestMatch.Value.Tier)
-                {
-                    string candidateBaseName = Path.GetFileName(pair.Entry.ArchivePath);
-                    string bestBaseName = Path.GetFileName(bestMatch.Value.Entry.ArchivePath);
-                    if (string.Compare(candidateBaseName, bestBaseName, StringComparison.OrdinalIgnoreCase) < 0)
-                    {
-                        bestMatch = pair;
-                    }
-                }
+                bestMatch = pair;
             }
         }
 
@@ -489,6 +449,89 @@ public sealed class SageVirtualFileSystem
         return (minTier == null || tier >= minTier) && (maxTier == null || tier <= maxTier);
     }
 
+    private static bool MatchesEntryFileName(string key, string searchKey)
+    {
+        return key.EndsWith(searchKey, StringComparison.OrdinalIgnoreCase)
+            && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\');
+    }
+
+    private static bool IsBetterArchiveMatch(
+        (BigArchiveEntry Entry, SageFileTier Tier) candidate,
+        (BigArchiveEntry Entry, SageFileTier Tier)? currentBest)
+    {
+        if (currentBest == null || candidate.Tier > currentBest.Value.Tier)
+        {
+            return true;
+        }
+
+        if (candidate.Tier == currentBest.Value.Tier)
+        {
+            string candidateBaseName = Path.GetFileName(candidate.Entry.ArchivePath);
+            string bestBaseName = Path.GetFileName(currentBest.Value.Entry.ArchivePath);
+            return string.Compare(candidateBaseName, bestBaseName, StringComparison.OrdinalIgnoreCase) < 0;
+        }
+
+        return false;
+    }
+
+    private byte[]? TryReadLooseRootsAtTier(string fsRel, SageFileTier currentTier)
+    {
+        for (int i = _looseRoots.Count - 1; i >= 0; i--)
+        {
+            var (root, rootTier) = _looseRoots[i];
+            if (rootTier != currentTier)
+            {
+                continue;
+            }
+
+            string loosePath = Path.Combine(root, fsRel);
+            var looseBytes = TryReadLoosePath(loosePath, root, fsRel);
+            if (looseBytes != null)
+            {
+                return looseBytes;
+            }
+        }
+
+        return null;
+    }
+
+    private byte[]? TryReadModLooseFileAtTier(string lowerRel, SageFileTier currentTier)
+    {
+        if (_modLooseFiles.TryGetValue(lowerRel, out var modEntry) && modEntry.Tier == currentTier && File.Exists(modEntry.Path))
+        {
+            try
+            {
+                return File.ReadAllBytes(modEntry.Path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogDebug(ex, "Failed to read indexed mod loose file at {Path}", modEntry.Path);
+            }
+        }
+
+        return null;
+    }
+
+    private bool HasLooseRootAtTier(string fsRel, SageFileTier currentTier)
+    {
+        for (int i = _looseRoots.Count - 1; i >= 0; i--)
+        {
+            var (root, rootTier) = _looseRoots[i];
+            if (rootTier != currentTier)
+            {
+                continue;
+            }
+
+            string loosePath = Path.Combine(root, fsRel);
+            if (File.Exists(loosePath) || TryResolveLoosePath(root, fsRel) != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void IndexModLooseDirectory(string directory, SageFileTier tier)
     {
         try
@@ -497,10 +540,16 @@ public sealed class SageVirtualFileSystem
             foreach (var file in files)
             {
                 var name = Path.GetFileName(file).ToLowerInvariant();
-                _modLooseFiles.TryAdd(name, (file, tier));
+                if (!_modLooseFiles.TryGetValue(name, out var incName) || tier >= incName.Tier)
+                {
+                    _modLooseFiles[name] = (file, tier);
+                }
 
                 var rel = Path.GetRelativePath(directory, file).Replace('/', '\\').ToLowerInvariant();
-                _modLooseFiles.TryAdd(rel, (file, tier));
+                if (!_modLooseFiles.TryGetValue(rel, out var incRel) || tier >= incRel.Tier)
+                {
+                    _modLooseFiles[rel] = (file, tier);
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

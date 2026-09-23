@@ -2746,6 +2746,15 @@ public sealed partial class WndEditorViewModel(
         AssetStatusTooltip = missing.Count == 0
             ? null
             : localizationService.GetString("Tools.WndEditor.Assets.MissingTooltip", FormatMissingNames(missing));
+        if (missing.Count > 0)
+        {
+            logger.LogWarning(
+                "WND preview for {File} is missing {Missing} of {Total} images: {Names}",
+                FilePath ?? FilesDirectory ?? "unsaved document",
+                missing.Count,
+                names.Count,
+                string.Join(", ", missing));
+        }
     }
 
     private string FormatMissingNames(IReadOnlyList<string> missing)

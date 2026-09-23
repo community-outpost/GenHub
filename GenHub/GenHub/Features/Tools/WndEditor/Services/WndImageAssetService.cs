@@ -427,7 +427,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var score = DefinitionScore(iniPath, size, tier);
         foreach (var image in WndMappedImage.ParseDefinitions(text))
         {
-            IndexParsedImage(new TieredImage(image, tier, score, size), images, alternates);
+            IndexParsedImage(new TieredImage(image, tier, score, size, iniPath), images, alternates);
         }
     }
 
@@ -547,6 +547,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             return false;
         }
 
+        logger.LogDebug("Trying {Count} alternate definitions for {Image}", alts.Count, trimmedName);
         foreach (var alt in alts)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -574,7 +575,13 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         {
             var readSettings = new MagickReadSettings { Format = altData.Value.Format };
             using var page = new MagickImage(altData.Value.Bytes, readSettings);
-            return CropMappedImage(page, image.Image);
+            var png = CropMappedImage(page, image.Image);
+            if (png.Length > 0)
+            {
+                LogResolvedProvenance(image, altData.Value.Path, page.Width, page.Height);
+            }
+
+            return png;
         }
         catch (Exception ex) when (ex is MagickException or IOException)
         {
@@ -619,6 +626,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 if (png.Length > 0)
                 {
                     resolved[img.Image.Name] = png;
+                    LogResolvedProvenance(img, textureData.Value.Path, page.Width, page.Height);
                 }
             }
         }
@@ -626,6 +634,23 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         {
             logger.LogWarning(ex, "Failed to decode texture page {Texture} from {Path}", texture, textureData.Value.Path);
         }
+    }
+
+    private void LogResolvedProvenance(TieredImage image, string texturePath, uint pageWidth, uint pageHeight)
+    {
+        logger.LogDebug(
+            "Resolved {Image} from {Texture} [{Left},{Top},{Right},{Bottom}] via {Ini} [{Tier}] -> {Path} ({PageWidth}x{PageHeight})",
+            image.Image.Name,
+            image.Image.Texture,
+            image.Image.Left,
+            image.Image.Top,
+            image.Image.Right,
+            image.Image.Bottom,
+            image.SourceIniPath,
+            image.Tier,
+            texturePath,
+            pageWidth,
+            pageHeight);
     }
 
     private void TryResolveDirectTexture(
@@ -801,7 +826,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return true;
     }
 
-    private sealed record TieredImage(WndMappedImage Image, SageFileTier Tier, int Score, int Size);
+    private sealed record TieredImage(WndMappedImage Image, SageFileTier Tier, int Score, int Size, string SourceIniPath);
 
     private sealed record AssetIndex(
         string Key,
