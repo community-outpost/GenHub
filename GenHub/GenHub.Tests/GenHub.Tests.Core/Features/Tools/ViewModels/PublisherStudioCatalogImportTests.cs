@@ -177,7 +177,7 @@ public sealed class PublisherStudioCatalogImportTests : IDisposable
 
         const string json = """
             {
-              "": "https://genhub.net/schemas/publisher-catalog.json",
+              "$schema": "https://genhub.net/schemas/publisher-catalog.json",
               "formatVersion": "1.0.0",
               "publisher": { "id": "dominator", "name": "Dominator Mappacks" },
               "content": [
@@ -185,7 +185,15 @@ public sealed class PublisherStudioCatalogImportTests : IDisposable
                   "id": "new-item",
                   "name": "New Item",
                   "contentType": "MapPack",
-                  "releases": []
+                  "releases": [
+                    {
+                      "version": "1.0.0",
+                      "isLatest": true,
+                      "artifacts": [
+                        { "filename": "new-item.zip", "downloadUrl": "https://example.com/new-item.zip", "isPrimary": true }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
