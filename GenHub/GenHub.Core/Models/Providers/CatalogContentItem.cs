@@ -79,6 +79,12 @@ public class CatalogContentItem
     public List<ContentRelease> AddonReleases { get; set; } = [];
 
     /// <summary>
+    /// Gets the combined number of legacy addons and addon releases for tab badges.
+    /// </summary>
+    [JsonIgnore]
+    public int AddonCount => Addons.Count + AddonReleases.Count;
+
+    /// <summary>
     /// Gets or sets the content ID that this addon extends (for Addon type).
     /// Format: "contentId" for same catalog, or "publisherId/contentId" for cross-publisher.
     /// </summary>

@@ -424,7 +424,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         // Arrange
         const string definitionUrl = "https://93.184.216.34/definition.json";
         const string catalogUrl = "https://93.184.216.34/catalog.json";
-        var definitionJson = "{"\":1,"publisher":{"id":"my-custom-pub","name":"My Custom Publisher"},"catalogs":[{"id":"dominator","name":"Dominator Mappacks","url":"" + catalogUrl + ""}]}";
+        var definitionJson = "{\"$schemaVersion\":1,\"publisher\":{\"id\":\"my-custom-pub\",\"name\":\"My Custom Publisher\"},\"catalogs\":[{\"id\":\"dominator\",\"name\":\"Dominator Mappacks\",\"url\":\"" + catalogUrl + "\"}]}";
 
         using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
         {
