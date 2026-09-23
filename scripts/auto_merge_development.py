@@ -17,8 +17,12 @@ Safety rules, kept intentionally simple:
 - History is never rewritten. Only merge commits are pushed, never
   force-pushes, and a merge that stops on any conflict is aborted.
 - The decision for each pull request comes from an in-memory three-way
-  comparison that never touches the worktree; only pull requests with
-  resx-only conflicts reach a real checkout and merge.
+  comparison (git merge-tree) that never touches the worktree; only pull
+  requests with resx-only conflicts reach a real checkout and merge.
+- The merge driver and validator run from trusted snapshots
+  isolated from the checked-out PR branch.
+- Merged trees are validated with the snapshotted scripts/validate_resx.py
+  before any push.
 - Draft pull requests, forks, and pull requests labeled no-automerge
   are skipped.
 - Refuses to run with a dirty worktree, and restores the starting
@@ -30,6 +34,7 @@ Only the Python standard library is used.
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -44,21 +49,24 @@ COMMAND_TIMEOUT = 600
 # Only conflicts inside this directory are ever auto-resolved. Paths are
 # matched against the merge=resx scope in .gitattributes.
 RESX_DIR = "GenHub/GenHub/Resources/Localization/"
+RESX_ATTR_RULE = "GenHub/GenHub/Resources/Localization/*.resx merge=resx\n"
 
 
-def run_git(args, timeout=COMMAND_TIMEOUT):
+def run_git(args, timeout=COMMAND_TIMEOUT, env=None):
     """Run a git command, returning the completed process."""
     return subprocess.run(
-        ["git"] + args,
+        ["git", *args],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
         timeout=timeout,
+        env=env,
+        check=False,
     )
 
 
 def fail(message):
-    print("auto_merge: error: %s" % message, file=sys.stderr)
+    print(f"auto_merge: error: {message}", file=sys.stderr)
     return 2
 
 
@@ -78,14 +86,47 @@ def is_managed_resx(path):
     return path.startswith(RESX_DIR) and path.endswith(".resx")
 
 
-def ensure_driver():
-    """Register the resx merge driver in the local repo config if missing."""
-    existing = run_git(["config", "merge.resx.driver"])
-    if existing.returncode == 0 and existing.stdout.strip():
-        return True
-    driver = '"%s" scripts/git_merge_resx.py %%O %%A %%B' % sys.executable
-    proc = run_git(["config", "merge.resx.driver", driver])
-    return proc.returncode == 0
+def setup_trusted_tools(temp_dir):
+    """Copy the merge driver and validator to an isolated directory and configure Git."""
+    scripts_dir = os.path.dirname(os.path.abspath(__file__))
+    source_driver = os.path.join(scripts_dir, "git_merge_resx.py")
+    source_validator = os.path.join(scripts_dir, "validate_resx.py")
+    if not os.path.isfile(source_driver) or not os.path.isfile(source_validator):
+        return None
+    target_driver = os.path.join(temp_dir, "git_merge_resx.py")
+    target_validator = os.path.join(temp_dir, "validate_resx.py")
+    shutil.copyfile(source_driver, target_driver)
+    shutil.copyfile(source_validator, target_validator)
+
+    driver_cmd = f'"{sys.executable}" "{target_driver}" %O %A %B'
+    proc = run_git(["config", "merge.resx.driver", driver_cmd])
+    if proc.returncode != 0:
+        return None
+    return target_driver, target_validator
+
+
+def ensure_info_attributes():
+    """Ensure the merge=resx attribute is set in Git info/attributes."""
+    proc = run_git(["rev-parse", "--git-path", "info/attributes"])
+    if proc.returncode != 0:
+        return False
+    attr_path = proc.stdout.strip()
+    os.makedirs(os.path.dirname(os.path.abspath(attr_path)), exist_ok=True)
+    existing = ""
+    if os.path.exists(attr_path):
+        try:
+            with open(attr_path, "r", encoding="utf-8") as handle:
+                existing = handle.read()
+        except OSError:
+            pass
+    if RESX_ATTR_RULE.strip() not in existing:
+        try:
+            with open(attr_path, "a", encoding="utf-8") as handle:
+                handle.write(RESX_ATTR_RULE)
+        except OSError as exc:
+            print(f"auto_merge: warning: cannot update info/attributes: {exc}", file=sys.stderr)
+            return False
+    return True
 
 
 def base_repository():
@@ -99,6 +140,7 @@ def base_repository():
         stderr=subprocess.STDOUT,
         text=True,
         timeout=COMMAND_TIMEOUT,
+        check=False,
     )
     if proc.returncode != 0:
         return None
@@ -112,7 +154,7 @@ def list_pull_requests(base):
             "gh", "pr", "list",
             "--base", base,
             "--state", "open",
-            "--limit", "100",
+            "--limit", "500",
             "--json", "number,url,headRefName,isDraft,labels,"
                       "headRepositoryOwner,headRepository",
         ],
@@ -120,6 +162,7 @@ def list_pull_requests(base):
         stderr=subprocess.STDOUT,
         text=True,
         timeout=COMMAND_TIMEOUT,
+        check=False,
     )
     if proc.returncode != 0:
         print(proc.stdout, file=sys.stderr)
@@ -146,53 +189,30 @@ def is_ancestor(ancestor_sha, head_sha):
 
 
 def conflicted_files(base_sha, head_sha, other_sha):
-    """Compare the three sides in a scratch index, returning conflict paths.
+    """Compare the three sides in memory using merge-tree, returning conflict paths.
 
     Returns (True, paths) with the paths that would conflict, or
     (False, []) when the comparison itself cannot run. The worktree and
-    the real index are never touched.
+    the index are never touched.
     """
-    fd, index_path = tempfile.mkstemp(prefix="automerge-index-")
-    os.close(fd)
-    try:
-        os.unlink(index_path)
-    except OSError:
-        pass
-    env = dict(os.environ, GIT_INDEX_FILE=index_path)
-    try:
-        read = subprocess.run(
-            ["git", "read-tree", "-m", base_sha, head_sha, other_sha],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            timeout=COMMAND_TIMEOUT,
-            env=env,
-        )
-        if read.returncode != 0:
-            print(read.stdout, file=sys.stderr)
-            return False, []
-        listed = subprocess.run(
-            ["git", "ls-files", "--unmerged"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            timeout=COMMAND_TIMEOUT,
-            env=env,
-        )
-        if listed.returncode != 0:
-            print(listed.stdout, file=sys.stderr)
-            return False, []
-        paths = set()
-        for line in listed.stdout.splitlines():
-            _, _, path = line.partition("\t")
-            if path:
-                paths.add(path)
-        return True, sorted(paths)
-    finally:
-        try:
-            os.unlink(index_path)
-        except OSError:
-            pass
+    args = ["merge-tree", "--write-tree", "--name-only"]
+    if base_sha:
+        args.append(f"--merge-base={base_sha}")
+    args.extend([head_sha, other_sha])
+    proc = run_git(args)
+    if proc.returncode == 0:
+        return True, []
+    if proc.returncode == 1:
+        lines = proc.stdout.splitlines()
+        conflict_paths = []
+        for line in lines[1:]:
+            stripped = line.strip()
+            if not stripped:
+                break
+            conflict_paths.append(stripped)
+        return True, sorted(conflict_paths)
+    print(proc.stdout, file=sys.stderr)
+    return False, []
 
 
 def classify_merge(head_sha, base_sha):
@@ -215,11 +235,28 @@ def classify_merge(head_sha, base_sha):
     return "other", paths
 
 
-def push_merge(head_ref, base_ref):
-    """Merge the base branch and push only a fully clean result."""
+def validate_localization(validator_path):
+    """Run the snapshotted validate_resx.py against the current worktree."""
+    target_dir = os.path.abspath(RESX_DIR)
+    proc = subprocess.run(
+        [sys.executable, validator_path, target_dir],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        timeout=COMMAND_TIMEOUT,
+        check=False,
+    )
+    if proc.returncode != 0:
+        print(proc.stdout, file=sys.stderr)
+        return False
+    return True
+
+
+def push_merge(head_ref, base_ref, validator_path):
+    """Merge the base branch and push only a fully clean, validated result."""
     merge = run_git([
-        "-c", "user.name=%s" % BOT_NAME,
-        "-c", "user.email=%s" % BOT_EMAIL,
+        "-c", f"user.name={BOT_NAME}",
+        "-c", f"user.email={BOT_EMAIL}",
         "merge", "--no-ff", "--no-edit", base_ref,
     ])
     if merge.returncode != 0:
@@ -228,7 +265,13 @@ def push_merge(head_ref, base_ref):
         if abort.returncode != 0:
             print(abort.stdout, file=sys.stderr)
         return False
-    push = run_git(["push", "--quiet", "origin", "HEAD:refs/heads/" + head_ref])
+
+    if not validate_localization(validator_path):
+        print(f"auto_merge: validation failed after merging {base_ref}; aborting merge", file=sys.stderr)
+        run_git(["merge", "--abort"])
+        return False
+
+    push = run_git(["push", "--quiet", "origin", f"HEAD:refs/heads/{head_ref}"])
     if push.returncode != 0:
         print(push.stdout, file=sys.stderr)
         return False
@@ -244,12 +287,35 @@ def eligible_pull_request(pr, repo):
         return "skipped-opt-out"
     owner = (pr.get("headRepositoryOwner") or {}).get("login", "")
     name = (pr.get("headRepository") or {}).get("name", "")
-    if not pr.get("headRefName") or owner + "/" + name != repo:
+    if not pr.get("headRefName") or f"{owner}/{name}" != repo:
         return "skipped-fork"
     return None
 
 
-def process_pull_request(pr, repo, base, base_sha, dry_run):
+def notify_pr_merged(number, base):
+    """Post an informative comment to the PR after merging."""
+    using_pat = os.environ.get("AUTO_MERGE_USING_PAT", "").lower() in ("true", "1")
+    if using_pat:
+        note = "*(CI workflows have been automatically triggered.)*"
+    else:
+        note = (
+            "*(Note: When pushed with the default GitHub token, GitHub does not automatically trigger CI workflows. "
+            "If CI checks do not start automatically, please push a commit or nudge the PR to run CI.)*"
+        )
+    comment = (
+        f"GenHub bot merged `{base}` into this branch to resolve localization merge conflicts.\n\n"
+        f"{note}"
+    )
+    subprocess.run(
+        ["gh", "pr", "comment", str(number), "--body", comment],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=60,
+        check=False,
+    )
+
+
+def process_pull_request(pr, repo, base, base_sha, dry_run, validator_path):
     """Handle one pull request. Returns a status word."""
     skipped = eligible_pull_request(pr, repo)
     if skipped is not None:
@@ -269,8 +335,7 @@ def process_pull_request(pr, repo, base, base_sha, dry_run):
     if verdict == "clean":
         return "clean"
     if verdict == "other":
-        print("auto_merge: #%d also conflicts outside resx: %s"
-              % (number, ", ".join(paths)))
+        print(f"auto_merge: #{number} also conflicts outside resx: {', '.join(paths)}")
         return "conflict-skipped"
     if dry_run:
         return "would-merge"
@@ -278,9 +343,10 @@ def process_pull_request(pr, repo, base, base_sha, dry_run):
     if checkout.returncode != 0:
         print(checkout.stdout, file=sys.stderr)
         return "checkout-failed"
-    if not push_merge(head_ref, "origin/" + base):
+    if not push_merge(head_ref, f"origin/{base}", validator_path):
         return "conflict"
-    print("auto_merge: #%d merged %s into %s" % (number, base, head_ref))
+    print(f"auto_merge: #{number} merged {base} into {head_ref}")
+    notify_pr_merged(number, base)
     return "merged"
 
 
@@ -295,9 +361,9 @@ def write_summary(results):
             handle.write("| Pull request | Result |\n")
             handle.write("|---|---|\n")
             for number, url, status in results:
-                handle.write("| [#%d](%s) | %s |\n" % (number, url, status))
+                handle.write(f"| [#{number}]({url}) | {status} |\n")
     except OSError as exc:
-        print("auto_merge: warning: cannot write step summary: %s" % exc)
+        print(f"auto_merge: warning: cannot write step summary: {exc}")
 
 
 def restore_revision(start_revision):
@@ -313,6 +379,63 @@ def restore_revision(start_revision):
             print(checkout.stdout, file=sys.stderr)
 
 
+def _prepare_environment(base_branch, dry_run, temp_dir):
+    """Validate git state and driver setup; return (repo, base_sha, prs, start_revision, validator_path) or None on error."""
+    if not worktree_clean():
+        fail("worktree is not clean; commit or stash changes first")
+        return None
+    start_revision = current_revision()
+    if start_revision is None:
+        fail("cannot read the current revision")
+        return None
+
+    repo = base_repository()
+    if not repo:
+        fail("cannot determine the base repository")
+        return None
+    if run_git(["fetch", "--quiet", "origin", base_branch]).returncode != 0:
+        fail(f"cannot fetch the base branch {base_branch}")
+        return None
+    base_sha = resolve_revision(f"origin/{base_branch}")
+    if base_sha is None:
+        fail(f"cannot resolve the base branch {base_branch}")
+        return None
+
+    prs = list_pull_requests(base_branch)
+    if prs is None:
+        fail("cannot list open pull requests")
+        return None
+
+    validator_path = None
+    if not dry_run:
+        if not ensure_info_attributes():
+            fail("cannot configure resx merge attribute in info/attributes")
+            return None
+        tools = setup_trusted_tools(temp_dir)
+        if tools is None:
+            fail("cannot configure trusted merge tools")
+            return None
+        _, validator_path = tools
+
+    return repo, base_sha, prs, start_revision, validator_path
+
+
+def _process_candidates(prs, repo, base_branch, base_sha, dry_run, max_prs, validator_path):
+    """Process candidate PRs up to max_prs limit and return results list."""
+    results = []
+    candidates_processed = 0
+    for pr in prs:
+        if candidates_processed >= max_prs:
+            print(f"auto_merge: reached candidate processing limit of {max_prs}")
+            break
+        status = process_pull_request(pr, repo, base_branch, base_sha, dry_run, validator_path)
+        results.append((pr.get("number", 0), pr.get("url", ""), status))
+        print(f"auto_merge: #{pr.get('number', 0)} {pr.get('headRefName', '')}: {status}")
+        if status not in ("skipped-draft", "skipped-opt-out", "skipped-fork", "clean", "up-to-date"):
+            candidates_processed += 1
+    return results
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default=DEFAULT_BASE)
@@ -320,45 +443,23 @@ def main(argv=None):
     parser.add_argument("--max-prs", type=int, default=DEFAULT_MAX_PRS)
     args = parser.parse_args(argv)
 
-    if not worktree_clean():
-        return fail("worktree is not clean; commit or stash changes first")
-    start_revision = current_revision()
-    if start_revision is None:
-        return fail("cannot read the current revision")
-
-    repo = base_repository()
-    if not repo:
-        return fail("cannot determine the base repository")
-    if run_git(["fetch", "--quiet", "origin", args.base]).returncode != 0:
-        return fail("cannot fetch the base branch %s" % args.base)
-    base_sha = resolve_revision("origin/" + args.base)
-    if base_sha is None:
-        return fail("cannot resolve the base branch %s" % args.base)
-
-    prs = list_pull_requests(args.base)
-    if prs is None:
-        return fail("cannot list open pull requests")
-    if len(prs) > args.max_prs:
-        print("auto_merge: processing first %d of %d pull requests"
-              % (args.max_prs, len(prs)))
-        prs = prs[:args.max_prs]
-
-    if not args.dry_run and not ensure_driver():
-        return fail("cannot register the resx merge driver")
-
-    results = []
+    temp_dir = tempfile.mkdtemp(prefix="automerge-driver-")
     try:
-        for pr in prs:
-            status = process_pull_request(pr, repo, args.base, base_sha, args.dry_run)
-            results.append((pr.get("number", 0), pr.get("url", ""), status))
-            print("auto_merge: #%d %s: %s"
-                  % (pr.get("number", 0), pr.get("headRefName", ""), status))
+        prep = _prepare_environment(args.base, args.dry_run, temp_dir)
+        if prep is None:
+            return 2
+        repo, base_sha, prs, start_revision, validator_path = prep
+
+        try:
+            results = _process_candidates(prs, repo, args.base, base_sha, args.dry_run, args.max_prs, validator_path)
+        finally:
+            restore_revision(start_revision)
     finally:
-        restore_revision(start_revision)
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
     write_summary(results)
     merged = sum(1 for _, _, status in results if status == "merged")
-    print("auto_merge: %d merged, %d total" % (merged, len(results)))
+    print(f"auto_merge: {merged} merged, {len(results)} total")
     return 0
 
 

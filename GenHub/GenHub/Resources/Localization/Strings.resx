@@ -10303,4 +10303,70 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>The game client no longer declares platform variants.</value>
   </data>
+  <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
+    <value>Add to Profile</value>
+  </data>
+  <data name="Maps.MapPack.Button.CreateAndAddToProfile" xml:space="preserve">
+    <value>Create &amp; Add to Profile</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.ActionBadge" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.CreateCardSubtitle" xml:space="preserve">
+    <value>Create a new profile with this MapPack</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.DialogTitle" xml:space="preserve">
+    <value>Add MapPack to Profile</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Choose a profile to add '{0}' to, or create a new profile</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Add MapPack to Profile</value>
+  </data>
+  <data name="Maps.MapPack.Tooltip.AddToProfile" xml:space="preserve">
+    <value>Add this MapPack to an existing profile or create a new profile with it.</value>
+  </data>
+  <data name="Maps.MapPack.Tooltip.CreateAndAddToProfile" xml:space="preserve">
+    <value>Create this MapPack and open the profile window to add it immediately.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.AddError" xml:space="preserve">
+    <value>An error occurred while adding MapPack to profile.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.CreationFailedTitle" xml:space="preserve">
+    <value>Creation Failed</value>
+  </data>
+  <data name="Maps.MapPack.Notification.DemoAddToProfile" xml:space="preserve">
+    <value>Adds the selected MapPack to an existing game profile or creates a new profile with the MapPack enabled.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.DemoCreateAndAddToProfile" xml:space="preserve">
+    <value>Creates a MapPack and opens the profile selection dialog to immediately add it to a profile.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.InvalidInputMessage" xml:space="preserve">
+    <value>Please provide a name and select maps.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.InvalidInputTitle" xml:space="preserve">
+    <value>Invalid Input</value>
+  </data>
+  <data name="Maps.MapPack.Notification.MissingManifestId" xml:space="preserve">
+    <value>This MapPack does not have a valid content manifest ID.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.ProfileSelectionTitle" xml:space="preserve">
+    <value>Profile Selection</value>
+  </data>
+  <data name="Maps.MapPack.Notification.UnableToOpenDialog" xml:space="preserve">
+    <value>Unable to open profile selection dialog.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.UnknownError" xml:space="preserve">
+    <value>Unknown error</value>
+  </data>
+  <data name="Maps.MapPack.Status.CreatedSuccessfully" xml:space="preserve">
+    <value>MapPack created successfully.</value>
+  </data>
+  <data name="Maps.MapPack.Status.CreationFailed" xml:space="preserve">
+    <value>Creation failed.</value>
+  </data>
+  <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
+    <value>Creating MapPack...</value>
+  </data>
 </root>

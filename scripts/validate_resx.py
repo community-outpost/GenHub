@@ -4,18 +4,21 @@
 Checks every ``Strings*.resx`` file under
 ``GenHub/GenHub/Resources/Localization``:
 
-- each file is well-formed XML (a silently broken merge can never land);
+- each file is well-formed XML with a <root> element;
+- all <data> elements are direct children of <root> and have both a name
+  attribute and a <value> element;
 - no resource key appears twice, including keys that differ only in case
   (MSBuild resource generation is case-insensitive on Windows);
 - every satellite file carries exactly the same key set as the neutral
   ``Strings.resx`` (the repository's strict 1:1 parity rule);
-- every translated value preserves the neutral file's ``{0}``-style
-  placeholders.
+- every translated value preserves the neutral file's composite formatting
+  placeholders (e.g. {0}, {0:N2}, {0,-10}).
 
 Only the Python standard library is used. Exits 0 when everything passes,
 1 with a grouped error report otherwise. Run from anywhere::
 
-    python3 scripts/validate_resx.py
+    python scripts/validate_resx.py  (Windows)
+    python3 scripts/validate_resx.py (Linux/macOS)
 """
 
 import glob
@@ -24,9 +27,16 @@ import re
 import sys
 import xml.etree.ElementTree as element_tree
 
-PLACEHOLDER_RE = re.compile(r'\{\d+\}')
 DATA_CLOSE = '</data>'
 _MAX_LISTED = 10
+
+
+def extract_placeholders(text):
+    """Extract argument indices from .NET composite format string, ignoring escaped braces."""
+    if not text:
+        return []
+    unescaped = re.sub(r'\{\{|\}\}', '', text)
+    return re.findall(r'\{(\d+)(?:,-?\d+)?(?::[^{}]*)?\}', unescaped)
 
 
 def repo_localization_dir():
@@ -37,77 +47,94 @@ def repo_localization_dir():
 
 def load_entries(path, errors):
     """Return [(key, value)] or None when the file does not parse."""
+    base_name = os.path.basename(path)
     try:
         root = element_tree.parse(path).getroot()
     except element_tree.ParseError as exc:
-        errors.append('%s: not well-formed XML: %s'
-                      % (os.path.basename(path), exc))
+        errors.append(f'{base_name}: not well-formed XML: {exc}')
         return None
-    entries = []
-    for node in root.iter('data'):
-        entries.append((node.get('name'),
-                        (node.findtext('value') or '')))
-    nested = sorted({node.get('name') for node in root.iter('data')
-                     if len(list(node.iter('data'))) > 1})
+
+    if root.tag != 'root':
+        errors.append(f'{base_name}: root element must be <root>, found <{root.tag}>')
+        return None
+
+    direct_data = [child for child in root if child.tag == 'data']
+    all_data = list(root.iter('data'))
+    if len(all_data) > len(direct_data):
+        misplaced_count = len(all_data) - len(direct_data)
+        errors.append(f'{base_name}: {misplaced_count} <data> element(s) are not direct children of <root>')
+
+    nested = sorted({
+        node.get('name') for node in direct_data
+        if node.get('name') and len(list(node.iter('data'))) > 1
+    })
     if nested:
         shown = ', '.join(nested[:_MAX_LISTED])
-        errors.append('%s: %d block(s) swallow following blocks as nested '
-                      'children (missing %s?): %s'
-                      % (os.path.basename(path), len(nested),
-                         DATA_CLOSE, shown))
+        errors.append(
+            f'{base_name}: {len(nested)} block(s) swallow following blocks as nested '
+            f'children (missing {DATA_CLOSE}?): {shown}'
+        )
+
+    entries = []
+    for node in direct_data:
+        name = node.get('name')
+        if not name:
+            errors.append(f'{base_name}: <data> element missing name attribute')
+            continue
+        val_elem = node.find('value')
+        if val_elem is None:
+            errors.append(f'{base_name}: key "{name}" is missing a <value> element')
+            continue
+        value = val_elem.text or ''
+        entries.append((name, value))
+
     return entries
 
 
 def check_duplicates(path, entries, errors):
+    base_name = os.path.basename(path)
     seen = {}
     for key, _ in entries:
         if key in seen:
-            errors.append('%s: duplicate key "%s"'
-                          % (os.path.basename(path), key))
+            errors.append(f'{base_name}: duplicate key "{key}"')
         else:
             seen[key] = True
     folded = {}
     for key, _ in entries:
         fold = (key or '').casefold()
         if fold in folded and folded[fold] != key:
-            errors.append('%s: keys "%s" and "%s" differ only in case'
-                          % (os.path.basename(path), folded[fold], key))
+            errors.append(f'{base_name}: keys "{folded[fold]}" and "{key}" differ only in case')
         else:
             folded.setdefault(fold, key)
 
 
 def check_parity(neutral_name, neutral_keys, path, entries, errors):
+    base_name = os.path.basename(path)
     names = {key for key, _ in entries}
-    for key in sorted(neutral_keys - names):
-        if len([e for e in errors if 'missing key' in e]) >= _MAX_LISTED:
-            break
-        errors.append('%s: missing key "%s" (present in %s)'
-                      % (os.path.basename(path), key, neutral_name))
-    missing_count = len(neutral_keys - names)
-    if missing_count > _MAX_LISTED:
-        errors.append('%s: ... and %d more missing keys'
-                      % (os.path.basename(path),
-                         missing_count - _MAX_LISTED))
+    missing = sorted(neutral_keys - names)
+    for key in missing[:_MAX_LISTED]:
+        errors.append(f'{base_name}: missing key "{key}" (present in {neutral_name})')
+    if len(missing) > _MAX_LISTED:
+        errors.append(f'{base_name}: ... and {len(missing) - _MAX_LISTED} more missing keys')
     for key in sorted(names - neutral_keys):
-        errors.append('%s: extra key "%s" (absent from %s)'
-                      % (os.path.basename(path), key, neutral_name))
+        errors.append(f'{base_name}: extra key "{key}" (absent from {neutral_name})')
 
 
 def check_placeholders(neutral_name, neutral_values, path, entries, errors):
+    base_name = os.path.basename(path)
     reported = 0
     for key, value in entries:
         if key not in neutral_values:
             continue
-        expected = sorted(set(PLACEHOLDER_RE.findall(neutral_values[key])))
-        found = sorted(set(PLACEHOLDER_RE.findall(value)))
+        expected = sorted(set(extract_placeholders(neutral_values[key])))
+        found = sorted(set(extract_placeholders(value)))
         if expected != found:
-            errors.append('%s: key "%s" placeholders %s, expected %s '
-                          'from %s' % (os.path.basename(path), key, found,
-                                       expected, neutral_name))
+            errors.append(
+                f'{base_name}: key "{key}" placeholders {found}, expected {expected} from {neutral_name}'
+            )
             reported += 1
             if reported >= _MAX_LISTED:
-                errors.append('%s: ... further placeholder mismatches hidden'
-                              % os.path.basename(path))
+                errors.append(f'{base_name}: ... further placeholder mismatches hidden')
                 break
 
 
@@ -118,21 +145,19 @@ def main():
     files = sorted(glob.glob(pattern))
     errors = []
     if not files:
-        print('validate_resx: no files matching %s' % pattern)
+        print(f'validate_resx: no files matching {pattern}')
         return 1
     neutral_path = os.path.join(directory, 'Strings.resx')
     if neutral_path not in files:
-        print('validate_resx: neutral Strings.resx not found in %s'
-              % directory)
+        print(f'validate_resx: neutral Strings.resx not found in {directory}')
         return 1
     neutral_entries = load_entries(neutral_path, errors)
     if neutral_entries is None:
         return report(errors)
     check_duplicates(neutral_path, neutral_entries, errors)
     neutral_keys = {key for key, _ in neutral_entries}
-    neutral_values = {key: value for key, value in neutral_entries}
-    print('validate_resx: %s: %d keys'
-          % (os.path.basename(neutral_path), len(neutral_keys)))
+    neutral_values = dict(neutral_entries)
+    print(f'validate_resx: {os.path.basename(neutral_path)}: {len(neutral_keys)} keys')
     for path in files:
         if path == neutral_path:
             continue
@@ -144,16 +169,15 @@ def main():
                      path, entries, errors)
         check_placeholders(os.path.basename(neutral_path), neutral_values,
                            path, entries, errors)
-        print('validate_resx: %s: %d keys'
-              % (os.path.basename(path), len(entries)))
+        print(f'validate_resx: {os.path.basename(path)}: {len(entries)} keys')
     return report(errors)
 
 
 def report(errors):
     if errors:
-        print('validate_resx: FAILED with %d problem(s):' % len(errors))
+        print(f'validate_resx: FAILED with {len(errors)} problem(s):')
         for error in errors:
-            print('  - %s' % error)
+            print(f'  - {error}')
         return 1
     print('validate_resx: all localization files are valid')
     return 0

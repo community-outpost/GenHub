@@ -62,12 +62,16 @@ repository instead merges whole `<data name="...">` blocks by resource key
 (`scripts/git_merge_resx.py`, selected by the `merge=resx` attribute in
 `.gitattributes`): independent additions from both sides are both kept,
 deletions are honored, and only a genuine same-key disagreement stops the
-merge. Nobody needs to configure or invoke anything; the section below
-runs the driver automatically.
+merge. Nobody needs to configure or invoke anything for pull requests; the
+automation described below runs the driver server-side. (Local `git merge`
+or `git rebase` operations on developer machines will still use standard
+line-based merging unless the custom driver is configured locally.)
 
 CI validates every `Strings*.resx` on each run (`scripts/validate_resx.py`):
 well-formed XML with flat `<data>` blocks, no duplicate keys, exact key-set
-parity across cultures, and preserved `{0}`-style placeholders.
+parity across cultures, and preserved `{0}`-style placeholders (run locally
+with `python scripts/validate_resx.py` on Windows or `python3 scripts/validate_resx.py`
+on Linux/macOS).
 
 ### Automatic merges
 
@@ -85,12 +89,19 @@ requests, forks, and pull requests labeled `no-automerge` are skipped.
 The workflow stays cheap with two gates. The job itself runs only when
 the push touched `Strings*.resx` files or the merge tooling, and the
 script then compares each pull request in memory first: pull requests
-GitHub already shows as mergeable are never touched (no pointless merge
-commits triggering downstream builds), pull requests conflicting outside
+GitHub already shows as mergeable are never touched, pull requests conflicting outside
 the managed resx directory are skipped for their author, and only
 resx-only conflicts reach a real merge. Trigger it by hand from the
 Actions tab (`workflow_dispatch`) if ever needed outside a push to
 `development`.
+
+> [!NOTE]
+> GitHub Actions does not trigger workflow runs on pushes authenticated
+> with the default `GITHUB_TOKEN`. To ensure PR check suites run automatically
+> on freshened branches, repository maintainers can provide an `AUTO_MERGE_PAT`
+> secret (a Personal Access Token or GitHub App installation token with `contents: write`).
+> When running under the default `GITHUB_TOKEN`, the bot leaves a comment on the pull request
+> notifying authors to trigger CI checks (e.g. by pushing a commit or closing/reopening).
 
 ## Avalonia views
 
