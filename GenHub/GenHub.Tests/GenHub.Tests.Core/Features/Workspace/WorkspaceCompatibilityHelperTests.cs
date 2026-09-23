@@ -1337,7 +1337,30 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         Directory.Exists(installerDir).Should().BeTrue();
     }
 
-    private static void CreateDummyBigArchive(string filePath, params string[] entryPaths)
+    private void RunCompatibilityScenario(ContentManifest manifest, bool skipCleanup = false)
+    {
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+            SkipCleanup = skipCleanup,
+        };
+
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+    }
+
+    private void CreateDummyBigArchive(string filePath, params string[] entryPaths)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);

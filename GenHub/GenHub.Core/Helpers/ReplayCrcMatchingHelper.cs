@@ -325,8 +325,13 @@ public static class ReplayCrcMatchingHelper
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
     /// <returns><c>true</c> if it is a retail-compatible SuperHackers client; otherwise, <c>false</c>.</returns>
-    public static bool IsSuperHackersRetailClient(GameClient client)
+    public static bool IsSuperHackersRetailClient(GameClient? client)
     {
+        if (client == null)
+        {
+            return false;
+        }
+
         var pub = client.PublisherType ?? string.Empty;
         var id = client.Id ?? string.Empty;
         var name = client.Name ?? string.Empty;
@@ -359,7 +364,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsCommunityOutpostRetailClient(client))
+        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
         {
             return true;
         }
@@ -393,6 +398,11 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
+        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
+        {
+            return true;
+        }
+
         return IsClientRetailCompatible(client, enabledContentIds, IsZeroHourRetailIniCrc, IsZeroHourRetailExeCrc, IsZeroHourRetailExeSha256);
     }
 
@@ -411,6 +421,11 @@ public static class ReplayCrcMatchingHelper
         if (client == null)
         {
             return false;
+        }
+
+        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
+        {
+            return true;
         }
 
         if (IsExplicitGeneralsClient(client))
@@ -448,12 +463,17 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
-    /// Determines whether the specified game client is a legacy SuperHackers client rather than a Community Patch build.
+    /// Determines whether the specified game client is a legacy or non-retail SuperHackers client rather than a retail-compatible build.
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
-    /// <returns><c>true</c> if it is a legacy SuperHackers client; otherwise, <c>false</c>.</returns>
+    /// <returns><c>true</c> if it is a legacy or non-retail SuperHackers client; otherwise, <c>false</c>.</returns>
     public static bool IsLegacySuperHackersClient(GameClient client)
     {
+        if (client == null || IsSuperHackersRetailClient(client))
+        {
+            return false;
+        }
+
         return (string.Equals(client.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(client.PublisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
             (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)) ||
@@ -533,12 +553,17 @@ public static class ReplayCrcMatchingHelper
 
     /// <summary>
     /// Determines whether the specified game client represents a non-retail community engine fork
-    /// (such as GeneralsX, TheSuperHackers, Generals Online, or a non-Windows binary).
+    /// (such as GeneralsX, non-retail TheSuperHackers, Generals Online, or a non-Windows binary).
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
     /// <returns><c>true</c> if the client is a non-retail engine fork or binary; otherwise, <c>false</c>.</returns>
     public static bool IsNonRetailEngineClient(GameClient client)
     {
+        if (IsSuperHackersRetailClient(client))
+        {
+            return false;
+        }
+
         return IsGeneralsOnlineClient(client) ||
             IsLegacySuperHackersClient(client) ||
             IsGeneralsXClient(client) ||
@@ -570,6 +595,11 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
+        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
+        {
+            return true;
+        }
+
         if (IsRetailCompatible(client, profile.EnabledContentIds))
         {
             return true;
@@ -586,6 +616,7 @@ public static class ReplayCrcMatchingHelper
 
         if (crcCalculator != null && !string.IsNullOrEmpty(gameRoot) && Directory.Exists(gameRoot))
         {
+            logger?.LogDebug("Calculating INI CRC for profile '{Profile}' at '{Root}'", profile.Name, gameRoot);
             var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, effectiveGameType, ct: ct);
             if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) && IsRetailIniCrc(iniResult.Data, effectiveGameType))
             {
@@ -882,7 +913,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsCommunityOutpostRetailClient(client))
+        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
         {
             return true;
         }

@@ -395,10 +395,11 @@ public class ReplayCrcMatchingHelperTests
             ExecutablePath = "generalszh.exe",
             GameType = GameType.ZeroHour,
         };
-        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(superHackersClient));
-        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(superHackersClient));
-        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(superHackersClient));
-        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(superHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(superHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(superHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(superHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(superHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsNonRetailEngineClient(superHackersClient));
 
         var nameOnlySuperHackersClient = new GameClient
         {
@@ -408,10 +409,11 @@ public class ReplayCrcMatchingHelperTests
             ExecutablePath = "generalszh.exe",
             GameType = GameType.ZeroHour,
         };
-        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(nameOnlySuperHackersClient));
-        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(nameOnlySuperHackersClient));
-        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(nameOnlySuperHackersClient));
-        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(nameOnlySuperHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(nameOnlySuperHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(nameOnlySuperHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(nameOnlySuperHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(nameOnlySuperHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsNonRetailEngineClient(nameOnlySuperHackersClient));
 
         var theSuperHackersNameClient = new GameClient
         {
@@ -421,10 +423,25 @@ public class ReplayCrcMatchingHelperTests
             ExecutablePath = "generalszh.exe",
             GameType = GameType.ZeroHour,
         };
-        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(theSuperHackersNameClient));
-        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(theSuperHackersNameClient));
-        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(theSuperHackersNameClient));
-        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(theSuperHackersNameClient));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(theSuperHackersNameClient));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(theSuperHackersNameClient));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(theSuperHackersNameClient));
+        Assert.False(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(theSuperHackersNameClient));
+        Assert.False(ReplayCrcMatchingHelper.IsNonRetailEngineClient(theSuperHackersNameClient));
+
+        var superHackersNonRetailClient = new GameClient
+        {
+            Id = "1.100.thesuperhackers.gameclient.zerohour.nonret",
+            Name = "TheSuperHackers Zero Hour (Non-Retail)",
+            PublisherType = PublisherTypeConstants.TheSuperHackers,
+            ExecutablePath = "generalszh.exe",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(superHackersNonRetailClient));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(superHackersNonRetailClient));
+        Assert.False(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(superHackersNonRetailClient));
+        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(superHackersNonRetailClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(superHackersNonRetailClient));
 
         var elfClient = new GameClient
         {
@@ -567,8 +584,9 @@ public class ReplayCrcMatchingHelperTests
             GameType = GameType.ZeroHour,
             Version = "20260918",
         };
-        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(tshZeroHour));
-        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(tshZeroHour));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(tshZeroHour));
+        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(tshZeroHour));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(tshZeroHour));
 
         // INI CRC verification
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
@@ -587,8 +605,8 @@ public class ReplayCrcMatchingHelperTests
     [Fact]
     public void IsRetailExeSha256_RecognizesLauncherWrappers()
     {
-        Assert.True(ReplayCrcMatchingHelper.IsRetailExeSha256("8DDE6C990280AC44B4629A664B24BBAF226E629E9C7700234010F198783B6674"));
-        Assert.True(ReplayCrcMatchingHelper.IsRetailExeSha256("FF6F78211A014100D8EF6B08BC2F8EDD3D55E99E872DFDB5371776FC5A5D02CE"));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailExeSha256(GameClientConstants.EaAppGeneralsLauncherWrapperSha256));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailExeSha256(GameClientConstants.ModernLauncherStubSha256));
     }
 
     /// <summary>
@@ -599,47 +617,12 @@ public class ReplayCrcMatchingHelperTests
     [Fact]
     public async Task IsRetailCompatibleAsync_PreservesRetailCompatibility_WhenRootIniDirty()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_DirtyRootTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
-        var exePath = Path.Combine(tempDir, "generals.exe");
-        await File.WriteAllTextAsync(exePath, "dummy binary");
-
-        try
-        {
-            var profile = new GameProfile
-            {
-                Id = "test-profile",
-                Name = "Zero Hour Retail",
-                GameClient = new GameClient
-                {
-                    Id = "1.104.steam.gameclient.zerohour",
-                    Name = "Command & Conquer Generals Zero Hour (Steam)",
-                    PublisherType = "Steam",
-                    GameType = GameType.ZeroHour,
-                    ExecutablePath = exePath,
-                },
-            };
-
-            var mockCalculator = new Mock<IGameCrcCalculatorService>();
-            mockCalculator
-                .Setup(c => c.CalculateIniCrcAsync(
-                    tempDir,
-                    GameType.ZeroHour,
-                    It.IsAny<IReadOnlyList<string>?>(),
-                    It.IsAny<string?>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<string>.CreateSuccess("0xAC76387F"));
-
-            var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
-            Assert.True(isRetail);
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, true);
-            }
-        }
+        await RunProfileIniCompatibilityScenarioAsync(
+            "1.104.steam.gameclient.zerohour",
+            "Command & Conquer Generals Zero Hour (Steam)",
+            "Steam",
+            "0xAC76387F",
+            isRetail => Assert.True(isRetail));
     }
 
     /// <summary>
@@ -649,47 +632,12 @@ public class ReplayCrcMatchingHelperTests
     [Fact]
     public async Task IsRetailCompatibleAsync_WhenCustomModAndIniCrcNonRetail_ReturnsFalse()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_ModRootTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
-        var exePath = Path.Combine(tempDir, "mod.exe");
-        await File.WriteAllTextAsync(exePath, "dummy binary");
-
-        try
-        {
-            var profile = new GameProfile
-            {
-                Id = "test-profile",
-                Name = "Custom Mod Profile",
-                GameClient = new GameClient
-                {
-                    Id = "custom.mod.client",
-                    Name = "Custom Mod",
-                    PublisherType = "Custom",
-                    GameType = GameType.ZeroHour,
-                    ExecutablePath = exePath,
-                },
-            };
-
-            var mockCalculator = new Mock<IGameCrcCalculatorService>();
-            mockCalculator
-                .Setup(c => c.CalculateIniCrcAsync(
-                    tempDir,
-                    GameType.ZeroHour,
-                    It.IsAny<IReadOnlyList<string>?>(),
-                    It.IsAny<string?>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<string>.CreateSuccess("0xAC76387F"));
-
-            var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
-            Assert.False(isRetail);
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, true);
-            }
-        }
+        await RunProfileIniCompatibilityScenarioAsync(
+            "custom.mod.client",
+            "Custom Mod",
+            "Custom",
+            "0xAC76387F",
+            isRetail => Assert.False(isRetail));
     }
 
     /// <summary>
@@ -699,7 +647,31 @@ public class ReplayCrcMatchingHelperTests
     [Fact]
     public async Task IsRetailCompatibleAsync_WhenIniCrcRetail_ReturnsTrue()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_CleanRootTest_" + Guid.NewGuid().ToString("N"));
+        await RunProfileIniCompatibilityScenarioAsync(
+            "1.104.custom.gameclient.zerohour",
+            "Command & Conquer Generals Zero Hour (Custom)",
+            "Custom",
+            ReplayManagerConstants.RetailZeroHourIniCrcVanilla,
+            isRetail => Assert.True(isRetail),
+            (mock, dir) => mock.Verify(
+                c => c.CalculateIniCrcAsync(
+                    dir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once));
+    }
+
+    private static async Task RunProfileIniCompatibilityScenarioAsync(
+        string clientId,
+        string clientName,
+        string publisherType,
+        string calculatedIniCrc,
+        Action<bool> assertCompatibility,
+        Action<Mock<IGameCrcCalculatorService>, string>? verifyCalculator = null)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_AsyncTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         var exePath = Path.Combine(tempDir, "generals.exe");
         await File.WriteAllTextAsync(exePath, "dummy binary");
@@ -709,12 +681,12 @@ public class ReplayCrcMatchingHelperTests
             var profile = new GameProfile
             {
                 Id = "test-profile",
-                Name = "Zero Hour Custom",
+                Name = clientName,
                 GameClient = new GameClient
                 {
-                    Id = "1.104.custom.gameclient.zerohour",
-                    Name = "Command & Conquer Generals Zero Hour (Custom)",
-                    PublisherType = "Custom",
+                    Id = clientId,
+                    Name = clientName,
+                    PublisherType = publisherType,
                     GameType = GameType.ZeroHour,
                     ExecutablePath = exePath,
                 },
@@ -728,18 +700,11 @@ public class ReplayCrcMatchingHelperTests
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(calculatedIniCrc));
 
             var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
-            Assert.True(isRetail);
-            mockCalculator.Verify(
-                c => c.CalculateIniCrcAsync(
-                    tempDir,
-                    GameType.ZeroHour,
-                    It.IsAny<IReadOnlyList<string>?>(),
-                    It.IsAny<string?>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Once);
+            assertCompatibility(isRetail);
+            verifyCalculator?.Invoke(mockCalculator, tempDir);
         }
         finally
         {
