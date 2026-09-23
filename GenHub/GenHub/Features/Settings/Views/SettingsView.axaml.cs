@@ -41,9 +41,7 @@ public partial class SettingsView : UserControl
     private SettingsViewModel? _boundViewModel;
     private SectionScrollSpy<string>? _scrollSpy;
     private bool _syncingSelectionFromScroll;
-    private bool _deferredScrollPending;
     private bool _isNavigatingToSection;
-    private Expander? _pendingLayoutExpander;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsView"/> class.
@@ -98,8 +96,6 @@ public partial class SettingsView : UserControl
         base.OnDetachedFromVisualTree(e);
         _scrollSpy?.Dispose();
         _scrollSpy = null;
-        _deferredScrollPending = false;
-        _pendingLayoutExpander = null;
         UnhookViewModel();
         if (DataContext is SettingsViewModel vm)
         {
@@ -187,7 +183,7 @@ public partial class SettingsView : UserControl
 
     private void OnActiveSectionChangedFromScroll(string sectionId)
     {
-        if (_deferredScrollPending || _isNavigatingToSection || _boundViewModel is null)
+        if (_isNavigatingToSection || _boundViewModel is null)
         {
             return;
         }
@@ -218,7 +214,7 @@ public partial class SettingsView : UserControl
 
         if (e.Source is Expander expander && IsSectionExpander(expander))
         {
-            ScrollToExpander(expander, wasAlreadyExpanded: false);
+            ScrollToExpander(expander);
         }
     }
 
@@ -235,11 +231,10 @@ public partial class SettingsView : UserControl
             return;
         }
 
-        var wasExpanded = expander.IsExpanded;
         _isNavigatingToSection = true;
         try
         {
-            ScrollToExpander(expander, wasExpanded);
+            ScrollToExpander(expander);
         }
         finally
         {
@@ -247,7 +242,7 @@ public partial class SettingsView : UserControl
         }
     }
 
-    private void ScrollToExpander(Expander expander, bool wasAlreadyExpanded)
+    private void ScrollToExpander(Expander expander)
     {
         if (_scrollSpy is null)
         {
@@ -255,34 +250,7 @@ public partial class SettingsView : UserControl
         }
 
         expander.IsExpanded = true;
-        if (wasAlreadyExpanded && expander.IsMeasureValid)
-        {
-            _scrollSpy.ScrollToControl(expander);
-            return;
-        }
-
-        // Expanding changes the scrollable extent, so scrolling synchronously would clamp
-        // against stale measurements and leave bottom sections only partly visible.
-        ScrollAfterLayout(expander);
-    }
-
-    private void ScrollAfterLayout(Expander expander)
-    {
-        _deferredScrollPending = true;
-        _pendingLayoutExpander = expander;
-        var spy = _scrollSpy;
-        EventHandler? onLayoutUpdated = null;
-        onLayoutUpdated = (_, _) =>
-        {
-            expander.LayoutUpdated -= onLayoutUpdated;
-            if (ReferenceEquals(_scrollSpy, spy) && ReferenceEquals(_pendingLayoutExpander, expander))
-            {
-                _pendingLayoutExpander = null;
-                _deferredScrollPending = false;
-                spy?.ScrollToControl(expander);
-            }
-        };
-        expander.LayoutUpdated += onLayoutUpdated;
+        _scrollSpy.ScrollToControl(expander);
     }
 
     private Expander? FindSectionExpander(string sectionId)

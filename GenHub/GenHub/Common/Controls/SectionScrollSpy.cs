@@ -19,6 +19,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     private readonly TimeSpan _animationDuration = TimeSpan.FromMilliseconds(ScrollSpyConstants.AnimationDurationMs);
     private readonly List<(TKey Key, Control Control)> _sections = [];
     private DispatcherTimer? _animationTimer;
+    private Control? _animTargetControl;
     private double _animStartOffset;
     private double _animTargetOffset;
     private DateTime _animStartTime;
@@ -80,8 +81,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             }
 
             var position = transform.Value.Transform(new Point(0, 0));
-            var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
-            StartAnimation(Math.Clamp(position.Y, 0, maxScrollY));
+            StartAnimation(Math.Max(0, position.Y), targetControl);
         }
         catch (InvalidOperationException)
         {
@@ -216,22 +216,26 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         return null;
     }
 
-    private void StartAnimation(double targetY)
+    private void StartAnimation(double initialTargetY, Control? targetControl = null)
     {
         StopAnimationTimer();
 
         var currentY = scrollViewer.Offset.Y;
-        if (Math.Abs(currentY - targetY) < ScrollSpyConstants.ScrollSnapEpsilon)
+        var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+        var effectiveTargetY = Math.Clamp(initialTargetY, 0, maxScrollY);
+
+        if (Math.Abs(currentY - effectiveTargetY) < ScrollSpyConstants.ScrollSnapEpsilon && initialTargetY <= maxScrollY)
         {
-            scrollViewer.Offset = new Vector(scrollViewer.Offset.X, targetY);
+            scrollViewer.Offset = new Vector(scrollViewer.Offset.X, effectiveTargetY);
             IsScrollingProgrammatically = false;
             UpdateActiveSection();
             return;
         }
 
         IsScrollingProgrammatically = true;
+        _animTargetControl = targetControl;
         _animStartOffset = currentY;
-        _animTargetOffset = targetY;
+        _animTargetOffset = initialTargetY;
         _animStartTime = DateTime.UtcNow;
 
         _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ScrollSpyConstants.AnimationFrameIntervalMs) };
@@ -247,6 +251,8 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             _animationTimer.Stop();
             _animationTimer = null;
         }
+
+        _animTargetControl = null;
     }
 
     private void StopAnimation()
@@ -257,9 +263,27 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
 
     private void OnAnimationTick(object? sender, EventArgs e)
     {
+        if (_animTargetControl is not null && scrollViewer.Content is Control content)
+        {
+            try
+            {
+                var transform = _animTargetControl.TransformToVisual(content);
+                if (transform.HasValue)
+                {
+                    _animTargetOffset = Math.Max(0, transform.Value.Transform(new Point(0, 0)).Y);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+        var targetY = Math.Clamp(_animTargetOffset, 0, maxScrollY);
+
         var elapsed = DateTime.UtcNow - _animStartTime;
         var progress = Math.Min(1.0, elapsed.TotalMilliseconds / _animationDuration.TotalMilliseconds);
-        var currentY = _animStartOffset + ((_animTargetOffset - _animStartOffset) * EaseInOutQuadratic(progress));
+        var currentY = _animStartOffset + ((targetY - _animStartOffset) * EaseInOutQuadratic(progress));
         scrollViewer.Offset = new Vector(scrollViewer.Offset.X, currentY);
 
         if (progress >= 1.0)

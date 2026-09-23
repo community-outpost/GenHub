@@ -167,6 +167,33 @@ public class SectionScrollSpyTests
         }
     }
 
+    /// <summary>
+    /// Verifies that when content expands dynamically, ScrollToControl tracks the target
+    /// control rather than remaining clamped to the initial extent.
+    /// </summary>
+    [AvaloniaFact]
+    public void ScrollToControl_DynamicExtent_TracksTargetControl()
+    {
+        var host = CreateHost();
+        try
+        {
+            using var spy = CreateAttachedSpy(host, new List<string>());
+
+            spy.ScrollToControl(host.Third);
+            Assert.True(spy.IsScrollingProgrammatically);
+
+            // Dynamically expand third child
+            host.Third.Height = 800;
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(spy.IsScrollingProgrammatically);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
     private static ScrollSpyHost CreateHost()
     {
         var first = new Border { Height = 400 };
