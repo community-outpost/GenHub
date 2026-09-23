@@ -29,7 +29,7 @@ public class GameProcessManagerExitFinalizationTests
     [Fact]
     public async Task GetActiveProcessesAsync_InspectionFails_RetainsTrackedInstanceAsync()
     {
-        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>());
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>(), Mock.Of<IFlatpakProvisioner>());
         using var process = new DisposableProcess();
         const int processId = 12345;
         GetState(manager, "_managedProcesses")[processId] = process;
@@ -43,7 +43,7 @@ public class GameProcessManagerExitFinalizationTests
     [Fact]
     public async Task TrackProcess_ReturnsManagedIdentityAsync()
     {
-        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>());
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>(), Mock.Of<IFlatpakProvisioner>());
         using var process = Process.GetCurrentProcess();
         var tracked = manager.TrackProcess(process);
         Assert.NotNull(tracked);
@@ -59,7 +59,7 @@ public class GameProcessManagerExitFinalizationTests
     [InlineData(true)]
     public void OnProcessExited_DisposesNaturalExitAfterNotification(bool requested)
     {
-        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>());
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>(), Mock.Of<IFlatpakProvisioner>());
         using var process = new DisposableProcess();
         const int processId = 12345;
         GetState(manager, "_managedProcesses")[processId] = process;
@@ -94,7 +94,7 @@ public class GameProcessManagerExitFinalizationTests
     [Fact]
     public async Task TerminateProcessAsync_MissingPositivePid_SucceedsWithoutProcessAccessAsync()
     {
-        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>());
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>(), Mock.Of<IFlatpakProvisioner>());
         var lookedUp = false;
         manager.TerminationProcessLookup = pid =>
         {
@@ -111,7 +111,7 @@ public class GameProcessManagerExitFinalizationTests
     [Fact]
     public void FinalizeProcessExit_DuplicateAfterPidReuse_PreservesNewProcess()
     {
-        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>());
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>(), Mock.Of<IGameLaunchRunner>(), Mock.Of<ILocalizationService>(), Mock.Of<IFlatpakProvisioner>());
         using var oldProcess = new Process();
         using var newProcess = new Process();
         var managed = GetState(manager, "_managedProcesses");

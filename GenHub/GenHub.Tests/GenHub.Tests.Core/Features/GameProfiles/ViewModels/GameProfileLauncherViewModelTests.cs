@@ -843,6 +843,130 @@ public class GameProfileLauncherViewModelTests
         Assert.Equal(expectedHost, result);
     }
 
+    /// <summary>
+    /// A clean exit is the user quitting: the running state clears and nothing is
+    /// reported as an error.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [AvaloniaFact]
+    public async Task ProcessExitedCleanly_DoesNotReportAFailureAsync()
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+
+        // InitializeAsync is where the view model subscribes to ProcessExited.
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Quitting Profile");
+        profile.ProcessId = 4243;
+        profile.IsProcessRunning = true;
+        vm.Profiles.Add(profile);
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4243,
+            ExitCode = 0,
+        });
+
+        Assert.False(profile.IsProcessRunning);
+        Assert.Equal(0, profile.ProcessId);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        notificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A stop the user asked for kills the process with a non-zero exit code; that must
+    /// not raise the "exited unexpectedly" alarm — the stop path's own status stands.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [AvaloniaFact]
+    public async Task ProcessExitedFromARequestedStop_DoesNotRaiseTheFailureAlarmAsync()
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+
+        // InitializeAsync is where the view model subscribes to ProcessExited.
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Stopped Profile");
+        profile.ProcessId = 4244;
+        profile.IsProcessRunning = true;
+        vm.Profiles.Add(profile);
+
+        // The status a completed stop leaves behind; the exit event must not replace it.
+        vm.StatusMessage = "Stopped Profile stopped successfully";
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4244,
+            ExitCode = 137,
+            TerminationRequested = true,
+        });
+
+        Assert.False(profile.IsProcessRunning);
+        Assert.Equal(0, profile.ProcessId);
+        Assert.Equal("Stopped Profile stopped successfully", vm.StatusMessage);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        notificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A process that dies after the launch was announced as running must not vanish
+    /// silently: the late failure surfaces through the notification channel as a failed launch, naming the archive when known.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <param name="includeProfile">Whether the profile row is still present when the process exits.</param>
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUserAsync(bool includeProfile)
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+
+        // InitializeAsync is where the view model subscribes to ProcessExited.
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Failing Profile");
+        profile.PropertyChanged += (_, _) => Assert.True(Dispatcher.UIThread.CheckAccess());
+        profile.ProcessId = 4242;
+        profile.IsProcessRunning = true;
+        if (includeProfile)
+        {
+            vm.Profiles.Add(profile);
+        }
+
+        var statusBeforeExit = vm.StatusMessage;
+        var errorBeforeExit = vm.ErrorMessage;
+        await Task.Run(() => gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4242,
+            ExitCode = 1,
+            StandardErrorTail = "init abort",
+            UnmountableArchives = ["TexturesZH.big"],
+        }));
+        await Dispatcher.UIThread.InvokeAsync(() => { });
+
+        Assert.Equal(!includeProfile, profile.IsProcessRunning);
+        Assert.Equal(includeProfile ? 0 : 4242, profile.ProcessId);
+        Assert.Equal(statusBeforeExit, vm.StatusMessage);
+        Assert.Equal(errorBeforeExit, vm.ErrorMessage);
+        notificationService.Verify(
+            n => n.ShowError(
+                "Game Exited Unexpectedly",
+                It.Is<string>(s => s.Contains("TexturesZH.big") && (!includeProfile || s.Contains("Failing Profile"))),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
@@ -1052,129 +1176,5 @@ public class GameProfileLauncherViewModelTests
         profile.SetupGet(p => p.ExecutablePath).Returns(string.Empty);
 
         return new GameProfileItemViewModel("profile-1", profile.Object, string.Empty, string.Empty);
-    }
-
-    /// <summary>
-    /// A clean exit is the user quitting: the running state clears and nothing is
-    /// reported as an error.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [AvaloniaFact]
-    public async Task ProcessExitedCleanly_DoesNotReportAFailureAsync()
-    {
-        var gameProcessManager = new Mock<IGameProcessManager>();
-        var notificationService = new Mock<INotificationService>();
-        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
-
-        // InitializeAsync is where the view model subscribes to ProcessExited.
-        await vm.InitializeAsync();
-
-        var profile = CreateProfileItem("Quitting Profile");
-        profile.ProcessId = 4243;
-        profile.IsProcessRunning = true;
-        vm.Profiles.Add(profile);
-
-        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
-        {
-            ProcessId = 4243,
-            ExitCode = 0,
-        });
-
-        Assert.False(profile.IsProcessRunning);
-        Assert.Equal(0, profile.ProcessId);
-        Assert.Equal(string.Empty, vm.ErrorMessage);
-        notificationService.Verify(
-            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
-            Times.Never);
-    }
-
-    /// <summary>
-    /// A stop the user asked for kills the process with a non-zero exit code; that must
-    /// not raise the "exited unexpectedly" alarm — the stop path's own status stands.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [AvaloniaFact]
-    public async Task ProcessExitedFromARequestedStop_DoesNotRaiseTheFailureAlarmAsync()
-    {
-        var gameProcessManager = new Mock<IGameProcessManager>();
-        var notificationService = new Mock<INotificationService>();
-        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
-
-        // InitializeAsync is where the view model subscribes to ProcessExited.
-        await vm.InitializeAsync();
-
-        var profile = CreateProfileItem("Stopped Profile");
-        profile.ProcessId = 4244;
-        profile.IsProcessRunning = true;
-        vm.Profiles.Add(profile);
-
-        // The status a completed stop leaves behind; the exit event must not replace it.
-        vm.StatusMessage = "Stopped Profile stopped successfully";
-
-        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
-        {
-            ProcessId = 4244,
-            ExitCode = 137,
-            TerminationRequested = true,
-        });
-
-        Assert.False(profile.IsProcessRunning);
-        Assert.Equal(0, profile.ProcessId);
-        Assert.Equal("Stopped Profile stopped successfully", vm.StatusMessage);
-        Assert.Equal(string.Empty, vm.ErrorMessage);
-        notificationService.Verify(
-            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
-            Times.Never);
-    }
-
-    /// <summary>
-    /// A process that dies after the launch was announced as running must not vanish
-    /// silently: the late failure surfaces through the notification channel as a failed launch, naming the archive when known.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    /// <param name="includeProfile">Whether the profile row is still present when the process exits.</param>
-    [AvaloniaTheory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUserAsync(bool includeProfile)
-    {
-        var gameProcessManager = new Mock<IGameProcessManager>();
-        var notificationService = new Mock<INotificationService>();
-        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
-
-        // InitializeAsync is where the view model subscribes to ProcessExited.
-        await vm.InitializeAsync();
-
-        var profile = CreateProfileItem("Failing Profile");
-        profile.PropertyChanged += (_, _) => Assert.True(Dispatcher.UIThread.CheckAccess());
-        profile.ProcessId = 4242;
-        profile.IsProcessRunning = true;
-        if (includeProfile)
-        {
-            vm.Profiles.Add(profile);
-        }
-
-        var statusBeforeExit = vm.StatusMessage;
-        var errorBeforeExit = vm.ErrorMessage;
-        await Task.Run(() => gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
-        {
-            ProcessId = 4242,
-            ExitCode = 1,
-            StandardErrorTail = "init abort",
-            UnmountableArchives = ["TexturesZH.big"],
-        }));
-        await Dispatcher.UIThread.InvokeAsync(() => { });
-
-        Assert.Equal(!includeProfile, profile.IsProcessRunning);
-        Assert.Equal(includeProfile ? 0 : 4242, profile.ProcessId);
-        Assert.Equal(statusBeforeExit, vm.StatusMessage);
-        Assert.Equal(errorBeforeExit, vm.ErrorMessage);
-        notificationService.Verify(
-            n => n.ShowError(
-                "Game Exited Unexpectedly",
-                It.Is<string>(s => s.Contains("TexturesZH.big") && (!includeProfile || s.Contains("Failing Profile"))),
-                It.IsAny<int?>(),
-                It.IsAny<bool>()),
-            Times.Once);
     }
 }

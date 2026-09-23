@@ -43,8 +43,6 @@ public class GameProcessManager(
 
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
-    private readonly ConcurrentDictionary<int, BoundedErrorBuffer> _capturedProcessErrors = new();
-
 
     /// <summary>
     /// Stderr captures for processes this manager started itself, keyed by process instance.
@@ -154,7 +152,7 @@ public class GameProcessManager(
             var launcherStartTime = ReadStartTime(process) ?? launchTimeFallback;
 
             var capturedErrors = SetupErrorRedirection(process);
-            _capturedProcessErrors[process.Id] = capturedErrors;
+            _stderrBuffers[process] = capturedErrors;
 
             var isWine = IsWineLaunch(launchRunner, runnerResult.Data);
             if (isWine && !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
@@ -177,7 +175,6 @@ public class GameProcessManager(
             }
 
             _managedProcesses[process.Id] = process;
-            _stderrBuffers[process] = capturedErrors;
 
             if (configuration.WaitForExit)
             {
@@ -565,8 +562,6 @@ public class GameProcessManager(
         }
 
         _managedProcesses.Clear();
-        _capturedProcessErrors.Clear();
-
         _stderrBuffers.Clear();
         _requestedTerminations.Clear();
         _terminationSemaphore.Dispose();
@@ -575,6 +570,84 @@ public class GameProcessManager(
         GC.SuppressFinalize(this);
 
         logger.LogInformation("GameProcessManager disposed");
+    }
+
+    /// <summary>
+    /// Resolves the host directories a Flatpak client needs to see inside its sandbox:
+    /// the retail archive roots, the working directory / workspace, and the native options directory.
+    /// Flatpak hides the host filesystem by default, so without these binds a client
+    /// resolving game data from its environment or running from a workspace fails on paths
+    /// that exist on the host.
+    /// </summary>
+    /// <param name="environment">The launch environment carrying the install-path variables.</param>
+    /// <param name="workingDirectory">The working directory (e.g. workspace directory) for the launch.</param>
+    /// <param name="optionsIniPath">The path to Options.ini on the host, if configured.</param>
+    /// <returns>The existing bind roots, with nested duplicates removed.</returns>
+    internal static IReadOnlyList<string> ResolveFlatpakFilesystemBinds(
+        IReadOnlyDictionary<string, string>? environment,
+        string? workingDirectory = null,
+        string? optionsIniPath = null)
+    {
+        var binds = new List<string>();
+
+        if (environment is not null)
+        {
+            foreach (var variable in RetailArchiveConstants.InstallPathVariables)
+            {
+                if (environment.TryGetValue(variable, out var root))
+                {
+                    AddValidBindRoot(binds, root);
+                }
+            }
+        }
+
+        AddValidBindRoot(binds, workingDirectory);
+
+        if (!string.IsNullOrWhiteSpace(optionsIniPath))
+        {
+            AddValidBindRoot(binds, Path.GetDirectoryName(optionsIniPath));
+        }
+
+        return binds;
+    }
+
+    /// <summary>
+    /// Builds the list of <c>--env=NAME=VALUE</c> arguments to forward environment variables
+    /// into the Flatpak sandbox.
+    /// </summary>
+    /// <param name="appId">The Flatpak application identifier.</param>
+    /// <param name="environment">The environment variables configured for launch.</param>
+    /// <param name="workingDirectory">The working directory (e.g. GenHub workspace) prepared for launch.</param>
+    /// <returns>A list of formatted <c>--env=KEY=VALUE</c> strings.</returns>
+    internal static IReadOnlyList<string> ResolveFlatpakEnvironmentArguments(
+        string appId,
+        IReadOnlyDictionary<string, string>? environment,
+        string? workingDirectory = null)
+    {
+        var result = new List<string>();
+        if (environment is null || environment.Count == 0)
+        {
+            return result;
+        }
+
+        var isZeroHourFlatpak = ContentFormatConstants.IsZeroHourFlatpakAppId(appId);
+        var targetZhPath = ResolveZeroHourTargetPath(workingDirectory, environment);
+
+        foreach (var (key, value) in environment)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            var envValue = ResolveFlatpakEnvValue(key, value, isZeroHourFlatpak, workingDirectory, targetZhPath);
+            if (envValue is not null)
+            {
+                result.Add($"{ContentFormatConstants.FlatpakEnvOptionPrefix}{key}={envValue}");
+            }
+        }
+
+        return result;
     }
 
     /// <summary>Bounds notification delivery so a missing callback cannot block future stops.</summary>
@@ -704,84 +777,6 @@ public class GameProcessManager(
         }
 
         logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
-    }
-
-    /// <summary>
-    /// Resolves the host directories a Flatpak client needs to see inside its sandbox:
-    /// the retail archive roots, the working directory / workspace, and the native options directory.
-    /// Flatpak hides the host filesystem by default, so without these binds a client
-    /// resolving game data from its environment or running from a workspace fails on paths
-    /// that exist on the host.
-    /// </summary>
-    /// <param name="environment">The launch environment carrying the install-path variables.</param>
-    /// <param name="workingDirectory">The working directory (e.g. workspace directory) for the launch.</param>
-    /// <param name="optionsIniPath">The path to Options.ini on the host, if configured.</param>
-    /// <returns>The existing bind roots, with nested duplicates removed.</returns>
-    internal static IReadOnlyList<string> ResolveFlatpakFilesystemBinds(
-        IReadOnlyDictionary<string, string>? environment,
-        string? workingDirectory = null,
-        string? optionsIniPath = null)
-    {
-        var binds = new List<string>();
-
-        if (environment is not null)
-        {
-            foreach (var variable in RetailArchiveConstants.InstallPathVariables)
-            {
-                if (environment.TryGetValue(variable, out var root))
-                {
-                    AddValidBindRoot(binds, root);
-                }
-            }
-        }
-
-        AddValidBindRoot(binds, workingDirectory);
-
-        if (!string.IsNullOrWhiteSpace(optionsIniPath))
-        {
-            AddValidBindRoot(binds, Path.GetDirectoryName(optionsIniPath));
-        }
-
-        return binds;
-    }
-
-    /// <summary>
-    /// Builds the list of <c>--env=NAME=VALUE</c> arguments to forward environment variables
-    /// into the Flatpak sandbox.
-    /// </summary>
-    /// <param name="appId">The Flatpak application identifier.</param>
-    /// <param name="environment">The environment variables configured for launch.</param>
-    /// <param name="workingDirectory">The working directory (e.g. GenHub workspace) prepared for launch.</param>
-    /// <returns>A list of formatted <c>--env=KEY=VALUE</c> strings.</returns>
-    internal static IReadOnlyList<string> ResolveFlatpakEnvironmentArguments(
-        string appId,
-        IReadOnlyDictionary<string, string>? environment,
-        string? workingDirectory = null)
-    {
-        var result = new List<string>();
-        if (environment is null || environment.Count == 0)
-        {
-            return result;
-        }
-
-        var isZeroHourFlatpak = ContentFormatConstants.IsZeroHourFlatpakAppId(appId);
-        var targetZhPath = ResolveZeroHourTargetPath(workingDirectory, environment);
-
-        foreach (var (key, value) in environment)
-        {
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                continue;
-            }
-
-            var envValue = ResolveFlatpakEnvValue(key, value, isZeroHourFlatpak, workingDirectory, targetZhPath);
-            if (envValue is not null)
-            {
-                result.Add($"{ContentFormatConstants.FlatpakEnvOptionPrefix}{key}={envValue}");
-            }
-        }
-
-        return result;
     }
 
     /// <summary>
@@ -1451,7 +1446,7 @@ public class GameProcessManager(
             spawnedProcess.Id,
             executableName);
 
-        _capturedProcessErrors.TryRemove(launcherProcess.Id, out _);
+        _stderrBuffers.TryRemove(launcherProcess, out _);
         launcherProcess.Dispose();
         _managedProcesses[spawnedProcess.Id] = spawnedProcess;
 
@@ -1470,7 +1465,7 @@ public class GameProcessManager(
 
         try
         {
-            _capturedProcessErrors.TryRemove(process.Id, out _);
+            _stderrBuffers.TryRemove(process, out _);
         }
         catch (InvalidOperationException)
         {
@@ -1485,7 +1480,7 @@ public class GameProcessManager(
         var exitCode = process.ExitCode;
         logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
 
-        _capturedProcessErrors.TryRemove(process.Id, out _);
+        _stderrBuffers.TryRemove(process, out _);
         DrainStandardError(process, capturedErrors);
         process.Dispose();
 

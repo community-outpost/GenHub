@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
@@ -40,7 +41,8 @@ public class PostSpawnFailureDetectionTests : IDisposable
     private readonly GameProcessManager _processManager = new(
         NullLogger<GameProcessManager>.Instance,
         new DirectRunner(NullLogger<DirectRunner>.Instance),
-        Mock.Of<ILocalizationService>());
+        Mock.Of<ILocalizationService>(),
+        Mock.Of<IFlatpakProvisioner>());
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostSpawnFailureDetectionTests"/> class.
