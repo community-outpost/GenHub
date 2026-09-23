@@ -80,6 +80,44 @@ public sealed class WineRunnerTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies an explicit runner binary override wins over PATH discovery.
+    /// </summary>
+    /// <remarks>
+    /// Power users point GenHub at alternate runtimes (Proton builds, custom Wine)
+    /// through the override without changing the default discovery.
+    /// </remarks>
+    [Fact]
+    public void ResolveCommand_WithWineBinaryOverride_UsesOverride()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("override-bin");
+        var overridePath = Path.Combine(binDirectory, "custom-wine");
+        File.WriteAllText(overridePath, "fake wine");
+        var previous = Environment.GetEnvironmentVariable(WineConstants.WineBinaryOverrideEnvVar);
+        Environment.SetEnvironmentVariable(WineConstants.WineBinaryOverrideEnvVar, overridePath);
+        try
+        {
+            var runner = CreateRunner([], Path.Combine(_tempDirectory, "prefix"), [$"missing-wine-{Guid.NewGuid():N}"]);
+            var configuration = new GameLaunchConfiguration
+            {
+                ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            };
+
+            // Act
+            var result = runner.ResolveCommand(configuration);
+
+            // Assert
+            Assert.True(result.Success, result.AllErrors);
+            Assert.NotNull(result.Data);
+            Assert.Equal(overridePath, result.Data.FileName);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(WineConstants.WineBinaryOverrideEnvVar, previous);
+        }
+    }
+
+    /// <summary>
     /// Verifies non-Windows executables pass through without requiring Wine.
     /// </summary>
     [Fact]
