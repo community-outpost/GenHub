@@ -53,7 +53,7 @@ public sealed class GenLauncherDelivererTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DeliverContentAsync_WithInvalidDownloadUrl_ReturnsFailure()
+    public async Task DeliverContentAsync_WithInvalidDownloadUrl_ReturnsFailureAsync()
     {
         var deliverer = CreateDeliverer();
         var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -102,7 +102,7 @@ public sealed class GenLauncherDelivererTests
     [InlineData("ftp://attacker.com/payload.zip")]
     [InlineData("http://127.0.0.1/sensitive.zip")]
     [InlineData("http://localhost:8080/data.zip")]
-    public async Task DeliverContentAsync_WithSsrfUnsafeUrl_RejectsWithoutDownloading(string unsafeUrl)
+    public async Task DeliverContentAsync_WithSsrfUnsafeUrl_RejectsWithoutDownloadingAsync(string unsafeUrl)
     {
         var deliverer = CreateDeliverer();
         var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -154,7 +154,7 @@ public sealed class GenLauncherDelivererTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DeliverContentAsync_WhenDownloadFails_ReturnsFailure()
+    public async Task DeliverContentAsync_WhenDownloadFails_ReturnsFailureAsync()
     {
         _downloadServiceMock.Setup(d => d.DownloadFileAsync(
             It.IsAny<Uri>(),
@@ -206,7 +206,7 @@ public sealed class GenLauncherDelivererTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DeliverContentAsync_WithMultipleFiles_DownloadsConcurrentlyAndSucceeds()
+    public async Task DeliverContentAsync_WithMultipleFiles_DownloadsConcurrentlyAndSucceedsAsync()
     {
         _downloadServiceMock.Setup(d => d.DownloadFileAsync(
             It.IsAny<Uri>(),
