@@ -498,24 +498,13 @@ public partial class ContentManifestBuilder(
     /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    public Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
+    public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
         ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string fileFilter = "*",
         bool isExecutable = false,
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default)
-    {
-        return AddFilesFromDirectoryAsync(sourceDirectory, CancellationToken.None, sourceType, fileFilter, isExecutable);
-    }
-
-    /// <inheritdoc/>
-    public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
-        string sourceDirectory,
-        CancellationToken cancellationToken,
-        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
-        string fileFilter = "*",
-        bool isExecutable = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(sourceDirectory))
@@ -574,6 +563,17 @@ public partial class ContentManifestBuilder(
 
         logger.LogInformation("Added {FileCount} files from directory: {Directory} (Hashed: {Hashed})", _manifest.Files.Count, sourceDirectory, shouldComputeHash);
         return this;
+    }
+
+    /// <inheritdoc/>
+    public Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
+        string sourceDirectory,
+        CancellationToken cancellationToken,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
+        string fileFilter = "*",
+        bool isExecutable = false)
+    {
+        return AddFilesFromDirectoryAsync(sourceDirectory, sourceType, fileFilter, isExecutable, progress: null, cancellationToken: cancellationToken);
     }
 
     /// <summary>

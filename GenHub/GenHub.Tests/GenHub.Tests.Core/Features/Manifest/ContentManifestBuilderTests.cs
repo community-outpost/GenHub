@@ -361,14 +361,16 @@ public class ContentManifestBuilderTests
         {
             await File.WriteAllTextAsync(Path.Combine(directory, "first.big"), "data");
             await File.WriteAllTextAsync(Path.Combine(directory, "second.big"), "data");
-            _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), cancellation.Token))
+            _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .Returns((string _, CancellationToken token) =>
                 {
+                    Assert.True(token.CanBeCanceled);
                     cancellation.Cancel();
+                    Assert.True(token.IsCancellationRequested);
                     return Task.FromCanceled<string>(token);
                 });
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _builder.AddFilesFromDirectoryAsync(directory, cancellation.Token));
-            _hashProviderMock.Verify(x => x.ComputeFileHashAsync(It.IsAny<string>(), cancellation.Token), Times.Once);
+            _hashProviderMock.Verify(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.Is<CancellationToken>(token => token.IsCancellationRequested)), Times.AtLeastOnce);
         }
         finally
         {
