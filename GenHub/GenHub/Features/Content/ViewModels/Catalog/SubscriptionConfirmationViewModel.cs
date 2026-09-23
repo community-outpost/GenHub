@@ -59,6 +59,7 @@ public partial class SubscriptionConfirmationViewModel(
     private readonly List<(string Id, string Name, string Url, PublisherCatalog Catalog)> _definitionCatalogs = [];
 
     private PublisherCatalog? _parsedCatalog;
+    private PublisherDefinition? _resolvedDefinition;
 
     private string? _resolvedDefinitionUrl;
     private string? _resolvedCatalogUrl;
@@ -227,6 +228,7 @@ public partial class SubscriptionConfirmationViewModel(
 
             _resolvedDefinitionUrl = resolvedDefUrl;
             _resolvedCatalogUrl = resolvedCatUrl;
+            _resolvedDefinition = definition;
             if (definition != null && !string.IsNullOrWhiteSpace(resolvedCatUrl))
             {
                 await BuildDefinitionCatalogListAsync(definition, parsedData, resolvedCatUrl, cancellationToken);
@@ -386,9 +388,21 @@ public partial class SubscriptionConfirmationViewModel(
         try
         {
             ErrorMessage = null;
-            logger.LogInformation("Confirming subscription for {Publisher}", _parsedCatalog.Publisher.Id);
+            var publisherId = (!string.IsNullOrWhiteSpace(_resolvedDefinition?.Publisher?.Id))
+                ? _resolvedDefinition.Publisher.Id
+                : _parsedCatalog.Publisher.Id;
 
-            var existingResult = await subscriptionStore.GetSubscriptionAsync(_parsedCatalog.Publisher.Id, cancellationToken);
+            var publisherName = (!string.IsNullOrWhiteSpace(_resolvedDefinition?.Publisher?.Name))
+                ? _resolvedDefinition.Publisher.Name
+                : _parsedCatalog.Publisher.Name;
+
+            var publisherAvatar = (!string.IsNullOrWhiteSpace(_resolvedDefinition?.Publisher?.AvatarUrl))
+                ? _resolvedDefinition.Publisher.AvatarUrl
+                : _parsedCatalog.Publisher.AvatarUrl;
+
+            logger.LogInformation("Confirming subscription for {Publisher}", publisherId);
+
+            var existingResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
             if (!existingResult.Success)
             {
                 ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
@@ -400,13 +414,13 @@ public partial class SubscriptionConfirmationViewModel(
 
             var subscription = new PublisherSubscription
             {
-                PublisherId = _parsedCatalog.Publisher.Id,
-                PublisherName = _parsedCatalog.Publisher.Name,
+                PublisherId = publisherId,
+                PublisherName = publisherName,
                 CatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl,
                 DefinitionUrl = _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl, // preserve definition URL if already set
                 Added = existingSub?.Added ?? DateTime.UtcNow,
                 TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
-                AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(_parsedCatalog.Publisher.AvatarUrl),
+                AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(publisherAvatar),
                 AutoUpdate = existingSub?.AutoUpdate ?? true,
                 NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
                 CachedCatalogHash = existingSub?.CachedCatalogHash,
@@ -617,14 +631,20 @@ public partial class SubscriptionConfirmationViewModel(
         PublisherCatalog catalog,
         CancellationToken cancellationToken)
     {
-        PublisherName = catalog.Publisher.Name;
-        PublisherAvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(catalog.Publisher.AvatarUrl);
-        PublisherWebsite = catalog.Publisher.Website;
-        PublisherSupportUrl = catalog.Publisher.SupportUrl ?? string.Empty;
-        PublisherContactEmail = catalog.Publisher.ContactEmail ?? string.Empty;
+        var pubProfile = (_resolvedDefinition?.Publisher != null && !string.IsNullOrWhiteSpace(_resolvedDefinition.Publisher.Name))
+            ? _resolvedDefinition.Publisher
+            : catalog.Publisher;
+
+        PublisherName = pubProfile.Name;
+        PublisherAvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(pubProfile.AvatarUrl);
+        PublisherWebsite = pubProfile.WebsiteUrl ?? pubProfile.Website;
+        PublisherSupportUrl = pubProfile.SupportUrl ?? string.Empty;
+        PublisherContactEmail = pubProfile.ContactEmail ?? string.Empty;
+
+        var publisherId = !string.IsNullOrWhiteSpace(pubProfile.Id) ? pubProfile.Id : catalog.Publisher.Id;
 
         // check if this publisher is already in the subscription store
-        var subCheck = await subscriptionStore.IsSubscribedAsync(catalog.Publisher.Id, cancellationToken);
+        var subCheck = await subscriptionStore.IsSubscribedAsync(publisherId, cancellationToken);
         IsAlreadySubscribed = subCheck is { Success: true, Data: true };
         IsDefinitionSubscription = _resolvedDefinitionUrl != null;
 

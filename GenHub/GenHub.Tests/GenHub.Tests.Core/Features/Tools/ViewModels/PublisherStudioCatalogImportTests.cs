@@ -152,4 +152,52 @@ public sealed class PublisherStudioCatalogImportTests : IDisposable
 
         Assert.False(imported);
     }
+
+    /// <summary>
+    /// Verifies that importing a catalog into an existing project with established catalogs
+    /// does not overwrite the project's existing publisher identity or project name.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportCatalogFromFileAsync_ExistingProjectWithCatalogs_DoesNotOverwriteProjectPublisher()
+    {
+        await _viewModel.CreateNewProjectCommand.ExecuteAsync(null);
+        Assert.NotNull(_viewModel.CurrentProject);
+        _viewModel.CurrentProject.ProjectName = "Original Project";
+        _viewModel.CurrentProject.Catalog.Publisher = new PublisherProfile { Id = "my-publisher", Name = "My Custom Publisher" };
+        _viewModel.CurrentProject.Catalogs =
+        [
+            new NamedCatalog
+            {
+                Id = "existing-catalog",
+                Name = "Existing Catalog",
+                Catalog = new PublisherCatalog { Content = [new CatalogContentItem { Id = "existing-item" }] },
+            }
+        ];
+
+        const string json = """
+            {
+              "": "https://genhub.net/schemas/publisher-catalog.json",
+              "formatVersion": "1.0.0",
+              "publisher": { "id": "dominator", "name": "Dominator Mappacks" },
+              "content": [
+                {
+                  "id": "new-item",
+                  "name": "New Item",
+                  "contentType": "MapPack",
+                  "releases": []
+                }
+              ]
+            }
+            """;
+        var filePath = Path.Combine(_testDirectory, "imported.json");
+        await File.WriteAllTextAsync(filePath, json);
+
+        var imported = await _viewModel.ImportCatalogFromFileAsync(filePath, announceFailures: true);
+
+        Assert.True(imported);
+        Assert.Equal("Original Project", _viewModel.CurrentProject.ProjectName);
+        Assert.Equal("my-publisher", _viewModel.CurrentProject.Catalog.Publisher.Id);
+        Assert.Equal("My Custom Publisher", _viewModel.CurrentProject.Catalog.Publisher.Name);
+    }
 }

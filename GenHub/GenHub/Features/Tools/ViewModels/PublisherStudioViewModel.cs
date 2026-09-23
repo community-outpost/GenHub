@@ -659,13 +659,18 @@ public partial class PublisherStudioViewModel(
         project.Catalogs ??= [];
         var defaultEmpty = project.Catalogs.FirstOrDefault(c =>
             c.Id == "default" && (c.Catalog?.Content == null || c.Catalog.Content.Count == 0));
-        if (defaultEmpty != null && project.Catalogs.Count == 1)
+        var isInitialEmpty = defaultEmpty != null && project.Catalogs.Count == 1;
+        if (isInitialEmpty)
         {
-            project.Catalogs.Remove(defaultEmpty);
-            Catalogs.Remove(defaultEmpty);
+            project.Catalogs.Remove(defaultEmpty!);
+            Catalogs.Remove(defaultEmpty!);
         }
 
-        AdoptImportedPublisher(project, namedCatalog.Catalog.Publisher);
+        // Only adopt imported publisher if this is an empty fresh project with no prior catalogs
+        if (isInitialEmpty || project.Catalogs.Count == 0)
+        {
+            AdoptImportedPublisher(project, namedCatalog.Catalog.Publisher);
+        }
 
         project.Catalogs.Add(namedCatalog);
         Catalogs.Add(namedCatalog);
@@ -678,6 +683,11 @@ public partial class PublisherStudioViewModel(
 
     private void AdoptImportedPublisher(PublisherStudioProject project, PublisherProfile? publisher)
     {
+        if (project.Catalogs != null && project.Catalogs.Count > 0)
+        {
+            return;
+        }
+
         if (project.Catalog?.Publisher != null
             && !string.IsNullOrWhiteSpace(project.Catalog.Publisher.Id)
             && !string.Equals(project.Catalog.Publisher.Name, NewPublisherName, StringComparison.OrdinalIgnoreCase))
@@ -696,6 +706,8 @@ public partial class PublisherStudioViewModel(
         {
             project.ProjectName = publisher.Name ?? publisher.Id;
         }
+
+        PublisherProfileViewModel?.LoadFromProject();
     }
 
     private async Task SaveProjectCoreAsync(PublisherStudioProject project, bool silent)

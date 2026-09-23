@@ -413,6 +413,64 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that subscribing via a definition with a distinct publisher name/id preserves
+    /// the definition's publisher identity rather than stomping it with the catalog's embedded author identity.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_DefinitionWithDifferentPublisherThanCatalog_PreservesDefinitionPublisherIdentityAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string catalogUrl = "https://93.184.216.34/catalog.json";
+        var definitionJson = "{"\":1,"publisher":{"id":"my-custom-pub","name":"My Custom Publisher"},"catalogs":[{"id":"dominator","name":"Dominator Mappacks","url":"" + catalogUrl + ""}]}";
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [catalogUrl] = "DOMINATOR_CATALOG",
+        }));
+
+        var dominatorCatalog = CreateSampleCatalog("dominator", "Dominator Mappacks");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(dominatorCatalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("my-custom-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("my-custom-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+
+        PublisherSubscription? savedSubscription = null;
+        _subscriptionStore
+            .Setup(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, ct) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert publisher name comes from definition, not catalog author
+        Assert.Equal("My Custom Publisher", vm.PublisherName);
+        Assert.Equal("M", vm.PublisherInitial);
+
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        Assert.NotNull(savedSubscription);
+        Assert.Equal("my-custom-pub", savedSubscription.PublisherId);
+        Assert.Equal("My Custom Publisher", savedSubscription.PublisherName);
+    }
+
     private static PublisherCatalog CreateSampleCatalog(string id, string name)
     {
         return new PublisherCatalog
