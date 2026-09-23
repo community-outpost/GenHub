@@ -5,7 +5,6 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Common;
-using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -883,7 +882,7 @@ public class OnlineViewModelTests
             profile.GameClient!.ExecutablePath = exePath;
             IReadOnlyList<ContentManifest> manifests =
             [
-                new() { Id = new ManifestId("mod-a"), ContentType = ContentType.Mod, SourcePath = gameDir },
+                new() { Id = new ManifestId("mod-a"), ContentType = GenHub.Core.Models.Enums.ContentType.Mod, SourcePath = gameDir },
             ];
             var profiles = new Mock<IGameProfileManager>();
             profiles.Setup(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()))
