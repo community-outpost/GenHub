@@ -205,6 +205,8 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         string? modPath = null,
         CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(gameRootPath) || !Directory.Exists(gameRootPath))
         {
             return OperationResult<string>.CreateFailure($"Game root directory not found at '{gameRootPath}'.");

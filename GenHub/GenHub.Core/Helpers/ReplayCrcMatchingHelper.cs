@@ -393,22 +393,17 @@ public static class ReplayCrcMatchingHelper
     /// </returns>
     public static bool IsZeroHourRetailCompatible(GameClient? client, IReadOnlyList<string>? enabledContentIds = null)
     {
-        if (client == null)
+        if (IsNonRetailCandidate(client, enabledContentIds))
         {
             return false;
         }
 
-        if (IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
-        {
-            return false;
-        }
-
-        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
+        if (IsRecognizedRetailDistribution(client))
         {
             return true;
         }
 
-        return IsClientRetailCompatible(client, enabledContentIds, IsZeroHourRetailIniCrc, IsZeroHourRetailExeCrc, IsZeroHourRetailExeSha256, GameType.ZeroHour);
+        return IsClientRetailCompatible(client!, enabledContentIds, IsZeroHourRetailIniCrc, IsZeroHourRetailExeCrc, IsZeroHourRetailExeSha256, GameType.ZeroHour);
     }
 
     /// <summary>
@@ -423,22 +418,17 @@ public static class ReplayCrcMatchingHelper
     /// </returns>
     public static bool IsRetailCompatible(GameClient? client, IReadOnlyList<string>? enabledContentIds = null)
     {
-        if (client == null)
+        if (IsNonRetailCandidate(client, enabledContentIds))
         {
             return false;
         }
 
-        if (IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
-        {
-            return false;
-        }
-
-        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
+        if (IsRecognizedRetailDistribution(client))
         {
             return true;
         }
 
-        if (IsExplicitGeneralsClient(client))
+        if (IsExplicitGeneralsClient(client!))
         {
             return IsGeneralsRetailCompatible(client, enabledContentIds);
         }
@@ -610,17 +600,12 @@ public static class ReplayCrcMatchingHelper
         }
 
         var client = profile.GameClient;
-        if (IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, profile.EnabledContentIds))
+        if (IsNonRetailCandidate(client, profile.EnabledContentIds))
         {
             return false;
         }
 
-        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
-        {
-            return true;
-        }
-
-        if (IsRetailCompatible(client, profile.EnabledContentIds))
+        if (IsRecognizedRetailDistribution(client) || IsRetailCompatible(client, profile.EnabledContentIds))
         {
             return true;
         }
@@ -934,12 +919,12 @@ public static class ReplayCrcMatchingHelper
         Func<string?, bool> isRetailExeSha,
         GameType targetGameType)
     {
-        if (IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
+        if (IsNonRetailCandidate(client, enabledContentIds))
         {
             return false;
         }
 
-        if (IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client))
+        if (IsRecognizedRetailDistribution(client))
         {
             return true;
         }
@@ -1046,12 +1031,6 @@ public static class ReplayCrcMatchingHelper
         return !string.IsNullOrWhiteSpace(cachedIniCrc);
     }
 
-    private static bool TryGetCachedIniCrc(GameClient? client, out string? cachedIniCrc)
-    {
-        var effectiveType = client != null && IsExplicitGeneralsClient(client) ? GameType.Generals : (client?.GameType ?? GameType.ZeroHour);
-        return TryGetCachedIniCrc(client, effectiveType, out cachedIniCrc);
-    }
-
     /// <summary>
     /// Tries to resolve the client's executable path and read its cached CRC.
     /// </summary>
@@ -1077,13 +1056,30 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
+    /// Determines whether the specified game client or enabled content represents a non-retail engine client or identifier.
+    /// </summary>
+    private static bool IsNonRetailCandidate(GameClient? client, IReadOnlyList<string>? enabledContentIds) =>
+        client == null || IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, enabledContentIds);
+
+    /// <summary>
+    /// Determines whether the specified game client is a recognized retail distribution (Community Outpost or SuperHackers).
+    /// </summary>
+    private static bool IsRecognizedRetailDistribution(GameClient? client) =>
+        IsCommunityOutpostRetailClient(client) || IsSuperHackersRetailClient(client);
+
+    /// <summary>
     /// Determines whether the client or any enabled content uses a non-retail identifier.
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
     /// <param name="enabledContentIds">Optional list of enabled content manifest IDs for the profile.</param>
     /// <returns><c>true</c> if a non-retail identifier was found; otherwise, <c>false</c>.</returns>
-    private static bool HasNonRetailIdentifier(GameClient client, IReadOnlyList<string>? enabledContentIds)
+    private static bool HasNonRetailIdentifier(GameClient? client, IReadOnlyList<string>? enabledContentIds)
     {
+        if (client == null)
+        {
+            return false;
+        }
+
         return CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
             CommunityOutpostConstants.IsNonRetailIdentifier(client.Name) ||
             CommunityOutpostConstants.IsNonRetailIdentifier(client.PublisherType) ||
