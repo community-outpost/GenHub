@@ -158,6 +158,57 @@ public sealed class JsonPublisherCatalogParserTests
     }
 
     /// <summary>
+    /// Third-party catalogs using string enums, formatVersion, and catalog-level metadata
+    /// (e.g. community mappack catalogs) must parse and validate end-to-end.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_StringEnumsAndCatalogMetadata_SucceedsAsync()
+    {
+        const string json = """
+            {
+              "$schema": "https://genhub.net/schemas/publisher-catalog.json",
+              "formatVersion": "1.0.0",
+              "publisher": { "id": "dominator", "name": "Dominator Mappacks" },
+              "metadata": { "title": "Dominator Mappacks", "source": "https://example.com/maps" },
+              "content": [
+                {
+                  "id": "gla-campaign-by-tklyo",
+                  "name": "GLA Campaign by TKlyo",
+                  "description": "Custom singleplayer GLA campaign missions.",
+                  "contentType": "MapPack",
+                  "isStandalone": false,
+                  "targetGame": "ZeroHour",
+                  "tags": ["maps", "campaign"],
+                  "metadata": { "author": "Dominator", "category": "Maps" },
+                  "releases": [
+                    {
+                      "version": "1.0.0",
+                      "isLatest": true,
+                      "artifacts": [
+                        { "filename": "gla-campaign.rar", "downloadUrl": "https://example.com/gla-campaign.rar", "isPrimary": true }
+                      ],
+                      "dependencies": [
+                        { "publisherId": "ea", "contentId": "zerohour", "versionConstraint": "1.04", "contentType": "GameInstallation" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = await parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal("dominator", result.Data!.Publisher.Id);
+        var item = Assert.Single(result.Data.Content);
+        Assert.Equal(ContentType.MapPack, item.ContentType);
+        Assert.Equal(GameType.ZeroHour, item.TargetGame);
+    }
+
+    /// <summary>
     /// Duplicate content IDs (case-insensitive) must be rejected with validation errors.
     /// </summary>
     [Fact]

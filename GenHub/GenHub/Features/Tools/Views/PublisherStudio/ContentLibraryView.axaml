@@ -486,6 +486,168 @@
                                 </ItemsControl>
                             </StackPanel>
 
+                            <!-- Media -->
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Media}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="14"/>
+                                <Border x:Name="MediaScreenshotsDropZone"
+                                        DragDrop.AllowDrop="True"
+                                        Background="{DynamicResource GlassFillSubtleBrush}"
+                                        BorderBrush="{DynamicResource GlassFillBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="12">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Screenshots}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"/>
+                                        <ItemsControl ItemsSource="{Binding Metadata.ScreenshotUrls}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource GlassFillBrush}"
+                                                            BorderBrush="{DynamicResource GlassStrongBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="6"
+                                                            ClipToBounds="True"
+                                                            Margin="0,0,8,8">
+                                                        <Grid>
+                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Padding="0"
+                                                                    Cursor="Hand">
+                                                                <Image controls:ImageLoader.Source="{Binding}"
+                                                                       Width="160"
+                                                                       Height="90"
+                                                                       Stretch="UniformToFill"/>
+                                                            </Button>
+                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="{DynamicResource GlassFillBrush}"
+                                                                    BorderThickness="0"
+                                                                    Padding="4"
+                                                                    CornerRadius="4"
+                                                                    Cursor="Hand"
+                                                                    HorizontalAlignment="Right"
+                                                                    VerticalAlignment="Top"
+                                                                    Margin="4"
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                                <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaScreenshotsDropHint}"
+                                                   Foreground="{DynamicResource TextMuted}"
+                                                   FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border x:Name="MediaVideosDropZone"
+                                        DragDrop.AllowDrop="True"
+                                        Background="{DynamicResource GlassFillSubtleBrush}"
+                                        BorderBrush="{DynamicResource GlassFillBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="12">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Videos}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"/>
+                                        <Border Background="{DynamicResource GlassFillBrush}"
+                                                BorderBrush="{DynamicResource GlassStrongBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="10,6"
+                                                IsVisible="{Binding Metadata.VideoUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Metadata.VideoUrl}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource TextPrimary}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1"
+                                                        Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
+                                                        CommandParameter="{Binding Metadata.VideoUrl}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Padding="4"
+                                                        Cursor="Hand"
+                                                        Margin="0,0,4,0"
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
+                                                    <PathIcon Data="M8 5v14l11-7z" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                </Button>
+                                                <Button Grid.Column="2"
+                                                        Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
+                                                        CommandParameter="{Binding Metadata.VideoUrl}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Padding="4"
+                                                        Cursor="Hand"
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                    <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding Metadata.VideoUrls}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource GlassFillBrush}"
+                                                            BorderBrush="{DynamicResource GlassStrongBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="6"
+                                                            Padding="10,6"
+                                                            Margin="0,0,0,4">
+                                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding}"
+                                                                       FontSize="12"
+                                                                       Foreground="{DynamicResource TextPrimary}"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center"/>
+                                                            <Button Grid.Column="1"
+                                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Padding="4"
+                                                                    Cursor="Hand"
+                                                                    Margin="0,0,4,0"
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
+                                                                <PathIcon Data="M8 5v14l11-7z" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                            </Button>
+                                                            <Button Grid.Column="2"
+                                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Padding="4"
+                                                                    Cursor="Hand"
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                                <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaVideosDropHint}"
+                                                   Foreground="{DynamicResource TextMuted}"
+                                                   FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
                             <!-- Bundled Items (for ContentBundle) -->
                             <Border Background="{DynamicResource GlassFillSubtleBrush}"
                                     BorderBrush="{DynamicResource GlassFillBrush}"

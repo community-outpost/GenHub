@@ -4,6 +4,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
@@ -19,6 +20,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,7 +43,8 @@ public partial class PublisherStudioViewModel(
     INotificationService? notificationService = null,
     IConfigurationProviderService? configurationProvider = null,
     ILocalizationService? localizationService = null,
-    IHostingCredentialStore? credentialStore = null) : ObservableObject, IDisposable
+    IHostingCredentialStore? credentialStore = null,
+    IPublisherCatalogParser? catalogParser = null) : ObservableObject, IDisposable
 {
     /// <summary>Tab index for the Profile tab.</summary>
     public const int TabProfile = 0;
@@ -59,6 +62,14 @@ public partial class PublisherStudioViewModel(
     public const int TabPublishShare = 4;
 
     private const string NewPublisherName = "New Publisher";
+
+    private static readonly JsonSerializerOptions CatalogImportOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
@@ -292,8 +303,9 @@ public partial class PublisherStudioViewModel(
     /// Attempts to import a catalog from a JSON file path, prompting the user for confirmation.
     /// </summary>
     /// <param name="filePath">The file path to the catalog JSON.</param>
+    /// <param name="announceFailures">True to toast parse failures to the user; false to fail silently for incidental drops.</param>
     /// <returns>True if the file was recognized as a catalog and processed; false otherwise.</returns>
-    public async Task<bool> ImportCatalogFromFileAsync(string filePath)
+    public async Task<bool> ImportCatalogFromFileAsync(string filePath, bool announceFailures = false)
     {
         var project = CurrentProject;
         if (project == null || !File.Exists(filePath))
@@ -304,22 +316,8 @@ public partial class PublisherStudioViewModel(
         try
         {
             var content = await File.ReadAllTextAsync(filePath);
-            if (string.IsNullOrWhiteSpace(content))
-            {
-                return false;
-            }
-
-            PublisherCatalog? catalog;
-            try
-            {
-                catalog = JsonSerializer.Deserialize<PublisherCatalog>(content, PublisherJsonOptions.Definition);
-            }
-            catch (JsonException)
-            {
-                return false;
-            }
-
-            if (catalog == null || (catalog.Content == null && catalog.Publisher == null))
+            var catalog = ParseImportCatalog(content, filePath, announceFailures);
+            if (catalog == null)
             {
                 return false;
             }
@@ -524,6 +522,88 @@ public partial class PublisherStudioViewModel(
         slug = Regex.Replace(slug, @"-+", "-", RegexOptions.None, TimeSpan.FromSeconds(1));
         slug = slug.Trim('-');
         return string.IsNullOrEmpty(slug) ? "catalog" : slug;
+    }
+
+    private PublisherCatalog? ParseImportCatalog(string content, string filePath, bool announceFailures)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            ReportImportFailure(filePath, "The file is empty.", announceFailures);
+            return null;
+        }
+
+        PublisherCatalog? catalog;
+        try
+        {
+            catalog = JsonSerializer.Deserialize<PublisherCatalog>(content, CatalogImportOptions);
+        }
+        catch (JsonException ex)
+        {
+            ReportImportFailure(filePath, ex.Message, announceFailures);
+            return null;
+        }
+
+        if (catalog == null || (catalog.Content == null && catalog.Publisher == null))
+        {
+            ReportImportFailure(filePath, "The file is not a valid catalog.", announceFailures);
+            return null;
+        }
+
+        NormalizeImportedPublisherTypes(catalog, filePath);
+
+        if (catalogParser != null)
+        {
+            var validation = catalogParser.ValidateCatalog(catalog);
+            if (!validation.Success)
+            {
+                ReportImportFailure(filePath, validation.FirstError ?? "The file is not a valid catalog.", announceFailures);
+                return null;
+            }
+        }
+
+        return catalog;
+    }
+
+    private void NormalizeImportedPublisherTypes(PublisherCatalog catalog, string filePath)
+    {
+        if (catalog.Content == null)
+        {
+            return;
+        }
+
+        // Imported items are adopted into the user's catalog. Publisher types outside the
+        // native-pipeline allowlist would fail validation everywhere, so fall back to generic.
+        foreach (var item in catalog.Content)
+        {
+            if (string.IsNullOrWhiteSpace(item.PublisherType))
+            {
+                continue;
+            }
+
+            var declared = CatalogManifestIdentity.ResolveDeclaredPublisherType(item.PublisherType);
+            if (!item.PublisherType.Equals(declared, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation(
+                    "Catalog import from {FilePath}: publisherType '{PublisherType}' on '{ContentId}' is not a native pipeline; using generic.",
+                    filePath,
+                    item.PublisherType,
+                    item.Id);
+                item.PublisherType = string.Empty;
+            }
+        }
+    }
+
+    private void ReportImportFailure(string filePath, string reason, bool announceFailures)
+    {
+        logger.LogWarning("Catalog import skipped for {FilePath}: {Reason}", filePath, reason);
+        if (!announceFailures)
+        {
+            return;
+        }
+
+        var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
+            "Failed to import catalog: {0}";
+        notificationService?.ShowError(StudioNotificationTitle, string.Format(errTemplate, reason), NotificationDurations.Long);
     }
 
     private NamedCatalog CreateImportedCatalogEntry(PublisherStudioProject project, PublisherCatalog catalog, string catalogName, string fileName)
@@ -1007,7 +1087,7 @@ public partial class PublisherStudioViewModel(
         var filePath = await dialogService.ShowCatalogFilePickerAsync(title);
         if (!string.IsNullOrEmpty(filePath))
         {
-            await ImportCatalogFromFileAsync(filePath);
+            await ImportCatalogFromFileAsync(filePath, announceFailures: true);
         }
     }
 

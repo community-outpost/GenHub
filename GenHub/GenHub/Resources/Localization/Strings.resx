@@ -13349,6 +13349,51 @@ Would you like to add this catalog to your provider project?</value>
   <data name="Tools.PublisherStudio.Addon.TitleRequired" xml:space="preserve">
     <value>Addon title / name is required</value>
   </data>
+  <data name="Tools.PublisherStudio.Addon.DeleteMessageFormat" xml:space="preserve">
+    <value>Are you sure you want to delete addon '{0}'? This will also remove its artifacts and cannot be undone.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkDropHint" xml:space="preserve">
+    <value>Paste a URL, browse, or drag &amp; drop an image file here.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VideoDropHint" xml:space="preserve">
+    <value>Paste a URL or drag &amp; drop a video file here.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DeliveryModeHint" xml:space="preserve">
+    <value>Bundle installs every file together. Variants let the player pick exactly one file.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadSourceHint" xml:space="preserve">
+    <value>Direct URL uses a file you already host. Local File stages files on this PC that GenHub uploads when you publish.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ExplicitArtifactsHint" xml:space="preserve">
+    <value>Ready-made entries used exactly as listed. While any are listed, the staged files below are ignored.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Media" xml:space="preserve">
+    <value>Media</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Screenshots" xml:space="preserve">
+    <value>Screenshots</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Videos" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaScreenshotsDropHint" xml:space="preserve">
+    <value>Drag &amp; drop image files here to add screenshots</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaVideosDropHint" xml:space="preserve">
+    <value>Drag &amp; drop video files here to add preview videos</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveMediaTooltip" xml:space="preserve">
+    <value>Remove media</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.OpenVideoTooltip" xml:space="preserve">
+    <value>Open video</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaOpenFailedTitle" xml:space="preserve">
+    <value>Cannot Open Media</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaOpenFailedMessage" xml:space="preserve">
+    <value>This media entry is neither an existing file nor a valid web URL.</value>
+  </data>
   <data name="Tools.PublisherStudio.Duplicate.Title" xml:space="preserve">
     <value>Duplicate File Detected</value>
   </data>

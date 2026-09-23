@@ -30,11 +30,6 @@ public partial class AddReleaseDialogViewModel(
     bool isAddon = false,
     INotificationService? notificationService = null) : ObservableValidator
 {
-    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".ico",
-    };
-
     private readonly string? _originalVersion;
 
     [ObservableProperty]
@@ -227,8 +222,7 @@ public partial class AddReleaseDialogViewModel(
     /// </summary>
     /// <param name="path">The file path to check.</param>
     /// <returns>True if the specified path has an image file extension; otherwise, false.</returns>
-    public static bool IsImageFile(string path) =>
-        !string.IsNullOrWhiteSpace(path) && ImageExtensions.Contains(Path.GetExtension(path));
+    public static bool IsImageFile(string path) => MediaFileHelper.IsImageFile(path);
 
     /// <summary>
     /// Adds dropped files or folders as artifacts, checking for duplicates against hosting provider.

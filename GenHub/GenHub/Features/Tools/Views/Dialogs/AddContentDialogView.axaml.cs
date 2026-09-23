@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using GenHub.Core.Helpers;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using System;
 using System.Collections.Generic;
@@ -17,8 +18,6 @@ namespace GenHub.Features.Tools.Views.Dialogs;
 /// </summary>
 public partial class AddContentDialogView : UserControl
 {
-    private static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico"];
-
     /// <summary>
     /// Initializes a new instance of the <see cref="AddContentDialogView"/> class.
     /// </summary>
@@ -80,6 +79,18 @@ public partial class AddContentDialogView : UserControl
             return true;
         }
 
+        if (IsInSubtree(sourceVisual, "VideoDropTarget"))
+        {
+            var videoPaths = paths.Where(IsVideoFile).ToList();
+            if (videoPaths.Count > 0)
+            {
+                await vm.AddVideosFromPathsAsync(videoPaths);
+                return true;
+            }
+
+            return false;
+        }
+
         if (IsInSubtree(sourceVisual, "InitialReleaseDropZone") || IsInSubtree(sourceVisual, "InitialReleaseSection"))
         {
             await vm.AddReleaseArtifactsFromPathsAsync(paths);
@@ -91,6 +102,12 @@ public partial class AddContentDialogView : UserControl
 
     private static async Task HandleFallbackDropAsync(List<string> paths, AddContentDialogViewModel vm)
     {
+        if (paths.All(IsVideoFile))
+        {
+            await vm.AddVideosFromPathsAsync(paths);
+            return;
+        }
+
         var allImages = paths.All(IsImageFile);
         if (!allImages)
         {
@@ -120,8 +137,9 @@ public partial class AddContentDialogView : UserControl
         }
     }
 
-    private static bool IsImageFile(string path) =>
-        ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
+    private static bool IsImageFile(string path) => MediaFileHelper.IsImageFile(path);
+
+    private static bool IsVideoFile(string path) => MediaFileHelper.IsVideoFile(path);
 
     private static bool IsInSubtree(Visual? visual, string name)
     {

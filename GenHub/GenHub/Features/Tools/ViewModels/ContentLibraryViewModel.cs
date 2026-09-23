@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -380,6 +381,51 @@ public partial class ContentLibraryViewModel(
         }
     }
 
+    /// <summary>
+    /// Adds dropped screenshots and videos to the selected content item's metadata.
+    /// </summary>
+    /// <param name="paths">The dropped file paths.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddMediaToSelectedContentAsync(IEnumerable<string> paths)
+    {
+        if (SelectedContent == null) return;
+
+        SelectedContent.Metadata ??= new();
+        var added = false;
+        foreach (var raw in paths)
+        {
+            var path = raw?.Trim();
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                continue;
+            }
+
+            if (MediaFileHelper.IsImageFile(path)
+                && !SelectedContent.Metadata.ScreenshotUrls.Contains(path, StringComparer.OrdinalIgnoreCase))
+            {
+                SelectedContent.Metadata.ScreenshotUrls.Add(path);
+                added = true;
+            }
+            else if (MediaFileHelper.IsVideoFile(path)
+                && !SelectedContent.Metadata.VideoUrls.Contains(path, StringComparer.OrdinalIgnoreCase))
+            {
+                SelectedContent.Metadata.VideoUrls.Add(path);
+                added = true;
+            }
+        }
+
+        if (!added) return;
+
+        RefreshSelectedContent();
+        MarkProjectAndCatalogDirty();
+        if (parentViewModel != null)
+        {
+            await parentViewModel.SaveProjectAsync();
+        }
+
+        logger.LogInformation("Added media to {ContentId}", SelectedContent.Id);
+    }
+
     private static ContentType ClassifyBatchContentType(string rawName, string path)
     {
         // A lone .map file is always a single map regardless of its file name.
@@ -715,6 +761,69 @@ public partial class ContentLibraryViewModel(
         }
 
         logger.LogInformation("Removed bundled item {DependencyId} from {ContentId}", dependency.ContentId, SelectedContent.Id);
+    }
+
+    /// <summary>
+    /// Removes a screenshot or video URL from the selected content item's metadata.
+    /// </summary>
+    [RelayCommand]
+    private async Task RemoveMediaFromSelectedContentAsync(string? url)
+    {
+        if (SelectedContent?.Metadata == null || string.IsNullOrWhiteSpace(url)) return;
+
+        var removedShots = SelectedContent.Metadata.ScreenshotUrls.RemoveAll(u => u.Equals(url, StringComparison.OrdinalIgnoreCase));
+        var removedVideos = SelectedContent.Metadata.VideoUrls.RemoveAll(u => u.Equals(url, StringComparison.OrdinalIgnoreCase));
+        var removedLegacy = 0;
+        if (string.Equals(SelectedContent.Metadata.VideoUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedContent.Metadata.VideoUrl = null;
+            removedLegacy = 1;
+        }
+
+        if (removedShots + removedVideos + removedLegacy == 0) return;
+
+        RefreshSelectedContent();
+        MarkProjectAndCatalogDirty();
+        if (parentViewModel != null)
+        {
+            await parentViewModel.SaveProjectAsync();
+        }
+
+        logger.LogInformation("Removed media {Url} from {ContentId}", url, SelectedContent.Id);
+    }
+
+    /// <summary>
+    /// Opens a screenshot or video URL in the default browser or viewer.
+    /// </summary>
+    [RelayCommand]
+    private void OpenMediaUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+
+        var target = url.Trim();
+        try
+        {
+            if (File.Exists(target))
+            {
+                Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+                return;
+            }
+
+            if (Uri.TryCreate(target, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+                return;
+            }
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to open media URL: {Url}", target);
+        }
+
+        var title = GetLocalizedString("Tools.PublisherStudio.Library.MediaOpenFailedTitle", "Cannot Open Media");
+        var message = GetLocalizedString("Tools.PublisherStudio.Library.MediaOpenFailedMessage", "This media entry is neither an existing file nor a valid web URL.");
+        notificationService?.ShowWarning(title, message);
     }
 
     /// <summary>

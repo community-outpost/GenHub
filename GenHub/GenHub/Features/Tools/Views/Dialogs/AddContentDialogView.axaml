@@ -204,6 +204,7 @@
                                             Foreground="{DynamicResource TextPrimary}"/>
                                 </Grid>
                             </Border>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
                         </StackPanel>
 
                         <!-- Banner -->
@@ -240,6 +241,7 @@
                                             Foreground="{DynamicResource TextPrimary}"/>
                                 </Grid>
                             </Border>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
                         </StackPanel>
 
                         <!-- Backdrop cover -->
@@ -276,6 +278,7 @@
                                             Foreground="{DynamicResource TextPrimary}"/>
                                 </Grid>
                             </Border>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
                         </StackPanel>
 
                         <!-- Accent color -->
@@ -383,8 +386,9 @@
                         </StackPanel>
 
                         <!-- Videos Section -->
-                        <StackPanel Spacing="6" Margin="0,4,0,0">
+                        <StackPanel x:Name="VideoDropTarget" Spacing="6" Margin="0,4,0,0" DragDrop.AllowDrop="True">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.VideoUrl}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.VideoDropHint}" Classes="hint"/>
                             <!-- Videos List -->
                             <ItemsControl ItemsSource="{Binding Videos}" IsVisible="{Binding Videos.Count}">
                                 <ItemsControl.ItemTemplate>
@@ -481,6 +485,7 @@
                                                  IsChecked="{Binding IsVariantsMode, Mode=TwoWay}"
                                                  Foreground="{DynamicResource TextPrimary}"/>
                                 </StackPanel>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.DeliveryModeHint}" Classes="hint" TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Drop Zone for Initial Release -->
@@ -512,6 +517,7 @@
                                             Padding="10,4"
                                             FontSize="12"/>
                                 </Grid>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ExplicitArtifactsHint}" Classes="hint" TextWrapping="Wrap"/>
                                 <ItemsControl ItemsSource="{Binding ReleaseArtifacts}" IsVisible="{Binding ReleaseArtifacts.Count}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -552,6 +558,7 @@
                                              IsChecked="{Binding !UseDirectUrl, Mode=TwoWay}"
                                              Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadSourceHint}" Classes="hint" TextWrapping="Wrap"/>
 
                             <!-- Direct URL Mode -->
                             <StackPanel Spacing="4" IsVisible="{Binding UseDirectUrl}">

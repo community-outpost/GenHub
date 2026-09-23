@@ -101,6 +101,12 @@ public partial class ContentLibraryView : UserControl
             return;
         }
 
+        if (IsInSubtree(sourceVisual, "MediaScreenshotsDropZone") || IsInSubtree(sourceVisual, "MediaVideosDropZone"))
+        {
+            await vm.AddMediaToSelectedContentAsync(paths);
+            return;
+        }
+
         if (vm.SelectedContent != null && IsInSubtree(sourceVisual, "ContentDetailPanel"))
         {
             await vm.AddReleaseWithPathsAsync(paths);

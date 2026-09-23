@@ -13251,6 +13251,51 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Addon.TitleRequired" xml:space="preserve">
     <value>عنوان / اسم الملحق مطلوب</value>
   </data>
+  <data name="Tools.PublisherStudio.Addon.DeleteMessageFormat" xml:space="preserve">
+    <value>هل أنت متأكد من حذف الإضافة '{0}'؟ سيؤدي ذلك أيضًا إلى إزالة ملفاتها ولا يمكن التراجع عنه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkDropHint" xml:space="preserve">
+    <value>الصق رابطًا أو تصفح أو اسحب ملف صورة وأفلته هنا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VideoDropHint" xml:space="preserve">
+    <value>الصق رابطًا أو اسحب ملف فيديو وأفلته هنا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DeliveryModeHint" xml:space="preserve">
+    <value>تثبت الحزمة كل الملفات معًا. بينما تتيح البدائل للاعب اختيار ملف واحد فقط.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadSourceHint" xml:space="preserve">
+    <value>الرابط المباشر يستخدم ملفًا تستضيفه مسبقًا. الملف المحلي يجهز ملفات على هذا الجهاز يرفعها GenHub عند النشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ExplicitArtifactsHint" xml:space="preserve">
+    <value>إدخالات جاهزة تُستخدم كما هي. ما دامت موجودة، يتم تجاهل الملفات المجهزة أدناه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Media" xml:space="preserve">
+    <value>الوسائط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Screenshots" xml:space="preserve">
+    <value>لقطات الشاشة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Videos" xml:space="preserve">
+    <value>مقاطع الفيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaScreenshotsDropHint" xml:space="preserve">
+    <value>اسحب ملفات الصور وأفلتها هنا لإضافة لقطات شاشة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaVideosDropHint" xml:space="preserve">
+    <value>اسحب ملفات الفيديو وأفلتها هنا لإضافة مقاطع معاينة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveMediaTooltip" xml:space="preserve">
+    <value>إزالة الوسائط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.OpenVideoTooltip" xml:space="preserve">
+    <value>فتح الفيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaOpenFailedTitle" xml:space="preserve">
+    <value>تعذر فتح الوسائط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaOpenFailedMessage" xml:space="preserve">
+    <value>هذا العنصر ليس ملفًا موجودًا ولا رابط ويب صالحًا.</value>
+  </data>
   <data name="Tools.PublisherStudio.Duplicate.Title" xml:space="preserve">
     <value>تم اكتشاف ملف مكرر</value>
   </data>

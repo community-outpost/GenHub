@@ -13251,6 +13251,51 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Addon.TitleRequired" xml:space="preserve">
     <value>Требуется название дополнения</value>
   </data>
+  <data name="Tools.PublisherStudio.Addon.DeleteMessageFormat" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить дополнение '{0}'? Это также удалит его файлы, действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkDropHint" xml:space="preserve">
+    <value>Вставьте ссылку, выберите файл или перетащите сюда изображение.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VideoDropHint" xml:space="preserve">
+    <value>Вставьте ссылку или перетащите сюда видеофайл.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DeliveryModeHint" xml:space="preserve">
+    <value>Пакет устанавливает все файлы вместе. Варианты позволяют игроку выбрать ровно один файл.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadSourceHint" xml:space="preserve">
+    <value>Прямая ссылка использует уже размещенный вами файл. Локальный файл подготавливает файлы на этом ПК, которые GenHub загрузит при публикации.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ExplicitArtifactsHint" xml:space="preserve">
+    <value>Готовые записи используются как есть. Пока они есть, подготовленные ниже файлы игнорируются.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Media" xml:space="preserve">
+    <value>Медиа</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Screenshots" xml:space="preserve">
+    <value>Скриншоты</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Videos" xml:space="preserve">
+    <value>Видео</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaScreenshotsDropHint" xml:space="preserve">
+    <value>Перетащите сюда файлы изображений, чтобы добавить скриншоты</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaVideosDropHint" xml:space="preserve">
+    <value>Перетащите сюда видеофайлы, чтобы добавить видео предпросмотра</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveMediaTooltip" xml:space="preserve">
+    <value>Удалить медиа</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.OpenVideoTooltip" xml:space="preserve">
+    <value>Открыть видео</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaOpenFailedTitle" xml:space="preserve">
+    <value>Не удалось открыть медиа</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaOpenFailedMessage" xml:space="preserve">
+    <value>Эта запись не является существующим файлом или допустимым веб-адресом.</value>
+  </data>
   <data name="Tools.PublisherStudio.Duplicate.Title" xml:space="preserve">
     <value>Обнаружен повторяющийся файл</value>
   </data>

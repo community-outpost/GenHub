@@ -416,6 +416,19 @@ public partial class AddContentDialogViewModel(
     }
 
     /// <summary>
+    /// Adds preview videos from dropped file paths or pasted URLs with duplicate detection.
+    /// </summary>
+    /// <param name="paths">The dropped file paths or URLs.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddVideosFromPathsAsync(IEnumerable<string> paths)
+    {
+        foreach (var path in paths)
+        {
+            await ProcessVideoPathAsync(path);
+        }
+    }
+
+    /// <summary>
     /// Adds release artifacts from dropped paths with duplicate detection.
     /// </summary>
     /// <param name="paths">The dropped file or directory paths.</param>
@@ -1767,6 +1780,32 @@ public partial class AddContentDialogViewModel(
                  !Screenshots.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
         {
             Screenshots.Add(cleanPath);
+        }
+    }
+
+    private async Task ProcessVideoPathAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var cleanPath = path.Trim();
+        if (File.Exists(cleanPath))
+        {
+            var sha256 = await ComputeFileSha256SafeAsync(cleanPath);
+            var duplicate = await PromptDuplicateAssetAsync(sha256);
+            var targetUrl = duplicate?.Url ?? cleanPath;
+
+            if (!Videos.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
+            {
+                Videos.Add(targetUrl);
+            }
+        }
+        else if (Uri.TryCreate(cleanPath, UriKind.Absolute, out _) &&
+                 !Videos.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
+        {
+            Videos.Add(cleanPath);
         }
     }
 
