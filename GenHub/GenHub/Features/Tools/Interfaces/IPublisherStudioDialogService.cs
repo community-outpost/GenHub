@@ -55,6 +55,14 @@ public interface IPublisherStudioDialogService
     Task<CatalogContentItem?> ShowAddContentDialogAsync(string? initialPath = null, PublisherCatalog? catalog = null);
 
     /// <summary>
+    /// Shows the add content dialog to create a new content item from multiple initial paths.
+    /// </summary>
+    /// <param name="initialPaths">Optional initial folder or file paths to populate from.</param>
+    /// <param name="catalog">Optional parent catalog.</param>
+    /// <returns>The created content item, or null if cancelled.</returns>
+    Task<CatalogContentItem?> ShowAddContentDialogAsync(IEnumerable<string>? initialPaths = null, PublisherCatalog? catalog = null);
+
+    /// <summary>
     /// Shows the edit content dialog for an existing content item.
     /// </summary>
     /// <param name="existing">The existing content item to edit.</param>

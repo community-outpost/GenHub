@@ -13240,9 +13240,6 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.DragDropFilesHint" xml:space="preserve">
     <value>(drag &amp; drop to upload files)</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.ReleaseMediaHeader" xml:space="preserve">
-    <value>Release Media (Update-Specific Images &amp; Videos)</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.DragDropReleaseImagesHint" xml:space="preserve">
     <value>(drag &amp; drop images here)</value>
   </data>

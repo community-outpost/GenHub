@@ -3,6 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using GenHub.Features.Tools.ViewModels.Dialogs;
+using System;
+using System.Diagnostics;
 using System.Linq;
 
 namespace GenHub.Features.Tools.Views.Dialogs;
@@ -20,11 +22,11 @@ public partial class AddReleaseDialogView : UserControl
     {
         InitializeComponent();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver);
-        AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
+        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
     }
 
-    private void OnDragOver(object? sender, DragEventArgs e)
+    private static void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files))
         {
@@ -44,54 +46,61 @@ public partial class AddReleaseDialogView : UserControl
             return;
         }
 
-        var files = e.Data.GetFiles();
-        if (files == null)
+        try
         {
-            return;
-        }
+            var files = e.Data.GetFiles();
+            if (files == null)
+            {
+                return;
+            }
 
-        var paths = files
-            .Select(f => f.Path?.LocalPath)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Cast<string>()
-            .ToList();
+            var paths = files
+                .Select(f => f.Path?.LocalPath)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Cast<string>()
+                .ToList();
 
-        if (paths.Count == 0)
-        {
-            return;
-        }
+            if (paths.Count == 0)
+            {
+                return;
+            }
 
-        var sourceVisual = e.Source as Visual;
+            var sourceVisual = e.Source as Visual;
 
-        // Specific drop on ImagesZone
-        if (IsInSubtree(sourceVisual, "ImagesDropZone"))
-        {
+            // Specific drop on ImagesZone
+            if (IsInSubtree(sourceVisual, "ImagesDropZone"))
+            {
+                e.Handled = true;
+                await vm.AddImagesFromPathsAsync(paths);
+                return;
+            }
+
+            // Specific drop on ArtifactsZone
+            if (IsInSubtree(sourceVisual, "ArtifactsDropZone"))
+            {
+                e.Handled = true;
+                await vm.AddArtifactsFromPathsAsync(paths);
+                return;
+            }
+
             e.Handled = true;
-            await vm.AddImagesFromPathsAsync(paths);
-            return;
+            var allImages = paths.All(AddReleaseDialogViewModel.IsImageFile);
+            if (allImages)
+            {
+                await vm.AddImagesFromPathsAsync(paths);
+            }
+            else
+            {
+                await vm.AddArtifactsFromPathsAsync(paths);
+            }
         }
-
-        // Specific drop on ArtifactsZone
-        if (IsInSubtree(sourceVisual, "ArtifactsDropZone"))
+        catch (Exception ex)
         {
-            e.Handled = true;
-            await vm.AddArtifactsFromPathsAsync(paths);
-            return;
-        }
-
-        e.Handled = true;
-        var allImages = paths.All(AddReleaseDialogViewModel.IsImageFile);
-        if (allImages)
-        {
-            await vm.AddImagesFromPathsAsync(paths);
-        }
-        else
-        {
-            await vm.AddArtifactsFromPathsAsync(paths);
+            Debug.WriteLine($"Failed to process dropped files: {ex}");
         }
     }
 
-    private bool IsInSubtree(Visual? visual, string name)
+    private static bool IsInSubtree(Visual? visual, string name)
     {
         while (visual != null)
         {

@@ -171,9 +171,26 @@ public partial class ContentLibraryViewModel(
     /// </summary>
     /// <param name="initialPath">Optional initial path of dropped or selected folder/file.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task AddContentWithPathAsync(string? initialPath)
+    public Task AddContentWithPathAsync(string? initialPath) =>
+        AddContentWithPathsAsync(initialPath != null ? [initialPath] : null);
+
+    /// <summary>
+    /// Adds a new content item to the active catalog with optional initial folder/file paths.
+    /// </summary>
+    /// <param name="initialPaths">Optional initial paths of dropped or selected folders/files.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddContentWithPathsAsync(IEnumerable<string>? initialPaths)
     {
-        var newContent = await dialogService.ShowAddContentDialogAsync(initialPath);
+        var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        if (pathsList is { Count: > 0 } && !pathsList.Any(p => System.IO.File.Exists(p) || System.IO.Directory.Exists(p)))
+        {
+            var title = GetLocalizedString("Tools.PublisherStudio.Content.InvalidPathTitle", "Invalid Path");
+            var message = GetLocalizedString("Tools.PublisherStudio.Content.InvalidPathMessage", "The specified file or folder does not exist.");
+            notificationService?.ShowWarning(title, message);
+            return;
+        }
+
+        var newContent = await dialogService.ShowAddContentDialogAsync(pathsList);
         if (newContent != null)
         {
             if (activeCatalog.Catalog.Content.Any(c => string.Equals(c.Id, newContent.Id, StringComparison.OrdinalIgnoreCase)))

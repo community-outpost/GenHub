@@ -23,7 +23,8 @@ namespace GenHub.Features.Tools.Services;
 /// </summary>
 public class PublisherStudioDialogService(
     IDialogService dialogService,
-    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : IPublisherStudioDialogService
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
+    ILogger<PublisherStudioDialogService>? logger = null) : IPublisherStudioDialogService
 {
     /// <inheritdoc/>
     public Func<string, (string Name, string Url, long Size)?>? DuplicateAssetLookup { get; set; }
@@ -62,13 +63,20 @@ public class PublisherStudioDialogService(
     /// <inheritdoc/>
     public async Task<CatalogContentItem?> ShowAddContentDialogAsync(string? initialPath = null, PublisherCatalog? catalog = null)
     {
+        return await ShowAddContentDialogAsync(initialPath != null ? [initialPath] : null, catalog);
+    }
+
+    /// <inheritdoc/>
+    public async Task<CatalogContentItem?> ShowAddContentDialogAsync(IEnumerable<string>? initialPaths = null, PublisherCatalog? catalog = null)
+    {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
             callback =>
             {
                 var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService, catalog);
-                if (!string.IsNullOrWhiteSpace(initialPath))
+                var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+                if (pathsList is { Count: > 0 })
                 {
-                    vm.PopulateFromPath(initialPath);
+                    vm.PopulateFromPaths(pathsList);
                 }
 
                 return vm;
@@ -86,12 +94,19 @@ public class PublisherStudioDialogService(
     public async Task<ContentRelease?> ShowAddReleaseDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog, IEnumerable<string>? initialPaths = null)
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-           callback =>
+           async callback =>
            {
                var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService);
                if (initialPaths != null)
                {
-                   _ = vm.AddArtifactsFromPathsAsync(initialPaths);
+                   try
+                   {
+                       await vm.AddArtifactsFromPathsAsync(initialPaths);
+                   }
+                   catch (Exception ex)
+                   {
+                       logger?.LogWarning(ex, "Failed to stage initial artifacts for release dialog.");
+                   }
                }
 
                return vm;
@@ -109,12 +124,19 @@ public class PublisherStudioDialogService(
     public async Task<ContentRelease?> ShowAddAddonDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog, IEnumerable<string>? initialPaths = null)
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-           callback =>
+           async callback =>
            {
                var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true);
                if (initialPaths != null)
                {
-                   _ = vm.AddArtifactsFromPathsAsync(initialPaths);
+                   try
+                   {
+                       await vm.AddArtifactsFromPathsAsync(initialPaths);
+                   }
+                   catch (Exception ex)
+                   {
+                       logger?.LogWarning(ex, "Failed to stage initial artifacts for addon dialog.");
+                   }
                }
 
                return vm;
@@ -306,7 +328,7 @@ public class PublisherStudioDialogService(
     }
 
     private static async Task<TResult?> ShowDialogCoreAsync<TViewModel, TView, TResult>(
-        Func<Action<TResult>, TViewModel> viewModelFactory,
+        Func<Action<TResult>, Task<TViewModel>> viewModelFactory,
         string? title = null,
         TResult? defaultResult = default)
         where TViewModel : class
@@ -321,7 +343,7 @@ public class PublisherStudioDialogService(
             window?.Close();
         }
 
-        var viewModel = viewModelFactory(SetResult);
+        var viewModel = await viewModelFactory(SetResult);
         var view = new TView { DataContext = viewModel };
 
         var toolWindow = new ToolDialogWindow
@@ -359,6 +381,15 @@ public class PublisherStudioDialogService(
         where TView : Control, new()
         where TResult : class
     {
+        return ShowDialogCoreAsync<TViewModel, TView, TResult?>(cb => Task.FromResult(viewModelFactory(cb)), null, null);
+    }
+
+    private static Task<TResult?> ShowDialogAsync<TViewModel, TView, TResult>(
+        Func<Action<TResult>, Task<TViewModel>> viewModelFactory)
+        where TViewModel : class
+        where TView : Control, new()
+        where TResult : class
+    {
         return ShowDialogCoreAsync<TViewModel, TView, TResult?>(viewModelFactory, null, null);
     }
 
@@ -368,7 +399,7 @@ public class PublisherStudioDialogService(
         where TViewModel : class
         where TView : Control, new()
     {
-        return ShowDialogCoreAsync<TViewModel, TView, bool>(viewModelFactory, title, false);
+        return ShowDialogCoreAsync<TViewModel, TView, bool>(cb => Task.FromResult(viewModelFactory(cb)), title, false);
     }
 
     private static Window? GetMainWindow()

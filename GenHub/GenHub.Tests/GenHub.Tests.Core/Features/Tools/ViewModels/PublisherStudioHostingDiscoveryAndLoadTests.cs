@@ -3,11 +3,14 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Publishers;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Collections.ObjectModel;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -16,8 +19,22 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// <summary>
 /// Unit tests for cloud hosting asset discovery, categorization, filtering, and project loading.
 /// </summary>
-public class PublisherStudioHostingDiscoveryAndLoadTests
+public sealed class PublisherStudioHostingDiscoveryAndLoadTests : IDisposable
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PublisherStudioHostingDiscoveryAndLoadTests"/> class.
+    /// </summary>
+    public PublisherStudioHostingDiscoveryAndLoadTests()
+    {
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+    }
+
     /// <summary>
     /// Tests that <see cref="HostingConstants.IsPublisherDefinitionFileName"/> properly identifies publisher definition files.
     /// </summary>

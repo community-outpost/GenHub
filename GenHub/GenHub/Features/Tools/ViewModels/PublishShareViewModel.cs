@@ -1667,6 +1667,7 @@ public partial class PublishShareViewModel(
         SyncActiveHostingState();
 
         RefreshHostedAssets();
+        AuthenticationChangedCallback?.Invoke();
 
         if (value == null)
         {
@@ -3614,6 +3615,7 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(ConnectButtonText));
         OnPropertyChanged(nameof(PublishButtonText));
         OnPropertyChanged(nameof(TargetDestinationDescription));
+        AuthenticationChangedCallback?.Invoke();
     }
 
     /// <summary>

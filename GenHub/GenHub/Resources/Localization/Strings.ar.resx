@@ -13142,9 +13142,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.DragDropFilesHint" xml:space="preserve">
     <value>(اسحب وأفلت لرفع الملفات)</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.ReleaseMediaHeader" xml:space="preserve">
-    <value>وسائط الإصدار (صور وفيديوهات خاصة بالتحديث)</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.DragDropReleaseImagesHint" xml:space="preserve">
     <value>(اسحب وأفلت الصور هنا)</value>
   </data>

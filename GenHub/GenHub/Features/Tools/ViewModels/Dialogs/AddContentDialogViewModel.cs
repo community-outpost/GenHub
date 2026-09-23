@@ -177,12 +177,6 @@ public partial class AddContentDialogViewModel(
     public ObservableCollection<CatalogDependency> ReleaseDependencies { get; } = [];
 
     [ObservableProperty]
-    private string? _releaseImageUrlsInput;
-
-    [ObservableProperty]
-    private string? _releaseVideoUrlsInput;
-
-    [ObservableProperty]
     private bool _isValid;
 
     [ObservableProperty]
@@ -415,22 +409,6 @@ public partial class AddContentDialogViewModel(
         {
             await ProcessScreenshotPathAsync(path);
         }
-    }
-
-    /// <summary>
-    /// Adds release images from dropped paths with duplicate detection.
-    /// </summary>
-    /// <param name="paths">The dropped file or directory paths.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task AddReleaseImagesFromPathsAsync(IEnumerable<string> paths)
-    {
-        var existing = ParseUrls(ReleaseImageUrlsInput);
-        foreach (var path in paths)
-        {
-            await ProcessReleaseImagePathAsync(path, existing);
-        }
-
-        ReleaseImageUrlsInput = string.Join(Environment.NewLine, existing);
     }
 
     /// <summary>
@@ -1583,8 +1561,8 @@ public partial class AddContentDialogViewModel(
             BundleArtifacts = BundleArtifacts,
             Artifacts = [],
             Dependencies = [.. ReleaseDependencies],
-            ImageUrls = ParseUrls(ReleaseImageUrlsInput),
-            VideoUrls = ParseUrls(ReleaseVideoUrlsInput),
+            ImageUrls = [],
+            VideoUrls = [],
         };
 
         if (ReleaseArtifacts.Count > 0)
@@ -1753,32 +1731,6 @@ public partial class AddContentDialogViewModel(
                  !Screenshots.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
         {
             Screenshots.Add(cleanPath);
-        }
-    }
-
-    private async Task ProcessReleaseImagePathAsync(string path, List<string> existing)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return;
-        }
-
-        var cleanPath = path.Trim();
-        if (File.Exists(cleanPath))
-        {
-            var sha256 = await ComputeFileSha256SafeAsync(cleanPath);
-            var duplicate = await PromptDuplicateAssetAsync(sha256);
-            var targetUrl = duplicate?.Url ?? cleanPath;
-
-            if (!existing.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
-            {
-                existing.Add(targetUrl);
-            }
-        }
-        else if (Uri.TryCreate(cleanPath, UriKind.Absolute, out _) &&
-                 !existing.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
-        {
-            existing.Add(cleanPath);
         }
     }
 

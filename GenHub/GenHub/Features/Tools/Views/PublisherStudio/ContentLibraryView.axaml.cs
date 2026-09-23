@@ -21,11 +21,11 @@ public partial class ContentLibraryView : UserControl
     {
         InitializeComponent();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver);
-        AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
+        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
     }
 
-    private void OnDragOver(object? sender, DragEventArgs e)
+    private static void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files))
         {
@@ -91,7 +91,7 @@ public partial class ContentLibraryView : UserControl
             if (IsInSubtree(sourceVisual, "ContentItemsDropZone") || IsInSubtree(sourceVisual, "CatalogListPanel"))
             {
                 e.Handled = true;
-                await vm.AddContentWithPathAsync(paths[0]);
+                await vm.AddContentWithPathsAsync(paths);
                 return;
             }
 
@@ -105,7 +105,7 @@ public partial class ContentLibraryView : UserControl
 
             // 5. Default fallback: add new content item
             e.Handled = true;
-            await vm.AddContentWithPathAsync(paths[0]);
+            await vm.AddContentWithPathsAsync(paths);
         }
         catch (Exception ex)
         {
@@ -113,7 +113,7 @@ public partial class ContentLibraryView : UserControl
         }
     }
 
-    private bool IsInSubtree(Visual? visual, string name)
+    private static bool IsInSubtree(Visual? visual, string name)
     {
         while (visual != null)
         {

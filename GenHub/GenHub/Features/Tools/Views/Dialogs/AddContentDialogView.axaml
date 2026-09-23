@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
              xmlns:converters="using:GenHub.Infrastructure.Converters"
+             xmlns:controls="using:GenHub.Infrastructure.Controls"
              mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="720"
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddContentDialogView"
              x:DataType="vm:AddContentDialogViewModel"
@@ -183,7 +184,7 @@
                                     <Border Grid.Column="0" Width="36" Height="36" CornerRadius="4" Margin="2,0,6,0"
                                             ClipToBounds="True" Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                             IsVisible="{Binding IconArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <Image Source="{Binding IconArtwork, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill"/>
+                                        <Image controls:ImageLoader.Source="{Binding IconArtwork}" Stretch="UniformToFill"/>
                                     </Border>
                                     <TextBox Grid.Column="1"
                                              x:Name="IconTextBox"
@@ -219,7 +220,7 @@
                                     <Border Grid.Column="0" Width="64" Height="36" CornerRadius="4" Margin="2,0,6,0"
                                             ClipToBounds="True" Background="{DynamicResource GlassBorderBrush}"
                                             IsVisible="{Binding BannerArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <Image Source="{Binding BannerArtwork, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill"/>
+                                        <Image controls:ImageLoader.Source="{Binding BannerArtwork}" Stretch="UniformToFill"/>
                                     </Border>
                                     <TextBox Grid.Column="1"
                                              x:Name="BannerTextBox"
@@ -255,7 +256,7 @@
                                     <Border Grid.Column="0" Width="64" Height="36" CornerRadius="4" Margin="2,0,6,0"
                                             ClipToBounds="True" Background="{DynamicResource GlassBorderBrush}"
                                             IsVisible="{Binding BackdropArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <Image Source="{Binding BackdropArtwork, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill"/>
+                                        <Image controls:ImageLoader.Source="{Binding BackdropArtwork}" Stretch="UniformToFill"/>
                                     </Border>
                                     <TextBox Grid.Column="1"
                                              x:Name="BackdropTextBox"
@@ -642,8 +643,6 @@
                                            IsVisible="{Binding IsMultiFileStaging}"/>
                                 <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsComputingHash}" Margin="0,4,0,0"/>
                             </StackPanel>
-
-
 
                             <!-- Release Dependencies -->
                             <StackPanel Spacing="6" Margin="0,4,0,0">

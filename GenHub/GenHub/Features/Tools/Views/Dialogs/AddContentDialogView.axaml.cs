@@ -3,8 +3,12 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using GenHub.Features.Tools.ViewModels.Dialogs;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.Views.Dialogs;
 
@@ -22,11 +26,11 @@ public partial class AddContentDialogView : UserControl
     {
         InitializeComponent();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver);
-        AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
+        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
     }
 
-    private void OnDragOver(object? sender, DragEventArgs e)
+    private static void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files))
         {
@@ -41,108 +45,134 @@ public partial class AddContentDialogView : UserControl
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        if (e.Handled || !e.Data.Contains(DataFormats.Files))
+        if (e.Handled || !e.Data.Contains(DataFormats.Files) || DataContext is not AddContentDialogViewModel vm)
         {
             return;
         }
 
-        if (DataContext is not AddContentDialogViewModel vm)
+        try
         {
-            return;
+            var files = e.Data.GetFiles();
+            if (files == null)
+            {
+                return;
+            }
+
+            var paths = files
+                .Select(f => f.Path?.LocalPath)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Cast<string>()
+                .ToList();
+
+            if (paths.Count == 0)
+            {
+                return;
+            }
+
+            var sourceVisual = e.Source as Visual;
+
+            if (TryHandleArtworkDrop(sourceVisual, paths, vm))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (await TryHandleDropZonesAsync(sourceVisual, paths, vm))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            e.Handled = true;
+            await HandleFallbackDropAsync(paths, vm);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to process dropped files: {ex}");
+        }
+    }
+
+    private static bool TryHandleArtworkDrop(Visual? sourceVisual, List<string> paths, AddContentDialogViewModel vm)
+    {
+        var firstPath = paths[0];
+        if (!IsImageFile(firstPath))
+        {
+            return false;
         }
 
-        var files = e.Data.GetFiles();
-        if (files == null)
-        {
-            return;
-        }
-
-        var paths = files
-            .Select(f => f.Path?.LocalPath)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Cast<string>()
-            .ToList();
-
-        if (paths.Count == 0)
-        {
-            return;
-        }
-
-        var sourceVisual = e.Source as Visual;
-
-        // Dropped specifically on Icon field
         if (IsInSubtree(sourceVisual, "IconDropTarget") || IsInSubtree(sourceVisual, "IconTextBox"))
         {
-            e.Handled = true;
-            vm.IconArtwork = paths[0];
-            return;
+            vm.IconArtwork = firstPath;
+            return true;
         }
 
-        // Dropped specifically on Banner field
         if (IsInSubtree(sourceVisual, "BannerDropTarget") || IsInSubtree(sourceVisual, "BannerTextBox"))
         {
-            e.Handled = true;
-            vm.BannerArtwork = paths[0];
-            return;
+            vm.BannerArtwork = firstPath;
+            return true;
         }
 
-        // Dropped specifically on Backdrop field
         if (IsInSubtree(sourceVisual, "BackdropDropTarget") || IsInSubtree(sourceVisual, "BackdropTextBox"))
         {
-            e.Handled = true;
-            vm.BackdropArtwork = paths[0];
-            return;
+            vm.BackdropArtwork = firstPath;
+            return true;
         }
 
-        // Dropped specifically on Screenshots drop zone
+        return false;
+    }
+
+    private static async Task<bool> TryHandleDropZonesAsync(Visual? sourceVisual, List<string> paths, AddContentDialogViewModel vm)
+    {
         if (IsInSubtree(sourceVisual, "ContentMediaDropZone"))
         {
-            e.Handled = true;
             await vm.AddScreenshotsFromPathsAsync(paths);
-            return;
+            return true;
         }
 
-        // Dropped specifically on Initial Release drop zone or section
         if (IsInSubtree(sourceVisual, "InitialReleaseDropZone") || IsInSubtree(sourceVisual, "InitialReleaseSection"))
         {
-            e.Handled = true;
             await vm.AddReleaseArtifactsFromPathsAsync(paths);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static async Task HandleFallbackDropAsync(List<string> paths, AddContentDialogViewModel vm)
+    {
+        var allImages = paths.All(IsImageFile);
+        if (!allImages)
+        {
+            vm.PopulateFromPaths(paths);
             return;
         }
 
-        // Fallback for drops elsewhere on the dialog:
-        e.Handled = true;
-        var allImages = paths.All(p => ImageExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()));
-        if (allImages)
+        if (string.IsNullOrWhiteSpace(vm.IconArtwork))
         {
-            if (string.IsNullOrWhiteSpace(vm.IconArtwork))
+            vm.IconArtwork = paths[0];
+            if (paths.Count > 1)
             {
-                vm.IconArtwork = paths[0];
-                if (paths.Count > 1)
-                {
-                    await vm.AddScreenshotsFromPathsAsync(paths.Skip(1));
-                }
+                await vm.AddScreenshotsFromPathsAsync(paths.Skip(1));
             }
-            else if (string.IsNullOrWhiteSpace(vm.BannerArtwork))
+        }
+        else if (string.IsNullOrWhiteSpace(vm.BannerArtwork))
+        {
+            vm.BannerArtwork = paths[0];
+            if (paths.Count > 1)
             {
-                vm.BannerArtwork = paths[0];
-                if (paths.Count > 1)
-                {
-                    await vm.AddScreenshotsFromPathsAsync(paths.Skip(1));
-                }
-            }
-            else
-            {
-                await vm.AddScreenshotsFromPathsAsync(paths);
+                await vm.AddScreenshotsFromPathsAsync(paths.Skip(1));
             }
         }
         else
         {
-            vm.PopulateFromPaths(paths);
+            await vm.AddScreenshotsFromPathsAsync(paths);
         }
     }
 
-    private bool IsInSubtree(Visual? visual, string name)
+    private static bool IsImageFile(string path) =>
+        ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
+
+    private static bool IsInSubtree(Visual? visual, string name)
     {
         while (visual != null)
         {

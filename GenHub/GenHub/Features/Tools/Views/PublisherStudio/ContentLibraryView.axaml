@@ -7,6 +7,7 @@
              xmlns:models="using:GenHub.Core.Models.Providers"
              xmlns:enums="using:GenHub.Core.Models.Enums"
              xmlns:converters="using:GenHub.Infrastructure.Converters"
+             xmlns:controls="using:GenHub.Infrastructure.Controls"
              mc:Ignorable="d"
              d:DesignWidth="800" d:DesignHeight="500"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.ContentLibraryView"
@@ -347,7 +348,7 @@
                                         MaxHeight="160"
                                         Background="{DynamicResource GlassFillBrush}"
                                         IsVisible="{Binding Metadata.BannerUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                    <Image Source="{Binding Metadata.BannerUrl, Converter={StaticResource StringToImageConverter}}"
+                                    <Image controls:ImageLoader.Source="{Binding Metadata.BannerUrl}"
                                            Stretch="UniformToFill"/>
                                 </Border>
 
@@ -361,7 +362,7 @@
                                             Margin="0,0,16,0"
                                             VerticalAlignment="Center"
                                             IsVisible="{Binding Metadata.IconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <Image Source="{Binding Metadata.IconUrl, Converter={StaticResource StringToImageConverter}}"
+                                        <Image controls:ImageLoader.Source="{Binding Metadata.IconUrl}"
                                                Stretch="UniformToFill"/>
                                     </Border>
 
