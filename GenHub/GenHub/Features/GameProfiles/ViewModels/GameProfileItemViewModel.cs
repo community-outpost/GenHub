@@ -1092,6 +1092,17 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         var isRetail = ReplayCrcMatchingHelper.IsRetailCompatible(profile.GameClient, profile.EnabledContentIds);
+        ApplyCompatibilityBadge(profile, isRetail);
+        ScheduleIniCompatibilityVerification(profile);
+    }
+
+    private void ApplyCompatibilityBadge(IGameProfile profile, bool isRetail)
+    {
+        if (profile.GameClient == null)
+        {
+            return;
+        }
+
         IsRetailCompatible = isRetail;
         HasCompatibilityBadge = true;
 
@@ -1107,11 +1118,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 ? LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.RetailCompatibleGenerals",
-                    "Compatible with retail Generals 1.08 / 1.09 (official executable)")
+                    "Compatible with retail Generals 1.08 / 1.09 (official rules/INIs)")
                 : LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.RetailCompatible",
-                    "Compatible with retail 1.04 / 1.05 (official executable)");
+                    "Compatible with retail 1.04 / 1.05 (official rules/INIs)");
         }
         else
         {
@@ -1123,12 +1134,44 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 ? LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.NonRetailCompatibleGenerals",
-                    "Non-retail executable (different executable from Generals 1.08 / 1.09)")
+                    "Non-retail configuration (different rules/INIs from Generals 1.08 / 1.09)")
                 : LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.NonRetailCompatible",
-                    "Non-retail executable (different executable from 1.04 / 1.05)");
+                    "Non-retail configuration (different rules/INIs from 1.04 / 1.05)");
         }
+    }
+
+    private void ScheduleIniCompatibilityVerification(IGameProfile profile)
+    {
+        if (profile.GameClient == null)
+        {
+            return;
+        }
+
+        if (profile is not GameProfile concreteProfile)
+        {
+            return;
+        }
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                var isVerifiedRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(concreteProfile);
+                if (isVerifiedRetail != IsRetailCompatible)
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        ApplyCompatibilityBadge(profile, isVerifiedRetail);
+                    });
+                }
+            }
+            catch
+            {
+                // Silently retain synchronous heuristics if async verification fails
+            }
+        });
     }
 
     private void NotifyAllPropertiesChanged()

@@ -48,6 +48,8 @@ public class ReplayCrcMatchingHelperTests
     {
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(ReplayManagerConstants.RetailZeroHourExeCrcFirstDecade));
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(ReplayManagerConstants.RetailZeroHourExeCrcSteam));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc("0x391259B0"));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc("391259B0"));
         Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc("0xDEADBEEF"));
     }
 
@@ -533,5 +535,46 @@ public class ReplayCrcMatchingHelperTests
         };
         Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(goClient));
         Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(goClient));
+
+        // EA App auto-created Zero Hour profile (v1.04)
+        var eaZeroHourWithV = new GameClient
+        {
+            Id = "1.104.ea.gameclient.zerohour",
+            Name = "zerohour",
+            PublisherType = "EA App",
+            GameType = GameType.ZeroHour,
+            Version = "v1.04",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(eaZeroHourWithV));
+
+        // EA App auto-created Generals profile (v1.08)
+        var eaGeneralsWithV = new GameClient
+        {
+            Id = "1.108.ea.gameclient.generals",
+            Name = "generals",
+            PublisherType = "EA App",
+            GameType = GameType.Generals,
+            Version = "v1.08",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(eaGeneralsWithV));
+
+        // SuperHackers Zero Hour (The Super Hackers)
+        var tshZeroHour = new GameClient
+        {
+            Id = "1.20260918.thesuperhackers.gameclient.zerohour",
+            Name = "SuperHackers - Zero Hour",
+            PublisherType = PublisherTypeConstants.TheSuperHackers,
+            GameType = GameType.ZeroHour,
+            Version = "20260918",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(tshZeroHour));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(tshZeroHour));
+
+        // INI CRC verification
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc("76B251A3"));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailIniCrc("0x76B251A3", GameType.ZeroHour));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailIniCrc(ReplayManagerConstants.RetailGeneralsIniCrcVanilla));
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc("0x12345678"));
     }
 }

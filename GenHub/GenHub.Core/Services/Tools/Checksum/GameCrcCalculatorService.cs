@@ -55,6 +55,34 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     }
 
     /// <summary>
+    /// Gets a previously calculated INI CRC from the static memory cache if valid and fresh.
+    /// </summary>
+    /// <param name="gameRootPath">Root directory of the game installation.</param>
+    /// <param name="gameType">Target game (ZeroHour or Generals).</param>
+    /// <returns>The cached INI CRC hex string if present and directory has not changed; otherwise, <c>null</c>.</returns>
+    public static string? GetCachedIniCrcStatic(string gameRootPath, GameType gameType)
+    {
+        if (string.IsNullOrWhiteSpace(gameRootPath))
+        {
+            return null;
+        }
+
+        var cacheKey = $"{gameRootPath}|{gameType}||";
+        if (IniCrcCache.TryGetValue(cacheKey, out var cachedIni))
+        {
+            var freshness = GetIniFreshnessSignature(gameRootPath, null, null);
+            if (cachedIni.MaxTicks == freshness.MaxTicks &&
+                cachedIni.TotalLength == freshness.TotalLength &&
+                cachedIni.FileCount == freshness.FileCount)
+            {
+                return cachedIni.Crc;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="GameCrcCalculatorService"/> class.
     /// </summary>
     /// <param name="logger">Optional logger instance.</param>
@@ -215,6 +243,10 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return OperationResult<string>.CreateFailure($"Failed to calculate INI CRC: {ex.Message}");
         }
     }
+
+    /// <inheritdoc/>
+    public string? GetCachedIniCrc(string gameRootPath, GameType gameType)
+        => GetCachedIniCrcStatic(gameRootPath, gameType);
 
     private static OperationResult<byte[]> ReadExecutableBytes(string executablePath)
     {

@@ -464,6 +464,46 @@ public static class ReplayManagerConstants
     public const uint RetailGeneralsExeCrcEaAppValue = 0x8F98E20A;
 
     /// <summary>
+    /// Hex string representing retail Zero Hour 1.04 vanilla INI CRC (0x76B251A3).
+    /// </summary>
+    public const string RetailZeroHourIniCrcVanilla = "0x76B251A3";
+
+    /// <summary>
+    /// Hex string representing retail Zero Hour 1.04 alternate INI CRC (0xFEAAE3F3).
+    /// </summary>
+    public const string RetailZeroHourIniCrcAlternate = "0xFEAAE3F3";
+
+    /// <summary>
+    /// Hex string representing retail Generals 1.08 vanilla INI CRC (0x323577BD).
+    /// </summary>
+    public const string RetailGeneralsIniCrcVanilla = "0x323577BD";
+
+    /// <summary>
+    /// Hex string representing retail Generals 1.09 Steam INI CRC (0x5A8E12F0).
+    /// </summary>
+    public const string RetailGeneralsIniCrcSteam = "0x5A8E12F0";
+
+    /// <summary>
+    /// Numeric INI CRC representing retail Zero Hour 1.04 vanilla build (0x76B251A3).
+    /// </summary>
+    public const uint RetailZeroHourIniCrcVanillaValue = 0x76B251A3;
+
+    /// <summary>
+    /// Numeric INI CRC representing retail Zero Hour 1.04 alternate build (0xFEAAE3F3).
+    /// </summary>
+    public const uint RetailZeroHourIniCrcAlternateValue = 0xFEAAE3F3;
+
+    /// <summary>
+    /// Numeric INI CRC representing retail Generals 1.08 vanilla build (0x323577BD).
+    /// </summary>
+    public const uint RetailGeneralsIniCrcVanillaValue = 0x323577BD;
+
+    /// <summary>
+    /// Numeric INI CRC representing retail Generals 1.09 Steam build (0x5A8E12F0).
+    /// </summary>
+    public const uint RetailGeneralsIniCrcSteamValue = 0x5A8E12F0;
+
+    /// <summary>
     /// Composite content ID pattern for GeneralsOnline client content.
     /// </summary>
     public const string GeneralsOnlineContentIdPattern = "GeneralsOnline_{0}";
