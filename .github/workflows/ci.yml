@@ -103,6 +103,30 @@ jobs:
           echo "- Tests: ${{ steps.filter.outputs.tests == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
           echo "- Shared: ${{ steps.filter.outputs.shared == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
 
+  validate-localization:
+    name: Validate Localization
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      # Well-formedness, duplicate keys, cross-culture parity, and placeholder
+      # consistency for every Strings*.resx. Runs unconditionally: it is
+      # seconds of stdlib Python and a broken merge must never land silently.
+      - name: Validate resx resources
+        run: python3 scripts/validate_resx.py
+
+      # Edge-case suite for the key-level resx merge driver (adjacent
+      # inserts, same-key conflicts, deletions, renames, BOM/CRLF, headers).
+      - name: Self-test resx merge driver
+        run: python3 scripts/git_merge_resx.py --self-test
+
   build-windows:
     name: Build Windows
     needs: detect-changes
@@ -759,7 +783,7 @@ jobs:
     name: Build Summary
     # detect-changes is in `needs` so its own failure reaches the gate below. Without it a
     # failed detect-changes skips every build, and all-skipped reads as a clean pass.
-    needs: [detect-changes, build-windows, build-linux, build-macos, test-windows, test-linux, test-macos, engine-launch-smoke]
+    needs: [detect-changes, validate-localization, build-windows, build-linux, build-macos, test-windows, test-linux, test-macos, engine-launch-smoke]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}
@@ -778,6 +802,7 @@ jobs:
           echo "| Test Linux | ${{ needs.test-linux.result == 'success' && '✅ Passed' || needs.test-linux.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Test macOS | ${{ needs.test-macos.result == 'success' && '✅ Passed' || needs.test-macos.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && '✅ Passed' || needs.engine-launch-smoke.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Localization | ${{ needs.validate-localization.result == 'success' && '✅ Passed' || needs.validate-localization.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
 
       # Turns the summary into a real gate: branch protection can require this one
       # check and a failed or cancelled job anywhere in `needs` blocks the merge.

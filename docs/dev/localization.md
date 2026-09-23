@@ -52,6 +52,29 @@ Keep keys stable after release. Add translator comments when context or placehol
 
 Do not localize log templates, protocol values, manifest identifiers, command-line arguments, or other developer-facing technical strings.
 
+## Merging concurrent changes
+
+Every feature branch touches the same `Strings*.resx` files, so plain
+line-based merging conflicts constantly. The repository uses a key-level
+merge driver instead. Enable it once per machine:
+
+```bash
+git config merge.resx.driver "python scripts/git_merge_resx.py %O %A %B"
+```
+
+The driver (committed at `scripts/git_merge_resx.py`, selected by the
+`merge=resx` attribute in `.gitattributes`) merges whole
+`<data name="...">` blocks by resource key: independent additions from both
+sides are both kept, deletions are honored, and only a genuine same-key
+disagreement stops the merge with conflict markers. Do not use git's
+built-in `merge=union` for these files: it aligns insertions at shared
+anchor lines and can silently drop a `</data>` closing tag while reporting
+success.
+
+CI validates every `Strings*.resx` on each run (`scripts/validate_resx.py`):
+well-formed XML with flat `<data>` blocks, no duplicate keys, exact key-set
+parity across cultures, and preserved `{0}`-style placeholders.
+
 ## Avalonia views
 
 Reference the markup namespace `clr-namespace:GenHub.Common.Markup` and bind the property to a key:
