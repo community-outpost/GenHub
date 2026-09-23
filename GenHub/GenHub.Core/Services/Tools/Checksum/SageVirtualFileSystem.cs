@@ -460,10 +460,44 @@ public sealed class SageVirtualFileSystem
         return null;
     }
 
+    private string? TryResolveLooseDirectory(string root, string relativeDir)
+    {
+        if (string.IsNullOrEmpty(relativeDir))
+        {
+            return root;
+        }
+
+        var direct = Path.Combine(root, relativeDir.Replace('\\', Path.DirectorySeparatorChar));
+        if (Directory.Exists(direct))
+        {
+            return direct;
+        }
+
+        string current = root;
+        var parts = relativeDir.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            if (!Directory.Exists(current))
+            {
+                return null;
+            }
+
+            var match = Directory.EnumerateDirectories(current, part, LooseCaseInsensitiveOptions).FirstOrDefault();
+            if (match == null)
+            {
+                return null;
+            }
+
+            current = match;
+        }
+
+        return Directory.Exists(current) ? current : null;
+    }
+
     private void CollectLooseIniFiles(string root, string fsDir, Dictionary<string, string> files)
     {
-        string looseDir = string.IsNullOrEmpty(fsDir) ? root : Path.Combine(root, fsDir);
-        if (!Directory.Exists(looseDir))
+        string? looseDir = TryResolveLooseDirectory(root, fsDir);
+        if (string.IsNullOrEmpty(looseDir) || !Directory.Exists(looseDir))
         {
             return;
         }

@@ -238,6 +238,45 @@ public sealed class WndImageAssetServiceTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Tests that when a primary mapped image definition's texture is missing,
+    /// resolution falls back to an alternate mapped image definition with an existing texture.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_PrimaryTextureMissing_FallsBackToAlternateMappedImage()
+    {
+        // Arrange: primary definition in Test.ini references missing texture
+        WriteMappedImages(
+            "MappedImage SharedIcon\n" +
+            "  Texture = MissingPage\n" +
+            "  Coords = Left:0 Top:0 Right:2 Bottom:2\n" +
+            "  Status = NONE\n" +
+            "End\n");
+
+        // Arrange: alternate definition in TestAlt.ini references available texture
+        var altIniPath = Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "TextureSize_512", "TestAlt.ini");
+        var altIniContent =
+            "MappedImage SharedIcon\n" +
+            "  Texture = AlternatePage\n" +
+            "  Coords = Left:0 Top:0 Right:4 Bottom:4\n" +
+            "  Status = NONE\n" +
+            "End\n";
+        File.WriteAllText(altIniPath, altIniContent);
+
+        WriteTexture("AlternatePage.tga", 4, 4);
+
+        // Act
+        var result = await _service.GetImagesAsync(["SharedIcon"], _gameRoot, null, null);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().ContainKey("SharedIcon");
+        using var decoded = new MagickImage(result.Data!["SharedIcon"]);
+        decoded.Width.Should().Be(4);
+        decoded.Height.Should().Be(4);
+    }
+
     private void WriteMappedImages(string content)
     {
         File.WriteAllText(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "TextureSize_512", "Test.ini"), content);

@@ -599,10 +599,6 @@
                         <Panel PointerPressed="OnCanvasItemPointerPressed" Background="Transparent"
                                Opacity="{Binding CanvasOpacity}" ToolTip.Tip="{Binding Label}">
                           <Border Width="{Binding Width}" Height="{Binding Height}"
-                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                  BorderBrush="{DynamicResource BorderBrush}"
-                                  BorderThickness="1" CornerRadius="2"/>
-                          <Border Width="{Binding Width}" Height="{Binding Height}"
                                   Background="{Binding FillOverlay}"
                                   IsVisible="{Binding ShowFill}"
                                   BorderThickness="0" CornerRadius="2"

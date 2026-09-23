@@ -175,9 +175,9 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     public bool HasContentText => !string.IsNullOrEmpty(ContentText);
 
     /// <summary>
-    /// Gets a value indicating whether the window-name tag shows (always without text, otherwise on selection).
+    /// Gets a value indicating whether the window-name tag shows (for text controls without content, or on selection).
     /// </summary>
-    public bool ShowNameTag => !HasContentText || IsSelected;
+    public bool ShowNameTag => (Window.ControlType == WndControlType.StaticText && !HasContentText && !HasImage) || IsSelected;
 
     /// <summary>
     /// Gets a value indicating whether the named tag shows in the primary style.

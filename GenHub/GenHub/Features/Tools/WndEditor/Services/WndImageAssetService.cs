@@ -494,6 +494,41 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 continue;
             }
 
+            if (index.Alternates.TryGetValue(trimmedName, out var alts))
+            {
+                foreach (var alt in alts)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var altData = ReadTexture(index.FileSystem, alt.Texture);
+                    if (altData == null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var readSettings = new MagickReadSettings { Format = altData.Value.Format };
+                        using var page = new MagickImage(altData.Value.Bytes, readSettings);
+                        var png = CropMappedImage(page, alt);
+                        if (png.Length > 0)
+                        {
+                            resolved[trimmedName] = png;
+                            _imageCache[CacheKey(index.Key, trimmedName)] = png;
+                            break;
+                        }
+                    }
+                    catch (Exception ex) when (ex is MagickException or IOException)
+                    {
+                        logger.LogDebug(ex, "Failed to decode alternate texture {Texture} for {Image}", alt.Texture, trimmedName);
+                    }
+                }
+
+                if (resolved.ContainsKey(trimmedName))
+                {
+                    continue;
+                }
+            }
+
             TryResolveDirectTexture(trimmedName, index, resolved);
         }
 
