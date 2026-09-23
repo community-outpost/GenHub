@@ -808,6 +808,13 @@ public class WineRunner(
 
     private bool TryFindWineBinary([NotNullWhen(true)] out string? wineBinary)
     {
+        var overridePath = Environment.GetEnvironmentVariable(WineConstants.WineBinaryOverrideEnvVar);
+        if (!string.IsNullOrWhiteSpace(overridePath) && File.Exists(overridePath))
+        {
+            wineBinary = overridePath;
+            return true;
+        }
+
         wineBinary = options.AbsoluteBinaryPaths
             .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p));
 

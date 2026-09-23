@@ -28,6 +28,9 @@ public static class WineConstants
     /// <summary>Process PATH environment variable used for binary lookup.</summary>
     public const string PathEnvironmentVariable = "PATH";
 
+    /// <summary>Environment variable overriding the Wine runner binary with an explicit path.</summary>
+    public const string WineBinaryOverrideEnvVar = "GENHUB_WINE_BINARY";
+
     /// <summary>Directory name of the GenHub-managed Wine prefix under the app data root.</summary>
     public const string ManagedPrefixDirectoryName = ".genhub-wine";
 
