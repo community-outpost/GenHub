@@ -314,7 +314,7 @@
                 <Border Grid.Column="0" Classes="card">
                     <StackPanel Spacing="8">
                         <TextBlock Classes="section-title" Text="{localization:Localize Online.List.Title}" />
-                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsRefreshingDirectory}" />
                         <TextBlock Text="{localization:Localize Online.List.Empty}"
                                    Foreground="{DynamicResource TextMuted}"
                                    TextWrapping="Wrap"

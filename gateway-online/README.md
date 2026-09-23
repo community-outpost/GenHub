@@ -41,6 +41,8 @@ in the client, and set `TURN_URIS` to the production coturn hosts.
 
 `COTURN_SECRET` must match the coturn `static-auth-secret`. Rotate with dual-secret
 support on the coturn side; tokens are short-lived so rotation converges in minutes.
+`docker-compose.yml` ships no secret defaults: it fails fast when
+`JWT_SIGNING_SECRET`, `PASSWORD_PEPPER`, or `COTURN_SECRET` are unset.
 
 ## TURN relay (coturn)
 
@@ -93,6 +95,13 @@ npx wrangler dev
 ## Notes
 
 - Join rate limiting is per network + IP inside the room object.
+- Session issuance is capped per isolate per minute (`SESSION_RATE_LIMIT`,
+  default 5 per 60 s). Workers run many isolates per colo, so this is a
+  coarse per-source brake, not a global session ceiling.
+- The UDP relay (`relay.js`) is IPv4-only (`udp4` sockets, dotted-quad frame
+  fields). IPv6 underlays need a dual-stack relay before they can join the
+  game traffic mesh; lobby control plane traffic is unaffected.
 - `adapterConfig.overlay` is `"pending-selection"` until the sidecar lands (see
   `docs/dev/overlay-spike.md`: userspace TUN + TURN-relayed UDP mesh). The
-  payload is versioned (`v: 0`) so the client can keep treating it as opaque.
+  payload is versioned (`v: 1`, overlay name `genhub-tun`) so the client can
+  keep treating it as opaque.

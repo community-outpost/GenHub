@@ -39,8 +39,11 @@ export const parseTurnUris = (raw: string | undefined): string[] => {
   if (typeof raw !== "string" || raw.trim().length === 0) {
     return [];
   }
+  // Fail closed on malformed entries: only well-formed turn:/turns: URIs
+  // reach the client, and an all-garbage list degrades to TURN-less instead
+  // of handing the client an unusable relay address.
   return raw
     .split(",")
     .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
+    .filter((entry) => /^turns?:[^,]+$/i.test(entry));
 };

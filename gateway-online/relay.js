@@ -4,7 +4,12 @@ const PORT = Number.parseInt(process.env.RELAY_PORT || "8088", 10);
 const server = dgram.createSocket("udp4");
 
 // Map: networkId -> Map(sourceIpStr -> { address, port, lastSeen })
+// Entries are keyed by the *claimed* source IP inside the frame, so a
+// rotating sender can mint them without bound. Both levels are capped;
+// beyond the cap new senders are dropped until cleanup reclaims entries.
 const rooms = new Map();
+const MAX_ROOMS = Number.parseInt(process.env.RELAY_MAX_ROOMS ?? "", 10) || 10000;
+const MAX_PEERS_PER_ROOM = Number.parseInt(process.env.RELAY_MAX_PEERS_PER_ROOM ?? "", 10) || 64;
 
 server.on("error", (err) => {
   console.error("Relay server error:", err);
@@ -26,11 +31,17 @@ server.on("message", (msg, rinfo) => {
 
   let room = rooms.get(networkId);
   if (!room) {
+    if (rooms.size >= MAX_ROOMS) {
+      return;
+    }
     room = new Map();
     rooms.set(networkId, room);
   }
 
   // Track sender endpoint
+  if (!room.has(sourceIp) && room.size >= MAX_PEERS_PER_ROOM) {
+    return;
+  }
   room.set(sourceIp, {
     address: rinfo.address,
     port: rinfo.port,

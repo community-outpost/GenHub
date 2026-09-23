@@ -1,15 +1,19 @@
 # Overlay spike (tunneling)
 
 Parent: [Online (virtual LAN)](online.md) (open question OQ1/D3).
-Status: design spike, no implementation yet.
+Status: partially shipped — the in-process UDP relay fallback
+(`VirtualLanTunnelRunner`) carries game packets today; the sidecar TUN
+overlay below is still a design spike.
 
 ## Problem
 
 The Online tab ships the lobby layer today: directory, roster, presence,
-profile match badges. No game packets flow between machines, so the in-game
-LAN lobby stays empty. Joining reports `overlay: "pending-selection"` and
-runs lobby-only by design. This spike picks the tunneling overlay that
-carries actual Generals / Zero Hour LAN traffic.
+profile match badges. Game packets flow through the in-process relay
+fallback, so the in-game LAN lobby populates without the sidecar. Joining
+reports `overlay: "pending-selection"` while the edge has no overlay
+selected, and the client tunnels through the default relay in that state.
+This spike picks the sidecar tunneling overlay that will carry actual
+Generals / Zero Hour LAN traffic natively.
 
 ## Constraints
 

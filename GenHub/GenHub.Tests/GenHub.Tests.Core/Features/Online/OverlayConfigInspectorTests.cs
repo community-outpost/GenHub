@@ -34,6 +34,9 @@ public class OverlayConfigInspectorTests
     [InlineData("""{"overlay":{"name":"nebula"}}""")]
     [InlineData("""{"overlay":null}""")]
     [InlineData("""{"other":"value"}""")]
+    [InlineData("[1,2,3]")]
+    [InlineData(""""x"""")]
+    [InlineData("42")]
     public void TryGetOverlayName_WithNonStringOverlay_ShouldReturnNull(string json)
     {
         // Arrange

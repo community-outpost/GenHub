@@ -88,10 +88,10 @@ public class LanNicknameService(ILogger<LanNicknameService> logger, IGamePathPro
             return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorNicknameEmpty);
         }
 
+        var filePath = GetNetworkFilePath(gameType);
         await _networkIniLock.WaitAsync(cancellationToken);
         try
         {
-            var filePath = GetNetworkFilePath(gameType);
             var directory = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
@@ -126,7 +126,7 @@ public class LanNicknameService(ILogger<LanNicknameService> logger, IGamePathPro
             // Atomic replace: a crash mid-write must never leave a truncated
             // Network.ini behind. The temp file lives beside the target so the
             // move stays on one volume.
-            var temporaryPath = filePath + ".tmp";
+            var temporaryPath = filePath + FileTypes.AtomicWriteTempSuffix;
             await File.WriteAllLinesAsync(temporaryPath, lines, Encoding.UTF8, cancellationToken);
             File.Move(temporaryPath, filePath, overwrite: true);
 
@@ -136,6 +136,7 @@ public class LanNicknameService(ILogger<LanNicknameService> logger, IGamePathPro
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
             _logger.LogError(ex, "Failed to save LAN nickname for {GameType}", gameType);
+            DiscardTemporaryFile(filePath + FileTypes.AtomicWriteTempSuffix);
             return OperationResult<bool>.CreateFailure($"Failed to save LAN nickname: {ex.Message}");
         }
         finally
@@ -146,6 +147,25 @@ public class LanNicknameService(ILogger<LanNicknameService> logger, IGamePathPro
 
     private static string FormatEntry(string encoded) =>
         $"{GameSettingsConstants.Network.UserNameKey} = {encoded}";
+
+    private static void DiscardTemporaryFile(string temporaryPath)
+    {
+        try
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+        catch (IOException)
+        {
+            // Best effort; a leftover staging file is not worth failing the save over.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort; a leftover staging file is not worth failing the save over.
+        }
+    }
 
     private static bool TrySplitKeyValue(string line, out string key, out string value)
     {

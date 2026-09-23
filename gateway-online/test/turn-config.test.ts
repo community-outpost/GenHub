@@ -18,6 +18,7 @@ describe("adapter config without relay", () => {
   it("omits TURN credentials when COTURN_SECRET is unset", async () => {
     const config = await buildAdapterConfig(baseEnv(), "net-1", "member-1", "10.42.0.2");
     const decoded = decode(config);
+    expect(decoded.v).toBe(1);
     expect(decoded.overlay).toBe("genhub-tun");
     expect(decoded.overlayIp).toBe("10.42.0.2");
     expect(decoded.turn).toBeNull();
@@ -27,11 +28,22 @@ describe("adapter config without relay", () => {
     const env = { ...baseEnv(), COTURN_SECRET: "unit-test-secret" };
     const config = await buildAdapterConfig(env, "net-1", "member-1", "10.42.0.3");
     const decoded = decode(config);
+    expect(decoded.v).toBe(1);
     expect(decoded.overlay).toBe("genhub-tun");
     expect(decoded.overlayIp).toBe("10.42.0.3");
     const turn = decoded.turn as { username: string; password: string; uris: string[] };
     expect(turn.username).toContain(":");
     expect(turn.password.length).toBeGreaterThan(0);
     expect(turn.uris).toEqual(["turn:turn.example.invalid:3478"]);
+  });
+
+  it("degrades to TURN-less when TURN_URIS are malformed", async () => {
+    const env = { ...baseEnv(), COTURN_SECRET: "unit-test-secret", TURN_URIS: "nota-uri, ,ftp://example.invalid/x" };
+    const config = await buildAdapterConfig(env, "net-1", "member-1", "10.42.0.4");
+    const decoded = decode(config);
+    expect(decoded.v).toBe(1);
+    expect(decoded.overlay).toBe("genhub-tun");
+    expect(decoded.overlayIp).toBe("10.42.0.4");
+    expect(decoded.turn).toBeNull();
   });
 });

@@ -1846,6 +1846,7 @@ public class GameLauncher(
             ExpectedChildProcessName = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath),
             GameType = profile.GameClient?.GameType,
             NativeOptionsIniPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType),
+            NativeNetworkIniPath = TryGetNativeNetworkIniPath(profile.GameClient?.GameType),
         };
     }
 
@@ -1895,6 +1896,24 @@ public class GameLauncher(
         {
             logger.LogDebug(ex, "[GameLauncher] Failed to resolve MapCache.ini path for {GameType}", gameType);
         }
+    }
+
+    private string? TryGetNativeNetworkIniPath(GameType? gameType)
+    {
+        var optionsPath = TryGetNativeOptionsIniPath(gameType);
+        if (string.IsNullOrEmpty(optionsPath))
+        {
+            return null;
+        }
+
+        // Network.ini lives beside Options.ini in the same user data directory.
+        var directory = Path.GetDirectoryName(optionsPath);
+        if (string.IsNullOrEmpty(directory))
+        {
+            return null;
+        }
+
+        return Path.Combine(directory, GameSettingsConstants.Network.FileName);
     }
 
     private async Task<OperationResult<GameProcessInfo>> LaunchProcessAsync(

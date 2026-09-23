@@ -655,7 +655,7 @@ const handleOverlayCert = async (request: Request, env: OnlineEnv, networkId: st
   return json({
     grant: refreshed,
     grantExpiresUtc: new Date(Date.now() + grantTtl * 1000).toISOString(),
-    adapterConfig: await buildAdapterConfig(env, networkId, grant.sub, grant.ip),
+    adapterConfig: await buildAdapterConfig(env, networkId, grant.sub, membership.overlayIp),
   });
 };
 

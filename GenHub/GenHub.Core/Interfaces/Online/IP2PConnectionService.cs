@@ -19,6 +19,12 @@ public interface IP2PConnectionService
     OnlineConnectionQuality CurrentQuality { get; }
 
     /// <summary>
+    /// Gets a value indicating whether a UDP listener is currently bound.
+    /// Probing requires a listener; mesh checks start one when none runs.
+    /// </summary>
+    bool IsListening { get; }
+
+    /// <summary>
     /// Occurs when the P2P connection status changes.
     /// </summary>
     event EventHandler<OnlineConnectionQuality>? ConnectionStatusChanged;
