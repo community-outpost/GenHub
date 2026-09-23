@@ -4,6 +4,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -13,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -22,6 +24,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileItemViewModel : ViewModelBase
 {
+    private CancellationTokenSource? _iniVerificationCts;
+
     /// <summary>
     /// Gets or sets the action to launch the profile.
     /// </summary>
@@ -1148,34 +1152,61 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ScheduleIniCompatibilityVerification(IGameProfile profile)
     {
-        if (profile.GameClient == null)
+        if (profile.GameClient == null || profile is not GameProfile concreteProfile)
         {
             return;
         }
 
-        if (profile is not GameProfile concreteProfile)
-        {
-            return;
-        }
+        _iniVerificationCts?.Cancel();
+        _iniVerificationCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _iniVerificationCts = cts;
+        var token = cts.Token;
 
-        Task.Run(async () =>
-        {
-            try
+        var crcCalculator = AppLocator.GetServiceOrDefault<IGameCrcCalculatorService>();
+
+        Task.Run(
+            async () =>
             {
-                var isVerifiedRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(concreteProfile);
-                if (isVerifiedRetail != IsRetailCompatible)
+                try
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    if (token.IsCancellationRequested)
                     {
-                        ApplyCompatibilityBadge(profile, isVerifiedRetail);
-                    });
+                        return;
+                    }
+
+                    var isVerifiedRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(
+                        concreteProfile,
+                        crcCalculator,
+                        ct: token);
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    if (isVerifiedRetail != IsRetailCompatible)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            if (token.IsCancellationRequested)
+                            {
+                                return;
+                            }
+
+                            ApplyCompatibilityBadge(profile, isVerifiedRetail);
+                        });
+                    }
                 }
-            }
-            catch
-            {
-                // Silently retain synchronous heuristics if async verification fails
-            }
-        });
+                catch (OperationCanceledException)
+                {
+                    // Task canceled, ignore
+                }
+                catch
+                {
+                    // Silently retain synchronous heuristics if async verification fails
+                }
+            },
+            token);
     }
 
     private void NotifyAllPropertiesChanged()

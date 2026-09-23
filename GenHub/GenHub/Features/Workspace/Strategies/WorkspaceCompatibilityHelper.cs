@@ -631,6 +631,11 @@ public static class WorkspaceCompatibilityHelper
 
             if (!d3d8Requested)
             {
+                if (configuration.SkipCleanup)
+                {
+                    return;
+                }
+
                 CleanUnrequestedDirect3D8Files(workspaceInfo.WorkspacePath, genToolUpdaterRequested, logger);
                 return;
             }

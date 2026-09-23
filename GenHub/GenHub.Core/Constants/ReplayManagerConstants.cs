@@ -464,39 +464,79 @@ public static class ReplayManagerConstants
     public const uint RetailGeneralsExeCrcEaAppValue = 0x8F98E20A;
 
     /// <summary>
-    /// Hex string representing retail Zero Hour 1.04 vanilla INI CRC (0x76B251A3).
+    /// Hexadecimal Exe CRC string representing TheSuperHackers / Community Patch Zero Hour build ("0x391259B0").
     /// </summary>
-    public const string RetailZeroHourIniCrcVanilla = "0x76B251A3";
+    public const string RetailZeroHourExeCrcCommunityPatch = "0x391259B0";
 
     /// <summary>
-    /// Hex string representing retail Zero Hour 1.04 alternate INI CRC (0xFEAAE3F3).
+    /// Numeric Exe CRC representing TheSuperHackers / Community Patch Zero Hour build (0x391259B0).
     /// </summary>
-    public const string RetailZeroHourIniCrcAlternate = "0xFEAAE3F3";
+    public const uint RetailZeroHourExeCrcCommunityPatchValue = 0x391259B0;
 
     /// <summary>
-    /// Hex string representing retail Generals 1.08 vanilla INI CRC (0x323577BD).
+    /// Hex string representing retail Zero Hour 1.04 English INI CRC ("0xFEAAE3F3").
+    /// </summary>
+    public const string RetailZeroHourIniCrcEnglish = "0x" + VanillaZeroHourIniCrcEnglish;
+
+    /// <summary>
+    /// Hex string representing retail Zero Hour 1.04 German/European INI CRC ("0x76B251A3").
+    /// </summary>
+    public const string RetailZeroHourIniCrcGerman = "0x" + VanillaZeroHourIniCrcGerman;
+
+    /// <summary>
+    /// Hex string representing retail Zero Hour 1.04 vanilla INI CRC (alias for <see cref="RetailZeroHourIniCrcGerman"/>).
+    /// </summary>
+    public const string RetailZeroHourIniCrcVanilla = RetailZeroHourIniCrcGerman;
+
+    /// <summary>
+    /// Hex string representing retail Zero Hour 1.04 alternate INI CRC (alias for <see cref="RetailZeroHourIniCrcEnglish"/>).
+    /// </summary>
+    public const string RetailZeroHourIniCrcAlternate = RetailZeroHourIniCrcEnglish;
+
+    /// <summary>
+    /// Hex string representing retail Generals 1.08 vanilla INI CRC ("0x323577BD").
     /// </summary>
     public const string RetailGeneralsIniCrcVanilla = "0x323577BD";
 
     /// <summary>
-    /// Hex string representing retail Generals 1.09 Steam INI CRC (0x5A8E12F0).
+    /// Hex string representing retail Generals 1.08 German/European INI CRC ("0x5CB7992C").
+    /// </summary>
+    public const string RetailGeneralsIniCrcGerman = "0x" + VanillaGeneralsIniCrcGerman;
+
+    /// <summary>
+    /// Hex string representing retail Generals 1.09 Steam INI CRC ("0x5A8E12F0").
     /// </summary>
     public const string RetailGeneralsIniCrcSteam = "0x5A8E12F0";
 
     /// <summary>
-    /// Numeric INI CRC representing retail Zero Hour 1.04 vanilla build (0x76B251A3).
+    /// Numeric INI CRC representing retail Zero Hour 1.04 German build (0x76B251A3).
     /// </summary>
-    public const uint RetailZeroHourIniCrcVanillaValue = 0x76B251A3;
+    public const uint RetailZeroHourIniCrcGermanValue = 0x76B251A3;
 
     /// <summary>
-    /// Numeric INI CRC representing retail Zero Hour 1.04 alternate build (0xFEAAE3F3).
+    /// Numeric INI CRC representing retail Zero Hour 1.04 English build (0xFEAAE3F3).
     /// </summary>
-    public const uint RetailZeroHourIniCrcAlternateValue = 0xFEAAE3F3;
+    public const uint RetailZeroHourIniCrcEnglishValue = 0xFEAAE3F3;
+
+    /// <summary>
+    /// Numeric INI CRC representing retail Zero Hour 1.04 vanilla build (alias for <see cref="RetailZeroHourIniCrcGermanValue"/>).
+    /// </summary>
+    public const uint RetailZeroHourIniCrcVanillaValue = RetailZeroHourIniCrcGermanValue;
+
+    /// <summary>
+    /// Numeric INI CRC representing retail Zero Hour 1.04 alternate build (alias for <see cref="RetailZeroHourIniCrcEnglishValue"/>).
+    /// </summary>
+    public const uint RetailZeroHourIniCrcAlternateValue = RetailZeroHourIniCrcEnglishValue;
 
     /// <summary>
     /// Numeric INI CRC representing retail Generals 1.08 vanilla build (0x323577BD).
     /// </summary>
     public const uint RetailGeneralsIniCrcVanillaValue = 0x323577BD;
+
+    /// <summary>
+    /// Numeric INI CRC representing retail Generals 1.08 German build (0x5CB7992C).
+    /// </summary>
+    public const uint RetailGeneralsIniCrcGermanValue = 0x5CB7992C;
 
     /// <summary>
     /// Numeric INI CRC representing retail Generals 1.09 Steam build (0x5A8E12F0).

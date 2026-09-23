@@ -188,8 +188,26 @@ public class GameLauncher(
                     logger?.LogDebug(ex, "[GameLauncher] Failed to create backup of corrupted MapCache.ini");
                 }
 
-                File.Delete(mapCachePath);
-                logger?.LogInformation("[GameLauncher] Removed corrupted MapCache.ini; game engine will regenerate a clean cache.");
+                try
+                {
+                    File.Delete(mapCachePath);
+                    logger?.LogInformation("[GameLauncher] Removed corrupted MapCache.ini; game engine will regenerate a clean cache.");
+                }
+                catch (Exception delEx)
+                {
+                    logger?.LogWarning(delEx, "[GameLauncher] Failed to delete corrupted MapCache.ini at {MapCachePath}, attempting truncation fallback", mapCachePath);
+                    try
+                    {
+                        File.WriteAllText(mapCachePath, string.Empty);
+                        logger?.LogInformation("[GameLauncher] Truncated corrupted MapCache.ini to empty file.");
+                    }
+                    catch (Exception truncEx)
+                    {
+                        logger?.LogError(truncEx, "[GameLauncher] Failed to truncate corrupted MapCache.ini at {MapCachePath}", mapCachePath);
+                        return false;
+                    }
+                }
+
                 return true;
             }
         }

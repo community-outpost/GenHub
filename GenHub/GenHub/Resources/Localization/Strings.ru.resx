@@ -597,26 +597,26 @@
   </data>
   <data name="GameProfiles.Badge.RetailCompatible" xml:space="preserve">
     <value>Совместимо с 1.04</value>
-    <comment>Badge indicating the profile game client executable CRC matches retail 1.04</comment>
+    <comment>Badge indicating the profile game client rules/INIs and executable match retail</comment>
   </data>
   <data name="GameProfiles.Badge.NonRetailCompatible" xml:space="preserve">
     <value>Несовместимо с 1.04</value>
-    <comment>Badge indicating the profile game client uses a non-retail executable</comment>
+    <comment>Badge indicating the profile uses non-retail rules/INIs or custom executables</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatible" xml:space="preserve">
-    <value>Совместимо с оригинальной версией 1.04 (совпадение CRC exe)</value>
+    <value>Совместимо с оригинальной версией 1.04 / 1.05 (официальные правила/INI)</value>
     <comment>Tooltip for retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatible" xml:space="preserve">
-    <value>Используется модифицированный exe; несовместимо с версией 1.04</value>
+    <value>Несовместимая конфигурация (отличается от 1.04 / 1.05)</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
-    <value>Совместимо с оригинальной версией Generals 1.08 / 1.09 (официальный exe)</value>
+    <value>Совместимо с оригинальной версией Generals 1.08 / 1.09 (официальные правила/INI)</value>
     <comment>Tooltip for retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
-    <value>Используется модифицированный exe; несовместимо с версией Generals 1.08 / 1.09</value>
+    <value>Несовместимая конфигурация (отличается от Generals 1.08 / 1.09)</value>
     <comment>Tooltip for non-retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">

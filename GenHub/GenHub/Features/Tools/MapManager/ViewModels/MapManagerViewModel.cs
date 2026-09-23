@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
@@ -1072,6 +1072,10 @@ public partial class MapManagerViewModel(
                 HandleMapPackCreationFailed(result.FirstError ?? defaultError);
             }
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("MapPack creation canceled by user");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create MapPack");
@@ -1334,6 +1338,10 @@ public partial class MapManagerViewModel(
                 var defaultError = GetLocalizedString(MapManagerConstants.UnknownErrorKey, MapManagerConstants.DefaultUnknownError);
                 HandleMapPackCreationFailed(result.FirstError ?? defaultError);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("MapPack creation canceled by user");
         }
         catch (Exception ex)
         {

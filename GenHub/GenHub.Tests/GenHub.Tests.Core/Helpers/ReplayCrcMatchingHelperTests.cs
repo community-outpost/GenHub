@@ -575,6 +575,9 @@ public class ReplayCrcMatchingHelperTests
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc("76B251A3"));
         Assert.True(ReplayCrcMatchingHelper.IsRetailIniCrc("0x76B251A3", GameType.ZeroHour));
         Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailIniCrc(ReplayManagerConstants.RetailGeneralsIniCrcVanilla));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailIniCrc(ReplayManagerConstants.RetailGeneralsIniCrcGerman));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailIniCrc("0x5CB7992C"));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(ReplayManagerConstants.RetailZeroHourExeCrcCommunityPatch));
         Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc("0x12345678"));
     }
 
@@ -589,12 +592,13 @@ public class ReplayCrcMatchingHelperTests
     }
 
     /// <summary>
-    /// Verifies that IsRetailCompatibleAsync preserves retail compatibility even when
-    /// game root contains loose files that alter the root INI CRC.
+    /// Verifies that IsRetailCompatibleAsync returns false when the INI CRC does not match retail.
+    /// In C&amp;C Generals &amp; Zero Hour, INI CRC determines multiplayer/replay synchronization;
+    /// modified rules/INIs are non-retail even if the executable is official.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_PreservesRetailCompatibility_WhenRootIniDirty()
+    public async Task IsRetailCompatibleAsync_WhenIniCrcNonRetail_ReturnsFalse()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_DirtyRootTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -626,6 +630,56 @@ public class ReplayCrcMatchingHelperTests
                     It.IsAny<string?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0xAC76387F"));
+
+            var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+            Assert.False(isRetail);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that IsRetailCompatibleAsync returns true when the INI CRC matches retail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_WhenIniCrcRetail_ReturnsTrue()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_CleanRootTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, "generals.exe");
+        await File.WriteAllTextAsync(exePath, "dummy binary");
+
+        try
+        {
+            var profile = new GameProfile
+            {
+                Id = "test-profile",
+                Name = "Zero Hour Retail",
+                GameClient = new GameClient
+                {
+                    Id = "1.104.steam.gameclient.zerohour",
+                    Name = "Command & Conquer Generals Zero Hour (Steam)",
+                    PublisherType = "Steam",
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = exePath,
+                },
+            };
+
+            var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            mockCalculator
+                .Setup(c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
 
             var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
             Assert.True(isRetail);

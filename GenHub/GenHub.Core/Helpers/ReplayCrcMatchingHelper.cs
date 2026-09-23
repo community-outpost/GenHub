@@ -76,7 +76,7 @@ public static class ReplayCrcMatchingHelper
         var normalized = NormalizeCrcHex(crc);
         return string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailZeroHourExeCrcFirstDecade), StringComparison.OrdinalIgnoreCase) ||
                string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailZeroHourExeCrcSteam), StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(normalized, "391259B0", StringComparison.OrdinalIgnoreCase);
+               string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailZeroHourExeCrcCommunityPatch), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -149,6 +149,7 @@ public static class ReplayCrcMatchingHelper
 
         var normalized = NormalizeCrcHex(crc);
         return string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsIniCrcVanilla), StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsIniCrcGerman), StringComparison.OrdinalIgnoreCase) ||
                string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsIniCrcSteam), StringComparison.OrdinalIgnoreCase);
     }
 
@@ -510,14 +511,9 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsRetailCompatible(client, profile.EnabledContentIds))
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc))
         {
-            return true;
-        }
-
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsRetailIniCrc(cachedIniCrc, client.GameType))
-        {
-            return true;
+            return IsRetailIniCrc(cachedIniCrc, client.GameType);
         }
 
         var exePath = ResolveProfileFullExePath(client);
@@ -526,13 +522,13 @@ public static class ReplayCrcMatchingHelper
         if (crcCalculator != null && !string.IsNullOrEmpty(gameRoot) && Directory.Exists(gameRoot))
         {
             var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, client.GameType, ct: ct);
-            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) && IsRetailIniCrc(iniResult.Data, client.GameType))
+            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data))
             {
-                return true;
+                return IsRetailIniCrc(iniResult.Data, client.GameType);
             }
         }
 
-        return false;
+        return IsRetailCompatible(client, profile.EnabledContentIds);
     }
 
     /// <summary>
@@ -820,12 +816,12 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc))
         {
-            return true;
+            return isRetailIniCrc(cachedIniCrc);
         }
 
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && isRetailIniCrc(cachedIniCrc))
+        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
         {
             return true;
         }
