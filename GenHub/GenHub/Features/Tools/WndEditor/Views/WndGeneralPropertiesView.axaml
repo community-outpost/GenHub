@@ -97,6 +97,13 @@
             <TextBlock Grid.Column="2" Text="Y" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <NumericUpDown Grid.Column="3" Value="{Binding BottomRightY, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="-9999" Maximum="9999" Increment="1" FontSize="11"/>
           </Grid>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.Size}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <Grid ColumnDefinitions="Auto,*,Auto,*">
+            <TextBlock Grid.Column="0" Text="W" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding WindowWidth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11" Margin="0,0,6,0"/>
+            <TextBlock Grid.Column="2" Text="H" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <NumericUpDown Grid.Column="3" Value="{Binding WindowHeight, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11"/>
+          </Grid>
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.Creation}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <Grid ColumnDefinitions="Auto,*,Auto,*">
             <TextBlock Grid.Column="0" Text="W" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>

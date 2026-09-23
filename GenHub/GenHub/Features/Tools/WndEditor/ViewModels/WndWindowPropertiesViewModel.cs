@@ -154,6 +154,40 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
     private int _bottomRightY;
 
     /// <summary>
+    /// Gets or sets the calculated window width (BottomRightX - UpperLeftX).
+    /// Changing this updates BottomRightX.
+    /// </summary>
+    public int WindowWidth
+    {
+        get => Math.Max(0, BottomRightX - UpperLeftX);
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (WindowWidth != clamped)
+            {
+                BottomRightX = UpperLeftX + clamped;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the calculated window height (BottomRightY - UpperLeftY).
+    /// Changing this updates BottomRightY.
+    /// </summary>
+    public int WindowHeight
+    {
+        get => Math.Max(0, BottomRightY - UpperLeftY);
+        set
+        {
+            var clamped = Math.Max(0, value);
+            if (WindowHeight != clamped)
+            {
+                BottomRightY = UpperLeftY + clamped;
+            }
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the creation resolution width.
     /// </summary>
     [ObservableProperty]
@@ -749,6 +783,9 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
             CreationWidth = (int)WndConstants.Editor.MinCanvasWidth;
             CreationHeight = (int)WndConstants.Editor.MinCanvasHeight;
         }
+
+        OnPropertyChanged(nameof(WindowWidth));
+        OnPropertyChanged(nameof(WindowHeight));
     }
 
     private void RefreshStatus()
@@ -1145,13 +1182,29 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         CommitUnlessSuppressed(CommitShortName);
     }
 
-    partial void OnUpperLeftXChanged(int value) => CommitPositionProperty(nameof(UpperLeftX));
+    partial void OnUpperLeftXChanged(int value)
+    {
+        OnPropertyChanged(nameof(WindowWidth));
+        CommitPositionProperty(nameof(UpperLeftX));
+    }
 
-    partial void OnUpperLeftYChanged(int value) => CommitPositionProperty(nameof(UpperLeftY));
+    partial void OnUpperLeftYChanged(int value)
+    {
+        OnPropertyChanged(nameof(WindowHeight));
+        CommitPositionProperty(nameof(UpperLeftY));
+    }
 
-    partial void OnBottomRightXChanged(int value) => CommitPositionProperty(nameof(BottomRightX));
+    partial void OnBottomRightXChanged(int value)
+    {
+        OnPropertyChanged(nameof(WindowWidth));
+        CommitPositionProperty(nameof(BottomRightX));
+    }
 
-    partial void OnBottomRightYChanged(int value) => CommitPositionProperty(nameof(BottomRightY));
+    partial void OnBottomRightYChanged(int value)
+    {
+        OnPropertyChanged(nameof(WindowHeight));
+        CommitPositionProperty(nameof(BottomRightY));
+    }
 
     partial void OnCreationWidthChanged(int value) => CommitPositionProperty(nameof(CreationWidth));
 

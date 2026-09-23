@@ -7501,6 +7501,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.General.Position.MissingHint" xml:space="preserve">
     <value>SCREENRECT не объявлен. Редактирование добавит его.</value>
   </data>
+  <data name="Tools.WndEditor.General.Position.Size" xml:space="preserve">
+    <value>Размер (Ширина × Высота)</value>
+  </data>
   <data name="Tools.WndEditor.General.Position.UpperLeft" xml:space="preserve">
     <value>Левый верхний</value>
   </data>

@@ -201,7 +201,52 @@ public sealed partial class WndEditorViewModel(
     [NotifyPropertyChangedFor(nameof(CanvasHeight))]
     [NotifyPropertyChangedFor(nameof(CanvasContentOffset))]
     [NotifyPropertyChangedFor(nameof(ZoomDisplayText))]
+    [NotifyPropertyChangedFor(nameof(ScreenGuideX))]
+    [NotifyPropertyChangedFor(nameof(ScreenGuideY))]
+    [NotifyPropertyChangedFor(nameof(ScreenGuideWidth))]
+    [NotifyPropertyChangedFor(nameof(ScreenGuideHeight))]
     private double _zoom = WndConstants.Editor.DefaultZoom;
+
+    /// <summary>
+    /// Gets or sets the virtual game screen width in game coordinates.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScreenGuideWidth))]
+    [NotifyPropertyChangedFor(nameof(ScreenGuideLabel))]
+    private int _virtualScreenWidth = (int)WndConstants.Editor.MinCanvasWidth;
+
+    /// <summary>
+    /// Gets or sets the virtual game screen height in game coordinates.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScreenGuideHeight))]
+    [NotifyPropertyChangedFor(nameof(ScreenGuideLabel))]
+    private int _virtualScreenHeight = (int)WndConstants.Editor.MinCanvasHeight;
+
+    /// <summary>
+    /// Gets the X coordinate of the virtual game screen guide.
+    /// </summary>
+    public double ScreenGuideX => WndConstants.Editor.CanvasPadding * Zoom;
+
+    /// <summary>
+    /// Gets the Y coordinate of the virtual game screen guide.
+    /// </summary>
+    public double ScreenGuideY => WndConstants.Editor.CanvasPadding * Zoom;
+
+    /// <summary>
+    /// Gets the width of the virtual game screen guide.
+    /// </summary>
+    public double ScreenGuideWidth => VirtualScreenWidth * Zoom;
+
+    /// <summary>
+    /// Gets the height of the virtual game screen guide.
+    /// </summary>
+    public double ScreenGuideHeight => VirtualScreenHeight * Zoom;
+
+    /// <summary>
+    /// Gets the resolution label of the virtual game screen guide.
+    /// </summary>
+    public string ScreenGuideLabel => $"{VirtualScreenWidth} × {VirtualScreenHeight}";
 
     /// <summary>
     /// Gets or sets whether the pan tool is active instead of window selection.
@@ -1764,11 +1809,19 @@ public sealed partial class WndEditorViewModel(
         var maxWidth = WndConstants.Editor.MinCanvasWidth;
         var maxHeight = WndConstants.Editor.MinCanvasHeight;
         var selectedId = SelectedNode?.Window.Id;
+        var screenW = 0;
+        var screenH = 0;
         foreach (var window in EnumerateWindows(_document.Windows))
         {
             if (!window.TryGetScreenRect(out var rect) || rect == null)
             {
                 continue;
+            }
+
+            if (screenW <= 0 && rect.CreationWidth > 0 && rect.CreationHeight > 0)
+            {
+                screenW = rect.CreationWidth;
+                screenH = rect.CreationHeight;
             }
 
             var item = new WndCanvasItemViewModel(window)
@@ -1785,8 +1838,11 @@ public sealed partial class WndEditorViewModel(
             maxHeight = Math.Max(maxHeight, rect.BottomRightY);
         }
 
-        _canvasBaseWidth = maxWidth + (WndConstants.Editor.CanvasPadding * 2);
-        _canvasBaseHeight = maxHeight + (WndConstants.Editor.CanvasPadding * 2);
+        VirtualScreenWidth = screenW > 0 ? screenW : (int)Math.Max(maxWidth, WndConstants.Editor.MinCanvasWidth);
+        VirtualScreenHeight = screenH > 0 ? screenH : (int)Math.Max(maxHeight, WndConstants.Editor.MinCanvasHeight);
+
+        _canvasBaseWidth = Math.Max(maxWidth, VirtualScreenWidth) + (WndConstants.Editor.CanvasPadding * 2);
+        _canvasBaseHeight = Math.Max(maxHeight, VirtualScreenHeight) + (WndConstants.Editor.CanvasPadding * 2);
         OnPropertyChanged(nameof(CanvasWidth));
         OnPropertyChanged(nameof(CanvasHeight));
     }
@@ -2527,7 +2583,7 @@ public sealed partial class WndEditorViewModel(
             }
 
             var roots = ResolveAssetRoots(selection);
-            var projectDirectory = linkedModFolderSnapshot ?? ResolveProjectDirectory(FilePath, roots);
+            var projectDirectory = CombineProjectDirectories(linkedModFolderSnapshot, ResolveProjectDirectory(FilePath, roots));
             var linkedBigs = linkedBigFilesSnapshot;
             var schemeOverrides = await Task.Run(() => ResolveSchemeOverrides(roots, projectDirectory, cancellationToken, linkedBigs), cancellationToken).ConfigureAwait(false);
             _schemeOverrides = schemeOverrides;
@@ -2758,5 +2814,28 @@ public sealed partial class WndEditorViewModel(
         }
 
         return result;
+    }
+
+    private static string? CombineProjectDirectories(string? linkedDir, string? autoDetectedDir)
+    {
+        if (string.IsNullOrWhiteSpace(linkedDir))
+        {
+            return autoDetectedDir;
+        }
+
+        if (string.IsNullOrWhiteSpace(autoDetectedDir))
+        {
+            return linkedDir;
+        }
+
+        var p1 = Path.GetFullPath(linkedDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var p2 = Path.GetFullPath(autoDetectedDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        if (string.Equals(p1, p2, StringComparison.OrdinalIgnoreCase))
+        {
+            return linkedDir;
+        }
+
+        return $"{linkedDir};{autoDetectedDir}";
     }
 }

@@ -306,6 +306,51 @@ public sealed class WndPreviewPlannerTests
     }
 
     /// <summary>
+    /// Tests that command bar background marker with tiny screen dimensions (e.g. 5x5 anchor) suppresses the scheme image
+    /// so the HUD graphic is not squished into the bottom corner.
+    /// </summary>
+    [Fact]
+    public void Plan_ControlBarBackgroundMarker_WithTinyScreenRect_SuppressesImage()
+    {
+        // Arrange
+        var window = new WndWindow
+        {
+            ControlTypeName = WndConstants.ControlTypes.User,
+        };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "ControlBar.wnd:BackgroundMarker");
+        window.SetProperty(WndConstants.PropertyKeys.DrawCallback, "W3DCommandBarBackgroundDraw");
+        window.SetProperty(WndConstants.PropertyKeys.ScreenRect, "UPPERLEFT: 8 595, BOTTOMRIGHT: 13 600, CREATIONRESOLUTION: 800 600");
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Tests that full-width ControlBar Munkee window plans the full scheme background image.
+    /// </summary>
+    [Fact]
+    public void Plan_ControlBarMunkee_PlansFullWidthSchemeImage()
+    {
+        // Arrange
+        var window = new WndWindow
+        {
+            ControlTypeName = WndConstants.ControlTypes.User,
+        };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "ControlBar.wnd:Munkee");
+        window.SetProperty(WndConstants.PropertyKeys.ScreenRect, "UPPERLEFT: 0 414, BOTTOMRIGHT: 799 599, CREATIONRESOLUTION: 800 600");
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be("InGameUIAmericaBase");
+        plan.ReferencedImages.Should().Contain("InGameUIAmericaBase");
+    }
+
+    /// <summary>
     /// Tests that MainMenuRuler automatically references MainMenuBackdrop as underlay.
     /// </summary>
     [Fact]

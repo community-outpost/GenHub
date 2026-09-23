@@ -1,4 +1,5 @@
 <UserControl x:Name="Root"
+             Focusable="True"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
@@ -582,6 +583,34 @@
                        PointerMoved="OnCanvasPointerMoved"
                        PointerReleased="OnCanvasPointerReleased"
                        PointerWheelChanged="OnCanvasWheelChanged">
+                  <!-- Virtual Game Screen Frame -->
+                  <Canvas Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}" IsHitTestVisible="False">
+                    <Border Canvas.Left="{Binding ScreenGuideX}"
+                            Canvas.Top="{Binding ScreenGuideY}"
+                            Width="{Binding ScreenGuideWidth}"
+                            Height="{Binding ScreenGuideHeight}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1.5"
+                            Background="#0AFFFFFF">
+                      <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                              BorderBrush="{DynamicResource BorderBrush}"
+                              BorderThickness="1"
+                              CornerRadius="4"
+                              Padding="6,2"
+                              Margin="6"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Top"
+                              Opacity="0.85">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                          <material:MaterialIcon Kind="Monitor" Width="12" Height="12" Foreground="{DynamicResource AccentBrush}"/>
+                          <TextBlock Text="{Binding ScreenGuideLabel}"
+                                     FontSize="11"
+                                     FontWeight="SemiBold"
+                                     Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                      </Border>
+                    </Border>
+                  </Canvas>
                   <ItemsControl ItemsSource="{Binding CanvasItems}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>

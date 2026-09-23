@@ -232,7 +232,30 @@ public static class WndPreviewPlanner
         var name = window.Name ?? string.Empty;
         var drawCallback = window.GetProperty(WndConstants.PropertyKeys.DrawCallback) ?? string.Empty;
 
-        if (string.IsNullOrWhiteSpace(single))
+        var isTinyMarker = window.TryGetScreenRect(out var srect) && srect != null &&
+            (srect.BottomRightX - srect.UpperLeftX <= 30 || srect.BottomRightY - srect.UpperLeftY <= 30);
+
+        if ((name.EndsWith(":BackgroundMarker", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, "BackgroundMarker", StringComparison.OrdinalIgnoreCase)) && isTinyMarker)
+        {
+            single = null;
+        }
+        else if (name.EndsWith(":Munkee", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "Munkee", StringComparison.OrdinalIgnoreCase) ||
+                 name.EndsWith(":ControlBarParent", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(name, "ControlBarParent", StringComparison.OrdinalIgnoreCase))
+        {
+            if (overrides != null && overrides.TryGetValue("BackgroundMarker", out var schemeBg) && !string.IsNullOrWhiteSpace(schemeBg))
+            {
+                single = schemeBg;
+            }
+            else if (string.IsNullOrWhiteSpace(single))
+            {
+                single = "InGameUIAmericaBase";
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(single) && !isTinyMarker)
         {
             single = ResolveSingleImageFallback(name, drawCallback, overrides);
         }

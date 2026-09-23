@@ -25,7 +25,57 @@ public partial class WndEditorView : UserControl
     public WndEditorView()
     {
         InitializeComponent();
+        Focusable = true;
         DataContextChanged += OnDataContextChanged;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Handled || DataContext is not WndEditorViewModel viewModel)
+        {
+            return;
+        }
+
+        if (e.Source is TextBox)
+        {
+            return;
+        }
+
+        var isCtrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
+        if (!isCtrl)
+        {
+            return;
+        }
+
+        if (e.Key == Key.Z)
+        {
+            if ((e.KeyModifiers & KeyModifiers.Shift) != 0)
+            {
+                if (viewModel.RedoCommand.CanExecute(null))
+                {
+                    viewModel.RedoCommand.Execute(null);
+                    e.Handled = true;
+                }
+            }
+            else
+            {
+                if (viewModel.UndoCommand.CanExecute(null))
+                {
+                    viewModel.UndoCommand.Execute(null);
+                    e.Handled = true;
+                }
+            }
+        }
+        else if (e.Key == Key.Y)
+        {
+            if (viewModel.RedoCommand.CanExecute(null))
+            {
+                viewModel.RedoCommand.Execute(null);
+                e.Handled = true;
+            }
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -62,6 +112,7 @@ public partial class WndEditorView : UserControl
 
     private void OnCanvasItemPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        Focus();
         if (DataContext is not WndEditorViewModel viewModel || CanvasHost == null)
         {
             return;
@@ -112,6 +163,7 @@ public partial class WndEditorView : UserControl
 
     private void OnCanvasHostPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        Focus();
         if (DataContext is not WndEditorViewModel viewModel || CanvasHost == null)
         {
             return;

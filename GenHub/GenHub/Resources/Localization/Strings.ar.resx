@@ -7501,6 +7501,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.WndEditor.General.Position.MissingHint" xml:space="preserve">
     <value>لا يوجد SCREENRECT معلن. التحرير سيضيف واحداً.</value>
   </data>
+  <data name="Tools.WndEditor.General.Position.Size" xml:space="preserve">
+    <value>الحجم (العرض × الارتفاع)</value>
+  </data>
   <data name="Tools.WndEditor.General.Position.UpperLeft" xml:space="preserve">
     <value>أعلى اليسار</value>
   </data>

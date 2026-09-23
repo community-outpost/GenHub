@@ -7599,6 +7599,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.General.Position.MissingHint" xml:space="preserve">
     <value>No SCREENRECT declared. Editing adds one.</value>
   </data>
+  <data name="Tools.WndEditor.General.Position.Size" xml:space="preserve">
+    <value>Size (Width × Height)</value>
+  </data>
   <data name="Tools.WndEditor.General.Position.UpperLeft" xml:space="preserve">
     <value>Upper left</value>
   </data>

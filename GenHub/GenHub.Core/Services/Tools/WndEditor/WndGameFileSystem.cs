@@ -22,7 +22,7 @@ public static class WndGameFileSystem
     /// </summary>
     /// <param name="baseRoot">The primary game root directory (Zero Hour if isZeroHour is true, otherwise Generals).</param>
     /// <param name="overrideRoot">Optional fallback base root (e.g. Generals when Zero Hour is primary, or vice versa).</param>
-    /// <param name="projectDirectory">Optional mod project directory layered above game files.</param>
+    /// <param name="projectDirectory">Optional mod project directory layered above game files (multiple paths can be semicolon-delimited).</param>
     /// <param name="logger">The logger sink.</param>
     /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
     /// <param name="isZeroHour">Whether the target game is Zero Hour (expansion tier) or vanilla Generals.</param>
@@ -42,9 +42,16 @@ public static class WndGameFileSystem
 
         var fileSystem = CreateBaseFileSystem(baseRoot, overrideRoot, logger, isZeroHour, cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(projectDirectory) && Directory.Exists(projectDirectory))
+        if (!string.IsNullOrWhiteSpace(projectDirectory))
         {
-            LayerProjectDirectory(fileSystem, projectDirectory, logger);
+            var directories = projectDirectory.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var dir in directories)
+            {
+                if (Directory.Exists(dir))
+                {
+                    LayerProjectDirectory(fileSystem, dir, logger);
+                }
+            }
         }
 
         LayerLinkedBigFiles(fileSystem, additionalBigFiles, logger);
@@ -71,8 +78,16 @@ public static class WndGameFileSystem
         var sb = new StringBuilder();
         sb.Append(baseRoot).Append('|')
           .Append(overrideRoot ?? string.Empty).Append('|')
-          .Append(projectDirectory ?? string.Empty).Append('|')
           .Append(isZeroHour ? "ZH" : "GEN").Append('|');
+
+        if (!string.IsNullOrWhiteSpace(projectDirectory))
+        {
+            var directories = projectDirectory.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var dir in directories)
+            {
+                sb.Append(dir).Append('|');
+            }
+        }
 
         if (additionalBigFiles != null && additionalBigFiles.Count > 0)
         {
@@ -113,16 +128,16 @@ public static class WndGameFileSystem
     {
         if (isZeroHour && HasUsableOverrideRoot(overrideRoot, baseRoot))
         {
-            // overrideRoot is Generals base fallback; baseRoot is Zero Hour active target
+            // baseRoot is Zero Hour active target; overrideRoot is Generals base fallback
             var fileSystem = new SageVirtualFileSystem(
-                overrideRoot!,
-                isZeroHour: false,
+                baseRoot,
+                isZeroHour: true,
                 logger: logger,
                 cancellationToken: cancellationToken,
                 skipIniZhBig: false,
-                initialTier: SageFileTier.BaseGame);
+                initialTier: SageFileTier.Expansion);
 
-            fileSystem.AddSideload(baseRoot);
+            fileSystem.AddBaseFallback(overrideRoot!);
             return fileSystem;
         }
 
