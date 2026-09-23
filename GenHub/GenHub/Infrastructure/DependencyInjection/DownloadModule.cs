@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Net.Http;
+using System.Threading;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -40,7 +41,15 @@ public static class DownloadModule
         services.AddSingleton<HttpClient>(serviceProvider =>
         {
             var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
-            var client = new HttpClient();
+            var handler = new SocketsHttpHandler
+            {
+                ConnectTimeout = TimeSpan.FromSeconds(30),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                PooledConnectionIdleTimeout = TimeSpan.FromSeconds(60),
+                EnableMultipleHttp2Connections = true,
+                MaxConnectionsPerServer = 16,
+            };
+            var client = new HttpClient(handler, disposeHandler: true);
             ConfigureDownloadClient(client, configProvider);
             return client;
         });
@@ -70,11 +79,13 @@ public static class DownloadModule
     private static void ConfigureDownloadClient(HttpClient client, IConfigurationProviderService configProvider)
     {
         var userAgent = configProvider.GetDownloadUserAgent();
-        var timeoutSeconds = configProvider.GetDownloadTimeoutSeconds();
 
         client.DefaultRequestHeaders.Add("User-Agent", userAgent ?? ApiConstants.DefaultUserAgent);
-        client.Timeout = timeoutSeconds > 0
-            ? TimeSpan.FromSeconds(timeoutSeconds)
-            : TimeIntervals.DownloadTimeout;
+
+        // Streaming file downloads require infinite HttpClient.Timeout so that large files or
+        // slow connections are not prematurely aborted after a fixed duration. Connection
+        // and per-read inactivity timeouts are managed via SocketsHttpHandler.ConnectTimeout
+        // and CancellationTokenSource inside DownloadService.
+        client.Timeout = Timeout.InfiniteTimeSpan;
     }
 }

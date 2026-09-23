@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
 using System.Net;
+using System.Net.Http.Headers;
 
 namespace GenHub.Tests.Core.Common.Services;
 
@@ -305,6 +306,222 @@ public class DownloadServiceTests
             // Assert
             var expected = BitConverter.ToString(System.Security.Cryptography.SHA256.HashData(bytes)).Replace("-", string.Empty).ToLowerInvariant();
             Assert.Equal(expected, hash);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a partial file exists, the service sends an HTTP Range request and resumes via 206 Partial Content.
+    /// </summary>
+    [Fact]
+    public async Task DownloadFileAsync_WithExistingPartialFile_ResumesDownloadViaRangeAsync()
+    {
+        // Arrange: partial file has first 3 bytes [1, 2, 3]
+        var existingContent = new byte[] { 1, 2, 3 };
+        var remainingContent = new byte[] { 4, 5 };
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, existingContent);
+
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(() =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(remainingContent),
+                };
+                response.Content.Headers.ContentRange = new ContentRangeHeaderValue(3, 4, 5);
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/resume.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(capturedRequest);
+            Assert.NotNull(capturedRequest.Headers.Range);
+            Assert.Equal(3, capturedRequest.Headers.Range.Ranges.First().From);
+            Assert.Equal(new byte[] { 1, 2, 3, 4, 5 }, File.ReadAllBytes(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a server does not support Range and returns 200 OK, the partial file is cleanly overwritten.
+    /// </summary>
+    [Fact]
+    public async Task DownloadFileAsync_WithExistingPartialFile_ServerReturns200_OverwritesFromBeginningAsync()
+    {
+        // Arrange: existing file has stale data [99, 99, 99]
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, new byte[] { 99, 99, 99 });
+        var fullContent = new byte[] { 1, 2, 3, 4, 5 };
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(fullContent),
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/no-range.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal(fullContent, File.ReadAllBytes(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when the server returns 416 Range Not Satisfiable, the service deletes the stale file and restarts.
+    /// </summary>
+    [Fact]
+    public async Task DownloadFileAsync_WithExistingPartialFile_ServerReturns416_RetriesFromScratchAsync()
+    {
+        // Arrange: existing file is larger than server resource
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+        var fullContent = new byte[] { 1, 2, 3 };
+
+        int requestCount = 0;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() =>
+            {
+                requestCount++;
+                if (requestCount == 1)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.RequestedRangeNotSatisfiable);
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(fullContent),
+                };
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/range-416.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal(2, requestCount);
+            Assert.Equal(fullContent, File.ReadAllBytes(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a file already exists with matching expected hash, download is skipped immediately.
+    /// </summary>
+    [Fact]
+    public async Task DownloadFileAsync_FileExistsWithMatchingHash_SkipsDownloadAsync()
+    {
+        // Arrange
+        var content = new byte[] { 10, 20, 30, 40 };
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, content);
+
+        var hashProvider = new Sha256HashProvider();
+        var expectedHash = await hashProvider.ComputeFileHashAsync(tempFile);
+
+        var handler = new Mock<HttpMessageHandler>();
+        var service = CreateService(handler.Object, out _, hashProvider);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/existing-match.bin"),
+                DestinationPath = tempFile,
+                ExpectedHash = expectedHash,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.True(result.IsSkipped);
+            handler.Protected().Verify(
+                "SendAsync",
+                Times.Never(),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
         }
         finally
         {

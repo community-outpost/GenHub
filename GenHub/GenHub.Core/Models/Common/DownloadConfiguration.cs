@@ -23,6 +23,7 @@ public sealed class DownloadConfiguration
         Url = null!;
         DestinationPath = string.Empty;
         OverwriteExisting = true;
+        EnableResumption = true;
         ProgressReportingInterval = TimeSpan.FromMilliseconds(100);
         Headers = [];
         VerifySslCertificate = true;
@@ -51,6 +52,9 @@ public sealed class DownloadConfiguration
 
     /// <summary>Gets or sets a value indicating whether to overwrite existing files.</summary>
     public bool OverwriteExisting { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to enable HTTP range-based download resumption.</summary>
+    public bool EnableResumption { get; set; }
 
     /// <summary>Gets or sets the progress reporting interval.</summary>
     public TimeSpan ProgressReportingInterval { get; set; }

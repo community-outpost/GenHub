@@ -28,11 +28,13 @@ namespace GenHub.Features.Content.Services.GenLauncher;
 /// <param name="manifestPool">The content manifest pool.</param>
 /// <param name="manifestFactory">The GenLauncher manifest factory.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="configurationProvider">Optional configuration provider for concurrent download limits.</param>
 public class GenLauncherDeliverer(
     IDownloadService downloadService,
     IContentManifestPool manifestPool,
     GenLauncherManifestFactory manifestFactory,
-    ILogger<GenLauncherDeliverer> logger)
+    ILogger<GenLauncherDeliverer> logger,
+    IConfigurationProviderService? configurationProvider = null)
     : IContentDeliverer
 {
     /// <inheritdoc/>
@@ -178,16 +180,139 @@ public class GenLauncherDeliverer(
         var totalBytes = files.Sum(f => Math.Max(f.Size, 0));
         logger.LogInformation("Beginning download of {TotalFiles} files ({TotalBytes} bytes)...", totalFiles, totalBytes);
 
-        for (var i = 0; i < totalFiles; i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var file = files[i];
+        var maxConcurrency = configurationProvider?.GetMaxConcurrentDownloads() ?? DownloadDefaults.MaxConcurrentDownloads;
+        maxConcurrency = Math.Clamp(maxConcurrency, 1, 8);
 
-            var result = await DownloadSingleFileAsync(file, i, totalFiles, targetDirectory, progress, cancellationToken);
-            if (!result.Success)
+        if (totalFiles <= 1 || maxConcurrency <= 1)
+        {
+            for (var i = 0; i < totalFiles; i++)
             {
-                return result;
+                cancellationToken.ThrowIfCancellationRequested();
+                var file = files[i];
+
+                progress?.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.Downloading,
+                    ProgressPercentage = (i / (double)totalFiles) * 80,
+                    CurrentOperation = $"{file.RelativePath} ({i + 1}/{totalFiles})",
+                    FilesProcessed = i,
+                    TotalFiles = totalFiles,
+                });
+
+                var fileProgress = CreateFileProgress(progress, i, totalFiles, file.RelativePath);
+
+                var result = await DownloadSingleFileAsync(file, i, totalFiles, targetDirectory, fileProgress, cancellationToken).ConfigureAwait(false);
+                if (!result.Success)
+                {
+                    return result;
+                }
             }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        // Concurrent multi-file download bounded by configured MaxConcurrentDownloads
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+        var fileDownloadedBytes = new long[totalFiles];
+        int completedFiles = 0;
+        var overallStopwatch = Stopwatch.StartNew();
+        string? firstError = null;
+
+        var tasks = files.Select((file, index) => Task.Run(
+            async () =>
+            {
+                await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                try
+                {
+                    linkedCts.Token.ThrowIfCancellationRequested();
+
+                    var fileProgress = progress == null ? null : new Progress<DownloadProgress>(p =>
+                    {
+                        Volatile.Write(ref fileDownloadedBytes[index], p.BytesReceived);
+
+                        long currentTotalBytes = 0;
+                        for (int j = 0; j < totalFiles; j++)
+                        {
+                            currentTotalBytes += Volatile.Read(ref fileDownloadedBytes[j]);
+                        }
+
+                        var doneCount = Volatile.Read(ref completedFiles);
+                        double progressPct;
+                        if (totalBytes > 0)
+                        {
+                            progressPct = Math.Min(80.0, Math.Max(0.0, (double)currentTotalBytes / totalBytes * 80.0));
+                        }
+                        else
+                        {
+                            progressPct = Math.Min(80.0, Math.Max(0.0, (double)doneCount / totalFiles * 80.0));
+                        }
+
+                        var elapsedSec = overallStopwatch.Elapsed.TotalSeconds;
+                        long speed = elapsedSec > 0 ? (long)(currentTotalBytes / elapsedSec) : 0;
+                        var speedStr = speed > 0 ? $" at {ByteFormatHelper.FormatBytes(speed)}/s" : string.Empty;
+                        var bytesStr = totalBytes > 0
+                            ? $" [{ByteFormatHelper.FormatBytes(currentTotalBytes)} / {ByteFormatHelper.FormatBytes(totalBytes)}]"
+                            : string.Empty;
+
+                        progress.Report(new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.Downloading,
+                            ProgressPercentage = progressPct,
+                            CurrentOperation = $"Downloading {file.RelativePath} ({doneCount}/{totalFiles}){bytesStr}{speedStr}",
+                            BytesProcessed = currentTotalBytes,
+                            TotalBytes = totalBytes,
+                            FilesProcessed = doneCount,
+                            TotalFiles = totalFiles,
+                        });
+                    });
+
+                    var result = await DownloadSingleFileAsync(file, index, totalFiles, targetDirectory, fileProgress, linkedCts.Token).ConfigureAwait(false);
+                    if (!result.Success)
+                    {
+                        Interlocked.CompareExchange(ref firstError, result.FirstError ?? $"Failed to download {file.RelativePath}", null);
+                        linkedCts.Cancel();
+                        return;
+                    }
+
+                    if (file.Size > 0)
+                    {
+                        Volatile.Write(ref fileDownloadedBytes[index], file.Size);
+                    }
+
+                    Interlocked.Increment(ref completedFiles);
+                }
+                catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
+                {
+                    // Handled via firstError or cancellationToken
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Unexpected error downloading {File}", file.RelativePath);
+                    Interlocked.CompareExchange(ref firstError, $"Error downloading {file.RelativePath}: {ex.Message}", null);
+                    linkedCts.Cancel();
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            },
+            linkedCts.Token)).ToList();
+
+        try
+        {
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && firstError != null)
+        {
+            // Expected when a download task fails and cancels linkedCts
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (firstError != null)
+        {
+            return OperationResult<bool>.CreateFailure(firstError);
         }
 
         return OperationResult<bool>.CreateSuccess(true);
@@ -198,7 +323,7 @@ public class GenLauncherDeliverer(
         int fileIndex,
         int totalFiles,
         string targetDirectory,
-        IProgress<ContentAcquisitionProgress>? progress,
+        IProgress<DownloadProgress>? fileProgress,
         CancellationToken cancellationToken)
     {
         var destinationPath = Path.Combine(targetDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -216,15 +341,6 @@ public class GenLauncherDeliverer(
             Directory.CreateDirectory(dir);
         }
 
-        progress?.Report(new ContentAcquisitionProgress
-        {
-            Phase = ContentAcquisitionPhase.Downloading,
-            ProgressPercentage = (fileIndex / (double)totalFiles) * 80,
-            CurrentOperation = $"{file.RelativePath} ({fileIndex + 1}/{totalFiles})",
-            FilesProcessed = fileIndex,
-            TotalFiles = totalFiles,
-        });
-
         if (string.IsNullOrWhiteSpace(file.DownloadUrl) || !ImageCacheService.IsSafeRemoteUrl(file.DownloadUrl, out var downloadUri))
         {
             logger.LogError("Invalid or unsafe download URL for file {File}", file.RelativePath);
@@ -241,7 +357,6 @@ public class GenLauncherDeliverer(
             safeLogUrl);
 
         var fileStopwatch = Stopwatch.StartNew();
-        var fileProgress = CreateFileProgress(progress, fileIndex, totalFiles, file.RelativePath);
 
         var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, cancellationToken);
         fileStopwatch.Stop();
@@ -340,7 +455,7 @@ public class GenLauncherDeliverer(
                 !await GenLauncherChecksumValidator.ValidateFileAsync(destinationPath, expectedEtag, cancellationToken))
             {
                 lastError = $"Checksum mismatch for {file.RelativePath}! Expected ETag: {expectedEtag}";
-                logger.LogWarning("Attempt {Attempt}/{Max}: {Error}", attempt, maxAttempts, lastError);
+                logger.LogWarning("Attempt {Attempt}/{Max} for {File}: {Error}", attempt, maxAttempts, file.RelativePath, lastError);
                 CleanupCorruptedFile(destinationPath);
                 continue;
             }

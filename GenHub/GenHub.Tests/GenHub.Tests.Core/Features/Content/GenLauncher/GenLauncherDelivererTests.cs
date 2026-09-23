@@ -201,7 +201,73 @@ public sealed class GenLauncherDelivererTests
         }
     }
 
-    private GenLauncherDeliverer CreateDeliverer()
+    /// <summary>
+    /// Tests that DeliverContentAsync downloads multiple files concurrently when configured.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithMultipleFiles_DownloadsConcurrentlyAndSucceeds()
+    {
+        _downloadServiceMock.Setup(d => d.DownloadFileAsync(
+            It.IsAny<Uri>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<IProgress<DownloadProgress>?>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DownloadResult.CreateSuccess("path", 100, TimeSpan.FromMilliseconds(10)));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(
+            It.IsAny<ContentManifest>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var configMock = new Mock<IConfigurationProviderService>();
+        configMock.Setup(c => c.GetMaxConcurrentDownloads()).Returns(4);
+
+        var deliverer = CreateDeliverer(configMock.Object);
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.multi"),
+                Name = "Multi Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile { RelativePath = "file1.big", DownloadUrl = "https://example.com/file1.big", Size = 100 },
+                    new ManifestFile { RelativePath = "file2.big", DownloadUrl = "https://example.com/file2.big", Size = 200 },
+                    new ManifestFile { RelativePath = "file3.big", DownloadUrl = "https://example.com/file3.big", Size = 300 },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            _downloadServiceMock.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(3));
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    private GenLauncherDeliverer CreateDeliverer(IConfigurationProviderService? configurationProvider = null)
     {
         var factory = new GenLauncherManifestFactory(
             Mock.Of<IArchivePayloadProcessor>(),
@@ -211,6 +277,7 @@ public sealed class GenLauncherDelivererTests
             _downloadServiceMock.Object,
             _manifestPoolMock.Object,
             factory,
-            NullLogger<GenLauncherDeliverer>.Instance);
+            NullLogger<GenLauncherDeliverer>.Instance,
+            configurationProvider);
     }
 }

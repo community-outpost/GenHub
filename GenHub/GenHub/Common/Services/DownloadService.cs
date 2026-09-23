@@ -6,7 +6,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -62,7 +64,7 @@ public class DownloadService(
         return await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
     }
 
-    private static HttpRequestMessage CreateRequest(DownloadConfiguration configuration, Uri url)
+    private static HttpRequestMessage CreateRequest(DownloadConfiguration configuration, Uri url, long rangeStart = 0)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Add("User-Agent", configuration.UserAgent);
@@ -71,23 +73,29 @@ public class DownloadService(
             request.Headers.Add(header.Key, header.Value);
         }
 
+        if (rangeStart > 0 && request.Headers.Range == null)
+        {
+            request.Headers.Range = new RangeHeaderValue(rangeStart, null);
+        }
+
         return request;
     }
 
     private async Task<HttpResponseMessage> SendRequestAsync(
         DownloadConfiguration configuration,
         IDownloadUrlValidator validator,
+        long rangeStart,
         CancellationToken cancellationToken)
     {
         if (!configuration.ValidateRedirectsManually)
         {
-            using var request = CreateRequest(configuration, configuration.Url);
+            using var request = CreateRequest(configuration, configuration.Url, rangeStart);
             return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         }
 
         var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
             httpClient,
-            uri => CreateRequest(configuration, uri),
+            uri => CreateRequest(configuration, uri, rangeStart),
             configuration.Url,
             DownloadDefaults.MaxRedirects,
             validator,
@@ -112,6 +120,10 @@ public class DownloadService(
                 }
 
                 return await PerformDownloadAsync(configuration, progress, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -148,19 +160,81 @@ public class DownloadService(
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(configuration.Timeout);
         var validator = urlValidator ?? new DownloadUrlValidator();
-        using var response = await SendRequestAsync(configuration, validator, cts.Token);
-        response.EnsureSuccessStatusCode();
 
-        var totalBytes = response.Content.Headers.ContentLength ?? 0;
+        var destFileInfo = new FileInfo(configuration.DestinationPath);
+        var existingBytes = (configuration.EnableResumption && destFileInfo.Exists) ? destFileInfo.Length : 0L;
+
+        // If file already exists and hash verification passes, skip download immediately
+        if (existingBytes > 0 && !string.IsNullOrWhiteSpace(configuration.ExpectedHash))
+        {
+            var existingHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
+            if (string.Equals(existingHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("File {FilePath} already exists and matches expected hash; skipping download", configuration.DestinationPath);
+                return DownloadResult.CreateSuccess(configuration.DestinationPath, existingBytes, TimeSpan.Zero, true);
+            }
+        }
+
+        HttpResponseMessage response;
+        bool isResumed = false;
+        long totalBytes;
         long downloadedBytes = 0;
+
+        if (existingBytes > 0)
+        {
+            response = await SendRequestAsync(configuration, validator, existingBytes, cts.Token);
+            if (response.StatusCode == HttpStatusCode.PartialContent)
+            {
+                isResumed = true;
+                downloadedBytes = existingBytes;
+                totalBytes = response.Content.Headers.ContentRange?.Length
+                    ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
+            }
+            else if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+            {
+                response.Dispose();
+                logger.LogWarning("Range {Range} not satisfiable for {Url}. Restarting download from scratch.", existingBytes, configuration.Url);
+                try
+                {
+                    File.Delete(configuration.DestinationPath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to delete file {FilePath} on 416 retry", configuration.DestinationPath);
+                }
+
+                existingBytes = 0;
+                response = await SendRequestAsync(configuration, validator, 0, cts.Token);
+                response.EnsureSuccessStatusCode();
+                totalBytes = response.Content.Headers.ContentLength ?? 0;
+            }
+            else
+            {
+                response.EnsureSuccessStatusCode();
+                totalBytes = response.Content.Headers.ContentLength ?? 0;
+                existingBytes = 0;
+            }
+        }
+        else
+        {
+            response = await SendRequestAsync(configuration, validator, 0, cts.Token);
+            response.EnsureSuccessStatusCode();
+            totalBytes = response.Content.Headers.ContentLength ?? 0;
+        }
+
+        var fileMode = isResumed ? FileMode.Append : FileMode.Create;
         var buffer = new byte[configuration.BufferSize];
 
+        using (response)
         await using (var contentStream = await response.Content.ReadAsStreamAsync(cts.Token))
-        await using (var fileStream = new FileStream(configuration.DestinationPath, FileMode.Create, FileAccess.Write, FileShare.None, configuration.BufferSize, useAsync: true))
+        await using (var fileStream = new FileStream(configuration.DestinationPath, fileMode, FileAccess.Write, FileShare.None, configuration.BufferSize, useAsync: true))
         {
             int bytesRead;
             while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token)) > 0)
             {
+                // Reset inactivity / stall timeout countdown timer because data is actively arriving
+                cts.CancelAfter(configuration.Timeout);
+
                 await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cts.Token);
                 downloadedBytes += bytesRead;
 
@@ -169,12 +243,15 @@ public class DownloadService(
                 if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || downloadedBytes == totalBytes))
                 {
                     var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
+                    var sessionBytes = downloadedBytes - existingBytes;
+                    var speed = elapsedSeconds > 0 ? (long)(sessionBytes / elapsedSeconds) : 0;
+
                     progress.Report(new DownloadProgress(
                         downloadedBytes,
                         totalBytes,
                         fileName,
                         configuration.Url,
-                        elapsedSeconds > 0 ? (long)(downloadedBytes / elapsedSeconds) : 0,
+                        speed,
                         stopwatch.Elapsed));
 
                     lastProgressReport = now;
