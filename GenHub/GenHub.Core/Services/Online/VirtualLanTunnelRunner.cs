@@ -70,6 +70,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             {
                 _broadcastListener = new UdpClient();
                 _broadcastListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                EnableReusePort(_broadcastListener.Client, logger);
                 _broadcastListener.Client.Bind(new IPEndPoint(IPAddress.Any, OnlineConstants.ZeroHourDiscoveryPort));
                 _broadcastReceiveTask = Task.Run(() => BroadcastReceiveLoopAsync(_broadcastListener, parsed, ct), ct);
             }
@@ -171,6 +172,35 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         finally
         {
             _lock.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Enables UDP port sharing on the discovery listener so the game and the tunnel can both hold the discovery port.
+    /// </summary>
+    /// <remarks>
+    /// Windows shares UDP ports through SO_REUSEADDR alone, while Linux and macOS require SO_REUSEPORT for the same
+    /// sharing. Without it, whichever side binds the discovery port first starves the other with a sharing violation.
+    /// The framework exposes no managed ReusePort member, so the native values pass through the raw socket option API.
+    /// Failures are non-fatal and keep the previous single-owner behavior.
+    /// </remarks>
+    /// <param name="socket">The discovery listener socket, not yet bound.</param>
+    /// <param name="logger">The logger for the non-fatal fallback notice.</param>
+    internal static void EnableReusePort(Socket socket, ILogger logger)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        try
+        {
+            var (level, name) = OnlineConstants.GetReusePortOption();
+            socket.SetRawSocketOption(level, name, BitConverter.GetBytes(1));
+        }
+        catch (Exception ex) when (ex is SocketException or PlatformNotSupportedException)
+        {
+            logger.LogDebug(ex, "SO_REUSEPORT unavailable; discovery port sharing stays disabled.");
         }
     }
 
