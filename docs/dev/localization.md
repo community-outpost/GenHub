@@ -55,21 +55,15 @@ Do not localize log templates, protocol values, manifest identifiers, command-li
 ## Merging concurrent changes
 
 Every feature branch touches the same `Strings*.resx` files, so plain
-line-based merging conflicts constantly. The repository uses a key-level
-merge driver instead. Enable it once per machine:
-
-```bash
-git config merge.resx.driver "python scripts/git_merge_resx.py %O %A %B"
-```
-
-The driver (committed at `scripts/git_merge_resx.py`, selected by the
-`merge=resx` attribute in `.gitattributes`) merges whole
-`<data name="...">` blocks by resource key: independent additions from both
-sides are both kept, deletions are honored, and only a genuine same-key
-disagreement stops the merge with conflict markers. Do not use git's
-built-in `merge=union` for these files: it aligns insertions at shared
-anchor lines and can silently drop a `</data>` closing tag while reporting
-success.
+line-based merging conflicts constantly, and git's built-in `merge=union`
+is unsafe here: it aligns insertions at shared anchor lines and can
+silently drop a `</data>` closing tag while reporting success. The
+repository instead merges whole `<data name="...">` blocks by resource key
+(`scripts/git_merge_resx.py`, selected by the `merge=resx` attribute in
+`.gitattributes`): independent additions from both sides are both kept,
+deletions are honored, and only a genuine same-key disagreement stops the
+merge. Nobody needs to configure or invoke anything; the section below
+runs the driver automatically.
 
 CI validates every `Strings*.resx` on each run (`scripts/validate_resx.py`):
 well-formed XML with flat `<data>` blocks, no duplicate keys, exact key-set
@@ -94,9 +88,9 @@ script then compares each pull request in memory first: pull requests
 GitHub already shows as mergeable are never touched (no pointless merge
 commits triggering downstream builds), pull requests conflicting outside
 the managed resx directory are skipped for their author, and only
-resx-only conflicts reach a real merge. Run it by hand from the Actions
-tab (`workflow_dispatch`), or preview a run locally with
-`python scripts/auto_merge_development.py --dry-run`.
+resx-only conflicts reach a real merge. Trigger it by hand from the
+Actions tab (`workflow_dispatch`) if ever needed outside a push to
+`development`.
 
 ## Avalonia views
 

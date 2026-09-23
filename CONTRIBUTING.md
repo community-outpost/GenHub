@@ -45,9 +45,6 @@ you agree to uphold a welcoming and inclusive environment for all contributors.
   major SDK such as .NET 9 will not satisfy it, and an older 8.0.x band will not either.
 - **IDE**: Visual Studio 2022 is recommended. The Community Edition is free and sufficient.
 - **Dependencies**: Restore NuGet packages before building.
-- **Localization merge driver**: Run `git config merge.resx.driver "python scripts/git_merge_resx.py %O %A %B"`
-  once per machine so concurrent `Strings*.resx` changes merge key-by-key
-  instead of conflicting line-by-line (see `docs/dev/localization.md`).
 
 ---
 

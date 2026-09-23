@@ -11,8 +11,8 @@ GenHub/GenHub/Assets/GenHotkeys/**/*.png export-ignore
 *.cs text eol=lf
 
 # Merge localization files key-by-key instead of line-by-line. The driver is
-# scripts/git_merge_resx.py (enable per machine: git config merge.resx.driver
-# "python scripts/git_merge_resx.py %O %A %B"). Line-based union merging is
-# unsafe here: adjacent insertions from two branches can silently drop a
-# </data> closing tag while reporting success.
+# scripts/git_merge_resx.py, run automatically by the Resx Auto Merge
+# workflow. Line-based union merging is unsafe here: adjacent insertions
+# from two branches can silently drop a </data> closing tag while reporting
+# success.
 GenHub/GenHub/Resources/Localization/*.resx merge=resx

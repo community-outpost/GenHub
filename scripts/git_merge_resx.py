@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Key-level 3-way merge driver for .NET .resx localization files.
 
-Git setup (once per machine; the ``merge=resx`` attribute is committed in
-.gitattributes)::
-
-    git config merge.resx.driver "python scripts/git_merge_resx.py %O %A %B"
+Selected by the ``merge=resx`` attribute in .gitattributes and run
+automatically by the Resx Auto Merge workflow
+(.github/workflows/resx-auto-merge.yml), which configures the driver
+before merging development into open pull requests. Nobody needs to
+configure or invoke it by hand.
 
 Git invokes the driver as ``script <ancestor> <current> <other>``. The merged
 result is written back to ``<current>``. Exit codes: 0 means cleanly merged,
