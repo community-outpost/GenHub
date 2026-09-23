@@ -9,4 +9,7 @@ public record ProfileLaunchedMessage(string ProfileId, int ProcessId)
 {
     /// <summary>Gets the manager-assigned process identity when available.</summary>
     public Guid ProcessInstanceId { get; init; }
+
+    /// <summary>Gets a value indicating whether the successfully launched profile is a tool.</summary>
+    public bool IsToolProfile { get; init; }
 }

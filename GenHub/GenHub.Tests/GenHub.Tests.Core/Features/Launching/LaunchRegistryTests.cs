@@ -25,6 +25,37 @@ public class LaunchRegistryTests
         _registry = new LaunchRegistry(loggerMock.Object);
     }
 
+    /// <summary>Delivery latency does not expire a newly buffered exit.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task RegisterLaunchAsync_DelayedExitDelivery_PreservesDiagnosticsAsync()
+    {
+        var manager = new Mock<IGameProcessManager>();
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        var identity = Guid.NewGuid();
+        var launch = new GameLaunchInfo
+        {
+            LaunchId = "delayed-exit",
+            ProfileId = "profile",
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo { ProcessId = -1 },
+        };
+        await registry.RegisterLaunchAsync(launch);
+        var exitTime = DateTime.UtcNow.AddSeconds(-5);
+        manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 12345,
+            ProcessInstanceId = identity,
+            ExitCode = 1,
+            ExitTime = exitTime,
+        });
+        launch.ProcessInfo = new GameProcessInfo { ProcessId = 12345, ProcessInstanceId = identity, IsRunning = true };
+        await registry.RegisterLaunchAsync(launch);
+        Assert.True(launch.HasFailed);
+        Assert.Equal(exitTime, launch.TerminatedAt);
+        Assert.False(launch.ProcessInfo.IsRunning);
+    }
+
     /// <summary>Polling asks the manager to publish retained exit diagnostics before PID lookup.</summary>
     /// <param name="allLaunches">Whether polling requests all active launches.</param>
     /// <returns>The async task.</returns>

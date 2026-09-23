@@ -181,7 +181,7 @@ public class GameProcessManager(
                 var timeoutMs = configuration.Timeout.HasValue ? (int)configuration.Timeout.Value.TotalMilliseconds : Timeout.Infinite;
                 if (process.WaitForExit(timeoutMs))
                 {
-                    DrainStandardError(process, capturedErrors);
+                    DrainStandardError(capturedErrors);
                 }
             }
 
@@ -726,7 +726,7 @@ public class GameProcessManager(
         IReadOnlyList<string> unmountableArchives = [];
         if (_stderrBuffers.TryRemove(process, out var capturedErrors))
         {
-            DrainStandardError(process, capturedErrors);
+            DrainStandardError(capturedErrors);
 
             var tail = capturedErrors.ToString();
             stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
@@ -1482,7 +1482,7 @@ public class GameProcessManager(
         logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
 
         _stderrBuffers.TryRemove(process, out _);
-        DrainStandardError(process, capturedErrors);
+        DrainStandardError(capturedErrors);
         process.Dispose();
 
         var stderrTail = capturedErrors.ToString();
@@ -1960,7 +1960,7 @@ public class GameProcessManager(
 
         if (launcherExited)
         {
-            DrainStandardError(launcher, capturedErrors);
+            DrainStandardError(capturedErrors);
         }
 
         var detail = capturedErrors.ToString();
@@ -1987,9 +1987,19 @@ public class GameProcessManager(
 
     private void SafeDisposeProcess(Process process, int processId)
     {
+        // Broad by intent: failure in event cleanup must not skip handle disposal,
+        // and neither cleanup operation may escape a process-exit callback.
         try
         {
             process.Exited -= OnProcessExited;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to detach exit handler for process {ProcessId}", processId);
+        }
+
+        try
+        {
             process.Dispose();
         }
         catch (Exception ex)
@@ -2005,9 +2015,8 @@ public class GameProcessManager(
     /// Process exit does not guarantee delivery of the final redirected lines. Wait for
     /// the buffer's end-of-stream signal, bounded because descendants may retain the pipe.
     /// </remarks>
-    /// <param name="process">The exited process.</param>
     /// <param name="capturedErrors">The buffer receiving stderr lines.</param>
-    private void DrainStandardError(Process process, BoundedErrorBuffer capturedErrors)
+    private void DrainStandardError(BoundedErrorBuffer capturedErrors)
     {
         try
         {
@@ -2015,8 +2024,8 @@ public class GameProcessManager(
         }
         catch (Exception ex)
         {
-            // The process may already be disposed or inaccessible; the capture is then
-            // whatever arrived, which is better than propagating from a diagnostics path.
+            // Preserve the available capture if waiting is interrupted; diagnostics
+            // must not prevent process-exit cleanup.
             logger.LogDebug(ex, "[Process] Could not wait for stderr handlers to complete");
         }
 

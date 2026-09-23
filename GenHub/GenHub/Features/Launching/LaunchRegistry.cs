@@ -16,7 +16,7 @@ namespace GenHub.Features.Launching;
 /// <summary>
 /// In-memory implementation of the launch registry.
 /// </summary>
-public class LaunchRegistry : ILaunchRegistry, IDisposable
+public sealed class LaunchRegistry : ILaunchRegistry, IDisposable
 {
     private const int MaxInspectionFailures = 5;
 
@@ -47,7 +47,7 @@ public class LaunchRegistry : ILaunchRegistry, IDisposable
     /// event — including the late-failure evidence — would be silently lost. It is kept
     /// here briefly instead and applied when a launch is registered with that PID.
     /// </remarks>
-    private readonly ConcurrentDictionary<int, Core.Models.Events.GameProcessExitedEventArgs> _pendingExits = new();
+    private readonly ConcurrentDictionary<int, (Core.Models.Events.GameProcessExitedEventArgs Exit, DateTime BufferedAt)> _pendingExits = new();
 
     /// <summary>
     /// Makes the two compound sequences around the pending-exit buffer atomic: the exit
@@ -118,8 +118,9 @@ public class LaunchRegistry : ILaunchRegistry, IDisposable
             PruneExpiredPendingExits();
             var processId = launchInfo.ProcessInfo.ProcessId;
             if (processId > 0
-                && _pendingExits.TryGetValue(processId, out var pendingExit)
-                && DateTime.UtcNow - pendingExit.ExitTime <= PendingExitRetention
+                && _pendingExits.TryGetValue(processId, out var pending)
+                && DateTime.UtcNow - pending.BufferedAt <= PendingExitRetention
+                && pending.Exit is var pendingExit
                 && (pendingExit.ProcessInstanceId == Guid.Empty
                     || pendingExit.ProcessInstanceId == launchInfo.ProcessInfo.ProcessInstanceId))
             {
@@ -319,7 +320,7 @@ public class LaunchRegistry : ILaunchRegistry, IDisposable
             {
                 PendingExitBufferingHook?.Invoke();
                 PruneExpiredPendingExits();
-                _pendingExits[e.ProcessId] = e;
+                _pendingExits[e.ProcessId] = (e, DateTime.UtcNow);
                 _logger.LogDebug(
                     "[LaunchRegistry] No launch matches PID {ProcessId} yet; buffering the exit event in case a registration is in flight",
                     e.ProcessId);
@@ -389,7 +390,7 @@ public class LaunchRegistry : ILaunchRegistry, IDisposable
         var cutoff = DateTime.UtcNow - PendingExitRetention;
         foreach (var kvp in _pendingExits)
         {
-            if (kvp.Value.ExitTime < cutoff)
+            if (kvp.Value.BufferedAt < cutoff)
             {
                 _pendingExits.TryRemove(kvp.Key, out _);
             }

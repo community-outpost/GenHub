@@ -59,14 +59,19 @@ public class GameProcessManagerTests
             WorkingDirectory = harness.WorkingDirectory,
         });
         Assert.True(second.Success);
+        var secondStopped = false;
         try
         {
-            Assert.True((await _processManager.TerminateProcessAsync(second.Data!.ProcessId)
-                .WaitAsync(TimeSpan.FromSeconds(10))).Success);
+            secondStopped = (await _processManager.TerminateProcessAsync(second.Data!.ProcessId)
+                .WaitAsync(TimeSpan.FromSeconds(10))).Success;
+            Assert.True(secondStopped);
         }
         finally
         {
-            await _processManager.TerminateProcessAsync(second.Data!.ProcessId);
+            if (!secondStopped)
+            {
+                await _processManager.TerminateProcessAsync(second.Data!.ProcessId);
+            }
         }
     }
 
@@ -133,7 +138,10 @@ public class GameProcessManagerTests
         }
         finally
         {
-            await _processManager.TerminateProcessAsync(processId);
+            if (!exited.Task.IsCompleted)
+            {
+                await _processManager.TerminateProcessAsync(processId);
+            }
         }
     }
 

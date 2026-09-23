@@ -923,11 +923,14 @@ public class GameProfileLauncherViewModelTests
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     /// <param name="includeProfile">Whether the profile row is still present when the process exits.</param>
     /// <param name="isTool">Whether the profile launches a tool instead of a game.</param>
+    /// <param name="announced">Whether successful launch was announced before the exit.</param>
     [AvaloniaTheory]
-    [InlineData(true, false)]
-    [InlineData(false, false)]
-    [InlineData(true, true)]
-    public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUserAsync(bool includeProfile, bool isTool)
+    [InlineData(true, false, true)]
+    [InlineData(false, false, true)]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, true)]
+    public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUserAsync(bool includeProfile, bool isTool, bool announced)
     {
         var gameProcessManager = new Mock<IGameProcessManager>();
         var notificationService = new Mock<INotificationService>();
@@ -951,6 +954,11 @@ public class GameProfileLauncherViewModelTests
             vm.Profiles.Add(profile);
         }
 
+        if (announced)
+        {
+            vm.Receive(new ProfileLaunchedMessage("profile-1", 4242) { IsToolProfile = isTool });
+        }
+
         var statusBeforeExit = vm.StatusMessage;
         var errorBeforeExit = vm.ErrorMessage;
         await Task.Run(() => gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
@@ -972,7 +980,7 @@ public class GameProfileLauncherViewModelTests
                 It.Is<string>(s => s.Contains("TexturesZH.big") && (!includeProfile || s.Contains("Failing Profile"))),
                 It.IsAny<int?>(),
                 It.IsAny<bool>()),
-            isTool ? Times.Never() : Times.Once());
+            isTool || !announced ? Times.Never() : Times.Once());
     }
 
     private static ProfileResourceService CreateProfileResourceService()

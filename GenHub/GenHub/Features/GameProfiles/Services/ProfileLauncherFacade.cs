@@ -546,6 +546,7 @@ public class ProfileLauncherFacade(
         WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profile.Id, launchInfo.ProcessInfo.ProcessId)
         {
             ProcessInstanceId = launchInfo.ProcessInfo.ProcessInstanceId,
+            IsToolProfile = true,
         });
         return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
     }
