@@ -1,3 +1,5 @@
+using GenHub.Core.Models.Content;
+using GenHub.Features.Tools.ViewModels.Dialogs;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
@@ -356,5 +358,91 @@ public class PublisherStudioConfirmationAndAuthTests
         _mockNotificationService.Verify(
             n => n.ShowWarning("Subscription Link Unavailable", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that AddContentDialogViewModel DeleteContentCommand prompts for confirmation and calls delete callback when confirmed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task AddContentDialogViewModel_DeleteContentCommand_WhenConfirmed_CallsDeleteCallbackAndClosesAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(d => d.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        var existingItem = new CatalogContentItem { Id = "mod-1", Name = "Mod 1" };
+        var wasDeleted = false;
+        CatalogContentItem? closedItem = existingItem;
+
+        var vm = new AddContentDialogViewModel(
+            existingItem,
+            onContentSaved: item => closedItem = item,
+            dialogService: _mockDialogService.Object,
+            onContentDeleted: item =>
+            {
+                if (item == existingItem) wasDeleted = true;
+                return Task.CompletedTask;
+            });
+
+        // Act
+        await vm.DeleteContentCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(wasDeleted);
+        Assert.Null(closedItem);
+        _mockDialogService.Verify(
+            d => d.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.Is<string>(msg => msg.Contains("Mod 1")),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that AddContentDialogViewModel DeleteContentCommand cancels deletion when user declines confirmation.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task AddContentDialogViewModel_DeleteContentCommand_WhenCancelled_DoesNotCallDeleteCallbackAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(d => d.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        var existingItem = new CatalogContentItem { Id = "mod-2", Name = "Mod 2" };
+        var wasDeleted = false;
+        CatalogContentItem? closedItem = existingItem;
+
+        var vm = new AddContentDialogViewModel(
+            existingItem,
+            onContentSaved: item => closedItem = item,
+            dialogService: _mockDialogService.Object,
+            onContentDeleted: _ =>
+            {
+                wasDeleted = true;
+                return Task.CompletedTask;
+            });
+
+        // Act
+        await vm.DeleteContentCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(wasDeleted);
+        Assert.Same(existingItem, closedItem);
     }
 }

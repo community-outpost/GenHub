@@ -2831,6 +2831,10 @@ public sealed partial class DownloadsBrowserViewModel(
                         subscription.AvatarUrl,
                         CatalogConstants.SubscribedPublisherCategory));
                 }
+                else
+                {
+                    existing.DisplayName = subscription.PublisherName;
+                }
 
                 // Transient discoverer configured for this catalog URL (generic GenHub schema)
                 var discoverer = serviceProvider.GetRequiredService<GenericCatalogDiscoverer>();

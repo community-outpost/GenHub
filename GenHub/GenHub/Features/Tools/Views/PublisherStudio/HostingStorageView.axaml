@@ -683,7 +683,7 @@
                                             <Border Classes="status-badge-info" IsVisible="{Binding IsExternalCdn}">
                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusExternalCdn}" FontSize="10" Foreground="{DynamicResource StatusInfoBrush}" FontWeight="SemiBold"/>
                                             </Border>
-                                            <Border Classes="status-badge-warning" IsVisible="{Binding !IsOnline}">
+                                            <Border Classes="status-badge-warning" IsVisible="{Binding IsPending}">
                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusPending}" FontSize="10" Foreground="{DynamicResource WarningHighlightBrush}"/>
                                             </Border>
                                         </StackPanel>

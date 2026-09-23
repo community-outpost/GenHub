@@ -88,10 +88,10 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing, PublisherCatalog? catalog = null)
+    public async Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing, PublisherCatalog? catalog = null, Func<CatalogContentItem, Task>? onDelete = null)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService, catalog, notificationService));
+            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService, catalog, notificationService, onDelete));
     }
 
     /// <inheritdoc/>
@@ -276,6 +276,23 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
+    public async Task<string?> ShowVideoPickerAsync(string title)
+    {
+        return await ShowOpenPickerAsync(
+            title,
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType("Video Files (*.mp4, *.webm, *.mkv, *.avi)")
+                {
+                    Patterns = ["*.mp4", "*.webm", "*.mkv", "*.avi"],
+                },
+                new Avalonia.Platform.Storage.FilePickerFileType(AllFilesFilterName)
+                {
+                    Patterns = ["*.*"],
+                },
+            ]);
+    }
+
+    /// <inheritdoc/>
     public async Task<string?> ShowFolderPickerAsync(string title)
     {
         var mainWindow = GetMainWindow();
@@ -374,31 +391,67 @@ public class PublisherStudioDialogService(
         return await tcs.Task;
     }
 
-    private static Task<TResult?> ShowDialogAsync<TViewModel, TView, TResult>(
-        Func<Action<TResult>, TViewModel> viewModelFactory)
-        where TViewModel : class
-        where TView : Control, new()
-        where TResult : class
-    {
-        return ShowDialogCoreAsync<TViewModel, TView, TResult?>(cb => Task.FromResult(viewModelFactory(cb)), null, null);
-    }
-
-    private static Task<TResult?> ShowDialogAsync<TViewModel, TView, TResult>(
-        Func<Action<TResult>, Task<TViewModel>> viewModelFactory)
-        where TViewModel : class
-        where TView : Control, new()
-        where TResult : class
-    {
-        return ShowDialogCoreAsync<TViewModel, TView, TResult?>(viewModelFactory, null, null);
-    }
-
-    private static Task<bool> ShowWizardAsync<TViewModel, TView>(
-        Func<Action<bool>, TViewModel> viewModelFactory,
+    private static async Task<bool> ShowWizardAsync<TViewModel, TView>(
+        Func<Action, TViewModel> viewModelFactory,
         string title)
         where TViewModel : class
         where TView : Control, new()
     {
-        return ShowDialogCoreAsync<TViewModel, TView, bool>(cb => Task.FromResult(viewModelFactory(cb)), title, false);
+        var tcs = new TaskCompletionSource<bool>();
+        var view = new TView();
+        var toolWindow = new ToolDialogWindow
+        {
+            Title = title,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+
+        var mainWindow = GetMainWindow();
+        ConstrainDialogToWorkingArea(toolWindow, mainWindow);
+
+        var vm = viewModelFactory(() =>
+        {
+            tcs.TrySetResult(true);
+            toolWindow.Close();
+        });
+        view.DataContext = vm;
+
+        toolWindow.SetDialogContent(view);
+
+        toolWindow.Closed += (s, e) => tcs.TrySetResult(false);
+
+        if (mainWindow != null)
+        {
+            await toolWindow.ShowDialog(mainWindow);
+        }
+        else
+        {
+            tcs.TrySetResult(false);
+        }
+
+        return await tcs.Task;
+    }
+
+    private static Task<TResult?> ShowDialogAsync<TViewModel, TView, TResult>(
+        Func<Action<TResult>, Task<TViewModel>> viewModelFactory,
+        string? title = null,
+        TResult? defaultResult = default)
+        where TViewModel : class
+        where TView : Control, new()
+    {
+        return ShowDialogCoreAsync<TViewModel, TView, TResult>(viewModelFactory, title, defaultResult);
+    }
+
+    private static Task<TResult?> ShowDialogAsync<TViewModel, TView, TResult>(
+        Func<Action<TResult>, TViewModel> viewModelFactory,
+        string? title = null,
+        TResult? defaultResult = default)
+        where TViewModel : class
+        where TView : Control, new()
+    {
+        return ShowDialogCoreAsync<TViewModel, TView, TResult>(
+            callback => Task.FromResult(viewModelFactory(callback)),
+            title,
+            defaultResult);
     }
 
     private static Window? GetMainWindow()
@@ -411,61 +464,45 @@ public class PublisherStudioDialogService(
         return null;
     }
 
-    private static void ConstrainDialogToWorkingArea(ToolDialogWindow toolWindow, Window? mainWindow)
+    private static void ConstrainDialogToWorkingArea(Window dialog, Window? owner)
     {
-        const double MaxDialogWidth = 760;
-        const double MaxDialogHeight = 880;
-        const double WorkingAreaMargin = 0.94;
-
-        var maxWidth = MaxDialogWidth;
-        var maxHeight = MaxDialogHeight;
-
-        try
-        {
-            var screen = mainWindow?.Screens.Primary;
-            if (screen != null)
-            {
-                // WorkingArea is in device pixels; window bounds use DIPs.
-                var scaling = screen.Scaling <= 0 ? 1 : screen.Scaling;
-                var workingArea = screen.WorkingArea;
-                maxWidth = Math.Min(MaxDialogWidth, workingArea.Width / scaling * WorkingAreaMargin);
-                maxHeight = Math.Min(MaxDialogHeight, workingArea.Height / scaling * WorkingAreaMargin);
-            }
-        }
-        catch (InvalidOperationException)
-        {
-            // Headless environments may not expose screens; fall back to static caps.
-        }
-
-        // Keep the size-to-content behavior but cap it so the dialog always fits
-        // on screen and its inner ScrollViewer handles overflow instead of clipping.
-        toolWindow.MaxWidth = Math.Max(toolWindow.MinWidth, maxWidth);
-        toolWindow.MaxHeight = Math.Max(toolWindow.MinHeight, maxHeight);
-    }
-
-    private async Task StageInitialArtifactsAsync(AddReleaseDialogViewModel vm, IEnumerable<string>? initialPaths)
-    {
-        if (initialPaths == null)
+        var screen = (owner != null ? dialog.Screens.ScreenFromWindow(owner) : null) ?? dialog.Screens.Primary;
+        if (screen == null)
         {
             return;
         }
 
-        try
+        var workingArea = screen.WorkingArea;
+        var scaling = screen.Scaling > 0 ? screen.Scaling : 1.0;
+        var maxDialogWidth = Math.Max(320, (workingArea.Width / scaling) - 48);
+        var maxDialogHeight = Math.Max(320, (workingArea.Height / scaling) - 64);
+
+        dialog.MaxWidth = maxDialogWidth;
+        dialog.MaxHeight = maxDialogHeight;
+
+        if (dialog.Width > maxDialogWidth)
         {
-            await vm.AddArtifactsFromPathsAsync(initialPaths);
+            dialog.Width = maxDialogWidth;
         }
-        catch (Exception ex)
+
+        if (dialog.Height > maxDialogHeight)
         {
-            logger?.LogWarning(ex, "Failed to stage initial artifacts for dialog.");
-            var title = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle") ?? "Could Not Stage Files";
-            var message = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage") ?? "Some dropped files could not be staged and were skipped. See logs for details.";
-            notificationService?.ShowWarning(title, message);
+            dialog.Height = maxDialogHeight;
         }
     }
 
-    private async Task<string?> ShowOpenPickerAsync(
+    private static async Task StageInitialArtifactsAsync(AddReleaseDialogViewModel vm, IEnumerable<string>? initialPaths)
+    {
+        var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        if (pathsList is { Count: > 0 })
+        {
+            await vm.AddArtifactsFromPathsAsync(pathsList);
+        }
+    }
+
+    private static async Task<string?> ShowOpenPickerAsync(
         string title,
-        IReadOnlyList<Avalonia.Platform.Storage.FilePickerFileType> fileTypeFilter)
+        IReadOnlyList<Avalonia.Platform.Storage.FilePickerFileType> fileTypes)
     {
         var mainWindow = GetMainWindow();
         if (mainWindow == null) return null;
@@ -474,7 +511,7 @@ public class PublisherStudioDialogService(
         {
             Title = title,
             AllowMultiple = false,
-            FileTypeFilter = fileTypeFilter,
+            FileTypeFilter = fileTypes,
         };
 
         var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);

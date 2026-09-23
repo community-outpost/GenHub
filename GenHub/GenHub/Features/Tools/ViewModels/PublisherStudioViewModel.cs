@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using GenHub.Core.Utilities;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services;
 using GenHub.Features.Tools.Services.Hosting;
@@ -657,6 +658,19 @@ public partial class PublisherStudioViewModel(
     private void AttachImportedCatalog(PublisherStudioProject project, NamedCatalog namedCatalog)
     {
         project.Catalogs ??= [];
+
+        // Strip archive extensions from all content items in the imported catalog
+        if (namedCatalog.Catalog?.Content != null)
+        {
+            foreach (var item in namedCatalog.Catalog.Content)
+            {
+                if (!string.IsNullOrWhiteSpace(item.Name))
+                {
+                    item.Name = ContentFormatPolicy.StripArchiveExtensions(item.Name);
+                }
+            }
+        }
+
         var defaultEmpty = project.Catalogs.FirstOrDefault(c =>
             c.Id == "default" && (c.Catalog?.Content == null || c.Catalog.Content.Count == 0));
         var isInitialEmpty = defaultEmpty != null && project.Catalogs.Count == 1;
@@ -669,7 +683,7 @@ public partial class PublisherStudioViewModel(
         // Only adopt imported publisher if this is an empty fresh project with no prior catalogs
         if (isInitialEmpty || project.Catalogs.Count == 0)
         {
-            AdoptImportedPublisher(project, namedCatalog.Catalog.Publisher);
+            AdoptImportedPublisher(project, namedCatalog.Catalog?.Publisher);
         }
 
         project.Catalogs.Add(namedCatalog);
@@ -695,6 +709,16 @@ public partial class PublisherStudioViewModel(
             return;
         }
 
+        if (PublisherProfileViewModel != null)
+        {
+            var vmId = PublisherProfileViewModel.PublisherId?.Trim();
+            var vmName = PublisherProfileViewModel.PublisherName?.Trim();
+            if (!string.IsNullOrWhiteSpace(vmId) || (!string.IsNullOrWhiteSpace(vmName) && !string.Equals(vmName, NewPublisherName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+        }
+
         if (publisher == null || string.IsNullOrWhiteSpace(publisher.Id))
         {
             return;
@@ -714,6 +738,8 @@ public partial class PublisherStudioViewModel(
     {
         try
         {
+            PublisherProfileViewModel?.ApplyToProject();
+
             // Auto-assign default project path if empty to guarantee persistence
             if (string.IsNullOrEmpty(project.ProjectPath))
             {

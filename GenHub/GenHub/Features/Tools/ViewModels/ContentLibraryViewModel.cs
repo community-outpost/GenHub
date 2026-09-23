@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using GenHub.Core.Utilities;
 using GenHub.Features.Tools.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
@@ -640,7 +641,14 @@ public partial class ContentLibraryViewModel(
         var target = item ?? SelectedContent;
         if (target == null) return;
 
-        var edited = await dialogService.ShowEditContentDialogAsync(target);
+        var edited = await dialogService.ShowEditContentDialogAsync(
+            target,
+            activeCatalog.Catalog,
+            onDelete: async itemToDelete =>
+            {
+                await DeleteContentInternalAsync(itemToDelete);
+            });
+
         if (edited != null)
         {
             // Update the existing item's properties
@@ -693,6 +701,11 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
+        await DeleteContentInternalAsync(target);
+    }
+
+    private async Task DeleteContentInternalAsync(CatalogContentItem target)
+    {
         var contentId = target.Id;
         activeCatalog.Catalog.Content.Remove(target);
         ContentItems.Remove(target);
@@ -1361,7 +1374,8 @@ public partial class ContentLibraryViewModel(
 
     private string NormalizeDisplayName(string rawName)
     {
-        var cleaned = UnderscoreDashRegex().Replace(rawName, " ");
+        var stripped = ContentFormatPolicy.StripArchiveExtensions(rawName);
+        var cleaned = UnderscoreDashRegex().Replace(stripped, " ");
         cleaned = WhitespaceRegex().Replace(cleaned, " ").Trim();
         if (string.IsNullOrEmpty(cleaned))
         {

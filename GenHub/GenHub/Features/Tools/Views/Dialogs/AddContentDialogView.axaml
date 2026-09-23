@@ -57,7 +57,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+    <Grid RowDefinitions="Auto,*" Margin="24">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
             <TextBlock Text="{Binding DialogTitle}"
@@ -77,8 +77,8 @@
         </Grid>
 
         <!-- Form -->
-        <ScrollViewer Grid.Row="1" Margin="0,0,0,20">
-            <StackPanel Spacing="16">
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="16" Margin="0,0,0,70">
                 <!-- Name -->
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -159,7 +159,7 @@
                           BorderThickness="1"
                           CornerRadius="8"
                           Padding="16"
-                          IsExpanded="True"
+                          IsExpanded="False"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Stretch">
                     <Expander.Header>
@@ -325,6 +325,7 @@
                         <StackPanel Spacing="6" Margin="0,4,0,0">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Screenshots}" Classes="label"/>
                             <Border x:Name="ContentMediaDropZone"
+                                    IsVisible="{Binding !Screenshots.Count}"
                                     DragDrop.AllowDrop="True"
                                     BorderBrush="{DynamicResource GlassBorderBrush}"
                                     BorderThickness="1"
@@ -439,7 +440,7 @@
                           BorderThickness="1"
                           CornerRadius="8"
                           Padding="16"
-                          IsExpanded="True"
+                          IsExpanded="False"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Stretch"
                           IsVisible="{Binding !IsEditMode}">
@@ -490,6 +491,7 @@
 
                             <!-- Drop Zone for Initial Release -->
                             <Border x:Name="InitialReleaseDropZone"
+                                    IsVisible="{Binding !HasInitialReleaseFiles}"
                                     DragDrop.AllowDrop="True"
                                     BorderBrush="{DynamicResource GlassBorderBrush}"
                                     BorderThickness="1"
@@ -700,22 +702,61 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Footer -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
-            <TextBlock Text="{Binding ValidationError}"
-                       Foreground="{DynamicResource StatusErrorBrush}"
-                       VerticalAlignment="Center"
-                       TextWrapping="Wrap"
-                       MaxWidth="300"/>
+        <!-- Floating Action Bar -->
+        <Border Grid.Row="1"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Stretch"
+                Margin="0,0,0,4"
+                Padding="16,10"
+                Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource GlassBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                BoxShadow="0 4 16 0 #40000000">
+            <Grid ColumnDefinitions="*,Auto">
+                <!-- Validation Error on Left -->
+                <TextBlock Grid.Column="0"
+                           Text="{Binding ValidationError}"
+                           Foreground="{DynamicResource StatusErrorBrush}"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           FontSize="12"
+                           Margin="0,0,12,0"/>
 
-            <Button Content="{Binding SubmitButtonText}"
-                    Command="{Binding CreateContentCommand}"
-                    Background="{DynamicResource PrimaryGradientBrush}"
-                    Foreground="{DynamicResource TextPrimary}"
-                    CornerRadius="8"
-                    Padding="36,12"
-                    FontWeight="Bold"
-                    BorderThickness="0"/>
-        </StackPanel>
+                <!-- Action Buttons on Right -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <!-- Delete Button (Only in Edit Mode) -->
+                    <Button Command="{Binding DeleteContentCommand}"
+                            IsVisible="{Binding IsEditMode}"
+                            Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
+                            BorderBrush="{DynamicResource StatusErrorBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16,8"
+                            Cursor="Hand"
+                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteContentTooltip}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource DeleteIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusErrorBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.DeleteConfirm}"
+                                       Foreground="{DynamicResource StatusErrorBrush}"
+                                       FontWeight="SemiBold"
+                                       FontSize="13"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Save / Create Button -->
+                    <Button Content="{Binding SubmitButtonText}"
+                            Command="{Binding CreateContentCommand}"
+                            Background="{DynamicResource PrimaryGradientBrush}"
+                            Foreground="White"
+                            CornerRadius="8"
+                            Padding="24,8"
+                            FontWeight="SemiBold"
+                            FontSize="13"
+                            Cursor="Hand"
+                            BorderThickness="0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

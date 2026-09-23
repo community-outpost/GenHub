@@ -277,4 +277,62 @@ public sealed class PublisherStudioHostingDiscoveryAndLoadTests : IDisposable
             return Task.FromResult(successResponse);
         }
     }
+
+    [Theory]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    public void HostedAssetItemViewModel_IsPending_ReflectsState(bool isOnline, bool isExternalCdn, bool expectedIsPending)
+    {
+        var vm = new HostedAssetItemViewModel
+        {
+            IsOnline = isOnline,
+            IsExternalCdn = isExternalCdn,
+        };
+
+        Assert.Equal(expectedIsPending, vm.IsPending);
+    }
+
+    [Fact]
+    public void HostedAssetItemViewModel_FileSize_UpdatesFormattedString()
+    {
+        var vm = new HostedAssetItemViewModel
+        {
+            FileSize = 1048576,
+        };
+
+        Assert.Equal("1 MB", vm.FileSizeFormatted);
+    }
+
+    [Fact]
+    public void PublisherProfileViewModel_ApplyToProject_SynchronizesPublisherData()
+    {
+        var project = new PublisherStudioProject
+        {
+            Catalog = new PublisherCatalog(),
+        };
+
+        var vm = new PublisherProfileViewModel(
+            project,
+            parentViewModel: null!,
+            logger: NullLogger.Instance)
+        {
+            PublisherId = "my-test-id",
+            PublisherName = "My Test Publisher",
+            AvatarUrl = "https://example.com/avatar.png",
+            WebsiteUrl = "https://example.com",
+            TagsString = "maps, mods",
+        };
+
+        vm.ApplyToProject();
+
+        Assert.NotNull(project.Catalog.Publisher);
+        Assert.Equal("my-test-id", project.Catalog.Publisher.Id);
+        Assert.Equal("My Test Publisher", project.Catalog.Publisher.Name);
+        Assert.Equal("https://example.com/avatar.png", project.Catalog.Publisher.AvatarUrl);
+        Assert.Equal("https://example.com", project.Catalog.Publisher.WebsiteUrl);
+        Assert.Contains("maps", project.Tags);
+        Assert.Contains("mods", project.Tags);
+    }
 }

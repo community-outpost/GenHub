@@ -282,11 +282,12 @@
             <!-- ==================== MAIN CONTENT VIEW HOST ==================== -->
             <Grid Grid.Row="1">
                 <!-- TabControl with hidden headers (controlled via top unified header pills) -->
-                <TabControl SelectedIndex="{Binding SelectedTabIndex}"
+                <TabControl Classes="studio-main-tabs"
+                            SelectedIndex="{Binding SelectedTabIndex}"
                             Padding="0"
                             Margin="0">
                     <TabControl.Styles>
-                        <Style Selector="TabControl /template/ ItemsPresenter#PART_ItemsPresenter">
+                        <Style Selector="TabControl.studio-main-tabs /template/ ItemsPresenter#PART_ItemsPresenter">
                             <Setter Property="IsVisible" Value="False"/>
                         </Style>
                     </TabControl.Styles>

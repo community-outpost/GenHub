@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Utilities;
 using GenHub.Features.Tools.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -87,6 +88,7 @@ public partial class AddContentDialogViewModel(
     public const string ArtworkTargetBackdrop = "Backdrop";
 
     private readonly CatalogContentItem? _existingItem;
+    private readonly Func<CatalogContentItem, Task>? _onContentDeleted;
     private bool _syncingPrimary;
     private bool _disposed;
 
@@ -230,12 +232,14 @@ public partial class AddContentDialogViewModel(
         IPublisherStudioDialogService? dialogService = null,
         GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
         PublisherCatalog? catalog = null,
-        INotificationService? notificationService = null)
+        INotificationService? notificationService = null,
+        Func<CatalogContentItem, Task>? onContentDeleted = null)
         : this(onContentSaved, dialogService, localizationService, catalog, notificationService)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
         _existingItem = existing;
+        _onContentDeleted = onContentDeleted;
         IsEditMode = true;
         ContentId = existing.Id;
         ContentName = existing.Name;
@@ -363,6 +367,11 @@ public partial class AddContentDialogViewModel(
     /// Gets a value indicating whether any local files are staged.
     /// </summary>
     public bool HasStagedFiles => StagedFiles.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether any initial release files or artifacts are staged.
+    /// </summary>
+    public bool HasInitialReleaseFiles => HasStagedFiles || ReleaseArtifacts.Count > 0;
 
     /// <summary>
     /// Gets a value indicating whether multiple local files are staged for upload.
@@ -547,10 +556,11 @@ public partial class AddContentDialogViewModel(
 
     private static string FormatContentNameFromBaseName(string baseName)
     {
-        var humanized = Regex.Replace(baseName, @"[-_]+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
+        var cleaned = ContentFormatPolicy.StripArchiveExtensions(baseName);
+        var humanized = Regex.Replace(cleaned, @"[-_]+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
         if (string.IsNullOrWhiteSpace(humanized))
         {
-            return baseName;
+            return cleaned;
         }
 
         var words = humanized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -1003,6 +1013,7 @@ public partial class AddContentDialogViewModel(
 
             UpdateAggregateHashState();
             OnPropertyChanged(nameof(HasStagedFiles));
+            OnPropertyChanged(nameof(HasInitialReleaseFiles));
             OnPropertyChanged(nameof(IsMultiFileStaging));
             OnPropertyChanged(nameof(MultiFileBundleNote));
         }
@@ -1280,6 +1291,7 @@ public partial class AddContentDialogViewModel(
             }
 
             ReleaseArtifacts.Add(artifact);
+            OnPropertyChanged(nameof(HasInitialReleaseFiles));
         }
     }
 
@@ -1292,6 +1304,7 @@ public partial class AddContentDialogViewModel(
         if (artifact != null)
         {
             ReleaseArtifacts.Remove(artifact);
+            OnPropertyChanged(nameof(HasInitialReleaseFiles));
         }
     }
 
@@ -1336,6 +1349,42 @@ public partial class AddContentDialogViewModel(
         {
             ContentId = SuggestedContentId;
         }
+    }
+
+    /// <summary>
+    /// Prompts for confirmation and deletes the existing content item.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteContentAsync()
+    {
+        if (!IsEditMode || _existingItem == null)
+        {
+            return;
+        }
+
+        var title = GetLocalizedString("Tools.PublisherStudio.Content.DeleteContentTitle", "Delete Content Item");
+        var message = string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Content.DeleteContentMessageFormat",
+                "Are you sure you want to delete '{0}' ({1})? This will also remove all its releases and artifacts."),
+            _existingItem.Name,
+            _existingItem.Id);
+
+        if (dialogService != null)
+        {
+            var confirmed = await dialogService.ShowConfirmationAsync(title, message);
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
+        if (_onContentDeleted != null)
+        {
+            await _onContentDeleted(_existingItem);
+        }
+
+        onContentCreated(null);
     }
 
     /// <summary>

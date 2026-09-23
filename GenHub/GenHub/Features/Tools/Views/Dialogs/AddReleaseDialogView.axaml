@@ -62,7 +62,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+    <Grid RowDefinitions="Auto,*" Margin="24">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
             <TextBlock Text="{Binding DialogTitle}"
@@ -90,8 +90,8 @@
         </Grid>
 
         <!-- Form -->
-        <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
-            <StackPanel Spacing="20">
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="20" Margin="0,0,0,70">
                 <!-- Info -->
                 <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="{DynamicResource TextPrimary}"/>
 
@@ -164,6 +164,7 @@
 
                     <!-- Dedicated Artifacts Drop Zone -->
                     <Border x:Name="ArtifactsDropZone"
+                            IsVisible="{Binding !Artifacts.Count}"
                             DragDrop.AllowDrop="True"
                             BorderBrush="{DynamicResource GlassBorderBrush}"
                             BorderThickness="1"
@@ -269,6 +270,7 @@
 
                     <!-- Dedicated Images Drop Zone -->
                     <Border x:Name="ImagesDropZone"
+                            IsVisible="{Binding ImageUrlsInput, Converter={x:Static StringConverters.IsNullOrEmpty}}"
                             DragDrop.AllowDrop="True"
                             BorderBrush="{DynamicResource GlassBorderBrush}"
                             BorderThickness="1"
@@ -300,29 +302,45 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Footer -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
-             <TextBlock Text="{Binding ValidationError}"
-                        Foreground="{DynamicResource StatusErrorBrush}"
-                        VerticalAlignment="Center"
-                        TextWrapping="Wrap"
-                        MaxWidth="300"/>
+        <!-- Floating Action Bar -->
+        <Border Grid.Row="1"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Stretch"
+                Margin="0,0,0,4"
+                Padding="16,10"
+                Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource GlassBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                BoxShadow="0 4 16 0 #40000000">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding ValidationError}"
+                           Foreground="{DynamicResource StatusErrorBrush}"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           FontSize="12"
+                           Margin="0,0,12,0"/>
 
-             <Button Content="{Binding SubmitButtonText}"
-                     Command="{Binding CreateReleaseCommand}"
-                     Background="{DynamicResource PrimaryGradientBrush}"
-                     Foreground="{DynamicResource TextPrimary}"
-                     CornerRadius="8"
-                     Padding="40,14"
-                     FontWeight="Bold"
-                     BorderThickness="0">
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-                        <Setter Property="Opacity" Value="0.85"/>
-                    </Style>
-                </Button.Styles>
-            </Button>
-        </StackPanel>
+                <Button Grid.Column="1"
+                        Content="{Binding SubmitButtonText}"
+                        Command="{Binding CreateReleaseCommand}"
+                        Background="{DynamicResource PrimaryGradientBrush}"
+                        Foreground="White"
+                        CornerRadius="8"
+                        Padding="24,8"
+                        FontWeight="SemiBold"
+                        FontSize="13"
+                        Cursor="Hand"
+                        BorderThickness="0">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                            <Setter Property="Opacity" Value="0.85"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

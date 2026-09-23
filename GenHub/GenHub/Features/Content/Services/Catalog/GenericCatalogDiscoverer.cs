@@ -10,6 +10,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
@@ -1026,6 +1027,18 @@ public class GenericCatalogDiscoverer(
             catalogItemsById);
         var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(contentItem);
 
+        var effectiveProviderName = !string.IsNullOrWhiteSpace(_subscription?.PublisherName)
+            ? _subscription.PublisherName
+            : catalog.Publisher.Name;
+
+        var authorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
+            ? contentItem.Metadata.Author
+            : effectiveProviderName;
+
+        var iconUrl = contentItem.Metadata?.IconUrl
+            ?? _subscription?.AvatarUrl
+            ?? catalog.Publisher.AvatarUrl;
+
         var searchResult = new ContentSearchResult
         {
             Id = CatalogManifestIdentity.CreateContentId(
@@ -1033,15 +1046,15 @@ public class GenericCatalogDiscoverer(
                 contentItem.ContentType,
                 contentItem.Id,
                 release.Version),
-            Name = contentItem.Name,
+            Name = ContentFormatPolicy.StripArchiveExtensions(contentItem.Name),
             Description = contentItem.Description,
             Version = release.Version,
             ContentType = contentItem.ContentType,
             TargetGame = contentItem.TargetGame,
-            ProviderName = catalog.Publisher.Name,
-            AuthorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author) ? contentItem.Metadata.Author : catalog.Publisher.Name,
+            ProviderName = effectiveProviderName,
+            AuthorName = authorName,
             ResolverId = ResolverId,
-            IconUrl = contentItem.Metadata?.IconUrl ?? catalog.Publisher.AvatarUrl,
+            IconUrl = iconUrl,
             BannerUrl = contentItem.Metadata?.BannerUrl,
             BackdropUrl = contentItem.Metadata?.BackdropUrl,
             AccentColor = contentItem.Metadata?.AccentColor,
@@ -1137,6 +1150,20 @@ public class GenericCatalogDiscoverer(
 
         var siblingTargetGame = ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
 
+        var effectiveProviderName = !string.IsNullOrWhiteSpace(_subscription?.PublisherName)
+            ? _subscription.PublisherName
+            : catalog.Publisher.Name;
+
+        var authorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
+            ? contentItem.Metadata.Author
+            : effectiveProviderName;
+
+        var iconUrl = contentItem.Metadata?.IconUrl
+            ?? _subscription?.AvatarUrl
+            ?? catalog.Publisher.AvatarUrl;
+
+        var cleanContentName = ContentFormatPolicy.StripArchiveExtensions(contentItem.Name);
+
         var sibling = new ContentSearchResult
         {
             Id = CatalogManifestIdentity.CreateVariantContentId(
@@ -1146,15 +1173,15 @@ public class GenericCatalogDiscoverer(
                 idLabel,
                 context.ResolvedRelease.Version,
                 axis),
-            Name = $"{contentItem.Name} ({variantLabel})",
+            Name = $"{cleanContentName} ({variantLabel})",
             Description = contentItem.Description,
             Version = context.ResolvedRelease.Version,
             ContentType = contentItem.ContentType,
             TargetGame = siblingTargetGame,
-            ProviderName = catalog.Publisher.Name,
-            AuthorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author) ? contentItem.Metadata.Author : catalog.Publisher.Name,
+            ProviderName = effectiveProviderName,
+            AuthorName = authorName,
             ResolverId = ResolverId,
-            IconUrl = contentItem.Metadata?.IconUrl ?? catalog.Publisher.AvatarUrl,
+            IconUrl = iconUrl,
             BannerUrl = contentItem.Metadata?.BannerUrl,
             BackdropUrl = contentItem.Metadata?.BackdropUrl,
             AccentColor = contentItem.Metadata?.AccentColor,

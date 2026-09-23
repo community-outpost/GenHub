@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -240,6 +241,11 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             if (content == null)
             {
                 continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(content.Name))
+            {
+                content.Name = ContentFormatPolicy.StripArchiveExtensions(content.Name);
             }
 
             content.Description ??= string.Empty;

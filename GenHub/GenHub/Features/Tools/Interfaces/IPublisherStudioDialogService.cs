@@ -67,8 +67,9 @@ public interface IPublisherStudioDialogService
     /// </summary>
     /// <param name="existing">The existing content item to edit.</param>
     /// <param name="catalog">Optional parent catalog.</param>
+    /// <param name="onDelete">Optional callback to delete the content item from the catalog.</param>
     /// <returns>The updated content item, or null if cancelled.</returns>
-    Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing, PublisherCatalog? catalog = null);
+    Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing, PublisherCatalog? catalog = null, Func<CatalogContentItem, Task>? onDelete = null);
 
     /// <summary>
     /// Shows the add release dialog for a content item.
@@ -169,16 +170,16 @@ public interface IPublisherStudioDialogService
     Task<string?> ShowImagePickerAsync(string title);
 
     /// <summary>
-    /// Shows a folder picker dialog for selecting content directories.
+    /// Shows a file picker dialog filtered to video files.
+    /// </summary>
+    /// <param name="title">Title of the dialog.</param>
+    /// <returns>The selected file path, or null if cancelled.</returns>
+    Task<string?> ShowVideoPickerAsync(string title);
+
+    /// <summary>
+    /// Shows a folder picker dialog.
     /// </summary>
     /// <param name="title">Title of the dialog.</param>
     /// <returns>The selected directory path, or null if cancelled.</returns>
     Task<string?> ShowFolderPickerAsync(string title);
-
-    /// <summary>
-    /// Shows the rename catalog dialog.
-    /// </summary>
-    /// <param name="currentName">The current name of the catalog.</param>
-    /// <returns>The new catalog name, or null if cancelled.</returns>
-    Task<string?> ShowRenameCatalogDialogAsync(string currentName);
 }

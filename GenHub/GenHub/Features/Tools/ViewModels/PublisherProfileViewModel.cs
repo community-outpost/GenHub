@@ -122,21 +122,87 @@ public partial class PublisherProfileViewModel(
         ClearErrors();
     }
 
-    partial void OnPublisherIdChanged(string value) => MarkDirty();
+    /// <summary>
+    /// Applies the current profile values to the underlying project and catalog.
+    /// </summary>
+    public void ApplyToProject()
+    {
+        if (project?.Catalog == null)
+        {
+            return;
+        }
 
-    partial void OnPublisherNameChanged(string value) => MarkDirty();
+        project.Catalog.Publisher ??= new();
+        if (!string.IsNullOrWhiteSpace(PublisherId))
+        {
+            project.Catalog.Publisher.Id = PublisherId.ToLowerInvariant().Trim();
+        }
 
-    partial void OnAvatarUrlChanged(string value) => MarkDirty();
+        if (!string.IsNullOrWhiteSpace(PublisherName))
+        {
+            project.Catalog.Publisher.Name = PublisherName.Trim();
+        }
 
-    partial void OnWebsiteUrlChanged(string value) => MarkDirty();
+        project.Catalog.Publisher.AvatarUrl = string.IsNullOrWhiteSpace(AvatarUrl) ? null : AvatarUrl.Trim();
+        project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl.Trim();
+        project.Catalog.Publisher.SupportUrl = string.IsNullOrWhiteSpace(SupportUrl) ? null : SupportUrl.Trim();
+        project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
+        project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
 
-    partial void OnSupportUrlChanged(string value) => MarkDirty();
+        project.Tags = TagsString
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
-    partial void OnContactEmailChanged(string value) => MarkDirty();
+    partial void OnPublisherIdChanged(string value)
+    {
+        ApplyToProject();
+        MarkDirty();
+    }
 
-    partial void OnDescriptionChanged(string value) => MarkDirty();
+    partial void OnPublisherNameChanged(string value)
+    {
+        ApplyToProject();
+        MarkDirty();
+    }
 
-    partial void OnTagsStringChanged(string value) => MarkDirty();
+    partial void OnAvatarUrlChanged(string value)
+    {
+        ApplyToProject();
+        MarkDirty();
+    }
+
+    partial void OnWebsiteUrlChanged(string value)
+    {
+        ApplyToProject();
+        MarkDirty();
+    }
+
+    partial void OnSupportUrlChanged(string value)
+    {
+        ApplyToProject();
+        MarkDirty();
+    }
+
+    partial void OnContactEmailChanged(string value)
+    {
+        ApplyToProject();
+        MarkDirty();
+    }
+
+    partial void OnDescriptionChanged(string value)
+    {
+        ApplyToProject();
+        MarkDirty();
+    }
+
+    partial void OnTagsStringChanged(string value)
+    {
+        ApplyToProject();
+        MarkDirty();
+    }
 
     private void MarkDirty()
     {
@@ -164,26 +230,7 @@ public partial class PublisherProfileViewModel(
 
         try
         {
-            if (project?.Catalog == null)
-            {
-                logger?.LogWarning("Project catalog is null; cannot save publisher profile");
-                return;
-            }
-
-            project.Catalog.Publisher ??= new();
-            project.Catalog.Publisher.Id = PublisherId.ToLowerInvariant().Trim();
-            project.Catalog.Publisher.Name = PublisherName.Trim();
-            project.Catalog.Publisher.AvatarUrl = string.IsNullOrWhiteSpace(AvatarUrl) ? null : AvatarUrl.Trim();
-            project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl.Trim();
-            project.Catalog.Publisher.SupportUrl = string.IsNullOrWhiteSpace(SupportUrl) ? null : SupportUrl.Trim();
-            project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
-            project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
-
-            project.Tags = TagsString
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(t => !string.IsNullOrWhiteSpace(t))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            ApplyToProject();
 
             // Persist changes to disk through parent view model
             if (parentViewModel != null)

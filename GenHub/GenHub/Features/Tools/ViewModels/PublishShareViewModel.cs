@@ -1501,7 +1501,7 @@ public partial class PublishShareViewModel(
         var hasLocalSource = !string.IsNullOrEmpty(artifact.LocalFilePath);
         var canUploadArtifact = hasLocalSource && !isCloud && SelectedHostingProvider != null && SelectedHostingProvider.SupportsArtifactHosting;
 
-        HostedAssets.Add(new HostedAssetItemViewModel
+        var item = new HostedAssetItemViewModel
         {
             AssetKind = HostedAssetKind.Artifact,
             ContentId = contentId,
@@ -1513,13 +1513,98 @@ public partial class PublishShareViewModel(
             Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat", "Release Binary ({0} v{1})", contentName, releaseVersion),
             Location = location,
             FileSize = artSize,
+            FileSizeFormatted = artSize > 0 ? FileSizeFormatter.Format(artSize) : "0 B",
             Url = artifact.DownloadUrl ?? string.Empty,
             Status = status,
             IsOnline = isCloud,
             IsExternalCdn = isExternal,
             LastUpdated = artUpdated,
             Sha256 = artifact.Sha256,
-        });
+        };
+
+        HostedAssets.Add(item);
+
+        if (artSize <= 0 && isExternal && !string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+        {
+            _ = ProbeExternalAssetSizeAsync(item, artifact);
+        }
+    }
+
+    private async Task ProbeExternalAssetSizeAsync(HostedAssetItemViewModel item, ReleaseArtifact artifact)
+    {
+        var url = artifact.DownloadUrl;
+        if (string.IsNullOrWhiteSpace(url) ||
+            !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return;
+        }
+
+        try
+        {
+            var client = HttpClientOverrideForTesting ?? SharedHttpClient;
+            long? detectedSize = null;
+
+            try
+            {
+                using var headRequest = new HttpRequestMessage(HttpMethod.Head, url);
+                using var headResponse = await client.SendAsync(headRequest, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                if (headResponse.IsSuccessStatusCode)
+                {
+                    detectedSize = headResponse.Content.Headers.ContentLength;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "HEAD probe failed for {Url}", url);
+            }
+
+            if (detectedSize is null or <= 0)
+            {
+                try
+                {
+                    using var getRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                    getRequest.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, 0);
+                    using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                    if (getResponse.IsSuccessStatusCode || getResponse.StatusCode == System.Net.HttpStatusCode.PartialContent)
+                    {
+                        detectedSize = getResponse.Content.Headers.ContentRange?.Length
+                            ?? getResponse.Content.Headers.ContentLength;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Ranged GET probe failed for {Url}", url);
+                }
+            }
+
+            if (detectedSize is > 0)
+            {
+                var size = detectedSize.Value;
+                artifact.Size = size;
+
+                void UpdateItem()
+                {
+                    item.FileSize = size;
+                    item.FileSizeFormatted = FileSizeFormatter.Format(size);
+                }
+
+                if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+                {
+                    UpdateItem();
+                }
+                else
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(UpdateItem);
+                }
+
+                logger.LogInformation("Probed external artifact size for {FileName}: {Size} bytes", artifact.Filename, size);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Could not probe size for external artifact {Url}", url);
+        }
     }
 
     private void PopulateCloudScanAssets(string providerName, ref long totalBytes, ref int catCount, ref int artCount)

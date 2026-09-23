@@ -196,14 +196,6 @@
                              BorderBrush="{DynamicResource GlassBorderBrush}"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
-                        <Button Command="{Binding BatchAddContentCommand}"
-                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.BatchImportTooltip}"
-                                Classes="accent-glass-btn">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.BatchImportButton}" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
-                            </StackPanel>
-                        </Button>
                         <Button Command="{Binding AddContentCommand}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.AddContentTooltip}"
                                 Classes="accent-glass-btn">
@@ -218,6 +210,7 @@
                 <!-- Content Items Drop Zone (compact) -->
                 <Border x:Name="ContentItemsDropZone"
                         Grid.Row="2"
+                        IsVisible="{Binding !FilteredContent.Count}"
                         DragDrop.AllowDrop="True"
                         BorderBrush="{DynamicResource GlassBorderBrush}"
                         BorderThickness="1"
@@ -293,14 +286,6 @@
                                                 <PathIcon Data="{StaticResource EditIcon}"
                                                           Width="14" Height="14"
                                                           Foreground="{DynamicResource AccentColorBrush}"/>
-                                            </Button>
-                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteContentCommand}"
-                                                    CommandParameter="{Binding}"
-                                                    Classes="card-action"
-                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteContentTooltip}">
-                                                <PathIcon Data="{StaticResource DeleteIcon}"
-                                                          Width="14" Height="14"
-                                                          Foreground="{DynamicResource ErrorBrush}"/>
                                             </Button>
                                         </StackPanel>
                                     </Grid>
@@ -408,21 +393,7 @@
                                         </TextBlock>
                                     </StackPanel>
 
-                                    <!-- Edit Content Button -->
-                                    <Button Grid.Column="2"
-                                            Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditContentCommand}"
-                                            CommandParameter="{Binding}"
-                                            Classes="accent-glass-btn"
-                                            VerticalAlignment="Center"
-                                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditContentTooltip}">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.EditContentTooltip}"
-                                                       FontSize="12"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource AccentColorBrush}"/>
-                                        </StackPanel>
-                                    </Button>
+
                                 </Grid>
                             </StackPanel>
 
@@ -430,6 +401,9 @@
 
                             <TabControl SelectedIndex="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectedDetailTabIndex, Mode=TwoWay}">
                                 <TabControl.Styles>
+                                <Style Selector="^ /template/ ItemsPresenter#PART_ItemsPresenter">
+                                    <Setter Property="IsVisible" Value="True"/>
+                                </Style>
                                 <Style Selector="TabItem">
                                     <Setter Property="FontSize" Value="15" />
                                     <Setter Property="FontWeight" Value="SemiBold" />
@@ -689,6 +663,7 @@
 
                                     <!-- Releases Drop Zone -->
                                     <Border x:Name="ReleasesDropZone"
+                                            IsVisible="{Binding !Releases.Count}"
                                             DragDrop.AllowDrop="True"
                                             BorderBrush="{DynamicResource GlassBorderBrush}"
                                             BorderThickness="1"
@@ -924,6 +899,7 @@
 
                                     <!-- Drop zone for Addons -->
                                     <Border x:Name="AddonsDropZone"
+                                            IsVisible="{Binding !AddonReleases.Count}"
                                             DragDrop.AllowDrop="True"
                                             BorderBrush="{DynamicResource GlassBorderBrush}"
                                             BorderThickness="1"
@@ -1121,7 +1097,8 @@
                                         </ItemsControl>
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaScreenshotsDropHint}"
                                                    Foreground="{DynamicResource TextMuted}"
-                                                   FontSize="12"/>
+                                                   FontSize="12"
+                                                   IsVisible="{Binding !Metadata.ScreenshotUrls.Count}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border x:Name="MediaVideosDropZone"
@@ -1215,7 +1192,8 @@
                                         </ItemsControl>
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaVideosDropHint}"
                                                    Foreground="{DynamicResource TextMuted}"
-                                                   FontSize="12"/>
+                                                   FontSize="12"
+                                                   IsVisible="{Binding !Metadata.VideoUrls.Count}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

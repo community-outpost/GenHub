@@ -136,4 +136,21 @@ public class ContentFormatPolicyTests
         Assert.False(ContentFormatPolicy.IsGuidedRejection("data.tar.gz"));
         Assert.False(ContentFormatPolicy.IsGuidedRejection("release.zip"));
     }
+
+    /// <summary>
+    /// Strips known archive and package extensions from content and asset names.
+    /// </summary>
+    [Theory]
+    [InlineData("GLA Campaign by TKlyo.rar", "GLA Campaign by TKlyo")]
+    [InlineData("GLA Campaign by TKlyo.RAR", "GLA Campaign by TKlyo")]
+    [InlineData("Mappack.zip", "Mappack")]
+    [InlineData("Archive.tar.gz", "Archive")]
+    [InlineData("Shockwave.big", "Shockwave")]
+    [InlineData("Normal Content", "Normal Content")]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    public void StripArchiveExtensions_StripsKnownExtensions(string? input, string expected)
+    {
+        Assert.Equal(expected, ContentFormatPolicy.StripArchiveExtensions(input));
+    }
 }

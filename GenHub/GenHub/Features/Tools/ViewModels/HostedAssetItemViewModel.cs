@@ -96,9 +96,11 @@ public partial class HostedAssetItemViewModel : ObservableObject
     private string _status = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPending))]
     private bool _isOnline;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPending))]
     private bool _isExternalCdn;
 
     [ObservableProperty]
@@ -127,6 +129,12 @@ public partial class HostedAssetItemViewModel : ObservableObject
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
     public bool IsArtifact => AssetKind == HostedAssetKind.Artifact || (AssetKind == HostedAssetKind.CloudFile && !Name.Contains("catalog", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Gets a value indicating whether this asset is pending hosting (neither live online nor hosted on an external CDN).
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
+    public bool IsPending => !IsOnline && !IsExternalCdn;
 
     /// <summary>
     /// Updates the formatted file size whenever <see cref="FileSize"/> changes.
