@@ -17,7 +17,9 @@ carries actual Generals / Zero Hour LAN traffic.
   infrastructure by default so player IPs are never leaked. Direct peer-to-peer UDP
   hole-punching via STUN discovery exists as an opt-in path for self-hosters or custom
   configurations (`preferRelay: false`), but the spike and standard overlay design
-  must assume and prioritize the zero-leak relay path.
+  must assume and prioritize the zero-leak relay path. The flag is a service-layer
+  capability only: joining passes literal `preferRelay: true` and network creation
+  hardcodes `PreferRelay = true`, with no UI, config, or environment toggle yet.
 - Game traffic is UDP on the LAN segment (community-documented ZH ports:
   UDP 4321, 27900, 16000; lobby discovery expects LAN broadcast semantics,
   which is why Tunngle/Radmin style virtual LANs work and plain port

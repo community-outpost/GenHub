@@ -50,6 +50,7 @@ public static class GameProfileModule
         services.AddScoped<ProfileContentResolutionServices>();
         services.AddScoped<IProfileContentService, ProfileContentService>();
         services.AddSingleton<IGameSettingsService, GameSettingsService>();
+        services.AddSingleton<ILanNicknameService, LanNicknameService>();
         services.AddSingleton<IContentDisplayFormatter, ContentDisplayFormatter>();
         services.AddScoped<IProfileContentLoader, ProfileContentLoader>();
         services.AddScoped<IProfileVerificationFileSetService, ProfileVerificationFileSetService>();

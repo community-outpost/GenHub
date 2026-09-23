@@ -36,6 +36,18 @@ public static class OnlineConstants
     public const int MaxNetworkNameLength = 64;
 
     /// <summary>
+    /// Maximum LAN nickname length in characters. Mirrors
+    /// <c>g_lanPlayerNameLength</c> in the game engine: longer names are
+    /// silently truncated by the LAN lobby.
+    /// </summary>
+    public const int MaxNicknameLength = 12;
+
+    /// <summary>
+    /// Error code for a blank nickname that must leave Network.ini untouched.
+    /// </summary>
+    public const string ErrorNicknameEmpty = "online.nickname-empty";
+
+    /// <summary>
     /// Minimum network password length.
     /// </summary>
     public const int MinPasswordLength = 4;
