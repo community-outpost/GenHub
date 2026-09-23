@@ -227,26 +227,31 @@ public sealed partial class WndEditorViewModel(
     /// <summary>
     /// Gets the X coordinate of the virtual game screen guide.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
     public double ScreenGuideX => WndConstants.Editor.CanvasPadding * Zoom;
 
     /// <summary>
     /// Gets the Y coordinate of the virtual game screen guide.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
     public double ScreenGuideY => WndConstants.Editor.CanvasPadding * Zoom;
 
     /// <summary>
     /// Gets the width of the virtual game screen guide.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
     public double ScreenGuideWidth => VirtualScreenWidth * Zoom;
 
     /// <summary>
     /// Gets the height of the virtual game screen guide.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
     public double ScreenGuideHeight => VirtualScreenHeight * Zoom;
 
     /// <summary>
     /// Gets the resolution label of the virtual game screen guide.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property in XAML and reads source-generated instance state.")]
     public string ScreenGuideLabel => $"{VirtualScreenWidth} × {VirtualScreenHeight}";
 
     /// <summary>
@@ -1876,8 +1881,8 @@ public sealed partial class WndEditorViewModel(
             maxHeight = Math.Max(maxHeight, rect.BottomRightY);
         }
 
-        VirtualScreenWidth = screenW > 0 ? screenW : (int)Math.Max(maxWidth, WndConstants.Editor.MinCanvasWidth);
-        VirtualScreenHeight = screenH > 0 ? screenH : (int)Math.Max(maxHeight, WndConstants.Editor.MinCanvasHeight);
+        VirtualScreenWidth = (int)Math.Max(screenW, Math.Max(maxWidth, WndConstants.Editor.MinCanvasWidth));
+        VirtualScreenHeight = (int)Math.Max(screenH, Math.Max(maxHeight, WndConstants.Editor.MinCanvasHeight));
 
         _canvasBaseWidth = Math.Max(maxWidth, VirtualScreenWidth) + (WndConstants.Editor.CanvasPadding * 2);
         _canvasBaseHeight = Math.Max(maxHeight, VirtualScreenHeight) + (WndConstants.Editor.CanvasPadding * 2);
@@ -2624,7 +2629,8 @@ public sealed partial class WndEditorViewModel(
             }
 
             var roots = ResolveAssetRoots(selection);
-            var projectDirectory = CombineProjectDirectories(linkedModFolderSnapshot, ResolveProjectDirectory(FilePath, roots));
+            var detectedProjectDir = ResolveProjectDirectory(FilePath, roots) ?? ResolveProjectDirectory(FilesDirectory, roots);
+            var projectDirectory = CombineProjectDirectories(linkedModFolderSnapshot, detectedProjectDir);
             var linkedBigs = linkedBigFilesSnapshot;
             var schemeOverrides = await Task.Run(() => ResolveSchemeOverrides(roots, projectDirectory, cancellationToken, linkedBigs), cancellationToken).ConfigureAwait(false);
             _schemeOverrides = schemeOverrides;
@@ -2761,7 +2767,7 @@ public sealed partial class WndEditorViewModel(
             return null;
         }
 
-        var directory = Path.GetDirectoryName(filePath);
+        var directory = Directory.Exists(filePath) ? filePath : Path.GetDirectoryName(filePath);
         if (string.IsNullOrEmpty(directory))
         {
             return null;

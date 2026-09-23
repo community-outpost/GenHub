@@ -6,6 +6,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using System;
+using System.Windows.Input;
 
 namespace GenHub.Features.Tools.WndEditor.Views;
 
@@ -43,38 +44,33 @@ public partial class WndEditorView : UserControl
             return;
         }
 
-        var isCtrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
-        if (!isCtrl)
+        if ((e.KeyModifiers & KeyModifiers.Control) == 0)
         {
             return;
         }
 
-        if (e.Key == Key.Z)
+        HandleUndoRedoKey(viewModel, e);
+    }
+
+    private static void HandleUndoRedoKey(WndEditorViewModel viewModel, KeyEventArgs e)
+    {
+        var isShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+        if (e.Key == Key.Z && !isShift)
         {
-            if ((e.KeyModifiers & KeyModifiers.Shift) != 0)
-            {
-                if (viewModel.RedoCommand.CanExecute(null))
-                {
-                    viewModel.RedoCommand.Execute(null);
-                    e.Handled = true;
-                }
-            }
-            else
-            {
-                if (viewModel.UndoCommand.CanExecute(null))
-                {
-                    viewModel.UndoCommand.Execute(null);
-                    e.Handled = true;
-                }
-            }
+            TryExecuteCommand(viewModel.UndoCommand, e);
         }
-        else if (e.Key == Key.Y)
+        else if (e.Key == Key.Z || e.Key == Key.Y)
         {
-            if (viewModel.RedoCommand.CanExecute(null))
-            {
-                viewModel.RedoCommand.Execute(null);
-                e.Handled = true;
-            }
+            TryExecuteCommand(viewModel.RedoCommand, e);
+        }
+    }
+
+    private static void TryExecuteCommand(ICommand command, KeyEventArgs e)
+    {
+        if (command.CanExecute(null))
+        {
+            command.Execute(null);
+            e.Handled = true;
         }
     }
 

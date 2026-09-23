@@ -45,12 +45,9 @@ public static class WndGameFileSystem
         if (!string.IsNullOrWhiteSpace(projectDirectory))
         {
             var directories = projectDirectory.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var dir in directories)
+            foreach (var dir in directories.Where(Directory.Exists))
             {
-                if (Directory.Exists(dir))
-                {
-                    LayerProjectDirectory(fileSystem, dir, logger);
-                }
+                LayerProjectDirectory(fileSystem, dir, logger);
             }
         }
 

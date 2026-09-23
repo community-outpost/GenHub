@@ -260,10 +260,7 @@ public static class WndPreviewPlanner
             single = ResolveSingleImageFallback(name, drawCallback, overrides);
         }
 
-        if (string.Equals(single, "MainMenuRuler", StringComparison.OrdinalIgnoreCase))
-        {
-            underlay = ResolveOverrideOrFallback(overrides, "ShellMenuBackdrop", "MainMenuBackdrop");
-        }
+        underlay = ResolveShellMenuUnderlay(single, overrides, underlay);
 
         if (single != plan.SingleImage || underlay != plan.UnderlayImage)
         {
@@ -271,6 +268,22 @@ public static class WndPreviewPlanner
         }
 
         return plan;
+    }
+
+    private static string? ResolveShellMenuUnderlay(
+        string? single,
+        IReadOnlyDictionary<string, string>? overrides,
+        string? underlay)
+    {
+        if (string.Equals(single, "MainMenuRuler", StringComparison.OrdinalIgnoreCase)
+            && overrides != null
+            && overrides.TryGetValue("ShellMenuBackdrop", out var shellBackdrop)
+            && !string.IsNullOrWhiteSpace(shellBackdrop))
+        {
+            return shellBackdrop;
+        }
+
+        return underlay;
     }
 
     private static string? ResolveSingleImageFallback(
