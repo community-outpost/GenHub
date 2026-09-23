@@ -796,6 +796,9 @@ public static class WndConstants
 
         /// <summary>Empty margin around canvas content in game units, keeping every document pannable.</summary>
         public const double CanvasPadding = 400.0;
+
+        /// <summary>Minimum width or height when resizing a window on the canvas.</summary>
+        public const int MinResizeDimension = 8;
     }
 
     /// <summary>

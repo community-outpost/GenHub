@@ -49,9 +49,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken = default,
         IReadOnlyCollection<string>? additionalBigFiles = null,
-        bool isZeroHour = false)
+        bool isZeroHour = false,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(mappedImageNames);
         ArgumentNullException.ThrowIfNull(baseRoot);
@@ -73,7 +73,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         try
         {
-            var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles, isZeroHour).ConfigureAwait(false);
+            var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour, cancellationToken).ConfigureAwait(false);
             var requests = CollectRequests(mappedImageNames, index);
             var resolved = await Task.Run(() => DecodeRequests(mappedImageNames, requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (_imageCache.Count > MaxCachedImages)
@@ -113,8 +113,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         IReadOnlyCollection<string>? additionalBigFiles = null,
         bool isZeroHour = false)
     {
-        var extra = additionalBigFiles != null && additionalBigFiles.Count > 0 ? string.Join(";", additionalBigFiles) : string.Empty;
-        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty, "|", extra, "|", isZeroHour ? "ZH" : "GEN");
+        return WndGameFileSystem.BuildAssetCacheKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour);
     }
 
     private static string CacheKey(string indexKey, string name)
@@ -285,9 +284,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalBigFiles = null,
-        bool isZeroHour = false)
+        IReadOnlyCollection<string>? additionalBigFiles,
+        bool isZeroHour,
+        CancellationToken cancellationToken)
     {
         var key = IndexKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour);
         if (_indexes.TryGetValue(key, out var cached))
@@ -303,7 +302,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 return cached;
             }
 
-            var built = await Task.Run(() => BuildIndex(key, baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles, isZeroHour), cancellationToken).ConfigureAwait(false);
+            var built = await Task.Run(() => BuildIndex(key, baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (_indexes.Count >= MaxCachedIndexes)
             {
                 _indexes.Clear();
@@ -323,11 +322,11 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalBigFiles = null,
-        bool isZeroHour = false)
+        IReadOnlyCollection<string>? additionalBigFiles,
+        bool isZeroHour,
+        CancellationToken cancellationToken)
     {
-        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles, isZeroHour);
+        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, additionalBigFiles, isZeroHour, cancellationToken);
 
         var searchDirs = new List<string>
         {

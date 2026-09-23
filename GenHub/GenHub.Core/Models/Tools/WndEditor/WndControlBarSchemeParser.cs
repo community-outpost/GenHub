@@ -242,7 +242,22 @@ public static class WndControlBarSchemeParser
             return tokens[2];
         }
 
-        return tokens.Length > 1 ? tokens[1] : tokens[0];
+        if (tokens.Length > 1)
+        {
+            return tokens[1];
+        }
+
+        var single = tokens[0];
+        if (single.StartsWith(WndConstants.ControlBarScheme.SchemeKeyword, StringComparison.OrdinalIgnoreCase))
+        {
+            var stripped = single[WndConstants.ControlBarScheme.SchemeKeyword.Length..].TrimStart('=', ':', ' ', '\t');
+            if (!string.IsNullOrEmpty(stripped))
+            {
+                return stripped;
+            }
+        }
+
+        return single;
     }
 
     private static string ExtractValueAfterKey(string segment, string key)

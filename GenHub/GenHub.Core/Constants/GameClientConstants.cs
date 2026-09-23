@@ -113,6 +113,9 @@ public static class GameClientConstants
     /// <summary>Standard retail Zero Hour directory name.</summary>
     public const string ZeroHourRetailDirectoryName = "Command & Conquer Generals Zero Hour";
 
+    /// <summary>Combined Generals and Zero Hour directory name.</summary>
+    public const string GeneralsCombinedDirectoryName = "Command & Conquer Generals and Zero Hour";
+
     /// <summary>Directory marker for Zero Hour's Generals installation link.</summary>
     public const string ZhGeneralsDirectory = "ZH_Generals";
 
@@ -129,6 +132,9 @@ public static class GameClientConstants
 
     /// <summary>Primary Zero Hour Patch archive filename.</summary>
     public const string ZeroHourPatchBig = "PatchZH.big";
+
+    /// <summary>Primary Generals Vanilla Window archive filename.</summary>
+    public const string GeneralsWindowBig = "Window.big";
 
     /// <summary>Primary Generals Vanilla INI archive filename.</summary>
     public const string GeneralsIniBig = "INI.big";
@@ -263,6 +269,16 @@ public static class GameClientConstants
 
     /// <summary>Maximum MapCache file size in bytes to inspect for corruption (10 MB).</summary>
     public const long MaxMapCacheInspectionSizeBytes = 10 * 1024 * 1024;
+
+    /// <summary>Candidate sibling directory names for Generals vanilla installations.</summary>
+    public static readonly string[] GeneralsCandidateDirectoryNames =
+    [
+        GeneralsRetailDirectoryName,
+        GeneralsDirectoryName,
+        GeneralsCombinedDirectoryName,
+        GeneralsSubdirectoryName,
+        "generals",
+    ];
 
     /// <summary>
     /// DLLs required for standard game installations.

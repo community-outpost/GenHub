@@ -1150,7 +1150,7 @@ public sealed class BuildEngineService(
             if (!string.IsNullOrEmpty(manifest.BigFileName)
                 && !string.Equals(manifest.BigFileName, packFileName, StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogDebug(
+                logger.LogWarning(
                     "Manifest BigFileName '{ManifestBig}' does not match pack file '{PackFile}'; skipping integrity verification",
                     manifest.BigFileName,
                     packFileName);

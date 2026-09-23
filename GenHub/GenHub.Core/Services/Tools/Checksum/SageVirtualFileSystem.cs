@@ -173,6 +173,39 @@ public sealed class SageVirtualFileSystem
     }
 
     /// <summary>
+    /// Adds an explicitly linked mod directory or archive to the VFS with top override priority.
+    /// </summary>
+    /// <param name="path">Path to a directory or .big archive.</param>
+    public void AddLinkedAsset(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        if (Directory.Exists(path))
+        {
+            _looseRoots.Add((path, SageFileTier.LinkedAsset));
+            IndexModLooseDirectory(path);
+
+            var bigFiles = Directory.GetFiles(path, SageChecksumConstants.BigFileSearchPattern, BigFileEnumerationOptions);
+            Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
+            foreach (string bigFile in bigFiles)
+            {
+                AddArchive(bigFile, SageFileTier.LinkedAsset);
+            }
+        }
+        else if (File.Exists(path) && path.EndsWith(SageChecksumConstants.BigFileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            AddArchive(path, SageFileTier.LinkedAsset);
+        }
+        else
+        {
+            _logger?.LogWarning("[VFS] Linked asset path '{Path}' does not exist or is not a valid directory or .big archive.", path);
+        }
+    }
+
+    /// <summary>
     /// Reads the byte contents of a file by relative SAGE path.
     /// </summary>
     /// <param name="relativePath">Relative file path (e.g. Data\\INI\\GameData.ini).</param>

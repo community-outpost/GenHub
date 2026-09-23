@@ -65,7 +65,35 @@ public sealed class WndEditorViewModelTests : IDisposable
         _mockImageAssetService = new Mock<IWndImageAssetService>();
         _mockLocalizationService
             .Setup(s => s.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
-            .Returns((string key, object?[] args) => key);
+            .Returns((string key, object?[] args) =>
+            {
+                if (key == "Tools.WndEditor.Assets.LinkedModSummary" && args?.Length > 0)
+                {
+                    return $"Mod: {args[0]}";
+                }
+
+                if (key == "Tools.WndEditor.Assets.LinkedBigSummary" && args?.Length > 0)
+                {
+                    return $"{args[0]} .big";
+                }
+
+                if (key == "Tools.WndEditor.Assets.LinkedTooltipModPrefix" && args?.Length > 0)
+                {
+                    return $"Mod: {args[0]}";
+                }
+
+                if (key == "Tools.WndEditor.Assets.LinkedTooltipBigPrefix" && args?.Length > 0)
+                {
+                    return $"BIG: {args[0]}";
+                }
+
+                if (key == "Tools.WndEditor.Assets.LinkedSummarySeparator")
+                {
+                    return " + ";
+                }
+
+                return args != null && args.Length > 0 ? $"{key}:{string.Join(',', args)}" : key;
+            });
         _mockDialogService
             .Setup(s => s.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
             .ReturnsAsync(true);
@@ -78,9 +106,9 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyCollection<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)));
         _mockStringTableService = new Mock<IWndStringTableService>();
@@ -90,9 +118,9 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyCollection<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
         var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
@@ -399,6 +427,8 @@ public sealed class WndEditorViewModelTests : IDisposable
         var zhDir = Path.Combine(root, "Command and Conquer Generals Zero Hour");
         Directory.CreateDirectory(generalsDir);
         Directory.CreateDirectory(zhDir);
+        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), string.Empty);
+        Directory.CreateDirectory(Path.Combine(generalsDir, "Data"));
 
         // Act
         var method = typeof(WndEditorViewModel).GetMethod("FindSiblingGeneralsPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
@@ -859,9 +889,9 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyCollection<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -942,10 +972,10 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyCollection<string>?>(),
-                It.IsAny<bool>()))
-            .Callback<IReadOnlyCollection<string>, string, string?, string?, CancellationToken, IReadOnlyCollection<string>?, bool>((names, _, _, _, _, _, _) => requested = names)
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyCollection<string>, string, string?, string?, IReadOnlyCollection<string>?, bool, CancellationToken>((names, _, _, _, _, _, _) => requested = names)
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)));
         SetupSingleInstallation();
@@ -1064,9 +1094,9 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyCollection<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -1146,9 +1176,9 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyCollection<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -1199,9 +1229,9 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyCollection<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -1286,9 +1316,9 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyCollection<string>?>(),
-                It.IsAny<bool>()))
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {

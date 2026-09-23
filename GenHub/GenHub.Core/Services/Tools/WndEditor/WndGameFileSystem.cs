@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 
 namespace GenHub.Core.Services.Tools.WndEditor;
@@ -23,18 +24,18 @@ public static class WndGameFileSystem
     /// <param name="overrideRoot">Optional fallback base root (e.g. Generals when Zero Hour is primary, or vice versa).</param>
     /// <param name="projectDirectory">Optional mod project directory layered above game files.</param>
     /// <param name="logger">The logger sink.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
     /// <param name="isZeroHour">Whether the target game is Zero Hour (expansion tier) or vanilla Generals.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The layered virtual file system.</returns>
     public static SageVirtualFileSystem Open(
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
         ILogger logger,
-        CancellationToken cancellationToken = default,
         IReadOnlyCollection<string>? additionalBigFiles = null,
-        bool isZeroHour = false)
+        bool isZeroHour = false,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(baseRoot);
         ArgumentNullException.ThrowIfNull(logger);
@@ -94,13 +95,77 @@ public static class WndGameFileSystem
 
         if (additionalBigFiles != null)
         {
-            foreach (var bigFile in additionalBigFiles.Where(f => !string.IsNullOrWhiteSpace(f) && File.Exists(f)))
+            foreach (var bigFile in additionalBigFiles)
             {
-                fileSystem.AddMod(bigFile);
+                if (string.IsNullOrWhiteSpace(bigFile))
+                {
+                    continue;
+                }
+
+                if (File.Exists(bigFile))
+                {
+                    fileSystem.AddLinkedAsset(bigFile);
+                }
+                else
+                {
+                    logger.LogWarning("Linked .BIG archive '{Path}' does not exist and was skipped", bigFile);
+                }
             }
         }
 
         return fileSystem;
+    }
+
+    /// <summary>
+    /// Builds a cache key for asset services factoring in roots, target game mode, and linked archives with size/mtime stamps.
+    /// </summary>
+    /// <param name="baseRoot">Primary game root directory.</param>
+    /// <param name="overrideRoot">Optional override game root directory.</param>
+    /// <param name="projectDirectory">Optional mod project directory.</param>
+    /// <param name="additionalBigFiles">Optional linked .BIG archive files.</param>
+    /// <param name="isZeroHour">Whether the target game is Zero Hour.</param>
+    /// <returns>A unique cache key string.</returns>
+    public static string BuildAssetCacheKey(
+        string baseRoot,
+        string? overrideRoot,
+        string? projectDirectory,
+        IReadOnlyCollection<string>? additionalBigFiles,
+        bool isZeroHour)
+    {
+        var sb = new StringBuilder();
+        sb.Append(baseRoot).Append('|')
+          .Append(overrideRoot ?? string.Empty).Append('|')
+          .Append(projectDirectory ?? string.Empty).Append('|')
+          .Append(isZeroHour ? "ZH" : "GEN").Append('|');
+
+        if (additionalBigFiles != null && additionalBigFiles.Count > 0)
+        {
+            var ordered = additionalBigFiles
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var file in ordered)
+            {
+                sb.Append(file);
+                try
+                {
+                    if (File.Exists(file))
+                    {
+                        var info = new FileInfo(file);
+                        sb.Append(':').Append(info.Length).Append(':').Append(info.LastWriteTimeUtc.Ticks);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+                {
+                    // Fall back to path alone if file inspection fails
+                }
+
+                sb.Append(';');
+            }
+        }
+
+        return sb.ToString();
     }
 
     private static void LayerProjectDirectory(SageVirtualFileSystem fileSystem, string projectDirectory)

@@ -17,7 +17,12 @@ public enum SageFileTier
     Expansion = 1,
 
     /// <summary>
-    /// User mod files, project folders, linked archives, and release outputs.
+    /// User mod files, project folders, and release outputs.
     /// </summary>
     Mod = 2,
+
+    /// <summary>
+    /// Explicitly linked custom mod folders or .BIG archives, taking top precedence over project files.
+    /// </summary>
+    LinkedAsset = 3,
 }

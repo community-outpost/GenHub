@@ -12643,6 +12643,21 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.WndEditor.Assets.Clear" xml:space="preserve">
     <value>Clear Linked Assets</value>
   </data>
+  <data name="Tools.WndEditor.Assets.LinkedModSummary" xml:space="preserve">
+    <value>Mod: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedBigSummary" xml:space="preserve">
+    <value>{0} .big</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedTooltipModPrefix" xml:space="preserve">
+    <value>Mod: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedTooltipBigPrefix" xml:space="preserve">
+    <value>BIG: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedSummarySeparator" xml:space="preserve">
+    <value> + </value>
+  </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Resize window</value>
   </data>

@@ -39,9 +39,9 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken = default,
         IReadOnlyCollection<string>? additionalBigFiles = null,
-        bool isZeroHour = false)
+        bool isZeroHour = false,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(labels);
         ArgumentNullException.ThrowIfNull(baseRoot);
@@ -63,7 +63,7 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
 
         try
         {
-            var table = await GetOrLoadTableAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles, isZeroHour).ConfigureAwait(false);
+            var table = await GetOrLoadTableAsync(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour, cancellationToken).ConfigureAwait(false);
             var resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var label in labels)
             {
@@ -179,17 +179,16 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         IReadOnlyCollection<string>? additionalBigFiles = null,
         bool isZeroHour = false)
     {
-        var extra = additionalBigFiles != null && additionalBigFiles.Count > 0 ? string.Join(";", additionalBigFiles) : string.Empty;
-        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty, "|", extra, "|", isZeroHour ? "ZH" : "GEN");
+        return WndGameFileSystem.BuildAssetCacheKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour);
     }
 
     private async Task<IReadOnlyDictionary<string, string>> GetOrLoadTableAsync(
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalBigFiles = null,
-        bool isZeroHour = false)
+        IReadOnlyCollection<string>? additionalBigFiles,
+        bool isZeroHour,
+        CancellationToken cancellationToken)
     {
         var key = TableKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour);
         if (_tables.TryGetValue(key, out var cached))
@@ -205,7 +204,7 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
                 return cached;
             }
 
-            var loaded = await Task.Run(() => LoadTable(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles, isZeroHour), cancellationToken).ConfigureAwait(false);
+            var loaded = await Task.Run(() => LoadTable(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (_tables.Count >= MaxCachedTables)
             {
                 _tables.Clear();
@@ -229,11 +228,11 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
-        CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalBigFiles = null,
-        bool isZeroHour = false)
+        IReadOnlyCollection<string>? additionalBigFiles,
+        bool isZeroHour,
+        CancellationToken cancellationToken)
     {
-        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles, isZeroHour);
+        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, additionalBigFiles, isZeroHour, cancellationToken);
         var table = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         // 1. Load base CSF string table

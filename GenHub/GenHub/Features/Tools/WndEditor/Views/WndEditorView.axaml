@@ -546,7 +546,7 @@
                     </MenuFlyout>
                   </Button.Flyout>
                 </Button>
-                <Border Background="{DynamicResource AccentTintBrush}"
+                <Border Background="{DynamicResource AccentTintBackgroundBrush}"
                         BorderBrush="{DynamicResource AccentBrush}"
                         BorderThickness="1" CornerRadius="6"
                         Padding="6,3"
@@ -557,12 +557,14 @@
                                FontSize="10" FontWeight="SemiBold"
                                Foreground="{DynamicResource AccentBrush}"
                                VerticalAlignment="Center"/>
-                    <Button Content="✕"
-                            Command="{Binding ClearLinkedAssetsCommand}"
+                    <Button Command="{Binding ClearLinkedAssetsCommand}"
                             Background="Transparent" BorderThickness="0"
-                            Padding="2,0" FontSize="9"
+                            Padding="2,0"
                             Cursor="Hand"
-                            ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.Clear}"/>
+                            ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.Clear}">
+                      <material:MaterialIcon Kind="Close" Width="10" Height="10"
+                                             Foreground="{DynamicResource AccentBrush}"/>
+                    </Button>
                   </StackPanel>
                 </Border>
               </StackPanel>
@@ -673,35 +675,35 @@
                                      IsHitTestVisible="False"/>
                           <Canvas Width="{Binding Width}" Height="{Binding Height}" IsVisible="{Binding IsSelected}" IsHitTestVisible="True">
                             <Border Canvas.Left="-5" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                                     BorderThickness="1.5" CornerRadius="2" Cursor="TopLeftCorner" Tag="NorthWest"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                             <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                                     BorderThickness="1.5" CornerRadius="2" Cursor="TopSide" Tag="North"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                             <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="-5" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                                     BorderThickness="1.5" CornerRadius="2" Cursor="TopRightCorner" Tag="NorthEast"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                             <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HalfHeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                                     BorderThickness="1.5" CornerRadius="2" Cursor="RightSide" Tag="East"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                             <Border Canvas.Left="{Binding WidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                                     BorderThickness="1.5" CornerRadius="2" Cursor="BottomRightCorner" Tag="SouthEast"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                             <Border Canvas.Left="{Binding HalfWidthMinusHandle}" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                                     BorderThickness="1.5" CornerRadius="2" Cursor="BottomSide" Tag="South"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                             <Border Canvas.Left="-5" Canvas.Top="{Binding HeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                                     BorderThickness="1.5" CornerRadius="2" Cursor="BottomLeftCorner" Tag="SouthWest"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                             <Border Canvas.Left="-5" Canvas.Top="{Binding HalfHeightMinusHandle}" Width="10" Height="10"
-                                    Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource AccentBrush}"
                                     BorderThickness="1.5" CornerRadius="2" Cursor="LeftSide" Tag="West"
                                     PointerPressed="OnResizeHandlePointerPressed"/>
                           </Canvas>

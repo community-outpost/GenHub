@@ -415,7 +415,7 @@ public static class WndPreviewPlanner
         else
         {
             var rawFont = window.GetProperty(WndConstants.PropertyKeys.Font)?.Trim(' ', '"', '\x27', ';');
-            if (!string.IsNullOrWhiteSpace(rawFont))
+            if (!string.IsNullOrWhiteSpace(rawFont) && !rawFont.Contains(':') && !rawFont.Contains(','))
             {
                 fontName = rawFont;
             }

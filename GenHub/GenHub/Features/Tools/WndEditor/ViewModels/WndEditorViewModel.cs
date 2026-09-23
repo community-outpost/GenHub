@@ -407,6 +407,8 @@ public sealed partial class WndEditorViewModel(
     {
         _dragItem = null;
         _dragOriginal = null;
+        _isResizing = false;
+        _resizeDirection = WndResizeDirection.None;
         if (item == null || !item.Window.TryGetScreenRect(out var rect) || rect == null)
         {
             return;
@@ -539,7 +541,7 @@ public sealed partial class WndEditorViewModel(
         _previewBitmaps.Clear();
     }
 
-/// <summary>
+    /// <summary>
     /// Parses a ControlBarScheme INI file and populates the given dictionary with scheme image overrides.
     /// </summary>
     /// <param name="iniText">The INI file content.</param>
@@ -570,7 +572,7 @@ public sealed partial class WndEditorViewModel(
         var deltaX = (int)Math.Round((canvasPoint.X - _dragStart.X) / Zoom);
         var deltaY = (int)Math.Round((canvasPoint.Y - _dragStart.Y) / Zoom);
 
-        const int minDimension = 8;
+        var minDimension = WndConstants.Editor.MinResizeDimension;
         var left = _dragOriginal.UpperLeftX;
         var top = _dragOriginal.UpperLeftY;
         var right = _dragOriginal.BottomRightX;
@@ -937,23 +939,18 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var added = false;
         foreach (var file in files)
         {
             var localPath = file.TryGetLocalPath();
             if (!string.IsNullOrEmpty(localPath) && !LinkedBigFiles.Contains(localPath))
             {
                 LinkedBigFiles.Add(localPath);
-                added = true;
             }
         }
 
-        if (added)
-        {
-            UpdateLinkedAssetsSummary();
-            assetService.InvalidateCache();
-            RefreshAssetPreviews();
-        }
+        UpdateLinkedAssetsSummary();
+        assetService.InvalidateCache();
+        RefreshAssetPreviews();
     }
 
     /// <summary>
@@ -1012,17 +1009,19 @@ public sealed partial class WndEditorViewModel(
         var tooltipLines = new List<string>();
         if (!string.IsNullOrEmpty(LinkedModFolder))
         {
-            parts.Add($"📁 {Path.GetFileName(LinkedModFolder)}");
-            tooltipLines.Add($"Mod: {LinkedModFolder}");
+            var folderName = Path.GetFileName(LinkedModFolder);
+            parts.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedModSummary", folderName));
+            tooltipLines.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedTooltipModPrefix", LinkedModFolder));
         }
 
         if (LinkedBigFiles.Count > 0)
         {
-            parts.Add($"📦 {LinkedBigFiles.Count} .big");
-            tooltipLines.AddRange(LinkedBigFiles.Select(b => $"BIG: {b}"));
+            parts.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedBigSummary", LinkedBigFiles.Count));
+            tooltipLines.AddRange(LinkedBigFiles.Select(b => localizationService.GetString("Tools.WndEditor.Assets.LinkedTooltipBigPrefix", b)));
         }
 
-        LinkedAssetsSummary = string.Join(" + ", parts);
+        var separator = localizationService.GetString("Tools.WndEditor.Assets.LinkedSummarySeparator");
+        LinkedAssetsSummary = string.Join(separator, parts);
         LinkedAssetsTooltip = string.Join("\n", tooltipLines);
     }
 
@@ -2129,6 +2128,51 @@ public sealed partial class WndEditorViewModel(
         return new AssetRoots(installation.ZeroHourPath, null, true);
     }
 
+    private static bool ContainsFileMatching(string directory, string expectedFilename)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(directory)
+                .Any(f => string.Equals(Path.GetFileName(f), expectedFilename, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private static bool ContainsDirectoryMatching(string directory, string expectedDirName)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(directory)
+                .Any(d => string.Equals(Path.GetFileName(d), expectedDirName, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidGeneralsDirectory(string path, string zeroHourPath)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path) || string.Equals(path, zeroHourPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var hasExecutableOrWindow = ContainsFileMatching(path, GameClientConstants.GeneralsExecutable)
+            || ContainsFileMatching(path, GameClientConstants.GeneralsWindowBig);
+
+        if (!hasExecutableOrWindow)
+        {
+            return false;
+        }
+
+        return ContainsDirectoryMatching(path, "Data")
+            || ContainsFileMatching(path, GameClientConstants.GeneralsIniBig);
+    }
+
     private static string? FindSiblingGeneralsPath(string zeroHourPath)
     {
         try
@@ -2136,27 +2180,17 @@ public sealed partial class WndEditorViewModel(
             var parent = Directory.GetParent(zeroHourPath)?.FullName;
             if (!string.IsNullOrEmpty(parent))
             {
-                if (File.Exists(Path.Combine(parent, "Window.big")) || File.Exists(Path.Combine(parent, "generals.exe")))
+                if (IsValidGeneralsDirectory(parent, zeroHourPath))
                 {
                     return parent;
                 }
 
-                string[] candidates =
-                [
-                    GameClientConstants.GeneralsRetailDirectoryName,
-                    "Command & Conquer Generals",
-                    "Command and Conquer Generals",
-                    "Command & Conquer Generals and Zero Hour",
-                    "Generals",
-                    "generals",
-                ];
-
-                foreach (var candidate in candidates)
+                foreach (var candidate in GameClientConstants.GeneralsCandidateDirectoryNames)
                 {
-                    var siblingGenerals = Path.Combine(parent, candidate);
-                    if (Directory.Exists(siblingGenerals) && !string.Equals(siblingGenerals, zeroHourPath, StringComparison.OrdinalIgnoreCase))
+                    var sibling = Path.Combine(parent, candidate);
+                    if (IsValidGeneralsDirectory(sibling, zeroHourPath))
                     {
-                        return siblingGenerals;
+                        return sibling;
                     }
                 }
             }
@@ -2433,6 +2467,8 @@ public sealed partial class WndEditorViewModel(
         CancellationTokenSource? toCancel;
         CancellationTokenSource cts;
         int generation;
+        string? linkedModFolderSnapshot;
+        List<string>? linkedBigFilesSnapshot;
         lock (_previewSync)
         {
             toCancel = _previewCts;
@@ -2446,10 +2482,12 @@ public sealed partial class WndEditorViewModel(
             cts = new CancellationTokenSource();
             _previewCts = cts;
             generation = ++_previewGeneration;
+            linkedModFolderSnapshot = LinkedModFolder;
+            linkedBigFilesSnapshot = LinkedBigFiles.Count > 0 ? LinkedBigFiles.ToList() : null;
         }
 
         CancelAndDisposeCts(toCancel);
-        _ = LoadAssetPreviewsAsync(cts.Token, generation);
+        _ = LoadAssetPreviewsAsync(cts.Token, generation, linkedModFolderSnapshot, linkedBigFilesSnapshot);
     }
 
     private static void CancelAndDisposeCts(CancellationTokenSource? cts)
@@ -2473,7 +2511,11 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
-    private async Task LoadAssetPreviewsAsync(CancellationToken cancellationToken, int generation)
+    private async Task LoadAssetPreviewsAsync(
+        CancellationToken cancellationToken,
+        int generation,
+        string? linkedModFolderSnapshot = null,
+        IReadOnlyCollection<string>? linkedBigFilesSnapshot = null)
     {
         try
         {
@@ -2485,14 +2527,14 @@ public sealed partial class WndEditorViewModel(
             }
 
             var roots = ResolveAssetRoots(selection);
-            var projectDirectory = LinkedModFolder ?? ResolveProjectDirectory(FilePath, roots);
-            var linkedBigs = LinkedBigFiles.Count > 0 ? LinkedBigFiles.ToList() : null;
+            var projectDirectory = linkedModFolderSnapshot ?? ResolveProjectDirectory(FilePath, roots);
+            var linkedBigs = linkedBigFilesSnapshot;
             var schemeOverrides = await Task.Run(() => ResolveSchemeOverrides(roots, projectDirectory, cancellationToken, linkedBigs), cancellationToken).ConfigureAwait(false);
             _schemeOverrides = schemeOverrides;
             var names = CollectPreviewImageNames(document, _schemeOverrides);
             var labels = CollectPreviewLabels(document, _schemeOverrides);
-            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken, linkedBigs, roots.IsZeroHour).ConfigureAwait(false);
-            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken, linkedBigs, roots.IsZeroHour).ConfigureAwait(false);
+            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
+            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
             if ((!images.Success && !strings.Success) || generation != _previewGeneration)
             {
                 return;
@@ -2702,7 +2744,7 @@ public sealed partial class WndEditorViewModel(
 
         try
         {
-            var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles, roots.IsZeroHour);
+            var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, additionalBigFiles, roots.IsZeroHour, cancellationToken);
             var iniBytes = fs.Read(WndConstants.ControlBarScheme.DataIniPath) ?? fs.Read(WndConstants.ControlBarScheme.IniPath);
             if (iniBytes != null && iniBytes.Length > 0)
             {
