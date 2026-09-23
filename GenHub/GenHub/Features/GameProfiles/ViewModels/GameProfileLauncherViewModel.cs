@@ -1968,23 +1968,34 @@ public partial class GameProfileLauncherViewModel(
                     logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
                 }
 
-                if (e.DescribeFailure() != null && (announced || profile != null)
-                    && !(announced && announcement.IsTool)
-                    && profile?.Profile is not GameProfile { IsToolProfile: true })
-                {
-                    var message = e.UnmountableArchives.Count > 0
-                        ? localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", string.Join(", ", e.UnmountableArchives), e.ExitCode!)
-                        : localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Message", e.ExitCode!);
-                    notificationService.ShowError(
-                        localizationService["GameProfiles.Notification.UnexpectedExit.Title"],
-                        profile == null ? message : $"{profile.Name}: {message}");
-                }
+                NotifyUnexpectedProcessExit(e, profile, announced, announcement.IsTool);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error handling process exit event for process {ProcessId}", e.ProcessId);
             }
         });
+    }
+
+    private void NotifyUnexpectedProcessExit(
+        Core.Models.Events.GameProcessExitedEventArgs e,
+        GameProfileItemViewModel? profile,
+        bool announced,
+        bool announcedAsTool)
+    {
+        if (e.DescribeFailure() == null || (!announced && profile == null)
+            || (announced && announcedAsTool)
+            || profile?.Profile is GameProfile { IsToolProfile: true })
+        {
+            return;
+        }
+
+        var message = e.UnmountableArchives.Count > 0
+            ? localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", string.Join(", ", e.UnmountableArchives), e.ExitCode!)
+            : localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Message", e.ExitCode!);
+        notificationService.ShowError(
+            localizationService["GameProfiles.Notification.UnexpectedExit.Title"],
+            profile == null ? message : $"{profile.Name}: {message}");
     }
 
     /// <summary>

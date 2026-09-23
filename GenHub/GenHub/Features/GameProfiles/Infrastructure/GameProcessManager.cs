@@ -1497,7 +1497,7 @@ public class GameProcessManager(
                     exitCode,
                     archiveNames);
                 return OperationResult<GameProcessInfo>.CreateFailure(
-                    $"The game could not mount required archive(s): {archiveNames}. Process exited during startup with code {exitCode}.");
+                    localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", archiveNames, exitCode));
             }
 
             var detail = string.IsNullOrWhiteSpace(stderrTail)

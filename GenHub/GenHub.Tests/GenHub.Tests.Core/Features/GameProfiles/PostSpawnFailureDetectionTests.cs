@@ -38,16 +38,23 @@ public class PostSpawnFailureDetectionTests : IDisposable
         Path.GetTempPath(),
         $"genhub-postspawn-{Guid.NewGuid():N}");
 
-    private readonly GameProcessManager _processManager = new(
-        NullLogger<GameProcessManager>.Instance,
-        new DirectRunner(NullLogger<DirectRunner>.Instance),
-        Mock.Of<ILocalizationService>(),
-        Mock.Of<IFlatpakProvisioner>());
+    private readonly GameProcessManager _processManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostSpawnFailureDetectionTests"/> class.
     /// </summary>
-    public PostSpawnFailureDetectionTests() => Directory.CreateDirectory(_tempDir);
+    public PostSpawnFailureDetectionTests()
+    {
+        Directory.CreateDirectory(_tempDir);
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(service => service.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, arguments) => LaunchExitMessages.GetString(key, null, arguments));
+        _processManager = new GameProcessManager(
+            NullLogger<GameProcessManager>.Instance,
+            new DirectRunner(NullLogger<DirectRunner>.Instance),
+            localization.Object,
+            Mock.Of<IFlatpakProvisioner>());
+    }
 
     /// <summary>
     /// An abort after 700 ms — outside the old fixed window — that names its archives via
@@ -73,7 +80,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
         Assert.False(result.Success);
 
         var message = string.Join(" ", result.Errors);
-        Assert.Contains("could not mount", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(LaunchExitMessages.GetString("GameProfiles.Notification.UnexpectedExit.Archives", null, "INIZH.big, TexturesZH.big", 1), message);
         Assert.Contains("INIZH.big", message);
         Assert.Contains("TexturesZH.big", message);
     }
