@@ -119,10 +119,22 @@ public class GenLauncherResolver(
             var versionManifest = await FetchVersionManifestIfNeededAsync(client, discoveredItem, cancellationToken);
             PopulateMetadataAndDependencies(manifest, discoveredItem, versionManifest, publisherToken);
 
-            var s3Resolved = await TryResolveS3StoragePayloadAsync(manifest, client, versionManifest, discoveredItem, cancellationToken);
-            if (!s3Resolved)
+            var hasDirectLink = HasDirectDownloadLink(discoveredItem, versionManifest);
+            var directResolved = false;
+
+            if (hasDirectLink)
             {
                 ResolveDirectDownloadPayload(manifest, versionManifest, discoveredItem, slug);
+                directResolved = manifest.Files.Count > 0;
+            }
+
+            if (!directResolved)
+            {
+                var s3Resolved = await TryResolveS3StoragePayloadAsync(manifest, client, versionManifest, discoveredItem, cancellationToken);
+                if (!s3Resolved)
+                {
+                    ResolveDirectDownloadPayload(manifest, versionManifest, discoveredItem, slug);
+                }
             }
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
@@ -181,14 +193,33 @@ public class GenLauncherResolver(
         }
     }
 
+    private static bool HasDirectDownloadLink(ContentSearchResult discoveredItem, GenLauncherVersionManifest? versionManifest)
+    {
+        var url = discoveredItem.SelectedDownloadUrl;
+        if (!string.IsNullOrWhiteSpace(url) && !IsDescriptorUrl(url))
+        {
+            return true;
+        }
+
+        var simpleLink = versionManifest?.SimpleDownloadLink
+            ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey);
+
+        if (!string.IsNullOrWhiteSpace(simpleLink) && !IsDescriptorUrl(simpleLink))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private static void ResolveDirectDownloadPayload(
         ContentManifest manifest,
         GenLauncherVersionManifest? versionManifest,
         ContentSearchResult discoveredItem,
         string slug)
     {
-        var rawDownloadLink = versionManifest?.SimpleDownloadLink
-            ?? discoveredItem.SelectedDownloadUrl
+        var rawDownloadLink = discoveredItem.SelectedDownloadUrl
+            ?? versionManifest?.SimpleDownloadLink
             ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey);
 
         if (!string.IsNullOrWhiteSpace(rawDownloadLink) && IsDescriptorUrl(rawDownloadLink))
@@ -216,7 +247,7 @@ public class GenLauncherResolver(
             return;
         }
 
-        var fileName = GetFileNameFromUrl(directUrl, slug);
+        var fileName = GetFileNameFromUrl(directUrl, slug, discoveredItem.Name);
 
         manifest.Files.Add(new ManifestFile
         {
@@ -263,7 +294,7 @@ public class GenLauncherResolver(
         return GenLauncherConstants.IsYamlDescriptorPath(path);
     }
 
-    private static string GetFileNameFromUrl(string url, string defaultName)
+    private static string GetFileNameFromUrl(string url, string defaultName, string? fallbackName = null)
     {
         try
         {
@@ -280,6 +311,11 @@ public class GenLauncherResolver(
         catch (ArgumentException)
         {
             // Fall back to default on invalid URI path formatting
+        }
+
+        if (!string.IsNullOrWhiteSpace(fallbackName) && GenLauncherConstants.IsUsableArchiveFileName(fallbackName))
+        {
+            return fallbackName;
         }
 
         return $"{defaultName}.zip";

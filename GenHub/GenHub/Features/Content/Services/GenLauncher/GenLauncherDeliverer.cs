@@ -12,6 +12,7 @@ using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -174,6 +175,13 @@ public class GenLauncherDeliverer(
         CancellationToken cancellationToken)
     {
         var totalFiles = files.Count;
+        var totalBytes = files.Sum(f => f.Size > 0 ? f.Size : 0);
+
+        logger.LogInformation(
+            "Beginning download of {TotalFiles} files ({TotalBytes} bytes) to {TargetDir}",
+            totalFiles,
+            totalBytes,
+            targetDirectory);
 
         for (var i = 0; i < totalFiles; i++)
         {
@@ -199,7 +207,9 @@ public class GenLauncherDeliverer(
             {
                 Phase = ContentAcquisitionPhase.Downloading,
                 ProgressPercentage = (int)((i / (double)totalFiles) * 80),
-                CurrentOperation = $"Downloading {file.RelativePath} ({i + 1}/{totalFiles})",
+                CurrentOperation = $"{file.RelativePath} ({i + 1}/{totalFiles})",
+                FilesProcessed = i,
+                TotalFiles = totalFiles,
             });
 
             if (string.IsNullOrWhiteSpace(file.DownloadUrl) || !ImageCacheService.IsSafeRemoteUrl(file.DownloadUrl, out var downloadUri))
@@ -208,27 +218,51 @@ public class GenLauncherDeliverer(
                 return OperationResult<bool>.CreateFailure($"Invalid download URL for file {file.RelativePath}: unsafe or malformed URL");
             }
 
+            var safeLogUrl = RedactUrl(file.DownloadUrl);
+            logger.LogInformation(
+                "Downloading GenLauncher file [{Index}/{Total}]: {File} ({Size} bytes) from {Url}",
+                i + 1,
+                totalFiles,
+                file.RelativePath,
+                file.Size,
+                safeLogUrl);
+
             var fileIndex = i;
+            var fileStopwatch = Stopwatch.StartNew();
             IProgress<DownloadProgress>? fileProgress = progress == null ? null : new Progress<DownloadProgress>(p =>
             {
                 var basePercent = (fileIndex / (double)totalFiles) * 80.0;
                 var sliceWidth = (1.0 / totalFiles) * 80.0;
                 var weightedPercent = basePercent + ((p.Percentage / 100.0) * sliceWidth);
+                var speedStr = p.BytesPerSecond > 0 ? $" at {ByteFormatHelper.FormatBytes((long)p.BytesPerSecond)}/s" : string.Empty;
+                var bytesStr = p.TotalBytes > 0 ? $" [{ByteFormatHelper.FormatBytes(p.BytesReceived)} / {ByteFormatHelper.FormatBytes(p.TotalBytes)}]" : string.Empty;
+
                 progress.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Downloading,
                     ProgressPercentage = Math.Min(80.0, Math.Max(0.0, weightedPercent)),
-                    CurrentOperation = $"Downloading {file.RelativePath} ({fileIndex + 1}/{totalFiles})",
+                    CurrentOperation = $"{file.RelativePath} ({fileIndex + 1}/{totalFiles}){bytesStr}{speedStr}",
                     BytesProcessed = p.BytesReceived,
                     TotalBytes = p.TotalBytes,
+                    FilesProcessed = fileIndex,
+                    TotalFiles = totalFiles,
                 });
             });
 
             var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, cancellationToken);
+            fileStopwatch.Stop();
+
             if (!downloadResult.Success)
             {
                 return OperationResult<bool>.CreateFailure(downloadResult.FirstError ?? $"Failed to download {file.RelativePath}");
             }
+
+            logger.LogInformation(
+                "Finished downloading GenLauncher file [{Index}/{Total}]: {File} in {ElapsedMs}ms",
+                i + 1,
+                totalFiles,
+                file.RelativePath,
+                fileStopwatch.ElapsedMilliseconds);
         }
 
         return OperationResult<bool>.CreateSuccess(true);
@@ -251,6 +285,12 @@ public class GenLauncherDeliverer(
             if (attempt > 1)
             {
                 var delay = TimeSpan.FromMilliseconds(500 * Math.Pow(2, attempt - 2));
+                logger.LogInformation(
+                    "Retrying download of {File} (attempt {Attempt}/{Max}) in {DelayMs}ms",
+                    file.RelativePath,
+                    attempt,
+                    maxAttempts,
+                    delay.TotalMilliseconds);
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
             }
 

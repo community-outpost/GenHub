@@ -348,4 +348,58 @@ public sealed class GenLauncherResolverTests
         Assert.NotNull(parentDependency);
         Assert.Equal(parentManifest.Id, parentDependency.Id);
     }
+
+    /// <summary>
+    /// Tests that ResolveAsync prioritizes direct download URL over S3 metadata,
+    /// falls back to discoveredItem.Name when URL lacks an archive extension,
+    /// and does not make S3 network calls.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithDirectDownloadAndS3Metadata_PrioritizesDirectDownloadAndDoesNotQueryS3()
+    {
+        var handlerMock = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(handlerMock.Object);
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher))
+            .Returns(httpClient);
+
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
+
+        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "shockwave-patch",
+            Name = "ShockWave_Balance_Patch_2.999.06.5.zip",
+            Version = "2.999.06.5",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "https://onedrive.live.com/download?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o",
+            ResolverMetadata =
+            {
+                [GenLauncherConstants.S3HostMetadataKey] = "s3.example.com",
+                [GenLauncherConstants.S3BucketMetadataKey] = "mod-bucket",
+                [GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var manifest = result.Data;
+        Assert.Single(manifest.Files);
+        Assert.Equal("ShockWave_Balance_Patch_2.999.06.5.zip", manifest.Files[0].RelativePath);
+        Assert.Equal("https://onedrive.live.com/download?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o", manifest.Files[0].DownloadUrl);
+
+        // Ensure no S3 HTTP requests were made
+        handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Never(),
+            ItExpr.IsAny<HttpRequestMessage>(),
+            ItExpr.IsAny<CancellationToken>());
+    }
 }

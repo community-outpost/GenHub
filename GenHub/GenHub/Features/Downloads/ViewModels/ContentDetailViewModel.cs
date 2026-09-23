@@ -16,6 +16,7 @@ using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.GenLauncher;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.ModDB;
@@ -5001,17 +5002,31 @@ public partial class ContentDetailViewModel(
             ParsedPageData = ParsedPage ?? baseResult.ParsedPageData ?? searchResult.ParsedPageData,
             ResolverId = baseResult.ResolverId ?? searchResult.ResolverId,
             RequiresResolution = true,
-            Data = baseResult.Data ?? searchResult.Data,
+            Data = !string.IsNullOrWhiteSpace(file.DownloadUrl) && (baseResult.Data is GenLauncherVersionManifest || searchResult.Data is GenLauncherVersionManifest)
+                ? null
+                : (baseResult.Data ?? searchResult.Data),
             IconUrl = baseResult.IconUrl ?? searchResult.IconUrl,
             VariantGroupId = baseResult.VariantGroupId ?? searchResult.VariantGroupId,
         };
 
-        // Copy resolver metadata from baseResult (e.g. GitHub owner/tag, CommunityOutpost content code,
-        // or GenLauncher S3 folder prefix) so the provenance-aware state matcher and resolvers treat
-        // the row with the correct specific metadata.
+        // Copy resolver metadata from baseResult (e.g. GitHub owner/tag, CommunityOutpost content code)
+        // so the provenance-aware state matcher and resolvers treat the row with the correct specific metadata.
         foreach (var pair in baseResult.ResolverMetadata)
         {
             rowSearchResult.ResolverMetadata[pair.Key] = pair.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(file.DownloadUrl))
+        {
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.S3HostMetadataKey);
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.S3HostLinkMetadataKey);
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.S3BucketMetadataKey);
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.S3BucketNameMetadataKey);
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.S3FolderMetadataKey);
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.S3FolderNameMetadataKey);
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.S3HostPublicKeyMetadataKey);
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.S3HostSecretKeyMetadataKey);
+            rowSearchResult.ResolverMetadata.Remove(GenLauncherConstants.YamlUrlMetadataKey);
         }
 
         if (!string.IsNullOrEmpty(searchResult.Id) && !rowSearchResult.ResolverMetadata.ContainsKey(ContentConstants.ParentContentIdMetadataKey))

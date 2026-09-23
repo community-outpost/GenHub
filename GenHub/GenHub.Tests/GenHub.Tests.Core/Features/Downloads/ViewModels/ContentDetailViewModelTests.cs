@@ -14,6 +14,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.GenLauncher;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Parsers;
@@ -4648,5 +4649,79 @@ public sealed class ContentDetailViewModelTests
         Assert.False(viewModel.ShowUpdateButton);
         Assert.False(viewModel.ShowAddToProfileButton);
         Assert.False(viewModel.ShowDeleteButton);
+    }
+
+    /// <summary>
+    /// Verifies that downloading a child file row belonging to a GenLauncher parent
+    /// clears GenLauncherVersionManifest data and strips S3 metadata so child direct downloads
+    /// are not hijacked into full S3 mod installations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_GenLauncherChildWithDownloadUrl_StripsS3MetadataAndClearsManifestDataAsync()
+    {
+        // Arrange
+        const string parentCatalogId = "genlauncher-zerohour-shockwave";
+        var parentManifest = new GenLauncherVersionManifest
+        {
+            Version = "1.2",
+            S3HostLink = "https://gen.insave.ovh:9000",
+        };
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentCatalogId,
+            Name = "Shockwave",
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = PublisherTypeConstants.GenLauncher,
+            RequiresResolution = true,
+            SourceUrl = "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataZH3.yaml",
+        };
+        parent.SetData(parentManifest);
+        parent.ResolverMetadata[GenLauncherConstants.S3HostMetadataKey] = "gen.insave.ovh:9000";
+        parent.ResolverMetadata[GenLauncherConstants.S3BucketMetadataKey] = "genlauncher";
+        parent.ResolverMetadata[GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave";
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.2999065.genlauncher.patch.shockwavebalancepatch"),
+                Name = "ShockWave Balance Patch",
+                ContentType = ContentType.Patch,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        var patchFile = new DownloadableFile(
+            Name: "ShockWave_Balance_Patch_2.999.06.5.zip",
+            DownloadUrl: "https://onedrive.live.com/download?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o",
+            FileSectionType: FileSectionType.Downloads,
+            Version: "2.999.06.5");
+
+        viewModel.PopulateReleases([patchFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.Null(coordinatorInput.Data);
+        Assert.Equal(patchFile.DownloadUrl, coordinatorInput.SelectedDownloadUrl);
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3BucketMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3FolderMetadataKey));
+        Assert.True(coordinatorInput.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var recordedParentId));
+        Assert.Equal(parentCatalogId, recordedParentId);
     }
 }

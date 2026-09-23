@@ -67,7 +67,16 @@ public static class ContentAcquisitionProgressExtensions
     {
         if (!string.IsNullOrEmpty(progress.CurrentOperation))
         {
-            return $"{phaseName}: {progress.CurrentOperation}";
+            var op = progress.CurrentOperation;
+            if (op.StartsWith(phaseName, StringComparison.OrdinalIgnoreCase))
+            {
+                op = op.Substring(phaseName.Length).TrimStart(':', ' ');
+            }
+
+            if (!string.IsNullOrWhiteSpace(op))
+            {
+                return $"{phaseName}: {op}";
+            }
         }
 
         string percentText = progress.ProgressPercentage >= 0 ? $"{progress.ProgressPercentage:F0}%" : string.Empty;
