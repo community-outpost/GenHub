@@ -104,7 +104,8 @@ member gets a toast plus a re-match.
 Traffic routes through an encrypted TURN relay by default to protect player privacy;
 real IP addresses are never shared with peers. The edge drops any endpoint sent by
 a relay member on create, join, and heartbeat. Direct connection with STUN discovery
-can be optionally enabled by self-hosters or custom configurations. Logs, toasts,
+is supported at the service layer (`preferRelay: false`) but not yet surfaced as
+an opt-in for self-hosters or custom configurations. Logs, toasts,
 and diagnostics scrub IPs via `OnlineLogScrubber`; toasts show overlay IPs or relay state only.
 
 ## Lifecycle

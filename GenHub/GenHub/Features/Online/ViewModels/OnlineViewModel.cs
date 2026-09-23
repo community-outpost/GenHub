@@ -41,8 +41,7 @@ namespace GenHub.Features.Online.ViewModels;
 /// <param name="notificationService">The notification service for toasts.</param>
 /// <param name="dialogService">The dialog service for confirmations.</param>
 /// <param name="logger">The logger.</param>
-/// <param name="localizationService">The optional localization service.</param>
-/// <param name="userSettingsService">The optional user settings service persisting the nickname.</param>
+/// <param name="dependencies">The optional localization and settings services.</param>
 public sealed partial class OnlineViewModel(
     IOnlineNetworkService networkService,
     IOnlineLaunchService launchService,
@@ -50,8 +49,7 @@ public sealed partial class OnlineViewModel(
     INotificationService notificationService,
     IDialogService dialogService,
     ILogger<OnlineViewModel> logger,
-    ILocalizationService? localizationService = null,
-    IUserSettingsService? userSettingsService = null) : ViewModelBase, IDisposable
+    OnlineViewModelDependencies? dependencies = null) : ViewModelBase, IDisposable
 {
     private sealed record OnlineProfileSetup(
         string Fingerprint,
@@ -229,7 +227,7 @@ public sealed partial class OnlineViewModel(
         networkService.RosterChanged += OnRosterChanged;
         networkService.ConnectionLost += OnConnectionLost;
         networkService.ExpectedProfileChanged += OnExpectedProfileChanged;
-        Nickname = LanNicknameCodec.Normalize(userSettingsService?.Get().OnlineNickname ?? string.Empty);
+        Nickname = LanNicknameCodec.Normalize(dependencies?.UserSettingsService?.Get().OnlineNickname ?? string.Empty);
     }
 
     /// <summary>
@@ -1177,12 +1175,12 @@ public sealed partial class OnlineViewModel(
 
     private async Task PersistNicknameAsync(string nickname)
     {
-        if (userSettingsService is null)
+        if (dependencies?.UserSettingsService is null)
         {
             return;
         }
 
-        await userSettingsService.TryUpdateAndSaveAsync(settings =>
+        await dependencies.UserSettingsService.TryUpdateAndSaveAsync(settings =>
         {
             if (string.Equals(settings.OnlineNickname ?? string.Empty, nickname, StringComparison.Ordinal))
             {
@@ -1194,13 +1192,13 @@ public sealed partial class OnlineViewModel(
         });
     }
 
-    private string GetString(string key) => localizationService?.GetString(key) ?? key;
+    private string GetString(string key) => dependencies?.LocalizationService?.GetString(key) ?? key;
 
     private string GetString(string key, string arg) =>
-        localizationService?.GetString(key, arg) ?? $"{key} ({arg})";
+        dependencies?.LocalizationService?.GetString(key, arg) ?? $"{key} ({arg})";
 
     private string GetString(string key, int first, int second) =>
-        localizationService?.GetString(key, first, second) ?? $"{key} ({first}, {second})";
+        dependencies?.LocalizationService?.GetString(key, first, second) ?? $"{key} ({first}, {second})";
 
     private async Task<string?> PickReportReasonAsync(string displayName)
     {
