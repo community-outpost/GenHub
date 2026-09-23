@@ -259,6 +259,66 @@ public sealed class MapManagerViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that AddMapPackToProfileAsync falls back to SelectedTab when TargetGame is null (e.g. legacy MapPack).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AddMapPackToProfile_WhenTargetGameIsNull_FallsBackToSelectedTabAsync()
+    {
+        // Arrange
+        var generalsProfile = new GameProfile
+        {
+            Id = "gen-profile-1",
+            Name = "Generals Profile",
+            GameClient = new GameClient { GameType = GameType.Generals },
+        };
+
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([generalsProfile]));
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var profileVm = new ProfileSelectionViewModel(
+            NullLogger<ProfileSelectionViewModel>.Instance,
+            _mockProfileManager.Object,
+            _mockProfileContentService.Object,
+            _mockManifestPool.Object,
+            _mockNotificationService.Object);
+
+        _viewModel.ProfileSelectionViewModelFactory = () => profileVm;
+        _viewModel.SelectedTab = GameType.Generals;
+
+        var dialogShown = false;
+        _viewModel.ShowProfileSelectionDialogHandler = vm =>
+        {
+            dialogShown = true;
+            Assert.Equal(GameType.Generals, vm.TargetGame);
+            vm.WasSuccessful = true;
+            vm.SelectedProfileName = "Generals Profile";
+            return Task.FromResult(true);
+        };
+
+        var legacyMapPack = new MapPack
+        {
+            Id = ManifestId.Create("1.0.local.mappack.legacy"),
+            Name = "Legacy Pack",
+            TargetGame = null,
+        };
+
+        _viewModel.IsMapPackPanelOpen = true;
+
+        // Act
+        await _viewModel.AddMapPackToProfileCommand.ExecuteAsync(legacyMapPack);
+
+        // Assert
+        Assert.True(dialogShown);
+        Assert.False(_viewModel.IsMapPackPanelOpen);
+    }
+
+    /// <summary>
     /// Verifies that CreateAndAddMapPackToProfileAsync warns when input is invalid.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

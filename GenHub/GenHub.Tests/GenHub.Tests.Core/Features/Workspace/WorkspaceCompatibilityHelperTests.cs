@@ -206,7 +206,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         // Arrange - workspace already has stale d3d8.dll and GenToolUpdater.exe
         var staleDll = Path.Combine(_workspaceDir, GameClientConstants.Direct3D8WrapperDll);
         File.WriteAllText(staleDll, "stale d3d8 content");
-        var staleGenToolUpdater = Path.Combine(_workspaceDir, "GenToolUpdater.exe");
+        var staleGenToolUpdater = Path.Combine(_workspaceDir, GameClientConstants.GenToolUpdaterExe);
         File.WriteAllText(staleGenToolUpdater, "stale gentool updater");
 
         var manifest = new ContentManifest
@@ -239,6 +239,98 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         // Assert
         File.Exists(staleDll).Should().BeFalse();
         File.Exists(staleGenToolUpdater).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies that a manifest declaring a subdirectory d3d8.dll does not count as declaring root d3d8.dll,
+    /// so stale root d3d8.dll is properly cleaned up.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WhenManifestDeclaresSubdirectoryD3d8_DoesNotTreatAsRootD3d8AndRemovesStaleRootD3d8()
+    {
+        // Arrange - workspace has stale root d3d8.dll
+        var staleDll = Path.Combine(_workspaceDir, GameClientConstants.Direct3D8WrapperDll);
+        File.WriteAllText(staleDll, "stale d3d8 content");
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.104.test.mod.testmod",
+            ContentType = ContentType.Mod,
+            Files =
+            [
+                new ManifestFile { RelativePath = "Support/d3d8.dll", Hash = "dummy" },
+            ],
+        };
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        // Assert
+        File.Exists(staleDll).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies that GenToolUpdater.exe is preserved when declared by a manifest, even if d3d8.dll is unrequested.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WhenManifestDeclaresGenToolUpdater_PreservesGenToolUpdater()
+    {
+        // Arrange - workspace has stale d3d8.dll and GenToolUpdater.exe
+        var staleDll = Path.Combine(_workspaceDir, GameClientConstants.Direct3D8WrapperDll);
+        File.WriteAllText(staleDll, "stale d3d8 content");
+        var genToolUpdaterPath = Path.Combine(_workspaceDir, GameClientConstants.GenToolUpdaterExe);
+        File.WriteAllText(genToolUpdaterPath, "declared updater content");
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.104.test.addon.updater",
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new ManifestFile { RelativePath = GameClientConstants.GenToolUpdaterExe, Hash = "dummy" },
+            ],
+        };
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        // Assert - d3d8.dll is removed, but GenToolUpdater.exe is preserved
+        File.Exists(staleDll).Should().BeFalse();
+        File.Exists(genToolUpdaterPath).Should().BeTrue();
     }
 
     /// <summary>

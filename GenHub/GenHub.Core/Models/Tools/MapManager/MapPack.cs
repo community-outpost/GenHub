@@ -28,7 +28,7 @@ public sealed class MapPack
     /// <summary>
     /// Gets or sets the target game for this MapPack.
     /// </summary>
-    public GameType TargetGame { get; set; } = GameType.ZeroHour;
+    public GameType? TargetGame { get; set; }
 
     /// <summary>
     /// Gets or sets the profile ID this MapPack is associated with.

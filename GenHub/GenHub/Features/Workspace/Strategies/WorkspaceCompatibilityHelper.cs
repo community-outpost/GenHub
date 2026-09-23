@@ -626,9 +626,12 @@ public static class WorkspaceCompatibilityHelper
         try
         {
             var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
-            if (!ManifestDeclaresFile(configuration.Manifests, GameClientConstants.Direct3D8WrapperDll))
+            var d3d8Requested = ManifestDeclaresFile(configuration.Manifests, GameClientConstants.Direct3D8WrapperDll);
+            var genToolUpdaterRequested = ManifestDeclaresFile(configuration.Manifests, GameClientConstants.GenToolUpdaterExe);
+
+            if (!d3d8Requested)
             {
-                CleanUnrequestedDirect3D8Files(workspaceInfo.WorkspacePath, logger);
+                CleanUnrequestedDirect3D8Files(workspaceInfo.WorkspacePath, genToolUpdaterRequested, logger);
                 return;
             }
 
@@ -657,25 +660,29 @@ public static class WorkspaceCompatibilityHelper
         }
     }
 
-    private static bool ManifestDeclaresFile(IEnumerable<ContentManifest>? manifests, string fileName)
+    private static bool ManifestDeclaresFile(IEnumerable<ContentManifest>? manifests, string relativePath)
     {
         if (manifests == null)
         {
             return false;
         }
 
+        var normalizedTarget = relativePath.Replace('\\', '/').TrimStart('/');
         return manifests.Any(m => (ManifestVariantResolver.ResolveFiles(m) ?? [])
-            .Any(f => string.Equals(f.RelativePath, fileName, StringComparison.OrdinalIgnoreCase) ||
-                      string.Equals(Path.GetFileName(f.RelativePath), fileName, StringComparison.OrdinalIgnoreCase)));
+            .Any(f => !string.IsNullOrWhiteSpace(f.RelativePath) &&
+                      string.Equals(f.RelativePath.Replace('\\', '/').TrimStart('/'), normalizedTarget, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private static void CleanUnrequestedDirect3D8Files(string workspacePath, ILogger logger)
+    private static void CleanUnrequestedDirect3D8Files(string workspacePath, bool genToolUpdaterRequested, ILogger logger)
     {
         var d3d8TargetPath = Path.Combine(workspacePath, GameClientConstants.Direct3D8WrapperDll);
         TryDeleteWorkspaceFile(d3d8TargetPath, GameClientConstants.Direct3D8WrapperDll, logger);
 
-        var genToolUpdaterPath = Path.Combine(workspacePath, "GenToolUpdater.exe");
-        TryDeleteWorkspaceFile(genToolUpdaterPath, "GenToolUpdater.exe", logger);
+        if (!genToolUpdaterRequested)
+        {
+            var genToolUpdaterPath = Path.Combine(workspacePath, GameClientConstants.GenToolUpdaterExe);
+            TryDeleteWorkspaceFile(genToolUpdaterPath, GameClientConstants.GenToolUpdaterExe, logger);
+        }
     }
 
     private static void TryDeleteWorkspaceFile(string filePath, string description, ILogger logger)

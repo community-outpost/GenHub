@@ -158,9 +158,9 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Inspects and sanitizes the user data MapCache.ini file if it contains corrupted or NaN values.
+    /// Inspects and sanitizes the user data MapCache.ini file if it contains corrupted, NaN, or non-finite float values.
     /// SAGE engine (Generals / Zero Hour) crashes with "A serious error has occurred" on startup
-    /// if MapCache.ini contains NaN floats (-nan, nan) or corrupted entries.
+    /// if MapCache.ini contains invalid floats (-nan, nan, 1.#INF, -1.#IND, 1.#J) or corrupted entries.
     /// </summary>
     /// <param name="mapCachePath">Path to MapCache.ini.</param>
     /// <param name="logger">Optional logger instance.</param>
@@ -175,7 +175,7 @@ public class GameLauncher(
         try
         {
             var content = File.ReadAllText(mapCachePath);
-            if (System.Text.RegularExpressions.Regex.IsMatch(content, @":\s*-?nan\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
+            if (System.Text.RegularExpressions.Regex.IsMatch(content, @":\s*-?(?:nan|1\.#(?:inf|ind|qnan|snan|j))\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
             {
                 logger?.LogWarning("[GameLauncher] Detected corrupted MapCache.ini containing NaN values at {MapCachePath}. Backing up and removing to prevent game startup crash.", mapCachePath);
                 var backupPath = mapCachePath + ".corrupt.bak";

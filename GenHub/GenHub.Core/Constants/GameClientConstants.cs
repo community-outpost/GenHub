@@ -223,6 +223,9 @@ public static class GameClientConstants
     /// <summary>Direct3D 8 wrapper DLL filename.</summary>
     public const string Direct3D8WrapperDll = "d3d8.dll";
 
+    /// <summary>GenTool updater executable filename.</summary>
+    public const string GenToolUpdaterExe = "GenToolUpdater.exe";
+
     /// <summary>
     /// DLLs required for standard game installations.
     /// </summary>

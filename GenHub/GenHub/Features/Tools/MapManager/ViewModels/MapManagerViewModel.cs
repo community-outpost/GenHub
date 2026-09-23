@@ -1238,7 +1238,7 @@ public partial class MapManagerViewModel(
             profileVm.ActionBadgeText = actionBadge;
             profileVm.CreateProfileCardSubtitle = createSubtitle;
 
-            var targetGame = mapPack.TargetGame;
+            var targetGame = mapPack.TargetGame ?? SelectedTab;
 
             await profileVm.LoadProfilesAsync(
                 targetGame: targetGame,

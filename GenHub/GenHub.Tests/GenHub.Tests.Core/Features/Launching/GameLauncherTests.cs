@@ -1635,16 +1635,22 @@ public class GameLauncherTests : IDisposable
     };
 
     /// <summary>
-    /// Verifies that TrySanitizeMapCacheFile purges corrupted MapCache.ini containing NaN values and creates a backup.
+    /// Verifies that TrySanitizeMapCacheFile purges corrupted MapCache.ini containing NaN or non-finite float values and creates a backup.
     /// </summary>
-    [Fact]
-    public void TrySanitizeMapCacheFile_WithCorruptedNaNContent_PurgesFileAndCreatesBackup()
+    /// <param name="positionLine">The camera position line containing corrupted float representation.</param>
+    [Theory]
+    [InlineData("X:0.00 Y:-nan Z:0.00")]
+    [InlineData("X:0.00 Y:nan Z:0.00")]
+    [InlineData("X:0.00 Y:1.#INF Z:0.00")]
+    [InlineData("X:0.00 Y:-1.#IND Z:0.00")]
+    [InlineData("X:0.00 Y:1.#J Z:0.00")]
+    public void TrySanitizeMapCacheFile_WithCorruptedSpecialFloats_PurgesFileAndCreatesBackup(string positionLine)
     {
         // Arrange
         var tempDir = Path.Combine(Path.GetTempPath(), "genhub_mapcache_test_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         var mapCachePath = Path.Combine(tempDir, "MapCache.ini");
-        var corruptContent = "MapCache c_test\\map.map\n  InitialCameraPosition = X:0.00 Y:-nan Z:0.00\nEND\n";
+        var corruptContent = $"MapCache c_test\\map.map\n  InitialCameraPosition = {positionLine}\nEND\n";
         File.WriteAllText(mapCachePath, corruptContent);
 
         try
