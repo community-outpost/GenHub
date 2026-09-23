@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -53,17 +54,22 @@ public class OnlineViewModelTests
     [Fact]
     public async Task RefreshNetworksAsync_TwiceInARow_ShouldBothCompleteAsync()
     {
-        // Arrange
+        // Arrange: the gate holds the first refresh inside the lock so the
+        // second one genuinely contends on it instead of running after.
+        var gate = new TaskCompletionSource<OperationResult<IReadOnlyList<OnlineNetworkSummary>>>();
         var network = new Mock<IOnlineNetworkService>();
         network.Setup(n => n.GetNetworksAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateSuccess(
-            [
-                new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
-            ]));
+            .Returns(gate.Task);
         var vm = CreateViewModel(network.Object);
 
         // Act
-        await Task.WhenAll(vm.RefreshNetworksAsync(), vm.RefreshNetworksAsync());
+        var first = vm.RefreshNetworksAsync();
+        var second = vm.RefreshNetworksAsync();
+        gate.SetResult(OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateSuccess(
+            [
+                new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+            ]));
+        await Task.WhenAll(first, second);
 
         // Assert
         Assert.Single(vm.Networks);
@@ -191,7 +197,7 @@ public class OnlineViewModelTests
     {
         // Arrange
         var launch = new Mock<IOnlineLaunchService>();
-        launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateSuccess(new OnlinePlayResult("profile-1", "Zero Hour", "Lobby")));
         launch.Setup(l => l.StopAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
@@ -700,6 +706,79 @@ public class OnlineViewModelTests
         Assert.StartsWith("opf3|Generals|1.08|generals-client|", advertised[0], StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Tests that initializing loads the persisted nickname.
+    /// </summary>
+    [Fact]
+    public void Initialize_ShouldLoadPersistedNickname()
+    {
+        // Arrange
+        var settings = new Mock<IUserSettingsService>();
+        settings.Setup(s => s.Get()).Returns(new UserSettings { OnlineNickname = "Ace" });
+        settings.Setup(s => s.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>())).ReturnsAsync(true);
+        var vm = CreateViewModel(userSettings: settings.Object);
+
+        // Act
+        vm.Initialize();
+
+        // Assert
+        Assert.Equal("Ace", vm.Nickname);
+    }
+
+    /// <summary>
+    /// Tests that an overlong nickname is clamped to the game's limit and persisted clamped.
+    /// </summary>
+    [Fact]
+    public void Nickname_SetOverlong_ShouldClampToGameLimit()
+    {
+        // Arrange
+        string? saved = null;
+        var settings = new Mock<IUserSettingsService>();
+        settings.Setup(s => s.Get()).Returns(new UserSettings());
+        settings.Setup(s => s.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Callback<Func<UserSettings, bool>>(apply =>
+            {
+                var copy = new UserSettings();
+                if (apply(copy))
+                {
+                    saved = copy.OnlineNickname;
+                }
+            })
+            .ReturnsAsync(true);
+        var vm = CreateViewModel(userSettings: settings.Object);
+        vm.Initialize();
+
+        // Act
+        vm.Nickname = new string('C', OnlineConstants.MaxNicknameLength + 5);
+
+        // Assert
+        Assert.Equal(new string('C', OnlineConstants.MaxNicknameLength), vm.Nickname);
+        Assert.Equal(new string('C', OnlineConstants.MaxNicknameLength), saved);
+    }
+
+    /// <summary>
+    /// Tests that playing passes the nickname to the launch service.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WithNickname_ShouldPassNicknameToLaunchServiceAsync()
+    {
+        // Arrange
+        var launch = new Mock<IOnlineLaunchService>();
+        launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateSuccess(new OnlinePlayResult("profile-1", "Zero Hour", "Lobby")));
+        var vm = CreateViewModel(launchService: launch.Object);
+        vm.IsJoined = true;
+        vm.SelectedPlayProfile = new GameProfile { Id = "profile-1", Name = "Zero Hour" };
+        vm.Nickname = "Ace";
+
+        // Act
+        await vm.PlayAsync();
+
+        // Assert
+        launch.Verify(l => l.PlayAsync("profile-1", It.IsAny<string>(), It.IsAny<string>(), "Ace", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
@@ -767,7 +846,8 @@ public class OnlineViewModelTests
         INotificationService? notifications = null,
         IOnlineLaunchService? launchService = null,
         IDialogService? dialogs = null,
-        IGameProfileManager? profiles = null)
+        IGameProfileManager? profiles = null,
+        IUserSettingsService? userSettings = null)
     {
         return new OnlineViewModel(
             network ?? Mock.Of<IOnlineNetworkService>(),
@@ -775,6 +855,8 @@ public class OnlineViewModelTests
             profiles ?? Mock.Of<IGameProfileManager>(),
             notifications ?? Mock.Of<INotificationService>(),
             dialogs ?? Mock.Of<IDialogService>(),
-            Mock.Of<ILogger<OnlineViewModel>>());
+            Mock.Of<ILogger<OnlineViewModel>>(),
+            null,
+            userSettings);
     }
 }

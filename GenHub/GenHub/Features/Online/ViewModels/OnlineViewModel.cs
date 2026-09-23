@@ -42,6 +42,7 @@ namespace GenHub.Features.Online.ViewModels;
 /// <param name="dialogService">The dialog service for confirmations.</param>
 /// <param name="logger">The logger.</param>
 /// <param name="localizationService">The optional localization service.</param>
+/// <param name="userSettingsService">The optional user settings service persisting the nickname.</param>
 public sealed partial class OnlineViewModel(
     IOnlineNetworkService networkService,
     IOnlineLaunchService launchService,
@@ -49,7 +50,8 @@ public sealed partial class OnlineViewModel(
     INotificationService notificationService,
     IDialogService dialogService,
     ILogger<OnlineViewModel> logger,
-    ILocalizationService? localizationService = null) : ViewModelBase, IDisposable
+    ILocalizationService? localizationService = null,
+    IUserSettingsService? userSettingsService = null) : ViewModelBase, IDisposable
 {
     private sealed record OnlineProfileSetup(
         string Fingerprint,
@@ -162,6 +164,13 @@ public sealed partial class OnlineViewModel(
     [ObservableProperty]
     private OnlineConnectionQuality _connectionQuality = OnlineConnectionQuality.Unknown;
 
+    /// <summary>
+    /// The player's LAN nickname, synced into the launched game's Network.ini
+    /// on Play. Blank leaves the game's stored name untouched.
+    /// </summary>
+    [ObservableProperty]
+    private string _nickname = string.Empty;
+
     [ObservableProperty]
     private string _createName = string.Empty;
 
@@ -212,6 +221,7 @@ public sealed partial class OnlineViewModel(
         networkService.RosterChanged += OnRosterChanged;
         networkService.ConnectionLost += OnConnectionLost;
         networkService.ExpectedProfileChanged += OnExpectedProfileChanged;
+        Nickname = LanNicknameCodec.Normalize(userSettingsService?.Get().OnlineNickname ?? string.Empty);
     }
 
     /// <summary>
@@ -517,7 +527,7 @@ public sealed partial class OnlineViewModel(
                 GetString("Online.Play.LaunchingMessage", CurrentNetworkName),
                 NotificationDurations.Medium);
 
-            var result = await launchService.PlayAsync(profileId, CurrentNetworkName, OverlayIp, cancellationToken);
+            var result = await launchService.PlayAsync(profileId, CurrentNetworkName, OverlayIp, Nickname, cancellationToken);
             if (!result.Success)
             {
                 if (result.Errors.Any(e => e == OnlineConstants.ErrorProfileMissing))
@@ -1134,6 +1144,43 @@ public sealed partial class OnlineViewModel(
             GetString("Online.Play.ConnectivityTitle"),
             GetString("Online.Play.ConnectivityMessage", mesh.Data.UnreachableCount, mesh.Data.Peers.Count),
             NotificationDurations.Long);
+    }
+
+    /// <summary>
+    /// Clamps the nickname to the game's length limit and persists it.
+    /// </summary>
+    /// <param name="value">The edited nickname.</param>
+    partial void OnNicknameChanged(string value)
+    {
+        var normalized = LanNicknameCodec.Normalize(value);
+        if (!string.Equals(normalized, value, StringComparison.Ordinal))
+        {
+            Nickname = normalized;
+            return;
+        }
+
+        // Safe to detach: the settings service swallows persistence failures
+        // into a false return, and an unchanged value is a no-op save.
+        _ = PersistNicknameAsync(normalized);
+    }
+
+    private async Task PersistNicknameAsync(string nickname)
+    {
+        if (userSettingsService is null)
+        {
+            return;
+        }
+
+        await userSettingsService.TryUpdateAndSaveAsync(settings =>
+        {
+            if (string.Equals(settings.OnlineNickname ?? string.Empty, nickname, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            settings.OnlineNickname = nickname;
+            return true;
+        });
     }
 
     private string GetString(string key) => localizationService?.GetString(key) ?? key;

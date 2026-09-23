@@ -2077,6 +2077,18 @@
   <data name="Online.Member.HostBadge" xml:space="preserve">
     <value>Хост</value>
   </data>
+  <data name="Online.Nickname.Title" xml:space="preserve">
+    <value>Никнейм игрока</value>
+  </data>
+  <data name="Online.Nickname.Label" xml:space="preserve">
+    <value>Никнейм</value>
+  </data>
+  <data name="Online.Nickname.Placeholder" xml:space="preserve">
+    <value>Выберите внутриигровое имя</value>
+  </data>
+  <data name="Online.Nickname.Hint" xml:space="preserve">
+    <value>Отображается в игре в каждом лобби GenHub Online. Записывается в запущенную игру при нажатии Play (максимум 12 символов). Оставьте пустым, чтобы сохранить текущее имя в игре.</value>
+  </data>
   <data name="Online.Joined.OverlayIpLabel" xml:space="preserve">
     <value>Ваш IP в оверлее:</value>
   </data>

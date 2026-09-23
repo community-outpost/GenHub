@@ -192,6 +192,23 @@ public static class GameSettingsConstants
     }
 
     /// <summary>
+    /// LAN lobby preferences (<c>Network.ini</c>) constants. The game reads the
+    /// LAN player name from this file when its LAN lobby opens.
+    /// </summary>
+    public static class Network
+    {
+        /// <summary>
+        /// LAN preferences file name, stored beside <c>Options.ini</c>.
+        /// </summary>
+        public const string FileName = "Network.ini";
+
+        /// <summary>
+        /// Key holding the quoted-printable LAN player name.
+        /// </summary>
+        public const string UserNameKey = "UserName";
+    }
+
+    /// <summary>
     /// Standard resolution presets for game settings.
     /// </summary>
     public static class ResolutionPresets

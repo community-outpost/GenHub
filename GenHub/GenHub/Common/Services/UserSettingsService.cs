@@ -384,6 +384,7 @@ public class UserSettingsService : IUserSettingsService
             "downloadTimeoutSeconds" => nameof(UserSettings.DownloadTimeoutSeconds),
             "downloadUserAgent" => nameof(UserSettings.DownloadUserAgent),
             "settingsFilePath" => nameof(UserSettings.SettingsFilePath),
+            "onlineNickname" => nameof(UserSettings.OnlineNickname),
             "cachePath" => nameof(UserSettings.CachePath),
             "applicationDataPath" => nameof(UserSettings.ApplicationDataPath),
             "contentDirectories" => nameof(UserSettings.ContentDirectories),

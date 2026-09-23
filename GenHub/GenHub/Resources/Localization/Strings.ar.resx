@@ -2077,6 +2077,18 @@
   <data name="Online.Member.HostBadge" xml:space="preserve">
     <value>مضيف</value>
   </data>
+  <data name="Online.Nickname.Title" xml:space="preserve">
+    <value>اسم اللاعب</value>
+  </data>
+  <data name="Online.Nickname.Label" xml:space="preserve">
+    <value>الاسم المستعار</value>
+  </data>
+  <data name="Online.Nickname.Placeholder" xml:space="preserve">
+    <value>اختر اسمك داخل اللعبة</value>
+  </data>
+  <data name="Online.Nickname.Hint" xml:space="preserve">
+    <value>يُعرض داخل اللعبة في كل ردهة تنضم إليها من GenHub Online. يُكتب في اللعبة المُشغَّلة عند الضغط على Play (بحد أقصى 12 حرفًا). اتركه فارغًا للاحتفاظ بالاسم الحالي في اللعبة.</value>
+  </data>
   <data name="Online.Joined.OverlayIpLabel" xml:space="preserve">
     <value>عنوان IP الافتراضي الخاص بك:</value>
   </data>

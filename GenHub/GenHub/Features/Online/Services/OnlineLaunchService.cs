@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Online;
@@ -24,17 +25,20 @@ namespace GenHub.Features.Online.Services;
 /// <param name="launcherFacade">The profile launcher facade.</param>
 /// <param name="gameSettingsService">The game settings service for IP preselection.</param>
 /// <param name="logger">The logger.</param>
+/// <param name="lanNicknameService">The optional LAN nickname service for in-game name sync.</param>
 public sealed class OnlineLaunchService(
     IGameProfileManager profileManager,
     IProfileLauncherFacade launcherFacade,
     IGameSettingsService gameSettingsService,
-    ILogger<OnlineLaunchService> logger) : IOnlineLaunchService
+    ILogger<OnlineLaunchService> logger,
+    ILanNicknameService? lanNicknameService = null) : IOnlineLaunchService
 {
     /// <inheritdoc/>
     public async Task<OperationResult<OnlinePlayResult>> PlayAsync(
         string profileId,
         string networkName,
         string overlayIp = "",
+        string nickname = "",
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(profileId))
@@ -50,6 +54,7 @@ public sealed class OnlineLaunchService(
         }
 
         await PreselectOverlayIpAsync(profile.Data, overlayIp);
+        await ApplyNicknameAsync(profile.Data, nickname, cancellationToken);
 
         var launch = await launcherFacade.LaunchProfileAsync(profile.Data.Id, false, cancellationToken, OverlayOrNull(overlayIp));
         if (!launch.Success)
@@ -83,6 +88,25 @@ public sealed class OnlineLaunchService(
 
     private static string? OverlayOrNull(string overlayIp) =>
         string.IsNullOrWhiteSpace(overlayIp) || !IPAddress.TryParse(overlayIp, out _) ? null : overlayIp;
+
+    private async Task ApplyNicknameAsync(GameProfile profile, string nickname, CancellationToken cancellationToken)
+    {
+        var normalized = LanNicknameCodec.Normalize(nickname);
+        if (lanNicknameService is null || string.IsNullOrEmpty(normalized))
+        {
+            return;
+        }
+
+        var gameType = profile.GameClient?.GameType ?? GameType.ZeroHour;
+        var save = await lanNicknameService.SaveNicknameAsync(gameType, normalized, cancellationToken);
+        if (!save.Success)
+        {
+            logger.LogWarning("Online play could not sync the player nickname; the game keeps its setting.");
+            return;
+        }
+
+        logger.LogInformation("Online play synced the player nickname for {GameType}.", gameType);
+    }
 
     private async Task PreselectOverlayIpAsync(GameProfile profile, string overlayIp)
     {

@@ -304,6 +304,103 @@ public class OnlineLaunchServiceTests
     }
 
     /// <summary>
+    /// Tests that a nickname is synced into the launched game's Network.ini on play.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WithNickname_ShouldSyncNicknameAsync()
+    {
+        // Arrange
+        var manager = new Mock<IGameProfileManager>();
+        manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
+                new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
+        var nickname = new Mock<ILanNicknameService>();
+        nickname.Setup(n => n.SaveNicknameAsync(It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var service = new OnlineLaunchService(
+            manager.Object,
+            facade.Object,
+            Mock.Of<IGameSettingsService>(),
+            Mock.Of<ILogger<OnlineLaunchService>>(),
+            nickname.Object);
+
+        // Act
+        var result = await service.PlayAsync("p1", "Net", string.Empty, "Commander");
+
+        // Assert
+        Assert.True(result.Success);
+        nickname.Verify(n => n.SaveNicknameAsync(GameType.ZeroHour, "Commander", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that a blank nickname never touches Network.ini.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WithBlankNickname_ShouldNotSyncNicknameAsync()
+    {
+        // Arrange
+        var manager = new Mock<IGameProfileManager>();
+        manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
+                new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
+        var nickname = new Mock<ILanNicknameService>(MockBehavior.Strict);
+        var service = new OnlineLaunchService(
+            manager.Object,
+            facade.Object,
+            Mock.Of<IGameSettingsService>(),
+            Mock.Of<ILogger<OnlineLaunchService>>(),
+            nickname.Object);
+
+        // Act
+        var result = await service.PlayAsync("p1", "Net", string.Empty, "   ");
+
+        // Assert
+        Assert.True(result.Success);
+        nickname.Verify(n => n.SaveNicknameAsync(It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that a nickname write failure never blocks the launch.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WhenNicknameSaveFails_ShouldStillLaunchAsync()
+    {
+        // Arrange
+        var manager = new Mock<IGameProfileManager>();
+        manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
+                new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
+        var nickname = new Mock<ILanNicknameService>();
+        nickname.Setup(n => n.SaveNicknameAsync(It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("locked"));
+        var service = new OnlineLaunchService(
+            manager.Object,
+            facade.Object,
+            Mock.Of<IGameSettingsService>(),
+            Mock.Of<ILogger<OnlineLaunchService>>(),
+            nickname.Object);
+
+        // Act
+        var result = await service.PlayAsync("p1", "Net", string.Empty, "Commander");
+
+        // Assert
+        Assert.True(result.Success);
+        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>(), null), Times.Once);
+    }
+
+    /// <summary>
     /// Tests that a settings write failure never blocks the launch.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

@@ -137,6 +137,19 @@
                        Foreground="{DynamicResource TextSecondary}"
                        TextWrapping="Wrap" />
 
+            <!-- Player nickname: one name synced into the launched game -->
+            <Border Classes="card">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="section-title" Text="{localization:Localize Online.Nickname.Title}" />
+                    <TextBlock Classes="field-label" Text="{localization:Localize Online.Nickname.Label}" />
+                    <TextBox Classes="field"
+                             Text="{Binding Nickname, Mode=TwoWay}"
+                             Watermark="{localization:Localize Online.Nickname.Placeholder}"
+                             MaxLength="12" />
+                    <TextBlock Classes="helper-text" Text="{localization:Localize Online.Nickname.Hint}" />
+                </StackPanel>
+            </Border>
+
             <!-- Joined banner -->
             <Border Classes="card" IsVisible="{Binding IsJoined}">
                 <StackPanel Spacing="8">

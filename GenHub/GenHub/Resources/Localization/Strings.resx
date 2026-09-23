@@ -2081,6 +2081,18 @@
   <data name="Online.Member.HostBadge" xml:space="preserve">
     <value>Host</value>
   </data>
+  <data name="Online.Nickname.Title" xml:space="preserve">
+    <value>Player nickname</value>
+  </data>
+  <data name="Online.Nickname.Label" xml:space="preserve">
+    <value>Nickname</value>
+  </data>
+  <data name="Online.Nickname.Placeholder" xml:space="preserve">
+    <value>Choose your in-game name</value>
+  </data>
+  <data name="Online.Nickname.Hint" xml:space="preserve">
+    <value>Shown in-game in every lobby you join from GenHub Online. Written to the launched game when you press Play (max 12 characters). Leave empty to keep the game's current name.</value>
+  </data>
   <data name="Online.Joined.OverlayIpLabel" xml:space="preserve">
     <value>Your overlay IP:</value>
   </data>
