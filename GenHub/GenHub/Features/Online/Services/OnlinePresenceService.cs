@@ -44,6 +44,7 @@ public sealed class OnlinePresenceService(
     private DateTime _grantExpiresUtc;
     private string _advertisedFingerprint = string.Empty;
     private string _advertisedProfileName = string.Empty;
+    private string _advertisedDisplayName = string.Empty;
     private bool _disposed;
 
     /// <inheritdoc/>
@@ -119,12 +120,13 @@ public sealed class OnlinePresenceService(
     }
 
     /// <inheritdoc/>
-    public void UpdateAdvertisedProfile(string fingerprint, string profileName)
+    public void UpdateAdvertisedProfile(string fingerprint, string profileName, string displayName = "")
     {
         lock (_syncLock)
         {
             _advertisedFingerprint = fingerprint ?? string.Empty;
             _advertisedProfileName = profileName ?? string.Empty;
+            _advertisedDisplayName = displayName ?? string.Empty;
         }
     }
 
@@ -520,20 +522,22 @@ public sealed class OnlinePresenceService(
     {
         string fingerprint;
         string profileName;
+        string displayName;
         lock (_syncLock)
         {
             fingerprint = _advertisedFingerprint;
             profileName = _advertisedProfileName;
+            displayName = _advertisedDisplayName;
         }
 
-        if (string.IsNullOrEmpty(fingerprint) && string.IsNullOrEmpty(profileName))
+        if (string.IsNullOrEmpty(fingerprint) && string.IsNullOrEmpty(profileName) && string.IsNullOrEmpty(displayName))
         {
             return Encoding.UTF8.GetBytes(
                 "{\"type\":\"" + OnlineConstants.PresenceMessageHeartbeat + "\"}");
         }
 
         var payload = JsonSerializer.Serialize(
-            new { type = OnlineConstants.PresenceMessageHeartbeat, profileFingerprint = fingerprint, profileName },
+            new { type = OnlineConstants.PresenceMessageHeartbeat, profileFingerprint = fingerprint, profileName, displayName },
             JsonOptions);
         return Encoding.UTF8.GetBytes(payload);
     }

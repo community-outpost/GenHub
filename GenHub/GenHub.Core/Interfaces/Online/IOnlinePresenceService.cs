@@ -45,7 +45,8 @@ public interface IOnlinePresenceService
     /// </summary>
     /// <param name="fingerprint">The local profile fingerprint.</param>
     /// <param name="profileName">The local profile display name.</param>
-    void UpdateAdvertisedProfile(string fingerprint, string profileName);
+    /// <param name="displayName">The player name shown in the lobby roster. Blank keeps the edge default.</param>
+    void UpdateAdvertisedProfile(string fingerprint, string profileName, string displayName = "");
 
     /// <summary>
     /// Connects the presence channel for a joined network.

@@ -1106,6 +1106,39 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  it("updates member display names from heartbeat advertisements", async () => {
+    const host = await session();
+    const created = await createNetwork(host, { displayName: "Host" });
+    const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/presence?ticket=${created.grant}`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(res.status).toBe(101);
+    const socket = res.webSocket;
+    expect(socket).not.toBeNull();
+    socket?.accept();
+    const rosters: { displayName: string }[][] = [];
+    socket?.addEventListener("message", (event: MessageEvent) => {
+      const parsed = JSON.parse(String(event.data)) as { type: string; members?: { displayName: string }[] };
+      if (parsed.type === "roster" && parsed.members !== undefined) {
+        rosters.push(parsed.members);
+      }
+    });
+    await waitFor(() => rosters.length >= 1, 5000, "opening roster");
+    socket?.send(JSON.stringify({ type: "heartbeat", profileFingerprint: "", profileName: "", displayName: "Ace" }));
+    await waitFor(
+      () => rosters.length >= 2 && rosters[rosters.length - 1][0].displayName === "Ace",
+      5000,
+      "renamed roster"
+    );
+    expect(rosters[rosters.length - 1][0].displayName).toBe("Ace");
+    // An advertisement without a name preserves the stored one and stays silent.
+    socket?.send(JSON.stringify({ type: "heartbeat", profileFingerprint: "", profileName: "" }));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(rosters).toHaveLength(2);
+    expect(rosters[rosters.length - 1][0].displayName).toBe("Ace");
+    socket?.close();
+  });
+
   it("caps network creation per IP", { timeout: 120000 }, async () => {
     // Dedicated quota IP, never shared with other tests. CAP must match
     // MAX_NETWORKS_PER_IP in vitest.config.ts: exactly CAP valid creates

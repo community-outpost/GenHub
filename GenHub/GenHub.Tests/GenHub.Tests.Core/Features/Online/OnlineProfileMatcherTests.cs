@@ -4,6 +4,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Online;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;
+using OnlineProfileMatch = GenHub.Core.Models.Online.OnlineProfileMatch;
 
 namespace GenHub.Tests.Core.Features.Online;
 
@@ -245,6 +246,191 @@ public class OnlineProfileMatcherTests
 
         // Assert
         Assert.Equal(2, score);
+    }
+
+    /// <summary>
+    /// Tests that a disputed registration resolves to gameplay, so duplicates
+    /// surface as a mismatch instead of hiding a mod.
+    /// </summary>
+    [Fact]
+    public void ResolveDeclaredType_WithGameplayDispute_ShouldPreferGameplay()
+    {
+        // Act
+        var type = OnlineProfileMatcher.ResolveDeclaredType([ContentType.Addon, ContentType.Mod]);
+
+        // Assert
+        Assert.Equal(ContentType.Mod, type);
+    }
+
+    /// <summary>
+    /// Tests that duplicate registrations resolve deterministically regardless
+    /// of enumeration order, so two machines never classify the same id
+    /// differently and report a phantom mod mismatch.
+    /// </summary>
+    [Fact]
+    public void ResolveDeclaredType_WithDuplicates_ShouldBeOrderIndependent()
+    {
+        // Act
+        var forward = OnlineProfileMatcher.ResolveDeclaredType([ContentType.Map, ContentType.Skin]);
+        var reverse = OnlineProfileMatcher.ResolveDeclaredType([ContentType.Skin, ContentType.Map]);
+
+        // Assert
+        Assert.Equal(forward, reverse);
+    }
+
+    /// <summary>
+    /// Tests that fingerprints without CRCs keep the previous version and
+    /// shape, so id-only setups match exactly as before.
+    /// </summary>
+    [Fact]
+    public void CreateFingerprint_WithoutCrcs_ShouldUseLegacyPrefix()
+    {
+        // Act
+        var fingerprint = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);
+
+        // Assert
+        Assert.StartsWith("opf3|ZeroHour|1.04|client-1|", fingerprint, StringComparison.Ordinal);
+        Assert.Equal(5, fingerprint.Split('|').Length);
+    }
+
+    /// <summary>
+    /// Tests that fingerprints with CRCs carry the versioned segments the
+    /// compatibility verdict reads.
+    /// </summary>
+    [Fact]
+    public void CreateFingerprint_WithCrcs_ShouldUseCompatibilityPrefix()
+    {
+        // Act
+        var fingerprint = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
+
+        // Assert
+        Assert.StartsWith("opf4|ZeroHour|1.04|client-1|", fingerprint, StringComparison.Ordinal);
+        Assert.EndsWith("|0x11111111|0x22222222", fingerprint, StringComparison.Ordinal);
+        Assert.Equal(7, fingerprint.Split('|').Length);
+    }
+
+    /// <summary>
+    /// Tests that equal engine CRCs upgrade a same-client verdict to exact:
+    /// the setups produce the same game data, so they can play together.
+    /// </summary>
+    [Fact]
+    public void Compare_SameClientWithEqualIniCrc_ShouldUpgradeToExact()
+    {
+        // Arrange: same client and CRCs, but id-level noise in the content hash.
+        var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
+        var expected = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-b"], "0x11111111", "0x22222222");
+
+        // Act
+        var match = OnlineProfileMatcher.Compare(expected, "ZeroHour|1.04|client-1", local, "ZeroHour|1.04|client-1");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.Exact, match);
+    }
+
+    /// <summary>
+    /// Tests that differing engine CRCs keep the same-client verdict instead
+    /// of confirming compatibility.
+    /// </summary>
+    [Fact]
+    public void Compare_SameClientWithDifferingIniCrc_ShouldStaySameClient()
+    {
+        // Arrange
+        var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
+        var expected = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x33333333", "0x22222222");
+
+        // Act
+        var match = OnlineProfileMatcher.Compare(expected, "ZeroHour|1.04|client-1", local, "ZeroHour|1.04|client-1");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.SameClient, match);
+    }
+
+    /// <summary>
+    /// Tests that a conflicting exeCRC blocks the CRC upgrade even when the
+    /// iniCRC matches.
+    /// </summary>
+    [Fact]
+    public void Compare_SameClientWithConflictingExeCrc_ShouldStaySameClient()
+    {
+        // Arrange
+        var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
+        var expected = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x44444444");
+
+        // Act
+        var match = OnlineProfileMatcher.Compare(expected, "ZeroHour|1.04|client-1", local, "ZeroHour|1.04|client-1");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.SameClient, match);
+    }
+
+    /// <summary>
+    /// Tests that a mixed-version lobby without CRCs on both sides keeps the
+    /// id-based verdict.
+    /// </summary>
+    [Fact]
+    public void Compare_MixedVersionsWithoutCrcs_ShouldStaySameClient()
+    {
+        // Arrange
+        var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);
+        var expected = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-b"], "0x11111111", "0x22222222");
+
+        // Act
+        var match = OnlineProfileMatcher.Compare(expected, "ZeroHour|1.04|client-1", local, "ZeroHour|1.04|client-1");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.SameClient, match);
+    }
+
+    /// <summary>
+    /// Tests that roster badges upgrade the same way as the local verdict.
+    /// </summary>
+    [Fact]
+    public void CompareMember_WithEqualIniCrc_ShouldUpgradeToExact()
+    {
+        // Arrange
+        var member = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", string.Empty);
+        var expected = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-b"], "0x11111111", string.Empty);
+
+        // Act
+        var match = OnlineProfileMatcher.CompareMember(member, expected, "ZeroHour|1.04|client-1");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.Exact, match);
+    }
+
+    /// <summary>
+    /// Tests that the client key extracts from the versioned fingerprint.
+    /// </summary>
+    [Fact]
+    public void TryGetGameClientKey_CompatibilityFingerprint_ShouldExtractClientKey()
+    {
+        // Arrange
+        var fingerprint = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
+
+        // Act
+        var parsed = OnlineProfileMatcher.TryGetGameClientKey(fingerprint, out var clientKey);
+
+        // Assert
+        Assert.True(parsed);
+        Assert.Equal("ZeroHour|1.04|client-1", clientKey);
+    }
+
+    /// <summary>
+    /// Tests that id-only fingerprints report no compatibility CRCs.
+    /// </summary>
+    [Fact]
+    public void TryGetCompatibilityCrcs_LegacyFingerprint_ShouldReturnFalse()
+    {
+        // Arrange
+        var fingerprint = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);
+
+        // Act
+        var parsed = OnlineProfileMatcher.TryGetCompatibilityCrcs(fingerprint, out var iniCrc, out var exeCrc);
+
+        // Assert
+        Assert.False(parsed);
+        Assert.Equal(string.Empty, iniCrc);
+        Assert.Equal(string.Empty, exeCrc);
     }
 
     private static GameProfile ProfileWith(params string[] contentIds)

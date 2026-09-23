@@ -547,6 +547,30 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
+    /// Tests that the player nickname travels in the join body so the lobby
+    /// roster shows it instead of the edge default name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WithDisplayName_ShouldSendInJoinBodyAsync()
+    {
+        // Arrange
+        var p2p = new Mock<IP2PConnectionService>(MockBehavior.Strict);
+        var adapter = new Mock<IVirtualLanAdapter>();
+        adapter.Setup(a => a.BringUpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+        string? joinBody = null;
+        var service = CreateService(CreateFactory(joinStatus: HttpStatusCode.OK, onJoinBody: body => joinBody = body), adapter.Object, p2p.Object);
+
+        // Act
+        var result = await service.JoinNetworkAsync("net-1", "secret", true, string.Empty, string.Empty, "Ace");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Contains("\"displayName\":\"Ace\"", joinBody ?? string.Empty);
+    }
+
+    /// <summary>
     /// Tests that the mesh check starts a UDP listener before probing, so relay
     /// joins report real reachability instead of listener errors.
     /// </summary>

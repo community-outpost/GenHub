@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
@@ -11,6 +12,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -21,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -42,6 +45,7 @@ namespace GenHub.Features.Online.ViewModels;
 /// <param name="dialogService">The dialog service for confirmations.</param>
 /// <param name="logger">The logger.</param>
 /// <param name="dependencies">The optional localization and settings services.</param>
+/// <param name="crcCalculator">The optional engine CRC calculator for lobby compatibility fingerprints.</param>
 public sealed partial class OnlineViewModel(
     IOnlineNetworkService networkService,
     IOnlineLaunchService launchService,
@@ -49,7 +53,8 @@ public sealed partial class OnlineViewModel(
     INotificationService notificationService,
     IDialogService dialogService,
     ILogger<OnlineViewModel> logger,
-    OnlineViewModelDependencies? dependencies = null) : ViewModelBase, IDisposable
+    OnlineViewModelDependencies? dependencies = null,
+    IGameCrcCalculatorService? crcCalculator = null) : ViewModelBase, IDisposable, IRecipient<ProfileUpdatedMessage>
 {
     private sealed record OnlineProfileSetup(
         string Fingerprint,
@@ -316,7 +321,7 @@ public sealed partial class OnlineViewModel(
             var advertisement = await ResolveAdvertisementAsync(cancellationToken);
 
             var result = await networkService.JoinNetworkAsync(
-                target.Id, JoinPassword.Trim(), true, advertisement.Fingerprint, advertisement.Name, cancellationToken);
+                target.Id, JoinPassword.Trim(), true, advertisement.Fingerprint, advertisement.Name, Nickname, cancellationToken);
             if (!result.Success)
             {
                 ShowJoinErrorToast(result.Errors.FirstOrDefault());
@@ -444,7 +449,7 @@ public sealed partial class OnlineViewModel(
         {
             IsLoading = true;
             await EnsureProfilesLoadedAsync(cancellationToken);
-            var setup = await DescribeProfileAsync(createProfile, cancellationToken);
+            var setup = await DescribeProfileAsync(createProfile, cancellationToken, includeCompatibilityCrcs: true);
             var request = new OnlineCreateNetworkRequest
             {
                 Name = networkName,
@@ -460,6 +465,7 @@ public sealed partial class OnlineViewModel(
                 ExpectedContentIds = setup.GameplayContentIds,
                 ProfileFingerprint = setup.Fingerprint,
                 ProfileName = createProfile?.Name ?? string.Empty,
+                DisplayName = Nickname,
             };
 
             var result = await networkService.CreateNetworkAsync(request, cancellationToken);
@@ -786,7 +792,7 @@ public sealed partial class OnlineViewModel(
             }
 
             await EnsureProfilesLoadedAsync(cancellationToken);
-            var setup = await DescribeProfileAsync(SelectedHostProfile, cancellationToken);
+            var setup = await DescribeProfileAsync(SelectedHostProfile, cancellationToken, includeCompatibilityCrcs: true);
             var expected = new OnlineExpectedProfile
             {
                 ExpectedProfileId = SelectedHostProfile?.Id ?? string.Empty,
@@ -848,6 +854,40 @@ public sealed partial class OnlineViewModel(
     public void ToggleHostPanel()
     {
         IsHostPanelOpen = !IsHostPanelOpen;
+    }
+
+    /// <summary>
+    /// Receives game profile updates so an edited play or hosted profile
+    /// re-matches and re-advertises while the lobby stays open.
+    /// </summary>
+    /// <param name="message">The updated profile.</param>
+    public void Receive(ProfileUpdatedMessage message)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        // Catalog or content changes can reclassify gameplay ids; drop the
+        // cached map so the next fingerprint reflects the edited profile.
+        _contentTypeCache.Clear();
+
+        var updatedId = message.Profile.Id;
+        var isPlayProfile = string.Equals(SelectedPlayProfile?.Id, updatedId, StringComparison.Ordinal);
+        var isHostProfile = IsCurrentUserHost && string.Equals(SelectedHostProfile?.Id, updatedId, StringComparison.Ordinal);
+        if (!isPlayProfile && !isHostProfile)
+        {
+            return;
+        }
+
+        if (!IsJoined)
+        {
+            return;
+        }
+
+        // Safe to detach: the refresh reports its own errors, and profile
+        // saves outlive any scoped token, so matching is uncancellable.
+        _ = RefreshAfterProfileUpdateAsync(isHostProfile);
     }
 
     /// <inheritdoc/>
@@ -1030,7 +1070,7 @@ public sealed partial class OnlineViewModel(
         Members = [];
         SelectedMember = null;
         JoinPassword = string.Empty;
-        networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty);
+        networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty, Nickname);
         JoinNetworkCommand.NotifyCanExecuteChanged();
         LeaveNetworkCommand.NotifyCanExecuteChanged();
         PlayCommand.NotifyCanExecuteChanged();
@@ -1171,6 +1211,13 @@ public sealed partial class OnlineViewModel(
         // Safe to detach: the settings service swallows persistence failures
         // into a false return, and an unchanged value is a no-op save.
         _ = PersistNicknameAsync(normalized);
+
+        // The roster name follows the same heartbeat advertisement as the
+        // profile fingerprint, so a rename while joined propagates live.
+        if (IsJoined)
+        {
+            _ = RefreshAdvertisementAsync();
+        }
     }
 
     private async Task PersistNicknameAsync(string nickname)
@@ -1359,6 +1406,66 @@ public sealed partial class OnlineViewModel(
         }
     }
 
+    private async Task RefreshAdvertisementAsync()
+    {
+        try
+        {
+            // The heartbeat rebuilds its payload every beat, so the renamed
+            // roster entry propagates within one interval without rejoining.
+            await AdvertiseSelectedProfileAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to re-advertise the player nickname.");
+        }
+    }
+
+    private async Task RefreshAfterProfileUpdateAsync(bool refreshHostExpected)
+    {
+        try
+        {
+            // Re-match the edited launch profile and re-advertise; heartbeats
+            // propagate the new fingerprint within one interval.
+            await UpdateMatchAndAdvertiseAsync(CancellationToken.None);
+            if (refreshHostExpected)
+            {
+                await RefreshHostExpectedProfileAsync(CancellationToken.None);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to refresh the lobby match after a profile update.");
+        }
+    }
+
+    private async Task RefreshHostExpectedProfileAsync(CancellationToken cancellationToken)
+    {
+        var hostProfile = SelectedHostProfile;
+        if (!IsCurrentUserHost || hostProfile is null)
+        {
+            return;
+        }
+
+        var setup = await DescribeProfileAsync(hostProfile, cancellationToken, includeCompatibilityCrcs: true);
+        var expected = new OnlineExpectedProfile
+        {
+            ExpectedProfileId = hostProfile.Id,
+            ExpectedProfileFingerprint = setup.Fingerprint,
+            ExpectedProfileName = hostProfile.Name,
+            ExpectedGameClientId = setup.ClientKey,
+            ExpectedContentIds = setup.GameplayContentIds,
+        };
+        var result = await networkService.UpdateNetworkAsync(HostDescription, expected, cancellationToken);
+        if (!result.Success)
+        {
+            logger.LogWarning("Online host setup refresh was not applied by the network service.");
+            return;
+        }
+
+        // Members re-match on the profile-changed event the update broadcasts.
+        ApplyExpectedProfile(expected);
+    }
+
     private async Task AutoMatchProfileAsync(CancellationToken cancellationToken = default)
     {
         SetPlayProfile(null);
@@ -1489,7 +1596,7 @@ public sealed partial class OnlineViewModel(
         }
         else
         {
-            var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken);
+            var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
             ApplyMatch(
                 OnlineProfileMatcher.Compare(
                     ExpectedProfileFingerprint,
@@ -1506,14 +1613,14 @@ public sealed partial class OnlineViewModel(
     {
         if (SelectedPlayProfile is null)
         {
-            networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty);
+            networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty, Nickname);
             return;
         }
 
         // Same map-aware fingerprint the join body carries, so heartbeats
         // never flap between two advertisements for one profile.
-        var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken);
-        networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name);
+        var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
+        networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname);
     }
 
     private async Task<(string Fingerprint, string Name)> ResolveAdvertisementAsync(CancellationToken cancellationToken)
@@ -1530,8 +1637,8 @@ public sealed partial class OnlineViewModel(
                 return (string.Empty, string.Empty);
             }
 
-            var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken);
-            networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name);
+            var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
+            networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname);
             return (setup.Fingerprint, SelectedPlayProfile.Name);
         }
         catch (OperationCanceledException)
@@ -1605,7 +1712,10 @@ public sealed partial class OnlineViewModel(
         }
     }
 
-    private async Task<OnlineProfileSetup> DescribeProfileAsync(GameProfile? profile, CancellationToken cancellationToken)
+    private async Task<OnlineProfileSetup> DescribeProfileAsync(
+        GameProfile? profile,
+        CancellationToken cancellationToken,
+        bool includeCompatibilityCrcs = false)
     {
         if (profile is null)
         {
@@ -1613,10 +1723,96 @@ public sealed partial class OnlineViewModel(
         }
 
         var map = await GetContentTypeMapAsync(profile, cancellationToken);
+        var clientKey = OnlineProfileMatcher.GetGameClientKey(profile);
+        var gameplayIds = OnlineProfileMatcher.GetGameplayContentIds(profile, map);
+        var fingerprint = includeCompatibilityCrcs
+            ? await CreateCompatibilityFingerprintAsync(profile, clientKey, gameplayIds, cancellationToken)
+            : OnlineProfileMatcher.CreateFingerprint(clientKey, gameplayIds);
         return new OnlineProfileSetup(
-            OnlineProfileMatcher.ComputeFingerprint(profile, map),
-            OnlineProfileMatcher.GetGameClientKey(profile),
-            OnlineProfileMatcher.BoundContentIds(OnlineProfileMatcher.GetGameplayContentIds(profile, map)));
+            fingerprint,
+            clientKey,
+            OnlineProfileMatcher.BoundContentIds(gameplayIds));
+    }
+
+    /// <summary>
+    /// Builds the advertised fingerprint with the engine compatibility CRCs
+    /// when the calculator can resolve them. Any failure falls back to the
+    /// id-only fingerprint: a missing CRC must never block matching.
+    /// </summary>
+    private async Task<string> CreateCompatibilityFingerprintAsync(
+        GameProfile profile,
+        string clientKey,
+        IReadOnlyList<string> gameplayIds,
+        CancellationToken cancellationToken)
+    {
+        var (iniCrc, exeCrc) = await ResolveCompatibilityCrcsAsync(profile, gameplayIds, cancellationToken);
+        return OnlineProfileMatcher.CreateFingerprint(clientKey, gameplayIds, iniCrc, exeCrc);
+    }
+
+    private async Task<(string IniCrc, string ExeCrc)> ResolveCompatibilityCrcsAsync(
+        GameProfile profile,
+        IReadOnlyList<string> gameplayIds,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (crcCalculator is null || profile.GameClient is null)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            var exePath = ReplayCrcMatchingHelper.ResolveProfileFullExePath(profile.GameClient);
+            var gameRoot = string.IsNullOrEmpty(exePath) ? null : Path.GetDirectoryName(exePath);
+            if (string.IsNullOrEmpty(exePath) || string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot))
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            var exeResult = await crcCalculator.CalculateExeCrcAsync(exePath, gameRoot, ct: cancellationToken);
+            var exeCrc = exeResult.Success && !string.IsNullOrEmpty(exeResult.Data) ? exeResult.Data : string.Empty;
+
+            var sideloads = await ResolveGameplaySideloadsAsync(profile, gameplayIds, cancellationToken);
+            var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, profile.GameClient.GameType, sideloads, null, cancellationToken);
+            var iniCrc = iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) ? iniResult.Data : string.Empty;
+            return (iniCrc, exeCrc);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger.LogDebug(ex, "Falling back to the id-only fingerprint; engine CRCs unavailable.");
+            return (string.Empty, string.Empty);
+        }
+    }
+
+    private async Task<IReadOnlyList<string>> ResolveGameplaySideloadsAsync(
+        GameProfile profile,
+        IReadOnlyList<string> gameplayIds,
+        CancellationToken cancellationToken)
+    {
+        var client = profile.GameClient;
+        if (client is null || gameplayIds.Count == 0)
+        {
+            return [];
+        }
+
+        var available = await profileManager.GetAvailableContentAsync(client, cancellationToken);
+        if (!available.Success || available.Data is null)
+        {
+            return [];
+        }
+
+        var wanted = new HashSet<string>(gameplayIds, StringComparer.Ordinal);
+        return available.Data
+            .Where(m => wanted.Contains(m.Id.ToString(), StringComparer.Ordinal))
+            .Select(m => m.SourcePath)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToList();
     }
 
     private async Task<IReadOnlyDictionary<string, ContentType>?> GetContentTypeMapAsync(
@@ -1643,7 +1839,10 @@ public sealed partial class OnlineViewModel(
 
         IReadOnlyDictionary<string, ContentType> map = available.Data
             .GroupBy(m => m.Id.ToString(), StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First().ContentType, StringComparer.Ordinal);
+            .ToDictionary(
+                g => g.Key,
+                g => OnlineProfileMatcher.ResolveDeclaredType(g.Select(m => m.ContentType)),
+                StringComparer.Ordinal);
         _contentTypeCache[cacheKey] = map;
         return map;
     }

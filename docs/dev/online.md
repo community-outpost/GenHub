@@ -70,7 +70,8 @@ of failing silently.
 3. `POST /v1/networks/{id}/join` checks slots, bans, and the lobby password
    when one is set, then returns a grant, an overlay
    IP, an opaque adapter config, the initial roster, and the expected profile
-   block. Joiners advertise their own profile fingerprint with the join.
+   block. Joiners advertise their own profile fingerprint and player display
+   name with the join.
 4. The client brings the platform adapter up (while the edge reports
    `overlay: "pending-selection"` only the sidecar spawn is skipped and the
    client falls back to the in-process tunnel runner; the lobby stays usable
@@ -92,10 +93,17 @@ Profile ids are machine-local, so lobbies match on the fingerprint
 (`OnlineProfileMatcher`): the game client key plus a hash of the sorted
 gameplay content ids (mods, patches).
 Cosmetics (UI addons, skins, maps, media) never affect the match, mirroring
-the exe/ini inputs that decide whether two setups can share a game. The host
+the exe/ini inputs that decide whether two setups can share a game. When the
+engine CRC calculator resolves them, the fingerprint also embeds the iniCRC
+and exeCRC (`opf4`); equal CRCs upgrade a same-client verdict to exact
+because the setups provably produce the same game data, while differing or
+missing CRCs leave the id-based verdict untouched. The host
 picks a profile from their own library; joiners auto-match the closest local
 profile (exact, then same-client overlap) and advertise it on join and on
-every presence heartbeat, so the roster shows per-member match badges. When
+every presence heartbeat, so the roster shows per-member match badges.
+Heartbeat advertisements also carry the player display name, and the client
+re-advertises whenever the nickname or the selected play profile changes, so
+renames and profile edits reflect in the open lobby without rejoining. When
 the host switches profile, the room broadcasts `profile-changed` and every
 member gets a toast plus a re-match.
 
