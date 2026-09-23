@@ -114,7 +114,7 @@ public class DownloadServiceTests
 
             // Assert
             Assert.False(result.Success);
-            Assert.Contains("Hash validation failed", result.FirstError);
+            Assert.Contains("Hash verification failed", result.FirstError);
             Assert.False(File.Exists(tempFile));
         }
         finally
@@ -151,7 +151,7 @@ public class DownloadServiceTests
             {
                 Url = new Uri("http://test/file.bin"),
                 DestinationPath = tempFile,
-                MaxRetryAttempts = 2,
+                MaxRetryAttempts = 3,
                 RetryDelay = TimeSpan.FromMilliseconds(10),
             };
 
