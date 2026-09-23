@@ -886,7 +886,7 @@ public partial class AddContentDialogViewModel(
 
     private string DescribeArchive(string path)
     {
-        var entryCount = TryGetZipEntryCount(path);
+        var entryCount = TryGetArchiveEntryCount(path);
         if (entryCount >= 0)
         {
             return string.Format(
@@ -901,19 +901,28 @@ public partial class AddContentDialogViewModel(
             "Archive. Contents are extracted automatically when players install this content.");
     }
 
-    private int TryGetZipEntryCount(string path)
+    private int TryGetArchiveEntryCount(string path)
     {
-        if (!Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+        var ext = Path.GetExtension(path);
+        if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
         {
-            return -1;
+            try
+            {
+                using var zipArchive = ZipFile.OpenRead(path);
+                return zipArchive.Entries.Count(e => !string.IsNullOrEmpty(e.Name));
+            }
+            catch
+            {
+                // Fall through to SharpCompress archive reader
+            }
         }
 
         try
         {
-            using var archive = ZipFile.OpenRead(path);
-            return archive.Entries.Count(e => !string.IsNullOrEmpty(e.Name));
+            using var archive = SharpCompress.Archives.ArchiveFactory.OpenArchive(path);
+            return archive.Entries.Count(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key));
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or NotSupportedException or SharpCompress.Common.SharpCompressException or ArgumentException)
         {
             return -1;
         }

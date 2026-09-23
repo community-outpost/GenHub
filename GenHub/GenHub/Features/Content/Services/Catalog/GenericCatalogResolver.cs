@@ -232,8 +232,10 @@ public partial class GenericCatalogResolver(
             var extension = primaryArtifact.ContentType?.ToLowerInvariant() switch
             {
                 "application/zip" => ".zip",
-                "application/x-rar-compressed" => ".rar",
+                "application/x-rar-compressed" or "application/vnd.rar" or "application/x-rar" or "application/rar" => ".rar",
                 "application/x-7z-compressed" => ".7z",
+                "application/x-tar" => ".tar",
+                "application/gzip" => ".gz",
                 _ => Path.GetExtension(cleanUrl) is { Length: > 1 } urlExt
                     ? urlExt
                     : ".zip",
