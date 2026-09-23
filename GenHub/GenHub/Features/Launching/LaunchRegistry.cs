@@ -213,6 +213,11 @@ public class LaunchRegistry : ILaunchRegistry, IDisposable
             _processManager.ProcessExited -= OnProcessExited;
         }
 
+        lock (_exitSync)
+        {
+            _pendingExits.Clear();
+        }
+
         GC.SuppressFinalize(this);
     }
 
@@ -462,7 +467,7 @@ public class LaunchRegistry : ILaunchRegistry, IDisposable
     {
         try
         {
-            return process.ExitTime;
+            return process.ExitTime.ToUniversalTime();
         }
         catch (InvalidOperationException ex)
         {

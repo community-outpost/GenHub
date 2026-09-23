@@ -922,10 +922,12 @@ public class GameProfileLauncherViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     /// <param name="includeProfile">Whether the profile row is still present when the process exits.</param>
+    /// <param name="isTool">Whether the profile launches a tool instead of a game.</param>
     [AvaloniaTheory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUserAsync(bool includeProfile)
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUserAsync(bool includeProfile, bool isTool)
     {
         var gameProcessManager = new Mock<IGameProcessManager>();
         var notificationService = new Mock<INotificationService>();
@@ -934,7 +936,13 @@ public class GameProfileLauncherViewModelTests
         // InitializeAsync is where the view model subscribes to ProcessExited.
         await vm.InitializeAsync();
 
-        var profile = CreateProfileItem("Failing Profile");
+        var gameProfile = new GameProfile
+        {
+            Name = "Failing Profile",
+            ToolContentId = isTool ? "test-tool" : null,
+        };
+        var profile = new GameProfileItemViewModel("profile-1", gameProfile, string.Empty, string.Empty);
+
         profile.PropertyChanged += (_, _) => Assert.True(Dispatcher.UIThread.CheckAccess());
         profile.ProcessId = 4242;
         profile.IsProcessRunning = true;
@@ -952,7 +960,7 @@ public class GameProfileLauncherViewModelTests
             StandardErrorTail = "init abort",
             UnmountableArchives = ["TexturesZH.big"],
         }));
-        await Dispatcher.UIThread.InvokeAsync(() => { });
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
         Assert.Equal(!includeProfile, profile.IsProcessRunning);
         Assert.Equal(includeProfile ? 0 : 4242, profile.ProcessId);
@@ -964,7 +972,7 @@ public class GameProfileLauncherViewModelTests
                 It.Is<string>(s => s.Contains("TexturesZH.big") && (!includeProfile || s.Contains("Failing Profile"))),
                 It.IsAny<int?>(),
                 It.IsAny<bool>()),
-            Times.Once);
+            isTool ? Times.Never() : Times.Once());
     }
 
     private static ProfileResourceService CreateProfileResourceService()

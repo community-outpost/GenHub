@@ -412,6 +412,7 @@ public partial class GameProfileLauncherViewModel(
 
                     profile.IsProcessRunning = false;
                     profile.ProcessId = 0;
+                    profile.ProcessInstanceId = Guid.Empty;
                     profile.NotifyCanLaunchChanged();
                 }
             }
@@ -1485,6 +1486,7 @@ public partial class GameProfileLauncherViewModel(
                 // Update IsProcessRunning to hide Stop button and show Launch button
                 profile.IsProcessRunning = false;
                 profile.ProcessId = 0;
+                profile.ProcessInstanceId = Guid.Empty;
                 OnPropertyChanged(nameof(profile.CanLaunch));
                 OnPropertyChanged(nameof(profile.CanEdit));
 
@@ -1949,10 +1951,11 @@ public partial class GameProfileLauncherViewModel(
                 {
                     profile.IsProcessRunning = false;
                     profile.ProcessId = 0;
+                    profile.ProcessInstanceId = Guid.Empty;
                     logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
                 }
 
-                if (e.DescribeFailure() != null)
+                if (e.DescribeFailure() != null && profile?.Profile is not GameProfile { IsToolProfile: true })
                 {
                     var message = e.UnmountableArchives.Count > 0
                         ? localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", string.Join(", ", e.UnmountableArchives), e.ExitCode!)

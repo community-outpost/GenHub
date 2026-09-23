@@ -1187,6 +1187,7 @@ public class GameProcessManager(
         }
         catch (InvalidOperationException ex)
         {
+            capturedErrors.Append(null);
             logger.LogDebug(ex, "[Process] Could not capture stderr for process {ProcessId}", process.Id);
         }
 
@@ -2001,10 +2002,8 @@ public class GameProcessManager(
     /// Waits for the asynchronous stderr handlers to finish before the capture is read.
     /// </summary>
     /// <remarks>
-    /// <see cref="Process.WaitForExit()"/> without a timeout additionally waits for
-    /// redirected-output handlers to complete; the timed overloads do not, so reading the
-    /// buffer straight after the process exits can miss the final lines. Only stderr is
-    /// redirected, so there is no stdout stream to drain.
+    /// Process exit does not guarantee delivery of the final redirected lines. Wait for
+    /// the buffer's end-of-stream signal, bounded because descendants may retain the pipe.
     /// </remarks>
     /// <param name="process">The exited process.</param>
     /// <param name="capturedErrors">The buffer receiving stderr lines.</param>
@@ -2012,7 +2011,7 @@ public class GameProcessManager(
     {
         try
         {
-            process.WaitForExit(ProcessConstants.StderrDrainTimeoutMs);
+            capturedErrors.WaitForEndOfStream(ProcessConstants.StderrDrainTimeoutMs);
         }
         catch (Exception ex)
         {
@@ -2106,6 +2105,26 @@ public class GameProcessManager(
             }
         }
 
+        /// <summary>Waits for redirected output completion without an unbounded pipe wait.</summary>
+        /// <param name="timeoutMs">The maximum wait in milliseconds.</param>
+        internal void WaitForEndOfStream(int timeoutMs)
+        {
+            var elapsed = Stopwatch.StartNew();
+            lock (_gate)
+            {
+                while (!_endOfStream)
+                {
+                    var remaining = timeoutMs - (int)elapsed.ElapsedMilliseconds;
+                    if (remaining <= 0)
+                    {
+                        break;
+                    }
+
+                    Monitor.Wait(_gate, remaining);
+                }
+            }
+        }
+
         /// <summary>
         /// Appends a line, or records end of stream when <paramref name="line"/> is null.
         /// </summary>
@@ -2117,6 +2136,7 @@ public class GameProcessManager(
                 if (line is null)
                 {
                     _endOfStream = true;
+                    Monitor.PulseAll(_gate);
                     return;
                 }
 

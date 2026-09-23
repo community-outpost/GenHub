@@ -116,7 +116,7 @@ public class LaunchRegistryTests
     public async Task IdentifiedExit_ForLiveUnidentifiedTool_PreservesFailureAndExitTimeAsync()
     {
         var manager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
         var launch = new GameLaunchInfo
         {
             LaunchId = "tool-launch",
@@ -146,7 +146,7 @@ public class LaunchRegistryTests
     public async Task BufferedExit_MismatchedRegistration_PreservesMatchingInstanceAsync()
     {
         var manager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
         var identity = Guid.NewGuid();
         manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
         {
@@ -187,7 +187,7 @@ public class LaunchRegistryTests
                 Assert.True(releaseExit.Wait(TimeSpan.FromSeconds(30)));
             }));
         var manager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(logger.Object, manager.Object);
+        using var registry = new LaunchRegistry(logger.Object, manager.Object);
         var launch = new GameLaunchInfo
         {
             LaunchId = Guid.NewGuid().ToString(),
@@ -259,7 +259,7 @@ public class LaunchRegistryTests
     public async Task PollingAndExit_EitherOrder_StopsOnceAndPreservesDiagnosticsAsync(bool pollFirst)
     {
         var manager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
         var launch = new GameLaunchInfo
         {
             LaunchId = Guid.NewGuid().ToString(),
@@ -323,7 +323,7 @@ public class LaunchRegistryTests
     public async Task PlaceholderCleanup_ThenRealExit_EmitsOneStopWithFailureAsync()
     {
         var manager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
         var profileId = Guid.NewGuid().ToString();
         var recipient = new object();
         var notifications = new List<ProfileStoppedMessage>();
@@ -443,7 +443,7 @@ public class LaunchRegistryTests
     public async Task ExitEventBeforePidRegistration_IsAppliedWhenTheRealPidArrivesAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
 
         const int realPid = 987654;
         const string launchId = "race-launch";
@@ -494,7 +494,7 @@ public class LaunchRegistryTests
     public async Task ExitEventDeliveredBeforeAndAfterPidRegistration_IsRecordedOnceAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
 
         const int realPid = 987655;
         const string launchId = "double-delivery-launch";
@@ -554,7 +554,7 @@ public class LaunchRegistryTests
     public async Task ExitEventInterleavedWithRegistration_IsNotStrandedAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
 
         const int realPid = 987657;
         const string launchId = "stranding-launch";
@@ -619,7 +619,7 @@ public class LaunchRegistryTests
     public async Task RequestedTerminationWithNonZeroExit_IsNotRecordedAsAFailureAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
 
         const int realPid = 987658;
         const string launchId = "requested-stop-launch";
@@ -657,7 +657,7 @@ public class LaunchRegistryTests
     public async Task CleanExitBufferedAcrossTheRace_TerminatesWithoutFailureAsync()
     {
         var processManager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), processManager.Object);
 
         const int realPid = 987656;
         const string launchId = "clean-exit-launch";
@@ -702,7 +702,7 @@ public class LaunchRegistryTests
     public async Task RecycledPidExitBeforeRegistration_PreservesNewExitAsync(bool repeatOldEvent)
     {
         var manager = new Mock<IGameProcessManager>();
-        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
         const int pid = 987660;
         var oldExit = new GameProcessExitedEventArgs { ProcessId = pid, ExitCode = 0, ExitTime = DateTime.UtcNow.AddMilliseconds(-10) };
         await registry.RegisterLaunchAsync(new GameLaunchInfo
