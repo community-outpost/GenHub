@@ -350,13 +350,13 @@ public sealed class GenLauncherResolverTests
     }
 
     /// <summary>
-    /// Tests that ResolveAsync prioritizes direct download URL over S3 metadata,
+    /// Tests that ResolveAsync prioritizes direct download URL for child content items with ParentContentId,
     /// falls back to discoveredItem.Name when URL lacks an archive extension,
     /// and does not make S3 network calls.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithDirectDownloadAndS3Metadata_PrioritizesDirectDownloadAndDoesNotQueryS3()
+    public async Task ResolveAsync_WithChildContentDirectDownload_PrioritizesDirectDownloadAndDoesNotQueryS3()
     {
         var handlerMock = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(handlerMock.Object);
@@ -379,6 +379,7 @@ public sealed class GenLauncherResolverTests
             SelectedDownloadUrl = "https://onedrive.live.com/download?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o",
             ResolverMetadata =
             {
+                [ContentConstants.ParentContentIdMetadataKey] = "shockwave-main",
                 [GenLauncherConstants.S3HostMetadataKey] = "s3.example.com",
                 [GenLauncherConstants.S3BucketMetadataKey] = "mod-bucket",
                 [GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave",
@@ -399,6 +400,68 @@ public sealed class GenLauncherResolverTests
         handlerMock.Protected().Verify(
             "SendAsync",
             Times.Never(),
+            ItExpr.IsAny<HttpRequestMessage>(),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Tests that ResolveAsync prioritizes S3 storage over SimpleDownloadLink for main catalog mods.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_MainModWithS3MetadataAndSimpleDownloadLink_PrioritizesS3Storage()
+    {
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(SampleS3Xml),
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher))
+            .Returns(httpClient);
+
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
+
+        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "shockwave",
+            Name = "Shockwave",
+            Version = "1.2",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "https://onedrive.live.com/download?cid=0A88C98986A457EB",
+            ResolverMetadata =
+            {
+                [GenLauncherConstants.SimpleDownloadLinkMetadataKey] = "https://onedrive.live.com/download?cid=0A88C98986A457EB",
+                [GenLauncherConstants.S3HostMetadataKey] = "s3.amazonaws.com",
+                [GenLauncherConstants.S3BucketMetadataKey] = "genlauncher",
+                [GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var manifest = result.Data;
+        Assert.Single(manifest.Files);
+        Assert.Equal("Shockwave.big", manifest.Files[0].RelativePath);
+
+        handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
             ItExpr.IsAny<HttpRequestMessage>(),
             ItExpr.IsAny<CancellationToken>());
     }

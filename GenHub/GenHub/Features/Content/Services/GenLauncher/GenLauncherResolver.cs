@@ -119,16 +119,11 @@ public class GenLauncherResolver(
             var versionManifest = await FetchVersionManifestIfNeededAsync(client, discoveredItem, cancellationToken);
             PopulateMetadataAndDependencies(manifest, discoveredItem, versionManifest, publisherToken);
 
-            var hasDirectLink = HasDirectDownloadLink(discoveredItem, versionManifest);
-            var directResolved = false;
-
-            if (hasDirectLink)
+            if (IsChildContentWithDirectDownload(discoveredItem))
             {
                 ResolveDirectDownloadPayload(manifest, versionManifest, discoveredItem, slug);
-                directResolved = manifest.Files.Count > 0;
             }
-
-            if (!directResolved)
+            else
             {
                 var s3Resolved = await TryResolveS3StoragePayloadAsync(manifest, client, versionManifest, discoveredItem, cancellationToken);
                 if (!s3Resolved)
@@ -193,23 +188,11 @@ public class GenLauncherResolver(
         }
     }
 
-    private static bool HasDirectDownloadLink(ContentSearchResult discoveredItem, GenLauncherVersionManifest? versionManifest)
+    private static bool IsChildContentWithDirectDownload(ContentSearchResult discoveredItem)
     {
-        var url = discoveredItem.SelectedDownloadUrl;
-        if (!string.IsNullOrWhiteSpace(url) && !IsDescriptorUrl(url))
-        {
-            return true;
-        }
-
-        var simpleLink = versionManifest?.SimpleDownloadLink
-            ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey);
-
-        if (!string.IsNullOrWhiteSpace(simpleLink) && !IsDescriptorUrl(simpleLink))
-        {
-            return true;
-        }
-
-        return false;
+        return discoveredItem.ResolverMetadata.ContainsKey(ContentConstants.ParentContentIdMetadataKey)
+            && !string.IsNullOrWhiteSpace(discoveredItem.SelectedDownloadUrl)
+            && !IsDescriptorUrl(discoveredItem.SelectedDownloadUrl);
     }
 
     private static void ResolveDirectDownloadPayload(
@@ -372,6 +355,11 @@ public class GenLauncherResolver(
         ContentSearchResult item,
         CancellationToken cancellationToken)
     {
+        if (IsChildContentWithDirectDownload(item))
+        {
+            return null;
+        }
+
         if (item.Data is GenLauncherVersionManifest manifest)
         {
             return manifest;
