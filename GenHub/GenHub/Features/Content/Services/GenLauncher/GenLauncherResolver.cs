@@ -69,25 +69,7 @@ public class GenLauncherResolver(
                 : GenLauncherConstants.GeneralsGameToken;
             var publisherToken = $"{GenLauncherConstants.PublisherId}-{gameToken}";
 
-            var slug = GenLauncherCatalogParser.Slugify(discoveredItem.Name);
-            var rawGroupId = discoveredItem.VariantGroupId;
-            if (!string.IsNullOrEmpty(rawGroupId))
-            {
-                if (rawGroupId.StartsWith($"{gameToken}-", StringComparison.OrdinalIgnoreCase))
-                {
-                    rawGroupId = rawGroupId.Substring(gameToken.Length + 1);
-                }
-                else if (rawGroupId.StartsWith($"{GenLauncherConstants.PublisherId}-{gameToken}-", StringComparison.OrdinalIgnoreCase))
-                {
-                    rawGroupId = rawGroupId.Substring(GenLauncherConstants.PublisherId.Length + gameToken.Length + 2);
-                }
-
-                if (!string.IsNullOrEmpty(rawGroupId) &&
-                    !string.Equals(rawGroupId, slug, StringComparison.OrdinalIgnoreCase))
-                {
-                    slug = $"{rawGroupId}-{slug}";
-                }
-            }
+            var slug = ComputeContentSlug(discoveredItem, gameToken);
 
             discoveredItem.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentContentId);
             var effectiveOriginalContentId = !string.IsNullOrWhiteSpace(parentContentId)
@@ -201,23 +183,15 @@ public class GenLauncherResolver(
         ContentSearchResult discoveredItem,
         string slug)
     {
-        var rawDownloadLink = discoveredItem.SelectedDownloadUrl
-            ?? versionManifest?.SimpleDownloadLink
-            ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey);
-
-        if (!string.IsNullOrWhiteSpace(rawDownloadLink) && IsDescriptorUrl(rawDownloadLink))
+        var candidateLinks = new[]
         {
-            rawDownloadLink = null;
-        }
+            discoveredItem.SelectedDownloadUrl,
+            versionManifest?.SimpleDownloadLink,
+            GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey),
+            discoveredItem.SourceUrl,
+        };
 
-        if (string.IsNullOrWhiteSpace(rawDownloadLink))
-        {
-            var sourceUrl = discoveredItem.SourceUrl;
-            if (!string.IsNullOrWhiteSpace(sourceUrl) && !IsDescriptorUrl(sourceUrl))
-            {
-                rawDownloadLink = sourceUrl;
-            }
-        }
+        var rawDownloadLink = candidateLinks.FirstOrDefault(link => !string.IsNullOrWhiteSpace(link) && !IsDescriptorUrl(link));
 
         if (string.IsNullOrWhiteSpace(rawDownloadLink))
         {
@@ -296,9 +270,12 @@ public class GenLauncherResolver(
             // Fall back to default on invalid URI path formatting
         }
 
-        if (!string.IsNullOrWhiteSpace(fallbackName) && GenLauncherConstants.IsUsableArchiveFileName(fallbackName))
+        var safeFallback = string.IsNullOrWhiteSpace(fallbackName) ? null : Path.GetFileName(fallbackName.Trim());
+        if (!string.IsNullOrWhiteSpace(safeFallback) &&
+            safeFallback.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 &&
+            GenLauncherConstants.IsUsableArchiveFileName(safeFallback))
         {
-            return fallbackName;
+            return safeFallback;
         }
 
         return $"{defaultName}.zip";
@@ -348,6 +325,31 @@ public class GenLauncherResolver(
         }
 
         return new S3BucketQuery(s3Host, s3Bucket, s3Folder, s3PublicKey, s3SecretKey);
+    }
+
+    private static string ComputeContentSlug(ContentSearchResult discoveredItem, string gameToken)
+    {
+        var slug = GenLauncherCatalogParser.Slugify(discoveredItem.Name);
+        var rawGroupId = discoveredItem.VariantGroupId;
+        if (!string.IsNullOrEmpty(rawGroupId))
+        {
+            if (rawGroupId.StartsWith($"{gameToken}-", StringComparison.OrdinalIgnoreCase))
+            {
+                rawGroupId = rawGroupId.Substring(gameToken.Length + 1);
+            }
+            else if (rawGroupId.StartsWith($"{GenLauncherConstants.PublisherId}-{gameToken}-", StringComparison.OrdinalIgnoreCase))
+            {
+                rawGroupId = rawGroupId.Substring(GenLauncherConstants.PublisherId.Length + gameToken.Length + 2);
+            }
+
+            if (!string.IsNullOrEmpty(rawGroupId) &&
+                !string.Equals(rawGroupId, slug, StringComparison.OrdinalIgnoreCase))
+            {
+                slug = $"{rawGroupId}-{slug}";
+            }
+        }
+
+        return slug;
     }
 
     private async Task<GenLauncherVersionManifest?> FetchVersionManifestIfNeededAsync(

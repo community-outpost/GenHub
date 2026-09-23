@@ -3,7 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using GenHub.Common.Controls;
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Controls;
@@ -178,8 +180,9 @@ public class SectionScrollSpyTests
     /// Verifies that when content expands dynamically, ScrollToControl tracks the target
     /// control rather than remaining clamped to the initial extent.
     /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
-    public void ScrollToControl_DynamicExtent_TracksTargetControl()
+    public async Task ScrollToControl_DynamicExtent_TracksTargetControlAsync()
     {
         var host = CreateHost();
         try
@@ -189,11 +192,61 @@ public class SectionScrollSpyTests
             spy.ScrollToControl(host.Third);
             Assert.True(spy.IsScrollingProgrammatically);
 
-            // Dynamically expand third child
+            // Dynamically expand second and third child so target position and extent expand
+            host.Second.Height = 800;
             host.Third.Height = 800;
             Dispatcher.UIThread.RunJobs();
 
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (DateTime.UtcNow < deadline && spy.IsScrollingProgrammatically)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(25);
+            }
+
+            Assert.False(spy.IsScrollingProgrammatically);
+
+            var content = Assert.IsAssignableFrom<Control>(host.ScrollViewer.Content);
+            var transform = host.Third.TransformToVisual(content);
+            Assert.True(transform.HasValue);
+            var position = transform.Value.Transform(new Point(0, 0));
+            var maxScrollY = Math.Max(0, host.ScrollViewer.Extent.Height - host.ScrollViewer.Viewport.Height);
+            var expected = Math.Clamp(position.Y, 0, maxScrollY);
+            Assert.InRange(host.ScrollViewer.Offset.Y, expected - 2, expected + 2);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when animated scroll completes, the explicitly requested target section
+    /// is preserved and reported rather than overwritten by bottom snapping.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ScrollToSection_WhenLandingNearBottom_PreservesTargetSectionAsync()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            spy.ScrollToSection("second");
             Assert.True(spy.IsScrollingProgrammatically);
+
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (DateTime.UtcNow < deadline && spy.IsScrollingProgrammatically)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(25);
+            }
+
+            Assert.False(spy.IsScrollingProgrammatically);
+            Assert.Contains("second", reported);
+            Assert.Equal("second", reported[^1]);
         }
         finally
         {

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using GenHub.Common.Controls;
 using GenHub.Core.Constants;
 using GenHub.Features.Settings.Models;
@@ -82,7 +83,15 @@ public partial class SettingsView : UserControl
             EnsureScrollSpy();
             if (vm.SelectedSection != null)
             {
-                ScrollToSection(vm.SelectedSection);
+                Dispatcher.UIThread.Post(
+                    () =>
+                    {
+                        if (VisualRoot != null && _boundViewModel?.SelectedSection != null)
+                        {
+                            ScrollToSection(_boundViewModel.SelectedSection);
+                        }
+                    },
+                    DispatcherPriority.Loaded);
             }
         }
     }

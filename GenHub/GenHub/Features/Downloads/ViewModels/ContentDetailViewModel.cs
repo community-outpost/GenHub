@@ -4854,11 +4854,11 @@ public partial class ContentDetailViewModel(
         // 2. Match by DetailsUrl if non-empty
         if (!string.IsNullOrWhiteSpace(file.DetailsUrl))
         {
-            var matchByDetails = candidates.FirstOrDefault(sr =>
-                string.Equals(sr.SourceUrl, file.DetailsUrl, StringComparison.OrdinalIgnoreCase));
-            if (matchByDetails != null)
+            var detailsMatches = candidates.Where(sr =>
+                string.Equals(sr.SourceUrl, file.DetailsUrl, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (detailsMatches.Count > 0)
             {
-                return matchByDetails;
+                return SelectDisambiguatedMatch(detailsMatches, file);
             }
         }
 
@@ -4997,8 +4997,8 @@ public partial class ContentDetailViewModel(
 
             // Preserve the page URL for metadata and browser Referer handling. The selected
             // direct URL tells the resolver which already-discovered release to acquire.
-            SourceUrl = file.DetailsUrl ?? baseResult.SourceUrl ?? searchResult.SourceUrl,
-            SelectedDownloadUrl = file.DownloadUrl ?? baseResult.SelectedDownloadUrl,
+            SourceUrl = !string.IsNullOrWhiteSpace(file.DetailsUrl) ? file.DetailsUrl : (baseResult.SourceUrl ?? searchResult.SourceUrl),
+            SelectedDownloadUrl = !string.IsNullOrWhiteSpace(file.DownloadUrl) ? file.DownloadUrl : baseResult.SelectedDownloadUrl,
             ParsedPageData = ParsedPage ?? baseResult.ParsedPageData ?? searchResult.ParsedPageData,
             ResolverId = baseResult.ResolverId ?? searchResult.ResolverId,
             RequiresResolution = true,

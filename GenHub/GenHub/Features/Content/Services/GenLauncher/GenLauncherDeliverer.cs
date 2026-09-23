@@ -175,97 +175,120 @@ public class GenLauncherDeliverer(
         CancellationToken cancellationToken)
     {
         var totalFiles = files.Count;
-        var totalBytes = files.Sum(f => f.Size > 0 ? f.Size : 0);
-
-        logger.LogInformation(
-            "Beginning download of {TotalFiles} files ({TotalBytes} bytes) to {TargetDir}",
-            totalFiles,
-            totalBytes,
-            targetDirectory);
 
         for (var i = 0; i < totalFiles; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
             var file = files[i];
-            var destinationPath = Path.Combine(targetDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
 
-            // Prevent path traversal
-            if (!ContentPathPolicy.IsContained(targetDirectory, destinationPath))
+            var result = await DownloadSingleFileAsync(file, i, totalFiles, targetDirectory, progress, cancellationToken);
+            if (!result.Success)
             {
-                logger.LogError("File {File} relative path traverses outside target directory {Dir}", file.RelativePath, targetDirectory);
-                return OperationResult<bool>.CreateFailure($"File '{file.RelativePath}' traverses outside target directory.");
+                return result;
             }
-
-            var dir = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            progress?.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Downloading,
-                ProgressPercentage = (int)((i / (double)totalFiles) * 80),
-                CurrentOperation = $"{file.RelativePath} ({i + 1}/{totalFiles})",
-                FilesProcessed = i,
-                TotalFiles = totalFiles,
-            });
-
-            if (string.IsNullOrWhiteSpace(file.DownloadUrl) || !ImageCacheService.IsSafeRemoteUrl(file.DownloadUrl, out var downloadUri))
-            {
-                logger.LogError("Invalid or unsafe download URL for file {File}", file.RelativePath);
-                return OperationResult<bool>.CreateFailure($"Invalid download URL for file {file.RelativePath}: unsafe or malformed URL");
-            }
-
-            var safeLogUrl = RedactUrl(file.DownloadUrl);
-            logger.LogInformation(
-                "Downloading GenLauncher file [{Index}/{Total}]: {File} ({Size} bytes) from {Url}",
-                i + 1,
-                totalFiles,
-                file.RelativePath,
-                file.Size,
-                safeLogUrl);
-
-            var fileIndex = i;
-            var fileStopwatch = Stopwatch.StartNew();
-            IProgress<DownloadProgress>? fileProgress = progress == null ? null : new Progress<DownloadProgress>(p =>
-            {
-                var basePercent = (fileIndex / (double)totalFiles) * 80.0;
-                var sliceWidth = (1.0 / totalFiles) * 80.0;
-                var weightedPercent = basePercent + ((p.Percentage / 100.0) * sliceWidth);
-                var speedStr = p.BytesPerSecond > 0 ? $" at {ByteFormatHelper.FormatBytes((long)p.BytesPerSecond)}/s" : string.Empty;
-                var bytesStr = p.TotalBytes > 0 ? $" [{ByteFormatHelper.FormatBytes(p.BytesReceived)} / {ByteFormatHelper.FormatBytes(p.TotalBytes)}]" : string.Empty;
-
-                progress.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = Math.Min(80.0, Math.Max(0.0, weightedPercent)),
-                    CurrentOperation = $"{file.RelativePath} ({fileIndex + 1}/{totalFiles}){bytesStr}{speedStr}",
-                    BytesProcessed = p.BytesReceived,
-                    TotalBytes = p.TotalBytes,
-                    FilesProcessed = fileIndex,
-                    TotalFiles = totalFiles,
-                });
-            });
-
-            var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, cancellationToken);
-            fileStopwatch.Stop();
-
-            if (!downloadResult.Success)
-            {
-                return OperationResult<bool>.CreateFailure(downloadResult.FirstError ?? $"Failed to download {file.RelativePath}");
-            }
-
-            logger.LogInformation(
-                "Finished downloading GenLauncher file [{Index}/{Total}]: {File} in {ElapsedMs}ms",
-                i + 1,
-                totalFiles,
-                file.RelativePath,
-                fileStopwatch.ElapsedMilliseconds);
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> DownloadSingleFileAsync(
+        ManifestFile file,
+        int fileIndex,
+        int totalFiles,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var destinationPath = Path.Combine(targetDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+
+        // Prevent path traversal
+        if (!ContentPathPolicy.IsContained(targetDirectory, destinationPath))
+        {
+            logger.LogError("File {File} relative path traverses outside target directory {Dir}", file.RelativePath, targetDirectory);
+            return OperationResult<bool>.CreateFailure($"File '{file.RelativePath}' traverses outside target directory.");
+        }
+
+        var dir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        progress?.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = (int)((fileIndex / (double)totalFiles) * 80),
+            CurrentOperation = $"{file.RelativePath} ({fileIndex + 1}/{totalFiles})",
+            FilesProcessed = fileIndex,
+            TotalFiles = totalFiles,
+        });
+
+        if (string.IsNullOrWhiteSpace(file.DownloadUrl) || !ImageCacheService.IsSafeRemoteUrl(file.DownloadUrl, out var downloadUri))
+        {
+            logger.LogError("Invalid or unsafe download URL for file {File}", file.RelativePath);
+            return OperationResult<bool>.CreateFailure($"Invalid download URL for file {file.RelativePath}: unsafe or malformed URL");
+        }
+
+        var safeLogUrl = RedactUrl(file.DownloadUrl);
+        logger.LogInformation(
+            "Downloading GenLauncher file [{Index}/{Total}]: {File} ({Size} bytes) from {Url}",
+            fileIndex + 1,
+            totalFiles,
+            file.RelativePath,
+            file.Size,
+            safeLogUrl);
+
+        var fileStopwatch = Stopwatch.StartNew();
+        var fileProgress = CreateFileProgress(progress, fileIndex, totalFiles, file.RelativePath);
+
+        var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, cancellationToken);
+        fileStopwatch.Stop();
+
+        if (!downloadResult.Success)
+        {
+            return OperationResult<bool>.CreateFailure(downloadResult.FirstError ?? $"Failed to download {file.RelativePath}");
+        }
+
+        logger.LogInformation(
+            "Finished downloading GenLauncher file [{Index}/{Total}]: {File} in {ElapsedMs}ms",
+            fileIndex + 1,
+            totalFiles,
+            file.RelativePath,
+            fileStopwatch.ElapsedMilliseconds);
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private IProgress<DownloadProgress>? CreateFileProgress(
+        IProgress<ContentAcquisitionProgress>? progress,
+        int fileIndex,
+        int totalFiles,
+        string relativePath)
+    {
+        if (progress == null)
+        {
+            return null;
+        }
+
+        return new Progress<DownloadProgress>(p =>
+        {
+            var basePercent = (fileIndex / (double)totalFiles) * 80.0;
+            var sliceWidth = (1.0 / totalFiles) * 80.0;
+            var weightedPercent = basePercent + ((p.Percentage / 100.0) * sliceWidth);
+            var speedStr = p.BytesPerSecond > 0 ? $" at {ByteFormatHelper.FormatBytes(p.BytesPerSecond)}/s" : string.Empty;
+            var bytesStr = p.TotalBytes > 0 ? $" [{ByteFormatHelper.FormatBytes(p.BytesReceived)} / {ByteFormatHelper.FormatBytes(p.TotalBytes)}]" : string.Empty;
+
+            progress.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = Math.Min(80.0, Math.Max(0.0, weightedPercent)),
+                CurrentOperation = $"{relativePath} ({fileIndex + 1}/{totalFiles}){bytesStr}{speedStr}",
+                BytesProcessed = p.BytesReceived,
+                TotalBytes = p.TotalBytes,
+                FilesProcessed = fileIndex,
+                TotalFiles = totalFiles,
+            });
+        });
     }
 
     private async Task<OperationResult<bool>> DownloadAndValidateFileAsync(

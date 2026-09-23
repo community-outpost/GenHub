@@ -23,6 +23,8 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     private double _animStartOffset;
     private double _animTargetOffset;
     private DateTime _animStartTime;
+    private int _animationGeneration;
+    private (bool HasValue, TKey Value) _animTargetKey;
     private TKey _lastReportedKey = default!;
     private bool _hasReportedKey;
     private bool _disposed;
@@ -67,26 +69,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     /// <param name="targetControl">The target control to scroll to.</param>
     public void ScrollToControl(Control targetControl)
     {
-        if (targetControl is null || scrollViewer.Content is not Control content)
-        {
-            return;
-        }
-
-        try
-        {
-            var transform = targetControl.TransformToVisual(content);
-            if (!transform.HasValue)
-            {
-                return;
-            }
-
-            var position = transform.Value.Transform(new Point(0, 0));
-            StartAnimation(Math.Max(0, position.Y), targetControl);
-        }
-        catch (InvalidOperationException)
-        {
-            // Visual target is detached from visual tree; ignore transform calculation.
-        }
+        ScrollToControl(targetControl, default);
     }
 
     /// <summary>
@@ -98,7 +81,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         var targetControl = FindControl(key);
         if (targetControl is not null)
         {
-            ScrollToControl(targetControl);
+            ScrollToControl(targetControl, (true, key));
         }
     }
 
@@ -119,6 +102,43 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         return progress < 0.5
             ? 2.0 * progress * progress
             : 1.0 - (Math.Pow((-2.0 * progress) + 2.0, 2) / 2.0);
+    }
+
+    private void ScrollToControl(Control targetControl, (bool HasValue, TKey Value) explicitKey)
+    {
+        if (targetControl is null || scrollViewer.Content is not Control content)
+        {
+            return;
+        }
+
+        try
+        {
+            var transform = targetControl.TransformToVisual(content);
+            if (!transform.HasValue)
+            {
+                return;
+            }
+
+            var position = transform.Value.Transform(new Point(0, 0));
+            var targetKey = explicitKey;
+            if (!targetKey.HasValue)
+            {
+                foreach (var (key, control) in _sections)
+                {
+                    if (ReferenceEquals(control, targetControl))
+                    {
+                        targetKey = (true, key);
+                        break;
+                    }
+                }
+            }
+
+            StartAnimation(Math.Max(0, position.Y), targetControl, targetKey);
+        }
+        catch (InvalidOperationException)
+        {
+            // Visual target is detached from visual tree; ignore transform calculation.
+        }
     }
 
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
@@ -143,7 +163,8 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             return;
         }
 
-        ReportActiveKey(FindActiveKey() ?? _sections[0].Key);
+        var activeKey = FindActiveKey();
+        ReportActiveKey(activeKey is not null ? activeKey : _sections[0].Key);
     }
 
     private bool TryApplyBottomSnap()
@@ -217,9 +238,12 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         return null;
     }
 
-    private void StartAnimation(double initialTargetY, Control? targetControl = null)
+    private void StartAnimation(double initialTargetY, Control? targetControl = null, (bool HasValue, TKey Value) targetKey = default)
     {
         StopAnimationTimer();
+
+        _animationGeneration++;
+        _animTargetKey = targetKey;
 
         var currentY = scrollViewer.Offset.Y;
         var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
@@ -229,7 +253,15 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         {
             scrollViewer.Offset = new Vector(scrollViewer.Offset.X, effectiveTargetY);
             IsScrollingProgrammatically = false;
-            UpdateActiveSection();
+            if (targetKey.HasValue)
+            {
+                ReportActiveKey(targetKey.Value!);
+            }
+            else
+            {
+                UpdateActiveSection();
+            }
+
             return;
         }
 
@@ -258,6 +290,8 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
 
     private void StopAnimation()
     {
+        _animationGeneration++;
+        _animTargetKey = default;
         StopAnimationTimer();
         IsScrollingProgrammatically = false;
     }
@@ -290,14 +324,23 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
 
         if (progress >= 1.0)
         {
+            var gen = _animationGeneration;
+            var targetKey = _animTargetKey;
             StopAnimationTimer();
             Dispatcher.UIThread.Post(
                 () =>
                 {
-                    if (!_disposed)
+                    if (!_disposed && _animationGeneration == gen)
                     {
                         IsScrollingProgrammatically = false;
-                        UpdateActiveSection();
+                        if (targetKey.HasValue)
+                        {
+                            ReportActiveKey(targetKey.Value!);
+                        }
+                        else
+                        {
+                            UpdateActiveSection();
+                        }
                     }
                 },
                 DispatcherPriority.Normal);

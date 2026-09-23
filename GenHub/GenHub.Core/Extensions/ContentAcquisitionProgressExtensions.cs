@@ -1,5 +1,6 @@
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Content;
+using System;
 
 namespace GenHub.Core.Extensions;
 
@@ -68,7 +69,8 @@ public static class ContentAcquisitionProgressExtensions
         if (!string.IsNullOrEmpty(progress.CurrentOperation))
         {
             var op = progress.CurrentOperation;
-            if (op.StartsWith(phaseName, StringComparison.OrdinalIgnoreCase))
+            if (op.StartsWith(phaseName, StringComparison.OrdinalIgnoreCase) &&
+                (op.Length == phaseName.Length || op[phaseName.Length] is ':' or ' '))
             {
                 op = op.Substring(phaseName.Length).TrimStart(':', ' ');
             }
