@@ -209,7 +209,7 @@ public static class ReplayCrcMatchingHelper
     /// <returns><c>true</c> if an official base game client; otherwise, <c>false</c>.</returns>
     public static bool IsOfficialBaseClient(GameClient? client)
     {
-        if (client == null || IsGeneralsOnlineClient(client) || IsLegacySuperHackersClient(client))
+        if (client == null || IsNonRetailEngineClient(client))
         {
             return false;
         }
@@ -248,9 +248,8 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsGeneralsOnlineClient(client) ||
-            HasNonRetailIdentifier(client, enabledContentIds) ||
-            IsLegacySuperHackersClient(client))
+        if (IsNonRetailEngineClient(client) ||
+            HasNonRetailIdentifier(client, enabledContentIds))
         {
             return false;
         }
@@ -689,7 +688,7 @@ public static class ReplayCrcMatchingHelper
     /// <returns><c>true</c> if compatible with retail executables; otherwise, <c>false</c>.</returns>
     private static bool IsGeneralsRetailCompatible(GameClient client, IReadOnlyList<string>? enabledContentIds)
     {
-        if (IsGeneralsOnlineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
+        if (IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
         {
             return false;
         }

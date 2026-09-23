@@ -1,4 +1,6 @@
 using GenHub.Core.Interfaces.Common;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Constants;
 
@@ -48,6 +50,9 @@ public static class ContentFormatConstants
 
     /// <summary>Flatpak run option prefix setting an environment variable inside the sandbox.</summary>
     public const string FlatpakEnvOptionPrefix = "--env=";
+
+    /// <summary>Application ID suffix identifying a Zero Hour Flatpak bundle.</summary>
+    public const string FlatpakZeroHourAppIdSuffix = "ZH";
 
     /// <summary>macOS application bundle directory suffix.</summary>
     public const string MacAppBundleExtension = ".app";
@@ -133,6 +138,12 @@ public static class ContentFormatConstants
     /// <summary>English fallback for default rejection guidance.</summary>
     public const string RejectionDefaultFallback = "This format needs external tooling that GenHub does not run; install it first, then add the installed files as local content.";
 
+    /// <summary>Known Zero Hour Flatpak application IDs.</summary>
+    public static readonly IReadOnlySet<string> KnownZeroHourFlatpakAppIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "com.fbraz3.GeneralsXZH",
+    };
+
     /// <summary>
     /// Archive containers the pipeline extracts before detection: zip, 7z, rar, tar, and
     /// compressed tar variants. Bare single-file assets (native binaries, Flatpaks,
@@ -201,13 +212,22 @@ public static class ContentFormatConstants
     ];
 
     /// <summary>
+    /// Determines whether the given Flatpak application ID is a Zero Hour bundle.
+    /// </summary>
+    /// <param name="appId">The Flatpak application identifier.</param>
+    /// <returns><c>true</c> if it represents a Zero Hour Flatpak bundle; otherwise, <c>false</c>.</returns>
+    public static bool IsZeroHourFlatpakAppId(string? appId) =>
+        !string.IsNullOrWhiteSpace(appId) &&
+        (KnownZeroHourFlatpakAppIds.Contains(appId) || appId.EndsWith(FlatpakZeroHourAppIdSuffix, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Gets the localization resource key for the given rejected format extension.
     /// </summary>
     /// <param name="extension">The rejected file extension, including the leading dot.</param>
     /// <returns>The resource key corresponding to the extension.</returns>
-    public static string GetRejectionGuidanceKey(string extension)
+    public static string GetRejectionGuidanceKey(string? extension)
     {
-        return extension.ToLowerInvariant() switch
+        return (extension?.ToLowerInvariant() ?? string.Empty) switch
         {
             DmgExtension => RejectionDmgKey,
             PkgExtension => RejectionPkgKey,

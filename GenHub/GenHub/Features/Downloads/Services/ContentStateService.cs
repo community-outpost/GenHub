@@ -829,9 +829,7 @@ public sealed partial class ContentStateService(
 
     /// <summary>
     /// Extracts the OS platform tokens (windows, linux, macos) named anywhere in the input.
-    /// Short aliases (win, mac, osx) only match as whole separator-delimited segments so
-    /// words like "winter" never qualify, while full OS words also match inside
-    /// separator-stripped identifiers such as manifest ID segments.
+    /// Platform tokens match as whole separator-delimited segments.
     /// </summary>
     /// <param name="input">The name, identifier, tag, or URL to inspect.</param>
     /// <returns>The canonical platform tokens found, empty when none are named.</returns>
@@ -886,7 +884,7 @@ public sealed partial class ContentStateService(
 
     /// <summary>
     /// Collects every OS platform token named by a stored manifest across its name,
-    /// identifier, selected variant, tags, and file paths.
+    /// identifier, selected variant, tags, and entry point.
     /// </summary>
     /// <param name="manifest">The stored manifest to inspect.</param>
     /// <returns>The canonical platform tokens found, empty when none are named.</returns>

@@ -604,7 +604,7 @@ public class GameProcessManager(
             return result;
         }
 
-        var isZeroHourFlatpak = appId.EndsWith("ZH", StringComparison.OrdinalIgnoreCase);
+        var isZeroHourFlatpak = ContentFormatConstants.IsZeroHourFlatpakAppId(appId);
         var targetZhPath = ResolveZeroHourTargetPath(workingDirectory, environment);
 
         foreach (var (key, value) in environment)
@@ -949,7 +949,6 @@ public class GameProcessManager(
     {
         var capturedErrors = new BoundedErrorBuffer();
         process.ErrorDataReceived += (_, e) => capturedErrors.Append(e.Data);
-        process.OutputDataReceived += (_, e) => capturedErrors.Append(e.Data);
         try
         {
             process.BeginErrorReadLine();
@@ -957,15 +956,6 @@ public class GameProcessManager(
         catch (InvalidOperationException ex)
         {
             logger.LogDebug(ex, "[Process] Could not capture stderr for process {ProcessId}", process.Id);
-        }
-
-        try
-        {
-            process.BeginOutputReadLine();
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger.LogDebug(ex, "[Process] Could not capture stdout for process {ProcessId}", process.Id);
         }
 
         return capturedErrors;
@@ -1827,7 +1817,7 @@ public class GameProcessManager(
         if (!capturedErrors.EndOfStreamReached)
         {
             logger.LogDebug(
-                "[Process] Standard output/error did not signal end of stream; the captured output may be incomplete");
+                "[Process] Standard error did not signal end of stream; the captured output may be incomplete");
         }
     }
 

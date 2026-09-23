@@ -188,8 +188,15 @@ public sealed class FlatpakProvisioner(
             throw;
         }
 
-        await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
-        return (process.ExitCode, errorTask.Result.Trim());
+        var drainTask = Task.WhenAll(outputTask, errorTask);
+        if (await Task.WhenAny(drainTask, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken)).ConfigureAwait(false) != drainTask)
+        {
+            logger.LogWarning("Flatpak process exited with code {ExitCode}, but standard output/error did not close within timeout; killing process tree", process.ExitCode);
+            KillProcess(process);
+        }
+
+        var error = errorTask.IsCompletedSuccessfully ? errorTask.Result.Trim() : string.Empty;
+        return (process.ExitCode, error);
     }
 
     private void KillProcess(Process process)

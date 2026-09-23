@@ -39,25 +39,67 @@ public class CommunityGameClientIdentifier : IGameClientIdentifier
             return true;
         }
 
-        var normalizedPath = executablePath.Replace('\\', '/');
-        var isMacBundle = normalizedPath.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase)
-            || normalizedPath.Contains(ContentFormatConstants.MacAppBundleExtension + "/", StringComparison.OrdinalIgnoreCase);
-
-        if (isMacBundle)
+        if (IsMacBundlePath(executablePath))
         {
-            var targetBinary = ResolveTargetBinary(executablePath);
-            if (targetBinary is not null && File.Exists(targetBinary))
-            {
-                var inspect = GameBinaryInspector.Inspect(targetBinary);
-                if (inspect.Success && inspect.Data.Role is GameBinaryRole.Tool or GameBinaryRole.Installer or GameBinaryRole.DotNetLauncher)
-                {
-                    return false;
-                }
-            }
+            return IsSupportedMacBundle(executablePath);
+        }
 
+        return IsSupportedNativeBinary(executablePath, fileName);
+    }
+
+    /// <inheritdoc/>
+    public GameClientIdentification? Identify(string executablePath)
+    {
+        if (!CanIdentify(executablePath))
+        {
+            return null;
+        }
+
+        var targetBinary = ResolveTargetBinary(executablePath) ?? executablePath;
+        var (isExcluded, gameType) = InspectGameBinary(targetBinary, executablePath);
+        if (isExcluded)
+        {
+            return null;
+        }
+
+        if (gameType == GameType.Unknown)
+        {
+            gameType = InferGameTypeFromTokens(executablePath);
+        }
+
+        var platform = ExecutableFileClassifier.DetectPlatform(executablePath);
+        var platformName = ResolvePlatformDisplayName(platform);
+        var displayName = FormatDisplayName(gameType, platformName);
+        var variant = platformName.ToLowerInvariant();
+
+        return new GameClientIdentification(
+            publisherId: PublisherTypeConstants.Community,
+            variant: variant,
+            displayName: displayName,
+            gameType: gameType,
+            localVersion: null);
+    }
+
+    private static bool IsMacBundlePath(string path)
+    {
+        var normalized = path.Replace('\\', '/');
+        return normalized.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains(ContentFormatConstants.MacAppBundleExtension + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSupportedMacBundle(string executablePath)
+    {
+        var targetBinary = ResolveTargetBinary(executablePath);
+        if (targetBinary is null || !File.Exists(targetBinary))
+        {
             return true;
         }
 
+        return !IsExcludedBinaryRole(targetBinary);
+    }
+
+    private static bool IsSupportedNativeBinary(string executablePath, string fileName)
+    {
         // Extensionless is the shape of a native binary but also of a README, so content
         // verification is required: only ELF/Mach-O magic counts, never the name alone.
         if (!string.IsNullOrEmpty(Path.GetExtension(fileName)))
@@ -76,84 +118,72 @@ public class CommunityGameClientIdentifier : IGameClientIdentifier
             return false;
         }
 
-        var nativeInspect = GameBinaryInspector.Inspect(executablePath);
-        if (nativeInspect.Success && nativeInspect.Data.Role is GameBinaryRole.Tool or GameBinaryRole.Installer or GameBinaryRole.DotNetLauncher)
-        {
-            return false;
-        }
-
-        return true;
+        return !IsExcludedBinaryRole(executablePath);
     }
 
-    /// <inheritdoc/>
-    public GameClientIdentification? Identify(string executablePath)
+    private static bool IsExcludedBinaryRole(string binaryPath)
     {
-        if (!CanIdentify(executablePath))
-        {
-            return null;
-        }
-
-        var platform = ExecutableFileClassifier.DetectPlatform(executablePath);
-        var fileName = Path.GetFileName(executablePath);
-        var targetBinary = ResolveTargetBinary(executablePath) ?? executablePath;
-
-        var gameType = GameType.Unknown;
-
-        if (File.Exists(targetBinary) && !fileName.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase))
-        {
-            var inspect = GameBinaryInspector.Inspect(targetBinary);
-            if (inspect.Success)
-            {
-                if (inspect.Data.Role is GameBinaryRole.Tool or GameBinaryRole.Installer or GameBinaryRole.DotNetLauncher)
-                {
-                    return null;
-                }
-
-                if (inspect.Data.GameType is GameType.Generals or GameType.ZeroHour)
-                {
-                    gameType = inspect.Data.GameType;
-                }
-            }
-        }
-
-        if (gameType == GameType.Unknown)
-        {
-            var isZeroHour = ContainsZeroHourToken(fileName) || ContainsZeroHourToken(executablePath);
-            var isGenerals = ContainsGeneralsToken(fileName) || ContainsGeneralsToken(executablePath);
-
-            if (isZeroHour)
-            {
-                gameType = GameType.ZeroHour;
-            }
-            else if (isGenerals)
-            {
-                gameType = GameType.Generals;
-            }
-        }
-
-        var platformName = platform switch
-        {
-            ExecutablePlatform.Windows => GameClientConstants.PlatformWindowsDisplayName,
-            ExecutablePlatform.Linux => GameClientConstants.PlatformLinuxDisplayName,
-            ExecutablePlatform.MacOS => GameClientConstants.PlatformMacOSDisplayName,
-            _ => GameClientConstants.PlatformCrossPlatformDisplayName,
-        };
-
-        var displayName = gameType switch
-        {
-            GameType.Generals => $"{PublisherTypeConstants.CommunityDisplayName} {GameClientConstants.GeneralsShortName} ({platformName})",
-            GameType.ZeroHour => $"{PublisherTypeConstants.CommunityDisplayName} {GameClientConstants.ZeroHourShortName} ({platformName})",
-            _ => $"{PublisherTypeConstants.CommunityDisplayName} ({platformName})",
-        };
-        var variant = platformName.ToLowerInvariant();
-
-        return new GameClientIdentification(
-            publisherId: PublisherTypeConstants.Community,
-            variant: variant,
-            displayName: displayName,
-            gameType: gameType,
-            localVersion: null);
+        var inspect = GameBinaryInspector.Inspect(binaryPath);
+        return inspect.Success && inspect.Data.Role is GameBinaryRole.Tool or GameBinaryRole.Installer or GameBinaryRole.DotNetLauncher;
     }
+
+    private static (bool IsExcluded, GameType GameType) InspectGameBinary(string targetBinary, string executablePath)
+    {
+        var fileName = Path.GetFileName(executablePath);
+        if (!File.Exists(targetBinary) || fileName.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, GameType.Unknown);
+        }
+
+        var inspect = GameBinaryInspector.Inspect(targetBinary);
+        if (!inspect.Success)
+        {
+            return (false, GameType.Unknown);
+        }
+
+        if (inspect.Data.Role is GameBinaryRole.Tool or GameBinaryRole.Installer or GameBinaryRole.DotNetLauncher)
+        {
+            return (true, GameType.Unknown);
+        }
+
+        if (inspect.Data.GameType is GameType.Generals or GameType.ZeroHour)
+        {
+            return (false, inspect.Data.GameType);
+        }
+
+        return (false, GameType.Unknown);
+    }
+
+    private static GameType InferGameTypeFromTokens(string executablePath)
+    {
+        var fileName = Path.GetFileName(executablePath);
+        if (ContainsZeroHourToken(fileName) || ContainsZeroHourToken(executablePath))
+        {
+            return GameType.ZeroHour;
+        }
+
+        if (ContainsGeneralsToken(fileName) || ContainsGeneralsToken(executablePath))
+        {
+            return GameType.Generals;
+        }
+
+        return GameType.Unknown;
+    }
+
+    private static string ResolvePlatformDisplayName(ExecutablePlatform platform) => platform switch
+    {
+        ExecutablePlatform.Windows => GameClientConstants.PlatformWindowsDisplayName,
+        ExecutablePlatform.Linux => GameClientConstants.PlatformLinuxDisplayName,
+        ExecutablePlatform.MacOS => GameClientConstants.PlatformMacOSDisplayName,
+        _ => GameClientConstants.PlatformCrossPlatformDisplayName,
+    };
+
+    private static string FormatDisplayName(GameType gameType, string platformName) => gameType switch
+    {
+        GameType.Generals => $"{PublisherTypeConstants.CommunityDisplayName} {GameClientConstants.GeneralsShortName} ({platformName})",
+        GameType.ZeroHour => $"{PublisherTypeConstants.CommunityDisplayName} {GameClientConstants.ZeroHourShortName} ({platformName})",
+        _ => $"{PublisherTypeConstants.CommunityDisplayName} ({platformName})",
+    };
 
     private static string? ResolveTargetBinary(string executablePath)
     {

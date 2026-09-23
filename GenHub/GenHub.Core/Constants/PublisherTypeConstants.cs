@@ -128,6 +128,9 @@ public static class PublisherTypeConstants
     public static readonly IReadOnlySet<string> CuratedPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         GeneralsOnline,
+        GeneralsX,
+        Fbraz3,
+        Community,
         CommunityOutpost,
         TheSuperHackers,
         LegacySuperHackers,
