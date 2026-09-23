@@ -1109,8 +1109,6 @@ public sealed class WineRunnerTests : IDisposable
         });
     }
 
-
-
     /// <summary>
     /// Verifies that when a prefix user-data subdirectory already exists as a non-empty directory,
     /// its contents are migrated to the native side and bridged.

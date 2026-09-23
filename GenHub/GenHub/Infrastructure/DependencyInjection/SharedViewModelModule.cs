@@ -44,6 +44,9 @@ public static class SharedViewModelModule
         services.AddSingleton<DownloadsBrowserViewModel>();
         services.AddSingleton<ToolsViewModel>();
         services.AddSingleton<InfoViewModel>();
+        services.AddSingleton(sp => new OnlineViewModelDependencies(
+            sp.GetService<ILocalizationService>(),
+            sp.GetService<IUserSettingsService>()));
         services.AddSingleton<OnlineViewModel>();
         services.AddSingleton<NotificationManagerViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(

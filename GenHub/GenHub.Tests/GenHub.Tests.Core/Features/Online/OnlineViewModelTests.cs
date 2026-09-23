@@ -856,7 +856,6 @@ public class OnlineViewModelTests
             notifications ?? Mock.Of<INotificationService>(),
             dialogs ?? Mock.Of<IDialogService>(),
             Mock.Of<ILogger<OnlineViewModel>>(),
-            null,
-            userSettings);
+            new OnlineViewModelDependencies(null, userSettings));
     }
 }

@@ -32,7 +32,12 @@ describe("adapter config without relay", () => {
     expect(decoded.overlay).toBe("genhub-tun");
     expect(decoded.overlayIp).toBe("10.42.0.3");
     const turn = decoded.turn as { username: string; password: string; uris: string[] };
-    expect(turn.username).toContain(":");
+    const [expiryRaw, member] = turn.username.split(":");
+    expect(member).toBe("member-1");
+    const expiry = Number.parseInt(expiryRaw ?? "", 10);
+    const now = Math.floor(Date.now() / 1000);
+    expect(expiry).toBeGreaterThan(now);
+    expect(expiry).toBeLessThanOrEqual(now + 1800 + 60);
     expect(turn.password.length).toBeGreaterThan(0);
     expect(turn.uris).toEqual(["turn:turn.example.invalid:3478"]);
   });

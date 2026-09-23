@@ -717,7 +717,9 @@ describe("online edge", () => {
       const guest = await session();
       const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
         method: "POST",
-        headers: { ...auth(guest), "Content-Type": "application/json" },
+        // One real client IP for every attempt: the limiter must trigger on
+        // this bucket, not on the shared "unknown" fallback.
+        headers: { ...auth(guest), "Content-Type": "application/json", "CF-Connecting-IP": "198.51.100.7" },
         body: JSON.stringify({ password: "secret-password" }),
       });
       if (res.status === 429) {
@@ -728,6 +730,27 @@ describe("online edge", () => {
       }
     }
     expect(limited).toBe(2);
+  });
+
+  it("refuses join grants replayed against a foreign network", async () => {
+    const host = await session();
+    const first = await createNetwork(host);
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${first.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    expect(joinRes.status).toBe(200);
+    const joined = (await joinRes.json()) as JoinResult;
+
+    const second = await createNetwork(host);
+    const replay = await SELF.fetch(`${BASE}/v1/networks/${second.networkId}/heartbeat`, {
+      method: "POST",
+      headers: auth(joined.grant),
+    });
+    expect(replay.status).toBe(403);
+    expect(((await replay.json()) as { code: string }).code).toBe("online.grant-required");
   });
 
   it("refuses cert refresh after leaving", async () => {
