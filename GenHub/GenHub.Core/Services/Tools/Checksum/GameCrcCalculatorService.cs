@@ -43,7 +43,23 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
 
     private static readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, long FileLength, long SkirmishTicks, long SkirmishLength, long MpTicks, long MpLength, string Crc)> ExeCrcCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, (long MaxTicks, long TotalLength, int FileCount, string Crc)> IniCrcCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, Task<OperationResult<string>>> InFlightCalculations = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly ILogger<GameCrcCalculatorService>? _logger;
+
+    /// <summary>
+    /// Builds the cache key for INI CRC calculations.
+    /// </summary>
+    /// <param name="gameRootPath">The root directory of the game installation.</param>
+    /// <param name="gameType">Target game type (Generals or Zero Hour).</param>
+    /// <param name="sideloadPaths">Optional list of sideload BIG file paths.</param>
+    /// <param name="modPath">Optional mod path.</param>
+    /// <returns>A string cache key representing the INI configuration.</returns>
+    public static string BuildIniCacheKey(string gameRootPath, GameType gameType, IReadOnlyList<string>? sideloadPaths = null, string? modPath = null)
+    {
+        var sideloadsPart = sideloadPaths != null && sideloadPaths.Count > 0 ? string.Join(';', sideloadPaths) : string.Empty;
+        return $"{gameRootPath}|{gameType}|{sideloadsPart}|{modPath}";
+    }
 
     /// <summary>
     /// Clears both executable and INI CRC caches.
@@ -52,6 +68,10 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     {
         ExeCrcCache.Clear();
         IniCrcCache.Clear();
+        lock (InFlightCalculations)
+        {
+            InFlightCalculations.Clear();
+        }
     }
 
     /// <summary>
@@ -491,6 +511,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return false;
         }
     }
+
+    private static bool IsFresh((long MaxTicks, long TotalLength, int FileCount) cached, (long MaxTicks, long TotalLength, int FileCount) current) =>
+        cached.MaxTicks == current.MaxTicks &&
+        cached.TotalLength == current.TotalLength &&
+        cached.FileCount == current.FileCount;
 
     private static void LoadOrderStep((string DefaultPath, string OverridePath) step, SageVirtualFileSystem vfs, XferChecksum crc)
     {

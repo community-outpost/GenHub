@@ -174,6 +174,12 @@ public class GameLauncher(
 
         try
         {
+            var fileInfo = new FileInfo(mapCachePath);
+            if (fileInfo.Length > 10 * 1024 * 1024)
+            {
+                return false;
+            }
+
             var content = File.ReadAllText(mapCachePath);
             if (System.Text.RegularExpressions.Regex.IsMatch(content, @":\s*-?(?:nan|1\.#(?:inf|ind|qnan|snan|j))\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
             {
@@ -1836,7 +1842,7 @@ public class GameLauncher(
                 return;
             }
 
-            var mapCachePath = Path.Combine(userDataDir, "Maps", "MapCache.ini");
+            var mapCachePath = Path.Combine(userDataDir, GameClientConstants.MapsDirectoryName, GameClientConstants.MapCacheFileName);
             TrySanitizeMapCacheFile(mapCachePath, logger);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)

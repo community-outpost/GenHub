@@ -629,14 +629,20 @@ public static class WorkspaceCompatibilityHelper
             var d3d8Requested = ManifestDeclaresFile(configuration.Manifests, GameClientConstants.Direct3D8WrapperDll);
             var genToolUpdaterRequested = ManifestDeclaresFile(configuration.Manifests, GameClientConstants.GenToolUpdaterExe);
 
+            if (!configuration.SkipCleanup && !genToolUpdaterRequested)
+            {
+                var genToolUpdaterPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GenToolUpdaterExe);
+                TryDeleteWorkspaceFile(genToolUpdaterPath, GameClientConstants.GenToolUpdaterExe, logger);
+            }
+
             if (!d3d8Requested)
             {
-                if (configuration.SkipCleanup)
+                if (!configuration.SkipCleanup)
                 {
-                    return;
+                    var unrequestedD3d8Path = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
+                    TryDeleteWorkspaceFile(unrequestedD3d8Path, GameClientConstants.Direct3D8WrapperDll, logger);
                 }
 
-                CleanUnrequestedDirect3D8Files(workspaceInfo.WorkspacePath, genToolUpdaterRequested, logger);
                 return;
             }
 
@@ -672,21 +678,22 @@ public static class WorkspaceCompatibilityHelper
             return false;
         }
 
-        return manifests.Any(m => (ManifestVariantResolver.ResolveFiles(m) ?? [])
-            .Any(f => !string.IsNullOrWhiteSpace(f.RelativePath) &&
-                      ManifestVariantResolver.PathsMatch(f.RelativePath, relativePath)));
-    }
-
-    private static void CleanUnrequestedDirect3D8Files(string workspacePath, bool genToolUpdaterRequested, ILogger logger)
-    {
-        var d3d8TargetPath = Path.Combine(workspacePath, GameClientConstants.Direct3D8WrapperDll);
-        TryDeleteWorkspaceFile(d3d8TargetPath, GameClientConstants.Direct3D8WrapperDll, logger);
-
-        if (!genToolUpdaterRequested)
+        return manifests.Any(m =>
         {
-            var genToolUpdaterPath = Path.Combine(workspacePath, GameClientConstants.GenToolUpdaterExe);
-            TryDeleteWorkspaceFile(genToolUpdaterPath, GameClientConstants.GenToolUpdaterExe, logger);
-        }
+            var files = ManifestVariantResolver.ResolveFiles(m);
+            if (files.Count == 0 && m.Variants.Count > 0)
+            {
+                files = ManifestVariantResolver.ResolveFiles(m, "win-x86");
+                if (files.Count == 0)
+                {
+                    files = ManifestVariantResolver.ResolveFiles(m, "win-x64");
+                }
+            }
+
+            return files.Any(f => f.InstallTarget == ContentInstallTarget.Workspace &&
+                                  !string.IsNullOrWhiteSpace(f.RelativePath) &&
+                                  ManifestVariantResolver.PathsMatch(f.RelativePath, relativePath));
+        });
     }
 
     private static void TryDeleteWorkspaceFile(string filePath, string description, ILogger logger)
@@ -701,7 +708,7 @@ public static class WorkspaceCompatibilityHelper
             File.Delete(filePath);
             logger.LogInformation("Removed unrequested {File} from workspace", description);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(ex, "Failed to remove unrequested {File} from workspace", description);
         }

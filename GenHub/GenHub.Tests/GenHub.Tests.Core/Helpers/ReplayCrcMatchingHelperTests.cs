@@ -585,8 +585,7 @@ public class ReplayCrcMatchingHelperTests
             Version = "20260918",
         };
         Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(tshZeroHour));
-        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(tshZeroHour));
-        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(tshZeroHour));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(tshZeroHour));
 
         // INI CRC verification
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));

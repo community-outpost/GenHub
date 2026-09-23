@@ -1100,9 +1100,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         ScheduleIniCompatibilityVerification(profile);
     }
 
-#pragma warning disable S2325 // SonarCloud false positive on MVVM Toolkit generated properties
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
     private void ApplyCompatibilityBadge(IGameProfile profile, bool isRetail)
     {
         if (profile.GameClient == null)
@@ -1148,7 +1146,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
                     "Non-retail configuration (different rules/INIs from 1.04 / 1.05)");
         }
     }
-#pragma warning restore S2325
 
     private void ScheduleIniCompatibilityVerification(IGameProfile profile)
     {
@@ -1189,14 +1186,14 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 crcCalculator,
                 ct: token);
 
-            if (token.IsCancellationRequested || isVerifiedRetail == IsRetailCompatible)
+            if (token.IsCancellationRequested)
             {
                 return;
             }
 
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                if (!token.IsCancellationRequested)
+                if (!token.IsCancellationRequested && isVerifiedRetail != IsRetailCompatible)
                 {
                     ApplyCompatibilityBadge(profile, isVerifiedRetail);
                 }
@@ -1208,7 +1205,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
         {
-            // Silently retain synchronous heuristics if async verification fails
+            // Silently retain synchronous heuristics if filesystem access fails
+        }
+        catch (Exception)
+        {
+            // Fallback: retain synchronous heuristics for unhandled calculation failures
         }
     }
 

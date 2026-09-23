@@ -74,6 +74,12 @@ public static class GameClientConstants
     /// <summary>Standard Zero Hour installation directory name.</summary>
     public const string ZeroHourDirectoryName = "Command and Conquer Generals Zero Hour";
 
+    /// <summary>Subdirectory name within user data for custom maps.</summary>
+    public const string MapsDirectoryName = "Maps";
+
+    /// <summary>Map cache file name within the maps directory.</summary>
+    public const string MapCacheFileName = "MapCache.ini";
+
     /// <summary>Zero Hour directory name with ampersand and hyphen (Steam standard).</summary>
     public const string ZeroHourDirectoryNameAmpersandHyphen = "Command & Conquer Generals - Zero Hour";
 

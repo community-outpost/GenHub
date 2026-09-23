@@ -608,7 +608,7 @@
     <comment>Tooltip for retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatible" xml:space="preserve">
-    <value>Несовместимая конфигурация (отличается от 1.04 / 1.05)</value>
+    <value>Конфигурация не из розничной версии (правила/INI отличаются от 1.04 / 1.05)</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
@@ -616,7 +616,7 @@
     <comment>Tooltip for retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
-    <value>Несовместимая конфигурация (отличается от Generals 1.08 / 1.09)</value>
+    <value>Конфигурация не из розничной версии (правила/INI отличаются от Generals 1.08 / 1.09)</value>
     <comment>Tooltip for non-retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">

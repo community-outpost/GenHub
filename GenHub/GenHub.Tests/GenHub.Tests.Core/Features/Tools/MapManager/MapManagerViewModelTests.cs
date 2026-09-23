@@ -150,6 +150,38 @@ public sealed class MapManagerViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that AddMapPackToProfileAsync uses localized title strings when provided by localization service.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AddMapPackToProfile_WhenLocalizedTitleAvailable_UsesLocalizedStringAsync()
+    {
+        // Arrange
+        _mockDirectoryService
+            .Setup(d => d.GetMapDirectory(GameType.ZeroHour))
+            .Returns(@"C:\Users\DemoUser\" + MapManagerConstants.WindowsMockPathSegment + @"\Maps");
+
+        var mapPack = new MapPack
+        {
+            Id = ManifestId.Create("1.0.local.mappack.demo"),
+            Name = "Demo MapPack",
+        };
+
+        var localizedTitle = "Custom Localized Add To Profile";
+        _mockLocalizationService
+            .Setup(l => l.TryGetString(MapManagerConstants.AddToProfileButtonKey, out localizedTitle))
+            .Returns(true);
+
+        // Act
+        await _viewModel.AddMapPackToProfileCommand.ExecuteAsync(mapPack);
+
+        // Assert
+        _mockNotificationService.Verify(
+            n => n.ShowInfo("Custom Localized Add To Profile", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that AddMapPackToProfileAsync shows a warning notification when the MapPack manifest ID is missing.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

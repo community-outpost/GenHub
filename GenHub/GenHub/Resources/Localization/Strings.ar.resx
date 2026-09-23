@@ -608,7 +608,7 @@
     <comment>Tooltip for retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatible" xml:space="preserve">
-    <value>تكوين غير متوافق (يختلف عن 1.04 / 1.05)</value>
+    <value>تكوين غير متوافق مع نسخة التجزئة (قواعد/INI تختلف عن 1.04 / 1.05)</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
@@ -616,7 +616,7 @@
     <comment>Tooltip for retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
-    <value>تكوين غير متوافق (يختلف عن Generals 1.08 / 1.09)</value>
+    <value>تكوين غير متوافق مع نسخة التجزئة (قواعد/INI تختلف عن Generals 1.08 / 1.09)</value>
     <comment>Tooltip for non-retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">

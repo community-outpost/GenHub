@@ -1287,6 +1287,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "safe");
         File.WriteAllText(Path.Combine(supplementalRoot, "PatchINI.big"), "unsafe");
         var mockLogger = new Mock<ILogger>();
+        mockLogger.Setup(x => x.IsEnabled(LogLevel.Information)).Returns(true);
 
         // Act
         var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(supplementalRoot, out var archives, mockLogger.Object);
@@ -1299,7 +1300,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
                 LogLevel.Information,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("PatchINI.big")),
-                It.IsAny<Exception>(),
+                It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }

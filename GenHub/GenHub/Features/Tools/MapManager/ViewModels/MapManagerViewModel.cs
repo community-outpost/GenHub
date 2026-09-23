@@ -67,6 +67,7 @@ public partial class MapManagerViewModel(
     IServiceProvider? serviceProvider = null) : ObservableObject, IDisposable
 {
     private DispatcherTimer? _searchTimer;
+    private bool _isProfileSelectionDialogOpen;
 
     private DispatcherTimer GetSearchTimer()
     {
@@ -1025,12 +1026,24 @@ public partial class MapManagerViewModel(
         }
     }
 
-    [RelayCommand]
-    private async Task CreateMapPackAsync()
+    private bool ValidateMapPackInput()
     {
         if (string.IsNullOrWhiteSpace(NewMapPackName) || !SelectedMaps.Any())
         {
-            notificationService.ShowWarning("Invalid Input", "Please provide a name and select maps.");
+            notificationService.ShowWarning(
+                GetLocalizedString(MapManagerConstants.InvalidInputTitleKey, "Invalid Input"),
+                GetLocalizedString(MapManagerConstants.InvalidInputMessageKey, "Please provide a name and select maps."));
+            return false;
+        }
+
+        return true;
+    }
+
+    [RelayCommand]
+    private async Task CreateMapPackAsync()
+    {
+        if (!ValidateMapPackInput())
+        {
             return;
         }
 
@@ -1187,13 +1200,13 @@ public partial class MapManagerViewModel(
     [RelayCommand]
     private async Task AddMapPackToProfileAsync(MapPack? mapPack)
     {
-        if (mapPack == null)
+        if (mapPack == null || _isProfileSelectionDialogOpen)
         {
             return;
         }
 
-        var addToProfileTitle = GetLocalizedString("Maps.MapPack.Button.AddToProfile", "Add to Profile");
-        var profileSelectionTitle = GetLocalizedString("Maps.MapPack.Notification.ProfileSelectionTitle", "Profile Selection");
+        var addToProfileTitle = GetLocalizedString(MapManagerConstants.AddToProfileButtonKey, "Add to Profile");
+        var profileSelectionTitle = GetLocalizedString(MapManagerConstants.ProfileSelectionTitleKey, "Profile Selection");
 
         // Check if current tab is using demo paths
         var demoPath = directoryService.GetMapDirectory(SelectedTab);
@@ -1217,6 +1230,7 @@ public partial class MapManagerViewModel(
             return;
         }
 
+        _isProfileSelectionDialogOpen = true;
         try
         {
             using var profileVm = CreateProfileSelectionViewModel();
@@ -1231,11 +1245,11 @@ public partial class MapManagerViewModel(
                 return;
             }
 
-            var dialogTitle = GetLocalizedString("Maps.MapPack.ProfileSelection.DialogTitle", "Add MapPack to Profile");
-            var headerTitle = GetLocalizedString("Maps.MapPack.ProfileSelection.HeaderTitle", "Add MapPack to Profile");
-            var headerSubtitle = GetLocalizedString("Maps.MapPack.ProfileSelection.HeaderSubtitle", "Choose a profile to add '{0}' to, or create a new profile");
-            var createSubtitle = GetLocalizedString("Maps.MapPack.ProfileSelection.CreateCardSubtitle", "Create a new profile with this MapPack");
-            var actionBadge = GetLocalizedString("Maps.MapPack.ProfileSelection.ActionBadge", "Add");
+            var dialogTitle = GetLocalizedString(MapManagerConstants.ProfileSelectionDialogTitleKey, "Add MapPack to Profile");
+            var headerTitle = GetLocalizedString(MapManagerConstants.ProfileSelectionHeaderTitleKey, "Add MapPack to Profile");
+            var headerSubtitle = GetLocalizedString(MapManagerConstants.ProfileSelectionHeaderSubtitleKey, "Choose a profile to add '{0}' to, or create a new profile");
+            var createSubtitle = GetLocalizedString(MapManagerConstants.ProfileSelectionCreateCardSubtitleKey, "Create a new profile with this MapPack");
+            var actionBadge = GetLocalizedString(MapManagerConstants.ProfileSelectionActionBadgeKey, "Add");
 
             profileVm.DialogTitle = dialogTitle;
             profileVm.HeaderTitle = headerTitle;
@@ -1257,6 +1271,10 @@ public partial class MapManagerViewModel(
                 IsMapPackPanelOpen = false;
             }
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Profile selection canceled by user");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to add MapPack '{MapPack}' to profile", mapPack.Name);
@@ -1265,6 +1283,10 @@ public partial class MapManagerViewModel(
                 GetLocalizedString(
                     "Maps.MapPack.Notification.AddError",
                     "An error occurred while adding MapPack to profile."));
+        }
+        finally
+        {
+            _isProfileSelectionDialogOpen = false;
         }
     }
 
@@ -1276,11 +1298,8 @@ public partial class MapManagerViewModel(
     [RelayCommand]
     private async Task CreateAndAddMapPackToProfileAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(NewMapPackName) || !SelectedMaps.Any())
+        if (!ValidateMapPackInput())
         {
-            notificationService.ShowWarning(
-                GetLocalizedString("Maps.MapPack.Notification.InvalidInputTitle", "Invalid Input"),
-                GetLocalizedString("Maps.MapPack.Notification.InvalidInputMessage", "Please provide a name and select maps."));
             return;
         }
 
@@ -1289,7 +1308,7 @@ public partial class MapManagerViewModel(
         if (demoMaps.Count > 0)
         {
             notificationService.ShowInfo(
-                GetLocalizedString("Maps.MapPack.Button.CreateAndAddToProfile", "Create & Add to Profile"),
+                GetLocalizedString(MapManagerConstants.CreateAndAddToProfileButtonKey, "Create & Add to Profile"),
                 GetLocalizedString(
                     "Maps.MapPack.Notification.DemoCreateAndAddToProfile",
                     "Creates a MapPack and opens the profile selection dialog to immediately add it to a profile."));
