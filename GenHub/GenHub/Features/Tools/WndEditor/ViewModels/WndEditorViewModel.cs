@@ -2714,10 +2714,10 @@ public sealed partial class WndEditorViewModel(
             RefreshItemPreview(item);
         }
 
-        RefreshAssetStatus();
+        RefreshAssetStatus(logMissing: images != null);
     }
 
-    private void RefreshAssetStatus()
+    private void RefreshAssetStatus(bool logMissing = false)
     {
         if (_document == null)
         {
@@ -2746,7 +2746,7 @@ public sealed partial class WndEditorViewModel(
         AssetStatusTooltip = missing.Count == 0
             ? null
             : localizationService.GetString("Tools.WndEditor.Assets.MissingTooltip", FormatMissingNames(missing));
-        if (missing.Count > 0)
+        if (logMissing && missing.Count > 0)
         {
             logger.LogWarning(
                 "WND preview for {File} is missing {Missing} of {Total} images: {Names}",

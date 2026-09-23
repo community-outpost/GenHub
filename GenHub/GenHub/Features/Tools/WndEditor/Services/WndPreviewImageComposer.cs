@@ -5,8 +5,8 @@ using System;
 namespace GenHub.Features.Tools.WndEditor.Services;
 
 /// <summary>
-/// Composes three-piece button and text-entry bars (left cap, tiled center, right cap)
-/// the way the engine draws them (see W3DGadgetPushButtonImageDrawThree in GeneralsGameCode),
+/// Composes three-piece button and text-entry bars (left cap, stretched center, right cap)
+/// the way the engine draws them (stretchable middle per OpenSAGE StretchableMappedImageSource),
 /// as well as composite background and menu frame overlays.
 /// </summary>
 public static class WndPreviewImageComposer
@@ -15,7 +15,7 @@ public static class WndPreviewImageComposer
     /// Composes left, center, and right art into one bar of the requested size.
     /// </summary>
     /// <param name="leftPng">The left cap PNG bytes.</param>
-    /// <param name="centerPng">The horizontally tiled middle PNG bytes.</param>
+    /// <param name="centerPng">The middle PNG bytes, stretched to fill between the caps.</param>
     /// <param name="rightPng">The right cap PNG bytes.</param>
     /// <param name="width">The target width in pixels.</param>
     /// <param name="height">The target height in pixels.</param>
@@ -62,7 +62,7 @@ public static class WndPreviewImageComposer
     /// Composes top, center, and bottom art into one vertical bar of the requested size.
     /// </summary>
     /// <param name="topPng">The top cap PNG bytes.</param>
-    /// <param name="centerPng">The vertically tiled middle PNG bytes.</param>
+    /// <param name="centerPng">The middle PNG bytes, stretched to fill between the caps.</param>
     /// <param name="bottomPng">The bottom cap PNG bytes.</param>
     /// <param name="width">The target width in pixels.</param>
     /// <param name="height">The target height in pixels.</param>
@@ -192,18 +192,12 @@ public static class WndPreviewImageComposer
         canvas.Composite(top, 0, 0, CompositeOperator.Over);
         var bottomY = height - (int)bottom.Height;
         canvas.Composite(bottom, 0, bottomY, CompositeOperator.Over);
-        var y = (int)top.Height;
-        while (y + (int)center.Height <= bottomY)
+        var middleHeight = bottomY - (int)top.Height;
+        if (middleHeight > 0)
         {
-            canvas.Composite(center, 0, y, CompositeOperator.Over);
-            y += (int)center.Height;
-        }
-
-        if (y < bottomY)
-        {
-            using var clipped = (MagickImage)center.Clone();
-            clipped.Crop(new MagickGeometry(clipped.Width, (uint)(bottomY - y)));
-            canvas.Composite(clipped, 0, y, CompositeOperator.Over);
+            using var stretched = (MagickImage)center.Clone();
+            stretched.Resize(new MagickGeometry(stretched.Width, (uint)middleHeight) { IgnoreAspectRatio = true });
+            canvas.Composite(stretched, 0, (int)top.Height, CompositeOperator.Over);
         }
     }
 
@@ -212,18 +206,12 @@ public static class WndPreviewImageComposer
         canvas.Composite(left, 0, 0, CompositeOperator.Over);
         var rightX = width - (int)right.Width;
         canvas.Composite(right, rightX, 0, CompositeOperator.Over);
-        var x = (int)left.Width;
-        while (x + (int)center.Width <= rightX)
+        var middleWidth = rightX - (int)left.Width;
+        if (middleWidth > 0)
         {
-            canvas.Composite(center, x, 0, CompositeOperator.Over);
-            x += (int)center.Width;
-        }
-
-        if (x < rightX)
-        {
-            using var clipped = (MagickImage)center.Clone();
-            clipped.Crop(new MagickGeometry((uint)(rightX - x), clipped.Height));
-            canvas.Composite(clipped, x, 0, CompositeOperator.Over);
+            using var stretched = (MagickImage)center.Clone();
+            stretched.Resize(new MagickGeometry((uint)middleWidth, stretched.Height) { IgnoreAspectRatio = true });
+            canvas.Composite(stretched, (int)left.Width, 0, CompositeOperator.Over);
         }
     }
 }

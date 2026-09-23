@@ -488,7 +488,38 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             ResolveSingleImage(name, index, resolved, cancellationToken);
         }
 
+        LogMissingReasons(names, requests, resolved);
         return resolved;
+    }
+
+    private void LogMissingReasons(
+        IReadOnlyCollection<string> names,
+        Dictionary<string, TieredImage> requests,
+        Dictionary<string, byte[]> resolved)
+    {
+        foreach (var name in names)
+        {
+            if (string.IsNullOrWhiteSpace(name)
+                || string.Equals(name.Trim(), WndConstants.DrawData.NoImage, StringComparison.OrdinalIgnoreCase)
+                || resolved.ContainsKey(name.Trim()))
+            {
+                continue;
+            }
+
+            if (requests.TryGetValue(name.Trim(), out var requested))
+            {
+                logger.LogInformation(
+                    "Could not resolve texture {Texture} for mapped image {Image} (defined in {Ini} [{Tier}])",
+                    requested.Image.Texture,
+                    requested.Image.Name,
+                    requested.SourceIniPath,
+                    requested.Tier);
+            }
+            else
+            {
+                logger.LogInformation("No mapped image definition found for {Image}", name.Trim());
+            }
+        }
     }
 
     private void DecodeSharedTextureGroups(
