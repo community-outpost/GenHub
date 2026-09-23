@@ -41,6 +41,12 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         }
     }
 
+    private readonly record struct IniCalculationContext(
+        string GameRootPath,
+        GameType GameType,
+        IReadOnlyList<string>? SideloadPaths,
+        string? ModPath);
+
     private static readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, long FileLength, long SkirmishTicks, long SkirmishLength, long MpTicks, long MpLength, string Crc)> ExeCrcCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, (long MaxTicks, long TotalLength, int FileCount, string Crc)> IniCrcCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Task<OperationResult<string>>> InFlightCalculations = new(StringComparer.OrdinalIgnoreCase);
@@ -203,6 +209,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return OperationResult<string>.CreateFailure($"Game root directory not found at '{gameRootPath}'.");
         }
 
+        var context = new IniCalculationContext(gameRootPath, gameType, sideloadPaths, modPath);
         var cacheKey = BuildIniCacheKey(gameRootPath, gameType, sideloadPaths, modPath);
         var freshness = GetIniFreshnessSignature(gameRootPath, sideloadPaths, modPath);
 
@@ -215,10 +222,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         var inFlightTask = GetOrCreateInFlightTask(
             cacheKey,
             freshness,
-            gameRootPath,
-            gameType,
-            sideloadPaths,
-            modPath,
+            context,
             _logger,
             ct);
 
@@ -492,10 +496,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     private static Task<OperationResult<string>> GetOrCreateInFlightTask(
         string cacheKey,
         (long MaxTicks, long TotalLength, int FileCount) freshness,
-        string gameRootPath,
-        GameType gameType,
-        IReadOnlyList<string>? sideloadPaths,
-        string? modPath,
+        IniCalculationContext context,
         ILogger? logger,
         CancellationToken ct)
     {
@@ -509,7 +510,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             var task = Task.Run(
                 () =>
                 {
-                    var calculated = ComputeIniCrc(gameRootPath, gameType, sideloadPaths, modPath, logger, ct);
+                    var calculated = ComputeIniCrc(context, logger, ct);
                     IniCrcCache[cacheKey] = (freshness.MaxTicks, freshness.TotalLength, freshness.FileCount, calculated);
                     return OperationResult<string>.CreateSuccess(calculated);
                 },
@@ -527,17 +528,14 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     }
 
     private static string ComputeIniCrc(
-        string gameRootPath,
-        GameType gameType,
-        IReadOnlyList<string>? sideloadPaths,
-        string? modPath,
+        IniCalculationContext context,
         ILogger? logger,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
-        bool isZeroHour = gameType == GameType.ZeroHour;
-        var vfs = new SageVirtualFileSystem(gameRootPath, isZeroHour, logger, cancellationToken: ct);
+        bool isZeroHour = context.GameType == GameType.ZeroHour;
+        var vfs = new SageVirtualFileSystem(context.GameRootPath, isZeroHour, logger, cancellationToken: ct);
         var crc = new XferChecksum();
 
         var order = isZeroHour
@@ -548,7 +546,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         LoadOrderStep(order[0], vfs, crc);
 
         // Phase 2: Mount Sideloads and Mods
-        MountSideloadsAndMods(vfs, sideloadPaths, modPath);
+        MountSideloadsAndMods(vfs, context.SideloadPaths, context.ModPath);
 
         // Phase 3: Load remaining categories
         for (int i = 1; i < order.Length; i++)
