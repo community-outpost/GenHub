@@ -2661,6 +2661,17 @@ public partial class ContentDetailViewModel(
                 var rowContentId = CreateFileContentId(row.DownloadUrl, row.Name);
                 var matches = rowContentId == contentId
                               || (!string.IsNullOrEmpty(manifestId) && row.DownloadedManifestId == manifestId);
+
+                if (!matches && row is DownloadableItemViewModel { File: { } rowFile })
+                {
+                    var variant = FindMatchingVariantSearchResult(rowFile);
+                    if (variant != null && (string.Equals(variant.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
+                                            (!string.IsNullOrEmpty(manifestId) && string.Equals(variant.Id, manifestId, StringComparison.OrdinalIgnoreCase))))
+                    {
+                        matches = true;
+                    }
+                }
+
                 if (!matches)
                 {
                     continue;
@@ -4708,7 +4719,27 @@ public partial class ContentDetailViewModel(
     private Task DownloadFileAsync(
         DownloadableFile file,
         CancellationToken cancellationToken = default) =>
-        DownloadFileCoreAsync(file, null, cancellationToken);
+        DownloadFileCoreAsync(
+            file,
+            manifest =>
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                var row = EnumerateRows().FirstOrDefault(r =>
+                    (r is DownloadableItemViewModel vm && vm.File == file) ||
+                    CreateFileContentId(r.DownloadUrl, r.Name) == CreateFileContentId(file));
+
+                if (row != null)
+                {
+                    row.DownloadedManifestId = manifest.Id.Value;
+                    row.IsDownloaded = true;
+                    row.IsUpdateAvailable = false;
+                }
+            },
+            cancellationToken);
 
     private ContentSearchResult? FindMatchingVariantSearchResult(DownloadableFile file)
     {
@@ -4717,10 +4748,16 @@ public partial class ContentDetailViewModel(
             return null;
         }
 
+        // Order deterministically by variant manifest ID to avoid unspecified dictionary iteration order
+        var candidates = variantSearchResults
+            .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(kvp => kvp.Value)
+            .ToList();
+
         // 1. Direct match on SelectedDownloadUrl or SourceUrl if non-empty
         if (!string.IsNullOrWhiteSpace(file.DownloadUrl))
         {
-            var matchByUrl = variantSearchResults.Values.FirstOrDefault(sr =>
+            var matchByUrl = candidates.FirstOrDefault(sr =>
                 string.Equals(sr.SelectedDownloadUrl, file.DownloadUrl, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(sr.SourceUrl, file.DownloadUrl, StringComparison.OrdinalIgnoreCase));
             if (matchByUrl != null)
@@ -4732,7 +4769,7 @@ public partial class ContentDetailViewModel(
         // 2. Match by DetailsUrl if non-empty
         if (!string.IsNullOrWhiteSpace(file.DetailsUrl))
         {
-            var matchByDetails = variantSearchResults.Values.FirstOrDefault(sr =>
+            var matchByDetails = candidates.FirstOrDefault(sr =>
                 string.Equals(sr.SourceUrl, file.DetailsUrl, StringComparison.OrdinalIgnoreCase));
             if (matchByDetails != null)
             {
@@ -4740,29 +4777,79 @@ public partial class ContentDetailViewModel(
             }
         }
 
-        // 3. Exact match by Name or Id
+        // 3. Exact match by Name or Id with disambiguation
         if (!string.IsNullOrWhiteSpace(file.Name))
         {
             var trimmedName = file.Name.Trim();
-            var matchByNameOrId = variantSearchResults.Values.FirstOrDefault(sr =>
+            var matches = candidates.Where(sr =>
                 string.Equals(sr.Name?.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(sr.Id?.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase));
-            if (matchByNameOrId != null)
+                string.Equals(sr.Id?.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (matches.Count == 1)
             {
-                return matchByNameOrId;
+                return matches[0];
+            }
+
+            if (matches.Count > 1)
+            {
+                if (!string.IsNullOrWhiteSpace(file.Version))
+                {
+                    var matchByVersion = matches.FirstOrDefault(sr =>
+                        string.Equals(sr.Version?.Trim(), file.Version.Trim(), StringComparison.OrdinalIgnoreCase));
+                    if (matchByVersion != null)
+                    {
+                        return matchByVersion;
+                    }
+                }
+
+                if (file.FileSectionType == FileSectionType.Addons)
+                {
+                    var matchAddon = matches.FirstOrDefault(sr => sr.ContentType == ContentType.Addon);
+                    if (matchAddon != null)
+                    {
+                        return matchAddon;
+                    }
+                }
+
+                return matches[0];
             }
         }
 
-        // 4. Exact match by Filename
+        // 4. Exact match by Filename with disambiguation
         if (!string.IsNullOrWhiteSpace(file.Filename))
         {
             var filenameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(file.Filename).Trim();
-            var matchByFilename = variantSearchResults.Values.FirstOrDefault(sr =>
+            var matches = candidates.Where(sr =>
                 string.Equals(sr.Name?.Trim(), filenameWithoutExt, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(sr.Id?.Trim(), filenameWithoutExt, StringComparison.OrdinalIgnoreCase));
-            if (matchByFilename != null)
+                string.Equals(sr.Id?.Trim(), filenameWithoutExt, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (matches.Count == 1)
             {
-                return matchByFilename;
+                return matches[0];
+            }
+
+            if (matches.Count > 1)
+            {
+                if (!string.IsNullOrWhiteSpace(file.Version))
+                {
+                    var matchByVersion = matches.FirstOrDefault(sr =>
+                        string.Equals(sr.Version?.Trim(), file.Version.Trim(), StringComparison.OrdinalIgnoreCase));
+                    if (matchByVersion != null)
+                    {
+                        return matchByVersion;
+                    }
+                }
+
+                if (file.FileSectionType == FileSectionType.Addons)
+                {
+                    var matchAddon = matches.FirstOrDefault(sr => sr.ContentType == ContentType.Addon);
+                    if (matchAddon != null)
+                    {
+                        return matchAddon;
+                    }
+                }
+
+                return matches[0];
             }
         }
 
@@ -4782,6 +4869,7 @@ public partial class ContentDetailViewModel(
 
         var matchingVariant = FindMatchingVariantSearchResult(file);
         var canResolve = matchingVariant?.RequiresResolution == true ||
+                         !string.IsNullOrWhiteSpace(matchingVariant?.ResolverId) ||
                          searchResult.RequiresResolution ||
                          !string.IsNullOrWhiteSpace(searchResult.ResolverId);
 
@@ -4855,15 +4943,13 @@ public partial class ContentDetailViewModel(
             rowVersion = searchResult.Version;
         }
 
-        var rowId = matchingVariant != null && !string.IsNullOrWhiteSpace(matchingVariant.Id)
-            ? matchingVariant.Id
-            : CreateFileContentId(file);
+        // A row download must not reuse the parent catalog ID or a shared variant ID.
+        // The coordinator publishes state for the supplied ID, so rows use their synthesized
+        // file content ID to ensure exact 1:1 live row state updates without cross-row bleed.
+        var rowId = CreateFileContentId(file);
 
         var rowSearchResult = new ContentSearchResult
         {
-            // A row download must not reuse the parent catalog ID unless it is a specific variant/child ID.
-            // The coordinator publishes state for the supplied ID, so sharing the parent ID would incorrectly
-            // mark the parent as downloaded and make its Add to Profile action target whichever row finished last.
             Id = rowId,
             Name = file.Name ?? baseResult.Name ?? file.DownloadUrl ?? UnknownValue,
             Version = rowVersion,
@@ -5122,6 +5208,7 @@ public partial class ContentDetailViewModel(
     {
         var matchingVariant = FindMatchingVariantSearchResult(file);
         var canResolve = matchingVariant?.RequiresResolution == true ||
+                         !string.IsNullOrWhiteSpace(matchingVariant?.ResolverId) ||
                          searchResult.RequiresResolution ||
                          !string.IsNullOrWhiteSpace(searchResult.ResolverId);
 
