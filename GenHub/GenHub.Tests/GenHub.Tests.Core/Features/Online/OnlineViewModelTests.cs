@@ -3,7 +3,9 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Common;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -265,6 +267,7 @@ public class OnlineViewModelTests
                 It.IsAny<bool>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
         network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
@@ -284,6 +287,7 @@ public class OnlineViewModelTests
                 "net-1",
                 It.IsAny<string>(),
                 true,
+                It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),
@@ -309,6 +313,7 @@ public class OnlineViewModelTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<bool>(),
+                It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
@@ -345,6 +350,7 @@ public class OnlineViewModelTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<bool>(),
+                It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
@@ -395,6 +401,7 @@ public class OnlineViewModelTests
                 It.IsAny<bool>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
         network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Down);
@@ -442,6 +449,7 @@ public class OnlineViewModelTests
                 It.IsAny<bool>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .Returns(gate.Task);
         network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
@@ -464,6 +472,7 @@ public class OnlineViewModelTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<bool>(),
+                It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),
@@ -497,6 +506,7 @@ public class OnlineViewModelTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<bool>(),
+                It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),
@@ -690,8 +700,8 @@ public class OnlineViewModelTests
         var generals = ProfileWithClient("profile-2", "Generals", GameType.Generals, "generals-client", "1.08", "mod-a");
         var advertised = new List<string>();
         var vm = CreateViewModelWithDetail(zeroHour, out var network, generals);
-        network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>()))
-            .Callback<string, string>((fingerprint, _) => advertised.Add(fingerprint));
+        network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string, string>((fingerprint, _, _) => advertised.Add(fingerprint));
         vm.SelectedNetwork = new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" };
         await WaitForAsync(() => vm.SelectedPlayProfile is not null);
         advertised.Clear();
@@ -779,6 +789,172 @@ public class OnlineViewModelTests
         launch.Verify(l => l.PlayAsync("profile-1", It.IsAny<string>(), It.IsAny<string>(), "Ace", It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    /// <summary>
+    /// Tests that joining sends the player nickname as the roster display name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WithNickname_ShouldSendDisplayNameAsync()
+    {
+        // Arrange
+        var join = new OnlineJoinResult
+        {
+            NetworkId = "net-1",
+            Grant = "grant-token",
+            OverlayIp = "10.42.0.7",
+        };
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
+        var vm = CreateViewModel(network.Object);
+        vm.Networks = [new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" }];
+        vm.SelectedNetwork = vm.Networks[0];
+        vm.Nickname = "Ace";
+
+        // Act
+        await vm.JoinNetworkAsync();
+
+        // Assert
+        network.Verify(
+            n => n.JoinNetworkAsync(
+                "net-1",
+                It.IsAny<string>(),
+                true,
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                "Ace",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that editing the selected play profile while joined re-matches
+    /// and re-advertises it with the player nickname.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Receive_ProfileUpdatedMessage_ForPlayProfile_ShouldReAdvertiseAsync()
+    {
+        // Arrange
+        var profile = ProfileWithClient("profile-1", "Zero Hour", GameType.ZeroHour, "zerohour-client", "1.04", "mod-a", "mod-x");
+        var advertised = new List<(string Fingerprint, string Name, string DisplayName)>();
+        var vm = CreateViewModelWithDetail(profile, out var network);
+        network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string, string>((fingerprint, name, display) => advertised.Add((fingerprint, name, display)));
+        vm.IsJoined = true;
+        vm.Nickname = "Ace";
+        vm.SelectedPlayProfile = profile;
+        await WaitForAsync(() => advertised.Count > 0);
+        advertised.Clear();
+
+        // Act: the user edits the play profile content in Game Profiles.
+        vm.Receive(new ProfileUpdatedMessage(profile));
+        await WaitForAsync(() => advertised.Count > 0);
+
+        // Assert
+        Assert.StartsWith("opf3|ZeroHour|1.04|zerohour-client|", advertised[0].Fingerprint, StringComparison.Ordinal);
+        Assert.Equal("Ace", advertised[0].DisplayName);
+    }
+
+    /// <summary>
+    /// Tests that the advertised fingerprint embeds engine CRCs when the
+    /// calculator resolves them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AdvertiseSelectedProfile_WithCalculator_ShouldEmbedCrcsAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(gameDir);
+        try
+        {
+            var exePath = Path.Combine(gameDir, "generals.exe");
+            await File.WriteAllTextAsync(exePath, "fake-exe");
+            var profile = ProfileWithClient("profile-1", "Zero Hour", GameType.ZeroHour, "zerohour-client", "1.04", "mod-a");
+            profile.GameClient!.ExecutablePath = exePath;
+            IReadOnlyList<ContentManifest> manifests =
+            [
+                new() { Id = new ManifestId("mod-a"), ContentType = ContentType.Mod, SourcePath = gameDir },
+            ];
+            var profiles = new Mock<IGameProfileManager>();
+            profiles.Setup(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess(manifests));
+            var calculator = new Mock<IGameCrcCalculatorService>();
+            calculator.Setup(c => c.CalculateExeCrcAsync(exePath, gameDir, null, null, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("0x22222222"));
+            calculator.Setup(c => c.CalculateIniCrcAsync(gameDir, GameType.ZeroHour, It.IsAny<IReadOnlyList<string>?>(), null, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("0x11111111"));
+            var advertised = new List<string>();
+            var network = new Mock<IOnlineNetworkService>();
+            network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Callback<string, string, string>((fingerprint, _, _) => advertised.Add(fingerprint));
+            var vm = CreateViewModel(network.Object, profiles: profiles.Object, crcCalculator: calculator.Object);
+            vm.IsJoined = true;
+            vm.SelectedPlayProfile = profile;
+            await WaitForAsync(() => advertised.Count > 0);
+
+            // Assert
+            Assert.StartsWith("opf4|", advertised[0], StringComparison.Ordinal);
+            Assert.EndsWith("|0x11111111|0x22222222", advertised[0], StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(gameDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that a calculator failure falls back to the id-only fingerprint
+    /// instead of blocking the advertisement.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AdvertiseSelectedProfile_WithCalculatorFailure_ShouldFallBackAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(gameDir);
+        try
+        {
+            var exePath = Path.Combine(gameDir, "generals.exe");
+            await File.WriteAllTextAsync(exePath, "fake-exe");
+            var profile = ProfileWithClient("profile-1", "Zero Hour", GameType.ZeroHour, "zerohour-client", "1.04", "mod-a");
+            profile.GameClient!.ExecutablePath = exePath;
+            var profiles = new Mock<IGameProfileManager>();
+            profiles.Setup(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess([]));
+            var calculator = new Mock<IGameCrcCalculatorService>(MockBehavior.Strict);
+            calculator.Setup(c => c.CalculateExeCrcAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateFailure("no exe"));
+            calculator.Setup(c => c.CalculateIniCrcAsync(It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateFailure("no ini"));
+            var advertised = new List<string>();
+            var network = new Mock<IOnlineNetworkService>();
+            network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Callback<string, string, string>((fingerprint, _, _) => advertised.Add(fingerprint));
+            var vm = CreateViewModel(network.Object, profiles: profiles.Object, crcCalculator: calculator.Object);
+            vm.IsJoined = true;
+            vm.SelectedPlayProfile = profile;
+            await WaitForAsync(() => advertised.Count > 0);
+
+            // Assert
+            Assert.StartsWith("opf3|", advertised[0], StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(gameDir, true);
+        }
+    }
+
     private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
@@ -847,7 +1023,8 @@ public class OnlineViewModelTests
         IOnlineLaunchService? launchService = null,
         IDialogService? dialogs = null,
         IGameProfileManager? profiles = null,
-        IUserSettingsService? userSettings = null)
+        IUserSettingsService? userSettings = null,
+        IGameCrcCalculatorService? crcCalculator = null)
     {
         return new OnlineViewModel(
             network ?? Mock.Of<IOnlineNetworkService>(),
@@ -856,6 +1033,7 @@ public class OnlineViewModelTests
             notifications ?? Mock.Of<INotificationService>(),
             dialogs ?? Mock.Of<IDialogService>(),
             Mock.Of<ILogger<OnlineViewModel>>(),
-            new OnlineViewModelDependencies(null, userSettings));
+            new OnlineViewModelDependencies(null, userSettings),
+            crcCalculator);
     }
 }

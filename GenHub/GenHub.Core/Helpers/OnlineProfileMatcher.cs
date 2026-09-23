@@ -24,6 +24,12 @@ public static class OnlineProfileMatcher
     private const int FingerprintHashChars = 16;
 
     /// <summary>
+    /// Segment count of a versioned compatibility fingerprint:
+    /// prefix, game type, version, client id, content hash, iniCRC, exeCRC.
+    /// </summary>
+    private const int CompatibilitySegmentCount = 7;
+
+    /// <summary>
     /// Determines whether a content type can affect game sync and therefore
     /// belongs in the profile fingerprint.
     /// </summary>
@@ -63,6 +69,26 @@ public static class OnlineProfileMatcher
     }
 
     /// <summary>
+    /// Resolves the effective content type when one manifest id is registered
+    /// under several types. Duplicate registrations enumerate in an order the
+    /// caller does not control, so the pick must be deterministic or two
+    /// machines with the same setup classify the id differently and report a
+    /// phantom mod mismatch. Gameplay wins ties: a disputed id surfaces as a
+    /// mismatch, never as a silent match.
+    /// </summary>
+    /// <param name="candidates">The registered types for one manifest id.</param>
+    /// <returns>The deterministic effective type.</returns>
+    public static ContentType ResolveDeclaredType(IEnumerable<ContentType> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        return candidates
+            .OrderBy(t => IsGameplayContent(t) ? 0 : 1)
+            .ThenBy(t => t.ToString(), StringComparer.Ordinal)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
     /// Lists the profile's gameplay content ids in stable order. Content with
     /// an unknown type counts as gameplay: an unrecognized id must surface as
     /// a mismatch, never as a silent match.
@@ -98,17 +124,105 @@ public static class OnlineProfileMatcher
 
         var clientKey = GetGameClientKey(profile);
         var gameplay = GetGameplayContentIds(profile, contentTypes);
+        return CreateFingerprint(clientKey, gameplay);
+    }
+
+    /// <summary>
+    /// Builds a fingerprint from resolved setup parts, embedding the engine
+    /// compatibility CRCs when available. Without CRCs the output is
+    /// byte-identical to the previous version, so id-only fingerprints keep
+    /// matching exactly as before.
+    /// </summary>
+    /// <param name="clientKey">The game client key.</param>
+    /// <param name="gameplayContentIds">The sorted gameplay content ids.</param>
+    /// <param name="iniCrc">The engine iniCRC (0xXXXXXXXX) or empty when unavailable.</param>
+    /// <param name="exeCrc">The engine exeCRC (0xXXXXXXXX) or empty when unavailable.</param>
+    /// <returns>The fingerprint string.</returns>
+    public static string CreateFingerprint(
+        string clientKey,
+        IReadOnlyList<string> gameplayContentIds,
+        string iniCrc = "",
+        string exeCrc = "")
+    {
+        ArgumentNullException.ThrowIfNull(clientKey);
+        ArgumentNullException.ThrowIfNull(gameplayContentIds);
 
         // Length-prefixed so no client key or content id can blur the domain
         // boundary: "X\nY" with no content must hash differently from "X" with
         // content "Y".
-        var canonical = clientKey.Length + "\n" + clientKey + "\n" + string.Join("\n", gameplay);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+        var canonical = clientKey.Length + "\n" + clientKey + "\n" + string.Join("\n", gameplayContentIds);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).Substring(0, FingerprintHashChars);
+        if (string.IsNullOrEmpty(iniCrc) && string.IsNullOrEmpty(exeCrc))
+        {
+            return string.Join(
+                OnlineConstants.FingerprintSeparator,
+                OnlineConstants.ProfileFingerprintPrefix,
+                clientKey,
+                hash);
+        }
+
         return string.Join(
             OnlineConstants.FingerprintSeparator,
-            OnlineConstants.ProfileFingerprintPrefix,
+            OnlineConstants.ProfileFingerprintV4Prefix,
             clientKey,
-            hash.Substring(0, FingerprintHashChars));
+            hash,
+            iniCrc ?? string.Empty,
+            exeCrc ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Extracts the engine compatibility CRCs embedded in a versioned fingerprint.
+    /// </summary>
+    /// <param name="fingerprint">The fingerprint string.</param>
+    /// <param name="iniCrc">The iniCRC or empty when absent.</param>
+    /// <param name="exeCrc">The exeCRC or empty when absent.</param>
+    /// <returns>True when the fingerprint carries the CRC segments.</returns>
+    public static bool TryGetCompatibilityCrcs(string fingerprint, out string iniCrc, out string exeCrc)
+    {
+        iniCrc = string.Empty;
+        exeCrc = string.Empty;
+        if (string.IsNullOrEmpty(fingerprint))
+        {
+            return false;
+        }
+
+        var segments = fingerprint.Split(OnlineConstants.FingerprintSeparator);
+        if (segments.Length != CompatibilitySegmentCount ||
+            !string.Equals(segments[0], OnlineConstants.ProfileFingerprintV4Prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        iniCrc = segments[segments.Length - 2];
+        exeCrc = segments[segments.Length - 1];
+        return true;
+    }
+
+    /// <summary>
+    /// Decides whether two fingerprints confirm byte-level compatibility
+    /// through their embedded engine CRCs. CRC evidence only ever confirms:
+    /// equal CRCs upgrade a same-client verdict to exact, while differing or
+    /// absent CRCs leave the id-based verdict untouched.
+    /// </summary>
+    /// <param name="first">One fingerprint.</param>
+    /// <param name="second">The other fingerprint.</param>
+    /// <returns>True when both carry equal iniCRCs with no conflicting exeCRC.</returns>
+    public static bool CrcConfirmsCompatible(string first, string second)
+    {
+        if (!TryGetCompatibilityCrcs(first, out var firstIni, out var firstExe) ||
+            !TryGetCompatibilityCrcs(second, out var secondIni, out var secondExe))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(firstIni) || !string.Equals(firstIni, secondIni, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return string.IsNullOrEmpty(firstExe) ||
+            string.IsNullOrEmpty(secondExe) ||
+            string.Equals(firstExe, secondExe, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -152,6 +266,13 @@ public static class OnlineProfileMatcher
         if (!string.IsNullOrEmpty(expectedGameClientId) &&
             string.Equals(expectedGameClientId, localGameClientId, StringComparison.Ordinal))
         {
+            // Equal engine CRCs overrule id-level noise: the setups produce
+            // the same game data, so they can play together.
+            if (CrcConfirmsCompatible(expectedFingerprint, localFingerprint))
+            {
+                return OnlineProfileMatch.Exact;
+            }
+
             return OnlineProfileMatch.SameClient;
         }
 
@@ -184,6 +305,13 @@ public static class OnlineProfileMatcher
             TryGetGameClientKey(memberFingerprint, out var memberClient) &&
             string.Equals(memberClient, expectedGameClientId, StringComparison.Ordinal))
         {
+            // Equal engine CRCs overrule id-level noise: the setups produce
+            // the same game data, so they can play together.
+            if (CrcConfirmsCompatible(memberFingerprint, expectedFingerprint))
+            {
+                return OnlineProfileMatch.Exact;
+            }
+
             return OnlineProfileMatch.SameClient;
         }
 
@@ -210,6 +338,20 @@ public static class OnlineProfileMatcher
         if (segments.Length < 3 || !IsKnownPrefix(segments[0]))
         {
             return false;
+        }
+
+        if (string.Equals(segments[0], OnlineConstants.ProfileFingerprintV4Prefix, StringComparison.Ordinal))
+        {
+            // Compatibility fingerprints append the content hash plus the
+            // iniCRC/exeCRC after the client key; only the key segments
+            // identify the client.
+            if (segments.Length != CompatibilitySegmentCount)
+            {
+                return false;
+            }
+
+            gameClientId = string.Join(OnlineConstants.FingerprintSeparator, segments, 1, CompatibilitySegmentCount - 4);
+            return !string.IsNullOrEmpty(gameClientId);
         }
 
         gameClientId = string.Join(OnlineConstants.FingerprintSeparator, segments, 1, segments.Length - 2);
@@ -239,5 +381,6 @@ public static class OnlineProfileMatcher
 
     private static bool IsKnownPrefix(string prefix) =>
         string.Equals(prefix, OnlineConstants.ProfileFingerprintPrefix, StringComparison.Ordinal) ||
+        string.Equals(prefix, OnlineConstants.ProfileFingerprintV4Prefix, StringComparison.Ordinal) ||
         OnlineConstants.LegacyProfileFingerprintPrefixes.Contains(prefix, StringComparer.Ordinal);
 }

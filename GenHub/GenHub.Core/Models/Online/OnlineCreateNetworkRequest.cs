@@ -94,4 +94,10 @@ public sealed record OnlineCreateNetworkRequest
     /// </summary>
     [JsonPropertyName("profileName")]
     public string ProfileName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the player name shown in the lobby roster. Blank keeps the edge default.
+    /// </summary>
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; init; } = string.Empty;
 }

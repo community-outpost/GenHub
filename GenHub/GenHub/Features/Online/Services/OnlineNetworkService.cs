@@ -242,6 +242,7 @@ public sealed class OnlineNetworkService(
         bool preferRelay = true,
         string profileFingerprint = "",
         string profileName = "",
+        string displayName = "",
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(networkId))
@@ -256,7 +257,7 @@ public sealed class OnlineNetworkService(
             var url = string.Format(ApiConstants.OnlineNetworkJoinFormat, Uri.EscapeDataString(networkId));
             using var response = await SendWithSessionRetryAsync(
                 (client, ct) => client.PostAsJsonAsync(
-                    url, new { password, preferRelay, endpoint, profileFingerprint, profileName }, ct),
+                    url, new { password, preferRelay, endpoint, profileFingerprint, profileName, displayName }, ct),
                 cancellationToken);
             if (response is null)
             {
@@ -366,9 +367,9 @@ public sealed class OnlineNetworkService(
     }
 
     /// <inheritdoc/>
-    public void SetLocalProfileAdvertisement(string fingerprint, string profileName)
+    public void SetLocalProfileAdvertisement(string fingerprint, string profileName, string displayName = "")
     {
-        presence.UpdateAdvertisedProfile(fingerprint, profileName);
+        presence.UpdateAdvertisedProfile(fingerprint, profileName, displayName);
     }
 
     /// <inheritdoc/>

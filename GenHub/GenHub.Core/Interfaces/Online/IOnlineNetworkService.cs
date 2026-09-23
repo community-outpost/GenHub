@@ -82,6 +82,7 @@ public interface IOnlineNetworkService
     /// <param name="preferRelay">When true, offer only relay candidates (hide direct endpoint, masking IP). Defaults to true for privacy.</param>
     /// <param name="profileFingerprint">The local profile fingerprint advertised to the roster.</param>
     /// <param name="profileName">The local profile display name advertised to the roster.</param>
+    /// <param name="displayName">The player name shown in the lobby roster. Blank keeps the edge default.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The join outcome.</returns>
     Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
@@ -90,6 +91,7 @@ public interface IOnlineNetworkService
         bool preferRelay = true,
         string profileFingerprint = "",
         string profileName = "",
+        string displayName = "",
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -116,7 +118,8 @@ public interface IOnlineNetworkService
     /// </summary>
     /// <param name="fingerprint">The local profile fingerprint.</param>
     /// <param name="profileName">The local profile display name.</param>
-    void SetLocalProfileAdvertisement(string fingerprint, string profileName);
+    /// <param name="displayName">The player name shown in the lobby roster. Blank keeps the edge default.</param>
+    void SetLocalProfileAdvertisement(string fingerprint, string profileName, string displayName = "");
 
     /// <summary>
     /// Reports a joined member for abuse.

@@ -89,7 +89,7 @@ const toPublic = (member: RoomMember): PublicMember => ({
 type HeartbeatMessage =
   // Liveness only: refreshes lastSeen without touching the advertisement.
   | { kind: "ping" }
-  | { kind: "advertisement"; profileFingerprint: string; profileName: string };
+  | { kind: "advertisement"; profileFingerprint: string; profileName: string; displayName: string };
 
 // Legacy clients send {"type":"heartbeat"} with no advertisement; newer ones
 // attach the selected profile fingerprint so the roster can show per-member
@@ -114,7 +114,8 @@ const parseHeartbeat = (data: unknown): HeartbeatMessage | null => {
   }
   const fingerprint = typeof raw.profileFingerprint === "string" ? raw.profileFingerprint.substring(0, 256) : "";
   const name = typeof raw.profileName === "string" ? sanitizeText(raw.profileName).substring(0, 64) : "";
-  return { kind: "advertisement", profileFingerprint: fingerprint, profileName: name };
+  const displayName = typeof raw.displayName === "string" ? sanitizeText(raw.displayName).substring(0, 32) : "";
+  return { kind: "advertisement", profileFingerprint: fingerprint, profileName: name, displayName };
 };
 
 const aggregateQuality = (members: RoomMember[]): number => {
@@ -961,14 +962,19 @@ export class PresenceRoom {
     const stale = now - member.lastSeen >= (this.presenceTimeout() * 1000) / 3;
     // Advertisement refreshes only rebroadcast when the visible roster
     // actually changed; every heartbeat rewriting the roster would fan out
-    // a roster storm on every interval for every member.
+    // a roster storm on every interval for every member. An empty display
+    // name never clears the stored one: renames are explicit and non-empty.
     const changed =
       message?.kind === "advertisement" &&
       (member.profileFingerprint !== message.profileFingerprint ||
-        member.profileName !== message.profileName);
+        member.profileName !== message.profileName ||
+        (message.displayName.length > 0 && member.displayName !== message.displayName));
     if (changed && message?.kind === "advertisement") {
       member.profileFingerprint = message.profileFingerprint;
       member.profileName = message.profileName;
+      if (message.displayName.length > 0) {
+        member.displayName = message.displayName;
+      }
     }
     if (stale || changed || message?.kind === "ping") {
       member.lastSeen = now;
