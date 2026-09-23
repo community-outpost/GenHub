@@ -567,7 +567,7 @@ public class ReplayCrcMatchingHelperTests
             GameType = GameType.ZeroHour,
             Version = "20260918",
         };
-        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(tshZeroHour));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(tshZeroHour));
         Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(tshZeroHour));
 
         // INI CRC verification
