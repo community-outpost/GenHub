@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
@@ -16,9 +16,12 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.UploadThing;
+using GenHub.Features.Downloads.ViewModels;
+using GenHub.Features.Downloads.Views;
 using GenHub.Features.Tools.Helpers;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Imaging;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -38,71 +41,61 @@ namespace GenHub.Features.Tools.MapManager.ViewModels;
 /// <summary>
 /// ViewModel for Map Manager tool.
 /// </summary>
-[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "MapManagerViewModel coordinates map directory management, import/export, map packs, upload history, notifications, image parsing, logging, dialogs, and localization.")]
-public partial class MapManagerViewModel : ObservableObject, IDisposable
+/// <param name="directoryService">The map directory service.</param>
+/// <param name="importService">The map import service.</param>
+/// <param name="exportService">The map export service.</param>
+/// <param name="mapPackService">The map pack service.</param>
+/// <param name="uploadHistoryService">The upload history service.</param>
+/// <param name="notificationService">The notification service.</param>
+/// <param name="tgaImageParser">The TGA image parser.</param>
+/// <param name="logger">The logger.</param>
+/// <param name="dialogService">Optional dialog service for user confirmations.</param>
+/// <param name="localizationService">The optional localization service.</param>
+/// <param name="serviceProvider">The optional service provider for resolving dialog view models.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "MapManagerViewModel coordinates map directory management, import/export, map packs, upload history, notifications, image parsing, logging, dialogs, localization, and profile integration.")]
+public partial class MapManagerViewModel(
+    IMapDirectoryService directoryService,
+    IMapImportService importService,
+    IMapExportService exportService,
+    IMapPackService mapPackService,
+    IUploadHistoryService uploadHistoryService,
+    INotificationService notificationService,
+    TgaImageParser tgaImageParser,
+    ILogger<MapManagerViewModel> logger,
+    IDialogService? dialogService = null,
+    ILocalizationService? localizationService = null,
+    IServiceProvider? serviceProvider = null) : ObservableObject, IDisposable
 {
-    private readonly IMapDirectoryService _directoryService;
-    private readonly IMapImportService _importService;
-    private readonly IMapExportService _exportService;
-    private readonly IMapPackService _mapPackService;
-    private readonly IUploadHistoryService _uploadHistoryService;
-    private readonly INotificationService _notificationService;
-    private readonly TgaImageParser _tgaImageParser;
-    private readonly ILogger<MapManagerViewModel> _logger;
-    private readonly IDialogService? _dialogService;
-    private readonly ILocalizationService? _localizationService;
-    private readonly DispatcherTimer _searchTimer;
+    private DispatcherTimer? _searchTimer;
+    private bool _isProfileSelectionDialogOpen;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MapManagerViewModel"/> class.
-    /// </summary>
-    /// <param name="directoryService">The map directory service.</param>
-    /// <param name="importService">The map import service.</param>
-    /// <param name="exportService">The map export service.</param>
-    /// <param name="mapPackService">The map pack service.</param>
-    /// <param name="uploadHistoryService">The upload history service.</param>
-    /// <param name="notificationService">The notification service.</param>
-    /// <param name="tgaImageParser">The TGA image parser.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="dialogService">Optional dialog service for user confirmations.</param>
-    /// <param name="localizationService">The optional localization service.</param>
-    public MapManagerViewModel(
-        IMapDirectoryService directoryService,
-        IMapImportService importService,
-        IMapExportService exportService,
-        IMapPackService mapPackService,
-        IUploadHistoryService uploadHistoryService,
-        INotificationService notificationService,
-        TgaImageParser tgaImageParser,
-        ILogger<MapManagerViewModel> logger,
-        IDialogService? dialogService = null,
-        ILocalizationService? localizationService = null)
+    private DispatcherTimer GetSearchTimer()
     {
-        _directoryService = directoryService;
-        _importService = importService;
-        _exportService = exportService;
-        _mapPackService = mapPackService;
-        _uploadHistoryService = uploadHistoryService;
-        _notificationService = notificationService;
-        _tgaImageParser = tgaImageParser;
-        _logger = logger;
-        _dialogService = dialogService;
-        _localizationService = localizationService;
-        if (_localizationService != null)
+        if (_searchTimer == null)
         {
-            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+            _searchTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(300),
+            };
+            _searchTimer.Tick += (s, e) =>
+            {
+                _searchTimer.Stop();
+                ApplyFilter();
+            };
         }
 
-        _searchTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(300),
-        };
-        _searchTimer.Tick += (s, e) =>
-        {
-            _searchTimer.Stop();
-            ApplyFilter();
-        };
+        return _searchTimer;
     }
+
+    /// <summary>
+    /// Gets or sets an optional factory function for creating <see cref="ProfileSelectionViewModel"/> instances.
+    /// </summary>
+    public Func<ProfileSelectionViewModel>? ProfileSelectionViewModelFactory { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional handler for showing the profile selection dialog in tests or custom hosts.
+    /// </summary>
+    internal Func<ProfileSelectionViewModel, Task<bool>>? ShowProfileSelectionDialogHandler { get; set; }
 
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -157,8 +150,9 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
     partial void OnSearchTextChanged(string value)
     {
-        _searchTimer.Stop();
-        _searchTimer.Start();
+        var timer = GetSearchTimer();
+        timer.Stop();
+        timer.Start();
     }
 
     partial void OnSelectedTabChanged(GameType value)
@@ -172,7 +166,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Search()
     {
-        _searchTimer.Stop();
+        _searchTimer?.Stop();
         ApplyFilter();
     }
 
@@ -261,6 +255,12 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+            localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
+
         await LoadMapsAsync();
         await LoadMapPacksAsync();
     }
@@ -277,7 +277,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         StatusMessage = "Loading maps...";
         try
         {
-            var maps = await _directoryService.GetMapsAsync(SelectedTab);
+            var maps = await directoryService.GetMapsAsync(SelectedTab);
 
             // Marshall to UI thread for collection updates
             await Dispatcher.UIThread.InvokeAsync(() =>
@@ -302,8 +302,8 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
                 ApplyFilter();
             });
 
-            StatusMessage = _localizationService != null
-                ? string.Format(_localizationService.GetString("Tools.MapManager.Status.Loaded") ?? "Loaded {0} maps.", maps.Count)
+            StatusMessage = localizationService != null
+                ? string.Format(localizationService.GetString("Tools.MapManager.Status.Loaded") ?? "Loaded {0} maps.", maps.Count)
                 : $"Loaded {maps.Count} maps.";
 
             // Load thumbnails in background to avoid UI hang
@@ -315,7 +315,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
                     {
                         try
                         {
-                            var bitmap = _tgaImageParser.LoadTgaThumbnail(map.ThumbnailPath);
+                            var bitmap = tgaImageParser.LoadTgaThumbnail(map.ThumbnailPath);
                             if (bitmap != null)
                             {
                                 // Update on UI thread if needed, but MapFile.ThumbnailBitmap
@@ -325,7 +325,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "Failed to load thumbnail for {Map}", map.FileName);
+                            logger.LogWarning(ex, "Failed to load thumbnail for {Map}", map.FileName);
                         }
                     }
                 }
@@ -333,8 +333,8 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load maps");
-            _notificationService.ShowError("Load Error", "Failed to load maps.");
+            logger.LogError(ex, "Failed to load maps");
+            notificationService.ShowError("Load Error", "Failed to load maps.");
             StatusMessage = "Error loading maps.";
         }
         finally
@@ -351,11 +351,11 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     public async Task ImportFilesAsync(IEnumerable<string> filePaths)
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Import Maps",
                 "Imports map files from URLs or by dragging and dropping files into your game's map directory.");
             return;
@@ -366,16 +366,16 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         StatusMessage = "Importing files...";
         try
         {
-            var result = await _importService.ImportFromFilesAsync(filePaths, SelectedTab);
+            var result = await importService.ImportFromFilesAsync(filePaths, SelectedTab);
             if (result.Success)
             {
-                _notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s).");
+                notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s).");
                 StatusMessage = $"Imported {result.FilesImported} file(s).";
             }
             else
             {
                 var errorMsg = result.Errors.Count > 0 ? string.Join("\n", result.Errors) : "No files were imported.";
-                _notificationService.ShowError("Import Failed", errorMsg);
+                notificationService.ShowError("Import Failed", errorMsg);
                 StatusMessage = "Import failed.";
             }
 
@@ -383,8 +383,8 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Import from files failed");
-            _notificationService.ShowError("Import Error", ex.Message);
+            logger.LogError(ex, "Import from files failed");
+            notificationService.ShowError("Import Error", ex.Message);
             StatusMessage = "Import error.";
         }
         finally
@@ -427,10 +427,12 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     {
         if (disposing)
         {
-            if (_localizationService != null)
+            if (localizationService != null)
             {
-                _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+                localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
             }
+
+            _searchTimer?.Stop();
 
             foreach (var item in UploadHistory)
             {
@@ -439,6 +441,33 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
             UploadHistory.Clear();
         }
+    }
+
+    /// <summary>
+    /// Shows the profile selection dialog window.
+    /// </summary>
+    /// <param name="viewModel">The configured <see cref="ProfileSelectionViewModel"/>.</param>
+    /// <returns>A task that completes with a boolean indicating whether content was successfully added.</returns>
+    protected virtual async Task<bool> ShowProfileSelectionDialogAsync(ProfileSelectionViewModel viewModel)
+    {
+        if (ShowProfileSelectionDialogHandler != null)
+        {
+            return await ShowProfileSelectionDialogHandler(viewModel);
+        }
+
+        var dialog = new ProfileSelectionView(viewModel);
+        var mainWindow = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow
+            : null;
+
+        if (mainWindow != null)
+        {
+            await dialog.ShowDialog(mainWindow);
+            return viewModel.WasSuccessful;
+        }
+
+        logger.LogWarning("No main window found to show profile selection dialog");
+        return false;
     }
 
     private static bool IsDemoPath(string path) =>
@@ -471,11 +500,11 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
 
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Import from URL",
                 "Downloads maps from a provided URL and automatically imports them into your game's map directory. Supports direct map file downloads and zip archives.");
             return;
@@ -484,15 +513,15 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        var downloadingStatus = _localizationService?.GetString("Downloads.Status.Downloading") ?? "Downloading...";
+        var downloadingStatus = localizationService?.GetString("Downloads.Status.Downloading") ?? "Downloading...";
         StatusMessage = downloadingStatus;
 
         // Pinned progress only; terminal toasts stay here so the import toasts once.
         using var scope = new DownloadNotificationScope(
-            _notificationService,
+            notificationService,
             ImportUrl,
             new DownloadNotificationOptions(ShowTerminalToast: false),
-            localization: _localizationService);
+            localization: localizationService);
 
         try
         {
@@ -503,11 +532,11 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
                 scope.ReportFraction(p, StatusMessage);
             });
 
-            var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler, cancellationToken);
+            var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler, cancellationToken);
             if (result.Success)
             {
                 scope.CompleteSuccess();
-                _notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
+                notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
                 StatusMessage = $"Successfully imported {result.FilesImported} file(s).";
                 ImportUrl = string.Empty;
                 await LoadMapsAsync();
@@ -516,23 +545,23 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             {
                 var errorMsg = string.Join(" ", result.Errors);
                 scope.CompleteFailure(errorMsg);
-                _notificationService.ShowError("Import Failed", errorMsg);
+                notificationService.ShowError("Import Failed", errorMsg);
                 StatusMessage = $"Import failed: {errorMsg}";
             }
         }
         catch (OperationCanceledException)
         {
             scope.CompleteCanceled();
-            var canceledTitle = _localizationService?.GetString("Downloads.Notification.Canceled.Title") ?? "Download Canceled";
-            var canceledMessage = _localizationService?.GetString("Downloads.Notification.Canceled.Message") ?? "Canceled download for {0}.";
-            _notificationService.ShowInfo(canceledTitle, string.Format(canceledMessage, ImportUrl));
+            var canceledTitle = localizationService?.GetString("Downloads.Notification.Canceled.Title") ?? "Download Canceled";
+            var canceledMessage = localizationService?.GetString("Downloads.Notification.Canceled.Message") ?? "Canceled download for {0}.";
+            notificationService.ShowInfo(canceledTitle, string.Format(canceledMessage, ImportUrl));
             StatusMessage = "Import cancelled.";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Import failed");
+            logger.LogError(ex, "Import failed");
             scope.CompleteFailure(ex.Message);
-            _notificationService.ShowError("Import Error", ex.Message);
+            notificationService.ShowError("Import Error", ex.Message);
             StatusMessage = "Import error.";
         }
         finally
@@ -546,11 +575,11 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     private async Task BrowseAndImportAsync()
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Browse and Import",
                 "Opens a file picker dialog allowing you to select map files (.map) or zip archives from your computer to import into game.");
             return;
@@ -592,7 +621,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Delete Maps",
                 "Permanently deletes selected maps from your game's map directory. This action cannot be undone.");
             return;
@@ -606,7 +635,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         var mapsToDelete = SelectedMaps.ToList();
         int count = mapsToDelete.Count;
 
-        var result = await _directoryService.DeleteMapsAsync(mapsToDelete);
+        var result = await directoryService.DeleteMapsAsync(mapsToDelete);
         if (result)
         {
             // Remove from local lists to avoid full reload
@@ -619,12 +648,12 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             ApplyFilter();
             SelectedMaps.Clear();
 
-            _notificationService.ShowSuccess("Deleted", $"Deleted {count} maps.");
+            notificationService.ShowSuccess("Deleted", $"Deleted {count} maps.");
             StatusMessage = "Deleted successfully.";
         }
         else
         {
-            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Could not delete selected maps.");
+            notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Could not delete selected maps.");
             StatusMessage = "Deletion error.";
         }
 
@@ -644,7 +673,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Export to ZIP",
                 "Creates a ZIP archive containing selected maps and saves it to your map directory. You can then share the ZIP file with others or use it for backup purposes.");
             return;
@@ -657,7 +686,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         try
         {
-            var directory = _directoryService.GetMapDirectory(SelectedTab);
+            var directory = directoryService.GetMapDirectory(SelectedTab);
             var destinationPath = GetUniqueZipDestinationPath(directory, ZipName);
 
             var progressHandler = new Progress<double>(p =>
@@ -666,10 +695,10 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
                 StatusMessage = "Creating ZIP...";
             });
 
-            var result = await _exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, progressHandler);
+            var result = await exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, progressHandler);
             if (result != null)
             {
-                _notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in map folder.");
+                notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in map folder.");
                 StatusMessage = "ZIP created successfully.";
 
                 // Reload maps to show the new ZIP
@@ -678,14 +707,14 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             }
             else
             {
-                _notificationService.ShowError("Zip Failed", "Failed to create ZIP archive.");
+                notificationService.ShowError("Zip Failed", "Failed to create ZIP archive.");
                 StatusMessage = "ZIP creation failed.";
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to export ZIP directly");
-            _notificationService.ShowError("Export Error", ex.Message);
+            logger.LogError(ex, "Failed to export ZIP directly");
+            notificationService.ShowError("Export Error", ex.Message);
             StatusMessage = "Export error.";
         }
         finally
@@ -743,7 +772,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
                 StatusMessage = ToolUploadHelper.FormatUploadStageMessage(MapManagerConstants.UploadCategory, isZip, percent);
             });
 
-            var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
+            var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
             if (uploadResult.Success)
             {
                 await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash, uploadGame);
@@ -752,13 +781,13 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             {
                 StatusMessage = "Upload failed.";
                 var error = uploadResult.FirstError ?? "Upload failed. Please check your internet connection.";
-                _notificationService.ShowError("Upload Failed", error);
+                notificationService.ShowError("Upload Failed", error);
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or InvalidOperationException) && ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Upload failed");
-            _notificationService.ShowError("Upload Error", "Failed to complete upload.");
+            logger.LogError(ex, "Upload failed");
+            notificationService.ShowError("Upload Error", "Failed to complete upload.");
             StatusMessage = "Upload error.";
         }
         finally
@@ -773,7 +802,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Upload and Share",
                 "Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps.");
             return true;
@@ -786,19 +815,19 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     {
         if (totalSizeBytes > MapManagerConstants.MaxMapSizeBytes)
         {
-            _notificationService.ShowError(
+            notificationService.ShowError(
                "File Too Large",
                "File too large. Maximum upload size is 10MB.");
             StatusMessage = "Upload too large (Max 10MB).";
             return false;
         }
 
-        var isAllowed = await _uploadHistoryService.CanUploadAsync(totalSizeBytes, MapManagerConstants.UploadCategory);
+        var isAllowed = await uploadHistoryService.CanUploadAsync(totalSizeBytes, MapManagerConstants.UploadCategory);
         if (!isAllowed)
         {
-            var usage = await _uploadHistoryService.GetUsageInfoAsync(MapManagerConstants.UploadCategory);
+            var usage = await uploadHistoryService.GetUsageInfoAsync(MapManagerConstants.UploadCategory);
             var resetDateLocal = usage.ResetDate.ToLocalTime();
-            _notificationService.ShowError(
+            notificationService.ShowError(
                 "Rate Limit Exceeded",
                 "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
             StatusMessage = $"Limit reached. Resets {resetDateLocal:g}.";
@@ -816,7 +845,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             return (false, null);
         }
 
-        var existingUpload = await _uploadHistoryService.FindExistingUploadAsync(fileHash, MapManagerConstants.UploadCategory, uploadGame);
+        var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash, MapManagerConstants.UploadCategory, uploadGame);
         if (existingUpload?.Url != null && await ToolUploadHelper.VerifyShareUrlAliveAsync(existingUpload.Url))
         {
             var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
@@ -827,7 +856,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             }
 
             StatusMessage = "Reused existing upload! Link copied to clipboard.";
-            _notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+            notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
             return (true, fileHash);
         }
 
@@ -844,7 +873,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
 
         var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : $"{MapManagerConstants.DefaultZipName}{Path.GetExtension(MapManagerConstants.ZipFilePattern)}";
-        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory, uploadGame);
+        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory, uploadGame);
 
         if (IsHistoryOpen)
         {
@@ -852,32 +881,32 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
 
         StatusMessage = "Uploaded! Link copied to clipboard.";
-        _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+        notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
 
         await ToolSharingDialogHelper.OpenShareDialogAsync(
             uploadResult.PublicUrl,
             CommandLineConstants.MapCommand,
             uploadGame,
-            _notificationService,
-            _localizationService,
-            _logger);
+            notificationService,
+            localizationService,
+            logger);
     }
 
     [RelayCommand]
     private void OpenFolder()
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Open Map Folder",
                 "Opens your game's map directory in Windows Explorer, allowing you to manage your map files directly.");
             return;
         }
 
-        _directoryService.OpenInExplorer(SelectedTab);
+        directoryService.OpenInExplorer(SelectedTab);
     }
 
     [RelayCommand]
@@ -887,13 +916,13 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         if (IsDemoPath(map.FullPath))
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Reveal Map File",
                 "Opens Windows Explorer and highlights the selected map file, making it easy to locate and manage.");
             return;
         }
 
-        _directoryService.RevealInExplorer(map);
+        directoryService.RevealInExplorer(map);
     }
 
     [RelayCommand]
@@ -910,7 +939,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Uncompress ZIP",
                 "Extracts contents of the selected ZIP archives and imports any contained maps into your game's map directory.");
             return;
@@ -925,7 +954,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             var errorMessages = new List<string>();
             foreach (var zip in zipFiles)
             {
-                var result = await _importService.ImportFromZipAsync(zip.FullPath, SelectedTab, new Progress<double>(p => Progress = p));
+                var result = await importService.ImportFromZipAsync(zip.FullPath, SelectedTab, new Progress<double>(p => Progress = p));
                 if (result.Success)
                 {
                     totalImported += result.FilesImported;
@@ -939,21 +968,21 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
             if (totalImported > 0)
             {
-                _notificationService.ShowSuccess("Uncompress Complete", $"Extracted {totalImported} maps from selected ZIP(s).");
+                notificationService.ShowSuccess("Uncompress Complete", $"Extracted {totalImported} maps from selected ZIP(s).");
                 StatusMessage = $"Extracted {totalImported} maps from selected ZIP(s).";
             }
 
             if (errorMessages.Count > 0)
             {
-                _notificationService.ShowWarning("Uncompress Warning", string.Join("\n", errorMessages.Take(5)));
+                notificationService.ShowWarning("Uncompress Warning", string.Join("\n", errorMessages.Take(5)));
             }
 
             await LoadMapsAsync();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to uncompress selected ZIP files");
-            _notificationService.ShowError("Uncompress Error", ex.Message);
+            logger.LogError(ex, "Failed to uncompress selected ZIP files");
+            notificationService.ShowError("Uncompress Error", ex.Message);
             StatusMessage = "Uncompress error.";
         }
         finally
@@ -967,10 +996,10 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     private void ToggleMapPackPanel()
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "MapPacks",
                 "Create and manage collections of maps (MapPacks) to easily switch between different sets of maps for your game profiles.");
             return;
@@ -984,7 +1013,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var packs = await _mapPackService.GetAllMapPacksAsync();
+            var packs = await mapPackService.GetAllMapPacksAsync();
             MapPacks.Clear();
             foreach (var pack in packs)
             {
@@ -993,16 +1022,28 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load MapPacks");
+            logger.LogError(ex, "Failed to load MapPacks");
         }
+    }
+
+    private bool ValidateMapPackInput()
+    {
+        if (string.IsNullOrWhiteSpace(NewMapPackName) || !SelectedMaps.Any())
+        {
+            notificationService.ShowWarning(
+                GetLocalizedString(MapManagerConstants.InvalidInputTitleKey, "Invalid Input"),
+                GetLocalizedString(MapManagerConstants.InvalidInputMessageKey, "Please provide a name and select maps."));
+            return false;
+        }
+
+        return true;
     }
 
     [RelayCommand]
     private async Task CreateMapPackAsync()
     {
-        if (string.IsNullOrWhiteSpace(NewMapPackName) || !SelectedMaps.Any())
+        if (!ValidateMapPackInput())
         {
-            _notificationService.ShowWarning("Invalid Input", "Please provide a name and select maps.");
             return;
         }
 
@@ -1011,7 +1052,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Create MapPack",
                 "Creates a MapPack from the selected maps using CAS (Content Addressable Storage) system. MapPacks can be enabled in your game profiles to load custom maps.");
             return;
@@ -1022,7 +1063,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         try
         {
-            var result = await _mapPackService.CreateCasMapPackAsync(
+            var result = await mapPackService.CreateCasMapPackAsync(
                 NewMapPackName,
                 SelectedTab, // Use current tab's game type
                 SelectedMaps,
@@ -1030,7 +1071,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
             if (result.Success)
             {
-                _notificationService.ShowSuccess("MapPack Created", $"Created '{NewMapPackName}'. Enable it in your Profile.");
+                notificationService.ShowSuccess("MapPack Created", $"Created '{NewMapPackName}'. Enable it in your Profile.");
                 StatusMessage = "MapPack created successfully.";
 
                 await LoadMapPacksAsync();
@@ -1040,16 +1081,19 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             }
             else
             {
-                var error = result.FirstError ?? "Unknown error";
-                _notificationService.ShowError("Creation Failed", error);
-                StatusMessage = "Creation failed.";
+                var defaultError = GetLocalizedString(MapManagerConstants.UnknownErrorKey, MapManagerConstants.DefaultUnknownError);
+                HandleMapPackCreationFailed(result.FirstError ?? defaultError);
             }
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "MapPack creation canceled by user");
+            StatusMessage = string.Empty;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create MapPack");
-            _notificationService.ShowError("Creation Failed", ex.Message);
-            StatusMessage = "Creation failed.";
+            logger.LogError(ex, "Failed to create MapPack");
+            HandleMapPackCreationFailed(ex.Message);
         }
         finally
         {
@@ -1062,11 +1106,11 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     private async Task LoadMapPackAsync(MapPack mapPack)
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Load MapPack",
                 "Enables the selected MapPack, making its maps available when launching the game with the associated profile. The maps will be available on next profile launch.");
             return;
@@ -1074,17 +1118,17 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         try
         {
-            var success = await _mapPackService.LoadMapPackAsync(mapPack.Id);
+            var success = await mapPackService.LoadMapPackAsync(mapPack.Id);
             if (success)
             {
                 mapPack.IsLoaded = true;
-                _notificationService.ShowSuccess("MapPack Loaded", $"Loaded '{mapPack.Name}'. Maps will be available on next profile launch.");
+                notificationService.ShowSuccess("MapPack Loaded", $"Loaded '{mapPack.Name}'. Maps will be available on next profile launch.");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load MapPack");
-            _notificationService.ShowError("Load Failed", "Failed to load MapPack.");
+            logger.LogError(ex, "Failed to load MapPack");
+            notificationService.ShowError("Load Failed", "Failed to load MapPack.");
         }
     }
 
@@ -1092,11 +1136,11 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     private async Task UnloadMapPackAsync(MapPack mapPack)
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Unload MapPack",
                 "Disables the selected MapPack, removing its maps from the available maps when launching the game with the associated profile.");
             return;
@@ -1104,17 +1148,17 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         try
         {
-            var success = await _mapPackService.UnloadMapPackAsync(mapPack.Id);
+            var success = await mapPackService.UnloadMapPackAsync(mapPack.Id);
             if (success)
             {
                 mapPack.IsLoaded = false;
-                _notificationService.ShowSuccess("MapPack Unloaded", $"Unloaded '{mapPack.Name}'.");
+                notificationService.ShowSuccess("MapPack Unloaded", $"Unloaded '{mapPack.Name}'.");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to unload MapPack");
-            _notificationService.ShowError("Unload Failed", "Failed to unload MapPack.");
+            logger.LogError(ex, "Failed to unload MapPack");
+            notificationService.ShowError("Unload Failed", "Failed to unload MapPack.");
         }
     }
 
@@ -1122,11 +1166,11 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     private async Task DeleteMapPackAsync(MapPack mapPack)
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Delete MapPack",
                 "Permanently deletes the selected MapPack from CAS storage. This action cannot be undone.");
             return;
@@ -1134,18 +1178,233 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         try
         {
-            var success = await _mapPackService.DeleteMapPackAsync(mapPack.Id);
+            var success = await mapPackService.DeleteMapPackAsync(mapPack.Id);
             if (success)
             {
                 MapPacks.Remove(mapPack);
-                _notificationService.ShowSuccess("MapPack Deleted", $"Deleted '{mapPack.Name}'.");
+                notificationService.ShowSuccess("MapPack Deleted", $"Deleted '{mapPack.Name}'.");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete MapPack");
-            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete MapPack.");
+            logger.LogError(ex, "Failed to delete MapPack");
+            notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete MapPack.");
         }
+    }
+
+    /// <summary>
+    /// Opens the profile selection dialog to add the selected MapPack to an existing profile or create a new profile with it.
+    /// </summary>
+    /// <param name="mapPack">The MapPack to add to a profile.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task AddMapPackToProfileAsync(MapPack? mapPack)
+    {
+        if (mapPack == null || _isProfileSelectionDialogOpen)
+        {
+            return;
+        }
+
+        var addToProfileTitle = GetLocalizedString(MapManagerConstants.AddToProfileButtonKey, "Add to Profile");
+        var profileSelectionTitle = GetLocalizedString(MapManagerConstants.ProfileSelectionTitleKey, "Profile Selection");
+
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                addToProfileTitle,
+                GetLocalizedString(
+                    "Maps.MapPack.Notification.DemoAddToProfile",
+                    "Adds the selected MapPack to an existing game profile or creates a new profile with the MapPack enabled."));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(mapPack.Id.Value))
+        {
+            notificationService.ShowWarning(
+                addToProfileTitle,
+                GetLocalizedString(
+                    "Maps.MapPack.Notification.MissingManifestId",
+                    "This MapPack does not have a valid content manifest ID."));
+            return;
+        }
+
+        _isProfileSelectionDialogOpen = true;
+        try
+        {
+            using var profileVm = CreateProfileSelectionViewModel();
+            if (profileVm == null)
+            {
+                logger.LogError("Failed to resolve ProfileSelectionViewModel");
+                notificationService.ShowError(
+                    profileSelectionTitle,
+                    GetLocalizedString(
+                        "Maps.MapPack.Notification.UnableToOpenDialog",
+                        "Unable to open profile selection dialog."));
+                return;
+            }
+
+            var dialogTitle = GetLocalizedString(MapManagerConstants.ProfileSelectionDialogTitleKey, "Add MapPack to Profile");
+            var headerTitle = GetLocalizedString(MapManagerConstants.ProfileSelectionHeaderTitleKey, "Add MapPack to Profile");
+            var headerSubtitle = GetLocalizedString(MapManagerConstants.ProfileSelectionHeaderSubtitleKey, "Choose a profile to add '{0}' to, or create a new profile");
+            var createSubtitle = GetLocalizedString(MapManagerConstants.ProfileSelectionCreateCardSubtitleKey, "Create a new profile with this MapPack");
+            var actionBadge = GetLocalizedString(MapManagerConstants.ProfileSelectionActionBadgeKey, "Add");
+
+            profileVm.DialogTitle = dialogTitle;
+            profileVm.HeaderTitle = headerTitle;
+            profileVm.HeaderSubtitle = string.Format(headerSubtitle, mapPack.Name);
+            profileVm.ActionBadgeText = actionBadge;
+            profileVm.CreateProfileCardSubtitle = createSubtitle;
+
+            var targetGame = mapPack.TargetGame ?? SelectedTab;
+
+            await profileVm.LoadProfilesAsync(
+                targetGame: targetGame,
+                contentManifestId: mapPack.Id.Value,
+                contentName: mapPack.Name);
+
+            var success = await ShowProfileSelectionDialogAsync(profileVm);
+            if (success)
+            {
+                logger.LogInformation("Successfully added MapPack '{MapPack}' to profile '{Profile}'", mapPack.Name, profileVm.SelectedProfileName);
+                IsMapPackPanelOpen = false;
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "Profile selection canceled by user");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to add MapPack '{MapPack}' to profile", mapPack.Name);
+            notificationService.ShowError(
+                profileSelectionTitle,
+                GetLocalizedString(
+                    "Maps.MapPack.Notification.AddError",
+                    "An error occurred while adding MapPack to profile."));
+        }
+        finally
+        {
+            _isProfileSelectionDialogOpen = false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a CAS MapPack from the selected maps and immediately opens the profile selection dialog.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task CreateAndAddMapPackToProfileAsync(CancellationToken cancellationToken = default)
+    {
+        if (!ValidateMapPackInput())
+        {
+            return;
+        }
+
+        // Check if any selected maps are demo items (have mock paths)
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
+        if (demoMaps.Count > 0)
+        {
+            notificationService.ShowInfo(
+                GetLocalizedString(MapManagerConstants.CreateAndAddToProfileButtonKey, "Create & Add to Profile"),
+                GetLocalizedString(
+                    "Maps.MapPack.Notification.DemoCreateAndAddToProfile",
+                    "Creates a MapPack and opens the profile selection dialog to immediately add it to a profile."));
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = GetLocalizedString("Maps.MapPack.Status.Creating", "Creating MapPack...");
+
+        try
+        {
+            var packName = NewMapPackName;
+            var targetGame = SelectedTab;
+            var result = await mapPackService.CreateCasMapPackAsync(
+                packName,
+                targetGame,
+                SelectedMaps,
+                new Progress<ContentStorageProgress>(p => Progress = p.Percentage / 100.0),
+                cancellationToken);
+
+            if (result.Success && result.Data != null)
+            {
+                var manifest = result.Data;
+                StatusMessage = GetLocalizedString("Maps.MapPack.Status.CreatedSuccessfully", "MapPack created successfully.");
+
+                await LoadMapPacksAsync();
+
+                NewMapPackName = string.Empty;
+
+                var mapPack = MapPacks.FirstOrDefault(p => p.Id == manifest.Id) ?? new MapPack
+                {
+                    Id = manifest.Id,
+                    Name = manifest.Name,
+                    TargetGame = manifest.TargetGame,
+                    MapFilePaths = manifest.Files.Select(f => f.RelativePath).ToList(),
+                    CreatedDate = manifest.Metadata.ReleaseDate,
+                };
+
+                // Clear busy status before displaying the modal profile selection dialog
+                IsBusy = false;
+                Progress = 0;
+
+                await AddMapPackToProfileAsync(mapPack);
+            }
+            else
+            {
+                var defaultError = GetLocalizedString(MapManagerConstants.UnknownErrorKey, MapManagerConstants.DefaultUnknownError);
+                HandleMapPackCreationFailed(result.FirstError ?? defaultError);
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "MapPack creation canceled by user");
+            StatusMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create MapPack");
+            HandleMapPackCreationFailed(ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+            Progress = 0;
+        }
+    }
+
+    private void HandleMapPackCreationFailed(string errorMessage)
+    {
+        notificationService.ShowError(
+            GetLocalizedString(MapManagerConstants.CreationFailedTitleKey, MapManagerConstants.DefaultCreationFailedTitle),
+            errorMessage);
+        StatusMessage = GetLocalizedString(MapManagerConstants.CreationFailedStatusKey, MapManagerConstants.DefaultCreationFailedStatus);
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService != null && localizationService.TryGetString(key, out var localized)
+            ? localized
+            : fallback;
+    }
+
+    private ProfileSelectionViewModel? CreateProfileSelectionViewModel()
+    {
+        if (ProfileSelectionViewModelFactory != null)
+        {
+            return ProfileSelectionViewModelFactory();
+        }
+
+        if (serviceProvider != null)
+        {
+            // Caller owns and disposes this instance.
+            return ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(serviceProvider);
+        }
+
+        return null;
     }
 
     // History Commands
@@ -1157,11 +1416,11 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
 
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
             IsHistoryOpen = false;
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Upload History",
                 "Shows a list of your previously uploaded maps, allowing you to manage them and copy download links.");
             return;
@@ -1175,8 +1434,8 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var history = await _uploadHistoryService.GetUploadHistoryAsync(MapManagerConstants.UploadCategory);
-            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item, _localizationService)).ToList();
+            var history = await uploadHistoryService.GetUploadHistoryAsync(MapManagerConstants.UploadCategory);
+            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item, localizationService)).ToList();
 
             foreach (var existing in UploadHistory)
             {
@@ -1221,7 +1480,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or JsonException) && ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Failed to load upload history");
+            logger.LogError(ex, "Failed to load upload history");
         }
     }
 
@@ -1229,10 +1488,10 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     private async Task CopyUrlAsync(string url)
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Copy Link",
                 "Copies the download link of the uploaded file to your clipboard.");
             return;
@@ -1245,12 +1504,12 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(url);
-                _notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
+                notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Failed to copy URL");
+            logger.LogError(ex, "Failed to copy URL");
         }
     }
 
@@ -1261,28 +1520,28 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             CommandLineConstants.MapCommand,
             item,
             SelectedTab,
-            () => _directoryService.GetMapDirectory(SelectedTab),
-            _notificationService,
-            _localizationService,
-            _logger);
+            () => directoryService.GetMapDirectory(SelectedTab),
+            notificationService,
+            localizationService,
+            logger);
     }
 
     [RelayCommand]
     private async Task RemoveHistoryItemAsync(UploadHistoryItemViewModel item)
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Delete Upload",
                 "Permanently deletes the uploaded file from cloud storage and removes it from history.");
             return;
         }
 
-        if (_dialogService != null)
+        if (dialogService != null)
         {
-            var confirmed = await _dialogService.ShowConfirmationAsync(
+            var confirmed = await dialogService.ShowConfirmationAsync(
                 "Delete Upload",
                 $"Are you sure you want to delete '{item.FileName}' from cloud storage and remove it from history?",
                 confirmText: "Delete",
@@ -1295,23 +1554,23 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         try
         {
-            var success = await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
+            var success = await uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
             await LoadHistoryAsync();
             if (success)
             {
-                _notificationService.ShowSuccess(
+                notificationService.ShowSuccess(
                     "Deleted",
                     "File deleted from cloud storage and upload history.");
             }
             else
             {
-                _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
+                notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Failed to remove history item");
-            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
+            logger.LogError(ex, "Failed to remove history item");
+            notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
         }
     }
 
@@ -1322,18 +1581,18 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     private async Task ClearHistoryAsync()
     {
         // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        var demoPath = directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
-            _notificationService.ShowInfo(
+            notificationService.ShowInfo(
                 "Clear History",
                 "Permanently deletes all uploaded files from cloud storage and clears upload history.");
             return;
         }
 
-        if (_dialogService != null)
+        if (dialogService != null)
         {
-            var confirmed = await _dialogService.ShowConfirmationAsync(
+            var confirmed = await dialogService.ShowConfirmationAsync(
                 "Clear Upload History",
                 "Are you sure you want to delete all uploaded files from cloud storage and clear your upload history? This cannot be undone.",
                 confirmText: "Clear All",
@@ -1346,25 +1605,25 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         try
         {
-            var (deleted, failed) = await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: MapManagerConstants.UploadCategory);
+            var (deleted, failed) = await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: MapManagerConstants.UploadCategory);
             await LoadHistoryAsync();
             if (failed == 0)
             {
-                _notificationService.ShowSuccess(
+                notificationService.ShowSuccess(
                     "Cleared",
                     $"All {deleted} uploaded files deleted from cloud storage and history cleared.");
             }
             else
             {
-                _notificationService.ShowWarning(
+                notificationService.ShowWarning(
                     "Partially Cleared",
                     $"Cleared {deleted} history items. {failed} item(s) could not be deleted from cloud storage.");
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Failed to clear history");
-            _notificationService.ShowError("Clear Failed", "Failed to clear history.");
+            logger.LogError(ex, "Failed to clear history");
+            notificationService.ShowError("Clear Failed", "Failed to clear history.");
         }
     }
 
@@ -1373,14 +1632,14 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     {
         if (!SelectedMaps.Any())
         {
-            _notificationService.ShowWarning("Selection Required", "Please select at least one map.");
+            notificationService.ShowWarning("Selection Required", "Please select at least one map.");
             return;
         }
 
         if (!IsMapPackPanelOpen)
         {
             IsMapPackPanelOpen = true;
-            _notificationService.ShowInfo("Create MapPack", "Enter a name and description in the panel, then click Create.");
+            notificationService.ShowInfo("Create MapPack", "Enter a name and description in the panel, then click Create.");
         }
     }
 

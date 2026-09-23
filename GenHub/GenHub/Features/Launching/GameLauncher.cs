@@ -157,6 +157,84 @@ public class GameLauncher(
         }
     }
 
+    /// <summary>
+    /// Inspects and sanitizes the user data MapCache.ini file if it contains corrupted, NaN, or non-finite float values.
+    /// SAGE engine (Generals / Zero Hour) crashes with "A serious error has occurred" on startup
+    /// if MapCache.ini contains invalid floats (-nan, nan, 1.#INF, -1.#IND, 1.#J) or corrupted entries.
+    /// </summary>
+    /// <param name="mapCachePath">Path to MapCache.ini.</param>
+    /// <param name="logger">Optional logger instance.</param>
+    /// <returns>True if a corrupted MapCache.ini was detected and purged; otherwise false.</returns>
+    internal static bool TrySanitizeMapCacheFile(string? mapCachePath, ILogger? logger = null)
+    {
+        if (string.IsNullOrEmpty(mapCachePath) || !File.Exists(mapCachePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fileInfo = new FileInfo(mapCachePath);
+            if (fileInfo.Length > GameClientConstants.MaxMapCacheInspectionSizeBytes)
+            {
+                logger?.LogWarning(
+                    "[GameLauncher] MapCache.ini at {MapCachePath} exceeds maximum inspection size ({Size} bytes > {MaxSize} bytes); skipping sanitization.",
+                    mapCachePath,
+                    fileInfo.Length,
+                    GameClientConstants.MaxMapCacheInspectionSizeBytes);
+                return false;
+            }
+
+            var content = File.ReadAllText(mapCachePath);
+            if (System.Text.RegularExpressions.Regex.IsMatch(content, @":\s*-?(?:nan|1\.#(?:inf|ind|qnan|snan|j))\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
+            {
+                logger?.LogWarning("[GameLauncher] Detected corrupted MapCache.ini containing NaN values at {MapCachePath}. Backing up and removing to prevent game startup crash.", mapCachePath);
+                return BackupAndPurgeCorruptMapCache(mapCachePath, logger);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or System.Text.RegularExpressions.RegexMatchTimeoutException)
+        {
+            logger?.LogWarning(ex, "[GameLauncher] Failed to inspect or sanitize MapCache.ini at {MapCachePath}", mapCachePath);
+        }
+
+        return false;
+    }
+
+    private static bool BackupAndPurgeCorruptMapCache(string mapCachePath, ILogger? logger)
+    {
+        var backupPath = mapCachePath + GameClientConstants.CorruptMapCacheBackupExtension;
+        try
+        {
+            File.Copy(mapCachePath, backupPath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[GameLauncher] Failed to create backup of corrupted MapCache.ini");
+        }
+
+        try
+        {
+            File.Delete(mapCachePath);
+            logger?.LogInformation("[GameLauncher] Removed corrupted MapCache.ini; game engine will regenerate a clean cache.");
+            return true;
+        }
+        catch (Exception delEx) when (delEx is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(delEx, "[GameLauncher] Failed to delete corrupted MapCache.ini at {MapCachePath}, attempting truncation fallback", mapCachePath);
+            try
+            {
+                File.WriteAllText(mapCachePath, string.Empty);
+                logger?.LogInformation("[GameLauncher] Truncated corrupted MapCache.ini to empty file.");
+                return true;
+            }
+            catch (Exception truncEx) when (truncEx is IOException or UnauthorizedAccessException)
+            {
+                logger?.LogError(truncEx, "[GameLauncher] Failed to truncate corrupted MapCache.ini at {MapCachePath}", mapCachePath);
+                return false;
+            }
+        }
+    }
+
     private async Task<IDisposable> AcquireSteamInstallationLockAsync(
         string installationPath,
         CancellationToken cancellationToken)
@@ -1514,6 +1592,7 @@ public class GameLauncher(
 
         var arguments = argsResult.Data;
         ApplyResolutionFromNativeOptionsIni(profile, arguments);
+        SanitizeMapCache(profile.GameClient?.GameType);
 
         SteamLaunchPrepResult? steamPrep = null;
         string? steamAppId = null;
@@ -1643,6 +1722,7 @@ public class GameLauncher(
         CancellationToken cancellationToken)
     {
         var gameType = profile.GameClient?.GameType ?? GameType.ZeroHour;
+        SanitizeMapCache(gameType);
         var previousActiveProfileId = profileContentLinker.GetActiveProfileId(gameType);
         try
         {
@@ -1748,6 +1828,36 @@ public class GameLauncher(
         {
             logger.LogDebug(ex, "[GameLauncher] Could not resolve native Options.ini path for {GameType}", gameType);
             return null;
+        }
+    }
+
+    private void SanitizeMapCache(GameType? gameType)
+    {
+        if (gameType is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var nativeOptionsPath = TryGetNativeOptionsIniPath(gameType);
+            if (string.IsNullOrEmpty(nativeOptionsPath))
+            {
+                return;
+            }
+
+            var userDataDir = Path.GetDirectoryName(nativeOptionsPath);
+            if (string.IsNullOrEmpty(userDataDir) || !Directory.Exists(userDataDir))
+            {
+                return;
+            }
+
+            var mapCachePath = Path.Combine(userDataDir, GameClientConstants.MapsDirectoryName, GameClientConstants.MapCacheFileName);
+            TrySanitizeMapCacheFile(mapCachePath, logger);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger.LogDebug(ex, "[GameLauncher] Failed to resolve MapCache.ini path for {GameType}", gameType);
         }
     }
 

@@ -44,6 +44,14 @@ public static class GameClientConstants
     /// <summary>SAGE engine command-line argument requesting windowed mode.</summary>
     public const string WindowedArgument = "-win";
 
+    // ===== Launcher Wrapper & Stub Hashes =====
+
+    /// <summary>SHA-256 hash of modern Steam/EA App Zero Hour generals.exe launcher stub.</summary>
+    public const string ModernLauncherStubSha256 = "FF6F78211A014100D8EF6B08BC2F8EDD3D55E99E872DFDB5371776FC5A5D02CE";
+
+    /// <summary>SHA-256 hash of EA App Generals 1.08 generals.exe launcher wrapper.</summary>
+    public const string EaAppGeneralsLauncherWrapperSha256 = "8DDE6C990280AC44B4629A664B24BBAF226E629E9C7700234010F198783B6674";
+
     // ===== SuperHackers Client Detection =====
 
     /// <summary>SuperHackers Generals executable filename.</summary>
@@ -65,6 +73,12 @@ public static class GameClientConstants
 
     /// <summary>Standard Zero Hour installation directory name.</summary>
     public const string ZeroHourDirectoryName = "Command and Conquer Generals Zero Hour";
+
+    /// <summary>Subdirectory name within user data for custom maps.</summary>
+    public const string MapsDirectoryName = "Maps";
+
+    /// <summary>Map cache file name within the maps directory.</summary>
+    public const string MapCacheFileName = "MapCache.ini";
 
     /// <summary>Zero Hour directory name with ampersand and hyphen (Steam standard).</summary>
     public const string ZeroHourDirectoryNameAmpersandHyphen = "Command & Conquer Generals - Zero Hour";
@@ -222,6 +236,15 @@ public static class GameClientConstants
 
     /// <summary>Direct3D 8 wrapper DLL filename.</summary>
     public const string Direct3D8WrapperDll = "d3d8.dll";
+
+    /// <summary>GenTool updater executable filename.</summary>
+    public const string GenToolUpdaterExe = "GenToolUpdater.exe";
+
+    /// <summary>Corrupt MapCache backup file extension.</summary>
+    public const string CorruptMapCacheBackupExtension = ".corrupt.bak";
+
+    /// <summary>Maximum MapCache file size in bytes to inspect for corruption (10 MB).</summary>
+    public const long MaxMapCacheInspectionSizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
     /// DLLs required for standard game installations.

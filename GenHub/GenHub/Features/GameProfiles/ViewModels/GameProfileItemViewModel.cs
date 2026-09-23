@@ -4,6 +4,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -13,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -22,6 +24,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileItemViewModel : ViewModelBase
 {
+    private CancellationTokenSource? _iniVerificationCts;
+
     /// <summary>
     /// Gets or sets the action to launch the profile.
     /// </summary>
@@ -1092,6 +1096,18 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         var isRetail = ReplayCrcMatchingHelper.IsRetailCompatible(profile.GameClient, profile.EnabledContentIds);
+        ApplyCompatibilityBadge(profile, isRetail);
+        ScheduleIniCompatibilityVerification(profile);
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
+    private void ApplyCompatibilityBadge(IGameProfile profile, bool isRetail)
+    {
+        if (profile.GameClient == null)
+        {
+            return;
+        }
+
         IsRetailCompatible = isRetail;
         HasCompatibilityBadge = true;
 
@@ -1107,11 +1123,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 ? LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.RetailCompatibleGenerals",
-                    "Compatible with retail Generals 1.08 / 1.09 (official executable)")
+                    "Compatible with retail Generals 1.08 / 1.09 (official rules/INIs)")
                 : LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.RetailCompatible",
-                    "Compatible with retail 1.04 / 1.05 (official executable)");
+                    "Compatible with retail 1.04 / 1.05 (official rules/INIs)");
         }
         else
         {
@@ -1123,11 +1139,77 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 ? LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.NonRetailCompatibleGenerals",
-                    "Non-retail executable (different executable from Generals 1.08 / 1.09)")
+                    "Non-retail configuration (different rules/INIs from Generals 1.08 / 1.09)")
                 : LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.NonRetailCompatible",
-                    "Non-retail executable (different executable from 1.04 / 1.05)");
+                    "Non-retail configuration (different rules/INIs from 1.04 / 1.05)");
+        }
+    }
+
+    private void ScheduleIniCompatibilityVerification(IGameProfile profile)
+    {
+        if (profile.GameClient == null || profile is not GameProfile concreteProfile)
+        {
+            _iniVerificationCts?.Cancel();
+            _iniVerificationCts?.Dispose();
+            _iniVerificationCts = null;
+            return;
+        }
+
+        _iniVerificationCts?.Cancel();
+        _iniVerificationCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _iniVerificationCts = cts;
+        var token = cts.Token;
+
+        var crcCalculator = AppLocator.GetServiceOrDefault<IGameCrcCalculatorService>();
+
+        Task.Run(() => ExecuteIniCompatibilityVerificationAsync(profile, concreteProfile, crcCalculator, token), token);
+    }
+
+    private async Task ExecuteIniCompatibilityVerificationAsync(
+        IGameProfile profile,
+        GameProfile concreteProfile,
+        IGameCrcCalculatorService? crcCalculator,
+        CancellationToken token)
+    {
+        try
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var isVerifiedRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(
+                concreteProfile,
+                crcCalculator,
+                ct: token);
+
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (!token.IsCancellationRequested && isVerifiedRetail != IsRetailCompatible)
+                {
+                    ApplyCompatibilityBadge(profile, isVerifiedRetail);
+                }
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Task canceled, ignore
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            // Silently retain synchronous heuristics if filesystem access fails
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Fallback: retain synchronous heuristics for unhandled calculation failures
         }
     }
 

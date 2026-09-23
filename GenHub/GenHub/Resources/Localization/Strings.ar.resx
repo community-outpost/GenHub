@@ -597,26 +597,26 @@
   </data>
   <data name="GameProfiles.Badge.RetailCompatible" xml:space="preserve">
     <value>متوافق مع نسخة التجزئة</value>
-    <comment>Badge indicating the profile game client executable CRC matches retail 1.04</comment>
+    <comment>Badge indicating the profile game client rules/INIs and executable match retail</comment>
   </data>
   <data name="GameProfiles.Badge.NonRetailCompatible" xml:space="preserve">
     <value>غير متوافق مع نسخة التجزئة</value>
-    <comment>Badge indicating the profile game client uses a non-retail executable</comment>
+    <comment>Badge indicating the profile uses non-retail rules/INIs or custom executables</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatible" xml:space="preserve">
-    <value>متوافق مع النسخة 1.04 الأصلية (تطابق CRC للملف التنفيذي)</value>
+    <value>متوافق مع النسخة الأصلية 1.04 / 1.05 (قواعد/INI رسمية)</value>
     <comment>Tooltip for retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatible" xml:space="preserve">
-    <value>يستخدم ملفاً تنفيذياً مخصصاً؛ غير متوافق مع النسخة 1.04</value>
+    <value>تكوين غير متوافق مع نسخة التجزئة (قواعد/INI تختلف عن 1.04 / 1.05)</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
-    <value>متوافق مع نسخة Generals الأصلية 1.08 / 1.09 (ملف تنفيذي رسمي)</value>
+    <value>متوافق مع نسخة Generals الأصلية 1.08 / 1.09 (قواعد/INI رسمية)</value>
     <comment>Tooltip for retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
-    <value>ملف تنفيذي غير تابع للنسخة الأصلية لـ Generals 1.08 / 1.09</value>
+    <value>تكوين غير متوافق مع نسخة التجزئة (قواعد/INI تختلف عن Generals 1.08 / 1.09)</value>
     <comment>Tooltip for non-retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">
@@ -10209,5 +10209,71 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>لم يعد عميل اللعبة يحدد نسخًا مخصصة للمنصات.</value>
+  </data>
+  <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
+    <value>إضافة إلى الملف التعريفي</value>
+  </data>
+  <data name="Maps.MapPack.Button.CreateAndAddToProfile" xml:space="preserve">
+    <value>إنشاء وإضافة إلى الملف التعريفي</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.ActionBadge" xml:space="preserve">
+    <value>إضافة</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.CreateCardSubtitle" xml:space="preserve">
+    <value>إنشاء ملف تعريفي جديد مع حزمة الخرائط هذه</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.DialogTitle" xml:space="preserve">
+    <value>إضافة حزمة الخرائط إلى الملف التعريفي</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>اختر ملفًا تعريفيًا لإضافة '{0}' إليه، أو قم بإنشاء ملف تعريفي جديد</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>إضافة حزمة الخرائط إلى الملف التعريفي</value>
+  </data>
+  <data name="Maps.MapPack.Tooltip.AddToProfile" xml:space="preserve">
+    <value>أضف حزمة الخرائط هذه إلى ملف تعريفي حالي أو قم بإنشاء ملف تعريفي جديد بها.</value>
+  </data>
+  <data name="Maps.MapPack.Tooltip.CreateAndAddToProfile" xml:space="preserve">
+    <value>قم بإنشاء حزمة الخرائط هذه وافتح مربع حوار تحديد الملف التعريفي لإضافتها فورًا.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.AddError" xml:space="preserve">
+    <value>حدث خطأ أثناء إضافة حزمة الخرائط إلى الملف التعريفي.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.CreationFailedTitle" xml:space="preserve">
+    <value>فشل الإنشاء</value>
+  </data>
+  <data name="Maps.MapPack.Notification.DemoAddToProfile" xml:space="preserve">
+    <value>يضيف حزمة الخرائط المحددة إلى ملف تعريفي موجود للعبة أو ينشئ ملفًا تعريفيًا جديدًا مع تمكين حزمة الخرائط.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.DemoCreateAndAddToProfile" xml:space="preserve">
+    <value>ينشئ حزمة خرائط ويفتح مربع حوار تحديد الملف التعريفي لإضافتها فورًا إلى ملف تعريفي.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.InvalidInputMessage" xml:space="preserve">
+    <value>يرجى تقديم اسم وتحديد الخرائط.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.InvalidInputTitle" xml:space="preserve">
+    <value>إدخال غير صالح</value>
+  </data>
+  <data name="Maps.MapPack.Notification.MissingManifestId" xml:space="preserve">
+    <value>لا تحتوي حزمة الخرائط هذه على معرف بيان محتوى صالح.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.ProfileSelectionTitle" xml:space="preserve">
+    <value>تحديد الملف التعريفي</value>
+  </data>
+  <data name="Maps.MapPack.Notification.UnableToOpenDialog" xml:space="preserve">
+    <value>تعذر فتح مربع حوار تحديد الملف التعريفي.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.UnknownError" xml:space="preserve">
+    <value>خطأ غير معروف</value>
+  </data>
+  <data name="Maps.MapPack.Status.CreatedSuccessfully" xml:space="preserve">
+    <value>تم إنشاء حزمة الخرائط بنجاح.</value>
+  </data>
+  <data name="Maps.MapPack.Status.CreationFailed" xml:space="preserve">
+    <value>فشل الإنشاء.</value>
+  </data>
+  <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
+    <value>جاري إنشاء حزمة الخرائط...</value>
   </data>
 </root>

@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using System;
 using System.Collections.Generic;
@@ -23,6 +24,11 @@ public sealed class MapPack
     /// Gets or sets the description of the MapPack.
     /// </summary>
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Gets or sets the target game for this MapPack.
+    /// </summary>
+    public GameType? TargetGame { get; set; }
 
     /// <summary>
     /// Gets or sets the profile ID this MapPack is associated with.

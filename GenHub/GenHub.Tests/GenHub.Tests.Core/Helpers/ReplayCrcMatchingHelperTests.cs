@@ -48,6 +48,8 @@ public class ReplayCrcMatchingHelperTests
     {
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(ReplayManagerConstants.RetailZeroHourExeCrcFirstDecade));
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(ReplayManagerConstants.RetailZeroHourExeCrcSteam));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc("0x391259B0"));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc("391259B0"));
         Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc("0xDEADBEEF"));
     }
 
@@ -93,7 +95,7 @@ public class ReplayCrcMatchingHelperTests
     }
 
     /// <summary>
-    /// Verifies that GetDefaultExecutableName returns the appropriate executable for game types and publishers.
+    /// Returns the default executable name for a given game version and publisher.
     /// </summary>
     [Fact]
     public void GetDefaultExecutableName_ReturnsExpectedBinaryNames()
@@ -393,10 +395,11 @@ public class ReplayCrcMatchingHelperTests
             ExecutablePath = "generalszh.exe",
             GameType = GameType.ZeroHour,
         };
-        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(superHackersClient));
-        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(superHackersClient));
-        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(superHackersClient));
-        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(superHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(superHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(superHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(superHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(superHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsNonRetailEngineClient(superHackersClient));
 
         var nameOnlySuperHackersClient = new GameClient
         {
@@ -406,10 +409,11 @@ public class ReplayCrcMatchingHelperTests
             ExecutablePath = "generalszh.exe",
             GameType = GameType.ZeroHour,
         };
-        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(nameOnlySuperHackersClient));
-        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(nameOnlySuperHackersClient));
-        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(nameOnlySuperHackersClient));
-        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(nameOnlySuperHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(nameOnlySuperHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(nameOnlySuperHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(nameOnlySuperHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(nameOnlySuperHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsNonRetailEngineClient(nameOnlySuperHackersClient));
 
         var theSuperHackersNameClient = new GameClient
         {
@@ -419,10 +423,25 @@ public class ReplayCrcMatchingHelperTests
             ExecutablePath = "generalszh.exe",
             GameType = GameType.ZeroHour,
         };
-        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(theSuperHackersNameClient));
-        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(theSuperHackersNameClient));
-        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(theSuperHackersNameClient));
-        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(theSuperHackersNameClient));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(theSuperHackersNameClient));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(theSuperHackersNameClient));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(theSuperHackersNameClient));
+        Assert.False(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(theSuperHackersNameClient));
+        Assert.False(ReplayCrcMatchingHelper.IsNonRetailEngineClient(theSuperHackersNameClient));
+
+        var superHackersNonRetailClient = new GameClient
+        {
+            Id = "1.100.thesuperhackers.gameclient.zerohour.nonret",
+            Name = "TheSuperHackers Zero Hour (Non-Retail)",
+            PublisherType = PublisherTypeConstants.TheSuperHackers,
+            ExecutablePath = "generalszh.exe",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(superHackersNonRetailClient));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(superHackersNonRetailClient));
+        Assert.False(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(superHackersNonRetailClient));
+        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(superHackersNonRetailClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(superHackersNonRetailClient));
 
         var elfClient = new GameClient
         {
@@ -533,5 +552,165 @@ public class ReplayCrcMatchingHelperTests
         };
         Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(goClient));
         Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(goClient));
+
+        // EA App auto-created Zero Hour profile (v1.04)
+        var eaZeroHourWithV = new GameClient
+        {
+            Id = "1.104.ea.gameclient.zerohour",
+            Name = "zerohour",
+            PublisherType = "EA App",
+            GameType = GameType.ZeroHour,
+            Version = "v1.04",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(eaZeroHourWithV));
+
+        // EA App auto-created Generals profile (v1.08)
+        var eaGeneralsWithV = new GameClient
+        {
+            Id = "1.108.ea.gameclient.generals",
+            Name = "generals",
+            PublisherType = "EA App",
+            GameType = GameType.Generals,
+            Version = "v1.08",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(eaGeneralsWithV));
+
+        // SuperHackers Zero Hour (The Super Hackers)
+        var tshZeroHour = new GameClient
+        {
+            Id = "1.20260918.thesuperhackers.gameclient.zerohour",
+            Name = "SuperHackers - Zero Hour",
+            PublisherType = PublisherTypeConstants.TheSuperHackers,
+            GameType = GameType.ZeroHour,
+            Version = "20260918",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(tshZeroHour));
+        Assert.True(ReplayCrcMatchingHelper.IsSuperHackersRetailClient(tshZeroHour));
+
+        // INI CRC verification
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc("76B251A3"));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailIniCrc("0x76B251A3", GameType.ZeroHour));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailIniCrc(ReplayManagerConstants.RetailGeneralsIniCrcVanilla));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailIniCrc(ReplayManagerConstants.RetailGeneralsIniCrcGerman));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailIniCrc("0x5CB7992C"));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(ReplayManagerConstants.RetailZeroHourExeCrcCommunityPatch));
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc("0x12345678"));
+    }
+
+    /// <summary>
+    /// Verifies that launcher wrapper SHA256 hashes are recognized as retail compatible.
+    /// </summary>
+    [Fact]
+    public void IsRetailExeSha256_RecognizesLauncherWrappers()
+    {
+        Assert.True(ReplayCrcMatchingHelper.IsRetailExeSha256(GameClientConstants.EaAppGeneralsLauncherWrapperSha256));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailExeSha256(GameClientConstants.ModernLauncherStubSha256));
+    }
+
+    /// <summary>
+    /// Verifies that IsRetailCompatibleAsync preserves retail compatibility even when
+    /// game root contains loose files that alter the root INI CRC.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_PreservesRetailCompatibility_WhenRootIniDirty()
+    {
+        await RunProfileIniCompatibilityScenarioAsync(
+            "1.104.steam.gameclient.zerohour",
+            "Command & Conquer Generals Zero Hour (Steam)",
+            "Steam",
+            "0xAC76387F",
+            isRetail => Assert.True(isRetail));
+    }
+
+    /// <summary>
+    /// Verifies that IsRetailCompatibleAsync returns false for custom mod profiles with non-retail INI CRC.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_WhenCustomModAndIniCrcNonRetail_ReturnsFalse()
+    {
+        await RunProfileIniCompatibilityScenarioAsync(
+            "custom.mod.client",
+            "Custom Mod",
+            "Custom",
+            "0xAC76387F",
+            isRetail => Assert.False(isRetail));
+    }
+
+    /// <summary>
+    /// Verifies that IsRetailCompatibleAsync returns true when the INI CRC matches retail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_WhenIniCrcRetail_ReturnsTrue()
+    {
+        await RunProfileIniCompatibilityScenarioAsync(
+            "1.104.custom.gameclient.zerohour",
+            "Command & Conquer Generals Zero Hour (Custom)",
+            "Custom",
+            ReplayManagerConstants.RetailZeroHourIniCrcVanilla,
+            isRetail => Assert.True(isRetail),
+            (mock, dir) => mock.Verify(
+                c => c.CalculateIniCrcAsync(
+                    dir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once));
+    }
+
+    private static async Task RunProfileIniCompatibilityScenarioAsync(
+        string clientId,
+        string clientName,
+        string publisherType,
+        string calculatedIniCrc,
+        Action<bool> assertCompatibility,
+        Action<Mock<IGameCrcCalculatorService>, string>? verifyCalculator = null)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_AsyncTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, "generals.exe");
+        await File.WriteAllTextAsync(exePath, "dummy binary");
+
+        try
+        {
+            var profile = new GameProfile
+            {
+                Id = "test-profile",
+                Name = clientName,
+                GameClient = new GameClient
+                {
+                    Id = clientId,
+                    Name = clientName,
+                    PublisherType = publisherType,
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = exePath,
+                },
+            };
+
+            var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            mockCalculator
+                .Setup(c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(calculatedIniCrc));
+
+            var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+            assertCompatibility(isRetail);
+            verifyCalculator?.Invoke(mockCalculator, tempDir);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 }

@@ -146,6 +146,239 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that d3d8.dll is NOT materialized into workspace when NOT declared in manifests,
+    /// even if present in the base game installation directory (protects workspace isolation).
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithoutD3d8InManifest_DoesNotMaterializeDllEvenIfPresentInBaseInstallation()
+    {
+        // Arrange - base install has d3d8.dll (e.g. GenTool installed in host Steam directory)
+        var d3d8Source = Path.Combine(_gameInstallDir, GameClientConstants.Direct3D8WrapperDll);
+        File.WriteAllText(d3d8Source, "host gentool d3d8 content");
+
+        // Profile manifest does NOT declare d3d8.dll
+        var manifest = new ContentManifest
+        {
+            Id = "1.23072026.communityoutpost.gameclient.communitypatch",
+            ContentType = ContentType.GameClient,
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "generalszh.exe",
+                    SourcePath = Path.Combine(_gameInstallDir, "generalszh.exe"),
+                    InstallTarget = ContentInstallTarget.Workspace,
+                },
+            ],
+        };
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        // Assert - target d3d8.dll must NOT exist in workspace
+        var targetDll = Path.Combine(_workspaceDir, GameClientConstants.Direct3D8WrapperDll);
+        File.Exists(targetDll).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies that stale d3d8.dll and GenToolUpdater.exe are removed from workspace if manifests do not declare d3d8.dll.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithoutD3d8InManifest_RemovesStaleD3d8AndGenToolFromWorkspace()
+    {
+        // Arrange - workspace already has stale d3d8.dll and GenToolUpdater.exe
+        var staleDll = Path.Combine(_workspaceDir, GameClientConstants.Direct3D8WrapperDll);
+        File.WriteAllText(staleDll, "stale d3d8 content");
+        var staleGenToolUpdater = Path.Combine(_workspaceDir, GameClientConstants.GenToolUpdaterExe);
+        File.WriteAllText(staleGenToolUpdater, "stale gentool updater");
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.104.steam.gameinstallation.zerohour",
+            ContentType = ContentType.GameInstallation,
+            Files = [],
+        };
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        // Assert
+        File.Exists(staleDll).Should().BeFalse();
+        File.Exists(staleGenToolUpdater).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies that unrequested d3d8.dll and GenTool files are preserved when SkipCleanup is true.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WhenSkipCleanupIsTrue_PreservesUnrequestedD3d8Files()
+    {
+        // Arrange - workspace already has d3d8.dll and GenToolUpdater.exe
+        var staleDll = Path.Combine(_workspaceDir, GameClientConstants.Direct3D8WrapperDll);
+        File.WriteAllText(staleDll, "custom d3d8 content");
+        var staleGenToolUpdater = Path.Combine(_workspaceDir, GameClientConstants.GenToolUpdaterExe);
+        File.WriteAllText(staleGenToolUpdater, "custom gentool updater");
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.104.steam.gameinstallation.zerohour",
+            ContentType = ContentType.GameInstallation,
+            Files = [],
+        };
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+            SkipCleanup = true,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        // Assert
+        File.Exists(staleDll).Should().BeTrue();
+        File.Exists(staleGenToolUpdater).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that a manifest declaring a subdirectory d3d8.dll does not count as declaring root d3d8.dll,
+    /// so stale root d3d8.dll is properly cleaned up.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WhenManifestDeclaresSubdirectoryD3d8_DoesNotTreatAsRootD3d8AndRemovesStaleRootD3d8()
+    {
+        // Arrange - workspace has stale root d3d8.dll
+        var staleDll = Path.Combine(_workspaceDir, GameClientConstants.Direct3D8WrapperDll);
+        File.WriteAllText(staleDll, "stale d3d8 content");
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.104.test.mod.testmod",
+            ContentType = ContentType.Mod,
+            Files =
+            [
+                new ManifestFile { RelativePath = "Support/d3d8.dll", Hash = "dummy" },
+            ],
+        };
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        // Assert
+        File.Exists(staleDll).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies that GenToolUpdater.exe is preserved when declared by a manifest, even if d3d8.dll is unrequested.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WhenManifestDeclaresGenToolUpdater_PreservesGenToolUpdater()
+    {
+        // Arrange - workspace has stale d3d8.dll and GenToolUpdater.exe
+        var staleDll = Path.Combine(_workspaceDir, GameClientConstants.Direct3D8WrapperDll);
+        File.WriteAllText(staleDll, "stale d3d8 content");
+        var genToolUpdaterPath = Path.Combine(_workspaceDir, GameClientConstants.GenToolUpdaterExe);
+        File.WriteAllText(genToolUpdaterPath, "declared updater content");
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.104.test.addon.updater",
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new ManifestFile { RelativePath = GameClientConstants.GenToolUpdaterExe, Hash = "dummy" },
+            ],
+        };
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        // Assert - d3d8.dll is removed, but GenToolUpdater.exe is preserved
+        File.Exists(staleDll).Should().BeFalse();
+        File.Exists(genToolUpdaterPath).Should().BeTrue();
+    }
+
+    /// <summary>
     /// Verifies that ZH_Generals source does not crash, throw InvalidOperationException, or hang.
     /// </summary>
     [Fact]
@@ -1054,6 +1287,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "safe");
         File.WriteAllText(Path.Combine(supplementalRoot, "PatchINI.big"), "unsafe");
         var mockLogger = new Mock<ILogger>();
+        mockLogger.Setup(x => x.IsEnabled(LogLevel.Information)).Returns(true);
 
         // Act
         var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(supplementalRoot, out var archives, mockLogger.Object);
@@ -1066,7 +1300,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
                 LogLevel.Information,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("PatchINI.big")),
-                It.IsAny<Exception>(),
+                It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
@@ -1104,7 +1338,30 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         Directory.Exists(installerDir).Should().BeTrue();
     }
 
-    private static void CreateDummyBigArchive(string filePath, params string[] entryPaths)
+    private void RunCompatibilityScenario(ContentManifest manifest, bool skipCleanup = false)
+    {
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+            SkipCleanup = skipCleanup,
+        };
+
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+    }
+
+    private void CreateDummyBigArchive(string filePath, params string[] entryPaths)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);

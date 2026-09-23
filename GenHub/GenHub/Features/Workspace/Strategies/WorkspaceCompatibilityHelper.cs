@@ -626,6 +626,26 @@ public static class WorkspaceCompatibilityHelper
         try
         {
             var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
+            var d3d8Requested = ManifestDeclaresFile(configuration.Manifests, GameClientConstants.Direct3D8WrapperDll);
+            var genToolUpdaterRequested = ManifestDeclaresFile(configuration.Manifests, GameClientConstants.GenToolUpdaterExe);
+
+            if (!configuration.SkipCleanup && !genToolUpdaterRequested)
+            {
+                var genToolUpdaterPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GenToolUpdaterExe);
+                TryDeleteWorkspaceFile(genToolUpdaterPath, GameClientConstants.GenToolUpdaterExe, logger);
+            }
+
+            if (!d3d8Requested)
+            {
+                if (!configuration.SkipCleanup)
+                {
+                    var unrequestedD3d8Path = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
+                    TryDeleteWorkspaceFile(unrequestedD3d8Path, GameClientConstants.Direct3D8WrapperDll, logger);
+                }
+
+                return;
+            }
+
             if (File.Exists(d3d8TargetPath))
             {
                 return;
@@ -648,6 +668,49 @@ public static class WorkspaceCompatibilityHelper
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
                 $"Failed to materialize {GameClientConstants.Direct3D8WrapperDll} to workspace: {ex.Message}",
                 ValidationSeverity.Warning));
+        }
+    }
+
+    private static bool ManifestDeclaresFile(IEnumerable<ContentManifest>? manifests, string relativePath)
+    {
+        if (manifests == null)
+        {
+            return false;
+        }
+
+        return manifests.Any(m =>
+        {
+            var files = ManifestVariantResolver.ResolveFiles(m);
+            if (files.Count == 0 && m.Variants.Count > 0)
+            {
+                files = ManifestVariantResolver.ResolveFiles(m, "win-x86");
+                if (files.Count == 0)
+                {
+                    files = ManifestVariantResolver.ResolveFiles(m, "win-x64");
+                }
+            }
+
+            return files.Any(f => f.InstallTarget == ContentInstallTarget.Workspace &&
+                                  !string.IsNullOrWhiteSpace(f.RelativePath) &&
+                                  ManifestVariantResolver.PathsMatch(f.RelativePath, relativePath));
+        });
+    }
+
+    private static void TryDeleteWorkspaceFile(string filePath, string description, ILogger logger)
+    {
+        if (!File.Exists(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(filePath);
+            logger.LogInformation("Removed unrequested {File} from workspace", description);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to remove unrequested {File} from workspace", description);
         }
     }
 

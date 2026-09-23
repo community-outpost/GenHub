@@ -141,6 +141,66 @@ public static class MapManagerConstants
     public const string UploadCategory = "maps";
 
     /// <summary>
+    /// Default title used for MapPack creation failure notifications.
+    /// </summary>
+    public const string DefaultCreationFailedTitle = "Creation Failed";
+
+    /// <summary>
+    /// Default status text used for MapPack creation failures.
+    /// </summary>
+    public const string DefaultCreationFailedStatus = "Creation failed.";
+
+    /// <summary>
+    /// Localization key for the MapPack creation failure notification title.
+    /// </summary>
+    public const string CreationFailedTitleKey = "Maps.MapPack.Notification.CreationFailedTitle";
+
+    /// <summary>
+    /// Localization key for the MapPack creation failure status text.
+    /// </summary>
+    public const string CreationFailedStatusKey = "Maps.MapPack.Status.CreationFailed";
+
+    /// <summary>
+    /// Localization key for the unknown error notification message.
+    /// </summary>
+    public const string UnknownErrorKey = "Maps.MapPack.Notification.UnknownError";
+
+    /// <summary>
+    /// Default fallback message for unknown errors.
+    /// </summary>
+    public const string DefaultUnknownError = "Unknown error";
+
+    /// <summary>Localization key for Add to Profile button.</summary>
+    public const string AddToProfileButtonKey = "Maps.MapPack.Button.AddToProfile";
+
+    /// <summary>Localization key for Profile Selection notification title.</summary>
+    public const string ProfileSelectionTitleKey = "Maps.MapPack.Notification.ProfileSelectionTitle";
+
+    /// <summary>Localization key for Add MapPack to Profile dialog title.</summary>
+    public const string ProfileSelectionDialogTitleKey = "Maps.MapPack.ProfileSelection.DialogTitle";
+
+    /// <summary>Localization key for Profile Selection header title.</summary>
+    public const string ProfileSelectionHeaderTitleKey = "Maps.MapPack.ProfileSelection.HeaderTitle";
+
+    /// <summary>Localization key for Profile Selection header subtitle.</summary>
+    public const string ProfileSelectionHeaderSubtitleKey = "Maps.MapPack.ProfileSelection.HeaderSubtitle";
+
+    /// <summary>Localization key for Profile Selection create card subtitle.</summary>
+    public const string ProfileSelectionCreateCardSubtitleKey = "Maps.MapPack.ProfileSelection.CreateCardSubtitle";
+
+    /// <summary>Localization key for Profile Selection action badge.</summary>
+    public const string ProfileSelectionActionBadgeKey = "Maps.MapPack.ProfileSelection.ActionBadge";
+
+    /// <summary>Localization key for Create &amp; Add to Profile button.</summary>
+    public const string CreateAndAddToProfileButtonKey = "Maps.MapPack.Button.CreateAndAddToProfile";
+
+    /// <summary>Localization key for Invalid Input notification title.</summary>
+    public const string InvalidInputTitleKey = "Maps.MapPack.Notification.InvalidInputTitle";
+
+    /// <summary>Localization key for Invalid Input notification message.</summary>
+    public const string InvalidInputMessageKey = "Maps.MapPack.Notification.InvalidInputMessage";
+
+    /// <summary>
     /// Allowed file extensions for map packages.
     /// </summary>
     public static readonly string[] AllowedExtensions = [".map", ".tga", ".ini", ".str", ".txt"];

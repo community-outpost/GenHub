@@ -57,4 +57,12 @@ public interface IGameCrcCalculatorService
         IReadOnlyList<string>? sideloadPaths = null,
         string? modPath = null,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets a previously calculated INI CRC from the service memory cache if valid and fresh.
+    /// </summary>
+    /// <param name="gameRootPath">Root directory of the game installation.</param>
+    /// <param name="gameType">Target game (ZeroHour or Generals).</param>
+    /// <returns>The cached INI CRC hex string if present and directory has not changed; otherwise, <c>null</c>.</returns>
+    string? GetCachedIniCrc(string gameRootPath, GameType gameType);
 }
