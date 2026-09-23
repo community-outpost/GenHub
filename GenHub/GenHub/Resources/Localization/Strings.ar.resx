@@ -9427,136 +9427,136 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
 
   <data name="GameSettings.Video.ResolutionToolTip" xml:space="preserve">
-    <value>Sets the display resolution for the game.</value>
+    <value>يحدد دقة العرض للعبة.</value>
   </data>
   <data name="GameSettings.Video.DetailLevelToolTip" xml:space="preserve">
-    <value>Overall graphical detail level preset.</value>
+    <value>الإعداد المسبق لمستوى التفاصيل الرسومية العام.</value>
   </data>
   <data name="GameSettings.Video.TextureQualityToolTip" xml:space="preserve">
-    <value>Quality and filtering of in-game textures.</value>
+    <value>جودة وتصفية الإكساءات داخل اللعبة.</value>
   </data>
   <data name="GameSettings.Video.BrightnessToolTip" xml:space="preserve">
-    <value>Adjusts in-game brightness and gamma levels.</value>
+    <value>يضبط مستويات السطوع وغاما داخل اللعبة.</value>
   </data>
   <data name="GameSettings.Video.AntiAliasingToolTip" xml:space="preserve">
-    <value>Smooths jagged edges on 3D geometry.</value>
+    <value>ينعم الحواف المتعرجة للأشكال ثلاثية الأبعاد.</value>
   </data>
   <data name="GameSettings.Video.MaxParticleCountToolTip" xml:space="preserve">
-    <value>Maximum number of particles rendered simultaneously.</value>
+    <value>أقصى عدد للجزيئات المعروضة في وقت واحد.</value>
   </data>
   <data name="GameSettings.Video.WindowedModeToolTip" xml:space="preserve">
-    <value>Runs the game in a desktop window rather than fullscreen.</value>
+    <value>تشغيل اللعبة في نافذة سطح المكتب بدلاً من وضع ملء الشاشة.</value>
   </data>
   <data name="GameSettings.Video.DynamicLodToolTip" xml:space="preserve">
-    <value>Automatically adjusts level of detail to maintain framerate.</value>
+    <value>يضبط مستوى التفاصيل تلقائياً للحفاظ على معدل الإطارات.</value>
   </data>
   <data name="GameSettings.Video.3DShadowsToolTip" xml:space="preserve">
-    <value>Renders dynamic 3D unit and structure shadows.</value>
+    <value>يعرض ظلالاً ديناميكية ثلاثية الأبعاد للوحدات والمباني.</value>
   </data>
   <data name="GameSettings.Video.2DShadowsToolTip" xml:space="preserve">
-    <value>Renders 2D shadow decals under units.</value>
+    <value>يعرض ظلالاً ثنائية الأبعاد تحت الوحدات.</value>
   </data>
   <data name="GameSettings.Video.CloudShadowsToolTip" xml:space="preserve">
-    <value>Renders moving cloud shadows across the terrain.</value>
+    <value>يعرض ظلال السحب المتحركة عبر التضاريس.</value>
   </data>
   <data name="GameSettings.Video.ExtraGroundLightingToolTip" xml:space="preserve">
-    <value>Enables enhanced terrain lighting and highlights.</value>
+    <value>يفعّل الإضاءة والتأثيرات المحسّنة للتضاريس.</value>
   </data>
   <data name="GameSettings.Video.SmoothWaterBordersToolTip" xml:space="preserve">
-    <value>Blends water edges smoothly with shorelines.</value>
+    <value>يدمج حواف المياه بسلاسة مع الشواطئ.</value>
   </data>
   <data name="GameSettings.Video.BehindBuildingsToolTip" xml:space="preserve">
-    <value>Displays unit outlines when occluded by structures.</value>
+    <value>يعرض مخططات الوحدات عندما تحجبها المباني.</value>
   </data>
   <data name="GameSettings.Video.HeatEffectsToolTip" xml:space="preserve">
-    <value>Renders atmospheric heat distortion waves (Zero Hour only).</value>
+    <value>يعرض موجات التشويه الحراري الجوي (ساعة الصفر فقط).</value>
   </data>
   <data name="GameSettings.Video.BuildingAnimationsToolTip" xml:space="preserve">
-    <value>Enables animations on base and neutral structures.</value>
+    <value>يفعّل الرسوم المتحركة للمباني الأساسية والمحايدة.</value>
   </data>
   <data name="GameSettings.Video.ExtraAnimationsToolTip" xml:space="preserve">
-    <value>Enables ambient animations such as flags and radar dishes.</value>
+    <value>يفعّل الرسوم المتحركة المحيطية مثل الأعلام وأطباق الرادار.</value>
   </data>
   <data name="GameSettings.Video.ParticleEffectsToolTip" xml:space="preserve">
-    <value>Enables weapon explosions, fire, and smoke particles.</value>
+    <value>يفعّل جزيئات انفجارات الأسلحة والنار والدخان.</value>
   </data>
   <data name="GameSettings.Video.ShowPropsToolTip" xml:space="preserve">
-    <value>Displays decorative map objects and street fixtures.</value>
+    <value>يعرض الكائنات التزيينية وعناصر الخريطة.</value>
   </data>
   <data name="GameSettings.Video.ShowTreesToolTip" xml:space="preserve">
-    <value>Displays trees and environmental foliage.</value>
+    <value>يعرض الأشجار والغطاء النباتي البيئي.</value>
   </data>
   <data name="GameSettings.Audio.SoundVolumeToolTip" xml:space="preserve">
-    <value>Sound effects and explosion volume.</value>
+    <value>مستوى صوت المؤثرات الصوتية والانفجارات.</value>
   </data>
   <data name="GameSettings.Audio.ThreeDSoundVolumeToolTip" xml:space="preserve">
-    <value>Positional 3D audio volume.</value>
+    <value>مستوى الصوت الموضعي ثلاثي الأبعاد.</value>
   </data>
   <data name="GameSettings.Audio.MusicVolumeToolTip" xml:space="preserve">
-    <value>Background soundtrack volume.</value>
+    <value>مستوى صوت الموسيقى في الخلفية.</value>
   </data>
   <data name="GameSettings.Audio.SpeechVolumeToolTip" xml:space="preserve">
-    <value>Voice lines, unit responses, and announcer volume.</value>
+    <value>مستوى صوت الحوارات الصوتية واستجابات الوحدات والمعلق.</value>
   </data>
   <data name="GameSettings.Controls.ScrollSpeedToolTip" xml:space="preserve">
-    <value>Camera scrolling speed across the map.</value>
+    <value>سرعة تحريك الكاميرا عبر الخريطة.</value>
   </data>
   <data name="GameSettings.Controls.AlternateMouseSetupToolTip" xml:space="preserve">
-    <value>Right-click to move and left-click to select units.</value>
+    <value>النقر بزر الفأرة الأيمن للتحرك والنقر بزر الفأرة الأيسر لتحديد الوحدات.</value>
   </data>
   <data name="GameSettings.Controls.DoubleClickAttackToolTip" xml:space="preserve">
-    <value>Double-click an enemy unit to issue an attack command.</value>
+    <value>انقر نقراً مزدوجاً على وحدة العدو لإصدار أمر بالهجوم.</value>
   </data>
   <data name="GameSettings.Controls.AutoRetaliationToolTip" xml:space="preserve">
-    <value>Units automatically retaliate when fired upon.</value>
+    <value>ترد الوحدات تلقائياً عند إطلاق النار عليها.</value>
   </data>
   <data name="GameSettings.Controls.FastSendDelayToolTip" xml:space="preserve">
-    <value>Network command latency send interval in milliseconds.</value>
+    <value>الفاصل الزمني لإرسال أوامر الشبكة بالمللي ثانية.</value>
   </data>
   <data name="GameSettings.Controls.DrawScrollAnchorToolTip" xml:space="preserve">
-    <value>Displays a visual indicator when middle-click scrolling.</value>
+    <value>يعرض مؤشراً مرئياً عند التمرير بزر الفأرة الأوسط.</value>
   </data>
   <data name="GameSettings.Controls.MoveScrollAnchorToolTip" xml:space="preserve">
-    <value>Updates the anchor position while middle-click dragging.</value>
+    <value>يحدّث موضع نقطة الارتكاز أثناء السحب بزر الفأرة الأوسط.</value>
   </data>
   <data name="GameSettings.Controls.LanguageFilterToolTip" xml:space="preserve">
-    <value>Filters inappropriate words in multiplayer chat.</value>
+    <value>يصفي الكلمات غير اللائقة في دردشة اللعب الجماعي.</value>
   </data>
   <data name="GameSettings.Controls.GameTimeFontSizeToolTip" xml:space="preserve">
-    <value>Font size for the match clock display.</value>
+    <value>حجم خط عرض وقت المباراة.</value>
   </data>
   <data name="GameSettings.Tsh.ArchiveReplaysToolTip" xml:space="preserve">
-    <value>Automatically saves and archives match replays.</value>
+    <value>يحفظ ويوثق إعادات المباريات تلقائياً.</value>
   </data>
   <data name="GameSettings.Tsh.ShowMoneyPerMinToolTip" xml:space="preserve">
-    <value>Displays income per minute on the player HUD.</value>
+    <value>يعرض الدخل في الدقيقة على شاشة اللاعب.</value>
   </data>
   <data name="GameSettings.Tsh.ObserverModeToolTip" xml:space="preserve">
-    <value>Enables advanced observer and spectator features.</value>
+    <value>يفعّل ميزات المراقبة والمشاهد المتقدمة.</value>
   </data>
   <data name="GameSettings.Go.AutoLoginToolTip" xml:space="preserve">
-    <value>Automatically logs into Generals Online on startup.</value>
+    <value>تسجيل الدخول تلقائياً إلى Generals Online عند بدء التشغيل.</value>
   </data>
   <data name="GameSettings.Go.RememberMeToolTip" xml:space="preserve">
-    <value>Saves your Generals Online credentials.</value>
+    <value>يحفظ بيانات اعتماد Generals Online الخاصة بك.</value>
   </data>
   <data name="GameSettings.Go.ShowRanksToolTip" xml:space="preserve">
-    <value>Displays player ladder rankings in game lobbies.</value>
+    <value>يعرض تصنيفات سلم اللاعبين في ردهات اللعبة.</value>
   </data>
   <data name="GameSettings.Go.FpsCapToolTip" xml:space="preserve">
-    <value>Caps maximum rendered frame rate.</value>
+    <value>يحدد الحد الأقصى لمعدل الإطارات المعروضة.</value>
   </data>
   <data name="GameSettings.Go.StatsOverlayToolTip" xml:space="preserve">
-    <value>Shows network and hardware statistics overlay in game.</value>
+    <value>يعرض تراكب إحصائيات الشبكة والأجهزة داخل اللعبة.</value>
   </data>
   <data name="GameSettings.Go.ShowPingToolTip" xml:space="preserve">
-    <value>Displays player ping in matches.</value>
+    <value>يعرض سرعة الاستجابة (Ping) للاعب في المباريات.</value>
   </data>
   <data name="GameSettings.Go.ShowFpsToolTip" xml:space="preserve">
-    <value>Displays real-time frames per second counter.</value>
+    <value>يعرض عداد الإطارات في الثانية بالوقت الفعلي.</value>
   </data>
   <data name="GameSettings.Go.VerboseLoggingToolTip" xml:space="preserve">
-    <value>Writes detailed diagnostic logs for troubleshooting.</value>
+    <value>يكتب سجلات تشخيصية تفصيلية لاستكشاف الأخطاء وإصلاحها.</value>
   </data>
   <data name="GameSettings.Video.SkipIntro" xml:space="preserve">
     <value>تخطي مقاطع الفيديو التمهيدية (شعار EA)</value>
