@@ -726,7 +726,7 @@ public sealed class OnlineNetworkService(
             }
         }
 
-        logger.LogWarning(failoverCause, "Primary session request failed and fallback attempt was unsuccessful: {Message}", failoverCause?.Message);
+        logger.LogWarning(failoverCause, "Primary session request failed and fallback attempt was unsuccessful: {Message}", failoverCause.Message);
         return null;
     }
 
