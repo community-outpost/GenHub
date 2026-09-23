@@ -134,4 +134,45 @@ public sealed class SageVirtualFileSystemTests : IDisposable
         capped.Should().Equal([0x01]);
         unbanded.Should().Equal([0x02]);
     }
+
+    /// <summary>
+    /// Tests that indexing a loose file with the same name from both a mod root and a linked asset root
+    /// prioritizes the higher tier (LinkedAsset over Mod) regardless of addition order.
+    /// </summary>
+    /// <param name="addModFirst">True if mod directory is registered before linked asset directory.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TryReadModLooseFileByName_WhenIndexedInModAndLinkedAsset_HigherTierWins(bool addModFirst)
+    {
+        // Arrange: create mod and linked asset directories with same file name
+        var modDir = Path.Combine(_tempRoot, "ModRoot_" + addModFirst);
+        Directory.CreateDirectory(modDir);
+        var modFile = Path.Combine(modDir, "texture.tga");
+        File.WriteAllBytes(modFile, [0xAA]);
+
+        var linkedDir = Path.Combine(_tempRoot, "LinkedRoot_" + addModFirst);
+        Directory.CreateDirectory(linkedDir);
+        var linkedFile = Path.Combine(linkedDir, "texture.tga");
+        File.WriteAllBytes(linkedFile, [0xBB]);
+
+        var vfs = new SageVirtualFileSystem(_tempRoot, isZeroHour: true, logger: Mock.Of<ILogger>());
+        if (addModFirst)
+        {
+            vfs.AddMod(modDir);
+            vfs.AddLinkedAsset(linkedDir);
+        }
+        else
+        {
+            vfs.AddLinkedAsset(linkedDir);
+            vfs.AddMod(modDir);
+        }
+
+        // Act: lookup loose file by name
+        var readBytes = vfs.TryReadModLooseFileByName("texture.tga");
+
+        // Assert: LinkedAsset (0xBB) wins over Mod (0xAA) regardless of registration order
+        readBytes.Should().NotBeNull();
+        readBytes.Should().Equal([0xBB]);
+    }
 }
