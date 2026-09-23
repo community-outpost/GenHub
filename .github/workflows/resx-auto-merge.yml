@@ -1,0 +1,74 @@
+# Automatically merges development into open pull requests with resx-only
+# conflicts. GitHub never runs custom merge drivers, so without this job
+# every concurrent Strings*.resx change shows as a pull request conflict
+# and waits on a human even though the key-level driver
+# (scripts/git_merge_resx.py) would resolve it. This job runs that driver
+# where GitHub will not, and pushes only fully clean results. Genuine
+# conflicts are left for the pull request author.
+#
+# The job stays cheap two ways. It runs only when the push actually
+# touched localization files or the merge tooling itself, and the script
+# then merges only pull requests whose remaining conflicts are limited to
+# managed resx files. Pull requests GitHub already shows as mergeable are
+# never touched, so no pointless merge commits trigger downstream builds.
+name: Resx Auto Merge
+
+permissions: {}
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+# Pushing merge commits to pull request branches must not overlap with
+# itself: serialize runs instead of cancelling so no pull request is skipped.
+concurrency:
+  group: resx-auto-merge
+  cancel-in-progress: false
+
+jobs:
+  detect-resx-changes:
+    name: Detect Localization Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      resx: ${{ steps.filter.outputs.resx }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Filter Changed Paths
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: filter
+        with:
+          filters: |
+            resx:
+              - 'GenHub/GenHub/Resources/Localization/*.resx'
+              - 'scripts/git_merge_resx.py'
+              - 'scripts/auto_merge_development.py'
+              - '.github/workflows/resx-auto-merge.yml'
+
+  auto-merge:
+    name: Merge Development Into Open PRs
+    needs: detect-resx-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-resx-changes.outputs.resx == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Merge conflicted pull requests
+        run: |
+          git config merge.resx.driver "python3 scripts/git_merge_resx.py %O %A %B"
+          python3 scripts/auto_merge_development.py

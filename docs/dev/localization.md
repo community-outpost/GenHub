@@ -75,6 +75,29 @@ CI validates every `Strings*.resx` on each run (`scripts/validate_resx.py`):
 well-formed XML with flat `<data>` blocks, no duplicate keys, exact key-set
 parity across cultures, and preserved `{0}`-style placeholders.
 
+### Automatic merges
+
+GitHub never runs custom merge drivers, so the driver above cannot resolve
+pull request conflicts server-side: without further help, one merged
+localization pull request would leave every other open one showing
+conflicts for a human to rebase. The `Resx Auto Merge` workflow
+(`.github/workflows/resx-auto-merge.yml`) closes that gap. It runs
+`scripts/auto_merge_development.py`, which merges `development` into each
+open pull request with the driver configured and pushes only fully clean
+results. Anything needing judgment is left for the author: history is
+never rewritten (merge commits only, never force-pushes), and draft pull
+requests, forks, and pull requests labeled `no-automerge` are skipped.
+
+The workflow stays cheap with two gates. The job itself runs only when
+the push touched `Strings*.resx` files or the merge tooling, and the
+script then compares each pull request in memory first: pull requests
+GitHub already shows as mergeable are never touched (no pointless merge
+commits triggering downstream builds), pull requests conflicting outside
+the managed resx directory are skipped for their author, and only
+resx-only conflicts reach a real merge. Run it by hand from the Actions
+tab (`workflow_dispatch`), or preview a run locally with
+`python scripts/auto_merge_development.py --dry-run`.
+
 ## Avalonia views
 
 Reference the markup namespace `clr-namespace:GenHub.Common.Markup` and bind the property to a key:
