@@ -1545,7 +1545,7 @@ public partial class ContentDetailViewModel(
 
         // Resolver-backed rows carry no download URL, so the bare name alone cannot
         // distinguish same-name rows. Compose a deterministic identity from stable row
-        // fields, mirroring the populate-time deduplication key.
+        // fields so rows that populate-time deduplication keeps distinct stay distinct.
         var discriminator = string.Join(
             '|',
             file.Name?.Trim().ToLowerInvariant(),
