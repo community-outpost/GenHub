@@ -35,7 +35,8 @@ public class NativeClientManifestLaunchTests
     private readonly GameProcessManager _processManager = new(
         NullLogger<GameProcessManager>.Instance,
         new DirectRunner(NullLogger<DirectRunner>.Instance),
-        Mock.Of<ILocalizationService>());
+        Mock.Of<ILocalizationService>(),
+        new FlatpakProvisioner(NullLogger<FlatpakProvisioner>.Instance));
 
     /// <summary>
     /// Builds a manifest describing a real install and launches the entry point the

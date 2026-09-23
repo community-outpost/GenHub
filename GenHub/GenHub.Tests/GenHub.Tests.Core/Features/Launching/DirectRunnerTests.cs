@@ -41,4 +41,45 @@ public sealed class DirectRunnerTests
         Assert.Equal(string.Empty, result.Data.ArgumentPrefix);
         Assert.Empty(result.Data.EnvironmentVariables);
     }
+
+    /// <summary>
+    /// Verifies macOS bundles fail launch resolution on Windows and Linux.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_MacOsTarget_FailsWithCompatibilityError()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        // Arrange
+        var configuration = new GameLaunchConfiguration { ExecutablePath = "/games/ZeroHour.app" };
+
+        // Act
+        var result = _runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("macOS", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies Flatpak bundles fail launch resolution with install-then-run guidance
+    /// naming the bundle.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_LinuxFlatpakTarget_FailsWithCompatibilityError()
+    {
+        // Arrange
+        var configuration = new GameLaunchConfiguration { ExecutablePath = "/games/zerohour.flatpak" };
+
+        // Act
+        var result = _runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Flatpak", result.FirstError);
+        Assert.Contains("/games/zerohour.flatpak", result.FirstError);
+    }
 }

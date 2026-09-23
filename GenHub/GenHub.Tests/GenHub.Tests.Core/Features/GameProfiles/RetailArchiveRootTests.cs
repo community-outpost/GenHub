@@ -39,7 +39,8 @@ public class RetailArchiveRootTests : IDisposable
     private readonly GameProcessManager _processManager = new(
         NullLogger<GameProcessManager>.Instance,
         new DirectRunner(NullLogger<DirectRunner>.Instance),
-        Mock.Of<ILocalizationService>());
+        Mock.Of<ILocalizationService>(),
+        new FlatpakProvisioner(NullLogger<FlatpakProvisioner>.Instance));
 
     /// <summary>
     /// An engine-only workspace plus environment-supplied archive roots must launch and

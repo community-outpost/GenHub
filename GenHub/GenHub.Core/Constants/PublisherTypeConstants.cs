@@ -40,6 +40,9 @@ public static class PublisherTypeConstants
     /// <summary>Display name for The Super Hackers community publisher.</summary>
     public const string TheSuperHackersDisplayName = SuperHackersConstants.PublisherDisplayName;
 
+    /// <summary>Display name for generic community game clients.</summary>
+    public const string CommunityDisplayName = "Community Client";
+
     /// <summary>GitHub platform publisher.</summary>
     public const string GitHub = "github";
 
@@ -77,6 +80,15 @@ public static class PublisherTypeConstants
 
     /// <summary>Legacy alias for The Super Hackers community publisher.</summary>
     public const string LegacySuperHackers = "superhackers";
+
+    /// <summary>GeneralsX community client publisher.</summary>
+    public const string GeneralsX = "generalsx";
+
+    /// <summary>Fbraz3 (GeneralsX maintainer) community publisher.</summary>
+    public const string Fbraz3 = "fbraz3";
+
+    /// <summary>Generic community client publisher.</summary>
+    public const string Community = "community";
 
     /// <summary>CNC Labs community site.</summary>
     public const string CncLabs = "cnclabs";

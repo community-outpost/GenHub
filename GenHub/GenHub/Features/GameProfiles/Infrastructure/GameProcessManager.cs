@@ -3,9 +3,12 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -25,10 +28,12 @@ namespace GenHub.Features.GameProfiles.Infrastructure;
 public class GameProcessManager(
     ILogger<GameProcessManager> logger,
     IGameLaunchRunner launchRunner,
-    ILocalizationService localizationService) : IGameProcessManager, IDisposable
+    ILocalizationService localizationService,
+    IFlatpakProvisioner flatpakProvisioner) : IGameProcessManager, IDisposable
 {
     private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
+    private readonly ConcurrentDictionary<int, BoundedErrorBuffer> _capturedProcessErrors = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
     /// <summary>
@@ -62,9 +67,18 @@ public class GameProcessManager(
 
             logger.LogInformation("[Process] Starting process for executable: {ExecutablePath}", configuration.ExecutablePath);
 
-            var runnerResult = launchRunner.ResolveCommand(configuration);
+            var isFlatpak = IsFlatpakLaunch(configuration);
+            var runnerResult = isFlatpak
+                ? await ResolveFlatpakCommandAsync(configuration, cancellationToken)
+                : launchRunner.ResolveCommand(configuration);
             if (!runnerResult.Success || runnerResult.Data is null)
             {
+                if (isFlatpak)
+                {
+                    logger.LogWarning("[Process] Flatpak provisioning failed: {Error}", runnerResult.FirstError);
+                    return OperationResult<GameProcessInfo>.CreateFailure(runnerResult.FirstError!);
+                }
+
                 logger.LogWarning("[Process] Compatibility runner could not resolve a launch command: {Error}", runnerResult.FirstError);
                 var missingRunnerMessage = GetMissingRunnerMessage();
                 var errorMessage = string.IsNullOrWhiteSpace(runnerResult.FirstError)
@@ -105,8 +119,18 @@ public class GameProcessManager(
             var launcherStartTime = ReadStartTime(process) ?? launchTimeFallback;
 
             var capturedErrors = SetupErrorRedirection(process);
+            _capturedProcessErrors[process.Id] = capturedErrors;
 
-            if (!string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
+            var isWine = IsWineLaunch(launchRunner, runnerResult.Data);
+            if (isWine && !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
+            {
+                logger.LogDebug(
+                    "[Process] Skipping child process adoption for {ExpectedName} because target is running under Wine ({RunnerBinary})",
+                    configuration.ExpectedChildProcessName,
+                    runnerResult.Data.FileName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName) && !isWine)
             {
                 return await AdoptExpectedChildProcessAsync(process, configuration, workingDirectory, launcherStartTime, capturedErrors, cancellationToken);
             }
@@ -141,6 +165,8 @@ public class GameProcessManager(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            TryRemoveProcessErrors(process);
+
             await HandleProcessCancellationAsync(process, configuration?.ExecutablePath ?? "unknown");
             throw;
         }
@@ -149,6 +175,7 @@ public class GameProcessManager(
             logger.LogError(ex, "Failed to start process for executable {ExecutablePath}", configuration?.ExecutablePath);
             if (process != null)
             {
+                TryRemoveProcessErrors(process);
                 try
                 {
                     if (!process.HasExited)
@@ -471,6 +498,7 @@ public class GameProcessManager(
         foreach (var processId in deadProcessIds)
         {
             _managedProcesses.TryRemove(processId, out _);
+            _capturedProcessErrors.TryRemove(processId, out _);
             logger.LogTrace("Cleaned up dead process {ProcessId} from managed processes", processId);
         }
 
@@ -509,12 +537,168 @@ public class GameProcessManager(
         }
 
         _managedProcesses.Clear();
+        _capturedProcessErrors.Clear();
         _terminationSemaphore.Dispose();
         _disposed = true;
 
         GC.SuppressFinalize(this);
 
         logger.LogInformation("GameProcessManager disposed");
+    }
+
+    /// <summary>
+    /// Resolves the host directories a Flatpak client needs to see inside its sandbox:
+    /// the retail archive roots, the working directory / workspace, and the native options directory.
+    /// Flatpak hides the host filesystem by default, so without these binds a client
+    /// resolving game data from its environment or running from a workspace fails on paths
+    /// that exist on the host.
+    /// </summary>
+    /// <param name="environment">The launch environment carrying the install-path variables.</param>
+    /// <param name="workingDirectory">The working directory (e.g. workspace directory) for the launch.</param>
+    /// <param name="optionsIniPath">The path to Options.ini on the host, if configured.</param>
+    /// <returns>The existing bind roots, with nested duplicates removed.</returns>
+    internal static IReadOnlyList<string> ResolveFlatpakFilesystemBinds(
+        IReadOnlyDictionary<string, string>? environment,
+        string? workingDirectory = null,
+        string? optionsIniPath = null)
+    {
+        var binds = new List<string>();
+
+        if (environment is not null)
+        {
+            foreach (var variable in RetailArchiveConstants.InstallPathVariables)
+            {
+                if (environment.TryGetValue(variable, out var root))
+                {
+                    AddValidBindRoot(binds, root);
+                }
+            }
+        }
+
+        AddValidBindRoot(binds, workingDirectory);
+
+        if (!string.IsNullOrWhiteSpace(optionsIniPath))
+        {
+            AddValidBindRoot(binds, Path.GetDirectoryName(optionsIniPath));
+        }
+
+        return binds;
+    }
+
+    /// <summary>
+    /// Builds the list of <c>--env=NAME=VALUE</c> arguments to forward environment variables
+    /// into the Flatpak sandbox.
+    /// </summary>
+    /// <param name="appId">The Flatpak application identifier.</param>
+    /// <param name="environment">The environment variables configured for launch.</param>
+    /// <param name="workingDirectory">The working directory (e.g. GenHub workspace) prepared for launch.</param>
+    /// <returns>A list of formatted <c>--env=KEY=VALUE</c> strings.</returns>
+    internal static IReadOnlyList<string> ResolveFlatpakEnvironmentArguments(
+        string appId,
+        IReadOnlyDictionary<string, string>? environment,
+        string? workingDirectory = null)
+    {
+        var result = new List<string>();
+        if (environment is null || environment.Count == 0)
+        {
+            return result;
+        }
+
+        var isZeroHourFlatpak = ContentFormatConstants.IsZeroHourFlatpakAppId(appId);
+        var targetZhPath = ResolveZeroHourTargetPath(workingDirectory, environment);
+
+        foreach (var (key, value) in environment)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            var envValue = ResolveFlatpakEnvValue(key, value, isZeroHourFlatpak, workingDirectory, targetZhPath);
+            if (envValue is not null)
+            {
+                result.Add($"{ContentFormatConstants.FlatpakEnvOptionPrefix}{key}={envValue}");
+            }
+        }
+
+        return result;
+    }
+
+    private static void AddValidBindRoot(List<string> binds, string? dirPath)
+    {
+        if (string.IsNullOrWhiteSpace(dirPath))
+        {
+            return;
+        }
+
+        string fullRoot;
+        try
+        {
+            fullRoot = Path.GetFullPath(dirPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return;
+        }
+
+        if (!Directory.Exists(fullRoot) || binds.Any(kept => kept.Equals(fullRoot, PathHelper.PathComparison) || PathHelper.IsPathWithinDirectory(kept, fullRoot)))
+        {
+            return;
+        }
+
+        binds.RemoveAll(kept => kept.Equals(fullRoot, PathHelper.PathComparison) || PathHelper.IsPathWithinDirectory(fullRoot, kept));
+        binds.Add(fullRoot);
+    }
+
+    private static string? ResolveZeroHourTargetPath(
+        string? workingDirectory,
+        IReadOnlyDictionary<string, string> environment)
+    {
+        if (!string.IsNullOrWhiteSpace(workingDirectory))
+        {
+            return workingDirectory;
+        }
+
+        if (environment.TryGetValue(RetailArchiveConstants.GeneralsXZeroHourInstallPathVariable, out var zhPath)
+            && !string.IsNullOrWhiteSpace(zhPath))
+        {
+            return zhPath;
+        }
+
+        if (environment.TryGetValue(RetailArchiveConstants.ZeroHourInstallPathVariable, out var zhInstallPath)
+            && !string.IsNullOrWhiteSpace(zhInstallPath))
+        {
+            return zhInstallPath;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveFlatpakEnvValue(
+        string key,
+        string defaultValue,
+        bool isZeroHourFlatpak,
+        string? workingDirectory,
+        string? targetZhPath)
+    {
+        if (!isZeroHourFlatpak)
+        {
+            return defaultValue;
+        }
+
+        if (string.Equals(key, RetailArchiveConstants.GeneralsInstallPathVariable, StringComparison.Ordinal))
+        {
+            return !string.IsNullOrWhiteSpace(targetZhPath) ? targetZhPath : null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(workingDirectory) &&
+            (string.Equals(key, RetailArchiveConstants.GeneralsXZeroHourInstallPathVariable, StringComparison.Ordinal) ||
+             string.Equals(key, RetailArchiveConstants.GeneralsXGeneralsInstallPathVariable, StringComparison.Ordinal)))
+        {
+            return workingDirectory;
+        }
+
+        return defaultValue;
     }
 
     /// <summary>
@@ -556,11 +740,20 @@ public class GameProcessManager(
     /// Determines whether a file carries the Unix execute bit for the current user.
     /// </summary>
     /// <param name="path">The executable path.</param>
-    /// <returns><c>true</c> on Windows, for <c>.exe</c> files, or when any execute bit is set.</returns>
+    /// <returns><c>true</c> on Windows, for Windows binaries, or when any execute bit is set.</returns>
     private static bool HasExecutePermission(string path)
     {
         if (OperatingSystem.IsWindows() ||
             CommandLineHelper.IsWindowsExecutable(path))
+        {
+            return true;
+        }
+
+        // Wine reads the file instead of executing it, so a Windows binary without
+        // the .exe extension needs no execute bit either. Only on-disk files with
+        // PE headers qualify: by name alone nothing but .exe reads as Windows.
+        if (!OperatingSystem.IsWindows()
+            && ExecutableFileClassifier.DetectPlatform(path) == ExecutablePlatform.Windows)
         {
             return true;
         }
@@ -589,6 +782,30 @@ public class GameProcessManager(
         }
     }
 
+    private static bool IsFlatpakLaunch(GameLaunchConfiguration configuration)
+    {
+        return OperatingSystem.IsLinux()
+            && configuration.ExecutablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsWineLaunch(IGameLaunchRunner runner, RunnerCommand runnerCommand)
+    {
+        if (runner is WineRunner)
+        {
+            return true;
+        }
+
+        if (runnerCommand.EnvironmentVariables != null &&
+            runnerCommand.EnvironmentVariables.ContainsKey(WineConstants.PrefixEnvironmentVariable))
+        {
+            return true;
+        }
+
+        var fileName = Path.GetFileName(runnerCommand.FileName);
+        return fileName.Equals(WineConstants.WineBinaryName, StringComparison.OrdinalIgnoreCase) ||
+               fileName.Equals(WineConstants.Wine64BinaryName, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Reads a process's start time in UTC, or reports that it could not be read.
     /// </summary>
@@ -605,6 +822,59 @@ public class GameProcessManager(
             logger.LogDebug(ex, "[Process] Unable to inspect start time for process {ProcessId}", process.Id);
             return null;
         }
+    }
+
+    private async Task<OperationResult<RunnerCommand>> ResolveFlatpakCommandAsync(
+        GameLaunchConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var provision = await flatpakProvisioner.EnsureInstalledAsync(configuration.ExecutablePath, cancellationToken);
+        if (!provision.Success || string.IsNullOrWhiteSpace(provision.Data))
+        {
+            return OperationResult<RunnerCommand>.CreateFailure(provision.FirstError!);
+        }
+
+        var appId = provision.Data;
+        logger.LogInformation("[Process] Launching Flatpak app {AppId} from {BundlePath}", appId, configuration.ExecutablePath);
+        var binds = ResolveFlatpakFilesystemBinds(configuration.EnvironmentVariables, configuration.WorkingDirectory, configuration.NativeOptionsIniPath);
+        if (binds.Count > 0)
+        {
+            logger.LogInformation("[Process] Exposing {Count} game data directories to Flatpak sandbox: {Directories}", binds.Count, string.Join(", ", binds));
+        }
+
+        var envArgs = ResolveFlatpakEnvironmentArguments(appId, configuration.EnvironmentVariables, configuration.WorkingDirectory);
+        if (envArgs.Count > 0)
+        {
+            logger.LogDebug("[Process] Forwarding {Count} environment variables to Flatpak sandbox", envArgs.Count);
+        }
+
+        var filesystemArguments = string.Join(" ", binds.Select(bind => CommandLineHelper.QuoteArgument($"{ContentFormatConstants.FlatpakFilesystemOptionPrefix}{bind}")));
+        var envArguments = string.Join(" ", envArgs.Select(CommandLineHelper.QuoteArgument));
+
+        var prefixParts = new List<string>
+        {
+            ContentFormatConstants.FlatpakRunCommand,
+            ContentFormatConstants.FlatpakUserFlag,
+        };
+
+        if (!string.IsNullOrEmpty(filesystemArguments))
+        {
+            prefixParts.Add(filesystemArguments);
+        }
+
+        if (!string.IsNullOrEmpty(envArguments))
+        {
+            prefixParts.Add(envArguments);
+        }
+
+        prefixParts.Add(appId);
+
+        var argumentPrefix = string.Join(" ", prefixParts);
+        return OperationResult<RunnerCommand>.CreateSuccess(
+            new RunnerCommand(
+                ContentFormatConstants.FlatpakBinaryName,
+                argumentPrefix,
+                new Dictionary<string, string>()));
     }
 
     private OperationResult<bool> ValidateLaunchConfiguration(GameLaunchConfiguration? configuration)
@@ -627,7 +897,11 @@ public class GameProcessManager(
             return OperationResult<bool>.CreateFailure($"Executable not found: {configuration.ExecutablePath}");
         }
 
-        if (!OperatingSystem.IsWindows() && !HasExecutePermission(configuration.ExecutablePath))
+        // Flatpak bundles are read by the Flatpak CLI during provisioning, never executed
+        // directly, so the execute bit is not required for them.
+        if (!OperatingSystem.IsWindows()
+            && !HasExecutePermission(configuration.ExecutablePath)
+            && !configuration.ExecutablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogError("[Process] Executable is not marked executable: {ExecutablePath}", configuration.ExecutablePath);
             return OperationResult<bool>.CreateFailure(
@@ -939,6 +1213,7 @@ public class GameProcessManager(
             spawnedProcess.Id,
             executableName);
 
+        _capturedProcessErrors.TryRemove(launcherProcess.Id, out _);
         launcherProcess.Dispose();
         _managedProcesses[spawnedProcess.Id] = spawnedProcess;
 
@@ -957,6 +1232,23 @@ public class GameProcessManager(
         return spawnedProcessInfo;
     }
 
+    private void TryRemoveProcessErrors(Process? process)
+    {
+        if (process == null)
+        {
+            return;
+        }
+
+        try
+        {
+            _capturedProcessErrors.TryRemove(process.Id, out _);
+        }
+        catch (InvalidOperationException)
+        {
+            // Process was never started or has no associated system process
+        }
+    }
+
     private OperationResult<GameProcessInfo> HandleFailedProcessExit(
         Process process,
         BoundedErrorBuffer capturedErrors)
@@ -964,6 +1256,7 @@ public class GameProcessManager(
         var exitCode = process.ExitCode;
         logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
 
+        _capturedProcessErrors.TryRemove(process.Id, out _);
         DrainStandardError(process, capturedErrors);
         process.Dispose();
 
@@ -997,7 +1290,16 @@ public class GameProcessManager(
         if (sender is not Process process)
             return;
 
-        var processId = process.Id;
+        var processId = 0;
+        try
+        {
+            processId = process.Id;
+        }
+        catch (InvalidOperationException)
+        {
+            // Process may not be associated with a running process or was disposed
+        }
+
         int? exitCode = null;
         try
         {
@@ -1009,7 +1311,12 @@ public class GameProcessManager(
         }
 
         // Remove from managed processes
-        _managedProcesses.TryRemove(processId, out _);
+        BoundedErrorBuffer? capturedErrors = null;
+        if (processId != 0)
+        {
+            _managedProcesses.TryRemove(processId, out _);
+            _capturedProcessErrors.TryRemove(processId, out capturedErrors);
+        }
 
         // Raise the event
         var args = new GameProcessExitedEventArgs
@@ -1020,6 +1327,16 @@ public class GameProcessManager(
         };
 
         ProcessExited?.Invoke(this, args);
+
+        if (exitCode != ProcessConstants.ExitCodeSuccess && capturedErrors is not null)
+        {
+            var stderr = capturedErrors.ToString();
+            if (!string.IsNullOrWhiteSpace(stderr))
+            {
+                logger.LogWarning("Process {ProcessId} exited with code {ExitCode}. Captured stderr: {Stderr}", processId, exitCode, stderr);
+                return;
+            }
+        }
 
         logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
     }
@@ -1188,6 +1505,8 @@ public class GameProcessManager(
         }
         finally
         {
+            TryRemoveProcessErrors(launcher);
+
             // Releases our handle only; the launcher keeps running and owns its own lifetime.
             launcher.Dispose();
         }
@@ -1498,7 +1817,7 @@ public class GameProcessManager(
         if (!capturedErrors.EndOfStreamReached)
         {
             logger.LogDebug(
-                "[Process] stderr did not signal end of stream; the captured output may be incomplete");
+                "[Process] Standard error did not signal end of stream; the captured output may be incomplete");
         }
     }
 

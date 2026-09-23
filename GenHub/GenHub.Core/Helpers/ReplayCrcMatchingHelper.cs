@@ -209,7 +209,7 @@ public static class ReplayCrcMatchingHelper
     /// <returns><c>true</c> if an official base game client; otherwise, <c>false</c>.</returns>
     public static bool IsOfficialBaseClient(GameClient? client)
     {
-        if (client == null || IsGeneralsOnlineClient(client) || IsLegacySuperHackersClient(client))
+        if (client == null || IsNonRetailEngineClient(client))
         {
             return false;
         }
@@ -248,9 +248,8 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsGeneralsOnlineClient(client) ||
-            HasNonRetailIdentifier(client, enabledContentIds) ||
-            IsLegacySuperHackersClient(client))
+        if (IsNonRetailEngineClient(client) ||
+            HasNonRetailIdentifier(client, enabledContentIds))
         {
             return false;
         }
@@ -296,6 +295,130 @@ public static class ReplayCrcMatchingHelper
         }
 
         return IsZeroHourRetailCompatible(client, enabledContentIds);
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client is a Generals Online client.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if it is a Generals Online client; otherwise, <c>false</c>.</returns>
+    public static bool IsGeneralsOnlineClient(GameClient client)
+    {
+        return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client is a GeneralsX engine port or fork.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if the client is GeneralsX; otherwise, <c>false</c>.</returns>
+    public static bool IsGeneralsXClient(GameClient client)
+    {
+        return (!string.IsNullOrEmpty(client.Id) && (client.Id.Contains(PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase) || client.Id.Contains(PublisherTypeConstants.Fbraz3, StringComparison.OrdinalIgnoreCase))) ||
+            (!string.IsNullOrEmpty(client.Name) && (client.Name.Contains(PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase) || client.Name.Contains("generals x", StringComparison.OrdinalIgnoreCase))) ||
+            (!string.IsNullOrEmpty(client.ExecutablePath) && client.ExecutablePath.Contains(PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase)) ||
+            string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(client.PublisherType, PublisherTypeConstants.Fbraz3, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client is a legacy SuperHackers client rather than a Community Patch build.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if it is a legacy SuperHackers client; otherwise, <c>false</c>.</returns>
+    public static bool IsLegacySuperHackersClient(GameClient client)
+    {
+        return (string.Equals(client.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(client.PublisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(client.Name) && (client.Name.Contains(SuperHackersConstants.NameMarker, StringComparison.OrdinalIgnoreCase) || client.Name.Contains(PublisherTypeConstants.TheSuperHackersDisplayName, StringComparison.OrdinalIgnoreCase)))) &&
+            !string.Equals(client.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+            (client.Name == null || !client.Name.Contains(CommunityOutpostConstants.ContentName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Determines whether the specified executable path uses a non-retail executable format
+    /// (such as Linux Flatpak, AppImage, macOS bundle, or non-PE binaries), which cannot match retail Windows PE executable CRCs or run inside Wine/Proton.
+    /// </summary>
+    /// <param name="executablePath">The executable path to evaluate.</param>
+    /// <returns><c>true</c> if the executable format is non-retail/non-PE; otherwise, <c>false</c>.</returns>
+    public static bool HasNonRetailExecutableFormat(string? executablePath)
+    {
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(executablePath);
+        if (string.IsNullOrEmpty(ext))
+        {
+            return true;
+        }
+
+        return !string.Equals(ext, ".exe", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client uses a non-retail executable format
+    /// (such as Linux Flatpak, AppImage, or non-PE binaries), which cannot match retail Windows PE executable CRCs.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if the client executable format is non-retail/non-PE; otherwise, <c>false</c>.</returns>
+    public static bool HasNonRetailExecutableFormat(GameClient? client)
+    {
+        return HasNonRetailExecutableFormat(client?.ExecutablePath);
+    }
+
+    /// <summary>
+    /// Determines whether a game client and installation type are eligible for Steam integration launch.
+    /// Steam integration requires a Steam installation and a Windows retail PE executable format.
+    /// </summary>
+    /// <param name="installationType">The game installation type.</param>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if eligible for Steam launch; otherwise, <c>false</c>.</returns>
+    public static bool IsSteamLaunchEligible(GameInstallationType installationType, GameClient? client)
+    {
+        return installationType == GameInstallationType.Steam && !HasNonRetailExecutableFormat(client);
+    }
+
+    /// <summary>
+    /// Determines whether an executable path and installation type are eligible for Steam integration launch.
+    /// Steam integration requires a Steam installation and a Windows retail PE executable format.
+    /// </summary>
+    /// <param name="installationType">The game installation type.</param>
+    /// <param name="executablePath">The executable path to evaluate.</param>
+    /// <returns><c>true</c> if eligible for Steam launch; otherwise, <c>false</c>.</returns>
+    public static bool IsSteamLaunchEligible(GameInstallationType installationType, string? executablePath)
+    {
+        return installationType == GameInstallationType.Steam && !HasNonRetailExecutableFormat(executablePath);
+    }
+
+    /// <summary>
+    /// Determines whether a game client on a Steam installation is eligible for Steam integration launch.
+    /// </summary>
+    /// <param name="isSteamInstallation">Whether the installation is a Steam installation.</param>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if eligible for Steam launch; otherwise, <c>false</c>.</returns>
+    public static bool IsSteamLaunchEligible(bool isSteamInstallation, GameClient? client)
+    {
+        return isSteamInstallation && !HasNonRetailExecutableFormat(client);
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client represents a non-retail community engine fork
+    /// (such as GeneralsX, TheSuperHackers, Generals Online, or a non-Windows binary).
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if the client is a non-retail engine fork or binary; otherwise, <c>false</c>.</returns>
+    public static bool IsNonRetailEngineClient(GameClient client)
+    {
+        return IsGeneralsOnlineClient(client) ||
+            IsLegacySuperHackersClient(client) ||
+            IsGeneralsXClient(client) ||
+            HasNonRetailExecutableFormat(client);
     }
 
     /// <summary>
@@ -565,7 +688,7 @@ public static class ReplayCrcMatchingHelper
     /// <returns><c>true</c> if compatible with retail executables; otherwise, <c>false</c>.</returns>
     private static bool IsGeneralsRetailCompatible(GameClient client, IReadOnlyList<string>? enabledContentIds)
     {
-        if (IsGeneralsOnlineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
+        if (IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
         {
             return false;
         }
@@ -608,18 +731,6 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
-    /// Determines whether the specified game client is a Generals Online client.
-    /// </summary>
-    /// <param name="client">The game client to evaluate.</param>
-    /// <returns><c>true</c> if it is a Generals Online client; otherwise, <c>false</c>.</returns>
-    private static bool IsGeneralsOnlineClient(GameClient client)
-    {
-        return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
     /// Determines whether the client or any enabled content uses a non-retail identifier.
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
@@ -631,20 +742,6 @@ public static class ReplayCrcMatchingHelper
             CommunityOutpostConstants.IsNonRetailIdentifier(client.Name) ||
             CommunityOutpostConstants.IsNonRetailIdentifier(client.PublisherType) ||
             (enabledContentIds != null && enabledContentIds.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
-    }
-
-    /// <summary>
-    /// Determines whether the specified game client is a legacy SuperHackers client rather than a Community Patch build.
-    /// </summary>
-    /// <param name="client">The game client to evaluate.</param>
-    /// <returns><c>true</c> if it is a legacy SuperHackers client; otherwise, <c>false</c>.</returns>
-    private static bool IsLegacySuperHackersClient(GameClient client)
-    {
-        return (string.Equals(client.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(client.PublisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))) &&
-            !string.Equals(client.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
-            (client.Name == null || !client.Name.Contains(CommunityOutpostConstants.ContentName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsOfficialPublisher(GameClient client)

@@ -37,7 +37,8 @@ public class NativeClientLaunchIntegrationTests
     private readonly GameProcessManager _processManager = new(
         NullLogger<GameProcessManager>.Instance,
         new DirectRunner(NullLogger<DirectRunner>.Instance),
-        Mock.Of<ILocalizationService>());
+        Mock.Of<ILocalizationService>(),
+        new FlatpakProvisioner(NullLogger<FlatpakProvisioner>.Instance));
 
     /// <summary>
     /// Launches the engine with the install directory as the working directory, exactly

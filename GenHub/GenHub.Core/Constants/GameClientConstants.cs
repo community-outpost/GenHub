@@ -30,6 +30,9 @@ public static class GameClientConstants
     /// <summary>Contra modded client executable filename.</summary>
     public const string ContraExecutable = "generals.ctr";
 
+    /// <summary>Unix Zero Hour client executable filename (extensionless Mach-O or ELF binary).</summary>
+    public const string GeneralsOnlineUnixExecutable = "GeneralsOnlineZH";
+
     // ===== Engine Launch Arguments =====
 
     /// <summary>SAGE engine command-line argument overriding the horizontal resolution.</summary>
@@ -193,6 +196,18 @@ public static class GameClientConstants
     /// </summary>
     public const string ZeroHourShortName = "Zero Hour";
 
+    /// <summary>Display name for Windows platform.</summary>
+    public const string PlatformWindowsDisplayName = "Windows";
+
+    /// <summary>Display name for Linux platform.</summary>
+    public const string PlatformLinuxDisplayName = "Linux";
+
+    /// <summary>Display name for macOS platform.</summary>
+    public const string PlatformMacOSDisplayName = "macOS";
+
+    /// <summary>Display name for cross-platform/generic platform.</summary>
+    public const string PlatformCrossPlatformDisplayName = "Cross-Platform";
+
     /// <summary>BrowserEngine.dll filename.</summary>
     public const string BrowserEngineDll = "BrowserEngine.dll";
 
@@ -269,16 +284,18 @@ public static class GameClientConstants
     /// Since 060526_QFE1 the Easy Anti-Cheat bootstrapper starts the binary named by
     /// <c>EasyAntiCheat/Settings.json</c>; older packages launch the 60Hz binary directly.
     /// <c>GeneralsOnlineZH.exe</c> ships alongside both but is not wrapped, so it is workspace
-    /// content rather than an entry point.
+    /// content rather than an entry point. Unix packages ship the extensionless native
+    /// client instead of any Windows launcher.
     /// </summary>
     /// <remarks>
-    /// Membership only. When both are present the bootstrapper wins, but that precedence is
+    /// Membership only. When several are present the bootstrapper wins, but that precedence is
     /// expressed in the resolving code rather than by the order of this list.
     /// </remarks>
     public static readonly IReadOnlyList<string> GeneralsOnlineExecutableNames =
     [
         GeneralsOnlineEacLauncherExecutable,
         GeneralsOnline60HzExecutable,
+        GeneralsOnlineUnixExecutable,
     ];
 
     /// <summary>
@@ -358,10 +375,14 @@ public static class GameClientConstants
     /// <summary>
     /// List of valid game executable filenames for Generals installations.
     /// </summary>
+    /// <remarks>
+    /// Probe order matters: <c>game.dat</c> first so version detection resolves the engine
+    /// instead of a launcher stub that shares the directory.
+    /// </remarks>
     public static readonly IReadOnlyList<string> ValidGeneralsExecutableNames =
     [
-        GeneralsExecutable,
         SteamGameDatExecutable,
+        GeneralsExecutable,
         SuperHackersGeneralsExecutable,
         GameExecutable,
     ];
@@ -369,29 +390,38 @@ public static class GameClientConstants
     /// <summary>
     /// List of valid game executable filenames for Zero Hour installations.
     /// </summary>
-    /// <remarks><see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
-    /// filename with <see cref="GeneralsExecutable"/>, which already covers it.</remarks>
+    /// <remarks>
+    /// <see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
+    /// filename with <see cref="GeneralsExecutable"/>, which already covers it.
+    /// Probe order matters: <c>game.dat</c> first so version detection resolves the engine
+    /// instead of a launcher stub that shares the directory.
+    /// </remarks>
     public static readonly IReadOnlyList<string> ValidZeroHourExecutableNames =
     [
-        GeneralsExecutable,
         SteamGameDatExecutable,
+        GeneralsExecutable,
         SuperHackersZeroHourExecutable,
         GameExecutable,
         GeneralsOnlineDefaultExecutable,
         GeneralsOnline60HzExecutable,
         GeneralsOnlineEacLauncherExecutable,
         ContraExecutable,
+        GeneralsOnlineUnixExecutable,
     ];
 
     /// <summary>
     /// List of valid game executable filenames for installation verification across all editions.
     /// </summary>
-    /// <remarks><see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
-    /// filename with <see cref="GeneralsExecutable"/>, which already covers it.</remarks>
+    /// <remarks>
+    /// <see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
+    /// filename with <see cref="GeneralsExecutable"/>, which already covers it.
+    /// Probe order matters: <c>game.dat</c> first so version detection resolves the engine
+    /// instead of a launcher stub that shares the directory.
+    /// </remarks>
     public static readonly IReadOnlyList<string> ValidGameExecutableNames =
     [
-        GeneralsExecutable,
         SteamGameDatExecutable,
+        GeneralsExecutable,
         SuperHackersZeroHourExecutable,
         SuperHackersGeneralsExecutable,
         GameExecutable,
@@ -399,6 +429,7 @@ public static class GameClientConstants
         GeneralsOnline60HzExecutable,
         GeneralsOnlineEacLauncherExecutable,
         ContraExecutable,
+        GeneralsOnlineUnixExecutable,
     ];
 
     /// <summary>

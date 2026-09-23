@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 using System;
 using System.Buffers.Binary;
 using System.IO;
@@ -54,8 +56,11 @@ public static class ExecutableFileClassifier
 
     /// <summary>
     /// Extensions that are directly runnable and therefore need the execute bit on Unix.
+    /// Batch files (.bat, .cmd) are deliberately excluded: they depend on cmd.exe
+    /// semantics that do not survive Wine/Unix launch, so they are workspace data,
+    /// never launch targets.
     /// </summary>
-    private static readonly string[] RunnableExtensions = [".exe", ".sh", ".command"];
+    private static readonly string[] RunnableExtensions = [".exe", ".sh", ".command", ".appimage"];
 
     /// <summary>
     /// Determines whether a file needs the Unix execute bit to be runnable, from its
@@ -172,6 +177,55 @@ public static class ExecutableFileClassifier
 
     /// <summary>
     /// Determines whether the file at <paramref name="absolutePath"/> starts with the
+    /// magic bytes of a Unix native executable: ELF (Linux) or Mach-O (macOS), in thin
+    /// and universal flavours. Windows PE binaries are excluded; they are matched by
+    /// extension through the Windows entry path instead.
+    /// </summary>
+    /// <param name="absolutePath">The file to sniff.</param>
+    /// <returns>
+    /// <c>true</c> when the header matches ELF or Mach-O magic; <c>false</c> for any
+    /// other content and for files that are missing, too short, or unreadable.
+    /// </returns>
+    public static bool HasNativeExecutableMagicBytes(string absolutePath)
+    {
+        Span<byte> header = stackalloc byte[MagicHeaderLength];
+
+        return TryReadHeader(absolutePath, header, out var read)
+            && HasNativeExecutableMagicBytes(header[..read]);
+    }
+
+    /// <summary>
+    /// Determines whether <paramref name="header"/> starts with ELF or Mach-O magic bytes.
+    /// </summary>
+    /// <param name="header">The first bytes of a file; <see cref="MagicHeaderLength"/> suffice.</param>
+    /// <returns><c>true</c> when the header matches ELF or Mach-O magic.</returns>
+    public static bool HasNativeExecutableMagicBytes(ReadOnlySpan<byte> header)
+    {
+        var platform = DetectPlatform(header);
+        return platform is ExecutablePlatform.Linux or ExecutablePlatform.MacOS;
+    }
+
+    /// <summary>
+    /// Determines whether the file at <paramref name="absolutePath"/> starts with a
+    /// shebang (<c>#!</c>) line, marking it as a directly runnable Unix script.
+    /// </summary>
+    /// <param name="absolutePath">The file to sniff.</param>
+    /// <returns>
+    /// <c>true</c> when the file starts with a shebang; <c>false</c> otherwise and for
+    /// files that are missing, too short, or unreadable.
+    /// </returns>
+    public static bool HasShebangHeader(string absolutePath)
+    {
+        Span<byte> header = stackalloc byte[MagicHeaderLength];
+
+        return TryReadHeader(absolutePath, header, out var read)
+            && read >= 2
+            && header[0] == 0x23
+            && header[1] == 0x21;
+    }
+
+    /// <summary>
+    /// Determines whether the file at <paramref name="absolutePath"/> starts with the
     /// magic bytes of a native executable format. Reads at most
     /// <see cref="MagicHeaderLength"/> bytes; never loads the file.
     /// </summary>
@@ -197,47 +251,120 @@ public static class ExecutableFileClassifier
     /// <returns><c>true</c> when the header matches a known executable format.</returns>
     public static bool HasExecutableMagicBytes(ReadOnlySpan<byte> header)
     {
-        if (header.Length < 4)
+        return DetectPlatform(header) != ExecutablePlatform.Unknown;
+    }
+
+    /// <summary>
+    /// Determines whether a file is a loadable library (never a launch target).
+    /// </summary>
+    /// <param name="path">A file name or relative path.</param>
+    /// <returns><c>true</c> when the file matches a known library extension or versioned shared object marker.</returns>
+    public static bool IsLibraryFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
         {
             return false;
         }
 
-        // MZ: DOS/PE. Two bytes of magic, but anything shorter than four bytes cannot
-        // be a real executable of any kind, which the length gate above enforces.
-        if (header[0] == 0x4D && header[1] == 0x5A)
+        return MatchesAny(Path.GetExtension(path), LibraryExtensions)
+            || Path.GetFileName(path).Contains(ContentFormatConstants.VersionedSharedLibraryMarker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Detects the target operating system platform for an executable file, package, or application bundle.
+    /// </summary>
+    /// <param name="path">The file name or path to inspect.</param>
+    /// <returns>The detected <see cref="ExecutablePlatform"/>.</returns>
+    public static ExecutablePlatform DetectPlatform(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
         {
-            return true;
+            return ExecutablePlatform.Unknown;
         }
 
-        // ELF: 0x7F 'E' 'L' 'F'.
+        // Content wins over path shape: a file's magic bytes are authoritative when the
+        // file is on disk, so an ELF binary inside a .app wrapper still reads as Linux.
+        // Only fully qualified paths are sniffed: a workspace-relative entry must classify
+        // by name instead of reading whatever same-named file sits in the working directory.
+        if (File.Exists(path) && Path.IsPathFullyQualified(path))
+        {
+            Span<byte> header = stackalloc byte[MagicHeaderLength];
+            if (TryReadHeader(path, header, out var read) && read >= 4)
+            {
+                var platform = DetectPlatform(header[..read]);
+                if (platform != ExecutablePlatform.Unknown)
+                {
+                    return platform;
+                }
+            }
+        }
+
+        var normalizedPath = path.Replace('\\', '/');
+        if (normalizedPath.EndsWith(".app", StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.Contains(".app/", StringComparison.OrdinalIgnoreCase))
+        {
+            return ExecutablePlatform.MacOS;
+        }
+
+        if (path.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return ExecutablePlatform.Linux;
+        }
+
+        var extension = Path.GetExtension(path);
+        if (extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            return ExecutablePlatform.Windows;
+        }
+
+        if (extension.Equals(".appimage", StringComparison.OrdinalIgnoreCase))
+        {
+            return ExecutablePlatform.Linux;
+        }
+
+        return ExecutablePlatform.Unknown;
+    }
+
+    /// <summary>
+    /// Detects the operating system platform from file header magic bytes.
+    /// </summary>
+    /// <param name="header">The first bytes of the file (at least 4 bytes).</param>
+    /// <returns>The detected <see cref="ExecutablePlatform"/>.</returns>
+    public static ExecutablePlatform DetectPlatform(ReadOnlySpan<byte> header)
+    {
+        if (header.Length < 4)
+        {
+            return ExecutablePlatform.Unknown;
+        }
+
+        // MZ: DOS/PE (Windows)
+        if (header[0] == 0x4D && header[1] == 0x5A)
+        {
+            return ExecutablePlatform.Windows;
+        }
+
+        // ELF: 0x7F 'E' 'L' 'F' (Linux)
         if (header[0] == 0x7F && header[1] == (byte)'E' && header[2] == (byte)'L' && header[3] == (byte)'F')
         {
-            return true;
+            return ExecutablePlatform.Linux;
         }
 
         var magic = BinaryPrimitives.ReadUInt32BigEndian(header);
 
-        // Mach-O thin: MH_MAGIC / MH_MAGIC_64 and their byte-swapped forms.
+        // Mach-O thin: MH_MAGIC / MH_MAGIC_64 and byte-swapped
         if (magic is 0xFEEDFACE or 0xFEEDFACF or 0xCEFAEDFE or 0xCFFAEDFE)
         {
-            return true;
+            return ExecutablePlatform.MacOS;
         }
 
-        // Mach-O universal (fat), 32-bit (FAT_MAGIC) and 64-bit (FAT_MAGIC_64) headers.
-        // Java class files share 0xCAFEBABE, so require the second word: a fat header's
-        // is the architecture count (tiny), a class file's is the class-file version
-        // (>= 45). The byte-swapped magics store the count byte-swapped as well.
-        if (magic is 0xCAFEBABE or 0xCAFEBABF && header.Length >= MagicHeaderLength)
+        // Mach-O universal (fat)
+        if ((magic is 0xCAFEBABE or 0xCAFEBABF && header.Length >= MagicHeaderLength && BinaryPrimitives.ReadUInt32BigEndian(header[4..]) < MaxPlausibleFatArchCount)
+            || (magic is 0xBEBAFECA or 0xBFBAFECA && header.Length >= MagicHeaderLength && BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) < MaxPlausibleFatArchCount))
         {
-            return BinaryPrimitives.ReadUInt32BigEndian(header[4..]) < MaxPlausibleFatArchCount;
+            return ExecutablePlatform.MacOS;
         }
 
-        if (magic is 0xBEBAFECA or 0xBFBAFECA && header.Length >= MagicHeaderLength)
-        {
-            return BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) < MaxPlausibleFatArchCount;
-        }
-
-        return false;
+        return ExecutablePlatform.Unknown;
     }
 
     private static bool HasExecutePermissionHeader(string absolutePath)

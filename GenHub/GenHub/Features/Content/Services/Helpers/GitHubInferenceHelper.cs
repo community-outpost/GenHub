@@ -199,6 +199,38 @@ public static class GitHubInferenceHelper
     }
 
     /// <summary>
+    /// Applies per-asset typing as a downgrade only: a release typed
+    /// <see cref="ContentType.GameClient"/> drops to <see cref="ContentType.Patch"/> or
+    /// <see cref="ContentType.Mod"/> when the asset name carries a strong patch/mod signal.
+    /// Every other type passes through unchanged, so an asset name can never promote a
+    /// patch or mod into a game client.
+    /// </summary>
+    /// <param name="releaseType">The release-level content type.</param>
+    /// <param name="assetName">The individual asset file name.</param>
+    /// <returns>The asset-level content type.</returns>
+    public static ContentType DowngradeClientTypeForAsset(ContentType releaseType, string? assetName)
+    {
+        if (releaseType != ContentType.GameClient || string.IsNullOrWhiteSpace(assetName))
+        {
+            return releaseType;
+        }
+
+        if (ContainsPatchToken(assetName)
+            || ContainsFixSignal(assetName))
+        {
+            return ContentType.Patch;
+        }
+
+        if (ContainsModToken(assetName)
+            || assetName.Contains("addon", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Mod;
+        }
+
+        return releaseType;
+    }
+
+    /// <summary>
     /// Infer the game type from an asset name or filename.
     /// Detects Generals vs Zero Hour based on executable names and filename patterns.
     /// </summary>
@@ -253,5 +285,50 @@ public static class GitHubInferenceHelper
 
         // Multi-game release if we detected both Generals and Zero Hour
         return detectedGames.Contains(GameType.Generals) && detectedGames.Contains(GameType.ZeroHour);
+    }
+
+    private static bool ContainsPatchToken(string assetName)
+    {
+        // Assets named client, engine, or patcher are client/tool artifacts rather than standalone patches,
+        // and words like "dispatch" must not trigger a patch downgrade.
+        if (assetName.Contains("client", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("engine", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("patcher", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("dispatch", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var tokens = assetName.Split(
+            ['.', '-', '_', ' ', '+'],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Any(token =>
+            token.Equals("patch", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("patches", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool ContainsFixSignal(string assetName)
+    {
+        // "fix" as a compound suffix (hotfix, bugfix) signals a patch, but common words
+        // ending in "fix" (prefix, suffix, affix, infix) do not.
+        var scrubbed = assetName
+            .Replace("prefix", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("suffix", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("affix", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("infix", string.Empty, StringComparison.OrdinalIgnoreCase);
+        return scrubbed.Contains("fix", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ContainsModToken(string assetName)
+    {
+        // "mod" only as a delimited token: "modern" and "model" must not match.
+        var tokens = assetName.Split(
+            ['.', '-', '_', ' ', '+'],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Any(token =>
+            token.Equals("mod", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("mods", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("modpack", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("modpacks", StringComparison.OrdinalIgnoreCase));
     }
 }

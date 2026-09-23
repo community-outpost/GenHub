@@ -430,6 +430,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets a value indicating whether this profile is from a Steam installation.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSteamIntegrationSupported))]
     private bool _isSteamInstallation;
 
     /// <summary>
@@ -521,11 +522,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
             _activeWorkspaceId = gameProfile2.ActiveWorkspaceId;
             _isProcessRunning = false; // Will be updated by LauncherViewModel
 
-            // Initialize Steam launch mode settings
-            _useSteamLaunch = gameProfile2.UseSteamLaunch ?? true;
-
             // Determine if this is a Steam installation by checking the publisher in the manifest ID
             _isSteamInstallation = gameProfile2.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
+
+            // Initialize Steam launch mode settings
+            var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(_isSteamInstallation, gameProfile2.GameClient);
+            _useSteamLaunch = isEligibleForSteam && (gameProfile2.UseSteamLaunch ?? true);
 
             _workspaceStatus = string.IsNullOrEmpty(gameProfile2.ActiveWorkspaceId)
                 ? "Not Prepared"
@@ -539,6 +541,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 };
         }
     }
+
+    /// <summary>
+    /// Gets a value indicating whether Steam integration is supported for this profile.
+    /// Only supported for Steam installations with Windows PE executables.
+    /// </summary>
+    public bool IsSteamIntegrationSupported => ReplayCrcMatchingHelper.IsSteamLaunchEligible(IsSteamInstallation, (Profile as GameProfile)?.GameClient);
 
     /// <summary>
     /// Gets a value indicating whether the workspace is prepared (has an active workspace ID).

@@ -96,6 +96,11 @@ public static class ManifestConstants
     public const string PublisherContentIdPrefix = "publisher";
 
     /// <summary>
+    /// Fallback publisher identifier for scanned game clients.
+    /// </summary>
+    public const string ScannedPublisherId = "scanned";
+
+    /// <summary>
     /// Tag for content validation status.
     /// </summary>
     public const string ValidationStatusTag = "ValidationStatus";
@@ -277,6 +282,30 @@ public static class ManifestConstants
     /// Display name for the Generals installation dependency.
     /// </summary>
     public const string GeneralsInstallationName = "Generals Installation";
+
+    /// <summary>Resource key when declared entry point is not found in payload.</summary>
+    public const string EntryPointNotFoundInPayloadKey = "Manifest.EntryPoint.NotFoundInPayload";
+
+    /// <summary>English fallback when declared entry point is not found in payload.</summary>
+    public const string EntryPointNotFoundInPayload = "Game client '{0}' declares entry point '{1}', which was not found in its payload.";
+
+    /// <summary>Resource key when entry point detection fails.</summary>
+    public const string EntryPointDetectionFailedKey = "Manifest.EntryPoint.DetectionFailed";
+
+    /// <summary>English fallback when entry point detection fails.</summary>
+    public const string EntryPointDetectionFailed = "Cannot determine the launch entry for game client '{0}': {1}";
+
+    /// <summary>Resource key when variant entry point is not found in payload.</summary>
+    public const string VariantEntryPointNotFoundInPayloadKey = "Manifest.VariantEntryPoint.NotFoundInPayload";
+
+    /// <summary>English fallback when variant entry point is not found in payload.</summary>
+    public const string VariantEntryPointNotFoundInPayload = "Game client '{0}' declares variant entry point '{1}', which was not found in its payload.";
+
+    /// <summary>Resource key when multiple variants lack declared entry points.</summary>
+    public const string MultipleVariantsMissingEntryPointKey = "Manifest.VariantEntryPoint.MultipleMissing";
+
+    /// <summary>English fallback when multiple variants lack declared entry points.</summary>
+    public const string MultipleVariantsMissingEntryPoint = "Game client '{0}' has {1} variants without a declared entry point; detection cannot resolve one entry per variant.";
 
     /// <summary>Tag for unknown authors.</summary>
     public const string UnknownAuthor = "unknown";

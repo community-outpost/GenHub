@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using System;
 using System.IO;
 
 namespace GenHub.Tests.Core.Helpers;
@@ -59,6 +60,51 @@ public class LaunchEntryPointResolverTests
         var path = Path.Combine("/workspace", GameClientConstants.GeneralsExecutable);
 
         Assert.Equal(GameClientConstants.GameProcessName, LaunchEntryPointResolver.ResolveExpectedChildProcessName(path));
+    }
+
+    /// <summary>
+    /// When generals.exe is in a directory without game.dat (e.g. standalone/Steam installs),
+    /// generals.exe is the standalone game binary itself and does not spawn a child process.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcessName_WhenDirectoryExistsWithoutGameDat_ReturnsNull()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var path = Path.Combine(tempDir, GameClientConstants.GeneralsExecutable);
+            File.WriteAllText(path, "stub");
+
+            Assert.Null(LaunchEntryPointResolver.ResolveExpectedChildProcessName(path));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// When generals.exe has game.dat present in the same directory, it is recognized as a launcher.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcessName_WhenDirectoryExistsWithGameDat_ReturnsGameChildProcess()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var path = Path.Combine(tempDir, GameClientConstants.GeneralsExecutable);
+            var gameDat = Path.Combine(tempDir, GameClientConstants.SteamGameDatExecutable);
+            File.WriteAllText(path, "stub");
+            File.WriteAllText(gameDat, "stub");
+
+            Assert.Equal(GameClientConstants.GameProcessName, LaunchEntryPointResolver.ResolveExpectedChildProcessName(path));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
     }
 
     /// <summary>

@@ -18,6 +18,7 @@ public class GameProcessManagerTests
 {
     private readonly Mock<ILogger<GameProcessManager>> _loggerMock = new();
     private readonly Mock<ILocalizationService> _localizationServiceMock = new();
+    private readonly Mock<IFlatpakProvisioner> _flatpakProvisionerMock = new();
     private readonly GameProcessManager _processManager;
 
     /// <summary>
@@ -28,7 +29,8 @@ public class GameProcessManagerTests
         _processManager = new GameProcessManager(
             _loggerMock.Object,
             new DirectRunner(NullLogger<DirectRunner>.Instance),
-            _localizationServiceMock.Object);
+            _localizationServiceMock.Object,
+            _flatpakProvisionerMock.Object);
     }
 
     /// <summary>
@@ -147,6 +149,47 @@ public class GameProcessManagerTests
 
         Assert.False(result.Success);
         Assert.Contains(LauncherHarness.ChildProcessName, string.Join(", ", result.Errors));
+    }
+
+    /// <summary>
+    /// When launching via Wine, the wine binary is the long-running host process.
+    /// Child process adoption must be bypassed even if an expected child process name is declared.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenRunnerIsWine_BypassesChildAdoptionAndTracksWineProcessAsync()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+
+        var wineRunnerMock = new Mock<IGameLaunchRunner>();
+        wineRunnerMock
+            .Setup(r => r.ResolveCommand(It.IsAny<GameLaunchConfiguration>()))
+            .Returns(OperationResult<RunnerCommand>.CreateSuccess(new RunnerCommand(
+                harness.LauncherPath,
+                string.Empty,
+                new Dictionary<string, string> { [WineConstants.PrefixEnvironmentVariable] = "/dummy/prefix" })));
+
+        var manager = new GameProcessManager(
+            _loggerMock.Object,
+            wineRunnerMock.Object,
+            _localizationServiceMock.Object,
+            _flatpakProvisionerMock.Object);
+
+        var config = new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+            ExpectedChildProcessName = LauncherHarness.ChildProcessName,
+            ExpectedChildDiscoveryTimeout = TimeSpan.FromMilliseconds(750),
+        };
+
+        var result = await manager.StartProcessAsync(config);
+
+        Assert.True(result.Success, string.Join(", ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data.IsRunning);
+
+        await manager.TerminateProcessAsync(result.Data.ProcessId);
     }
 
     /// <summary>
@@ -796,7 +839,8 @@ public class GameProcessManagerTests
         var manager = new GameProcessManager(
             _loggerMock.Object,
             runnerMock.Object,
-            _localizationServiceMock.Object);
+            _localizationServiceMock.Object,
+            _flatpakProvisionerMock.Object);
         var executablePath = Path.Combine(Path.GetTempPath(), $"genhub-runner-test-{Guid.NewGuid():N}.exe");
         File.WriteAllText(executablePath, "dummy");
 
@@ -837,7 +881,8 @@ public class GameProcessManagerTests
         var manager = new GameProcessManager(
             _loggerMock.Object,
             runnerMock.Object,
-            new Mock<ILocalizationService>().Object);
+            new Mock<ILocalizationService>().Object,
+            _flatpakProvisionerMock.Object);
         var executablePath = Path.Combine(Path.GetTempPath(), $"genhub-runner-test-{Guid.NewGuid():N}.exe");
         File.WriteAllText(executablePath, "dummy");
 
@@ -852,6 +897,149 @@ public class GameProcessManagerTests
             // Assert
             Assert.False(result.Success);
             Assert.Contains(ProfileValidationConstants.MissingCompatibilityRunner, result.FirstError);
+        }
+        finally
+        {
+            File.Delete(executablePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies a Flatpak bundle provisions through the provisioner instead of the launch
+    /// runner, without requiring the execute bit, on Linux.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task StartProcessAsync_FlatpakOnLinux_ProvisionsInsteadOfRunnerAsync()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        // Arrange
+        var provisionerMock = new Mock<IFlatpakProvisioner>();
+        provisionerMock
+            .Setup(x => x.EnsureInstalledAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("org.test.App"));
+        var runnerMock = new Mock<IGameLaunchRunner>();
+        var manager = new GameProcessManager(
+            _loggerMock.Object,
+            runnerMock.Object,
+            _localizationServiceMock.Object,
+            provisionerMock.Object);
+        var bundlePath = Path.Combine(Path.GetTempPath(), $"genhub-flatpak-test-{Guid.NewGuid():N}.flatpak");
+        File.WriteAllText(bundlePath, "dummy");
+
+        try
+        {
+            // Act
+            var result = await manager.StartProcessAsync(new GameLaunchConfiguration
+            {
+                ExecutablePath = bundlePath,
+            });
+
+            // Assert: the flatpak CLI is absent on CI hosts, so spawning fails, but the
+            // provisioner ran and the runner was bypassed.
+            Assert.False(result.Success);
+            provisionerMock.Verify(
+                x => x.EnsureInstalledAsync(bundlePath, It.IsAny<CancellationToken>()),
+                Times.Once);
+            runnerMock.Verify(
+                x => x.ResolveCommand(It.IsAny<GameLaunchConfiguration>()),
+                Times.Never);
+        }
+        finally
+        {
+            File.Delete(bundlePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies ordinary executables never touch the Flatpak provisioner.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task StartProcessAsync_NonFlatpak_DoesNotProvisionAsync()
+    {
+        // Arrange
+        var runnerMock = new Mock<IGameLaunchRunner>();
+        runnerMock
+            .Setup(x => x.ResolveCommand(It.IsAny<GameLaunchConfiguration>()))
+            .Returns(OperationResult<RunnerCommand>.CreateFailure("no runner"));
+        var provisionerMock = new Mock<IFlatpakProvisioner>();
+        var manager = new GameProcessManager(
+            _loggerMock.Object,
+            runnerMock.Object,
+            _localizationServiceMock.Object,
+            provisionerMock.Object);
+        var executablePath = Path.Combine(Path.GetTempPath(), $"genhub-runner-test-{Guid.NewGuid():N}.exe");
+        File.WriteAllText(executablePath, "dummy");
+
+        try
+        {
+            // Act
+            var result = await manager.StartProcessAsync(new GameLaunchConfiguration
+            {
+                ExecutablePath = executablePath,
+            });
+
+            // Assert
+            Assert.False(result.Success);
+            provisionerMock.Verify(
+                x => x.EnsureInstalledAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            File.Delete(executablePath);
+        }
+    }
+
+    /// <summary>
+    /// A Windows binary without the <c>.exe</c> extension and without the Unix execute
+    /// bit passes validation: Wine reads the file instead of executing it, so the bit
+    /// must not block a launch the compatibility runner can serve.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_NonExeWindowsBinaryWithoutExecBit_ReachesRunnerAsync()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        // Arrange
+        var runnerMock = new Mock<IGameLaunchRunner>();
+        runnerMock
+            .Setup(x => x.ResolveCommand(It.IsAny<GameLaunchConfiguration>()))
+            .Returns(OperationResult<RunnerCommand>.CreateFailure("runner reached"));
+        var manager = new GameProcessManager(
+            _loggerMock.Object,
+            runnerMock.Object,
+            _localizationServiceMock.Object,
+            _flatpakProvisionerMock.Object);
+        var executablePath = Path.Combine(Path.GetTempPath(), $"genhub-dat-test-{Guid.NewGuid():N}.dat");
+        File.WriteAllBytes(executablePath, [(byte)'M', (byte)'Z', 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+
+        try
+        {
+            // Act
+            var result = await manager.StartProcessAsync(new GameLaunchConfiguration
+            {
+                ExecutablePath = executablePath,
+            });
+
+            // Assert: validation passed (the failure comes from the stubbed runner).
+            Assert.False(result.Success);
+            Assert.Contains("runner reached", result.FirstError);
+            runnerMock.Verify(
+                x => x.ResolveCommand(It.IsAny<GameLaunchConfiguration>()),
+                Times.Once);
         }
         finally
         {

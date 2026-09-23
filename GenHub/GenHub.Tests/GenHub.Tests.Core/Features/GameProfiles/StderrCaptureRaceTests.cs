@@ -56,7 +56,8 @@ public class StderrCaptureRaceTests
         using var manager = new GameProcessManager(
             Mock.Of<ILogger<GameProcessManager>>(),
             new DirectRunner(Mock.Of<ILogger<DirectRunner>>()),
-            Mock.Of<ILocalizationService>());
+            Mock.Of<ILocalizationService>(),
+            new FlatpakProvisioner(Mock.Of<ILogger<FlatpakProvisioner>>()));
         var result = await manager.StartProcessAsync(new GameLaunchConfiguration
         {
             ExecutablePath = "/bin/sh",

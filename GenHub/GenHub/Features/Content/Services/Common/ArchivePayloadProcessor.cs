@@ -24,12 +24,47 @@ namespace GenHub.Features.Content.Services.Common;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Payload normalization handles diverse archive topologies, legacy SIM installers, NSIS installers, and directory hierarchies.")]
 public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : IArchivePayloadProcessor
 {
+    /// <summary>
+    /// Mutable traversal state shared across link dereferencing calls.
+    /// </summary>
+    private sealed class LinkDereferenceContext
+    {
+        /// <summary>Gets the lexical payload root entries are addressed through.</summary>
+        public required string RootFull { get; init; }
+
+        /// <summary>Gets the canonical payload root used for containment checks.</summary>
+        public required string CanonicalRoot { get; init; }
+
+        /// <summary>Gets the directories still to scan.</summary>
+        public required Stack<string> Pending { get; init; }
+
+        /// <summary>Gets the directories already scanned.</summary>
+        public required HashSet<string> Visited { get; init; }
+
+        /// <summary>Gets the preserved directory links by canonical location.</summary>
+        public required Dictionary<string, string> PreservedDirLinks { get; init; }
+
+        /// <summary>Gets the optional logger instance.</summary>
+        public ILogger? Logger { get; init; }
+    }
+
     private const int MaxNestedExtractionDepth = 5;
     private const string ExtractingFilesStageDescription = "Extracting files";
+    private const string LinkTempSuffix = ".genhub-linktmp";
+    private const int LinkTempReservationAttempts = 100;
     private static readonly byte[] SevenZipSignature = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
     private static readonly byte[] RarSignature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07];
     private static readonly byte[] Rar5Signature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
     private static readonly byte[] SmartInstallMakerSignature = [0x77, 0x77, 0x67, 0x54, 0x29, 0x48, 0x35, 0x14];
+    private static readonly char[] DirectorySeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
+    private static StringComparison PathComparison => OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
+
+    private static StringComparer PathComparer => OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
 
     /// <inheritdoc />
     public Task ExtractArchivesSafelyAsync(
@@ -125,6 +160,9 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             () =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                // 0. Dereference symlinks so hashing, detection, and CAS see real files
+                DereferenceSymbolicLinks(extractedDirectory, logger, cancellationToken);
 
                 // 1. Purge system junk files and folders
                 PurgeSystemJunk(extractedDirectory);
@@ -241,7 +279,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var fileNameWithoutExt = Path.GetFileNameWithoutExtension(destinationPath);
         var ext = Path.GetExtension(destinationPath);
         var counter = 1;
-        var newDestPath = string.Empty;
+        string? newDestPath;
         do
         {
             newDestPath = Path.Combine(dir, $"{fileNameWithoutExt}_{counter}{ext}");
@@ -282,6 +320,66 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     }
 
     /// <summary>
+    /// Replaces file symlinks with copies of their targets and removes links that dangle
+    /// or escape the payload, so downstream hashing, entry detection, and CAS ingestion
+    /// operate on real files. Directory symlinks resolving inside the payload are kept
+    /// because bundle layouts address content through them at runtime.
+    /// </summary>
+    /// <param name="root">The payload root.</param>
+    /// <param name="logger">Optional logger instance.</param>
+    /// <param name="cancellationToken">Cancels the payload walk.</param>
+    /// <returns>The number of links replaced or removed.</returns>
+    internal static int DereferenceSymbolicLinks(string root, ILogger? logger = null, CancellationToken cancellationToken = default)
+    {
+        var handled = 0;
+        var rootFull = Path.GetFullPath(root);
+        var canonicalRoot = CanonicalizePath(rootFull) ?? rootFull;
+        var visited = new HashSet<string>(PathComparer) { rootFull };
+        var preservedDirLinks = new Dictionary<string, string>(PathComparer);
+        var pending = new Stack<string>();
+        pending.Push(rootFull);
+        var context = new LinkDereferenceContext
+        {
+            RootFull = rootFull,
+            CanonicalRoot = canonicalRoot,
+            Pending = pending,
+            Visited = visited,
+            PreservedDirLinks = preservedDirLinks,
+            Logger = logger,
+        };
+
+        while (pending.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var current = pending.Pop();
+            string[] entries;
+            try
+            {
+                entries = Directory.GetFileSystemEntries(current);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                continue;
+            }
+
+            foreach (var entry in entries)
+            {
+                if (TryDereferenceLink(entry, context, out var changed) && changed)
+                {
+                    handled++;
+                }
+            }
+        }
+
+        if (handled > 0)
+        {
+            logger?.LogInformation("Dereferenced {Count} symlink(s) in payload {Root}", handled, root);
+        }
+
+        return handled;
+    }
+
+    /// <summary>
     /// Validates that an archive payload file exists, is non-empty, and does not contain HTML error text.
     /// </summary>
     /// <param name="archivePath">Path to the archive file.</param>
@@ -310,6 +408,286 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var preview = ReadTextPreview(archivePath, maxChars: 120);
             throw new InvalidDataException(
                 $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
+        }
+    }
+
+    private static bool TryDereferenceLink(string entry, LinkDereferenceContext context, out bool changed)
+    {
+        changed = false;
+
+        FileAttributes attributes;
+        try
+        {
+            attributes = File.GetAttributes(entry);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
+
+        var isDirectory = attributes.HasFlag(FileAttributes.Directory);
+        if (!attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            if (isDirectory)
+            {
+                var full = Path.GetFullPath(entry);
+                if (context.Visited.Add(full))
+                {
+                    context.Pending.Push(full);
+                }
+            }
+
+            return true;
+        }
+
+        string? target;
+        try
+        {
+            FileSystemInfo info = isDirectory ? new DirectoryInfo(entry) : new FileInfo(entry);
+            target = info.LinkTarget;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(target))
+        {
+            return true;
+        }
+
+        var entryDirectory = Path.GetDirectoryName(entry) ?? context.RootFull;
+        string targetFull;
+        try
+        {
+            targetFull = Path.GetFullPath(Path.Combine(entryDirectory, target));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
+
+        // Link kind and liveness come from probing the resolved target, never the link
+        // itself: on Unix a directory link reports no Directory flag, and File.Exists
+        // is true even for dangling links. Dangling links fall back to the flag.
+        var targetExistsAsDirectory = Directory.Exists(targetFull);
+        var targetExistsAsFile = !targetExistsAsDirectory && File.Exists(targetFull);
+        if (targetExistsAsDirectory || targetExistsAsFile)
+        {
+            isDirectory = targetExistsAsDirectory;
+        }
+
+        // Containment must hold for the canonical target, not just the first hop: a
+        // link to an interior directory that itself links outside would otherwise pass
+        // lexically. Unresolvable chains (cycles) are removed the same way.
+        var canonicalTarget = CanonicalizePath(targetFull);
+        if (canonicalTarget is null || !IsUnderRoot(context.CanonicalRoot, canonicalTarget))
+        {
+            changed = DeleteLink(entry, isDirectory, context.Logger);
+            return true;
+        }
+
+        if (isDirectory)
+        {
+            // Reject cycles before preservation: a link to its own directory, an ancestor
+            // (loop -> .), or a multi-hop cycle across preserved directory links would send
+            // later recursive enumerations into a loop. The entry is addressed through the
+            // lexical root while targets are canonical, so canonicalize the link location
+            // first: a symlinked root ancestor (macOS /var -> /private/var) would otherwise
+            // never match and cycles would slip through.
+            var canonicalEntry = ResolveCanonicalLinkLocation(entry);
+            if (canonicalEntry is null || WouldIntroduceCycle(canonicalEntry, canonicalTarget, context.PreservedDirLinks))
+            {
+                changed = DeleteLink(entry, isDirectory: true, context.Logger);
+                return true;
+            }
+
+            // Kept: bundle layouts resolve content through interior directory links.
+            // Only Windows reports the Directory flag for dangling links; on Unix a
+            // directory link with no live target never reaches this branch. The file
+            // probe needs no conjunct here: a live file target would have cleared
+            // isDirectory above, so no live target exists when this reads true.
+            if (OperatingSystem.IsWindows() && !targetExistsAsDirectory)
+            {
+                changed = DeleteLink(entry, isDirectory: true, context.Logger);
+                return true;
+            }
+
+            context.PreservedDirLinks[canonicalEntry] = canonicalTarget;
+            return true;
+        }
+
+        if (!targetExistsAsFile)
+        {
+            changed = DeleteLink(entry, isDirectory: false, context.Logger);
+            return true;
+        }
+
+        // Copy through a reserved sibling temp file, then rename over the link: a
+        // failed copy or rename keeps the original link instead of deleting the only
+        // reference to the content.
+        if (TryMaterializeLinkTarget(entry, targetFull, context.Logger))
+        {
+            changed = true;
+        }
+
+        return true;
+    }
+
+    private static bool TryMaterializeLinkTarget(string entry, string targetFull, ILogger? logger)
+    {
+        var tempPath = CreateUniqueTempPath(entry);
+        if (tempPath is null)
+        {
+            logger?.LogWarning("Could not reserve a temp path for symlink {Entry}; keeping the original link", entry);
+            return false;
+        }
+
+        var reserved = false;
+        try
+        {
+            new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write).Dispose();
+
+            reserved = true;
+            File.Copy(targetFull, tempPath, overwrite: true);
+            File.Move(tempPath, entry, overwrite: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            logger?.LogWarning(ex, "Failed to dereference symlink {Entry}; keeping the original link", entry);
+            if (reserved)
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (Exception cleanupEx) when (cleanupEx is IOException or UnauthorizedAccessException or ArgumentException)
+                {
+                    logger?.LogDebug(cleanupEx, "Failed to clean up temp file {TempPath}", tempPath);
+                }
+            }
+
+            return false;
+        }
+    }
+
+    private static string? CreateUniqueTempPath(string entry)
+    {
+        for (var attempt = 0; attempt < LinkTempReservationAttempts; attempt++)
+        {
+            var candidate = attempt == 0
+                ? entry + LinkTempSuffix
+                : entry + LinkTempSuffix + "-" + Guid.NewGuid().ToString("N");
+            if (!File.Exists(candidate) && !Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsSameOrChildOf(string candidatePath, string parentPath)
+    {
+        if (candidatePath.Equals(parentPath, PathComparison))
+        {
+            return true;
+        }
+
+        var prefix = parentPath.EndsWith(Path.DirectorySeparatorChar) || parentPath.EndsWith(Path.AltDirectorySeparatorChar)
+            ? parentPath
+            : parentPath + Path.DirectorySeparatorChar;
+
+        return candidatePath.StartsWith(prefix, PathComparison);
+    }
+
+    private static bool WouldIntroduceCycle(
+        string entry,
+        string canonicalTarget,
+        Dictionary<string, string> preservedDirLinks)
+    {
+        if (IsSameOrChildOf(entry, canonicalTarget))
+        {
+            return true;
+        }
+
+        var visitedTargets = new HashSet<string>(PathComparer);
+        var queue = new Queue<string>();
+        queue.Enqueue(canonicalTarget);
+        visitedTargets.Add(canonicalTarget);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+
+            if (IsSameOrChildOf(entry, current))
+            {
+                return true;
+            }
+
+            foreach (var (linkPath, linkTarget) in preservedDirLinks)
+            {
+                if (IsSameOrChildOf(linkPath, current) && visitedTargets.Add(linkTarget))
+                {
+                    queue.Enqueue(linkTarget);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves the directory of a link to canonical form while keeping the link's own
+    /// file name, so cycle detection compares canonical locations on both sides.
+    /// </summary>
+    /// <param name="entry">The link path.</param>
+    /// <returns>The canonical link location, or <c>null</c> when the directory cannot be canonicalized.</returns>
+    private static string? ResolveCanonicalLinkLocation(string entry)
+    {
+        var directory = Path.GetDirectoryName(entry);
+        if (string.IsNullOrEmpty(directory))
+        {
+            return entry;
+        }
+
+        var canonicalDirectory = CanonicalizePath(directory);
+        if (canonicalDirectory is null)
+        {
+            return null;
+        }
+
+        return Path.Combine(canonicalDirectory, Path.GetFileName(entry));
+    }
+
+    private static string? CanonicalizePath(string path) => PathHelper.CanonicalizePath(path);
+
+    private static bool IsUnderRoot(string rootFull, string targetFull)
+    {
+        return PathHelper.IsPathWithinDirectory(rootFull, targetFull);
+    }
+
+    private static bool DeleteLink(string entry, bool isDirectory, ILogger? logger)
+    {
+        try
+        {
+            if (isDirectory)
+            {
+                Directory.Delete(entry, recursive: false);
+            }
+            else
+            {
+                File.Delete(entry);
+            }
+
+            logger?.LogDebug("Removed {Kind} symlink {Entry} escaping or dangling outside the payload", isDirectory ? "directory" : "file", entry);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger?.LogWarning(ex, "Failed to remove symlink {Entry}", entry);
+            return false;
         }
     }
 
@@ -580,9 +958,124 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return -1;
     }
 
+    private static IEnumerable<string> TraverseNonReparseDirectoriesSafe(string rootDirectory)
+    {
+        if (!Directory.Exists(rootDirectory))
+        {
+            yield break;
+        }
+
+        var visited = new HashSet<string>(PathComparer);
+        var pending = new Queue<string>();
+        pending.Enqueue(rootDirectory);
+
+        string rootCanonical;
+        try
+        {
+            rootCanonical = CanonicalizePath(rootDirectory) ?? Path.GetFullPath(rootDirectory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            yield break;
+        }
+
+        visited.Add(rootCanonical);
+
+        while (pending.Count > 0)
+        {
+            var current = pending.Dequeue();
+            yield return current;
+
+            string[] subDirs;
+            try
+            {
+                subDirs = Directory.GetDirectories(current);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                continue;
+            }
+
+            foreach (var subDir in subDirs)
+            {
+                FileAttributes attrs;
+                try
+                {
+                    attrs = File.GetAttributes(subDir);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                {
+                    continue;
+                }
+
+                if (attrs.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    continue;
+                }
+
+                string fullSubDir;
+                try
+                {
+                    fullSubDir = Path.GetFullPath(subDir);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                {
+                    continue;
+                }
+
+                if (visited.Add(fullSubDir))
+                {
+                    pending.Enqueue(subDir);
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateDirectoriesSafe(string rootDirectory, string searchPattern = "*")
+    {
+        foreach (var dir in TraverseNonReparseDirectoriesSafe(rootDirectory))
+        {
+            string[] matchingDirs;
+            try
+            {
+                matchingDirs = Directory.GetDirectories(dir, searchPattern);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                continue;
+            }
+
+            foreach (var match in matchingDirs)
+            {
+                yield return match;
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateFilesSafe(string rootDirectory, string searchPattern = "*")
+    {
+        foreach (var dir in TraverseNonReparseDirectoriesSafe(rootDirectory))
+        {
+            string[] files;
+            try
+            {
+                files = Directory.GetFiles(dir, searchPattern);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                continue;
+            }
+
+            foreach (var file in files)
+            {
+                yield return file;
+            }
+        }
+    }
+
     private static IReadOnlyList<string> FindArchiveFiles(string rootDirectory, ContentType? contentType = null)
     {
-        return Directory.GetFiles(rootDirectory, "*", SearchOption.AllDirectories)
+        return EnumerateFilesSafe(rootDirectory)
             .Where(file => IsArchiveFile(file, contentType))
             .ToList();
     }
@@ -1282,7 +1775,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static void CopyStreamWithCap(Stream source, Stream destination, byte[] copyBuffer, ref long totalBytesWritten)
     {
-        int read = 0;
+        int read;
         while ((read = source.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
         {
             totalBytesWritten += read;
@@ -1807,7 +2300,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 return;
             }
 
-            foreach (var subDir in Directory.GetDirectories(directory, "*", SearchOption.AllDirectories))
+            foreach (var subDir in EnumerateDirectoriesSafe(directory))
             {
                 if (!Directory.Exists(subDir))
                 {
@@ -1821,7 +2314,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 }
             }
 
-            foreach (var file in Directory.GetFiles(directory, "*", SearchOption.AllDirectories))
+            foreach (var file in EnumerateFilesSafe(directory))
             {
                 if (!File.Exists(file))
                 {
@@ -1879,7 +2372,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             Directory.Move(sourceDirectory, tempStaging);
 
-            foreach (var subFile in Directory.GetFiles(tempStaging, "*", SearchOption.AllDirectories))
+            foreach (var subFile in EnumerateFilesSafe(tempStaging))
             {
                 MoveFileToPromotedDestination(subFile, tempStaging, targetDirectory);
             }
@@ -1950,7 +2443,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 return;
             }
 
-            foreach (var remainingFile in Directory.GetFiles(tempStaging, "*", SearchOption.AllDirectories))
+            foreach (var remainingFile in EnumerateFilesSafe(tempStaging))
             {
                 var rel = Path.GetRelativePath(tempStaging, remainingFile);
                 var backPath = Path.Combine(sourceDirectory, rel);
@@ -1973,7 +2466,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     {
         try
         {
-            foreach (var subDir in Directory.GetDirectories(rootDirectory, "*", SearchOption.AllDirectories)
+            foreach (var subDir in EnumerateDirectoriesSafe(rootDirectory)
                          .Where(subDir => Directory.Exists(subDir) && !Directory.EnumerateFileSystemEntries(subDir).Any())
                          .OrderByDescending(d => d.Length))
             {
@@ -2132,7 +2625,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             foreach (var extension in GenLauncherConstants.InactiveBigExtensions)
             {
                 var searchPattern = "*" + extension;
-                foreach (var inactiveFile in Directory.GetFiles(extractedDirectory, searchPattern, SearchOption.AllDirectories))
+                foreach (var inactiveFile in EnumerateFilesSafe(extractedDirectory, searchPattern))
                 {
                     if (IsExecutableFile(inactiveFile))
                     {

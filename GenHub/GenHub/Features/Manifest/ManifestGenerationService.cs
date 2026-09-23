@@ -498,23 +498,34 @@ public class ManifestGenerationService(
         }
     }
 
-    /// <summary>
-    /// Creates a manifest builder for a game client.
-    /// </summary>
-    /// <param name="installationPath">Path to the game client installation.</param>
-    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
-    /// <param name="clientName">The name of the game client.</param>
-    /// <param name="clientVersion">The version of the game client.</param>
-    /// <param name="executablePath">The full path to the game executable.</param>
-    /// <param name="publisherInfo">Optional publisher info. If provided, overrides detection from name.</param>
-    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateGameClientManifestAsync(
+    /// <inheritdoc/>
+    public Task<IContentManifestBuilder> CreateGameClientManifestAsync(
         string installationPath,
         GameType gameType,
         string clientName,
         string clientVersion,
         string executablePath,
         PublisherInfo? publisherInfo = null)
+    {
+        return CreateGameClientManifestAsync(
+            installationPath,
+            gameType,
+            clientName,
+            clientVersion,
+            executablePath,
+            publisherInfo,
+            CancellationToken.None);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IContentManifestBuilder> CreateGameClientManifestAsync(
+        string installationPath,
+        GameType gameType,
+        string clientName,
+        string clientVersion,
+        string executablePath,
+        PublisherInfo? publisherInfo,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -524,6 +535,16 @@ public class ManifestGenerationService(
             if (string.IsNullOrWhiteSpace(executablePath))
             {
                 throw new ArgumentException("Executable path cannot be null or empty", nameof(executablePath));
+            }
+
+            if (Directory.Exists(executablePath)
+                && executablePath.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                var resolvedInner = GameClientEntryDetector.ResolveBundleExecutableAbsolute(executablePath, cancellationToken);
+                if (resolvedInner is not null)
+                {
+                    executablePath = resolvedInner;
+                }
             }
 
             if (!File.Exists(executablePath))

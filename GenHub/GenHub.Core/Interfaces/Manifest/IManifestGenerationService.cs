@@ -126,6 +126,26 @@ public interface IManifestGenerationService
         PublisherInfo? publisherInfo = null);
 
     /// <summary>
+    /// Creates a manifest builder for a game client with cancellation support.
+    /// </summary>
+    /// <param name="installationPath">Path to the game client installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="clientName">The name of the game client.</param>
+    /// <param name="clientVersion">The version of the game client.</param>
+    /// <param name="executablePath">The full path to the game executable.</param>
+    /// <param name="publisherInfo">Optional publisher info. If provided, overrides detection from name.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    Task<IContentManifestBuilder> CreateGameClientManifestAsync(
+        string installationPath,
+        GameType gameType,
+        string clientName,
+        string clientVersion,
+        string executablePath,
+        PublisherInfo? publisherInfo,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Saves a manifest to a file.
     /// </summary>
     /// <param name="manifest">The manifest to save.</param>

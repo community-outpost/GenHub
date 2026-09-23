@@ -52,4 +52,18 @@ public class GeneralsOnlineClientIdentifierTests
         Assert.False(identifier.CanIdentify(path));
         Assert.Null(identifier.Identify(path));
     }
+
+    /// <summary>
+    /// Unix packages ship the extensionless native client instead of any Windows launcher,
+    /// so it is a supported entry point too.
+    /// </summary>
+    [Fact]
+    public void Identify_UnixExecutable_ReturnsSixtyHertzClient()
+    {
+        var identifier = new GeneralsOnlineClientIdentifier();
+        var path = "/Applications/Generals Online.app/Contents/MacOS/" + GameClientConstants.GeneralsOnlineUnixExecutable;
+
+        Assert.True(identifier.CanIdentify(path));
+        Assert.NotNull(identifier.Identify(path));
+    }
 }

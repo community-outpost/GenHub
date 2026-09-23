@@ -1241,6 +1241,94 @@
     <value>Отсутствуют {0} требуемых CAS-объектов ({1}). Перед запуском необходимо загрузить содержимое.</value>
     <comment>Error shown when required CAS objects are missing at launch, formatted with the missing object count and a sample list</comment>
   </data>
+  <data name="Launch.Compatibility.MacOSOnWindows" xml:space="preserve">
+    <value>Не удаётся запустить игровой клиент macOS в Windows.</value>
+    <comment>Error shown when launching a macOS game client on Windows</comment>
+  </data>
+  <data name="Launch.Compatibility.LinuxOnWindows" xml:space="preserve">
+    <value>Не удаётся запустить игровой клиент Linux в Windows.</value>
+    <comment>Error shown when launching a Linux game client on Windows</comment>
+  </data>
+  <data name="Launch.Compatibility.MacOSOnLinux" xml:space="preserve">
+    <value>Не удаётся запустить игровой клиент macOS в Linux.</value>
+    <comment>Error shown when launching a macOS game client on Linux</comment>
+  </data>
+  <data name="Launch.Compatibility.LinuxOnMacOS" xml:space="preserve">
+    <value>Не удаётся запустить игровой клиент Linux в macOS.</value>
+    <comment>Error shown when launching a Linux game client on macOS</comment>
+  </data>
+  <data name="Launch.Flatpak.RequiresInstall" xml:space="preserve">
+    <value>Не удаётся запустить пакет Flatpak '{0}'. Установите его командой: flatpak install --user "{0}", затем запустите: flatpak run {1}.</value>
+    <comment>Guidance shown when a Flatpak bundle needs install-then-run outside GenHub</comment>
+  </data>
+  <data name="Launch.Flatpak.RequiresInstallUnknownId" xml:space="preserve">
+    <value>Не удаётся запустить пакет Flatpak '{0}'. Установите его с помощью: flatpak install --user "{0}", затем запустите приложение вручную вне GenHub (GenHub не может определить идентификатор приложения этого пакета).</value>
+    <comment>Guidance shown when a Flatpak bundle needs install-then-run and its app ID is unknown</comment>
+  </data>
+  <data name="Launch.Flatpak.CliMissing" xml:space="preserve">
+    <value>Не удаётся запустить пакет Flatpak '{0}': инструменты командной строки Flatpak не установлены. Установите Flatpak с https://flatpak.org/setup/ и повторите попытку.</value>
+    <comment>Error shown when a Flatpak bundle cannot launch because the Flatpak CLI is missing</comment>
+  </data>
+  <data name="Launch.Flatpak.InstallFailed" xml:space="preserve">
+    <value>Не удалось установить пакет Flatpak '{0}' ({1}): {2}</value>
+    <comment>Error shown when installing a Flatpak bundle fails</comment>
+  </data>
+  <data name="Launch.Bundle.Unresolvable" xml:space="preserve">
+    <value>Не удаётся запустить пакет приложения '{0}': внутри папки Contents/MacOS не найден исполняемый файл.</value>
+    <comment>Error shown when an application bundle has no resolvable executable</comment>
+  </data>
+  <data name="Launch.Steam.NonWindowsExecutable" xml:space="preserve">
+    <value>Steam Proxy Launcher не может запустить исполняемый файл формата, отличного от Windows '{0}'. Для интеграции со Steam требуется исполняемый файл Windows.</value>
+    <comment>Error shown when Steam proxy launcher cannot launch a non-Windows executable</comment>
+  </data>
+  <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
+    <value>Игровой клиент '{0}' объявляет точку входа '{1}', которая не найдена в его содержимом.</value>
+  </data>
+  <data name="Manifest.EntryPoint.DetectionFailed" xml:space="preserve">
+    <value>Не удаётся определить точку запуска для игрового клиента '{0}': {1}</value>
+  </data>
+  <data name="Manifest.VariantEntryPoint.NotFoundInPayload" xml:space="preserve">
+    <value>Игровой клиент '{0}' объявляет точку входа варианта '{1}', которая не найдена в его содержимом.</value>
+  </data>
+  <data name="Manifest.VariantEntryPoint.MultipleMissing" xml:space="preserve">
+    <value>У игрового клиента '{0}' есть {1} вариантов без объявленной точки входа; обнаружение не может определить по одной точке на вариант.</value>
+  </data>
+  <data name="ContentFormat.Rejection.CannotInstallDirectly" xml:space="preserve">
+    <value>Не удаётся установить '{0}' напрямую. {1}</value>
+    <comment>Guidance prefix shown when a file format cannot be directly installed by GenHub</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Dmg" xml:space="preserve">
+    <value>Смонтируйте образ .dmg с помощью hdiutil (или Finder), затем добавьте папку с игрой или пакет .app как локальный контент.</value>
+    <comment>Guidance shown when a .dmg file is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Pkg" xml:space="preserve">
+    <value>Сначала установите пакет .pkg с помощью установщика macOS, затем добавьте папку с установленной игрой как локальный контент.</value>
+    <comment>Guidance shown when a .pkg file is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Snap" xml:space="preserve">
+    <value>Установите пакет snap с помощью snapd вне GenHub; изолированные контейнерные приложения нельзя развернуть в рабочей области.</value>
+    <comment>Guidance shown when a snap package is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Deb" xml:space="preserve">
+    <value>Сначала установите пакет .deb с помощью системного пакетного менеджера, затем добавьте папку с установленной игрой как локальный контент.</value>
+    <comment>Guidance shown when a .deb package is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Rpm" xml:space="preserve">
+    <value>Сначала установите пакет .rpm с помощью системного пакетного менеджера, затем добавьте папку с установленной игрой как локальный контент.</value>
+    <comment>Guidance shown when an .rpm package is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Msi" xml:space="preserve">
+    <value>Сначала запустите установщик .msi в Windows (или через Wine msiexec), затем добавьте папку с установленной игрой как локальный контент.</value>
+    <comment>Guidance shown when an .msi installer is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Msix" xml:space="preserve">
+    <value>Сначала установите пакет .msix в Windows, затем добавьте папку с установленной игрой как локальный контент.</value>
+    <comment>Guidance shown when an .msix package is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Default" xml:space="preserve">
+    <value>Этот формат требует внешних инструментов, которые GenHub не выполняет; сначала установите его, затем добавьте установленные файлы как локальный контент.</value>
+    <comment>Default guidance shown when an unhandled guided rejection format is rejected</comment>
+  </data>
   <data name="Maps.Button.ClearAllHistory" xml:space="preserve">
     <value>Очистить всю историю</value>
   </data>

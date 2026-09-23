@@ -344,6 +344,22 @@ public class ManifestVariantResolverTests
         Assert.Equal("generals.ctr", resolution.RelativePath);
     }
 
+    /// <summary>
+    /// A single-asset download manifest carrying only a Flatpak bundle resolves the
+    /// bundle as its entry point, so the launch pipeline provisions it instead of
+    /// reporting "no launchable file" and falling back to an unrelated executable.
+    /// </summary>
+    [Fact]
+    public void SingleFlatpakFile_ResolvesAsEntryPoint()
+    {
+        var manifest = new ContentManifest { Files = [File("Linux-GeneralsXZH.flatpak")] };
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+
+        Assert.True(resolution.Success, resolution.ToString());
+        Assert.Equal("Linux-GeneralsXZH.flatpak", resolution.RelativePath);
+    }
+
     private static ManifestFile File(string path, bool isExecutable = false) =>
         new() { RelativePath = path, IsExecutable = isExecutable };
 }

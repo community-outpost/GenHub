@@ -466,6 +466,30 @@ public class RetailArchiveRootValidationTests : IDisposable
     }
 
     /// <summary>
+    /// AddRetailArchiveRoots populates CNC_GENERALS_ZH_PATH and CNC_GENERALS_PATH for GeneralsX engine compatibility.
+    /// </summary>
+    [Fact]
+    public void AddRetailArchiveRoots_PopulatesGeneralsXVariables()
+    {
+        var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-gx-env")).FullName;
+        var generals = Directory.CreateDirectory(Path.Combine(_tempDir, "gen-gx-env")).FullName;
+
+        var installation = new GameInstallation(
+            Path.GetTempPath(),
+            GameInstallationType.Steam,
+            new Mock<ILogger<GameInstallation>>().Object);
+        installation.SetPaths(generals, zeroHour);
+
+        var env = new Dictionary<string, string>();
+        BuildEnvironment(env, installation);
+
+        Assert.True(env.ContainsKey(RetailArchiveConstants.GeneralsXZeroHourInstallPathVariable));
+        Assert.StartsWith(zeroHour, env[RetailArchiveConstants.GeneralsXZeroHourInstallPathVariable]);
+        Assert.True(env.ContainsKey(RetailArchiveConstants.GeneralsXGeneralsInstallPathVariable));
+        Assert.StartsWith(generals, env[RetailArchiveConstants.GeneralsXGeneralsInstallPathVariable]);
+    }
+
+    /// <summary>
     /// Launching Generals must not fail over a stale Zero Hour root: it does not read it.
     /// </summary>
     [Fact]

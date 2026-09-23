@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -496,6 +497,38 @@ public sealed class SteamLauncherTests : IDisposable
             ? _workspaceExecutablePath
             : SteamLauncher.ToProtonPath(_workspaceExecutablePath);
         Assert.Equal(expectedTarget, config.RootElement.GetProperty("TargetExecutable").GetString());
+    }
+
+    /// <summary>
+    /// Verifies that Steam proxy preparation rejects non-retail/non-Windows executable formats with a localized error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareForProfileAsync_NonRetailExecutableFormat_FailsWithLocalizedMessageAsync()
+    {
+        // Arrange
+        var nonWindowsExecutable = Path.Combine(_workspacePath, "generals.flatpakref");
+        File.WriteAllText(nonWindowsExecutable, "flatpakref content");
+
+        string? localizedResult = "Localized non-Windows error for generals.flatpakref";
+        var localizationServiceMock = new Mock<ILocalizationService>();
+        localizationServiceMock
+            .Setup(l => l.TryGetString(LaunchMessageConstants.SteamNonWindowsExecutableKey, out localizedResult, It.IsAny<object?[]>()))
+            .Returns(true);
+
+        var logger = new Mock<ILogger<SteamLauncher>>();
+        var launcher = new SteamLauncher(
+            logger.Object,
+            _proxySourcePath,
+            File.WriteAllTextAsync,
+            localizationServiceMock.Object);
+
+        // Act
+        var result = await PrepareAsync(launcher, targetExecutablePath: nonWindowsExecutable);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Localized non-Windows error for generals.flatpakref", result.AllErrors);
     }
 
     private SteamLauncher CreateLauncher(

@@ -91,7 +91,7 @@ public class GameClientProfileService(
                 ThemeColor = themeColor ?? GetThemeColorForGameType(gameClient.GameType, gameClient),
                 IconPath = !string.IsNullOrEmpty(iconPath) ? iconPath : GetIconPathForGame(gameClient.GameType),
                 CoverPath = !string.IsNullOrEmpty(coverPath) ? coverPath : GetCoverPathForGame(gameClient.GameType, gameClient),
-                UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
+                UseSteamLaunch = ReplayCrcMatchingHelper.IsSteamLaunchEligible(installation.InstallationType, gameClient),
             };
 
             var profileResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);

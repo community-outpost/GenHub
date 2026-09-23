@@ -7,6 +7,7 @@ using Moq;
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -881,7 +882,286 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.Equal(largePayload, extractedBytes);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Symlinks are dereferenced during normalization: file links become real copies of
+    /// their targets so hashing and CAS ingestion see content, while dangling links are
+    /// removed instead of breaking the pipeline.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_Symlinks_DereferencesAndRemovesDanglingAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var target = Path.Combine(_stagingDirectory, "target.bin");
+        await File.WriteAllBytesAsync(target, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
+        var link = Path.Combine(_stagingDirectory, "link.bin");
+        var dangling = Path.Combine(_stagingDirectory, "dangling.bin");
+
+        try
+        {
+            File.CreateSymbolicLink(link, target);
+            File.CreateSymbolicLink(dangling, Path.Combine(_stagingDirectory, "absent.bin"));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+        Assert.True(File.Exists(link));
+        Assert.False(File.GetAttributes(link).HasFlag(FileAttributes.ReparsePoint));
+        Assert.Equal(await File.ReadAllBytesAsync(target), await File.ReadAllBytesAsync(link));
+        Assert.False(File.Exists(dangling));
+    }
+
+    /// <summary>
+    /// A dereferenced symlink hashes identically to its target, so both resolve to the
+    /// same CAS object when the factory ingests the normalized payload.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SymlinkTargetAndLink_ShareContentHashAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var target = Path.Combine(_stagingDirectory, "engine.bin");
+        await File.WriteAllBytesAsync(target, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
+        var link = Path.Combine(_stagingDirectory, "engine-link.bin");
+
+        try
+        {
+            File.CreateSymbolicLink(link, target);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+        Assert.False(File.GetAttributes(link).HasFlag(FileAttributes.ReparsePoint));
+
+        var targetHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(target)));
+        var linkHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(link)));
+        Assert.Equal(targetHash, linkHash);
+    }
+
+    /// <summary>
+    /// A cyclic directory link (loop -&gt; .) is removed during normalization so later
+    /// recursive enumerations cannot follow it into an infinite loop.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_CyclicDirectoryLink_RemovesLinkAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var loop = Path.Combine(_stagingDirectory, "loop");
+
+        try
+        {
+            Directory.CreateSymbolicLink(loop, ".");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+        Assert.False(Directory.Exists(loop));
+    }
+
+    /// <summary>
+    /// An interior directory link (framework Versions/Current) survives normalization.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_InteriorDirectoryLink_PreservedAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var target = Directory.CreateDirectory(Path.Combine(_stagingDirectory, "Versions", "A")).FullName;
+        File.WriteAllText(Path.Combine(target, "lib.bin"), "payload");
+        var link = Path.Combine(_stagingDirectory, "Versions", "Current");
+
+        // A second top-level directory keeps wrapper-stripping from relocating Versions.
+        var sibling = Directory.CreateDirectory(Path.Combine(_stagingDirectory, "Data")).FullName;
+        File.WriteAllText(Path.Combine(sibling, "data.bin"), "payload");
+
+        try
+        {
+            Directory.CreateSymbolicLink(link, "A");
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+        Assert.True(Directory.Exists(link));
+    }
+
+    /// <summary>
+    /// A link whose final hop escapes through an interior directory link is removed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_EscapeThroughInteriorLink_RemovedAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var outside = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "GenHub_Outside_" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(outside, "secret.bin"), "outside");
+
+            // The hop lives in a subdirectory so the file link is normalized while the
+            // hop still exists: first-hop containment alone would copy outside content in.
+            var sub = Directory.CreateDirectory(Path.Combine(_stagingDirectory, "sub")).FullName;
+            var hop = Path.Combine(sub, "hop");
+            var link = Path.Combine(_stagingDirectory, "link.bin");
+
+            try
+            {
+                Directory.CreateSymbolicLink(hop, outside);
+                File.CreateSymbolicLink(link, Path.Combine("sub", "hop", "secret.bin"));
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+            {
+                // Environments without symlink rights cannot exercise this path.
+                return;
+            }
+
+            var processor = CreateProcessor();
+            await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+            Assert.False(File.Exists(link));
+        }
+        finally
+        {
+            if (Directory.Exists(outside))
+            {
+                Directory.Delete(outside, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Mutual directory links across subdirectories (a/link -> ../b and b/link2 -> ../a)
+    /// are detected as a cycle and removed so downstream enumerations do not enter an infinite loop.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_MutualDirectorySymlinks_RemovesCyclicLinkAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var dirA = Directory.CreateDirectory(Path.Combine(_stagingDirectory, "dirA")).FullName;
+        var dirB = Directory.CreateDirectory(Path.Combine(_stagingDirectory, "dirB")).FullName;
+        File.WriteAllText(Path.Combine(dirA, "fileA.bin"), "payloadA");
+        File.WriteAllText(Path.Combine(dirB, "fileB.bin"), "payloadB");
+
+        var linkInA = Path.Combine(dirA, "toB");
+        var linkInB = Path.Combine(dirB, "toA");
+
+        try
+        {
+            Directory.CreateSymbolicLink(linkInA, dirB);
+            Directory.CreateSymbolicLink(linkInB, dirA);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+        // At least one of the links must have been removed to break the cycle
+        var existsA = Directory.Exists(linkInA);
+        var existsB = Directory.Exists(linkInB);
+        Assert.False(existsA && existsB, "Mutual directory symlinks should not both be preserved as they form a cycle.");
+    }
+
+    /// <summary>
+    /// A link whose path cannot be resolved due to link resolution failures is deleted.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_BrokenSymlinkChain_RemovesLinkAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var nonExistent = Path.Combine(_stagingDirectory, "does_not_exist");
+        var link = Path.Combine(_stagingDirectory, "dangling_link");
+
+        try
+        {
+            File.CreateSymbolicLink(link, nonExistent);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            return;
+        }
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+        // File.Exists is false for a dangling link even when the link itself still
+        // exists, so enumerate the parent: the entry must be gone entirely.
+        Assert.DoesNotContain(
+            Directory.GetFileSystemEntries(_stagingDirectory),
+            entry => Path.GetFileName(entry).Equals("dangling_link", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// A self-referential directory link is still detected as a cycle when the payload
+    /// is addressed through a symlinked ancestor: the link location is canonicalized
+    /// before comparison so lexical and canonical forms cannot mismatch.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SymlinkedRootAncestor_DetectsCycleAsync()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString());
+        var staging = Path.Combine(tempRoot, "staging");
+        Directory.CreateDirectory(staging);
+        var rootLink = Path.Combine(tempRoot, "rootlink");
+        try
+        {
+            try
+            {
+                Directory.CreateSymbolicLink(Path.Combine(staging, "loop"), ".");
+                Directory.CreateSymbolicLink(rootLink, staging);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+            {
+                return;
+            }
+
+            var processor = CreateProcessor();
+            await processor.NormalizeDirectoryStructureAsync(rootLink, ContentType.GameClient, GameType.ZeroHour);
+
+            Assert.DoesNotContain(
+                Directory.GetFileSystemEntries(staging),
+                entry => Path.GetFileName(entry).Equals("loop", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    /// <inheritdoc/>
     public void Dispose()
     {
         if (Directory.Exists(_stagingDirectory))

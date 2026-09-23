@@ -33,6 +33,16 @@ public static class LaunchEntryPointResolver
 
         if (fileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
         {
+            var directory = Path.GetDirectoryName(executablePath);
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                var gameDat = Path.Combine(directory, GameClientConstants.SteamGameDatExecutable);
+                if (!File.Exists(gameDat))
+                {
+                    return null;
+                }
+            }
+
             return GameClientConstants.GameProcessName;
         }
 

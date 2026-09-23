@@ -1,9 +1,12 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,8 +41,12 @@ internal static class ManifestSourcePathResolver
                 continue;
             }
 
-            if (manifest.ContentType == ContentType.GameClient &&
-                !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
+            // A Flatpak bundle staged outside the game directory is not in the
+            // working directory by definition: skip the shortcut so the content
+            // directory lookup below resolves the staging location instead.
+            if (manifest.ContentType == ContentType.GameClient
+                && !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory)
+                && !IsFlatpakBundleOutsideWorkingDirectory(manifest, profile.GameClient.WorkingDirectory))
             {
                 manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
                 logger.LogDebug("[ManifestSourcePathResolver] Source path for GameClient {ManifestId}: {SourcePath}", manifest.Id.Value, profile.GameClient.WorkingDirectory);
@@ -74,5 +81,14 @@ internal static class ManifestSourcePathResolver
         }
 
         return manifestSourcePaths;
+    }
+
+    private static bool IsFlatpakBundleOutsideWorkingDirectory(ContentManifest manifest, string workingDirectory)
+    {
+        var entry = ManifestVariantResolver.ResolveEntryPoint(manifest);
+        return entry.Success
+            && entry.RelativePath is not null
+            && entry.RelativePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase)
+            && !File.Exists(Path.Combine(workingDirectory, entry.RelativePath));
     }
 }
