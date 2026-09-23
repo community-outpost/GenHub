@@ -197,7 +197,7 @@ public sealed class InstallationPathResolverTests : IDisposable
         try
         {
             var result = await resolver.ResolveInstallationPathAsync(stale);
-            Assert.True(denied);
+            Assert.True(denied, "The resolution log callback did not run; the permission race was not injected.");
             Assert.False(result.Success);
             Assert.Null(result.Data);
             Assert.False(string.IsNullOrWhiteSpace(result.FirstError));
