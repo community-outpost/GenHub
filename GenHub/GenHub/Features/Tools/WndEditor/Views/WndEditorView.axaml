@@ -626,7 +626,8 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="vm:WndCanvasItemViewModel">
                         <Panel PointerPressed="OnCanvasItemPointerPressed" Background="Transparent"
-                               Opacity="{Binding CanvasOpacity}" ToolTip.Tip="{Binding Label}">
+                               Opacity="{Binding CanvasOpacity}" ToolTip.Tip="{Binding Label}"
+                               IsVisible="{Binding CanvasVisible}">
                           <Border Width="{Binding Width}" Height="{Binding Height}"
                                   Background="{Binding FillOverlay}"
                                   IsVisible="{Binding ShowFill}"

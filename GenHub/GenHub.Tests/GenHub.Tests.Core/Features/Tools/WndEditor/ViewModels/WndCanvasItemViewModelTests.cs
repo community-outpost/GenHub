@@ -86,4 +86,29 @@ public sealed class WndCanvasItemViewModelTests
         item.HasImage.Should().BeFalse();
         item.IsSelected.Should().BeFalse();
     }
+
+    /// <summary>
+    /// Acceptance Criteria: Engine-hidden windows stay invisible on the canvas unless selected.
+    /// </summary>
+    /// <param name="isPreviewHidden">Whether the engine would hide the window.</param>
+    /// <param name="isSelected">Whether the item is selected for editing.</param>
+    /// <param name="expectedVisible">The expected canvas visibility.</param>
+    [Theory]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    public void CanvasVisible_MatchesHiddenAndSelectedState(bool isPreviewHidden, bool isSelected, bool expectedVisible)
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.User };
+        var item = new WndCanvasItemViewModel(window)
+        {
+            IsPreviewHidden = isPreviewHidden,
+            IsSelected = isSelected,
+        };
+
+        // Assert
+        item.CanvasVisible.Should().Be(expectedVisible);
+    }
 }

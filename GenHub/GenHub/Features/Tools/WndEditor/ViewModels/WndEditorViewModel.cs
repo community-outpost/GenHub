@@ -2314,6 +2314,7 @@ public sealed partial class WndEditorViewModel(
         item.ContentTextAlignment = plan.TextCentered ? TextAlignment.Center : TextAlignment.Left;
         item.ContentFontFamily = ResolveFontFamily(plan.FontName);
         item.CanvasOpacity = plan.IsHidden ? WndConstants.Preview.HiddenOpacity : 1.0;
+        item.IsPreviewHidden = plan.IsHidden;
         item.Image = ResolvePlanImage(plan, item);
         RefreshItemGlyph(item, plan);
         item.Overlays = ResolveOverlays(plan, item);

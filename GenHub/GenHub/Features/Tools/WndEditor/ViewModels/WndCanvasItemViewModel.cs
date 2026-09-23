@@ -110,7 +110,15 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowNameTag))]
     [NotifyPropertyChangedFor(nameof(ShowPrimaryNameTag))]
     [NotifyPropertyChangedFor(nameof(ShowFallbackNameTag))]
+    [NotifyPropertyChangedFor(nameof(CanvasVisible))]
     private bool _isSelected;
+
+    /// <summary>
+    /// Gets or sets whether the engine would hide the window (HIDDEN status flag).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanvasVisible))]
+    private bool _isPreviewHidden;
 
     /// <summary>
     /// Gets or sets the game asset preview image, or null when unresolved.
@@ -188,6 +196,13 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// Gets a value indicating whether the fallback control-type tag shows muted.
     /// </summary>
     public bool ShowFallbackNameTag => ShowNameTag && IsFallbackLabel;
+
+    /// <summary>
+    /// Gets a value indicating whether the item shows on the canvas.
+    /// Engine-hidden windows stay invisible unless selected for editing.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
+    public bool CanvasVisible => !IsPreviewHidden || IsSelected;
 
     /// <summary>
     /// Gets or sets the control text font family.
