@@ -10,12 +10,12 @@ namespace GenHub.Tests.Core.Features.Tools.WndEditor.Services;
 public sealed class WndPreviewImageComposerTests
 {
     /// <summary>
-    /// Tests that three pieces compose into a bar with caps and a stretched (not tiled) center.
+    /// Tests that three pieces compose into a bar with caps and tiled center.
     /// </summary>
     [Fact]
-    public void ComposeThreePiece_WideBar_StretchesCenterBetweenCaps()
+    public void ComposeThreePiece_WideBar_TilesCenterBetweenCaps()
     {
-        // Arrange: two-tone center must stretch once; tiling would repeat the pattern.
+        // Arrange: two-tone center must tile; the pattern repeats between caps.
         var left = SolidPng(MagickColors.Red, 10, 6);
         var center = TwoToneHorizontalPng();
         var right = SolidPng(MagickColors.Blue, 10, 6);
@@ -30,10 +30,9 @@ public sealed class WndPreviewImageComposerTests
         decoded.Height.Should().Be(6);
         PixelAt(decoded, 2, 3).Should().Be(MagickColors.Red);
 
-        // Resize filtering softens exact colors, so compare red-channel dominance instead:
-        // tiling would put yellow at x=12 and green at x=18.
-        PixelAt(decoded, 12, 3).R.Should().BeLessThan((ushort)(Quantum.Max / 4));
-        PixelAt(decoded, 18, 3).R.Should().BeGreaterThan((ushort)(Quantum.Max * 3 / 4));
+        // Under tiling the two-tone pattern repeats: yellow at x=12, green at x=18.
+        PixelAt(decoded, 12, 3).R.Should().BeGreaterThan((ushort)(Quantum.Max * 3 / 4));
+        PixelAt(decoded, 18, 3).R.Should().BeLessThan((ushort)(Quantum.Max / 4));
         PixelAt(decoded, 27, 3).Should().Be(MagickColors.Blue);
     }
 
@@ -83,12 +82,12 @@ public sealed class WndPreviewImageComposerTests
     }
 
     /// <summary>
-    /// Tests that three pieces compose into a vertical bar with caps and a stretched (not tiled) center.
+    /// Tests that three pieces compose into a vertical bar with caps and tiled center.
     /// </summary>
     [Fact]
-    public void ComposeThreePieceVertical_TallBar_StretchesCenterBetweenCaps()
+    public void ComposeThreePieceVertical_TallBar_TilesCenterBetweenCaps()
     {
-        // Arrange: two-tone center must stretch once; tiling would repeat the pattern.
+        // Arrange: two-tone center must tile; the pattern repeats between caps.
         var top = SolidPng(MagickColors.Red, 6, 10);
         var center = TwoToneVerticalPng();
         var bottom = SolidPng(MagickColors.Blue, 6, 10);
@@ -103,10 +102,9 @@ public sealed class WndPreviewImageComposerTests
         decoded.Height.Should().Be(30);
         PixelAt(decoded, 3, 2).Should().Be(MagickColors.Red);
 
-        // Resize filtering softens exact colors, so compare red-channel dominance instead:
-        // tiling would put yellow at y=12 and green at y=18.
-        PixelAt(decoded, 3, 12).R.Should().BeLessThan((ushort)(Quantum.Max / 4));
-        PixelAt(decoded, 3, 18).R.Should().BeGreaterThan((ushort)(Quantum.Max * 3 / 4));
+        // Under tiling the two-tone pattern repeats: yellow at y=12, green at y=18.
+        PixelAt(decoded, 3, 12).R.Should().BeGreaterThan((ushort)(Quantum.Max * 3 / 4));
+        PixelAt(decoded, 3, 18).R.Should().BeLessThan((ushort)(Quantum.Max / 4));
         PixelAt(decoded, 3, 27).Should().Be(MagickColors.Blue);
     }
 
