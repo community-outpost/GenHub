@@ -931,7 +931,13 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        return File.Exists(fullExePath) && (cachedCrc = GetCachedExeCrc(fullExePath)) != null;
+        if (!File.Exists(fullExePath))
+        {
+            return false;
+        }
+
+        cachedCrc = GetCachedExeCrc(fullExePath);
+        return cachedCrc != null;
     }
 
     /// <summary>
