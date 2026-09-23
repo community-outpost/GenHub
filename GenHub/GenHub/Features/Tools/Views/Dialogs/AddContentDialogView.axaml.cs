@@ -43,55 +43,6 @@ public partial class AddContentDialogView : UserControl
         }
     }
 
-    private async void OnDrop(object? sender, DragEventArgs e)
-    {
-        if (e.Handled || !e.Data.Contains(DataFormats.Files) || DataContext is not AddContentDialogViewModel vm)
-        {
-            return;
-        }
-
-        try
-        {
-            var files = e.Data.GetFiles();
-            if (files == null)
-            {
-                return;
-            }
-
-            var paths = files
-                .Select(f => f.Path?.LocalPath)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Cast<string>()
-                .ToList();
-
-            if (paths.Count == 0)
-            {
-                return;
-            }
-
-            var sourceVisual = e.Source as Visual;
-
-            if (TryHandleArtworkDrop(sourceVisual, paths, vm))
-            {
-                e.Handled = true;
-                return;
-            }
-
-            if (await TryHandleDropZonesAsync(sourceVisual, paths, vm))
-            {
-                e.Handled = true;
-                return;
-            }
-
-            e.Handled = true;
-            await HandleFallbackDropAsync(paths, vm);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Failed to process dropped files: {ex}");
-        }
-    }
-
     private static bool TryHandleArtworkDrop(Visual? sourceVisual, List<string> paths, AddContentDialogViewModel vm)
     {
         var firstPath = paths[0];
@@ -185,5 +136,54 @@ public partial class AddContentDialogView : UserControl
         }
 
         return false;
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Handled || !e.Data.Contains(DataFormats.Files) || DataContext is not AddContentDialogViewModel vm)
+        {
+            return;
+        }
+
+        try
+        {
+            var files = e.Data.GetFiles();
+            if (files == null)
+            {
+                return;
+            }
+
+            var paths = files
+                .Select(f => f.Path?.LocalPath)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Cast<string>()
+                .ToList();
+
+            if (paths.Count == 0)
+            {
+                return;
+            }
+
+            var sourceVisual = e.Source as Visual;
+
+            if (TryHandleArtworkDrop(sourceVisual, paths, vm))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (await TryHandleDropZonesAsync(sourceVisual, paths, vm))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            e.Handled = true;
+            await HandleFallbackDropAsync(paths, vm);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to process dropped files: {ex}");
+        }
     }
 }

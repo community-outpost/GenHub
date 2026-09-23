@@ -39,6 +39,21 @@ public partial class AddReleaseDialogView : UserControl
         }
     }
 
+    private static bool IsInSubtree(Visual? visual, string name)
+    {
+        while (visual != null)
+        {
+            if (visual is Control control && control.Name == name)
+            {
+                return true;
+            }
+
+            visual = visual.GetVisualParent();
+        }
+
+        return false;
+    }
+
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         if (e.Handled || !e.Data.Contains(DataFormats.Files) || DataContext is not AddReleaseDialogViewModel vm)
@@ -98,20 +113,5 @@ public partial class AddReleaseDialogView : UserControl
         {
             Debug.WriteLine($"Failed to process dropped files: {ex}");
         }
-    }
-
-    private static bool IsInSubtree(Visual? visual, string name)
-    {
-        while (visual != null)
-        {
-            if (visual is Control control && control.Name == name)
-            {
-                return true;
-            }
-
-            visual = visual.GetVisualParent();
-        }
-
-        return false;
     }
 }
