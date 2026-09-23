@@ -106,7 +106,15 @@ public partial class ContentLibraryView : UserControl
             if (IsInSubtree(sourceVisual, "ContentItemsDropZone") || IsInSubtree(sourceVisual, "CatalogListPanel"))
             {
                 e.Handled = true;
-                await vm.AddContentWithPathsAsync(paths);
+                if (paths.Count > 1)
+                {
+                    await vm.BatchImportContentItemsAsync(paths);
+                }
+                else
+                {
+                    await vm.AddContentWithPathsAsync(paths);
+                }
+
                 return;
             }
 

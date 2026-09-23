@@ -1,7 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
@@ -9,7 +11,10 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -223,6 +228,149 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
+    /// Batch imports multiple archive or folder paths as individual content items (one release each).
+    /// </summary>
+    /// <param name="paths">The collection of file or folder paths to import.</param>
+    /// <returns>A task representing the asynchronous operation, returning the count of items imported.</returns>
+    public async Task<int> BatchImportContentItemsAsync(IEnumerable<string> paths)
+    {
+        var validPaths = paths
+            .Where(p => !string.IsNullOrWhiteSpace(p) && (File.Exists(p) || Directory.Exists(p)))
+            .ToList();
+
+        if (validPaths.Count == 0)
+        {
+            var title = GetLocalizedString("Tools.PublisherStudio.Content.InvalidPathTitle", "Invalid Path");
+            var message = GetLocalizedString("Tools.PublisherStudio.Content.InvalidPathMessage", "The specified file or folder does not exist.");
+            notificationService?.ShowWarning(title, message);
+            return 0;
+        }
+
+        var importedCount = 0;
+        CatalogContentItem? lastCreated = null;
+
+        foreach (var path in validPaths)
+        {
+            var rawName = Path.GetFileNameWithoutExtension(path);
+            if (string.IsNullOrWhiteSpace(rawName))
+            {
+                continue;
+            }
+
+            var displayName = NormalizeDisplayName(rawName);
+            var baseSlug = Slugify(displayName);
+            var contentId = baseSlug;
+            var counter = 2;
+            while (activeCatalog.Catalog.Content.Any(c => string.Equals(c.Id, contentId, StringComparison.OrdinalIgnoreCase)))
+            {
+                contentId = $"{baseSlug}-{counter++}";
+            }
+
+            var isMap = rawName.Contains("map", StringComparison.OrdinalIgnoreCase);
+            var isMod = rawName.Contains("mod", StringComparison.OrdinalIgnoreCase);
+            var isPatch = rawName.Contains("patch", StringComparison.OrdinalIgnoreCase);
+
+            var contentType = isMap ? ContentType.MapPack :
+                              isMod ? ContentType.Mod :
+                              isPatch ? ContentType.Patch :
+                              ContentType.MapPack;
+
+            var fileName = Path.GetFileName(path);
+            var fileInfo = new FileInfo(path);
+            var size = fileInfo.Exists ? fileInfo.Length : 0;
+            var mime = MimeTypeHelper.FromFileName(fileName);
+
+            string sha256Hash = string.Empty;
+            if (File.Exists(path))
+            {
+                try
+                {
+                    using var sha = SHA256.Create();
+                    using var stream = File.OpenRead(path);
+                    var hashBytes = await sha.ComputeHashAsync(stream);
+                    sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to compute SHA256 for batch imported file {Path}", path);
+                }
+            }
+
+            var artifact = new ReleaseArtifact
+            {
+                Filename = fileName,
+                LocalFilePath = path,
+                Size = size,
+                Sha256 = sha256Hash,
+                ContentType = mime,
+                IsPrimary = true,
+            };
+
+            var release = new ContentRelease
+            {
+                Version = "1.0.0",
+                ReleaseDate = DateTime.UtcNow,
+                IsLatest = true,
+                Artifacts = [artifact],
+                Dependencies =
+                [
+                    new CatalogDependency
+                    {
+                        PublisherId = "ea",
+                        ContentId = "zerohour",
+                        VersionConstraint = "1.04",
+                        ContentType = nameof(ContentType.GameInstallation),
+                    },
+                ],
+            };
+
+            var item = new CatalogContentItem
+            {
+                Id = contentId,
+                Name = displayName,
+                Description = $"{displayName} release",
+                ContentType = contentType,
+                TargetGame = GameType.ZeroHour,
+                PublisherType = activeCatalog.Catalog.Publisher?.Id ?? "generic",
+                Tags = isMap ? ["maps", "mappack", "zerohour"] : ["zerohour"],
+                Releases = [release],
+            };
+
+            activeCatalog.Catalog.Content.Add(item);
+            ContentItems.Add(item);
+            lastCreated = item;
+            importedCount++;
+            logger.LogInformation("Batch imported content item '{ContentId}' from '{Path}'", contentId, path);
+        }
+
+        if (importedCount > 0)
+        {
+            OnPropertyChanged(nameof(FilteredContent));
+            OnPropertyChanged(nameof(CatalogSummaryText));
+            if (lastCreated != null)
+            {
+                SelectedContent = lastCreated;
+            }
+
+            MarkProjectAndCatalogDirty();
+            if (parentViewModel != null)
+            {
+                await parentViewModel.SaveProjectAsync();
+            }
+
+            var successTitle = GetLocalizedString("Tools.PublisherStudio.Library.BatchImportSuccessTitle", "Batch Import Complete");
+            var successMessage = string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Library.BatchImportSuccessMessage",
+                    "Successfully imported {0} content items (1 release each)."),
+                importedCount);
+            notificationService?.ShowSuccess(successTitle, successMessage);
+        }
+
+        return importedCount;
+    }
+
+    /// <summary>
     /// Refreshes localized display text after a culture change.
     /// </summary>
     public void RefreshLocalizedText()
@@ -405,6 +553,20 @@ public partial class ContentLibraryViewModel(
     private async Task AddContentAsync()
     {
         await AddContentWithPathAsync(null);
+    }
+
+    /// <summary>
+    /// Opens a multi-file picker to batch import multiple archives or directories as separate content items (1 release each).
+    /// </summary>
+    [RelayCommand]
+    private async Task BatchAddContentAsync()
+    {
+        var files = await dialogService.ShowFilesPickerAsync(
+            GetLocalizedString("Tools.PublisherStudio.Library.BatchImportPickerTitle", "Select Files or Archives to Batch Import"));
+        if (files is { Count: > 0 })
+        {
+            await BatchImportContentItemsAsync(files);
+        }
     }
 
     /// <summary>
@@ -931,5 +1093,33 @@ public partial class ContentLibraryViewModel(
     private string GetLocalizedString(string key, string fallback)
     {
         return localizationService?.GetString(key) ?? fallback;
+    }
+
+    private string NormalizeDisplayName(string rawName)
+    {
+        var cleaned = Regex.Replace(rawName, @"[_\-]+", " ");
+        cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
+        if (string.IsNullOrEmpty(cleaned))
+        {
+            return "Content Item";
+        }
+
+        var words = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        for (var i = 0; i < words.Length; i++)
+        {
+            if (words[i].Length > 0)
+            {
+                words[i] = char.ToUpperInvariant(words[i][0]) + (words[i].Length > 1 ? words[i][1..] : string.Empty);
+            }
+        }
+
+        return string.Join(" ", words);
+    }
+
+    private string Slugify(string text)
+    {
+        var slug = Regex.Replace(text.ToLowerInvariant(), @"[^a-z0-9\-]+", "-");
+        slug = Regex.Replace(slug, @"-+", "-").Trim('-');
+        return string.IsNullOrEmpty(slug) ? "content-item" : slug;
     }
 }
