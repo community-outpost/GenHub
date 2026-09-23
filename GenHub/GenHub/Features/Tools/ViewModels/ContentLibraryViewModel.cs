@@ -36,6 +36,10 @@ public partial class ContentLibraryViewModel(
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null) : ObservableObject
 {
+    private const int DetailTabReleases = 1;
+    private const int DetailTabAddons = 2;
+    private const int DetailTabMedia = 3;
+
     [ObservableProperty]
     private ObservableCollection<CatalogContentItem> _contentItems = activeCatalog?.Catalog?.Content != null
         ? [.. activeCatalog.Catalog.Content]
@@ -46,6 +50,9 @@ public partial class ContentLibraryViewModel(
 
     [ObservableProperty]
     private string _searchText = string.Empty;
+
+    [ObservableProperty]
+    private int _selectedDetailTabIndex;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentLibraryViewModel"/> class with default catalog.
@@ -340,6 +347,7 @@ public partial class ContentLibraryViewModel(
         {
             SelectedContent.AddonReleases.Add(created);
             RefreshSelectedContent();
+            SelectedDetailTabIndex = DetailTabAddons;
             MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
@@ -373,6 +381,7 @@ public partial class ContentLibraryViewModel(
 
             SelectedContent.Releases.Add(created);
             RefreshSelectedContent();
+            SelectedDetailTabIndex = DetailTabReleases;
             MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
@@ -437,6 +446,7 @@ public partial class ContentLibraryViewModel(
 
         var contentId = SelectedContent.Id;
         RefreshSelectedContent();
+        SelectedDetailTabIndex = DetailTabMedia;
         MarkProjectAndCatalogDirty();
         if (parentViewModel != null)
         {
@@ -728,6 +738,7 @@ public partial class ContentLibraryViewModel(
 
             SelectedContent.Releases.Add(newRelease);
             RefreshSelectedContent();
+            SelectedDetailTabIndex = DetailTabReleases;
 
             MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
@@ -874,6 +885,7 @@ public partial class ContentLibraryViewModel(
         {
             SelectedContent.AddonReleases.Add(newAddon);
             RefreshSelectedContent();
+            SelectedDetailTabIndex = DetailTabAddons;
 
             MarkProjectAndCatalogDirty();
             if (parentViewModel != null)

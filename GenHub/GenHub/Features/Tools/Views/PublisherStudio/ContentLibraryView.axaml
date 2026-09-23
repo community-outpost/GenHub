@@ -428,6 +428,48 @@
 
                             <Rectangle Height="1" Fill="{DynamicResource GlassFillBrush}"/>
 
+                            <TabControl SelectedIndex="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectedDetailTabIndex, Mode=TwoWay}">
+                                <TabControl.Styles>
+                                <Style Selector="TabItem">
+                                    <Setter Property="FontSize" Value="15" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Margin" Value="0,0,16,0" />
+                                    <Setter Property="Padding" Value="8,12,8,14" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                </Style>
+                                <!-- Hide the default Fluent selected pipe indicator so only the bottom border bar is shown -->
+                                <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
+                                    <Setter Property="IsVisible" Value="False" />
+                                </Style>
+                                <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+                                    <Setter Property="IsVisible" Value="False" />
+                                </Style>
+                                <!-- Neutralize the Fluent theme's accent hover on the header content. -->
+                                <Style Selector="TabItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                                    <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimary}" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                </Style>
+                                <Style Selector="TabItem:pointerover">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                </Style>
+                                <Style Selector="TabItem:selected">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                    <Setter Property="BorderThickness" Value="0,0,0,3" />
+                                </Style>
+                                <Style Selector="TabItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                                    <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimary}" />
+                                </Style>
+                                <Style Selector="TabItem:selected:pointerover">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                                </Style>
+                                </TabControl.Styles>
+
+                            <TabItem Header="{localization:Localize Downloads.ContentDetail.Summary}">
+                                <StackPanel Spacing="24" Margin="0,20,0,0">
                             <!-- Description -->
                             <StackPanel Spacing="10">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Description}"
@@ -484,168 +526,6 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                            </StackPanel>
-
-                            <!-- Media -->
-                            <StackPanel Spacing="10">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Media}"
-                                           FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextSecondary}"
-                                           FontSize="14"/>
-                                <Border x:Name="MediaScreenshotsDropZone"
-                                        DragDrop.AllowDrop="True"
-                                        Background="{DynamicResource GlassFillSubtleBrush}"
-                                        BorderBrush="{DynamicResource GlassFillBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="12">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Screenshots}"
-                                                   Foreground="{DynamicResource TextSecondary}"
-                                                   FontSize="12"/>
-                                        <ItemsControl ItemsSource="{Binding Metadata.ScreenshotUrls}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel Orientation="Horizontal"/>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="{DynamicResource GlassFillBrush}"
-                                                            BorderBrush="{DynamicResource GlassStrongBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="6"
-                                                            ClipToBounds="True"
-                                                            Margin="0,0,8,8">
-                                                        <Grid>
-                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
-                                                                    CommandParameter="{Binding}"
-                                                                    Background="Transparent"
-                                                                    BorderThickness="0"
-                                                                    Padding="0"
-                                                                    Cursor="Hand">
-                                                                <Image controls:ImageLoader.Source="{Binding}"
-                                                                       Width="160"
-                                                                       Height="90"
-                                                                       Stretch="UniformToFill"/>
-                                                            </Button>
-                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
-                                                                    CommandParameter="{Binding}"
-                                                                    Background="{DynamicResource GlassFillBrush}"
-                                                                    BorderThickness="0"
-                                                                    Padding="4"
-                                                                    CornerRadius="4"
-                                                                    Cursor="Hand"
-                                                                    HorizontalAlignment="Right"
-                                                                    VerticalAlignment="Top"
-                                                                    Margin="4"
-                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
-                                                                <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
-                                                            </Button>
-                                                        </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaScreenshotsDropHint}"
-                                                   Foreground="{DynamicResource TextMuted}"
-                                                   FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border x:Name="MediaVideosDropZone"
-                                        DragDrop.AllowDrop="True"
-                                        Background="{DynamicResource GlassFillSubtleBrush}"
-                                        BorderBrush="{DynamicResource GlassFillBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="12">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Videos}"
-                                                   Foreground="{DynamicResource TextSecondary}"
-                                                   FontSize="12"/>
-                                        <Border Background="{DynamicResource GlassFillBrush}"
-                                                BorderBrush="{DynamicResource GlassStrongBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="6"
-                                                Padding="10,6"
-                                                IsVisible="{Binding Metadata.VideoUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                            <Grid ColumnDefinitions="*,Auto,Auto">
-                                                <TextBlock Grid.Column="0"
-                                                           Text="{Binding Metadata.VideoUrl}"
-                                                           FontSize="12"
-                                                           Foreground="{DynamicResource TextPrimary}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           VerticalAlignment="Center"/>
-                                                <Button Grid.Column="1"
-                                                        Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
-                                                        CommandParameter="{Binding Metadata.VideoUrl}"
-                                                        Background="Transparent"
-                                                        BorderThickness="0"
-                                                        Padding="4"
-                                                        Cursor="Hand"
-                                                        Margin="0,0,4,0"
-                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
-                                                    <PathIcon Data="M8 5v14l11-7z" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                </Button>
-                                                <Button Grid.Column="2"
-                                                        Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
-                                                        CommandParameter="{Binding Metadata.VideoUrl}"
-                                                        Background="Transparent"
-                                                        BorderThickness="0"
-                                                        Padding="4"
-                                                        Cursor="Hand"
-                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
-                                                    <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
-                                                </Button>
-                                            </Grid>
-                                        </Border>
-                                        <ItemsControl ItemsSource="{Binding Metadata.VideoUrls}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="{DynamicResource GlassFillBrush}"
-                                                            BorderBrush="{DynamicResource GlassStrongBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="6"
-                                                            Padding="10,6"
-                                                            Margin="0,0,0,4">
-                                                        <Grid ColumnDefinitions="*,Auto,Auto">
-                                                            <TextBlock Grid.Column="0"
-                                                                       Text="{Binding}"
-                                                                       FontSize="12"
-                                                                       Foreground="{DynamicResource TextPrimary}"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       VerticalAlignment="Center"/>
-                                                            <Button Grid.Column="1"
-                                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
-                                                                    CommandParameter="{Binding}"
-                                                                    Background="Transparent"
-                                                                    BorderThickness="0"
-                                                                    Padding="4"
-                                                                    Cursor="Hand"
-                                                                    Margin="0,0,4,0"
-                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
-                                                                <PathIcon Data="M8 5v14l11-7z" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                            </Button>
-                                                            <Button Grid.Column="2"
-                                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
-                                                                    CommandParameter="{Binding}"
-                                                                    Background="Transparent"
-                                                                    BorderThickness="0"
-                                                                    Padding="4"
-                                                                    Cursor="Hand"
-                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
-                                                                <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
-                                                            </Button>
-                                                        </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaVideosDropHint}"
-                                                   Foreground="{DynamicResource TextMuted}"
-                                                   FontSize="12"/>
-                                    </StackPanel>
-                                </Border>
                             </StackPanel>
 
                             <!-- Bundled Items (for ContentBundle) -->
@@ -749,165 +629,19 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Addons Section -->
-                            <Border x:Name="AddonsSection"
-                                    Background="{DynamicResource GlassFillSubtleBrush}"
-                                    BorderBrush="{DynamicResource GlassFillBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
-                                    Padding="24">
-                                <StackPanel Spacing="16">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Spacing="2">
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Addons}"
-                                                       FontSize="18"
-                                                       FontWeight="Bold"
-                                                       Foreground="{DynamicResource TextPrimary}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddonsHint}"
-                                                       FontSize="12"
-                                                       Foreground="{DynamicResource TextMuted}"/>
-                                        </StackPanel>
-                                        <Button Grid.Column="1"
-                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddAddonCommand}"
-                                                Classes="accent-glass-btn">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="White"/>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddAddon}" FontWeight="SemiBold" Foreground="White"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </Grid>
-
-                                    <!-- Drop zone for Addons -->
-                                    <Border x:Name="AddonsDropZone"
-                                            DragDrop.AllowDrop="True"
-                                            BorderBrush="{DynamicResource GlassBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="8"
-                                            Background="{DynamicResource GlassFillBrush}"
-                                            Padding="12"
-                                            Cursor="Hand">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                                            <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.DragDropAddonHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <!-- Rich Addon Releases List -->
-                                    <ItemsControl ItemsSource="{Binding AddonReleases}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="models:ContentRelease">
-                                                <Border Background="{DynamicResource GlassFillSubtleBrush}"
-                                                        BorderBrush="{DynamicResource GlassBorderBrush}"
-                                                        BorderThickness="1"
-                                                        CornerRadius="8"
-                                                        Padding="16,12"
-                                                        Margin="0,0,0,8">
-                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
-                                                        <PathIcon Grid.Column="0"
-                                                                  Data="{StaticResource ContentIcon}"
-                                                                  Width="16" Height="16"
-                                                                  Foreground="{DynamicResource AccentColorBrush}"
-                                                                  Margin="0,0,12,0"
-                                                                  VerticalAlignment="Center"/>
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Title}"
-                                                                       FontWeight="SemiBold"
-                                                                       FontSize="14"
-                                                                       Foreground="{DynamicResource TextPrimary}"/>
-                                                            <TextBlock Text="{Binding Version, StringFormat='Version: {0}'}"
-                                                                       FontSize="12"
-                                                                       Foreground="{DynamicResource TextSecondary}"/>
-                                                        </StackPanel>
-                                                        <Border Grid.Column="2"
-                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
-                                                                CornerRadius="4"
-                                                                Padding="6,2"
-                                                                Margin="0,0,12,0"
-                                                                VerticalAlignment="Center"
-                                                                IsVisible="{Binding Category, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="{Binding Category}"
-                                                                       FontSize="11"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource AccentColorBrush}"/>
-                                                        </Border>
-                                                        <Button Grid.Column="3"
-                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditAddonCommand}"
-                                                                CommandParameter="{Binding}"
-                                                                Classes="glass-icon-btn"
-                                                                Margin="0,0,6,0"
-                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditAddonTooltip}">
-                                                            <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                        </Button>
-                                                        <Button Grid.Column="4"
-                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteAddonCommand}"
-                                                                CommandParameter="{Binding}"
-                                                                Classes="glass-icon-btn"
-                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteAddonTooltip}">
-                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="14" Height="14" Foreground="{DynamicResource ErrorBrush}"/>
-                                                        </Button>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-
-                                    <!-- Legacy External Dependencies List (if any) -->
-                                    <ItemsControl ItemsSource="{Binding Addons}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Background="{DynamicResource GlassFillSubtleBrush}"
-                                                        BorderBrush="{DynamicResource GlassBorderBrush}"
-                                                        BorderThickness="1"
-                                                        CornerRadius="8"
-                                                        Padding="16,12"
-                                                        Margin="0,0,0,8">
-                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                                        <PathIcon Grid.Column="0"
-                                                                  Data="{StaticResource ContentIcon}"
-                                                                  Width="16" Height="16"
-                                                                  Foreground="{DynamicResource AccentColorBrush}"
-                                                                  Margin="0,0,12,0"
-                                                                  VerticalAlignment="Center"/>
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding ContentId}"
-                                                                       FontWeight="SemiBold"
-                                                                       FontSize="14"
-                                                                       Foreground="{DynamicResource TextPrimary}"/>
-                                                            <TextBlock Text="{Binding VersionConstraint, StringFormat='Constraint: {0}'}"
-                                                                       FontSize="12"
-                                                                       Foreground="{DynamicResource TextSecondary}"/>
-                                                        </StackPanel>
-                                                        <Border Grid.Column="2"
-                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
-                                                                CornerRadius="4"
-                                                                Padding="6,2"
-                                                                Margin="0,0,12,0"
-                                                                VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding ContentType}"
-                                                                       FontSize="11"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource AccentColorBrush}"/>
-                                                        </Border>
-                                                        <Button Grid.Column="3"
-                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveAddonCommand}"
-                                                                CommandParameter="{Binding}"
-                                                                Classes="glass-icon-btn"
-                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveAddonTooltip}">
-                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
-                                                        </Button>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.NoAddons}"
-                                               FontSize="13"
-                                               Foreground="{DynamicResource TextMuted}"
-                                               IsVisible="{Binding !Addons.Count}"/>
                                 </StackPanel>
-                            </Border>
+                            </TabItem>
 
+                            <TabItem>
+                                <TabItem.Header>
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Releases}" />
+                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="8" Padding="6,2">
+                                            <TextBlock Text="{Binding Releases.Count}" FontSize="10" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+                                        </Border>
+                                    </StackPanel>
+                                </TabItem.Header>
+                                <StackPanel Spacing="24" Margin="0,20,0,0">
                             <!-- Releases Section -->
                             <Border x:Name="ReleasesSection"
                                     Background="{DynamicResource GlassFillSubtleBrush}"
@@ -1146,6 +880,349 @@
                                     </ItemsControl>
                                 </StackPanel>
                             </Border>
+
+                                </StackPanel>
+                            </TabItem>
+
+                            <TabItem>
+                                <TabItem.Header>
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Addons}" />
+                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="8" Padding="6,2">
+                                            <TextBlock Text="{Binding AddonCount}" FontSize="10" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+                                        </Border>
+                                    </StackPanel>
+                                </TabItem.Header>
+                                <StackPanel Spacing="24" Margin="0,20,0,0">
+                            <!-- Addons Section -->
+                            <Border x:Name="AddonsSection"
+                                    Background="{DynamicResource GlassFillSubtleBrush}"
+                                    BorderBrush="{DynamicResource GlassFillBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="24">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Addons}"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextPrimary}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddonsHint}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextMuted}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddAddonCommand}"
+                                                Classes="accent-glass-btn">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="White"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddAddon}" FontWeight="SemiBold" Foreground="White"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Drop zone for Addons -->
+                                    <Border x:Name="AddonsDropZone"
+                                            DragDrop.AllowDrop="True"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Background="{DynamicResource GlassFillBrush}"
+                                            Padding="12"
+                                            Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                            <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.DragDropAddonHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Rich Addon Releases List -->
+                                    <ItemsControl ItemsSource="{Binding AddonReleases}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="models:ContentRelease">
+                                                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Padding="16,12"
+                                                        Margin="0,0,0,8">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                                        <PathIcon Grid.Column="0"
+                                                                  Data="{StaticResource ContentIcon}"
+                                                                  Width="16" Height="16"
+                                                                  Foreground="{DynamicResource AccentColorBrush}"
+                                                                  Margin="0,0,12,0"
+                                                                  VerticalAlignment="Center"/>
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Title}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="14"
+                                                                       Foreground="{DynamicResource TextPrimary}"/>
+                                                            <TextBlock Text="{Binding Version, StringFormat='Version: {0}'}"
+                                                                       FontSize="12"
+                                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                        </StackPanel>
+                                                        <Border Grid.Column="2"
+                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                CornerRadius="4"
+                                                                Padding="6,2"
+                                                                Margin="0,0,12,0"
+                                                                VerticalAlignment="Center"
+                                                                IsVisible="{Binding Category, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding Category}"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource AccentColorBrush}"/>
+                                                        </Border>
+                                                        <Button Grid.Column="3"
+                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditAddonCommand}"
+                                                                CommandParameter="{Binding}"
+                                                                Classes="glass-icon-btn"
+                                                                Margin="0,0,6,0"
+                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditAddonTooltip}">
+                                                            <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                        </Button>
+                                                        <Button Grid.Column="4"
+                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteAddonCommand}"
+                                                                CommandParameter="{Binding}"
+                                                                Classes="glass-icon-btn"
+                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteAddonTooltip}">
+                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="14" Height="14" Foreground="{DynamicResource ErrorBrush}"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Legacy External Dependencies List (if any) -->
+                                    <ItemsControl ItemsSource="{Binding Addons}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Padding="16,12"
+                                                        Margin="0,0,0,8">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                        <PathIcon Grid.Column="0"
+                                                                  Data="{StaticResource ContentIcon}"
+                                                                  Width="16" Height="16"
+                                                                  Foreground="{DynamicResource AccentColorBrush}"
+                                                                  Margin="0,0,12,0"
+                                                                  VerticalAlignment="Center"/>
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding ContentId}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="14"
+                                                                       Foreground="{DynamicResource TextPrimary}"/>
+                                                            <TextBlock Text="{Binding VersionConstraint, StringFormat='Constraint: {0}'}"
+                                                                       FontSize="12"
+                                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                        </StackPanel>
+                                                        <Border Grid.Column="2"
+                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                CornerRadius="4"
+                                                                Padding="6,2"
+                                                                Margin="0,0,12,0"
+                                                                VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding ContentType}"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource AccentColorBrush}"/>
+                                                        </Border>
+                                                        <Button Grid.Column="3"
+                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveAddonCommand}"
+                                                                CommandParameter="{Binding}"
+                                                                Classes="glass-icon-btn"
+                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveAddonTooltip}">
+                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.NoAddons}"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextMuted}"
+                                               IsVisible="{Binding !Addons.Count}"/>
+                                </StackPanel>
+                            </Border>
+
+                                </StackPanel>
+                            </TabItem>
+
+                            <TabItem Header="{localization:Localize Downloads.ContentDetail.Media}">
+                                <StackPanel Spacing="24" Margin="0,20,0,0">
+                            <!-- Media -->
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Media}"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="14"/>
+                                <Border x:Name="MediaScreenshotsDropZone"
+                                        DragDrop.AllowDrop="True"
+                                        Background="{DynamicResource GlassFillSubtleBrush}"
+                                        BorderBrush="{DynamicResource GlassFillBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="12">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Screenshots}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"/>
+                                        <ItemsControl ItemsSource="{Binding Metadata.ScreenshotUrls}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource GlassFillBrush}"
+                                                            BorderBrush="{DynamicResource GlassStrongBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="6"
+                                                            ClipToBounds="True"
+                                                            Margin="0,0,8,8">
+                                                        <Grid>
+                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Padding="0"
+                                                                    Cursor="Hand">
+                                                                <Image controls:ImageLoader.Source="{Binding}"
+                                                                       Width="160"
+                                                                       Height="90"
+                                                                       Stretch="UniformToFill"/>
+                                                            </Button>
+                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="{DynamicResource GlassFillBrush}"
+                                                                    BorderThickness="0"
+                                                                    Padding="4"
+                                                                    CornerRadius="4"
+                                                                    Cursor="Hand"
+                                                                    HorizontalAlignment="Right"
+                                                                    VerticalAlignment="Top"
+                                                                    Margin="4"
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                                <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaScreenshotsDropHint}"
+                                                   Foreground="{DynamicResource TextMuted}"
+                                                   FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border x:Name="MediaVideosDropZone"
+                                        DragDrop.AllowDrop="True"
+                                        Background="{DynamicResource GlassFillSubtleBrush}"
+                                        BorderBrush="{DynamicResource GlassFillBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="12">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Videos}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"/>
+                                        <Border Background="{DynamicResource GlassFillBrush}"
+                                                BorderBrush="{DynamicResource GlassStrongBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="10,6"
+                                                IsVisible="{Binding Metadata.VideoUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding Metadata.VideoUrl}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource TextPrimary}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1"
+                                                        Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
+                                                        CommandParameter="{Binding Metadata.VideoUrl}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Padding="4"
+                                                        Cursor="Hand"
+                                                        Margin="0,0,4,0"
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
+                                                    <PathIcon Data="M8 5v14l11-7z" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                </Button>
+                                                <Button Grid.Column="2"
+                                                        Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
+                                                        CommandParameter="{Binding Metadata.VideoUrl}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Padding="4"
+                                                        Cursor="Hand"
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                    <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding Metadata.VideoUrls}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource GlassFillBrush}"
+                                                            BorderBrush="{DynamicResource GlassStrongBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="6"
+                                                            Padding="10,6"
+                                                            Margin="0,0,0,4">
+                                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                                            <TextBlock Grid.Column="0"
+                                                                       Text="{Binding}"
+                                                                       FontSize="12"
+                                                                       Foreground="{DynamicResource TextPrimary}"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center"/>
+                                                            <Button Grid.Column="1"
+                                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Padding="4"
+                                                                    Cursor="Hand"
+                                                                    Margin="0,0,4,0"
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
+                                                                <PathIcon Data="M8 5v14l11-7z" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                            </Button>
+                                                            <Button Grid.Column="2"
+                                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Padding="4"
+                                                                    Cursor="Hand"
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                                <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaVideosDropHint}"
+                                                   Foreground="{DynamicResource TextMuted}"
+                                                   FontSize="12"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                                </StackPanel>
+                            </TabItem>
+                            </TabControl>
                             <Panel Height="140"/>
                         </StackPanel>
                     </DataTemplate>
