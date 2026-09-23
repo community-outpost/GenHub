@@ -36,38 +36,11 @@ public class SettingsViewTests
     [AvaloniaFact]
     public async Task SelectingCollapsedBottomSection_ScrollsItFullyIntoViewAsync()
     {
-        using var viewModel = CreateViewModel();
-        var view = new SettingsView { DataContext = viewModel };
-        var window = new Window { Width = 1100, Height = 700, Content = view };
-        window.Show();
-        Dispatcher.UIThread.RunJobs();
-
-        try
+        await AssertSectionScrollsIntoViewAsync((viewModel, _, _) =>
         {
             var updates = viewModel.Sections.First(section => section.Id == SettingsConstants.SectionUpdates);
-            var expander = view.FindControl<Expander>("Expander_Updates");
-            var scrollViewer = view.FindControl<ScrollViewer>("SettingsScrollViewer");
-            Assert.NotNull(expander);
-            Assert.NotNull(scrollViewer);
-            Assert.False(expander.IsExpanded);
-
             viewModel.SelectedSection = updates;
-
-            await WaitForScrollToSettleAsync(scrollViewer, expander);
-
-            Assert.True(expander.IsExpanded);
-            var content = Assert.IsAssignableFrom<Control>(scrollViewer.Content);
-            var transform = expander.TransformToVisual(content);
-            Assert.True(transform.HasValue);
-            var position = transform.Value.Transform(new Point(0, 0));
-            var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
-            var expected = Math.Clamp(position.Y, 0, maxScrollY);
-            Assert.InRange(scrollViewer.Offset.Y, expected - 2, expected + 2);
-        }
-        finally
-        {
-            window.Close();
-        }
+        });
     }
 
     /// <summary>
@@ -77,6 +50,14 @@ public class SettingsViewTests
     /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
     public async Task ExpandingCollapsedSection_ScrollsItFullyIntoViewAsync()
+    {
+        await AssertSectionScrollsIntoViewAsync((_, _, expander) =>
+        {
+            expander.IsExpanded = true;
+        });
+    }
+
+    private static async Task AssertSectionScrollsIntoViewAsync(Action<SettingsViewModel, SettingsView, Expander> triggerAction)
     {
         using var viewModel = CreateViewModel();
         var view = new SettingsView { DataContext = viewModel };
@@ -92,7 +73,7 @@ public class SettingsViewTests
             Assert.NotNull(scrollViewer);
             Assert.False(expander.IsExpanded);
 
-            expander.IsExpanded = true;
+            triggerAction(viewModel, view, expander);
 
             await WaitForScrollToSettleAsync(scrollViewer, expander);
 

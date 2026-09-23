@@ -35,6 +35,9 @@ public partial class SettingsView : UserControl
         (SettingsConstants.SectionGitHubDiscovery, "Expander_GitHubDiscovery"),
         (SettingsConstants.SectionUpdates, "Expander_Updates"),
         (SettingsConstants.SectionSubscriptions, "Expander_Subscriptions"),
+
+        // Cloud Uploads is registered in the spy map to enable expander lookup and scroll-into-view,
+        // but it intentionally has no sidebar navigation item in the view model.
         (SettingsConstants.SectionCloudUploads, SettingsConstants.ExpanderCloudUploads),
         (SettingsConstants.SectionDangerZone, "Expander_DangerZone"),
     ];
@@ -86,9 +89,9 @@ public partial class SettingsView : UserControl
                 Dispatcher.UIThread.Post(
                     () =>
                     {
-                        if (VisualRoot != null && _boundViewModel?.SelectedSection != null)
+                        if (VisualRoot != null && vm.SelectedSection != null)
                         {
-                            ScrollToSection(_boundViewModel.SelectedSection);
+                            ScrollToSection(vm.SelectedSection);
                         }
                     },
                     DispatcherPriority.Loaded);

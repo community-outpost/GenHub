@@ -175,6 +175,8 @@ public class GenLauncherDeliverer(
         CancellationToken cancellationToken)
     {
         var totalFiles = files.Count;
+        var totalBytes = files.Sum(f => Math.Max(f.Size, 0));
+        logger.LogInformation("Beginning download of {TotalFiles} files ({TotalBytes} bytes)...", totalFiles, totalBytes);
 
         for (var i = 0; i < totalFiles; i++)
         {
@@ -217,7 +219,7 @@ public class GenLauncherDeliverer(
         progress?.Report(new ContentAcquisitionProgress
         {
             Phase = ContentAcquisitionPhase.Downloading,
-            ProgressPercentage = (int)((fileIndex / (double)totalFiles) * 80),
+            ProgressPercentage = (fileIndex / (double)totalFiles) * 80,
             CurrentOperation = $"{file.RelativePath} ({fileIndex + 1}/{totalFiles})",
             FilesProcessed = fileIndex,
             TotalFiles = totalFiles,

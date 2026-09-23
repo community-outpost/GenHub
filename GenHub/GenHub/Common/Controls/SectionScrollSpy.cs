@@ -28,6 +28,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     private TKey _lastReportedKey = default!;
     private bool _hasReportedKey;
     private bool _disposed;
+    private bool _suppressNextScrollChanged;
 
     /// <summary>
     /// Gets a value indicating whether a programmatic scroll animation is in progress.
@@ -148,6 +149,12 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             return;
         }
 
+        if (_suppressNextScrollChanged)
+        {
+            _suppressNextScrollChanged = false;
+            return;
+        }
+
         UpdateActiveSection();
     }
 
@@ -249,13 +256,14 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
         var effectiveTargetY = Math.Clamp(initialTargetY, 0, maxScrollY);
 
-        if (Math.Abs(currentY - effectiveTargetY) < ScrollSpyConstants.ScrollSnapEpsilon && initialTargetY <= maxScrollY)
+        if (Math.Abs(currentY - effectiveTargetY) < ScrollSpyConstants.ScrollSnapEpsilon && (initialTargetY <= maxScrollY || targetControl == null))
         {
             scrollViewer.Offset = new Vector(scrollViewer.Offset.X, effectiveTargetY);
             IsScrollingProgrammatically = false;
-            if (targetKey.HasValue)
+            if (targetKey.HasValue && targetKey.Value is not null)
             {
-                ReportActiveKey(targetKey.Value!);
+                _suppressNextScrollChanged = true;
+                ReportActiveKey(targetKey.Value);
             }
             else
             {
@@ -292,6 +300,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     {
         _animationGeneration++;
         _animTargetKey = default;
+        _suppressNextScrollChanged = false;
         StopAnimationTimer();
         IsScrollingProgrammatically = false;
     }
@@ -326,8 +335,9 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
                 if (!_disposed && _animationGeneration == gen)
                 {
                     IsScrollingProgrammatically = false;
-                    if (targetKey.HasValue)
+                    if (targetKey.HasValue && targetKey.Value is not null)
                     {
+                        _suppressNextScrollChanged = true;
                         ReportActiveKey(targetKey.Value);
                     }
                     else

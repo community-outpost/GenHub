@@ -4681,8 +4681,14 @@ public sealed class ContentDetailViewModelTests
         };
         parent.SetData(parentManifest);
         parent.ResolverMetadata[GenLauncherConstants.S3HostMetadataKey] = "gen.insave.ovh:9000";
+        parent.ResolverMetadata[GenLauncherConstants.S3HostLinkMetadataKey] = "https://gen.insave.ovh:9000";
         parent.ResolverMetadata[GenLauncherConstants.S3BucketMetadataKey] = "genlauncher";
+        parent.ResolverMetadata[GenLauncherConstants.S3BucketNameMetadataKey] = "genlauncher";
         parent.ResolverMetadata[GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave";
+        parent.ResolverMetadata[GenLauncherConstants.S3FolderNameMetadataKey] = "Mods/Shockwave";
+        parent.ResolverMetadata[GenLauncherConstants.S3HostPublicKeyMetadataKey] = "public-key";
+        parent.ResolverMetadata[GenLauncherConstants.S3HostSecretKeyMetadataKey] = "secret-key";
+        parent.ResolverMetadata[GenLauncherConstants.YamlUrlMetadataKey] = "https://example.com/mod.yaml";
 
         ContentSearchResult? coordinatorInput = null;
         var coordinator = new Mock<IContentDownloadCoordinator>();
@@ -4719,9 +4725,59 @@ public sealed class ContentDetailViewModelTests
         Assert.Null(coordinatorInput.Data);
         Assert.Equal(patchFile.DownloadUrl, coordinatorInput.SelectedDownloadUrl);
         Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostLinkMetadataKey));
         Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3BucketMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3BucketNameMetadataKey));
         Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3FolderMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3FolderNameMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostPublicKeyMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostSecretKeyMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.YamlUrlMetadataKey));
         Assert.True(coordinatorInput.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var recordedParentId));
         Assert.Equal(parentCatalogId, recordedParentId);
+    }
+
+    /// <summary>
+    /// Verifies that attempting to download a release row that has no download URL
+    /// and cannot be resolved without a direct URL does not trigger the download coordinator.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_WhenFileHasNoDownloadUrlAndNoResolver_DoesNotDownloadAsync()
+    {
+        // Arrange
+        var content = new ContentSearchResult
+        {
+            Id = "mod-without-resolver",
+            Name = "Unresolvable Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            RequiresResolution = false,
+            ResolverId = null,
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(content, coordinator.Object);
+
+        var emptyFile = new DownloadableFile(
+            Name: "NoUrl.zip",
+            DownloadUrl: null,
+            FileSectionType: FileSectionType.Downloads);
+
+        viewModel.PopulateReleases([emptyFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        coordinator.Verify(
+            c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()),
+            Times.Never);
+        Assert.False(release.IsDownloading);
     }
 }

@@ -64,6 +64,11 @@ public static class ContentAcquisitionProgressExtensions
         _ => "Processing",
     };
 
+    /// <summary>
+    /// Formats phase-level progress into a human-readable string.
+    /// Note: Phase prefix stripping expects operation producers to follow the standard convention
+    /// of separating the phase name with ': ' or a space (or end of string), e.g. "Downloading: file.zip".
+    /// </summary>
     private static string FormatPhaseProgress(ContentAcquisitionProgress progress, string phaseName)
     {
         if (!string.IsNullOrEmpty(progress.CurrentOperation))

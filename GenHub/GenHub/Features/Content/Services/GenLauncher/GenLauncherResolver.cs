@@ -35,6 +35,20 @@ public class GenLauncherResolver(
     ILogger<GenLauncherResolver> logger)
     : IContentResolver
 {
+    private static readonly HashSet<string> KnownArchiveExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz",
+    };
+
+    private static readonly char[] CrossPlatformInvalidFileNameChars =
+    [
+        '\"', '<', '>', '|', '\0',
+        (char)1, (char)2, (char)3, (char)4, (char)5, (char)6, (char)7, (char)8, (char)9, (char)10,
+        (char)11, (char)12, (char)13, (char)14, (char)15, (char)16, (char)17, (char)18, (char)19, (char)20,
+        (char)21, (char)22, (char)23, (char)24, (char)25, (char)26, (char)27, (char)28, (char)29, (char)30,
+        (char)31, ':', '*', '?', '\\', '/'
+    ];
+
     private sealed record S3BucketQuery(
         string Host,
         string Bucket,
@@ -104,6 +118,11 @@ public class GenLauncherResolver(
             if (IsChildContentWithDirectDownload(discoveredItem))
             {
                 ResolveDirectDownloadPayload(manifest, versionManifest, discoveredItem, slug);
+                if (manifest.Files.Count == 0)
+                {
+                    logger.LogWarning("Direct download payload resolution yielded no files for child item {Name}; attempting S3 fallback.", discoveredItem.Name);
+                    await TryResolveS3StoragePayloadAsync(manifest, client, versionManifest, discoveredItem, cancellationToken);
+                }
             }
             else
             {
@@ -177,45 +196,6 @@ public class GenLauncherResolver(
             && !IsDescriptorUrl(discoveredItem.SelectedDownloadUrl);
     }
 
-    private static void ResolveDirectDownloadPayload(
-        ContentManifest manifest,
-        GenLauncherVersionManifest? versionManifest,
-        ContentSearchResult discoveredItem,
-        string slug)
-    {
-        var candidateLinks = new[]
-        {
-            discoveredItem.SelectedDownloadUrl,
-            versionManifest?.SimpleDownloadLink,
-            GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey),
-            discoveredItem.SourceUrl,
-        };
-
-        var rawDownloadLink = candidateLinks.FirstOrDefault(link => !string.IsNullOrWhiteSpace(link) && !IsDescriptorUrl(link));
-
-        if (string.IsNullOrWhiteSpace(rawDownloadLink))
-        {
-            return;
-        }
-
-        var directUrl = GenLauncherDownloadLinkParser.ParseDownloadLink(rawDownloadLink);
-        if (!ImageCacheService.IsSafeRemoteUrl(directUrl, out _))
-        {
-            return;
-        }
-
-        var fileName = GetFileNameFromUrl(directUrl, slug, discoveredItem.Name);
-
-        manifest.Files.Add(new ManifestFile
-        {
-            RelativePath = fileName,
-            DownloadUrl = directUrl,
-            Size = discoveredItem.DownloadSize,
-            SourceType = ContentSourceType.RemoteDownload,
-            IsRequired = true,
-        });
-    }
-
     private static bool IsDescriptorUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -261,7 +241,12 @@ public class GenLauncherResolver(
                 if (!string.IsNullOrWhiteSpace(fileName) &&
                     GenLauncherConstants.IsUsableArchiveFileName(fileName))
                 {
-                    return Uri.UnescapeDataString(fileName);
+                    var unescaped = Uri.UnescapeDataString(fileName);
+                    var ext = Path.GetExtension(unescaped);
+                    if (KnownArchiveExtensions.Contains(ext))
+                    {
+                        return unescaped;
+                    }
                 }
             }
         }
@@ -272,10 +257,16 @@ public class GenLauncherResolver(
 
         var safeFallback = string.IsNullOrWhiteSpace(fallbackName) ? null : Path.GetFileName(fallbackName.Trim());
         if (!string.IsNullOrWhiteSpace(safeFallback) &&
-            safeFallback.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 &&
+            safeFallback.IndexOfAny(CrossPlatformInvalidFileNameChars) < 0 &&
             GenLauncherConstants.IsUsableArchiveFileName(safeFallback))
         {
-            return safeFallback;
+            var ext = Path.GetExtension(safeFallback);
+            if (KnownArchiveExtensions.Contains(ext))
+            {
+                return safeFallback;
+            }
+
+            return $"{safeFallback}.zip";
         }
 
         return $"{defaultName}.zip";
@@ -350,6 +341,52 @@ public class GenLauncherResolver(
         }
 
         return slug;
+    }
+
+    private void ResolveDirectDownloadPayload(
+        ContentManifest manifest,
+        GenLauncherVersionManifest? versionManifest,
+        ContentSearchResult discoveredItem,
+        string slug)
+    {
+        // Direct download candidate precedence:
+        // 1. User-selected artifact URL (SelectedDownloadUrl)
+        // 2. Manifest simple download link (versionManifest.SimpleDownloadLink)
+        // 3. Resolver metadata simple download link
+        // 4. Source page URL (SourceUrl) as last resort
+        var candidateLinks = new[]
+        {
+            discoveredItem.SelectedDownloadUrl,
+            versionManifest?.SimpleDownloadLink,
+            GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey),
+            discoveredItem.SourceUrl,
+        };
+
+        var rawDownloadLink = candidateLinks.FirstOrDefault(link => !string.IsNullOrWhiteSpace(link) && !IsDescriptorUrl(link));
+
+        if (string.IsNullOrWhiteSpace(rawDownloadLink))
+        {
+            logger.LogWarning("No usable download link found for {Name}", discoveredItem.Name);
+            return;
+        }
+
+        var directUrl = GenLauncherDownloadLinkParser.ParseDownloadLink(rawDownloadLink);
+        if (!ImageCacheService.IsSafeRemoteUrl(directUrl, out _))
+        {
+            logger.LogWarning("Direct download URL {Url} rejected as unsafe for {Name}", directUrl, discoveredItem.Name);
+            return;
+        }
+
+        var fileName = GetFileNameFromUrl(directUrl, slug, discoveredItem.Name);
+
+        manifest.Files.Add(new ManifestFile
+        {
+            RelativePath = fileName,
+            DownloadUrl = directUrl,
+            Size = discoveredItem.DownloadSize,
+            SourceType = ContentSourceType.RemoteDownload,
+            IsRequired = true,
+        });
     }
 
     private async Task<GenLauncherVersionManifest?> FetchVersionManifestIfNeededAsync(

@@ -2725,13 +2725,17 @@ public partial class ContentDetailViewModel(
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
+            var anyVariantMatches = variantSearchResults != null && variantSearchResults.Values.Any(v =>
+                string.Equals(v.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(manifestId) && string.Equals(v.Id, manifestId, StringComparison.OrdinalIgnoreCase)));
+
             foreach (var row in EnumerateRows())
             {
                 var rowContentId = RowContentId(row);
                 var matches = rowContentId == contentId
                               || (!string.IsNullOrEmpty(manifestId) && row.DownloadedManifestId == manifestId);
 
-                if (!matches && row is DownloadableItemViewModel { File: { } rowFile })
+                if (!matches && anyVariantMatches && row is DownloadableItemViewModel { File: { } rowFile })
                 {
                     var variant = FindMatchingVariantSearchResult(rowFile);
                     if (variant != null && (string.Equals(variant.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
@@ -4858,7 +4862,11 @@ public partial class ContentDetailViewModel(
                 string.Equals(sr.SourceUrl, file.DetailsUrl, StringComparison.OrdinalIgnoreCase)).ToList();
             if (detailsMatches.Count > 0)
             {
-                return SelectDisambiguatedMatch(detailsMatches, file);
+                var disambiguated = SelectDisambiguatedMatch(detailsMatches, file);
+                if (disambiguated != null)
+                {
+                    return disambiguated;
+                }
             }
         }
 
@@ -4893,6 +4901,15 @@ public partial class ContentDetailViewModel(
         return null;
     }
 
+    private bool CanResolveWithoutDirectUrl(DownloadableFile file)
+    {
+        var matchingVariant = FindMatchingVariantSearchResult(file);
+        return matchingVariant?.RequiresResolution == true ||
+               !string.IsNullOrWhiteSpace(matchingVariant?.ResolverId) ||
+               searchResult.RequiresResolution ||
+               !string.IsNullOrWhiteSpace(searchResult.ResolverId);
+    }
+
     private async Task<bool> DownloadFileCoreAsync(
         DownloadableFile file,
         Action<ContentManifest>? onDownloadCompleted = null,
@@ -4904,11 +4921,7 @@ public partial class ContentDetailViewModel(
             return false;
         }
 
-        var matchingVariant = FindMatchingVariantSearchResult(file);
-        var canResolve = matchingVariant?.RequiresResolution == true ||
-                         !string.IsNullOrWhiteSpace(matchingVariant?.ResolverId) ||
-                         searchResult.RequiresResolution ||
-                         !string.IsNullOrWhiteSpace(searchResult.ResolverId);
+        var canResolve = CanResolveWithoutDirectUrl(file);
 
         if (string.IsNullOrEmpty(file.DownloadUrl) && !canResolve)
         {
@@ -5257,11 +5270,7 @@ public partial class ContentDetailViewModel(
 
     private async Task ResolveRowStateAsync(IDownloadableRowViewModel row, DownloadableFile file)
     {
-        var matchingVariant = FindMatchingVariantSearchResult(file);
-        var canResolve = matchingVariant?.RequiresResolution == true ||
-                         !string.IsNullOrWhiteSpace(matchingVariant?.ResolverId) ||
-                         searchResult.RequiresResolution ||
-                         !string.IsNullOrWhiteSpace(searchResult.ResolverId);
+        var canResolve = CanResolveWithoutDirectUrl(file);
 
         if (string.IsNullOrEmpty(file.DownloadUrl) && !canResolve)
         {

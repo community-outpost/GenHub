@@ -71,10 +71,10 @@ public class SectionScrollSpyTests
     }
 
     /// <summary>
-    /// Verifies that registering sections adds them without immediate scroll activation.
+    /// Verifies that registering sections and attaching does not trigger an immediate spurious report.
     /// </summary>
     [AvaloniaFact]
-    public void RegisterSection_AddsSectionsInOrder()
+    public void Attach_WithoutScroll_ReportsNothing()
     {
         var host = CreateHost();
         try
@@ -221,14 +221,15 @@ public class SectionScrollSpyTests
     }
 
     /// <summary>
-    /// Verifies that when animated scroll completes, the explicitly requested target section
-    /// is preserved and reported rather than overwritten by bottom snapping.
+    /// Verifies that when animated scroll completes near or at the bottom boundary,
+    /// the explicitly requested target section is preserved and reported rather than
+    /// overwritten by bottom snapping to the last section.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
     public async Task ScrollToSection_WhenLandingNearBottom_PreservesTargetSectionAsync()
     {
-        var host = CreateHost();
+        var host = CreateBottomClampedHost();
         try
         {
             var reported = new List<string>();
@@ -247,6 +248,7 @@ public class SectionScrollSpyTests
             Assert.False(spy.IsScrollingProgrammatically);
             Assert.Contains("second", reported);
             Assert.Equal("second", reported[^1]);
+            Assert.DoesNotContain("third", reported);
         }
         finally
         {
@@ -259,6 +261,35 @@ public class SectionScrollSpyTests
         var first = new Border { Height = 400 };
         var second = new Border { Height = 400 };
         var third = new Border { Height = 400 };
+
+        var content = new StackPanel();
+        content.Children.Add(first);
+        content.Children.Add(second);
+        content.Children.Add(third);
+
+        var scrollViewer = new ScrollViewer
+        {
+            Height = 300,
+            Content = content,
+        };
+
+        var window = new Window
+        {
+            Width = 600,
+            Height = 400,
+            Content = scrollViewer,
+        };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        return new ScrollSpyHost(window, scrollViewer, first, second, third);
+    }
+
+    private static ScrollSpyHost CreateBottomClampedHost()
+    {
+        var first = new Border { Height = 200 };
+        var second = new Border { Height = 100 };
+        var third = new Border { Height = 100 };
 
         var content = new StackPanel();
         content.Children.Add(first);
