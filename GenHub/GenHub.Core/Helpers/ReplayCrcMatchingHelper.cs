@@ -28,8 +28,10 @@ public static class ReplayCrcMatchingHelper
     [
         "1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255", // Steam Generals 1.09
         "69A39881179112A566CEF69573B20065CC868516C49AF0761F809EC57DA0BDBC", // EA App Generals 1.08
+        "8DDE6C990280AC44B4629A664B24BBAF226E629E9C7700234010F198783B6674", // EA App Generals generals.exe (wrapper)
         "7B075B9F0BAA9DF81651C0C9DD7D8C445454AE1B2452B928F4A1D9332E9CCECE", // Steam Zero Hour 1.04
         "253FEBA0A5503CB4D49FD07463B17D3CC84731E583F9625CB90FCD8B5CAC0221", // EA App Zero Hour 1.04
+        "FF6F78211A014100D8EF6B08BC2F8EDD3D55E99E872DFDB5371776FC5A5D02CE", // EA App / Steam Zero Hour generals.exe (wrapper)
         "f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b", // Retail Zero Hour 1.04
         "420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1", // Community Outpost Zero Hour 1.05
         "a531a56e82381b0d15117ee5f9881d276de232c9245e598f3b75b71bc80275b8", // TheSuperHackers / Community Patch weekly build (23-07-2026)
@@ -337,9 +339,14 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc))
+        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
         {
-            return IsZeroHourRetailIniCrc(cachedIniCrc);
+            return true;
+        }
+
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsZeroHourRetailIniCrc(cachedIniCrc))
+        {
+            return true;
         }
 
         if (TryGetCachedExeCrc(client, out var cachedCrc) && IsZeroHourRetailExeCrc(cachedCrc))
@@ -554,9 +561,14 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc))
+        if (IsRetailCompatible(client, profile.EnabledContentIds))
         {
-            return IsRetailIniCrc(cachedIniCrc, client.GameType);
+            return true;
+        }
+
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsRetailIniCrc(cachedIniCrc, client.GameType))
+        {
+            return true;
         }
 
         var exePath = ResolveProfileFullExePath(client);
@@ -565,13 +577,13 @@ public static class ReplayCrcMatchingHelper
         if (crcCalculator != null && !string.IsNullOrEmpty(gameRoot) && Directory.Exists(gameRoot))
         {
             var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, client.GameType, ct: ct);
-            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data))
+            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) && IsRetailIniCrc(iniResult.Data, client.GameType))
             {
-                return IsRetailIniCrc(iniResult.Data, client.GameType);
+                return true;
             }
         }
 
-        return IsRetailCompatible(client, profile.EnabledContentIds);
+        return false;
     }
 
     /// <summary>
@@ -846,9 +858,14 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc))
+        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
         {
-            return IsGeneralsRetailIniCrc(cachedIniCrc);
+            return true;
+        }
+
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsGeneralsRetailIniCrc(cachedIniCrc))
+        {
+            return true;
         }
 
         if (TryGetCachedExeCrc(client, out var cachedCrc) && IsGeneralsRetailExeCrc(cachedCrc))
@@ -860,9 +877,9 @@ public static class ReplayCrcMatchingHelper
         if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
         {
             var sha = GetCachedExeSha256(exePath);
-            if (!string.IsNullOrEmpty(sha))
+            if (!string.IsNullOrEmpty(sha) && IsRetailExeSha256(sha))
             {
-                return IsRetailExeSha256(sha);
+                return true;
             }
 
             var dir = Path.GetDirectoryName(exePath);

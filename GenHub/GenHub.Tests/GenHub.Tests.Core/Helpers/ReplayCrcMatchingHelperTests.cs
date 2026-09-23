@@ -577,4 +577,65 @@ public class ReplayCrcMatchingHelperTests
         Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailIniCrc(ReplayManagerConstants.RetailGeneralsIniCrcVanilla));
         Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailIniCrc("0x12345678"));
     }
+
+    /// <summary>
+    /// Verifies that launcher wrapper SHA256 hashes are recognized as retail compatible.
+    /// </summary>
+    [Fact]
+    public void IsRetailExeSha256_RecognizesLauncherWrappers()
+    {
+        Assert.True(ReplayCrcMatchingHelper.IsRetailExeSha256("8DDE6C990280AC44B4629A664B24BBAF226E629E9C7700234010F198783B6674"));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailExeSha256("FF6F78211A014100D8EF6B08BC2F8EDD3D55E99E872DFDB5371776FC5A5D02CE"));
+    }
+
+    /// <summary>
+    /// Verifies that IsRetailCompatibleAsync preserves retail compatibility even when
+    /// game root contains loose files that alter the root INI CRC.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_PreservesRetailCompatibility_WhenRootIniDirty()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_DirtyRootTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, "generals.exe");
+        await File.WriteAllTextAsync(exePath, "dummy binary");
+
+        try
+        {
+            var profile = new GameProfile
+            {
+                Id = "test-profile",
+                Name = "SuperHackers - Zero Hour",
+                GameClient = new GameClient
+                {
+                    Id = "1.20260918.thesuperhackers.gameclient.zerohour",
+                    Name = "SuperHackers - Zero Hour",
+                    PublisherType = PublisherTypeConstants.TheSuperHackers,
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = exePath,
+                },
+            };
+
+            var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            mockCalculator
+                .Setup(c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("0xAC76387F"));
+
+            var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+            Assert.True(isRetail);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
 }
