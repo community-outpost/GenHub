@@ -296,7 +296,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         IsScrollingProgrammatically = false;
     }
 
-    private void OnAnimationTick(object? sender, EventArgs e)
+    private void UpdateDynamicTargetOffset()
     {
         if (_animTargetControl is not null && scrollViewer.Content is Control content)
         {
@@ -313,6 +313,35 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
                 // Visual target is detached during animation; retain current target offset.
             }
         }
+    }
+
+    private void CompleteAnimation()
+    {
+        var gen = _animationGeneration;
+        var targetKey = _animTargetKey;
+        StopAnimationTimer();
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                if (!_disposed && _animationGeneration == gen)
+                {
+                    IsScrollingProgrammatically = false;
+                    if (targetKey.HasValue)
+                    {
+                        ReportActiveKey(targetKey.Value);
+                    }
+                    else
+                    {
+                        UpdateActiveSection();
+                    }
+                }
+            },
+            DispatcherPriority.Normal);
+    }
+
+    private void OnAnimationTick(object? sender, EventArgs e)
+    {
+        UpdateDynamicTargetOffset();
 
         var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
         var targetY = Math.Clamp(_animTargetOffset, 0, maxScrollY);
@@ -324,26 +353,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
 
         if (progress >= 1.0)
         {
-            var gen = _animationGeneration;
-            var targetKey = _animTargetKey;
-            StopAnimationTimer();
-            Dispatcher.UIThread.Post(
-                () =>
-                {
-                    if (!_disposed && _animationGeneration == gen)
-                    {
-                        IsScrollingProgrammatically = false;
-                        if (targetKey.HasValue)
-                        {
-                            ReportActiveKey(targetKey.Value!);
-                        }
-                        else
-                        {
-                            UpdateActiveSection();
-                        }
-                    }
-                },
-                DispatcherPriority.Normal);
+            CompleteAnimation();
         }
     }
 
