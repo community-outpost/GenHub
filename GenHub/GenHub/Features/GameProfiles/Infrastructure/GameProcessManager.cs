@@ -1328,17 +1328,37 @@ public class GameProcessManager(
 
         ProcessExited?.Invoke(this, args);
 
-        if (exitCode != ProcessConstants.ExitCodeSuccess && capturedErrors is not null)
+        try
         {
-            var stderr = capturedErrors.ToString();
-            if (!string.IsNullOrWhiteSpace(stderr))
+            if (exitCode != ProcessConstants.ExitCodeSuccess && capturedErrors is not null)
             {
-                logger.LogWarning("Process {ProcessId} exited with code {ExitCode}. Captured stderr: {Stderr}", processId, exitCode, stderr);
-                return;
+                var stderr = capturedErrors.ToString();
+                if (!string.IsNullOrWhiteSpace(stderr))
+                {
+                    logger.LogWarning("Process {ProcessId} exited with code {ExitCode}. Captured stderr: {Stderr}", processId, exitCode, stderr);
+                    return;
+                }
             }
-        }
 
-        logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
+            logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
+        }
+        finally
+        {
+            SafeDisposeProcess(process, processId);
+        }
+    }
+
+    private void SafeDisposeProcess(Process process, int processId)
+    {
+        try
+        {
+            process.Exited -= OnProcessExited;
+            process.Dispose();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to dispose process {ProcessId}", processId);
+        }
     }
 
     /// <summary>
