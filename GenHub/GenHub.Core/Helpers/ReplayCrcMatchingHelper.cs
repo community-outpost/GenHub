@@ -511,9 +511,14 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc))
+        if (IsRetailCompatible(client, profile.EnabledContentIds))
         {
-            return IsRetailIniCrc(cachedIniCrc, client.GameType);
+            return true;
+        }
+
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsRetailIniCrc(cachedIniCrc, client.GameType))
+        {
+            return true;
         }
 
         var exePath = ResolveProfileFullExePath(client);
@@ -522,13 +527,13 @@ public static class ReplayCrcMatchingHelper
         if (crcCalculator != null && !string.IsNullOrEmpty(gameRoot) && Directory.Exists(gameRoot))
         {
             var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, client.GameType, ct: ct);
-            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data))
+            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) && IsRetailIniCrc(iniResult.Data, client.GameType))
             {
-                return IsRetailIniCrc(iniResult.Data, client.GameType);
+                return true;
             }
         }
 
-        return IsRetailCompatible(client, profile.EnabledContentIds);
+        return false;
     }
 
     /// <summary>
@@ -816,12 +821,12 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc))
+        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
         {
-            return isRetailIniCrc(cachedIniCrc);
+            return true;
         }
 
-        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && isRetailIniCrc(cachedIniCrc))
         {
             return true;
         }
@@ -870,7 +875,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var gameDatPath = Path.Combine(dir, "game.dat");
+        var gameDatPath = Path.Combine(dir, GameClientConstants.SteamGameDatExecutable);
         if (!File.Exists(gameDatPath))
         {
             return false;
@@ -921,13 +926,12 @@ public static class ReplayCrcMatchingHelper
     {
         cachedCrc = null;
         var fullExePath = ResolveProfileFullExePath(client);
-        if (string.IsNullOrWhiteSpace(fullExePath) || !File.Exists(fullExePath))
+        if (string.IsNullOrWhiteSpace(fullExePath))
         {
             return false;
         }
 
-        cachedCrc = GetCachedExeCrc(fullExePath);
-        return !string.IsNullOrWhiteSpace(cachedCrc);
+        return File.Exists(fullExePath) && (cachedCrc = GetCachedExeCrc(fullExePath)) != null;
     }
 
     /// <summary>
@@ -979,6 +983,7 @@ public static class ReplayCrcMatchingHelper
         var isCoPublisher = string.Equals(pub, PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(pub, "community outpost", StringComparison.OrdinalIgnoreCase) ||
                             id.Contains("communityoutpost", StringComparison.OrdinalIgnoreCase) ||
+                            id.Contains("community-outpost", StringComparison.OrdinalIgnoreCase) ||
                             name.Contains("Community Patch", StringComparison.OrdinalIgnoreCase);
 
         if (!isCoPublisher)

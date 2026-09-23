@@ -95,7 +95,7 @@ public class ReplayCrcMatchingHelperTests
     }
 
     /// <summary>
-    /// Verifies that GetDefaultExecutableName returns the appropriate executable for game types and publishers.
+    /// Returns the default executable name for a given game version and publisher.
     /// </summary>
     [Fact]
     public void GetDefaultExecutableName_ReturnsExpectedBinaryNames()
@@ -592,13 +592,12 @@ public class ReplayCrcMatchingHelperTests
     }
 
     /// <summary>
-    /// Verifies that IsRetailCompatibleAsync returns false when the INI CRC does not match retail.
-    /// In C&amp;C Generals &amp; Zero Hour, INI CRC determines multiplayer/replay synchronization;
-    /// modified rules/INIs are non-retail even if the executable is official.
+    /// Verifies that IsRetailCompatibleAsync preserves retail compatibility even when
+    /// game root contains loose files that alter the root INI CRC.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_WhenIniCrcNonRetail_ReturnsFalse()
+    public async Task IsRetailCompatibleAsync_PreservesRetailCompatibility_WhenRootIniDirty()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_DirtyRootTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
@@ -610,12 +609,62 @@ public class ReplayCrcMatchingHelperTests
             var profile = new GameProfile
             {
                 Id = "test-profile",
-                Name = "SuperHackers - Zero Hour",
+                Name = "Zero Hour Retail",
                 GameClient = new GameClient
                 {
-                    Id = "1.20260918.thesuperhackers.gameclient.zerohour",
-                    Name = "SuperHackers - Zero Hour",
-                    PublisherType = PublisherTypeConstants.TheSuperHackers,
+                    Id = "1.104.steam.gameclient.zerohour",
+                    Name = "Command & Conquer Generals Zero Hour (Steam)",
+                    PublisherType = "Steam",
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = exePath,
+                },
+            };
+
+            var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            mockCalculator
+                .Setup(c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess("0xAC76387F"));
+
+            var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+            Assert.True(isRetail);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that IsRetailCompatibleAsync returns false for custom mod profiles with non-retail INI CRC.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_WhenCustomModAndIniCrcNonRetail_ReturnsFalse()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_ModRootTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, "mod.exe");
+        await File.WriteAllTextAsync(exePath, "dummy binary");
+
+        try
+        {
+            var profile = new GameProfile
+            {
+                Id = "test-profile",
+                Name = "Custom Mod Profile",
+                GameClient = new GameClient
+                {
+                    Id = "custom.mod.client",
+                    Name = "Custom Mod",
+                    PublisherType = "Custom",
                     GameType = GameType.ZeroHour,
                     ExecutablePath = exePath,
                 },

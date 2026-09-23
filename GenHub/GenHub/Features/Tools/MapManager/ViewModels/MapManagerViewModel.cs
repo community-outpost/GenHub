@@ -1072,9 +1072,9 @@ public partial class MapManagerViewModel(
                 HandleMapPackCreationFailed(result.FirstError ?? defaultError);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("MapPack creation canceled by user");
+            logger.LogInformation(ex, "MapPack creation canceled by user");
         }
         catch (Exception ex)
         {
@@ -1339,9 +1339,9 @@ public partial class MapManagerViewModel(
                 HandleMapPackCreationFailed(result.FirstError ?? defaultError);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("MapPack creation canceled by user");
+            logger.LogInformation(ex, "MapPack creation canceled by user");
         }
         catch (Exception ex)
         {

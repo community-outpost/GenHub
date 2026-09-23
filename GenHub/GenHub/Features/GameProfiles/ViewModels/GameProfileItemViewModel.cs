@@ -1165,48 +1165,48 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
         var crcCalculator = AppLocator.GetServiceOrDefault<IGameCrcCalculatorService>();
 
-        Task.Run(
-            async () =>
+        Task.Run(() => ExecuteIniCompatibilityVerificationAsync(profile, concreteProfile, crcCalculator, token), token);
+    }
+
+    private async Task ExecuteIniCompatibilityVerificationAsync(
+        IGameProfile profile,
+        GameProfile concreteProfile,
+        IGameCrcCalculatorService? crcCalculator,
+        CancellationToken token)
+    {
+        try
+        {
+            if (token.IsCancellationRequested)
             {
-                try
-                {
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
+                return;
+            }
 
-                    var isVerifiedRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(
-                        concreteProfile,
-                        crcCalculator,
-                        ct: token);
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
+            var isVerifiedRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(
+                concreteProfile,
+                crcCalculator,
+                ct: token);
 
-                    if (isVerifiedRetail != IsRetailCompatible)
-                    {
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            if (token.IsCancellationRequested)
-                            {
-                                return;
-                            }
+            if (token.IsCancellationRequested || isVerifiedRetail == IsRetailCompatible)
+            {
+                return;
+            }
 
-                            ApplyCompatibilityBadge(profile, isVerifiedRetail);
-                        });
-                    }
-                }
-                catch (OperationCanceledException)
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (!token.IsCancellationRequested)
                 {
-                    // Task canceled, ignore
+                    ApplyCompatibilityBadge(profile, isVerifiedRetail);
                 }
-                catch
-                {
-                    // Silently retain synchronous heuristics if async verification fails
-                }
-            },
-            token);
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Task canceled, ignore
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            // Silently retain synchronous heuristics if async verification fails
+        }
     }
 
     private void NotifyAllPropertiesChanged()

@@ -672,10 +672,9 @@ public static class WorkspaceCompatibilityHelper
             return false;
         }
 
-        var normalizedTarget = relativePath.Replace('\\', '/').TrimStart('/');
         return manifests.Any(m => (ManifestVariantResolver.ResolveFiles(m) ?? [])
             .Any(f => !string.IsNullOrWhiteSpace(f.RelativePath) &&
-                      string.Equals(f.RelativePath.Replace('\\', '/').TrimStart('/'), normalizedTarget, StringComparison.OrdinalIgnoreCase)));
+                      ManifestVariantResolver.PathsMatch(f.RelativePath, relativePath)));
     }
 
     private static void CleanUnrequestedDirect3D8Files(string workspacePath, bool genToolUpdaterRequested, ILogger logger)

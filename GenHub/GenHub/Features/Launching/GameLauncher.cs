@@ -178,14 +178,14 @@ public class GameLauncher(
             if (System.Text.RegularExpressions.Regex.IsMatch(content, @":\s*-?(?:nan|1\.#(?:inf|ind|qnan|snan|j))\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
             {
                 logger?.LogWarning("[GameLauncher] Detected corrupted MapCache.ini containing NaN values at {MapCachePath}. Backing up and removing to prevent game startup crash.", mapCachePath);
-                var backupPath = mapCachePath + ".corrupt.bak";
+                var backupPath = mapCachePath + GameClientConstants.CorruptMapCacheBackupExtension;
                 try
                 {
                     File.Copy(mapCachePath, backupPath, overwrite: true);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    logger?.LogDebug(ex, "[GameLauncher] Failed to create backup of corrupted MapCache.ini");
+                    logger?.LogWarning(ex, "[GameLauncher] Failed to create backup of corrupted MapCache.ini");
                 }
 
                 try

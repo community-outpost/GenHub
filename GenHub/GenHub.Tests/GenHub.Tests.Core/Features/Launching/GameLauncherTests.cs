@@ -1642,7 +1642,10 @@ public class GameLauncherTests : IDisposable
     [InlineData("X:0.00 Y:-nan Z:0.00")]
     [InlineData("X:0.00 Y:nan Z:0.00")]
     [InlineData("X:0.00 Y:1.#INF Z:0.00")]
+    [InlineData("X:0.00 Y:-1.#INF Z:0.00")]
     [InlineData("X:0.00 Y:-1.#IND Z:0.00")]
+    [InlineData("X:0.00 Y:1.#QNAN Z:0.00")]
+    [InlineData("X:0.00 Y:1.#SNAN Z:0.00")]
     [InlineData("X:0.00 Y:1.#J Z:0.00")]
     public void TrySanitizeMapCacheFile_WithCorruptedSpecialFloats_PurgesFileAndCreatesBackup(string positionLine)
     {
@@ -1661,7 +1664,7 @@ public class GameLauncherTests : IDisposable
             // Assert
             Assert.True(sanitized);
             Assert.False(File.Exists(mapCachePath));
-            var backupPath = mapCachePath + ".corrupt.bak";
+            var backupPath = mapCachePath + GameClientConstants.CorruptMapCacheBackupExtension;
             Assert.True(File.Exists(backupPath));
             Assert.Equal(corruptContent, File.ReadAllText(backupPath));
         }
@@ -1695,7 +1698,7 @@ public class GameLauncherTests : IDisposable
             // Assert
             Assert.False(sanitized);
             Assert.True(File.Exists(mapCachePath));
-            Assert.False(File.Exists(mapCachePath + ".corrupt.bak"));
+            Assert.False(File.Exists(mapCachePath + GameClientConstants.CorruptMapCacheBackupExtension));
         }
         finally
         {

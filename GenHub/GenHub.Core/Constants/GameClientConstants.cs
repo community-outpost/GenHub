@@ -226,6 +226,9 @@ public static class GameClientConstants
     /// <summary>GenTool updater executable filename.</summary>
     public const string GenToolUpdaterExe = "GenToolUpdater.exe";
 
+    /// <summary>Corrupt MapCache backup file extension.</summary>
+    public const string CorruptMapCacheBackupExtension = ".corrupt.bak";
+
     /// <summary>
     /// DLLs required for standard game installations.
     /// </summary>
