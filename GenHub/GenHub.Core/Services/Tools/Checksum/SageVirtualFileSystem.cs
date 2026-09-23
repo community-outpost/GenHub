@@ -304,12 +304,10 @@ public sealed class SageVirtualFileSystem
         foreach (var (key, pair) in _archiveEntries)
         {
             if (key.EndsWith(searchKey, StringComparison.OrdinalIgnoreCase)
-                && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\'))
+                && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\')
+                && (bestMatch == null || pair.Tier > bestMatch.Value.Tier))
             {
-                if (bestMatch == null || pair.Tier > bestMatch.Value.Tier)
-                {
-                    bestMatch = pair;
-                }
+                bestMatch = pair;
             }
         }
 

@@ -570,41 +570,46 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                     return (candidate, bytes, format);
                 }
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogDebug(ex, "Failed to read texture {Path}", candidate);
             }
-            catch (UnauthorizedAccessException ex)
+        }
+
+        return TryReadTextureByFileName(fileSystem, trimmed);
+    }
+
+    private static (string Path, byte[] Bytes, MagickFormat Format)? TryReadTextureByFileName(
+        SageVirtualFileSystem fileSystem,
+        string trimmed)
+    {
+        var fileName = Path.GetFileName(trimmed);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var candidates = new List<string> { fileName };
+        if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
+        {
+            foreach (var ext in WndConstants.MappedImages.TextureExtensions)
             {
-                logger.LogDebug(ex, "Access denied reading texture {Path}", candidate);
+                candidates.Add(string.Concat(fileName, ext));
             }
         }
 
-        var fileName = Path.GetFileName(trimmed);
-        if (!string.IsNullOrWhiteSpace(fileName))
+        foreach (var candidate in candidates)
         {
-            var candidates = new List<string> { fileName };
-            if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
+            var looseModBytes = fileSystem.TryReadModLooseFileByName(candidate);
+            if (looseModBytes != null && looseModBytes.Length > 0 && TryDetectFormat(looseModBytes, out var modFormat))
             {
-                foreach (var ext in WndConstants.MappedImages.TextureExtensions)
-                {
-                    candidates.Add(string.Concat(fileName, ext));
-                }
+                return (candidate, looseModBytes, modFormat);
             }
 
-            foreach (var candidate in candidates)
+            var archiveBytes = fileSystem.TryReadArchiveFileByName(candidate);
+            if (archiveBytes != null && archiveBytes.Length > 0 && TryDetectFormat(archiveBytes, out var archiveFormat))
             {
-                var looseModBytes = fileSystem.TryReadModLooseFileByName(candidate);
-                if (looseModBytes != null && looseModBytes.Length > 0 && TryDetectFormat(looseModBytes, out var modFormat))
-                {
-                    return (candidate, looseModBytes, modFormat);
-                }
-
-                var archiveBytes = fileSystem.TryReadArchiveFileByName(candidate);
-                if (archiveBytes != null && archiveBytes.Length > 0 && TryDetectFormat(archiveBytes, out var archiveFormat))
-                {
-                    return (candidate, archiveBytes, archiveFormat);
-                }
+                return (candidate, archiveBytes, archiveFormat);
             }
         }
 

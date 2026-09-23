@@ -2169,7 +2169,7 @@ public sealed partial class WndEditorViewModel(
             return false;
         }
 
-        return ContainsDirectoryMatching(path, "Data")
+        return ContainsDirectoryMatching(path, ModBuilderConstants.DataDirectoryName)
             || ContainsFileMatching(path, GameClientConstants.GeneralsIniBig);
     }
 

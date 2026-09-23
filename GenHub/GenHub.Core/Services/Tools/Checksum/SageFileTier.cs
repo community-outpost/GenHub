@@ -22,7 +22,9 @@ public enum SageFileTier
     Mod = 2,
 
     /// <summary>
-    /// Explicitly linked custom mod folders or .BIG archives, taking top precedence over project files.
+    /// Explicitly linked .BIG archives, taking top precedence over project files.
+    /// Linked loose folders resolve by mount order rather than tier, so this tier
+    /// only guarantees precedence for archive entries.
     /// </summary>
     LinkedAsset = 3,
 }

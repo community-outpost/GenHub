@@ -40,78 +40,14 @@ public static class WndGameFileSystem
         ArgumentNullException.ThrowIfNull(baseRoot);
         ArgumentNullException.ThrowIfNull(logger);
 
-        SageVirtualFileSystem fileSystem;
-
-        if (isZeroHour)
-        {
-            if (!string.IsNullOrWhiteSpace(overrideRoot)
-                && Directory.Exists(overrideRoot)
-                && !string.Equals(overrideRoot, baseRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                // overrideRoot is Generals base fallback; baseRoot is Zero Hour active target
-                fileSystem = new SageVirtualFileSystem(
-                    overrideRoot,
-                    isZeroHour: false,
-                    logger: logger,
-                    cancellationToken: cancellationToken,
-                    skipIniZhBig: false,
-                    initialTier: SageFileTier.BaseGame);
-
-                fileSystem.AddSideload(baseRoot);
-            }
-            else
-            {
-                fileSystem = new SageVirtualFileSystem(
-                    baseRoot,
-                    isZeroHour: true,
-                    logger: logger,
-                    cancellationToken: cancellationToken,
-                    skipIniZhBig: false,
-                    initialTier: SageFileTier.Expansion);
-            }
-        }
-        else
-        {
-            fileSystem = new SageVirtualFileSystem(
-                baseRoot,
-                isZeroHour: false,
-                logger: logger,
-                cancellationToken: cancellationToken,
-                skipIniZhBig: false,
-                initialTier: SageFileTier.BaseGame);
-
-            if (!string.IsNullOrWhiteSpace(overrideRoot)
-                && Directory.Exists(overrideRoot)
-                && !string.Equals(overrideRoot, baseRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                fileSystem.AddSideload(overrideRoot);
-            }
-        }
+        var fileSystem = CreateBaseFileSystem(baseRoot, overrideRoot, logger, isZeroHour, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(projectDirectory) && Directory.Exists(projectDirectory))
         {
-            LayerProjectDirectory(fileSystem, projectDirectory);
+            LayerProjectDirectory(fileSystem, projectDirectory, logger);
         }
 
-        if (additionalBigFiles != null)
-        {
-            foreach (var bigFile in additionalBigFiles)
-            {
-                if (string.IsNullOrWhiteSpace(bigFile))
-                {
-                    continue;
-                }
-
-                if (File.Exists(bigFile))
-                {
-                    fileSystem.AddLinkedAsset(bigFile);
-                }
-                else
-                {
-                    logger.LogWarning("Linked .BIG archive '{Path}' does not exist and was skipped", bigFile);
-                }
-            }
-        }
+        LayerLinkedBigFiles(fileSystem, additionalBigFiles, logger);
 
         return fileSystem;
     }
@@ -168,7 +104,80 @@ public static class WndGameFileSystem
         return sb.ToString();
     }
 
-    private static void LayerProjectDirectory(SageVirtualFileSystem fileSystem, string projectDirectory)
+    private static SageVirtualFileSystem CreateBaseFileSystem(
+        string baseRoot,
+        string? overrideRoot,
+        ILogger logger,
+        bool isZeroHour,
+        CancellationToken cancellationToken)
+    {
+        if (isZeroHour && HasUsableOverrideRoot(overrideRoot, baseRoot))
+        {
+            // overrideRoot is Generals base fallback; baseRoot is Zero Hour active target
+            var fileSystem = new SageVirtualFileSystem(
+                overrideRoot!,
+                isZeroHour: false,
+                logger: logger,
+                cancellationToken: cancellationToken,
+                skipIniZhBig: false,
+                initialTier: SageFileTier.BaseGame);
+
+            fileSystem.AddSideload(baseRoot);
+            return fileSystem;
+        }
+
+        var baseFileSystem = new SageVirtualFileSystem(
+            baseRoot,
+            isZeroHour: isZeroHour,
+            logger: logger,
+            cancellationToken: cancellationToken,
+            skipIniZhBig: false,
+            initialTier: isZeroHour ? SageFileTier.Expansion : SageFileTier.BaseGame);
+
+        if (!isZeroHour && HasUsableOverrideRoot(overrideRoot, baseRoot))
+        {
+            baseFileSystem.AddSideload(overrideRoot!);
+        }
+
+        return baseFileSystem;
+    }
+
+    private static bool HasUsableOverrideRoot(string? overrideRoot, string baseRoot)
+    {
+        return !string.IsNullOrWhiteSpace(overrideRoot)
+            && Directory.Exists(overrideRoot)
+            && !string.Equals(overrideRoot, baseRoot, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void LayerLinkedBigFiles(
+        SageVirtualFileSystem fileSystem,
+        IReadOnlyCollection<string>? additionalBigFiles,
+        ILogger logger)
+    {
+        if (additionalBigFiles == null)
+        {
+            return;
+        }
+
+        foreach (var bigFile in additionalBigFiles)
+        {
+            if (string.IsNullOrWhiteSpace(bigFile))
+            {
+                continue;
+            }
+
+            if (File.Exists(bigFile))
+            {
+                fileSystem.AddLinkedAsset(bigFile);
+            }
+            else
+            {
+                logger.LogWarning("Linked .BIG archive '{Path}' does not exist and was skipped", bigFile);
+            }
+        }
+    }
+
+    private static void LayerProjectDirectory(SageVirtualFileSystem fileSystem, string projectDirectory, ILogger logger)
     {
         fileSystem.AddMod(projectDirectory);
 
@@ -192,12 +201,12 @@ public static class WndGameFileSystem
             {
                 fileSystem.AddMod(parent);
                 LayerReleaseDirectories(fileSystem, parent);
-                MountAllBigArchives(fileSystem, parent);
+                MountAllBigArchives(fileSystem, parent, logger);
             }
         }
         else
         {
-            MountAllBigArchives(fileSystem, projectDirectory);
+            MountAllBigArchives(fileSystem, projectDirectory, logger);
         }
     }
 
@@ -213,7 +222,7 @@ public static class WndGameFileSystem
         }
     }
 
-    private static void MountAllBigArchives(SageVirtualFileSystem fileSystem, string directory)
+    private static void MountAllBigArchives(SageVirtualFileSystem fileSystem, string directory, ILogger logger)
     {
         try
         {
@@ -224,11 +233,13 @@ public static class WndGameFileSystem
                 fileSystem.AddMod(bigFile);
             }
         }
-        catch (IOException)
+        catch (IOException ex)
         {
+            logger.LogDebug(ex, "Failed to enumerate .BIG archives under {Directory}", directory);
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
+            logger.LogDebug(ex, "Access denied enumerating .BIG archives under {Directory}", directory);
         }
     }
 }

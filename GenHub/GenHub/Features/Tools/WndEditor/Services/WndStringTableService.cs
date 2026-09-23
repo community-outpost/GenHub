@@ -113,7 +113,7 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         foreach (var rawLine in lines)
         {
             var line = rawLine.Trim();
-            if (string.IsNullOrEmpty(line) || line.StartsWith("//") || line.StartsWith(";"))
+            if (string.IsNullOrEmpty(line) || line.StartsWith("//", StringComparison.Ordinal) || line.StartsWith(';'))
             {
                 continue;
             }
@@ -126,14 +126,8 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
                     continue;
                 }
 
-                // Check for single-line format: LABEL "Value"
-                var firstQuote = line.IndexOf('"');
-                var lastQuote = line.LastIndexOf('"');
-                if (firstQuote > 0 && lastQuote > firstQuote)
+                if (TryParseSingleLineEntry(line, target))
                 {
-                    var label = line[..firstQuote].Trim();
-                    var val = line[(firstQuote + 1)..lastQuote];
-                    target[label] = val;
                     continue;
                 }
 
@@ -141,35 +135,58 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
                 readingValue = true;
                 valueBuilder.Clear();
             }
+            else if (line.Equals("End", StringComparison.OrdinalIgnoreCase))
+            {
+                CompleteValueEntry(ref currentLabel, valueBuilder, target);
+                readingValue = false;
+            }
             else
             {
-                if (line.Equals("End", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!string.IsNullOrEmpty(currentLabel))
-                    {
-                        var val = valueBuilder.ToString().Trim();
-                        if (val.StartsWith('"') && val.EndsWith('"') && val.Length >= 2)
-                        {
-                            val = val[1..^1];
-                        }
-
-                        target[currentLabel] = val;
-                    }
-
-                    currentLabel = null;
-                    readingValue = false;
-                }
-                else
-                {
-                    if (valueBuilder.Length > 0)
-                    {
-                        valueBuilder.Append('\n');
-                    }
-
-                    valueBuilder.Append(line);
-                }
+                AppendValueLine(valueBuilder, line);
             }
         }
+    }
+
+    private static bool TryParseSingleLineEntry(string line, Dictionary<string, string> target)
+    {
+        // Check for single-line format: LABEL "Value"
+        var firstQuote = line.IndexOf('"');
+        var lastQuote = line.LastIndexOf('"');
+        if (firstQuote <= 0 || lastQuote <= firstQuote)
+        {
+            return false;
+        }
+
+        var label = line[..firstQuote].Trim();
+        var val = line[(firstQuote + 1)..lastQuote];
+        target[label] = val;
+        return true;
+    }
+
+    private static void CompleteValueEntry(ref string? currentLabel, StringBuilder valueBuilder, Dictionary<string, string> target)
+    {
+        if (!string.IsNullOrEmpty(currentLabel))
+        {
+            var val = valueBuilder.ToString().Trim();
+            if (val.Length >= 2 && val.StartsWith('"') && val.EndsWith('"'))
+            {
+                val = val[1..^1];
+            }
+
+            target[currentLabel] = val;
+        }
+
+        currentLabel = null;
+    }
+
+    private static void AppendValueLine(StringBuilder valueBuilder, string line)
+    {
+        if (valueBuilder.Length > 0)
+        {
+            valueBuilder.Append('\n');
+        }
+
+        valueBuilder.Append(line);
     }
 
     private static string TableKey(
