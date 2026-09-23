@@ -274,7 +274,7 @@ public sealed class ContentDetailViewModelTests
         // Arrange
         const string parentCatalogId = "test-parent";
         const string variantManifestId = "test.variant.1";
-        const string childManifestId = "test.manifest.1";
+        const string childManifestId = "1.100.custom.mod.test";
         const string testResolver = "CustomResolver";
 
         var parent = new ContentSearchResult
