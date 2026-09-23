@@ -28,6 +28,8 @@ public class PublisherStudioDialogService(
     ILogger<PublisherStudioDialogService>? logger = null,
     INotificationService? notificationService = null) : IPublisherStudioDialogService
 {
+    private const string AllFilesFilterName = "All Files";
+
     /// <inheritdoc/>
     public Func<string, (string Name, string Url, long Size)?>? DuplicateAssetLookup { get; set; }
 
@@ -205,7 +207,7 @@ public class PublisherStudioDialogService(
                 {
                     Patterns = ["*.json"],
                 },
-                new Avalonia.Platform.Storage.FilePickerFileType("All Files")
+                new Avalonia.Platform.Storage.FilePickerFileType(AllFilesFilterName)
                 {
                     Patterns = ["*.*"],
                 },
@@ -222,7 +224,7 @@ public class PublisherStudioDialogService(
                 {
                     Patterns = ["*.zip", "*.7z", "*.rar", "*.tar.gz", "*.big"],
                 },
-                new Avalonia.Platform.Storage.FilePickerFileType("All Files")
+                new Avalonia.Platform.Storage.FilePickerFileType(AllFilesFilterName)
                 {
                     Patterns = ["*.*"],
                 },
@@ -245,7 +247,7 @@ public class PublisherStudioDialogService(
                 {
                     Patterns = ["*.zip", "*.7z", "*.rar", "*.tar.gz", "*.big"],
                 },
-                new Avalonia.Platform.Storage.FilePickerFileType("All Files")
+                new Avalonia.Platform.Storage.FilePickerFileType(AllFilesFilterName)
                 {
                     Patterns = ["*.*"],
                 },
@@ -266,7 +268,7 @@ public class PublisherStudioDialogService(
                 {
                     Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp"],
                 },
-                new Avalonia.Platform.Storage.FilePickerFileType("All Files")
+                new Avalonia.Platform.Storage.FilePickerFileType(AllFilesFilterName)
                 {
                     Patterns = ["*.*"],
                 },

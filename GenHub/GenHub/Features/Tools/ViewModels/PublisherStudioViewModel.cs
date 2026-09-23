@@ -58,6 +58,8 @@ public partial class PublisherStudioViewModel(
     /// <summary>Tab index for the Publish &amp; Share tab.</summary>
     public const int TabPublishShare = 4;
 
+    private const string NewPublisherName = "New Publisher";
+
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
         AppConstants.AppName,
@@ -271,13 +273,10 @@ public partial class PublisherStudioViewModel(
 
         logger.LogInformation("Handling dropped path: {Path}", path);
 
-        // Check if the dropped file is a catalog JSON definition
-        if (string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase))
+        // A dropped catalog JSON definition is imported instead of staged as content
+        if (IsJsonCatalogPath(path) && await ImportCatalogFromFileAsync(path))
         {
-            if (await ImportCatalogFromFileAsync(path))
-            {
-                return;
-            }
+            return;
         }
 
         // Switch to Content Library tab
@@ -296,7 +295,8 @@ public partial class PublisherStudioViewModel(
     /// <returns>True if the file was recognized as a catalog and processed; false otherwise.</returns>
     public async Task<bool> ImportCatalogFromFileAsync(string filePath)
     {
-        if (CurrentProject == null || !File.Exists(filePath))
+        var project = CurrentProject;
+        if (project == null || !File.Exists(filePath))
         {
             return false;
         }
@@ -353,8 +353,8 @@ public partial class PublisherStudioViewModel(
                 return true;
             }
 
-            var namedCatalog = CreateImportedCatalogEntry(catalog, catalogName, fileName);
-            AttachImportedCatalog(namedCatalog);
+            var namedCatalog = CreateImportedCatalogEntry(project, catalog, catalogName, fileName);
+            AttachImportedCatalog(project, namedCatalog);
 
             await SaveProjectAsync();
 
@@ -483,6 +483,10 @@ public partial class PublisherStudioViewModel(
         }
     }
 
+    private static bool IsJsonCatalogPath(string? path) =>
+        !string.IsNullOrWhiteSpace(path)
+        && string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase);
+
     private static string ResolvePublisherDisplayName(PublisherCatalog catalog)
     {
         if (!string.IsNullOrWhiteSpace(catalog.Publisher?.Name))
@@ -498,7 +502,7 @@ public partial class PublisherStudioViewModel(
     private static string BuildImportedCatalogName(PublisherCatalog catalog, string filePath)
     {
         var rawName = !string.IsNullOrWhiteSpace(catalog.Publisher?.Name)
-            && !string.Equals(catalog.Publisher.Name, "New Publisher", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(catalog.Publisher.Name, NewPublisherName, StringComparison.OrdinalIgnoreCase)
             ? $"{catalog.Publisher.Name} Catalog"
             : Path.GetFileNameWithoutExtension(filePath).Replace(".catalog", string.Empty, StringComparison.OrdinalIgnoreCase);
 
@@ -522,9 +526,9 @@ public partial class PublisherStudioViewModel(
         return string.IsNullOrEmpty(slug) ? "catalog" : slug;
     }
 
-    private NamedCatalog CreateImportedCatalogEntry(PublisherCatalog catalog, string catalogName, string fileName)
+    private NamedCatalog CreateImportedCatalogEntry(PublisherStudioProject project, PublisherCatalog catalog, string catalogName, string fileName)
     {
-        CurrentProject!.Catalogs ??= [];
+        project.Catalogs ??= [];
 
         var baseSlug = Path.GetFileNameWithoutExtension(fileName)
             .Replace(".catalog", string.Empty, StringComparison.OrdinalIgnoreCase)
@@ -535,7 +539,7 @@ public partial class PublisherStudioViewModel(
             baseSlug = "imported-catalog";
         }
 
-        var existingIds = new HashSet<string>(CurrentProject.Catalogs.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+        var existingIds = new HashSet<string>(project.Catalogs.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
         var newId = baseSlug;
         var counter = 2;
         while (existingIds.Contains(newId))
@@ -552,19 +556,20 @@ public partial class PublisherStudioViewModel(
         };
     }
 
-    private void AttachImportedCatalog(NamedCatalog namedCatalog)
+    private void AttachImportedCatalog(PublisherStudioProject project, NamedCatalog namedCatalog)
     {
-        var defaultEmpty = CurrentProject!.Catalogs!.FirstOrDefault(c =>
+        project.Catalogs ??= [];
+        var defaultEmpty = project.Catalogs.FirstOrDefault(c =>
             c.Id == "default" && (c.Catalog?.Content == null || c.Catalog.Content.Count == 0));
-        if (defaultEmpty != null && CurrentProject.Catalogs.Count == 1)
+        if (defaultEmpty != null && project.Catalogs.Count == 1)
         {
-            CurrentProject.Catalogs.Remove(defaultEmpty);
+            project.Catalogs.Remove(defaultEmpty);
             Catalogs.Remove(defaultEmpty);
         }
 
-        AdoptImportedPublisher(namedCatalog.Catalog.Publisher);
+        AdoptImportedPublisher(project, namedCatalog.Catalog.Publisher);
 
-        CurrentProject.Catalogs.Add(namedCatalog);
+        project.Catalogs.Add(namedCatalog);
         Catalogs.Add(namedCatalog);
         SelectedCatalog = namedCatalog;
 
@@ -573,11 +578,11 @@ public partial class PublisherStudioViewModel(
         PublishShareViewModel?.SyncAvailableCatalogs();
     }
 
-    private void AdoptImportedPublisher(PublisherProfile? publisher)
+    private void AdoptImportedPublisher(PublisherStudioProject project, PublisherProfile? publisher)
     {
-        if (CurrentProject!.Catalog?.Publisher != null
-            && !string.IsNullOrWhiteSpace(CurrentProject.Catalog.Publisher.Id)
-            && !string.Equals(CurrentProject.Catalog.Publisher.Name, "New Publisher", StringComparison.OrdinalIgnoreCase))
+        if (project.Catalog?.Publisher != null
+            && !string.IsNullOrWhiteSpace(project.Catalog.Publisher.Id)
+            && !string.Equals(project.Catalog.Publisher.Name, NewPublisherName, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -587,11 +592,11 @@ public partial class PublisherStudioViewModel(
             return;
         }
 
-        CurrentProject.Catalog ??= new();
-        CurrentProject.Catalog.Publisher = publisher;
-        if (string.IsNullOrWhiteSpace(CurrentProject.ProjectName) || CurrentProject.ProjectName == "New Publisher")
+        project.Catalog ??= new();
+        project.Catalog.Publisher = publisher;
+        if (string.IsNullOrWhiteSpace(project.ProjectName) || project.ProjectName == NewPublisherName)
         {
-            CurrentProject.ProjectName = publisher.Name ?? publisher.Id;
+            project.ProjectName = publisher.Name ?? publisher.Id;
         }
     }
 
@@ -920,7 +925,7 @@ public partial class PublisherStudioViewModel(
     {
         try
         {
-            var result = await publisherStudioService.CreateProjectAsync("New Publisher");
+            var result = await publisherStudioService.CreateProjectAsync(NewPublisherName);
             if (result.Success && result.Data != null)
             {
                 CurrentProject = result.Data;

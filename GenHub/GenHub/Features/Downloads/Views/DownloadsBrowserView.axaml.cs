@@ -70,6 +70,19 @@ public partial class DownloadsBrowserView : UserControl
         }
     }
 
+    private static void OnDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.Data.Contains(DataFormats.Files))
+        {
+            e.DragEffects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
+    }
+
     private void HookViewModel(DownloadsBrowserViewModel vm)
     {
         if (ReferenceEquals(_boundViewModel, vm))
@@ -237,19 +250,6 @@ public partial class DownloadsBrowserView : UserControl
     private SidebarLayout? FindSidebarLayout()
     {
         return Content as SidebarLayout;
-    }
-
-    private void OnDragOver(object? sender, DragEventArgs e)
-    {
-        if (e.Data.Contains(DataFormats.Files))
-        {
-            e.DragEffects = DragDropEffects.Copy;
-            e.Handled = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)

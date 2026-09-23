@@ -1170,10 +1170,6 @@ public partial class ContentLibraryViewModel(
             var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken);
             return Convert.ToHexString(hashBytes).ToLowerInvariant();
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to compute SHA256 for batch imported file {Path}", path);
