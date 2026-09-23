@@ -22,20 +22,33 @@ namespace GenHub.Core.Helpers;
 public static class ReplayCrcMatchingHelper
 {
     /// <summary>
-    /// Known SHA-256 hashes for official retail executables (Generals 1.08, 1.09 and Zero Hour 1.04, 1.05).
+    /// Known SHA-256 hashes for official retail Generals executables (1.08, 1.09).
     /// </summary>
-    public static readonly string[] RetailExeSha256Hashes =
+    public static readonly string[] GeneralsRetailExeSha256Hashes =
     [
         "1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255", // Steam Generals 1.09
         "69A39881179112A566CEF69573B20065CC868516C49AF0761F809EC57DA0BDBC", // EA App Generals 1.08
-        "8DDE6C990280AC44B4629A664B24BBAF226E629E9C7700234010F198783B6674", // EA App Generals generals.exe (wrapper)
+        GameClientConstants.EaAppGeneralsLauncherWrapperSha256, // EA App Generals generals.exe (wrapper)
+    ];
+
+    /// <summary>
+    /// Known SHA-256 hashes for official retail Zero Hour executables (1.04, 1.05).
+    /// </summary>
+    public static readonly string[] ZeroHourRetailExeSha256Hashes =
+    [
         "7B075B9F0BAA9DF81651C0C9DD7D8C445454AE1B2452B928F4A1D9332E9CCECE", // Steam Zero Hour 1.04
         "253FEBA0A5503CB4D49FD07463B17D3CC84731E583F9625CB90FCD8B5CAC0221", // EA App Zero Hour 1.04
-        "FF6F78211A014100D8EF6B08BC2F8EDD3D55E99E872DFDB5371776FC5A5D02CE", // EA App / Steam Zero Hour generals.exe (wrapper)
+        GameClientConstants.ModernLauncherStubSha256, // EA App / Steam Zero Hour generals.exe (wrapper)
         "f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b", // Retail Zero Hour 1.04
         "420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1", // Community Outpost Zero Hour 1.05
         "a531a56e82381b0d15117ee5f9881d276de232c9245e598f3b75b71bc80275b8", // TheSuperHackers / Community Patch weekly build (23-07-2026)
     ];
+
+    /// <summary>
+    /// Known SHA-256 hashes for official retail executables (Generals 1.08, 1.09 and Zero Hour 1.04, 1.05).
+    /// </summary>
+    public static readonly string[] RetailExeSha256Hashes =
+        [.. GeneralsRetailExeSha256Hashes, .. ZeroHourRetailExeSha256Hashes];
 
     private static readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, string Crc)> ExeCrcCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, string Sha256)> ExeShaCache = new(StringComparer.OrdinalIgnoreCase);
@@ -175,6 +188,52 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
+    /// Checks if a given SHA-256 string corresponds to known retail Generals executables (1.08, 1.09).
+    /// </summary>
+    /// <param name="sha">SHA-256 string to test.</param>
+    /// <returns><c>true</c> if it matches a known retail Generals executable SHA-256; otherwise, <c>false</c>.</returns>
+    public static bool IsGeneralsRetailExeSha256(string? sha)
+    {
+        if (string.IsNullOrWhiteSpace(sha))
+        {
+            return false;
+        }
+
+        var normalized = sha.Trim();
+        return GeneralsRetailExeSha256Hashes.Any(h => string.Equals(h, normalized, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks if a given SHA-256 string corresponds to known retail Zero Hour executables (1.04, 1.05).
+    /// </summary>
+    /// <param name="sha">SHA-256 string to test.</param>
+    /// <returns><c>true</c> if it matches a known retail Zero Hour executable SHA-256; otherwise, <c>false</c>.</returns>
+    public static bool IsZeroHourRetailExeSha256(string? sha)
+    {
+        if (string.IsNullOrWhiteSpace(sha))
+        {
+            return false;
+        }
+
+        var normalized = sha.Trim();
+        return ZeroHourRetailExeSha256Hashes.Any(h => string.Equals(h, normalized, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks if a given SHA-256 string corresponds to known retail executables for the specified game type.
+    /// </summary>
+    /// <param name="sha">SHA-256 string to test.</param>
+    /// <param name="gameType">The target game type.</param>
+    /// <returns><c>true</c> if it matches a known retail executable SHA-256 for the game type; otherwise, <c>false</c>.</returns>
+    public static bool IsRetailExeSha256(string? sha, GameType gameType) =>
+        gameType switch
+        {
+            GameType.ZeroHour => IsZeroHourRetailExeSha256(sha),
+            GameType.Generals => IsGeneralsRetailExeSha256(sha),
+            _ => false,
+        };
+
+    /// <summary>
     /// Checks if a given SHA-256 string corresponds to known retail executables (Generals 1.08, 1.09, Zero Hour 1.04, 1.05).
     /// </summary>
     /// <param name="sha">SHA-256 string to test.</param>
@@ -300,7 +359,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
+        if (IsCommunityOutpostRetailClient(client))
         {
             return true;
         }
@@ -334,7 +393,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        return IsClientRetailCompatible(client, enabledContentIds, IsZeroHourRetailIniCrc, IsZeroHourRetailExeCrc);
+        return IsClientRetailCompatible(client, enabledContentIds, IsZeroHourRetailIniCrc, IsZeroHourRetailExeCrc, IsZeroHourRetailExeSha256);
     }
 
     /// <summary>
@@ -516,7 +575,8 @@ public static class ReplayCrcMatchingHelper
             return true;
         }
 
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsRetailIniCrc(cachedIniCrc, client.GameType))
+        var effectiveGameType = IsExplicitGeneralsClient(client) ? GameType.Generals : GameType.ZeroHour;
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsRetailIniCrc(cachedIniCrc, effectiveGameType))
         {
             return true;
         }
@@ -526,8 +586,8 @@ public static class ReplayCrcMatchingHelper
 
         if (crcCalculator != null && !string.IsNullOrEmpty(gameRoot) && Directory.Exists(gameRoot))
         {
-            var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, client.GameType, ct: ct);
-            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) && IsRetailIniCrc(iniResult.Data, client.GameType))
+            var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, effectiveGameType, ct: ct);
+            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) && IsRetailIniCrc(iniResult.Data, effectiveGameType))
             {
                 return true;
             }
@@ -803,7 +863,7 @@ public static class ReplayCrcMatchingHelper
     /// <returns><c>true</c> if compatible with retail executables; otherwise, <c>false</c>.</returns>
     private static bool IsGeneralsRetailCompatible(GameClient client, IReadOnlyList<string>? enabledContentIds)
     {
-        return IsClientRetailCompatible(client, enabledContentIds, IsGeneralsRetailIniCrc, IsGeneralsRetailExeCrc);
+        return IsClientRetailCompatible(client, enabledContentIds, IsGeneralsRetailIniCrc, IsGeneralsRetailExeCrc, IsGeneralsRetailExeSha256);
     }
 
     /// <summary>
@@ -814,14 +874,15 @@ public static class ReplayCrcMatchingHelper
         GameClient client,
         IReadOnlyList<string>? enabledContentIds,
         Func<string?, bool> isRetailIniCrc,
-        Func<string?, bool> isRetailExeCrc)
+        Func<string?, bool> isRetailExeCrc,
+        Func<string?, bool> isRetailExeSha)
     {
         if (IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
         {
             return false;
         }
 
-        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
+        if (IsCommunityOutpostRetailClient(client))
         {
             return true;
         }
@@ -837,7 +898,7 @@ public static class ReplayCrcMatchingHelper
         }
 
         var exePath = ResolveProfileFullExePath(client);
-        if (MatchesExeOrGameDat(exePath, isRetailExeCrc))
+        if (MatchesExeOrGameDat(exePath, isRetailExeCrc, isRetailExeSha))
         {
             return true;
         }
@@ -848,7 +909,10 @@ public static class ReplayCrcMatchingHelper
     /// <summary>
     /// Checks whether the resolved executable or its adjacent game.dat matches known retail signatures.
     /// </summary>
-    private static bool MatchesExeOrGameDat(string? exePath, Func<string?, bool> isRetailExeCrc)
+    private static bool MatchesExeOrGameDat(
+        string? exePath,
+        Func<string?, bool> isRetailExeCrc,
+        Func<string?, bool> isRetailExeSha)
     {
         if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
         {
@@ -856,18 +920,21 @@ public static class ReplayCrcMatchingHelper
         }
 
         var sha = GetCachedExeSha256(exePath);
-        if (!string.IsNullOrEmpty(sha) && IsRetailExeSha256(sha))
+        if (!string.IsNullOrEmpty(sha) && isRetailExeSha(sha))
         {
             return true;
         }
 
-        return MatchesGameDat(exePath, isRetailExeCrc);
+        return MatchesGameDat(exePath, isRetailExeCrc, isRetailExeSha);
     }
 
     /// <summary>
     /// Checks whether game.dat adjacent to the executable matches known retail signatures.
     /// </summary>
-    private static bool MatchesGameDat(string exePath, Func<string?, bool> isRetailExeCrc)
+    private static bool MatchesGameDat(
+        string exePath,
+        Func<string?, bool> isRetailExeCrc,
+        Func<string?, bool> isRetailExeSha)
     {
         var dir = Path.GetDirectoryName(exePath);
         if (string.IsNullOrEmpty(dir))
@@ -888,7 +955,7 @@ public static class ReplayCrcMatchingHelper
         }
 
         var datSha = GetCachedExeSha256(gameDatPath);
-        return !string.IsNullOrEmpty(datSha) && IsRetailExeSha256(datSha);
+        return !string.IsNullOrEmpty(datSha) && isRetailExeSha(datSha);
     }
 
     /// <summary>

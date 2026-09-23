@@ -211,7 +211,7 @@ public class GameLauncher(
                 return true;
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or System.Text.RegularExpressions.RegexMatchTimeoutException)
         {
             logger?.LogWarning(ex, "[GameLauncher] Failed to inspect or sanitize MapCache.ini at {MapCachePath}", mapCachePath);
         }

@@ -1154,6 +1154,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
     {
         if (profile.GameClient == null || profile is not GameProfile concreteProfile)
         {
+            _iniVerificationCts?.Cancel();
+            _iniVerificationCts?.Dispose();
+            _iniVerificationCts = null;
             return;
         }
 

@@ -10235,7 +10235,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>أضف حزمة الخرائط هذه إلى ملف تعريفي حالي أو قم بإنشاء ملف تعريفي جديد بها.</value>
   </data>
   <data name="Maps.MapPack.Tooltip.CreateAndAddToProfile" xml:space="preserve">
-    <value>قم بإنشاء حزمة الخرائط هذه وافتح نافذة الملف التعريفي لإضافتها فورًا.</value>
+    <value>قم بإنشاء حزمة الخرائط هذه وافتح مربع حوار تحديد الملف التعريفي لإضافتها فورًا.</value>
   </data>
   <data name="Maps.MapPack.Notification.AddError" xml:space="preserve">
     <value>حدث خطأ أثناء إضافة حزمة الخرائط إلى الملف التعريفي.</value>

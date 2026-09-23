@@ -709,12 +709,12 @@ public class ReplayCrcMatchingHelperTests
             var profile = new GameProfile
             {
                 Id = "test-profile",
-                Name = "Zero Hour Retail",
+                Name = "Zero Hour Custom",
                 GameClient = new GameClient
                 {
-                    Id = "1.104.steam.gameclient.zerohour",
-                    Name = "Command & Conquer Generals Zero Hour (Steam)",
-                    PublisherType = "Steam",
+                    Id = "1.104.custom.gameclient.zerohour",
+                    Name = "Command & Conquer Generals Zero Hour (Custom)",
+                    PublisherType = "Custom",
                     GameType = GameType.ZeroHour,
                     ExecutablePath = exePath,
                 },
@@ -732,6 +732,14 @@ public class ReplayCrcMatchingHelperTests
 
             var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
             Assert.True(isRetail);
+            mockCalculator.Verify(
+                c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
         finally
         {

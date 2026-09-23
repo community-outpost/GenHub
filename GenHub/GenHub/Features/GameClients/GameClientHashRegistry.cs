@@ -27,7 +27,7 @@ public class GameClientHashRegistry : IGameClientHashRegistry
     private const string ZeroHour105Hash = "420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1";
 
     // Launcher Stub Hashes (Steam/EA App)
-    private const string ModernLauncherStubHash = "FF6F78211A014100D8EF6B08BC2F8EDD3D55E99E872DFDB5371776FC5A5D02CE";
+    private const string ModernLauncherStubHash = GameClientConstants.ModernLauncherStubSha256;
 
     // Public static access to hashes for testing
 

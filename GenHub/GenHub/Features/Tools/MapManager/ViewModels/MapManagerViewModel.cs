@@ -1075,6 +1075,7 @@ public partial class MapManagerViewModel(
         catch (OperationCanceledException ex)
         {
             logger.LogInformation(ex, "MapPack creation canceled by user");
+            StatusMessage = string.Empty;
         }
         catch (Exception ex)
         {
@@ -1342,6 +1343,7 @@ public partial class MapManagerViewModel(
         catch (OperationCanceledException ex)
         {
             logger.LogInformation(ex, "MapPack creation canceled by user");
+            StatusMessage = string.Empty;
         }
         catch (Exception ex)
         {

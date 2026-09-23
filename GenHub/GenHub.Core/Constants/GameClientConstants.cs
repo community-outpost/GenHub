@@ -44,6 +44,14 @@ public static class GameClientConstants
     /// <summary>SAGE engine command-line argument requesting windowed mode.</summary>
     public const string WindowedArgument = "-win";
 
+    // ===== Launcher Wrapper & Stub Hashes =====
+
+    /// <summary>SHA-256 hash of modern Steam/EA App Zero Hour generals.exe launcher stub.</summary>
+    public const string ModernLauncherStubSha256 = "FF6F78211A014100D8EF6B08BC2F8EDD3D55E99E872DFDB5371776FC5A5D02CE";
+
+    /// <summary>SHA-256 hash of EA App Generals 1.08 generals.exe launcher wrapper.</summary>
+    public const string EaAppGeneralsLauncherWrapperSha256 = "8DDE6C990280AC44B4629A664B24BBAF226E629E9C7700234010F198783B6674";
+
     // ===== SuperHackers Client Detection =====
 
     /// <summary>SuperHackers Generals executable filename.</summary>
