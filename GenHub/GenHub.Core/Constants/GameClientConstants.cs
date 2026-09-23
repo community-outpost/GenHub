@@ -243,6 +243,9 @@ public static class GameClientConstants
     /// <summary>Corrupt MapCache backup file extension.</summary>
     public const string CorruptMapCacheBackupExtension = ".corrupt.bak";
 
+    /// <summary>Maximum MapCache file size in bytes to inspect for corruption (10 MB).</summary>
+    public const long MaxMapCacheInspectionSizeBytes = 10 * 1024 * 1024;
+
     /// <summary>
     /// DLLs required for standard game installations.
     /// </summary>

@@ -175,8 +175,13 @@ public class GameLauncher(
         try
         {
             var fileInfo = new FileInfo(mapCachePath);
-            if (fileInfo.Length > 10 * 1024 * 1024)
+            if (fileInfo.Length > GameClientConstants.MaxMapCacheInspectionSizeBytes)
             {
+                logger?.LogWarning(
+                    "[GameLauncher] MapCache.ini at {MapCachePath} exceeds maximum inspection size ({Size} bytes > {MaxSize} bytes); skipping sanitization.",
+                    mapCachePath,
+                    fileInfo.Length,
+                    GameClientConstants.MaxMapCacheInspectionSizeBytes);
                 return false;
             }
 

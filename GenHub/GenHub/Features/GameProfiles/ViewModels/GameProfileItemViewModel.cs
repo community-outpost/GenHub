@@ -1207,7 +1207,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         {
             // Silently retain synchronous heuristics if filesystem access fails
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Fallback: retain synchronous heuristics for unhandled calculation failures
         }

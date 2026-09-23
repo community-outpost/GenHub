@@ -68,10 +68,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     {
         ExeCrcCache.Clear();
         IniCrcCache.Clear();
-        lock (InFlightCalculations)
-        {
-            InFlightCalculations.Clear();
-        }
+        InFlightCalculations.Clear();
     }
 
     /// <summary>
@@ -87,13 +84,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return null;
         }
 
-        var cacheKey = $"{gameRootPath}|{gameType}||";
+        var cacheKey = BuildIniCacheKey(gameRootPath, gameType);
         if (IniCrcCache.TryGetValue(cacheKey, out var cachedIni))
         {
             var freshness = GetIniFreshnessSignature(gameRootPath, null, null);
-            if (cachedIni.MaxTicks == freshness.MaxTicks &&
-                cachedIni.TotalLength == freshness.TotalLength &&
-                cachedIni.FileCount == freshness.FileCount)
+            if (IsFresh((cachedIni.MaxTicks, cachedIni.TotalLength, cachedIni.FileCount), freshness))
             {
                 return cachedIni.Crc;
             }
@@ -208,51 +203,70 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return OperationResult<string>.CreateFailure($"Game root directory not found at '{gameRootPath}'.");
         }
 
-        var sideloadsPart = sideloadPaths != null && sideloadPaths.Count > 0 ? string.Join(';', sideloadPaths) : string.Empty;
-        var cacheKey = $"{gameRootPath}|{gameType}|{sideloadsPart}|{modPath}";
+        var cacheKey = BuildIniCacheKey(gameRootPath, gameType, sideloadPaths, modPath);
         var freshness = GetIniFreshnessSignature(gameRootPath, sideloadPaths, modPath);
 
         if (IniCrcCache.TryGetValue(cacheKey, out var cachedIni) &&
-            cachedIni.MaxTicks == freshness.MaxTicks &&
-            cachedIni.TotalLength == freshness.TotalLength &&
-            cachedIni.FileCount == freshness.FileCount)
+            IsFresh((cachedIni.MaxTicks, cachedIni.TotalLength, cachedIni.FileCount), freshness))
         {
             return OperationResult<string>.CreateSuccess(cachedIni.Crc);
         }
 
-        try
+        Task<OperationResult<string>> inFlightTask;
+        lock (InFlightCalculations)
         {
-            return await Task.Run(
-                () =>
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    bool isZeroHour = gameType == GameType.ZeroHour;
-                    var vfs = new SageVirtualFileSystem(gameRootPath, isZeroHour, _logger, cancellationToken: ct);
-                    var crc = new XferChecksum();
-
-                    var order = isZeroHour
-                        ? SageChecksumConstants.GeneralsMdOrder
-                        : BuildGeneralsOrder();
-
-                    // Phase 1: Load GameData before sideloads/mods are mounted
-                    LoadOrderStep(order[0], vfs, crc);
-
-                    // Phase 2: Mount Sideloads and Mods
-                    MountSideloadsAndMods(vfs, sideloadPaths, modPath);
-
-                    // Phase 3: Load remaining categories
-                    for (int i = 1; i < order.Length; i++)
+            if (InFlightCalculations.TryGetValue(cacheKey, out var existingTask) && existingTask != null)
+            {
+                inFlightTask = existingTask;
+            }
+            else
+            {
+                var task = Task.Run(
+                    () =>
                     {
                         ct.ThrowIfCancellationRequested();
-                        LoadOrderStep(order[i], vfs, crc);
-                    }
 
-                    var calculated = $"0x{crc.Value:X8}";
-                    IniCrcCache[cacheKey] = (freshness.MaxTicks, freshness.TotalLength, freshness.FileCount, calculated);
-                    return OperationResult<string>.CreateSuccess(calculated);
-                },
-                ct);
+                        bool isZeroHour = gameType == GameType.ZeroHour;
+                        var vfs = new SageVirtualFileSystem(gameRootPath, isZeroHour, _logger, cancellationToken: ct);
+                        var crc = new XferChecksum();
+
+                        var order = isZeroHour
+                            ? SageChecksumConstants.GeneralsMdOrder
+                            : BuildGeneralsOrder();
+
+                        // Phase 1: Load GameData before sideloads/mods are mounted
+                        LoadOrderStep(order[0], vfs, crc);
+
+                        // Phase 2: Mount Sideloads and Mods
+                        MountSideloadsAndMods(vfs, sideloadPaths, modPath);
+
+                        // Phase 3: Load remaining categories
+                        for (int i = 1; i < order.Length; i++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            LoadOrderStep(order[i], vfs, crc);
+                        }
+
+                        var calculated = $"0x{crc.Value:X8}";
+                        IniCrcCache[cacheKey] = (freshness.MaxTicks, freshness.TotalLength, freshness.FileCount, calculated);
+                        return OperationResult<string>.CreateSuccess(calculated);
+                    },
+                    ct);
+
+                _ = task.ContinueWith(
+                    _ => InFlightCalculations.TryRemove(cacheKey, out Task<OperationResult<string>>? _),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+
+                inFlightTask = task;
+                InFlightCalculations[cacheKey] = inFlightTask;
+            }
+        }
+
+        try
+        {
+            return await inFlightTask.WaitAsync(ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
