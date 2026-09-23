@@ -8,6 +8,7 @@ using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -120,7 +121,16 @@ public class GameProcessManager(
             var capturedErrors = SetupErrorRedirection(process);
             _capturedProcessErrors[process.Id] = capturedErrors;
 
-            if (!string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
+            var isWine = IsWineLaunch(launchRunner, runnerResult.Data);
+            if (isWine && !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
+            {
+                logger.LogDebug(
+                    "[Process] Skipping child process adoption for {ExpectedName} because target is running under Wine ({RunnerBinary})",
+                    configuration.ExpectedChildProcessName,
+                    runnerResult.Data.FileName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName) && !isWine)
             {
                 return await AdoptExpectedChildProcessAsync(process, configuration, workingDirectory, launcherStartTime, capturedErrors, cancellationToken);
             }
@@ -776,6 +786,24 @@ public class GameProcessManager(
     {
         return OperatingSystem.IsLinux()
             && configuration.ExecutablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsWineLaunch(IGameLaunchRunner runner, RunnerCommand runnerCommand)
+    {
+        if (runner is WineRunner)
+        {
+            return true;
+        }
+
+        if (runnerCommand.EnvironmentVariables != null &&
+            runnerCommand.EnvironmentVariables.ContainsKey(WineConstants.PrefixEnvironmentVariable))
+        {
+            return true;
+        }
+
+        var fileName = Path.GetFileName(runnerCommand.FileName);
+        return fileName.Equals(WineConstants.WineBinaryName, StringComparison.OrdinalIgnoreCase) ||
+               fileName.Equals(WineConstants.Wine64BinaryName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

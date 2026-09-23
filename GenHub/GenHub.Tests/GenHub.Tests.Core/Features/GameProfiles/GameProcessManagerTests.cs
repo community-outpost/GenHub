@@ -152,6 +152,47 @@ public class GameProcessManagerTests
     }
 
     /// <summary>
+    /// When launching via Wine, the wine binary is the long-running host process.
+    /// Child process adoption must be bypassed even if an expected child process name is declared.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenRunnerIsWine_BypassesChildAdoptionAndTracksWineProcessAsync()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+
+        var wineRunnerMock = new Mock<IGameLaunchRunner>();
+        wineRunnerMock
+            .Setup(r => r.ResolveCommand(It.IsAny<GameLaunchConfiguration>()))
+            .Returns(OperationResult<RunnerCommand>.CreateSuccess(new RunnerCommand(
+                harness.LauncherPath,
+                string.Empty,
+                new Dictionary<string, string> { [WineConstants.PrefixEnvironmentVariable] = "/dummy/prefix" })));
+
+        var manager = new GameProcessManager(
+            _loggerMock.Object,
+            wineRunnerMock.Object,
+            _localizationServiceMock.Object,
+            _flatpakProvisionerMock.Object);
+
+        var config = new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+            ExpectedChildProcessName = LauncherHarness.ChildProcessName,
+            ExpectedChildDiscoveryTimeout = TimeSpan.FromMilliseconds(750),
+        };
+
+        var result = await manager.StartProcessAsync(config);
+
+        Assert.True(result.Success, string.Join(", ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data.IsRunning);
+
+        await manager.TerminateProcessAsync(result.Data.ProcessId);
+    }
+
+    /// <summary>
     /// A bootstrapper that bails without launching the game exits with code 0, so the exit code
     /// alone cannot distinguish it from success. Once the launcher is gone no child is coming, and
     /// waiting out the full discovery timeout only delays the failure behind a misleading message.
