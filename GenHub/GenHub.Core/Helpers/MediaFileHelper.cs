@@ -26,7 +26,7 @@ public static class MediaFileHelper
     /// <returns>True when the extension is a known image extension.</returns>
     public static bool IsImageFile(string? path)
     {
-        return !string.IsNullOrWhiteSpace(path) && ImageExtensions.Contains(Path.GetExtension(path));
+        return !string.IsNullOrWhiteSpace(path) && ImageExtensions.Contains(GetExtension(path));
     }
 
     /// <summary>
@@ -36,6 +36,23 @@ public static class MediaFileHelper
     /// <returns>True when the extension is a known video extension.</returns>
     public static bool IsVideoFile(string? path)
     {
-        return !string.IsNullOrWhiteSpace(path) && VideoExtensions.Contains(Path.GetExtension(path));
+        return !string.IsNullOrWhiteSpace(path) && VideoExtensions.Contains(GetExtension(path));
+    }
+
+    private static string GetExtension(string path)
+    {
+        if (Uri.TryCreate(path, UriKind.Absolute, out var uri) && !uri.IsFile)
+        {
+            return Path.GetExtension(uri.AbsolutePath);
+        }
+
+        try
+        {
+            return Path.GetExtension(path);
+        }
+        catch (ArgumentException)
+        {
+            return string.Empty;
+        }
     }
 }

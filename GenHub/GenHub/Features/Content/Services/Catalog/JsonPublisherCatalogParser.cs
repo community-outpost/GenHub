@@ -25,11 +25,7 @@ namespace GenHub.Features.Content.Services.Catalog;
 /// </remarks>
 public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logger) : IPublisherCatalogParser
 {
-    private static readonly JsonSerializerOptions CatalogSerializerOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() },
-    };
+    private static readonly JsonSerializerOptions CatalogSerializerOptions = PublisherJsonOptions.CatalogImport;
 
     /// <inheritdoc />
     public async Task<OperationResult<PublisherCatalog>> ParseCatalogAsync(

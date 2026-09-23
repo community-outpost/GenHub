@@ -63,13 +63,7 @@ public partial class PublisherStudioViewModel(
 
     private const string NewPublisherName = "New Publisher";
 
-    private static readonly JsonSerializerOptions CatalogImportOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-        Converters = { new JsonStringEnumConverter() },
-    };
+    private static readonly JsonSerializerOptions CatalogImportOptions = PublisherJsonOptions.CatalogImport;
 
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
@@ -325,6 +319,7 @@ public partial class PublisherStudioViewModel(
             var itemCount = catalog.Content?.Count ?? 0;
             if (itemCount == 0 && string.IsNullOrWhiteSpace(catalog.Publisher?.Id))
             {
+                ReportImportFailure(filePath, "Catalog contains no content items and no publisher identity.", announceFailures);
                 return false;
             }
 
@@ -369,10 +364,23 @@ public partial class PublisherStudioViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to import catalog from {FilePath}", filePath);
-            var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
-                "Failed to import catalog: {0}";
-            var errMessage = string.Format(errTemplate, ex.Message);
-            notificationService?.ShowError(StudioNotificationTitle, errMessage, NotificationDurations.Long);
+            if (announceFailures)
+            {
+                var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
+                    "Failed to import catalog: {0}";
+                string errMessage;
+                try
+                {
+                    errMessage = string.Format(errTemplate, ex.Message);
+                }
+                catch (FormatException)
+                {
+                    errMessage = $"{errTemplate}: {ex.Message}";
+                }
+
+                notificationService?.ShowError(StudioNotificationTitle, errMessage, NotificationDurations.Long);
+            }
+
             return false;
         }
     }
@@ -603,7 +611,17 @@ public partial class PublisherStudioViewModel(
 
         var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
             "Failed to import catalog: {0}";
-        notificationService?.ShowError(StudioNotificationTitle, string.Format(errTemplate, reason), NotificationDurations.Long);
+        string formattedReason;
+        try
+        {
+            formattedReason = string.Format(errTemplate, reason);
+        }
+        catch (FormatException)
+        {
+            formattedReason = $"{errTemplate}: {reason}";
+        }
+
+        notificationService?.ShowError(StudioNotificationTitle, formattedReason, NotificationDurations.Long);
     }
 
     private NamedCatalog CreateImportedCatalogEntry(PublisherStudioProject project, PublisherCatalog catalog, string catalogName, string fileName)

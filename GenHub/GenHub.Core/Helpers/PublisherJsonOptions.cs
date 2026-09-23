@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Helpers;
 
@@ -15,5 +16,16 @@ public static class PublisherJsonOptions
         PropertyNameCaseInsensitive = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
+    };
+
+    /// <summary>
+    /// Gets lenient, case-insensitive options with enum conversion for publisher catalog imports.
+    /// </summary>
+    public static JsonSerializerOptions CatalogImport { get; } = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+        Converters = { new JsonStringEnumConverter() },
     };
 }

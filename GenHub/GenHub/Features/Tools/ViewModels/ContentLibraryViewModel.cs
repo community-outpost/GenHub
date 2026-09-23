@@ -400,22 +400,42 @@ public partial class ContentLibraryViewModel(
                 continue;
             }
 
-            if (MediaFileHelper.IsImageFile(path)
-                && !SelectedContent.Metadata.ScreenshotUrls.Contains(path, StringComparer.OrdinalIgnoreCase))
+            var mediaPath = path;
+            if (Path.IsPathRooted(path) && !path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
             {
-                SelectedContent.Metadata.ScreenshotUrls.Add(path);
+                try
+                {
+                    mediaPath = new Uri(path).AbsoluteUri;
+                }
+                catch (UriFormatException)
+                {
+                    mediaPath = path;
+                }
+            }
+
+            if (MediaFileHelper.IsImageFile(path)
+                && !SelectedContent.Metadata.ScreenshotUrls.Contains(mediaPath, StringComparer.OrdinalIgnoreCase))
+            {
+                SelectedContent.Metadata.ScreenshotUrls.Add(mediaPath);
                 added = true;
             }
             else if (MediaFileHelper.IsVideoFile(path)
-                && !SelectedContent.Metadata.VideoUrls.Contains(path, StringComparer.OrdinalIgnoreCase))
+                && !SelectedContent.Metadata.VideoUrls.Contains(mediaPath, StringComparer.OrdinalIgnoreCase))
             {
-                SelectedContent.Metadata.VideoUrls.Add(path);
+                SelectedContent.Metadata.VideoUrls.Add(mediaPath);
                 added = true;
             }
         }
 
-        if (!added) return;
+        if (!added)
+        {
+            var title = GetLocalizedString("Tools.PublisherStudio.Library.DropErrorTitle", "Import Failed");
+            var message = GetLocalizedString("Tools.PublisherStudio.Library.UnsupportedMediaDropMessage", "No supported image or video files found.");
+            notificationService?.ShowWarning(title, message);
+            return;
+        }
 
+        var contentId = SelectedContent.Id;
         RefreshSelectedContent();
         MarkProjectAndCatalogDirty();
         if (parentViewModel != null)
@@ -423,7 +443,7 @@ public partial class ContentLibraryViewModel(
             await parentViewModel.SaveProjectAsync();
         }
 
-        logger.LogInformation("Added media to {ContentId}", SelectedContent.Id);
+        logger.LogInformation("Added media to {ContentId}", contentId);
     }
 
     private static ContentType ClassifyBatchContentType(string rawName, string path)
@@ -782,6 +802,7 @@ public partial class ContentLibraryViewModel(
 
         if (removedShots + removedVideos + removedLegacy == 0) return;
 
+        var contentId = SelectedContent.Id;
         RefreshSelectedContent();
         MarkProjectAndCatalogDirty();
         if (parentViewModel != null)
@@ -789,7 +810,7 @@ public partial class ContentLibraryViewModel(
             await parentViewModel.SaveProjectAsync();
         }
 
-        logger.LogInformation("Removed media {Url} from {ContentId}", url, SelectedContent.Id);
+        logger.LogInformation("Removed media {Url} from {ContentId}", url, contentId);
     }
 
     /// <summary>
@@ -803,17 +824,28 @@ public partial class ContentLibraryViewModel(
         var target = url.Trim();
         try
         {
-            if (File.Exists(target))
+            if (File.Exists(target) && (MediaFileHelper.IsImageFile(target) || MediaFileHelper.IsVideoFile(target)))
             {
                 Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
                 return;
             }
 
-            if (Uri.TryCreate(target, UriKind.Absolute, out var uri)
-                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            if (Uri.TryCreate(target, UriKind.Absolute, out var uri))
             {
-                Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
-                return;
+                if (uri.IsFile)
+                {
+                    var local = uri.LocalPath;
+                    if (File.Exists(local) && (MediaFileHelper.IsImageFile(local) || MediaFileHelper.IsVideoFile(local)))
+                    {
+                        Process.Start(new ProcessStartInfo(local) { UseShellExecute = true });
+                        return;
+                    }
+                }
+                else if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+                {
+                    Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+                    return;
+                }
             }
         }
         catch (System.ComponentModel.Win32Exception ex)
@@ -822,7 +854,7 @@ public partial class ContentLibraryViewModel(
         }
 
         var title = GetLocalizedString("Tools.PublisherStudio.Library.MediaOpenFailedTitle", "Cannot Open Media");
-        var message = GetLocalizedString("Tools.PublisherStudio.Library.MediaOpenFailedMessage", "This media entry is neither an existing file nor a valid web URL.");
+        var message = GetLocalizedString("Tools.PublisherStudio.Library.MediaOpenFailedMessage", "This media entry is neither an existing image/video file nor a valid web URL.");
         notificationService?.ShowWarning(title, message);
     }
 

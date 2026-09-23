@@ -102,38 +102,68 @@ public partial class AddContentDialogView : UserControl
 
     private static async Task HandleFallbackDropAsync(List<string> paths, AddContentDialogViewModel vm)
     {
-        if (paths.All(IsVideoFile))
+        var videos = paths.Where(IsVideoFile).ToList();
+        var images = paths.Where(IsImageFile).ToList();
+
+        if (videos.Count == paths.Count)
         {
-            await vm.AddVideosFromPathsAsync(paths);
+            await vm.AddVideosFromPathsAsync(videos);
             return;
         }
 
-        var allImages = paths.All(IsImageFile);
-        if (!allImages)
+        if (images.Count == paths.Count)
         {
-            vm.PopulateFromPaths(paths);
+            await RouteImagesAsync(images, vm);
             return;
         }
+
+        if (videos.Count > 0 || images.Count > 0)
+        {
+            if (videos.Count > 0)
+            {
+                await vm.AddVideosFromPathsAsync(videos);
+            }
+
+            if (images.Count > 0)
+            {
+                await RouteImagesAsync(images, vm);
+            }
+
+            var others = paths.Where(p => !IsVideoFile(p) && !IsImageFile(p)).ToList();
+            if (others.Count > 0)
+            {
+                vm.PopulateFromPaths(others);
+            }
+
+            return;
+        }
+
+        vm.PopulateFromPaths(paths);
+    }
+
+    private static async Task RouteImagesAsync(List<string> images, AddContentDialogViewModel vm)
+    {
+        if (images.Count == 0) return;
 
         if (string.IsNullOrWhiteSpace(vm.IconArtwork))
         {
-            vm.IconArtwork = paths[0];
-            if (paths.Count > 1)
+            vm.IconArtwork = images[0];
+            if (images.Count > 1)
             {
-                await vm.AddScreenshotsFromPathsAsync(paths.Skip(1));
+                await vm.AddScreenshotsFromPathsAsync(images.Skip(1));
             }
         }
         else if (string.IsNullOrWhiteSpace(vm.BannerArtwork))
         {
-            vm.BannerArtwork = paths[0];
-            if (paths.Count > 1)
+            vm.BannerArtwork = images[0];
+            if (images.Count > 1)
             {
-                await vm.AddScreenshotsFromPathsAsync(paths.Skip(1));
+                await vm.AddScreenshotsFromPathsAsync(images.Skip(1));
             }
         }
         else
         {
-            await vm.AddScreenshotsFromPathsAsync(paths);
+            await vm.AddScreenshotsFromPathsAsync(images);
         }
     }
 
