@@ -21,56 +21,79 @@ server.on("error", (err) => {
   process.exit(1);
 });
 
-server.on("message", (msg, rinfo) => {
-  // Minimum framing: 16-byte networkId, 4-byte targetIp, 4-byte sourceIp, + payload
-  if (msg.length < 24) return;
-
-  const networkId = msg.subarray(0, 16).toString("hex");
+// Minimum framing: 16-byte networkId, 4-byte targetIp, 4-byte sourceIp, + payload
+const parseFrame = (msg) => {
+  if (msg.length < 24) {
+    return null;
+  }
   const targetIp = `${msg[16]}.${msg[17]}.${msg[18]}.${msg[19]}`;
-  const sourceIp = `${msg[20]}.${msg[21]}.${msg[22]}.${msg[23]}`;
+  return {
+    networkId: msg.subarray(0, 16).toString("hex"),
+    targetIp,
+    sourceIp: `${msg[20]}.${msg[21]}.${msg[22]}.${msg[23]}`,
+    isKeepAlive: msg.length === 24 && targetIp === "0.0.0.0",
+    isBroadcast:
+      msg[16] === 255 ||
+      (msg[16] === 10 && msg[17] === 42 && (msg[18] === 255 || msg[19] === 255)),
+  };
+};
 
+const getOrCreateRoom = (networkId) => {
   let room = rooms.get(networkId);
   if (!room) {
     if (rooms.size >= MAX_ROOMS) {
-      return;
+      return null;
     }
     room = new Map();
     rooms.set(networkId, room);
   }
+  return room;
+};
 
-  // Track sender endpoint
+// Track sender endpoint
+const trackSender = (room, sourceIp, rinfo) => {
   if (!room.has(sourceIp) && room.size >= MAX_PEERS_PER_ROOM) {
-    return;
+    return false;
   }
   room.set(sourceIp, {
     address: rinfo.address,
     port: rinfo.port,
     lastSeen: Date.now(),
   });
+  return true;
+};
 
-  // Keep-alive ping (length exactly 24 bytes with target 0.0.0.0)
-  if (msg.length === 24 && targetIp === "0.0.0.0") {
-    return;
-  }
-
-  const isBroadcast =
-    msg[16] === 255 ||
-    (msg[16] === 10 && msg[17] === 42 && (msg[18] === 255 || msg[19] === 255));
-
-  if (isBroadcast) {
+const forwardPacket = (room, frame, msg) => {
+  if (frame.isBroadcast) {
     // Fan out broadcast packet to all other members in the room
     for (const [peerIp, peer] of room.entries()) {
-      if (peerIp !== sourceIp) {
+      if (peerIp !== frame.sourceIp) {
         server.send(msg, peer.port, peer.address);
       }
     }
-  } else {
-    // Unicast to target peer
-    const target = room.get(targetIp);
-    if (target) {
-      server.send(msg, target.port, target.address);
-    }
+    return;
   }
+  // Unicast to target peer
+  const target = room.get(frame.targetIp);
+  if (target) {
+    server.send(msg, target.port, target.address);
+  }
+};
+
+server.on("message", (msg, rinfo) => {
+  const frame = parseFrame(msg);
+  if (frame === null) {
+    return;
+  }
+  const room = getOrCreateRoom(frame.networkId);
+  if (room === null || !trackSender(room, frame.sourceIp, rinfo)) {
+    return;
+  }
+  // Keep-alive ping (length exactly 24 bytes with target 0.0.0.0)
+  if (frame.isKeepAlive) {
+    return;
+  }
+  forwardPacket(room, frame, msg);
 });
 
 // Periodic cleanup of stale endpoints (> 60 seconds of inactivity)
