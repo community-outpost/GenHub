@@ -168,6 +168,24 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var baseName = Path.GetFileName(texture);
         var baseWithoutExt = Path.GetFileNameWithoutExtension(texture);
 
+        var localizedStems = new List<string>();
+        foreach (var language in WndConstants.MappedImages.TextureLanguages)
+        {
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseName));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseWithoutExt));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseName));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseWithoutExt));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", baseName));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", baseWithoutExt));
+        }
+
+        foreach (var candidate in YieldStemVariants(localizedStems, WndConstants.MappedImages.TextureExtensions, returned))
+        {
+            yield return candidate;
+        }
+
         var stems = new List<string>
         {
             texture,
@@ -190,24 +208,6 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         };
 
         foreach (var candidate in YieldStemVariants(stems, WndConstants.MappedImages.TextureExtensions, returned))
-        {
-            yield return candidate;
-        }
-
-        var localizedStems = new List<string>();
-        foreach (var language in WndConstants.MappedImages.TextureLanguages)
-        {
-            localizedStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
-            localizedStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
-            localizedStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseName));
-            localizedStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseWithoutExt));
-            localizedStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseName));
-            localizedStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseWithoutExt));
-            localizedStems.Add(string.Concat(DataPrefix, language, "\\", baseName));
-            localizedStems.Add(string.Concat(DataPrefix, language, "\\", baseWithoutExt));
-        }
-
-        foreach (var candidate in YieldStemVariants(localizedStems, WndConstants.MappedImages.TextureExtensions, returned))
         {
             yield return candidate;
         }

@@ -351,10 +351,10 @@ public sealed class WndPreviewPlannerTests
     }
 
     /// <summary>
-    /// Tests that MainMenuRuler automatically references MainMenuBackdrop as underlay.
+    /// Tests that MainMenuRuler does not inject MainMenuBackdrop by default to avoid forcing Generals assets onto Zero Hour screens.
     /// </summary>
     [Fact]
-    public void Plan_MainMenuRuler_PlansBackdropUnderlay()
+    public void Plan_MainMenuRuler_DoesNotInjectMainMenuBackdropByDefault()
     {
         // Arrange
         var window = new WndWindow
@@ -369,8 +369,32 @@ public sealed class WndPreviewPlannerTests
 
         // Assert
         plan.SingleImage.Should().Be("MainMenuRuler");
-        plan.UnderlayImage.Should().Be("MainMenuBackdrop");
-        plan.ReferencedImages.Should().Contain("MainMenuBackdrop");
+        plan.UnderlayImage.Should().BeNull();
+        plan.ReferencedImages.Should().NotContain("MainMenuBackdrop");
+    }
+
+    /// <summary>
+    /// Tests that MainMenuRuler honors ShellMenuBackdrop override when explicitly supplied.
+    /// </summary>
+    [Fact]
+    public void Plan_MainMenuRuler_UsesShellMenuBackdropWhenOverridden()
+    {
+        // Arrange
+        var window = new WndWindow
+        {
+            ControlTypeName = WndConstants.ControlTypes.User,
+        };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "LanGameOptionsMenu.wnd:LanGameOptionsMenuParent");
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("MainMenuRuler", 0)));
+        var overrides = new Dictionary<string, string> { ["ShellMenuBackdrop"] = "CustomBackdrop" };
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window, overrides);
+
+        // Assert
+        plan.SingleImage.Should().Be("MainMenuRuler");
+        plan.UnderlayImage.Should().Be("CustomBackdrop");
+        plan.ReferencedImages.Should().Contain("CustomBackdrop");
     }
 
     private static string DrawDataWith(params (string Name, int Index)[] images)
