@@ -232,6 +232,12 @@ public static class OnlineConstants
     public const string ProfileFingerprintPrefix = "opf3";
 
     /// <summary>
+    /// Fingerprint version carrying engine compatibility CRCs (iniCRC/exeCRC
+    /// from <c>IGameCrcCalculatorService</c>) after the content hash.
+    /// </summary>
+    public const string ProfileFingerprintV4Prefix = "opf4";
+
+    /// <summary>
     /// Maximum expected content ids published per lobby (mirrors the edge).
     /// </summary>
     public const int MaxExpectedContentIds = 32;
@@ -291,6 +297,34 @@ public static class OnlineConstants
     /// Zero Hour game traffic port the tunnel runner delivers to.
     /// </summary>
     public const int ZeroHourGamePort = 16000;
+
+    /// <summary>
+    /// Native SO_REUSEPORT option value on Linux for UDP port sharing.
+    /// </summary>
+    /// <remarks>
+    /// The SocketOptionName enumeration exposes no ReusePort member, so the
+    /// native value is passed through. Linux and macOS disagree on the value.
+    /// </remarks>
+    public const int SocketReusePortLinux = 15;
+
+    /// <summary>
+    /// Native SO_REUSEPORT option value on macOS for UDP port sharing.
+    /// </summary>
+    public const int SocketReusePortMacOS = 512;
+
+    /// <summary>
+    /// Native SOL_SOCKET level value on Linux for raw socket options.
+    /// </summary>
+    /// <remarks>
+    /// The raw socket option API takes native levels verbatim: unlike the
+    /// managed SocketOptionLevel enumeration, Linux expects 1 here.
+    /// </remarks>
+    public const int SocketLevelLinux = 1;
+
+    /// <summary>
+    /// Native SOL_SOCKET level value on macOS for raw socket options.
+    /// </summary>
+    public const int SocketLevelMacOS = 0xFFFF;
 
     /// <summary>
     /// Default UDP port of the relay server.
@@ -397,4 +431,17 @@ public static class OnlineConstants
     /// </summary>
     /// <returns>A new punch magic buffer.</returns>
     public static byte[] GetPunchMagic() => [0x47, 0x48, 0x50, 0x31];
+
+    /// <summary>
+    /// Gets the native socket level and option name enabling UDP port sharing (SO_REUSEPORT) on Unix.
+    /// </summary>
+    /// <remarks>
+    /// The SocketOptionName enumeration exposes no ReusePort member, so callers pass
+    /// these native values through the raw socket option API. Linux and macOS disagree
+    /// on both numbers. Windows shares UDP ports through SO_REUSEADDR alone and never
+    /// needs this option.
+    /// </remarks>
+    /// <returns>The native level and option name for the current Unix platform.</returns>
+    public static (int Level, int Name) GetReusePortOption() =>
+        OperatingSystem.IsMacOS() ? (SocketLevelMacOS, SocketReusePortMacOS) : (SocketLevelLinux, SocketReusePortLinux);
 }
