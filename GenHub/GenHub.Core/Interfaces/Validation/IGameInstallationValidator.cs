@@ -49,6 +49,7 @@ public interface IGameInstallationValidator
     /// <param name="progress">Progress reporter for MVVM integration.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="ValidationResult"/> representing the outcome of the validation.</returns>
+    /// <exception cref="ArgumentException">The installation path is null, empty, or whitespace.</exception>
     /// <exception cref="ArgumentOutOfRangeException">The game is neither Generals nor Zero Hour.</exception>
     Task<ValidationResult> ValidateInstallationAsync(
         string installationPath,

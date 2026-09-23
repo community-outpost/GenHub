@@ -20,7 +20,7 @@ public class InstallationPathResolverArchiveTests
     [InlineData(true, false, "INI.big", true)]
     [InlineData(true, true, "INIZH.big", false)]
     [InlineData(false, true, "ControlBarProZH.big", true)]
-    public async Task SearchCandidate_UsesRetailArchivesAsync(bool generals, bool zeroHour, string archive, bool expected)
+    public async Task IsValidGameInstallation_UsesRetailArchivesAsync(bool generals, bool zeroHour, string archive, bool expected)
     {
         var directory = Directory.CreateTempSubdirectory("GenHub.Recovery.");
         try
@@ -31,7 +31,8 @@ public class InstallationPathResolverArchiveTests
                 HasGenerals = generals, HasZeroHour = zeroHour,
             };
             var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance);
-            var method = typeof(InstallationPathResolver).GetMethod("IsValidGameInstallationAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var method = typeof(InstallationPathResolver).GetMethod("IsValidGameInstallationAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(method);
             var valid = await (Task<bool>)method.Invoke(resolver, [directory.FullName, installation, null, CancellationToken.None])!;
             Assert.Equal(expected, valid);
         }

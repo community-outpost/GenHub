@@ -187,6 +187,13 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             Path.Combine(programFilesX86, GameClientConstants.ZeroHourRetailDirectoryName),
         };
 
+        AddStandaloneRetailInstallations(retailInstalls, possibleStandalonePaths);
+
+        return retailInstalls;
+    }
+
+    private void AddStandaloneRetailInstallations(List<GameInstallation> retailInstalls, IEnumerable<string> possibleStandalonePaths)
+    {
         foreach (var basePath in possibleStandalonePaths.Where(Directory.Exists))
         {
             // Skip if already covered by an EA Games parent installation
@@ -210,8 +217,6 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
                     installation.HasZeroHour);
             }
         }
-
-        return retailInstalls;
     }
 
     /// <summary>
