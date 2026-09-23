@@ -1096,6 +1096,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
         ScheduleIniCompatibilityVerification(profile);
     }
 
+#pragma warning disable S2325 // SonarCloud false positive on MVVM Toolkit generated properties
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
     private void ApplyCompatibilityBadge(IGameProfile profile, bool isRetail)
     {
         if (profile.GameClient == null)
@@ -1141,6 +1144,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
                     "Non-retail configuration (different rules/INIs from 1.04 / 1.05)");
         }
     }
+#pragma warning restore S2325
 
     private void ScheduleIniCompatibilityVerification(IGameProfile profile)
     {

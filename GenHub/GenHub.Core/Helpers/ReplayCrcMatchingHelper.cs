@@ -333,58 +333,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (IsNonRetailEngineClient(client) ||
-            HasNonRetailIdentifier(client, enabledContentIds))
-        {
-            return false;
-        }
-
-        if (IsSuperHackersRetailClient(client) || IsCommunityOutpostRetailClient(client))
-        {
-            return true;
-        }
-
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsZeroHourRetailIniCrc(cachedIniCrc))
-        {
-            return true;
-        }
-
-        if (TryGetCachedExeCrc(client, out var cachedCrc) && IsZeroHourRetailExeCrc(cachedCrc))
-        {
-            return true;
-        }
-
-        var exePath = ResolveProfileFullExePath(client);
-        if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
-        {
-            var sha = GetCachedExeSha256(exePath);
-            if (!string.IsNullOrEmpty(sha) && IsRetailExeSha256(sha))
-            {
-                return true;
-            }
-
-            var dir = Path.GetDirectoryName(exePath);
-            if (!string.IsNullOrEmpty(dir))
-            {
-                var gameDatPath = Path.Combine(dir, "game.dat");
-                if (File.Exists(gameDatPath))
-                {
-                    var datCrc = GetCachedExeCrc(gameDatPath);
-                    if (!string.IsNullOrEmpty(datCrc) && IsZeroHourRetailExeCrc(datCrc))
-                    {
-                        return true;
-                    }
-
-                    var datSha = GetCachedExeSha256(gameDatPath);
-                    if (!string.IsNullOrEmpty(datSha) && IsRetailExeSha256(datSha))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return IsOfficialBaseClient(client);
+        return IsClientRetailCompatible(client, enabledContentIds, IsZeroHourRetailIniCrc, IsZeroHourRetailExeCrc);
     }
 
     /// <summary>
@@ -853,6 +802,19 @@ public static class ReplayCrcMatchingHelper
     /// <returns><c>true</c> if compatible with retail executables; otherwise, <c>false</c>.</returns>
     private static bool IsGeneralsRetailCompatible(GameClient client, IReadOnlyList<string>? enabledContentIds)
     {
+        return IsClientRetailCompatible(client, enabledContentIds, IsGeneralsRetailIniCrc, IsGeneralsRetailExeCrc);
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client and enabled content are compatible with retail executables
+    /// using game-specific CRC matching predicates.
+    /// </summary>
+    private static bool IsClientRetailCompatible(
+        GameClient client,
+        IReadOnlyList<string>? enabledContentIds,
+        Func<string?, bool> isRetailIniCrc,
+        Func<string?, bool> isRetailExeCrc)
+    {
         if (IsNonRetailEngineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
         {
             return false;
@@ -863,47 +825,69 @@ public static class ReplayCrcMatchingHelper
             return true;
         }
 
-        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && IsGeneralsRetailIniCrc(cachedIniCrc))
+        if (TryGetCachedIniCrc(client, out var cachedIniCrc) && isRetailIniCrc(cachedIniCrc))
         {
             return true;
         }
 
-        if (TryGetCachedExeCrc(client, out var cachedCrc) && IsGeneralsRetailExeCrc(cachedCrc))
+        if (TryGetCachedExeCrc(client, out var cachedCrc) && isRetailExeCrc(cachedCrc))
         {
             return true;
         }
 
         var exePath = ResolveProfileFullExePath(client);
-        if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+        if (MatchesExeOrGameDat(exePath, isRetailExeCrc))
         {
-            var sha = GetCachedExeSha256(exePath);
-            if (!string.IsNullOrEmpty(sha) && IsRetailExeSha256(sha))
-            {
-                return true;
-            }
-
-            var dir = Path.GetDirectoryName(exePath);
-            if (!string.IsNullOrEmpty(dir))
-            {
-                var gameDatPath = Path.Combine(dir, "game.dat");
-                if (File.Exists(gameDatPath))
-                {
-                    var datCrc = GetCachedExeCrc(gameDatPath);
-                    if (!string.IsNullOrEmpty(datCrc) && IsGeneralsRetailExeCrc(datCrc))
-                    {
-                        return true;
-                    }
-
-                    var datSha = GetCachedExeSha256(gameDatPath);
-                    if (!string.IsNullOrEmpty(datSha) && IsRetailExeSha256(datSha))
-                    {
-                        return true;
-                    }
-                }
-            }
+            return true;
         }
 
         return IsOfficialBaseClient(client);
+    }
+
+    /// <summary>
+    /// Checks whether the resolved executable or its adjacent game.dat matches known retail signatures.
+    /// </summary>
+    private static bool MatchesExeOrGameDat(string? exePath, Func<string?, bool> isRetailExeCrc)
+    {
+        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        {
+            return false;
+        }
+
+        var sha = GetCachedExeSha256(exePath);
+        if (!string.IsNullOrEmpty(sha) && IsRetailExeSha256(sha))
+        {
+            return true;
+        }
+
+        return MatchesGameDat(exePath, isRetailExeCrc);
+    }
+
+    /// <summary>
+    /// Checks whether game.dat adjacent to the executable matches known retail signatures.
+    /// </summary>
+    private static bool MatchesGameDat(string exePath, Func<string?, bool> isRetailExeCrc)
+    {
+        var dir = Path.GetDirectoryName(exePath);
+        if (string.IsNullOrEmpty(dir))
+        {
+            return false;
+        }
+
+        var gameDatPath = Path.Combine(dir, "game.dat");
+        if (!File.Exists(gameDatPath))
+        {
+            return false;
+        }
+
+        var datCrc = GetCachedExeCrc(gameDatPath);
+        if (!string.IsNullOrEmpty(datCrc) && isRetailExeCrc(datCrc))
+        {
+            return true;
+        }
+
+        var datSha = GetCachedExeSha256(gameDatPath);
+        return !string.IsNullOrEmpty(datSha) && IsRetailExeSha256(datSha);
     }
 
     /// <summary>
