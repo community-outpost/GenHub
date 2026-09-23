@@ -110,31 +110,6 @@ public class WineRunner(
     }
 
     /// <summary>
-    /// Ensures that IPAddress = 0.0.0.0 is present in the native Options.ini to prevent Winsock hang under Wine.
-    /// </summary>
-    /// <param name="iniPath">The Options.ini file path.</param>
-    private static void EnsureNetworkIpAddress(string iniPath)
-    {
-        try
-        {
-            if (!File.Exists(iniPath))
-            {
-                return;
-            }
-
-            var text = File.ReadAllText(iniPath);
-            if (!text.Contains("IPAddress", StringComparison.OrdinalIgnoreCase))
-            {
-                File.AppendAllText(iniPath, "\r\nIPAddress = 0.0.0.0\r\n");
-            }
-        }
-        catch
-        {
-            // Best-effort to prevent Winsock adapter enumeration hang under Wine.
-        }
-    }
-
-    /// <summary>
     /// Copies the native Options.ini into one prefix user shell folder when the source is newer.
     /// </summary>
     /// <param name="sourcePath">The native Options.ini path.</param>
@@ -361,7 +336,7 @@ public class WineRunner(
                 resolutionLine = $"{GameSettingsIniConstants.ResolutionKey} = {xres} {yres}";
             }
 
-            File.WriteAllText(sourcePath, $"{resolutionLine}\r\n{GameSettingsIniConstants.IdealStaticGameLODKey} = {WineConstants.BootstrapIdealStaticGameLOD}\r\nIPAddress = 0.0.0.0\r\n");
+            File.WriteAllText(sourcePath, $"{resolutionLine}\r\n{GameSettingsIniConstants.IdealStaticGameLODKey} = {WineConstants.BootstrapIdealStaticGameLOD}\r\n");
             logger.LogInformation("Bootstrapped baseline Options.ini at {SourcePath}", sourcePath);
             return true;
         }
@@ -384,8 +359,6 @@ public class WineRunner(
         {
             return;
         }
-
-        EnsureNetworkIpAddress(sourcePath);
 
         try
         {
