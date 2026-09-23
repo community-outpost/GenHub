@@ -14,6 +14,54 @@ namespace GenHub.Tests.Core.Common.Controls;
 public class SectionScrollSpyTests
 {
     /// <summary>
+    /// Verifies that scrolling reports the last section whose top is above the visibility threshold.
+    /// </summary>
+    [AvaloniaFact]
+    public void ScrollChanged_ReportsTopmostVisibleSection()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            host.ScrollViewer.Offset = new Vector(host.ScrollViewer.Offset.X, 450);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("second", Assert.Single(reported));
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that scrolling to the bottom reports the last section.
+    /// </summary>
+    [AvaloniaFact]
+    public void ScrollChanged_AtBottom_ReportsLastSection()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            var maxScrollY = host.ScrollViewer.Extent.Height - host.ScrollViewer.Viewport.Height;
+            Assert.True(maxScrollY > 0);
+            host.ScrollViewer.Offset = new Vector(host.ScrollViewer.Offset.X, maxScrollY);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("third", Assert.Single(reported));
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
     /// Verifies that registering sections adds them without immediate scroll activation.
     /// </summary>
     [AvaloniaFact]

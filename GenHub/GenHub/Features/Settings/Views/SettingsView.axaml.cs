@@ -122,48 +122,10 @@ public partial class SettingsView : UserControl
         }
     }
 
-    private static string? MapExpanderToSectionId(string expanderName)
-    {
-        return expanderName switch
-        {
-            "Expander_GameConfig" => SettingsConstants.SectionGameConfig,
-            "Expander_Downloads" => SettingsConstants.SectionDownloads,
-            "Expander_Appearance" => SettingsConstants.SectionAppearance,
-            "Expander_DataDirectories" => SettingsConstants.SectionDataDirectories,
-            "Expander_MigrateInstallation" => SettingsConstants.SectionMigrateInstallation,
-            "Expander_Logs" => SettingsConstants.SectionLogs,
-            "Expander_Performance" => SettingsConstants.SectionPerformance,
-            "Expander_Cas" => SettingsConstants.SectionCas,
-            "Expander_LocalContent" => SettingsConstants.SectionLocalContent,
-            "Expander_GitHubDiscovery" => SettingsConstants.SectionGitHubDiscovery,
-            "Expander_Updates" => SettingsConstants.SectionUpdates,
-            "Expander_Subscriptions" => SettingsConstants.SectionSubscriptions,
-            SettingsConstants.ExpanderCloudUploads => SettingsConstants.SectionCloudUploads,
-            "Expander_DangerZone" => SettingsConstants.SectionDangerZone,
-            _ => null,
-        };
-    }
-
     private static bool IsSectionExpander(Expander expander)
     {
-        return expander.Name switch
-        {
-            "Expander_GameConfig" or
-            "Expander_Downloads" or
-            "Expander_Appearance" or
-            "Expander_DataDirectories" or
-            "Expander_MigrateInstallation" or
-            "Expander_Logs" or
-            "Expander_Performance" or
-            "Expander_Cas" or
-            "Expander_LocalContent" or
-            "Expander_GitHubDiscovery" or
-            "Expander_Updates" or
-            "Expander_Subscriptions" or
-            SettingsConstants.ExpanderCloudUploads or
-            "Expander_DangerZone" => true,
-            _ => false,
-        };
+        var name = expander.Name;
+        return name is not null && Array.Exists(SectionExpanderMap, entry => entry.ExpanderName == name);
     }
 
     private void HookViewModel(SettingsViewModel vm)
