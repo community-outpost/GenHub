@@ -775,8 +775,17 @@ public class ControlBarPackageProcessor(
             var tempArtBig = Path.Combine(tempRoot, "temp_art.big");
             var tempDataBig = Path.Combine(tempRoot, "temp_data.big");
 
-            await BigFilePacker.PackAsync(artPackRoot, tempArtBig, cancellationToken);
-            await BigFilePacker.PackAsync(dataPackRoot, tempDataBig, cancellationToken);
+            var dupArt = await BigFilePacker.PackAsync(artPackRoot, tempArtBig, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (dupArt > 0)
+            {
+                logger.LogWarning("Dropped {Count} duplicate or colliding entries while packing {Path}", dupArt, tempArtBig);
+            }
+
+            var dupData = await BigFilePacker.PackAsync(dataPackRoot, tempDataBig, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (dupData > 0)
+            {
+                logger.LogWarning("Dropped {Count} duplicate or colliding entries while packing {Path}", dupData, tempDataBig);
+            }
 
             File.Move(tempArtBig, artBigPath, overwrite: true);
             File.Move(tempDataBig, dataBigPath, overwrite: true);
@@ -901,6 +910,10 @@ public class ControlBarPackageProcessor(
             await File.WriteAllBytesAsync(metadataTargetPath, metadataBytes, cancellationToken);
             repackedOutputs.Add(metadataFileName);
             logger.LogInformation("Created Control Bar metadata file {FileName} from fallback", metadataFileName);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
         {

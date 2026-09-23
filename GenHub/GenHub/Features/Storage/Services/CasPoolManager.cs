@@ -20,7 +20,6 @@ public class CasPoolManager : ICasPoolManager
 {
     private readonly ICasPoolResolver _poolResolver;
     private readonly ILogger<CasPoolManager> _logger;
-    private readonly IFileHashProvider _hashProvider;
     private readonly ILoggerFactory _loggerFactory;
     private readonly IStorageWritabilityProbe _writabilityProbe;
     private readonly CasConfiguration _config;
@@ -35,21 +34,18 @@ public class CasPoolManager : ICasPoolManager
     /// </summary>
     /// <param name="poolResolver">The pool resolver for routing decisions.</param>
     /// <param name="config">The CAS configuration.</param>
-    /// <param name="hashProvider">The file hash provider.</param>
     /// <param name="loggerFactory">The logger factory for creating storage loggers.</param>
     /// <param name="writabilityProbe">The storage writability probe.</param>
     /// <param name="logger">The logger instance.</param>
     public CasPoolManager(
         ICasPoolResolver poolResolver,
         IOptions<CasConfiguration> config,
-        IFileHashProvider hashProvider,
         ILoggerFactory loggerFactory,
         IStorageWritabilityProbe writabilityProbe,
         ILogger<CasPoolManager> logger)
     {
         _poolResolver = poolResolver;
         _config = config.Value;
-        _hashProvider = hashProvider;
         _loggerFactory = loggerFactory;
         _writabilityProbe = writabilityProbe;
         _logger = logger;
@@ -234,8 +230,7 @@ public class CasPoolManager : ICasPoolManager
 
         return new CasStorage(
             Options.Create(poolConfig),
-            _loggerFactory.CreateLogger<CasStorage>(),
-            _hashProvider);
+            _loggerFactory.CreateLogger<CasStorage>());
     }
 
     private void RefreshInstallationPools()

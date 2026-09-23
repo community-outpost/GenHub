@@ -33,4 +33,14 @@ public record LocalContentOptions
     /// Defaults to true.
     /// </summary>
     public bool NormalizeInactiveArchives { get; init; } = true;
+
+    /// <summary>
+    /// Gets the publisher identifier recorded on the manifest. Null selects the default local publisher.
+    /// </summary>
+    public string? PublisherId { get; init; }
+
+    /// <summary>
+    /// Gets the manifest version string. Null selects the default version.
+    /// </summary>
+    public string? ManifestVersion { get; init; }
 }

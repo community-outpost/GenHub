@@ -1,7 +1,9 @@
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace GenHub.Core.Interfaces.Manifest;
@@ -96,8 +98,10 @@ public interface IManifestGenerationService
     /// <param name="manifestVersion">Manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <param name="contentType">Type of content (Mod, Patch, Addon, etc).</param>
     /// <param name="targetGame">Target game type.</param>
+    /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest generation overloads preserve parameter parity across int/string version forms including the optional hashing progress reporter.")]
     Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
         string publisherId,
@@ -105,6 +109,30 @@ public interface IManifestGenerationService
         int manifestVersion = 0,
         ContentType contentType = ContentType.Mod,
         GameType targetGame = GameType.Generals,
+        IProgress<ContentStorageProgress>? progress = null,
+        params ContentDependency[] dependencies);
+
+    /// <summary>
+    /// Creates a manifest builder for the specified content with a free-form version string.
+    /// </summary>
+    /// <param name="contentDirectory">The content directory to scan and hash.</param>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <param name="contentName">The content name.</param>
+    /// <param name="manifestVersion">The manifest version string (for example "1.0.0").</param>
+    /// <param name="contentType">The content type.</param>
+    /// <param name="targetGame">The target game.</param>
+    /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
+    /// <param name="dependencies">The content dependencies.</param>
+    /// <returns>The manifest builder for the discovered content.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest generation overloads preserve parameter parity across int/string version forms including the optional hashing progress reporter.")]
+    Task<IContentManifestBuilder> CreateContentManifestAsync(
+        string contentDirectory,
+        string publisherId,
+        string contentName,
+        string? manifestVersion,
+        ContentType contentType = ContentType.Mod,
+        GameType targetGame = GameType.Generals,
+        IProgress<ContentStorageProgress>? progress = null,
         params ContentDependency[] dependencies);
 
     /// <summary>

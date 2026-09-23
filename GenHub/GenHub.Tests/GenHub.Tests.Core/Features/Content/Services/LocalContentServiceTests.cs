@@ -406,9 +406,10 @@ public class LocalContentServiceTests : IDisposable
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
-                It.IsAny<int>(),
+                It.IsAny<string?>(),
                 It.IsAny<ContentType>(),
                 It.IsAny<GameType>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<ContentDependency[]>()))
             .ReturnsAsync(builderMock.Object);
 

@@ -1264,6 +1264,31 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that a dotted manifest version produces a numeric identity version while preserving the display version.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateContentManifestAsync_WithDottedVersion_UsesNumericIdentityVersionAsync()
+    {
+        // Arrange
+        await File.WriteAllTextAsync(Path.Combine(_tempDirectory, "mod.ini"), "dummy");
+
+        // Act
+        var builder = await _service.CreateContentManifestAsync(
+            _tempDirectory,
+            "local",
+            "TestMod",
+            "2.0.0",
+            ContentType.Mod,
+            GameType.ZeroHour);
+
+        // Assert
+        var manifest = builder.Build();
+        Assert.Equal("1.200.local.mod.testmod", manifest.Id.Value);
+        Assert.Equal("2.0.0", manifest.Version);
+    }
+
+    /// <summary>
     /// Prepares a dummy executable file for testing.
     /// </summary>
     /// <returns>A tuple containing the client path and executable path.</returns>

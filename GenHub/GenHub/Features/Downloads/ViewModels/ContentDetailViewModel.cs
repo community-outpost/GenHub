@@ -2443,6 +2443,11 @@ public partial class ContentDetailViewModel(
 
     private void OnDownloadStarted(ContentDownloadStartedMessage message)
     {
+        if (message.ContentKey.StartsWith(ContentConstants.SampleContentKeyPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         RunOnUiThread(() =>
         {
             HasActiveDownloads = true;

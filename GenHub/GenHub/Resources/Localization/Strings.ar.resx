@@ -6912,6 +6912,902 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
     <value>المحتوى المتاح</value>
   </data>
+  <data name="Tools.ModBuilder.FileTree.TooltipExpandCollapse" xml:space="preserve">
+    <value>توسيع أو طي الدليل</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Processed" xml:space="preserve">
+    <value>تمت المعالجة</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Speed" xml:space="preserve">
+    <value>السرعة</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Remaining" xml:space="preserve">
+    <value>المتبقي</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.ProcessingPrefix" xml:space="preserve">
+    <value>جاري المعالجة:</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Title" xml:space="preserve">
+    <value>بناء المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.FilesPerSec" xml:space="preserve">
+    <value>ملفات/ثانية</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.CacheHits" xml:space="preserve">
+    <value>إصابات ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Elapsed" xml:space="preserve">
+    <value>الوقت المنقضي</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Eta" xml:space="preserve">
+    <value>الوقت المقدر</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.TooltipCancel" xml:space="preserve">
+    <value>إلغاء عملية البناء النشطة</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.ButtonCancel" xml:space="preserve">
+    <value>إلغاء البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Loading" xml:space="preserve">
+    <value>جارٍ التحميل</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Processing" xml:space="preserve">
+    <value>جارٍ المعالجة</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Converting" xml:space="preserve">
+    <value>جارٍ التحويل</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Staging" xml:space="preserve">
+    <value>جارٍ التجهيز</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Packing" xml:space="preserve">
+    <value>جارٍ الحزم</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Compressing" xml:space="preserve">
+    <value>جارٍ الضغط</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Archiving" xml:space="preserve">
+    <value>جارٍ الأرشفة</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Verifying" xml:space="preserve">
+    <value>جارٍ التحقق</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Hashing" xml:space="preserve">
+    <value>جارٍ حساب البصمات</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Storing" xml:space="preserve">
+    <value>جارٍ التخزين</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Complete" xml:space="preserve">
+    <value>مكتمل</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.Title" xml:space="preserve">
+    <value>مدير ملفات وأصول اللعبة</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.Subtitle" xml:space="preserve">
+    <value>تصفح ملفات اللعبة واستورد القوام وملفات INI والنماذج إلى مشروعك</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipMinimize" xml:space="preserve">
+    <value>تصغير</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipMaximize" xml:space="preserve">
+    <value>تكبير / استعادة</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipClose" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.GameInstallationLabel" xml:space="preserve">
+    <value>تثبيت اللعبة:</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.WatermarkSearchFiles" xml:space="preserve">
+    <value>البحث في الملفات...</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipRefreshFiles" xml:space="preserve">
+    <value>تحديث قوائم الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipImportBigGame" xml:space="preserve">
+    <value>استيراد أرشيفات .BIG مباشرة إلى مجلد GameFilesEdited في هذا المشروع لتعديلها وإعادة بنائها.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonImportBig" xml:space="preserve">
+    <value>استيراد .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.FilesUnit" xml:space="preserve">
+    <value>ملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ModifiedUnit" xml:space="preserve">
+    <value>معدل</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.NewUnit" xml:space="preserve">
+    <value>جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.GameInstallationFilesHeader" xml:space="preserve">
+    <value>ملفات تثبيت اللعبة</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipAddSelected" xml:space="preserve">
+    <value>إضافة الملفات المحددة إلى المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonAddToProject" xml:space="preserve">
+    <value>إضافة إلى المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ProjectFilesHeader" xml:space="preserve">
+    <value>ملفات المشروع (GameFilesEdited)</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipExtractBigProject" xml:space="preserve">
+    <value>استخراج أرشيفات .BIG مباشرة إلى مجلد GameFilesEdited في هذا المشروع لتعديلها وإعادة بنائها.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonImportBigProject" xml:space="preserve">
+    <value>استيراد .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipRemoveSelected" xml:space="preserve">
+    <value>إزالة الملفات المحددة من المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonRemoveFromProject" xml:space="preserve">
+    <value>إزالة من المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
+    <value>محرر حزم الحزم</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TotalFiles" xml:space="preserve">
+    <value>إجمالي الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.WatermarkSearchFiles" xml:space="preserve">
+    <value>البحث في الملفات...</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipAddFiles" xml:space="preserve">
+    <value>إضافة ملفات إلى الحزمة (Ctrl+A)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonAddFiles" xml:space="preserve">
+    <value>إضافة ملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipRemoveFiles" xml:space="preserve">
+    <value>إزالة الملفات المحددة (Delete)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonRemove" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipMoveUp" xml:space="preserve">
+    <value>تحريك لأعلى (Ctrl+Up)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipMoveDown" xml:space="preserve">
+    <value>تحريك لأسفل (Ctrl+Down)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipConvertAll" xml:space="preserve">
+    <value>تحويل جميع ملفات TGA إلى DDS</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonConvertAll" xml:space="preserve">
+    <value>تحويل الكل</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TagCached" xml:space="preserve">
+    <value>مخزن مؤقتاً</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TagModified" xml:space="preserve">
+    <value>معدل</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.FilePreviewHeader" xml:space="preserve">
+    <value>معاينة الملف</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileName" xml:space="preserve">
+    <value>اسم الملف</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelSourcePath" xml:space="preserve">
+    <value>مسار المصدر</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileType" xml:space="preserve">
+    <value>نوع الملف</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileSize" xml:space="preserve">
+    <value>حجم الملف</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelLastModified" xml:space="preserve">
+    <value>تاريخ آخر تعديل</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ImagePreviewComingSoon" xml:space="preserve">
+    <value>معاينة الصورة قريباً</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.NoticeChangesSavedOnProjectSave" xml:space="preserve">
+    <value>* سيتم تطبيق التغييرات عند حفظ المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipSave" xml:space="preserve">
+    <value>حفظ تغييرات حزمة الحزم</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonSave" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipCancel" xml:space="preserve">
+    <value>إغلاق دون حفظ التغييرات</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonCancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.BrandTitle" xml:space="preserve">
+    <value>ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.BrandSubtitle" xml:space="preserve">
+    <value>أداة إنشاء المحتوى لـ C&amp;C Generals و Zero Hour</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipNewProject" xml:space="preserve">
+    <value>إنشاء مشروع تعديل جديد كلياً (Ctrl+N)</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonNewProject" xml:space="preserve">
+    <value>مشروع جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipOpenProject" xml:space="preserve">
+    <value>فتح مشروع موجود من القرص (Ctrl+O)</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonOpenProject" xml:space="preserve">
+    <value>فتح مشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectTitle" xml:space="preserve">
+    <value>مشروع جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectSubtitle" xml:space="preserve">
+    <value>البدء من نقطة الصفر</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectDesc" xml:space="preserve">
+    <value>إعداد مساحة عمل منظمة للمود مع أدلة قياسية لـ INI والفن والصوت جاهزة للتأليف.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectAction" xml:space="preserve">
+    <value>إنشاء المشروع ←</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectTitle" xml:space="preserve">
+    <value>فتح مشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectSubtitle" xml:space="preserve">
+    <value>تصفح القرص</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectDesc" xml:space="preserve">
+    <value>فتح ملف مشروع .mbproj موجود أو استيراد مساحة عمل مهيأة بأدوات ModBuilder.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectAction" xml:space="preserve">
+    <value>استعراض الملفات ←</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsTitle" xml:space="preserve">
+    <value>مشاريع نموذجية</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsSubtitle" xml:space="preserve">
+    <value>تعلم بالقدوة والأمثلة</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsDesc" xml:space="preserve">
+    <value>استكشف مشاريع نماذج الترقيعات المجتمعية ومفاتيح التشغيل السريع المعدة مسبقاً مع عناصر الحزم وأرشيفات الإصدار.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsAction" xml:space="preserve">
+    <value>فتح النماذج ←</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle" xml:space="preserve">
+    <value>قوالب المجتمع المميزة</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesSubtitle" xml:space="preserve">
+    <value>إضافات مجتمعية شائعة مهيأة مسبقاً بعناصر وحزم التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonDownloadOpenProject" xml:space="preserve">
+    <value>تنزيل وفتح المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.RecentProjectsTitle" xml:space="preserve">
+    <value>المشاريع الأخيرة</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.NoProjectsFound" xml:space="preserve">
+    <value>لم يتم العثور على أي مشاريع</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.NoProjectsFoundDesc" xml:space="preserve">
+    <value>أنشئ مشروعاً جديداً أو استكشف القوالب المميزة للبدء</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipExploreTemplates" xml:space="preserve">
+    <value>استكشف المشاريع النموذجية المدمجة</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonExploreTemplates" xml:space="preserve">
+    <value>استكشاف القوالب</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TipWorkflowTitle" xml:space="preserve">
+    <value>نصيحة سريعة: سير عمل البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TipWorkflowDesc" xml:space="preserve">
+    <value>نظّم ملفات المصدر داخل &apos;GameFilesEdited&apos;، واضبط أرشيفات المخرجات في &apos;config/ModBundlePacks.json&apos;، ثم انقر فوق &apos;تنفيذ البناء&apos; لإنشاء أرشيفات .big و .zip الجاهزة للتوزيع تلقائياً.</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.Title" xml:space="preserve">
+    <value>إعدادات ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.Subtitle" xml:space="preserve">
+    <value>تكوين أداء البناء وذاكرة التخزين المؤقت وتفضيلات واجهة المستخدم</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipResetDefaults" xml:space="preserve">
+    <value>إعادة ضبط جميع الإعدادات على القيم الافتراضية</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonResetDefaults" xml:space="preserve">
+    <value>إعادة الضبط الافتراضي</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CacheManagementHeader" xml:space="preserve">
+    <value>إدارة ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCacheSize" xml:space="preserve">
+    <value>حجم ذاكرة التخزين المؤقت:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCachedFiles" xml:space="preserve">
+    <value>الملفات المخزنة مؤقتاً:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelStatus" xml:space="preserve">
+    <value>الحالة:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipClearCache" xml:space="preserve">
+    <value>مسح جميع ملفات البناء المخزنة مؤقتاً</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonClearCache" xml:space="preserve">
+    <value>مسح ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipRebuildIndex" xml:space="preserve">
+    <value>إعادة بناء فهرس ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonRebuildIndex" xml:space="preserve">
+    <value>إعادة بناء الفهرس</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeClearCache" xml:space="preserve">
+    <value>سيؤدي مسح ذاكرة التخزين المؤقت إلى إزالة كافة نواتج البناء المخزنة مؤقتاً. ستتم إعادة بناء الملفات في عملية البناء القادمة.</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.PerformanceHeader" xml:space="preserve">
+    <value>إعدادات الأداء</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCompressionLevel" xml:space="preserve">
+    <value>مستوى الضغط الافتراضي</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipCompressionLevel" xml:space="preserve">
+    <value>مستوى الضغط الافتراضي للأرشيفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeCompression" xml:space="preserve">
+    <value>ضغط أعلى = ملفات أصغر ولكن بناء أبطأ</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelThreadCount" xml:space="preserve">
+    <value>عدد مؤشرات الترابط</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipThreadCount" xml:space="preserve">
+    <value>عدد مؤشرات الترابط المتوازية لعمليات البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeThreadCount" xml:space="preserve">
+    <value>المزيد من مؤشرات الترابط = بناء أسرع ولكن استخدام أعلى للمعالج</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelIoBufferSize" xml:space="preserve">
+    <value>حجم مخزن الإدخال/الإخراج المؤقت (ك.ب)</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipIoBufferSize" xml:space="preserve">
+    <value>حجم المخزن المؤقت لعمليات إدخال/إخراج الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeIoBufferSize" xml:space="preserve">
+    <value>مخازن مؤقتة أكبر = أداء أفضل للملفات الكبيرة</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.UiPreferencesHeader" xml:space="preserve">
+    <value>تفضيلات واجهة المستخدم</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelFontSize" xml:space="preserve">
+    <value>حجم خط مخرجات البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipFontSize" xml:space="preserve">
+    <value>حجم الخط لوحدة تحكم مخرجات البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckEnableAnimations" xml:space="preserve">
+    <value>تمكين الرسوم المتحركة</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipEnableAnimations" xml:space="preserve">
+    <value>تمكين الانتقالات والرسوم المتحركة السلسة</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckAutoScroll" xml:space="preserve">
+    <value>التمرير التلقائي لمخرجات البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipAutoScroll" xml:space="preserve">
+    <value>التمرير تلقائياً إلى آخر مخرجات البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckSyntaxHighlighting" xml:space="preserve">
+    <value>تمكين تمييز بناء الجملة</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipSyntaxHighlighting" xml:space="preserve">
+    <value>ترميز مخرجات البناء بالألوان حسب مستوى السجل</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Title" xml:space="preserve">
+    <value>محرر التكوين</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Subtitle" xml:space="preserve">
+    <value>إدارة عناصر وحزم التجميع للمود الخاص بك</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TotalItems" xml:space="preserve">
+    <value>إجمالي العناصر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PacksUnit" xml:space="preserve">
+    <value>حزم</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabBundleItems" xml:space="preserve">
+    <value>عناصر التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddItem" xml:space="preserve">
+    <value>إضافة عنصر تجميع جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddItem" xml:space="preserve">
+    <value>إضافة عنصر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveItem" xml:space="preserve">
+    <value>إزالة عنصر التجميع المحدد</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemoveItem" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagBig" xml:space="preserve">
+    <value>.BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundleItemSettingsHeader" xml:space="preserve">
+    <value>إعدادات عنصر التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelBundleName" xml:space="preserve">
+    <value>اسم الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkBundleName" xml:space="preserve">
+    <value>مثل MyINI, MyTextures...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelSourceFiles" xml:space="preserve">
+    <value>ملفات المصدر / نمط Glob</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescSourceFiles" xml:space="preserve">
+    <value>يحدد الملفات الموجودة داخل GameFilesEdited التي سيتم حزمها في هذا التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkSourceFiles" xml:space="preserve">
+    <value>مثل GameFilesEdited/**/*.* أو GameFilesEdited/Data/INI/**/*.ini</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.QuickPresetsLabel" xml:space="preserve">
+    <value>الإعدادات المسبقة السريعة:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetAllFiles" xml:space="preserve">
+    <value>كافة الملفات (**/*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetAllFiles" xml:space="preserve">
+    <value>مطابقة كافة الملفات في GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetIniFiles" xml:space="preserve">
+    <value>ملفات INI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetIniFiles" xml:space="preserve">
+    <value>مطابقة كافة ملفات .ini في GameFilesEdited/Data/INI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetTextures" xml:space="preserve">
+    <value>القوام (.tga)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetTextures" xml:space="preserve">
+    <value>مطابقة كافة قوام .tga في GameFilesEdited/Art/Textures</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetAudio" xml:space="preserve">
+    <value>الصوتيات</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetAudio" xml:space="preserve">
+    <value>مطابقة كافة الملفات الصوتية في GameFilesEdited/Data/Audio</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckPackAsBig" xml:space="preserve">
+    <value>الحزم كأرشيف .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPackAsBig" xml:space="preserve">
+    <value>حزم الأصول المتطابقة في حاوية أرشيف EA .big. ألغِ التحديد للاحتفاظ بالملفات كمجلدات منفصلة.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescPackAsBig" xml:space="preserve">
+    <value>عند التمكين، يتم تجميع الملفات في أرشيف .big. عند التعطيل، تظل الملفات كأدلة منفصلة.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelArchiveSuffix" xml:space="preserve">
+    <value>لاحقة اسم الأرشيف (اختياري)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkArchiveSuffix" xml:space="preserve">
+    <value>مثل _01 (ينتج Name_01.big)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipArchiveSuffix" xml:space="preserve">
+    <value>إلحاق نص باسم ملف .big الذي تم إنشاؤه</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectBundleItemPrompt" xml:space="preserve">
+    <value>حدد عنصر تجميع من اليسار أو انقر فوق &apos;إضافة عنصر&apos; لتهيئة الملفات والإعدادات.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabBundlePacks" xml:space="preserve">
+    <value>حزم التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddPack" xml:space="preserve">
+    <value>إضافة حزمة تجميع جديدة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddPack" xml:space="preserve">
+    <value>إضافة حزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemovePack" xml:space="preserve">
+    <value>إزالة حزمة التجميع المحددة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemovePack" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackBig" xml:space="preserve">
+    <value>BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackBuild" xml:space="preserve">
+    <value>بناء</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackInstall" xml:space="preserve">
+    <value>تثبيت</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundlePackSettingsHeader" xml:space="preserve">
+    <value>إعدادات حزمة التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelPackName" xml:space="preserve">
+    <value>اسم الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkPackName" xml:space="preserve">
+    <value>مثل MyMod, EnhancedEdition...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelIncludedItems" xml:space="preserve">
+    <value>عناصر التجميع المضمنة في هذه الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescIncludedItems" xml:space="preserve">
+    <value>حدد عناصر التجميع التي يجب دمجها عند بناء هذه الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelPackagingFormat" xml:space="preserve">
+    <value>تنسيق الحزم</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckPackIntoOneBig" xml:space="preserve">
+    <value>الحزم في ملف .big واحد بدلاً من .zip</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPackIntoOneBig" xml:space="preserve">
+    <value>حزم جميع عناصر التجميع المكونة في أرشيف EA BIG واحد بدلاً من ملف ZIP (على سبيل المثال لتحديثات اللعبة).</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelCustomOutputFile" xml:space="preserve">
+    <value>ملف الإخراج المخصص (اختياري)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkCustomOutputFile" xml:space="preserve">
+    <value>مثل 500_900_CommunityPatch_CoreINI.big (اتركه فارغاً للافتراضي)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelActionsTargets" xml:space="preserve">
+    <value>الإجراءات والأهداف</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckAllowBuild" xml:space="preserve">
+    <value>السماح بالبناء (تضمين في حزم الإصدار)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAllowBuild" xml:space="preserve">
+    <value>يحزم هذه الحزمة في أرشيف داخل مجلد Releases أثناء إصدار البناء.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckAllowInstall" xml:space="preserve">
+    <value>السماح بالتثبيت (قديم: تثبيت مباشر في المجلد يدوياً)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAllowInstall" xml:space="preserve">
+    <value>علامة مستقلة قديمة لنسخ الملفات مباشرة إلى دليل اللعبة الجذر. غير ضرورية في GenHub الذي يعزل تثبيتات اللعبة عبر مساحات العمل الافتراضية وبيانات المحتوى.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeGenHubWorkspaces" xml:space="preserve">
+    <value>يستخدم GenHub مساحات عمل افتراضية وبيانات المحتوى لعزل التعديلات. التثبيت اليدوي في دليل اللعبة فائض عن الحاجة في سير العمل العادي لـ GenHub.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectBundlePackPrompt" xml:space="preserve">
+    <value>حدد حزمة تجميع من اليسار أو انقر فوق &apos;إضافة حزمة&apos; لتهيئة العناصر والنشر.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.UnsavedChangesBadge" xml:space="preserve">
+    <value>تغييرات غير محفوظة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeUnsavedChanges" xml:space="preserve">
+    <value>سيتم حفظ التغييرات في ملفات التكوين</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipSave" xml:space="preserve">
+    <value>حفظ تغييرات التكوين في ملفات المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonSave" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LoadingMessage" xml:space="preserve">
+    <value>جارٍ تحميل الإعدادات...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClose" xml:space="preserve">
+    <value>إغلاق محرر التكوين دون حفظ</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonClose" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Header" xml:space="preserve">
+    <value>إضافة ملفات ومجلدات إلى عنصر الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Subtitle" xml:space="preserve">
+    <value>حدد المجلدات لإنشاء أحرف بدل متكررة أو اختر ملفات محددة للربط.</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.SearchWatermark" xml:space="preserve">
+    <value>تصفية الملفات والمجلدات...</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern" xml:space="preserve">
+    <value>نمط تطابق المجلد:</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobAllFiles" xml:space="preserve">
+    <value>جميع الملفات في الدليل (/**/*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobIniFiles" xml:space="preserve">
+    <value>ملفات تكوين INI فقط (/**/*.ini)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobTgaFiles" xml:space="preserve">
+    <value>ملفات قوام TGA فقط (/**/*.tga)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWndFiles" xml:space="preserve">
+    <value>ملفات واجهة Window UI فقط (/**/*.wnd)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobCsfFiles" xml:space="preserve">
+    <value>جداول نصوص CSF فقط (/**/*.csf)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWavFiles" xml:space="preserve">
+    <value>ملفات صوت WAV فقط (/**/*.wav)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonAdd" xml:space="preserve">
+    <value>إضافة إلى عنصر الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonApply" xml:space="preserve">
+    <value>تطبيق التحديد</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LoadingMessage" xml:space="preserve">
+    <value>جارٍ تحميل ملفات المشروع...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
+    <value>مسح جميع أنماط المصدر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFolder" xml:space="preserve">
+    <value>استعرض وحدد دليلاً كاملاً من المشروع (يضيف نمطًا متكررًا)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFolder" xml:space="preserve">
+    <value>إضافة مجلد...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFiles" xml:space="preserve">
+    <value>حدد ملفًا أو أكثر من المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFiles" xml:space="preserve">
+    <value>إضافة ملفات...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipProjectTree" xml:space="preserve">
+    <value>فحص المجلدات أو الملفات تفاعليًا من شجرة المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonProjectTree" xml:space="preserve">
+    <value>شجرة المشروع...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelConfiguredSources" xml:space="preserve">
+    <value>المصادر المكونة:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemovePattern" xml:space="preserve">
+    <value>إزالة النمط</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkAddPattern" xml:space="preserve">
+    <value>إضافة نمط مخصص (مثال: GameFilesEdited/Data/**/*.ini)...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddPattern" xml:space="preserve">
+    <value>إضافة نمط</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddPattern" xml:space="preserve">
+    <value>إضافة نمط مخصص لعنصر الحزمة هذا</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetWindowUi" xml:space="preserve">
+    <value>واجهة Window UI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetWindowUi" xml:space="preserve">
+    <value>تطابق جميع ملفات تخطيط .wnd</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetCsfStrings" xml:space="preserve">
+    <value>نصوص CSF</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetCsfStrings" xml:space="preserve">
+    <value>تطابق جميع ملفات نصوص .csf</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderRawGlobString" xml:space="preserve">
+    <value>متقدم: نص الأنماط المباشر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelRawGlobString" xml:space="preserve">
+    <value>أنماط مفصولة بفواصل منقوطة:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderLinkedBundlePacks" xml:space="preserve">
+    <value>مرتبط بحزم الحزم</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedBundlePacks" xml:space="preserve">
+    <value>حدد حزم الحزم التي تتضمن هذا العنصر عند الإنشاء:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeNoBundlePacks" xml:space="preserve">
+    <value>لم يتم إنشاء أي حزم بعد. قم بإنشاء حزمة في علامة تبويب حزم الحزم.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescOutputFile" xml:space="preserve">
+    <value>حدد اسم ملف مخصص للأرشيف الناتج</value>
+  </data>
+  <data name="Tools.ModBuilder.View.CurrentProjectHeader" xml:space="preserve">
+    <value>المشروع الحالي</value>
+  </data>
+  <data name="Tools.ModBuilder.View.NoProjectLoadedWatermark" xml:space="preserve">
+    <value>لم يتم تحميل أي مشروع...</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelTarget" xml:space="preserve">
+    <value>الهدف:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipTargetGame" xml:space="preserve">
+    <value>اللعبة المستهدفة لهذا المشروع وبياناته</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelType" xml:space="preserve">
+    <value>النوع:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipContentType" xml:space="preserve">
+    <value>نوع المحتوى لهذا المشروع (مود، ترقيع، إضافة، إلخ)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipNewProject" xml:space="preserve">
+    <value>إنشاء مشروع ModBuilder جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonNew" xml:space="preserve">
+    <value>جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenProject" xml:space="preserve">
+    <value>فتح مشروع موجود</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpen" xml:space="preserve">
+    <value>فتح</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipAssetManager" xml:space="preserve">
+    <value>تصفح أصول اللعبة واستيرادها إلى المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonAssetManager" xml:space="preserve">
+    <value>مدير الأصول</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipImportBig" xml:space="preserve">
+    <value>استخراج واستيراد أرشيفات .BIG مباشرة إلى مجلد GameFilesEdited في هذا المشروع لتعديلها وإعادة بنائها.</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonImportBig" xml:space="preserve">
+    <value>استيراد .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipSaveProject" xml:space="preserve">
+    <value>حفظ تكوين المشروع (.mbproj)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonSave" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipCloseProject" xml:space="preserve">
+    <value>إغلاق المشروع والعودة إلى لوحة التحكم</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonClose" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="Tools.ModBuilder.View.FilesInStagingHeader" xml:space="preserve">
+    <value>الملفات قيد الإعداد</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipRefreshCount" xml:space="preserve">
+    <value>إعادة حساب الملفات في دليل GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonRefreshCount" xml:space="preserve">
+    <value>تحديث العدد</value>
+  </data>
+  <data name="Tools.ModBuilder.View.QuickAccessHeader" xml:space="preserve">
+    <value>الوصول السريع</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenProjectFolder" xml:space="preserve">
+    <value>فتح دليل جذر المشروع في مستكشف الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenProjectFolder" xml:space="preserve">
+    <value>فتح مجلد المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenGameFilesEdited" xml:space="preserve">
+    <value>فتح دليل GameFilesEdited في مستكشف الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenGameFilesEdited" xml:space="preserve">
+    <value>فتح GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipGameAssetManager" xml:space="preserve">
+    <value>تصفح أصول اللعبة واستيرادها إلى المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonGameAssetManager" xml:space="preserve">
+    <value>مدير أصول اللعبة</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipEditConfiguration" xml:space="preserve">
+    <value>تحرير عناصر وحزم التجميع وبيانات المحتوى وأهداف البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonEditConfiguration" xml:space="preserve">
+    <value>تعديل التكوين</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BundlePacksHeader" xml:space="preserve">
+    <value>حزم التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipPackCompilesBig" xml:space="preserve">
+    <value>يتم تجميع هذه الحزمة مباشرة في أرشيف .big بدلاً من .zip</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TagBigArchive" xml:space="preserve">
+    <value>.BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildActionsHeader" xml:space="preserve">
+    <value>إجراءات البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionClean" xml:space="preserve">
+    <value>تنظيف</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionClean" xml:space="preserve">
+    <value>حذف مجلدات الإخراج (.Build و Releases) قبل بدء البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionBuild" xml:space="preserve">
+    <value>بناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionBuild" xml:space="preserve">
+    <value>يعالج الأصول (تحويل القوام، جداول سلاسل CSF) ويجمع أرشيفات .big في .Build/bundles</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionRelease" xml:space="preserve">
+    <value>إصدار</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionRelease" xml:space="preserve">
+    <value>يحزم أرشيفات .big المبنية والأصول المنفصلة في أرشيفات zip في مجلد Releases</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionCreateManifest" xml:space="preserve">
+    <value>إنشاء بيان المحتوى</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionCreateManifest" xml:space="preserve">
+    <value>ينشئ manifest.json ويسجل المود في GenHub CAS للإطلاق في مساحات عمل معزولة</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildOutputHeader" xml:space="preserve">
+    <value>مخرجات البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildOutputTerminal" xml:space="preserve">
+    <value>الطرفية</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipClearOutput" xml:space="preserve">
+    <value>مسح مخرجات سجل وحدة التحكم</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonClearOutput" xml:space="preserve">
+    <value>مسح المخرجات</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildStatusHeader" xml:space="preserve">
+    <value>حالة البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelStatus" xml:space="preserve">
+    <value>الحالة:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelStage" xml:space="preserve">
+    <value>المرحلة:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelFile" xml:space="preserve">
+    <value>الملف:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelStep" xml:space="preserve">
+    <value>الخطوة:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProgress" xml:space="preserve">
+    <value>التقدم:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ProjectInfoHeader" xml:space="preserve">
+    <value>معلومات المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectName" xml:space="preserve">
+    <value>الاسم:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectTarget" xml:space="preserve">
+    <value>الهدف:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipInfoTargetGame" xml:space="preserve">
+    <value>اللعبة المستهدفة لهذا المشروع وبياناته</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectType" xml:space="preserve">
+    <value>النوع:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipInfoContentType" xml:space="preserve">
+    <value>نوع المحتوى لهذا المشروع (مود، ترقيع، إضافة، إلخ)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectVersion" xml:space="preserve">
+    <value>الإصدار:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectAuthor" xml:space="preserve">
+    <value>المؤلف:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectPacks" xml:space="preserve">
+    <value>الحزم:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipExecuteBuild" xml:space="preserve">
+    <value>تشغيل إجراءات البناء المحددة (تنظيف، بناء، إصدار، إنشاء بيان)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonExecuteBuild" xml:space="preserve">
+    <value>تنفيذ البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipAbortBuild" xml:space="preserve">
+    <value>إلغاء عملية البناء النشطة</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonAbortBuild" xml:space="preserve">
+    <value>إيقاف البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipCreateManifest" xml:space="preserve">
+    <value>تخزين الحزم المجمعة في CAS وإنشاء بيان محتوى محلي لملفات تعريف اللعبة</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonCreateManifest" xml:space="preserve">
+    <value>إنشاء بيان المحتوى</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenBuildFolder" xml:space="preserve">
+    <value>فتح مجلد المخرجات الوسيطة .Build في مستكشف الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenBuildFolder" xml:space="preserve">
+    <value>فتح مجلد البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenReleaseFolder" xml:space="preserve">
+    <value>فتح مجلد Releases في مستكشف الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenReleaseFolder" xml:space="preserve">
+    <value>فتح مجلد الإصدارات</value>  </data>
   <data name="Tools.ReplayManager.Action.Recovery" xml:space="preserve">
     <value>استرداد</value>
   </data>
@@ -8219,6 +9115,60 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>{0:F0} م.ب / ~{1:F0} م.ب</value>
   </data>
 
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
+    <value>تم تخطي التنظيف لدليل بناء خارجي أو غير آمن: {0}</value>
+  <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
+    <value>ملف المشروع موجود بالفعل في: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.BigFileNotFound" xml:space="preserve">
+    <value>لم يتم العثور على ملف BIG: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DeserializeFailed" xml:space="preserve">
+    <value>فشل في قراءة ملف المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoryNotFound" xml:space="preserve">
+    <value>مجلد المشروع غير موجود: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.FileNotFound" xml:space="preserve">
+    <value>لم يتم العثور على ملف المشروع في: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.InvalidPath" xml:space="preserve">
+    <value>مسار المشروع غير صالح</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NameEmpty" xml:space="preserve">
+    <value>لا يمكن أن يكون اسم المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFiles" xml:space="preserve">
+    <value>لم يتم تحديد ملفات BIG صالحة للاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
+    <value>لم يتم تحديد ملفات BIG لإنشاء المشروع منها</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
+    <value>لا يمكن أن يكون مسار المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
+    <value>لا يمكن أن يكون المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoriesNull" xml:space="preserve">
+    <value>تكوين مجلدات المشروع مفقود</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
+    <value>المجلد المطلوب غير موجود: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.DeleteProject" xml:space="preserve">
+    <value>لا يمكن حذف المشروع أثناء تشغيل عملية أخرى.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.OpenProject" xml:space="preserve">
+    <value>لا يمكن فتح المشروع أثناء تشغيل عملية أخرى.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.NewProject" xml:space="preserve">
+    <value>لا يمكن إنشاء مشروع جديد أثناء تشغيل عملية أخرى.</value>
+  </data>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
+    <value>تم تخطي التنظيف</value>
+  </data>
   <data name="Updates.Status.InstallationFailed" xml:space="preserve">
     <value>فشل التثبيت</value>
   </data>
@@ -8646,6 +9596,601 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="GameSettings.Camera.ResetDefaultsToolTip" xml:space="preserve">
     <value>إعادة ضبط جميع إعدادات الكاميرا إلى القيم الافتراضية لمحرك اللعبة.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.AddFilesPickerTitle" xml:space="preserve">
+    <value>حدد الملفات لإضافتها إلى عنصر الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.AddFolderPickerTitle" xml:space="preserve">
+    <value>حدد الدليل لإضافته إلى عنصر الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BadgeBigArchive" xml:space="preserve">
+    <value>BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BadgeMatchingFiles" xml:space="preserve">
+    <value>الملفات المطابقة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BadgeType" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BuildInstallOptionsHeader" xml:space="preserve">
+    <value>خيارات البناء والتثبيت</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonClearSources" xml:space="preserve">
+    <value>مسح</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckOutputBig" xml:space="preserve">
+    <value>حزم كأرشيف BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelOutputFile" xml:space="preserve">
+    <value>مسار ملف الإخراج</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoPacksDefined" xml:space="preserve">
+    <value>لا توجد حزم محددة في هذا المشروع.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoPacksHint" xml:space="preserve">
+    <value>انتقل إلى تبويب حزم الحزم لإنشاء حزم.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoSourcesDefined" xml:space="preserve">
+    <value>لم يتم تحديد مسارات مصدر بعد</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoSourcesHint" xml:space="preserve">
+    <value>انقر على 'إضافة مجلد...' أو 'إضافة ملفات...' أو 'شجرة المشروع...' أعلاه لربط الملفات بهذا العنصر.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Notifications.SaveFailed.Message" xml:space="preserve">
+    <value>تعذر حفظ الإعدادات: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Notifications.SaveFailed.Title" xml:space="preserve">
+    <value>فشل الحفظ</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Notifications.Saved.Message" xml:space="preserve">
+    <value>تم حفظ تغييرات الإعدادات بنجاح</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Notifications.Saved.Title" xml:space="preserve">
+    <value>تم حفظ الإعدادات</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PacksContainingItemDescription" xml:space="preserve">
+    <value>تحديد الحزم التي ستشمل هذا العنصر وتجمعه</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PacksContainingItemHeader" xml:space="preserve">
+    <value>الحزم التي تحتوي على هذا العنصر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.RawGlobsDescription" xml:space="preserve">
+    <value>تحرير أنماط الملفات مباشرة (نمط في كل سطر بالنسبة لمجلد المشروع):</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.RawGlobsHeader" xml:space="preserve">
+    <value>تعبيرات النمط المباشرة (متقدم)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.RawGlobsWatermark" xml:space="preserve">
+    <value>مثال:
+GameFilesEdited/Data/INI/**/*.ini</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SourceFilesDescription" xml:space="preserve">
+    <value>إضافة مجلدات أو ملفات فردية أو أنماط للربط بعنصر الحزمة هذا</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SourceFilesHeader" xml:space="preserve">
+    <value>الملفات والمجلدات المصدر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClearSources" xml:space="preserve">
+    <value>مسح جميع أنماط المصدر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetArt" xml:space="preserve">
+    <value>إضافة مسار الرسومات والملمس القياسي</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetIni" xml:space="preserve">
+    <value>إضافة مسار إعدادات INI القياسي</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetMaps" xml:space="preserve">
+    <value>إضافة مسار تعريفات الخرائط القياسي</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetWindow" xml:space="preserve">
+    <value>إضافة مسار تخطيطات واجهة المستخدم القياسي</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveSource" xml:space="preserve">
+    <value>إزالة هذا النمط المصدر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipTogglePackLink" xml:space="preserve">
+    <value>تبديل التضمين في هذه الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.UnsavedChangesIndicator" xml:space="preserve">
+    <value>تغييرات غير محفوظة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkOutputFile" xml:space="preserve">
+    <value>مثال: .Release/MyMod.big</value>
+  </data>
+  <data name="Tools.ModBuilder.FileType.AllFiles" xml:space="preserve">
+    <value>كل الملفات (*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.FileType.BigArchive" xml:space="preserve">
+    <value>أرشيف BIG للعبة Command &amp; Conquer (*.big)</value>
+  </data>
+  <data name="Tools.ModBuilder.Import.BigsPickerTitle" xml:space="preserve">
+    <value>استيراد أرشيفات .BIG إلى المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Import.ModPickerTitle" xml:space="preserve">
+    <value>حدد أرشيفات تعديل .BIG للاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Import.SavePickerTitle" xml:space="preserve">
+    <value>حفظ مشروع ModBuilder المستورد</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AccessDenied.Message" xml:space="preserve">
+    <value>ليس لديك إذن للوصول إلى ملف المشروع هذا</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AccessDenied.Title" xml:space="preserve">
+    <value>رفض الوصول</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AssetAcquisitionFailed.Message" xml:space="preserve">
+    <value>تعذر الحصول على أصول العينة: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AssetAcquisitionFailed.Title" xml:space="preserve">
+    <value>فشل الحصول على الأصول</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BigModImported.Message" xml:space="preserve">
+    <value>تم إنشاء المشروع '{0}' من {1} من أرشيفات .BIG.
+تم الاستخراج إلى GameFilesEdited وتم تكوين حزم الحزم.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BigModImported.Title" xml:space="preserve">
+    <value>تم استيراد تعديل BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildCancelled.Message" xml:space="preserve">
+    <value>تم إلغاء عملية البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildCancelled.Title" xml:space="preserve">
+    <value>تم إلغاء البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildComplete.Message" xml:space="preserve">
+    <value>تمت معالجة {0} من الملفات
+تم إنشاء {1} من الحزم
+الوقت: {2}
+المخرجات: {3}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildComplete.Title" xml:space="preserve">
+    <value>اكتمل البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildError.Title" xml:space="preserve">
+    <value>خطأ في البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildFailed.Title" xml:space="preserve">
+    <value>فشل البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildNoFiles.Message" xml:space="preserve">
+    <value>اكتمل البناء ولكن لم تتم معالجة أي ملفات.
+تحقق من:
+- وجود الملفات في مجلد GameFilesEdited
+- تكوين الحزم في config/ModBundleItems.json
+- تطابق مسارات الملفات في الإعدادات مع الملفات الفعلية</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildNoFiles.Title" xml:space="preserve">
+    <value>اكتمل البناء (بدون ملفات)</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.CreateManifest" xml:space="preserve">
+    <value>لا يمكن إنشاء البيان أثناء تشغيل عملية أخرى.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.ImportFiles" xml:space="preserve">
+    <value>لا يمكن استيراد الملفات أثناء تشغيل عملية أخرى.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.OpenSample" xml:space="preserve">
+    <value>لا يمكن فتح المشروع النموذجي أثناء تشغيل عملية أخرى.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.StartBuild" xml:space="preserve">
+    <value>لا يمكن بدء البناء أثناء تشغيل عملية أخرى.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanComplete.Message" xml:space="preserve">
+    <value>تم تنظيف دليل البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanComplete.Title" xml:space="preserve">
+    <value>اكتمل التنظيف</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanFailed.Title" xml:space="preserve">
+    <value>فشل التنظيف</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ConfigEditor.Message" xml:space="preserve">
+    <value>فشل فتح محرر الإعدادات: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ConfigEditor.Title" xml:space="preserve">
+    <value>محرر الإعدادات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CreationError.Title" xml:space="preserve">
+    <value>خطأ في الإنشاء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CreationFailed.Title" xml:space="preserve">
+    <value>فشل الإنشاء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DeleteFailed.Message" xml:space="preserve">
+    <value>فشل حذف المشروع: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DeleteProject.Message" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد حذف '{0}' نهائيًا؟
+
+سيؤدي هذا إلى حذف ملف المشروع والدليل الخاص به من القرص:
+{1}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DeleteProject.Title" xml:space="preserve">
+    <value>حذف المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DialogUnavailable.Message" xml:space="preserve">
+    <value>خدمة مربع حوار التأكيد غير متوفرة.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DownloadFailed.Message" xml:space="preserve">
+    <value>فشل تنزيل {0}: {1}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.EmptyPath.Message" xml:space="preserve">
+    <value>لا يمكن أن يكون مسار المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileError.Message" xml:space="preserve">
+    <value>تعذر قراءة ملف المشروع. قد يكون قيد الاستخدام من قبل برنامج آخر.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileError.Title" xml:space="preserve">
+    <value>خطأ في الملف</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileManagerError.Title" xml:space="preserve">
+    <value>خطأ في مدير الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileNotFound.Message" xml:space="preserve">
+    <value>ملف المشروع غير موجود: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileNotFound.Title" xml:space="preserve">
+    <value>لم يتم العثور على الملف</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FolderRestricted.AppDir" xml:space="preserve">
+    <value>لا يمكن فتح مجلد موجود داخل دليل تثبيت التطبيق.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FolderRestricted.BuildFolder" xml:space="preserve">
+    <value>لا يمكن فتح مجلد البناء الموجود داخل دليل تثبيت التطبيق.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FolderRestricted.ReleaseFolder" xml:space="preserve">
+    <value>لا يمكن فتح مجلد الإصدار الموجود داخل دليل تثبيت التطبيق.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FolderRestricted.Title" xml:space="preserve">
+    <value>المجلد مقيد</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportCancelled.Message" xml:space="preserve">
+    <value>تم إلغاء عملية استيراد BIG.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportCancelled.Title" xml:space="preserve">
+    <value>تم إلغاء الاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportComplete.Message" xml:space="preserve">
+    <value>تم استيراد {0} من الملفات من {1} من أرشيفات .BIG إلى GameFilesEdited.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportComplete.Title" xml:space="preserve">
+    <value>اكتمل الاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportError.Title" xml:space="preserve">
+    <value>خطأ في الاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportFailed.Title" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.InvalidPath.Title" xml:space="preserve">
+    <value>مسار غير صالح</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadError.ProjectData.Message" xml:space="preserve">
+    <value>فشل تحميل بيانات المشروع: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadError.Title" xml:space="preserve">
+    <value>خطأ في التحميل</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadError.Unexpected.Message" xml:space="preserve">
+    <value>خطأ غير متوقع: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadFailed.Title" xml:space="preserve">
+    <value>فشل التحميل</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadSampleFailed.Message" xml:space="preserve">
+    <value>فشل تحميل المشروع النموذجي: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCancelled.Message" xml:space="preserve">
+    <value>تم إلغاء إنشاء البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCancelled.Title" xml:space="preserve">
+    <value>تم إلغاء البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreated.Message" xml:space="preserve">
+    <value>تم تسجيل ContentManifest المحلي في GenHub لـ '{0}'. يمكنك الآن تفعيل هذا {1} في ملفات تعريف اللعبة.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreated.Title" xml:space="preserve">
+    <value>تم إنشاء البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreationError.Title" xml:space="preserve">
+    <value>خطأ في إنشاء البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreationFailed.Fallback" xml:space="preserve">
+    <value>فشل إنشاء البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreationFailed.Title" xml:space="preserve">
+    <value>فشل إنشاء البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoFilesToBuild.Message" xml:space="preserve">
+    <value>مجلد GameFilesEdited فارغ أو لم يتم تكوين أي حزم.
+
+الخطوات:
+1. انقر فوق 'Open GameFilesEdited Folder'
+2. انسخ ملفات اللعبة إلى المجلدات المناسبة
+3. حرر config/ModBundleItems.json لتكوين الحزم
+4. حاول البناء مرة أخرى</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoFilesToBuild.Title" xml:space="preserve">
+    <value>لا توجد ملفات للبناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoProject.Message" xml:space="preserve">
+    <value>يرجى تحميل مشروع أو إنشاؤه أولاً</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoProject.Title" xml:space="preserve">
+    <value>لا يوجد مشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoProjectOpen.Message" xml:space="preserve">
+    <value>يرجى فتح مشروع أو إنشاؤه أولاً قبل استيراد ملفات .BIG.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoProjectOpen.Title" xml:space="preserve">
+    <value>لا يوجد مشروع مفتوح</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFailed.BuildFolder" xml:space="preserve">
+    <value>تعذر فتح مجلد البناء</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFailed.GameFilesEdited" xml:space="preserve">
+    <value>تعذر فتح مجلد GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFailed.ProjectFolder" xml:space="preserve">
+    <value>تعذر فتح مجلد المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFailed.Title" xml:space="preserve">
+    <value>فشل الفتح</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFolderFailed.Message" xml:space="preserve">
+    <value>فشل فتح مجلد الإصدار: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFolderFailed.Title" xml:space="preserve">
+    <value>فشل فتح المجلد</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OperationInProgress.Title" xml:space="preserve">
+    <value>عملية جارية</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectCreated.Message" xml:space="preserve">
+    <value>تم إنشاء المشروع: {0}
+بنية المشروع جاهزة. حرر الملفات في مجلد GameFilesEdited.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectCreated.Title" xml:space="preserve">
+    <value>تم إنشاء المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectDeleted.Message" xml:space="preserve">
+    <value>تم حذف '{0}' بنجاح.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectDeleted.Title" xml:space="preserve">
+    <value>تم حذف المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectLoaded.Message" xml:space="preserve">
+    <value>تم التحميل: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectLoaded.Title" xml:space="preserve">
+    <value>تم تحميل المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectNotFound.Message" xml:space="preserve">
+    <value>تعذر العثور على ملف المشروع في: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectNotFound.Title" xml:space="preserve">
+    <value>لم يتم العثور على المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectRemoved.Message" xml:space="preserve">
+    <value>تمت إزالة '{0}' من المشاريع الأخيرة.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectRemoved.Title" xml:space="preserve">
+    <value>تمت إزالة المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectSaved.Message" xml:space="preserve">
+    <value>تم حفظ المشروع بنجاح</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectSaved.Title" xml:space="preserve">
+    <value>تم حفظ المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SampleNotFound.Message" xml:space="preserve">
+    <value>لم يتم العثور على المشروع النموذجي.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SampleNotFound.Template.Message" xml:space="preserve">
+    <value>تعذر العثور على ملفات القالب الخاصة بـ {0}.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SampleNotFound.Title" xml:space="preserve">
+    <value>لم يتم العثور على العينة</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SaveError.Title" xml:space="preserve">
+    <value>خطأ في الحفظ</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SaveFailed.Title" xml:space="preserve">
+    <value>فشل الحفظ</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SelectValidLocation.Message" xml:space="preserve">
+    <value>يرجى تحديد موقع صالح للمشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.ButtonApply" xml:space="preserve">
+    <value>تطبيق التحديد</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.ButtonCollapseAll" xml:space="preserve">
+    <value>طي الكل</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.ButtonDeselectAll" xml:space="preserve">
+    <value>إلغاء التحديد</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.ButtonExpandAll" xml:space="preserve">
+    <value>توسيع الكل</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.DialogTitle" xml:space="preserve">
+    <value>اختيار ملفات ومجلدات المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.EmptySubtitle" xml:space="preserve">
+    <value>أضف ملفات إلى مجلد GameFilesEdited لاختيارها هنا.</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.EmptyTitle" xml:space="preserve">
+    <value>لم يتم العثور على ملفات في المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.HeaderSubtitle" xml:space="preserve">
+    <value>حدد المجلدات أو الملفات التي ترغب في تضمينها في هذا العنصر</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.HeaderTitle" xml:space="preserve">
+    <value>اختيار ملفات ومجلدات المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.SelectedItemsSuffix" xml:space="preserve">
+    <value>عناصر محددة</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.TooltipCollapseAll" xml:space="preserve">
+    <value>طي كل المجلدات</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.TooltipDeselectAll" xml:space="preserve">
+    <value>إلغاء تحديد الكل</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.TooltipExpandAll" xml:space="preserve">
+    <value>توسيع كل المجلدات</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.WatermarkSearch" xml:space="preserve">
+    <value>بحث في الملفات...</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.CreatePickerTitle" xml:space="preserve">
+    <value>إنشاء مشروع ModBuilder جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.FileTypeName" xml:space="preserve">
+    <value>مشروع ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.OpenPickerTitle" xml:space="preserve">
+    <value>فتح مشروع ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.GeneralsGamePatch2.Description" xml:space="preserve">
+    <value>قواعد INI شاملة للتوازن وإصلاح الأخطاء للعبة C&amp;C Generals Zero Hour. توضح قواعد INI متعددة الدلائل وضبط التوازن.</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.GeneralsGamePatch2.Tag" xml:space="preserve">
+    <value>التوازن وإصلاح الأخطاء</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.GeneralsGamePatch2.VariantSummary" xml:space="preserve">
+    <value>INI الأساسي + خرائط متعددة اللاعبين</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.ImprovedMenus.Description" xml:space="preserve">
+    <value>تطوير شامل لواجهة الشاشة العريضة 16:9 مع 3 حزم لغات (الإنجليزية والروسية والإسبانية) تجمع نوافذ القوائم المشتركة والقوام المترجمة.</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.ImprovedMenus.Tag" xml:space="preserve">
+    <value>واجهة الشاشة العريضة</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.ImprovedMenus.VariantSummary" xml:space="preserve">
+    <value>3 بدائل لغوية (EN، RU، ES)</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LeikezeHotkeys.Description" xml:space="preserve">
+    <value>جداول سلاسل CSF تنافسية بمعايير البطولات توضح 3 حزم للعبة واللغة (ZH الإنجليزية وGenerals الإنجليزية وZH الألمانية).</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LeikezeHotkeys.Tag" xml:space="preserve">
+    <value>اختصارات تنافسية</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LeikezeHotkeys.VariantSummary" xml:space="preserve">
+    <value>3 بدائل للتخطيط (ZH EN وGen EN وZH DE)</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LemonControlBar.Description" xml:space="preserve">
+    <value>تطوير شامل لشريط القيادة والتحكم للشاشة العريضة مع عناصر رسومية مشتركة و4 حزم دقة (720p و1080p و1440p و4K).</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LemonControlBar.Tag" xml:space="preserve">
+    <value>شريط التحكم</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LemonControlBar.VariantSummary" xml:space="preserve">
+    <value>4 حزم دقة (من 720p إلى 4K)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabManifests" xml:space="preserve">
+    <value>بيانات المحتوى</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddManifest" xml:space="preserve">
+    <value>إضافة بيان</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddManifest" xml:space="preserve">
+    <value>إضافة بيان حزمة جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemoveManifest" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveManifest" xml:space="preserve">
+    <value>إزالة بيان الحزمة المحدد</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescManifestsDefault" xml:space="preserve">
+    <value>يجمع كل بيان حزم التجميع في عنصر مكتبة واحد. بدون تعريف بيانات، يتم استخدام بيان افتراضي يجمع كل حزم التجميع.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundleManifestSettingsHeader" xml:space="preserve">
+    <value>إعدادات بيان الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestName" xml:space="preserve">
+    <value>اسم البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestName" xml:space="preserve">
+    <value>مثال: MyMod HD Edition</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestVersion" xml:space="preserve">
+    <value>الإصدار</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestVersion" xml:space="preserve">
+    <value>مثال: 1.0.0</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestPublisher" xml:space="preserve">
+    <value>الناشر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestPublisher" xml:space="preserve">
+    <value>local</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescManifestPublisher" xml:space="preserve">
+    <value>تركه فارغاً يستخدم الناشر المحلي الافتراضي</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestDescription" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription" xml:space="preserve">
+    <value>مثال: يجمع حزم الدقة العالية</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestContentType" xml:space="preserve">
+    <value>نوع المحتوى</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestTargetGame" xml:space="preserve">
+    <value>اللعبة المستهدفة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelLinkedPacks" xml:space="preserve">
+    <value>حزم التجميع المرتبطة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedPacks" xml:space="preserve">
+    <value>حدد حزم التجميع التي يجب دمجها في هذا البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectManifestPrompt" xml:space="preserve">
+    <value>حدد بيان حزمة على اليسار أو انقر "إضافة بيان" لتجميع الحزم في عنصر مكتبة.</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonManifests" xml:space="preserve">
+    <value>البيانات</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipManifests" xml:space="preserve">
+    <value>تعريف بيانات المحتوى التي تجمع حزم التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoPatterns" xml:space="preserve">
+    <value>لم يتم تعريف أي أنماط</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.DirectoryNotFound" xml:space="preserve">
+    <value>تعذر العثور على دليل ملفات المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoMatches" xml:space="preserve">
+    <value>تحذير: لا توجد ملفات مطابقة لهذه الأنماط حالياً</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesOne" xml:space="preserve">
+    <value>يوجد {0} ملف مطابق في المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesMany" xml:space="preserve">
+    <value>يوجد {0} ملفات مطابقة في المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.CheckFailed" xml:space="preserve">
+    <value>فحص المطابقة: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesLoaded.Title" xml:space="preserve">
+    <value>تم تحميل الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesLoaded.Message" xml:space="preserve">
+    <value>تم تحميل {0} من ملفات المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesAdded.Title" xml:space="preserve">
+    <value>تمت إضافة الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesAdded.Message" xml:space="preserve">
+    <value>تمت إضافة {0} ملف(ملفات) إلى المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesRemoved.Title" xml:space="preserve">
+    <value>تمت إزالة الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesRemoved.Message" xml:space="preserve">
+    <value>تمت إزالة {0} ملف(ملفات) من المشروع</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>تم تغيير إعدادات التشغيل</value>

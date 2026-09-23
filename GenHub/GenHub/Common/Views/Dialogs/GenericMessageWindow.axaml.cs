@@ -4,6 +4,9 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels.Dialogs;
 using System;
+#if DEBUG
+using Avalonia.Diagnostics;
+#endif
 
 namespace GenHub.Common.Views.Dialogs;
 

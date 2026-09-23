@@ -1,0 +1,614 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ModBuilder.ViewModels;assembly=GenHub"
+             xmlns:models="clr-namespace:GenHub.Features.Tools.ModBuilder.Models;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectDashboardView"
+             x:DataType="vm:ModBuilderViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <!-- Dashboard Primary Button -->
+    <Style Selector="Button.dashboard-primary-btn">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="18,10"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="Button.dashboard-primary-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!-- Dashboard Secondary Button -->
+    <Style Selector="Button.dashboard-secondary-btn">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="18,10"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.dashboard-secondary-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
+    </Style>
+
+    <!-- Action Cards -->
+    <Style Selector="Border.action-card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+    <Style Selector="Border.action-card:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
+    </Style>
+
+    <!-- Card Action Button -->
+    <Style Selector="Button.card-action-btn">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="24,20"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Button.card-action-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
+    </Style>
+
+    <!-- Showcase Card -->
+    <Style Selector="Border.showcase-card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+    <Style Selector="Border.showcase-card:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
+    </Style>
+
+    <!-- Recent Project Row -->
+    <Style Selector="Border.recent-project-row">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="10"/>
+    </Style>
+    <Style Selector="Border.recent-project-row:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
+    </Style>
+
+    <!-- Recent Project Button -->
+    <Style Selector="Button.recent-project-btn">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Button.recent-project-btn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
+    </Style>
+
+    <!-- Empty State -->
+    <Style Selector="Border.empty-recent-state">
+      <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+
+    <!-- Tips Card -->
+    <Style Selector="Border.tips-card">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="24" Margin="32,24,32,32" MaxWidth="1100">
+
+      <!-- ==================== HEADER SECTION ==================== -->
+      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.BrandTitle}"
+                     FontSize="22"
+                     FontWeight="Bold"
+                     Foreground="{DynamicResource TextPrimary}"/>
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.BrandSubtitle}"
+                     FontSize="13"
+                     Foreground="{DynamicResource TextSecondary}"/>
+        </StackPanel>
+
+        <!-- Header Actions: Primary buttons always accessible -->
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <Button Command="{Binding NewProjectCommand}"
+                  Classes="dashboard-primary-btn"
+                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipNewProject}">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Width="14" Height="14"
+                    Fill="White"
+                    Data="{StaticResource IconAdd}"
+                    Stretch="Uniform"
+                    VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonNewProject}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+
+          <Button Command="{Binding OpenProjectCommand}"
+                  Classes="dashboard-secondary-btn"
+                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipOpenProject}">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Width="14" Height="14"
+                    Fill="{DynamicResource TextPrimary}"
+                    Data="{StaticResource IconFolder}"
+                    Stretch="Uniform"
+                    VerticalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonOpenProject}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+
+      <!-- ==================== QUICK START / ACTION CARDS ==================== -->
+      <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,4">
+
+        <!-- Card 1: New Project -->
+        <Border Grid.Column="0"
+                Classes="action-card"
+                Margin="0,0,8,0">
+          <Button Command="{Binding NewProjectCommand}"
+                  Classes="card-action-btn"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <Border Width="40" Height="40"
+                        CornerRadius="8"
+                        Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                        HorizontalAlignment="Left">
+                  <Path Width="18" Height="18"
+                        Fill="{DynamicResource AccentPrimary}"
+                        Data="{StaticResource IconAdd}"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardNewProjectTitle}"
+                             FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextPrimary}"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardNewProjectSubtitle}"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Grid.Row="1"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardNewProjectDesc}"
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"
+                         Margin="0,12,0,12"/>
+              <TextBlock Grid.Row="2"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardNewProjectAction}"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimary}"/>
+            </Grid>
+          </Button>
+        </Border>
+
+        <!-- Card 2: Open Existing -->
+        <Border Grid.Column="1"
+                Classes="action-card"
+                Margin="4,0,4,0">
+          <Button Command="{Binding OpenProjectCommand}"
+                  Classes="card-action-btn"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <Border Width="40" Height="40"
+                        CornerRadius="8"
+                        Background="{DynamicResource SuccessBadgeBackgroundBrush}"
+                        HorizontalAlignment="Left">
+                  <Path Width="18" Height="18"
+                        Fill="{DynamicResource SuccessBrush}"
+                        Data="{StaticResource IconFolder}"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardOpenProjectTitle}"
+                             FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextPrimary}"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardOpenProjectSubtitle}"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Grid.Row="1"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardOpenProjectDesc}"
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"
+                         Margin="0,12,0,12"/>
+              <TextBlock Grid.Row="2"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardOpenProjectAction}"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource SuccessBrush}"/>
+            </Grid>
+          </Button>
+        </Border>
+
+        <!-- Card 3: Sample Projects -->
+        <Border Grid.Column="2"
+                Classes="action-card"
+                Margin="8,0,0,0">
+          <Button Command="{Binding LoadSampleProjectCommand}"
+                  Classes="card-action-btn"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <Border Width="40" Height="40"
+                        CornerRadius="8"
+                        Background="{DynamicResource WarningBadgeBackgroundBrush}"
+                        HorizontalAlignment="Left">
+                  <Path Width="18" Height="18"
+                        Fill="{DynamicResource AccentSecondaryBrush}"
+                        Data="{StaticResource IconPackage}"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardSampleProjectsTitle}"
+                             FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextPrimary}"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.CardSampleProjectsSubtitle}"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Grid.Row="1"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardSampleProjectsDesc}"
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"
+                         Margin="0,12,0,12"/>
+              <TextBlock Grid.Row="2"
+                         Text="{localization:Localize Tools.ModBuilder.Dashboard.CardSampleProjectsAction}"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentSecondaryBrush}"/>
+            </Grid>
+          </Button>
+        </Border>
+      </Grid>
+
+      <!-- ==================== PUBLISHER SAMPLE PROJECTS SHOWCASE ==================== -->
+      <StackPanel Spacing="16">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Path Width="18" Height="18"
+                  Fill="{DynamicResource AccentPrimary}"
+                  Data="{StaticResource IconPackage}"
+                  Stretch="Uniform"
+                  VerticalAlignment="Center"/>
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       VerticalAlignment="Center"/>
+          </StackPanel>
+          <TextBlock Grid.Column="1"
+                     Text="{localization:Localize Tools.ModBuilder.Dashboard.FeaturedTemplatesSubtitle}"
+                     FontSize="12"
+                     Foreground="{DynamicResource TextTertiary}"
+                     VerticalAlignment="Center"/>
+        </Grid>
+
+        <ItemsControl ItemsSource="{Binding PublisherSampleProjects}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="2"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="models:SampleProjectShowcaseItem">
+              <Border Classes="showcase-card" Margin="6">
+                <Button Command="{Binding #Root.((vm:ModBuilderViewModel)DataContext).OpenSampleProjectCommand}"
+                        CommandParameter="{Binding}"
+                        Classes="card-action-btn"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"
+                        Padding="20,18">
+                  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+                    <!-- Top badges: Category Tag & Target Game -->
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                      <Border Grid.Column="0"
+                              Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                              CornerRadius="6"
+                              Padding="8,3">
+                        <TextBlock Text="{Binding Tag}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentPrimary}"/>
+                      </Border>
+                      <Border Grid.Column="2"
+                              Background="{DynamicResource SurfaceVariant}"
+                              CornerRadius="6"
+                              Padding="8,3">
+                        <TextBlock Text="{Binding TargetGame}"
+                                   FontSize="11"
+                                   FontWeight="Medium"
+                                   Foreground="{DynamicResource TextSecondary}"/>
+                      </Border>
+                    </Grid>
+
+                    <!-- Title & Publisher -->
+                    <StackPanel Grid.Row="1" Margin="0,12,0,6" Spacing="2">
+                      <TextBlock Text="{Binding Name}"
+                                 FontSize="15"
+                                 FontWeight="Bold"
+                                 Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBlock Text="{Binding Publisher, StringFormat='by {0}'}"
+                                 FontSize="12"
+                                 Foreground="{DynamicResource TextTertiary}"/>
+                    </StackPanel>
+
+                    <!-- Description -->
+                    <TextBlock Grid.Row="2"
+                               Text="{Binding Description}"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextSecondary}"
+                               TextWrapping="Wrap"
+                               Margin="0,2,0,12"
+                               MaxLines="3"
+                               TextTrimming="CharacterEllipsis"/>
+
+                    <!-- Variant / Bundle Pack Summary Pill -->
+                    <Border Grid.Row="3"
+                            Background="{DynamicResource SurfaceVariant}"
+                            BorderBrush="{DynamicResource BorderSubtleDarkBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,6"
+                            Margin="0,0,0,12">
+                      <Grid ColumnDefinitions="Auto,*">
+                        <Path Grid.Column="0"
+                              Width="14" Height="14"
+                              Fill="{DynamicResource AccentSecondaryBrush}"
+                              Data="{StaticResource IconPackage}"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              Margin="0,0,8,0"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding VariantSummary}"
+                                   FontSize="11"
+                                   FontWeight="Medium"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                      </Grid>
+                    </Border>
+
+                    <!-- Bottom Action Link -->
+                    <Grid Grid.Row="4" ColumnDefinitions="*,Auto">
+                      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Path Width="12" Height="12"
+                              Fill="{DynamicResource AccentPrimary}"
+                              Data="{StaticResource IconFolder}"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonDownloadOpenProject}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentPrimary}"
+                                   VerticalAlignment="Center"/>
+                      </StackPanel>
+                      <Path Grid.Column="1"
+                            Width="14" Height="14"
+                            Fill="{DynamicResource AccentPrimary}"
+                            Data="{StaticResource IconChevronRight}"
+                            Stretch="Uniform"
+                            VerticalAlignment="Center"/>
+                    </Grid>
+                  </Grid>
+                </Button>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <!-- ==================== RECENT PROJECTS SECTION ==================== -->
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Path Width="16" Height="16"
+                  Fill="{DynamicResource TextPrimary}"
+                  Data="{StaticResource IconTime}"
+                  Stretch="Uniform"
+                  VerticalAlignment="Center"/>
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.RecentProjectsTitle}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       VerticalAlignment="Center"/>
+            <Border Background="{DynamicResource SurfaceVariant}"
+                    CornerRadius="10"
+                    Padding="6,1"
+                    Margin="4,0,0,0"
+                    IsVisible="{Binding RecentProjects.Count}">
+              <TextBlock Text="{Binding RecentProjects.Count}"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+            </Border>
+          </StackPanel>
+        </Grid>
+
+        <!-- Project List -->
+        <ItemsControl ItemsSource="{Binding RecentProjects}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="models:RecentProjectInfo">
+              <Border Classes="recent-project-row"
+                      Margin="0,0,0,6">
+                <Button Command="{Binding #Root.((vm:ModBuilderViewModel)DataContext).OpenRecentProjectCommand}"
+                        CommandParameter="{Binding}"
+                        Classes="recent-project-btn"
+                        HorizontalContentAlignment="Stretch"
+                        Padding="16,12">
+                  <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Project Icon -->
+                    <Border Grid.Column="0"
+                            Width="36" Height="36"
+                            CornerRadius="8"
+                            Background="{DynamicResource SurfaceVariant}"
+                            Margin="0,0,14,0"
+                            VerticalAlignment="Center">
+                      <Path Width="16" Height="16"
+                            Fill="{DynamicResource AccentPrimary}"
+                            Data="{StaticResource IconModBuilder}"
+                            Stretch="Uniform"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </Border>
+
+                    <!-- Name and Path -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                      <TextBlock Text="{Binding Name}"
+                                 FontSize="14"
+                                 FontWeight="SemiBold"
+                                 Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBlock Text="{Binding Path}"
+                                 FontSize="11"
+                                 Foreground="{DynamicResource TextSecondary}"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <!-- Date & Arrow -->
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="12"
+                                VerticalAlignment="Center">
+                      <TextBlock Text="{Binding LastOpened}"
+                                 FontSize="11"
+                                 Foreground="{DynamicResource TextTertiary}"
+                                 VerticalAlignment="Center"/>
+                      <Path Width="12" Height="12"
+                            Fill="{DynamicResource TextTertiary}"
+                            Data="{StaticResource IconChevronRight}"
+                            Stretch="Uniform"
+                            VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Grid>
+                </Button>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Empty State: shown when no recent projects exist -->
+        <Border Classes="empty-recent-state"
+                IsVisible="{Binding !RecentProjects.Count}"
+                Padding="32,40">
+          <StackPanel Spacing="12" HorizontalAlignment="Center">
+            <Border Width="56" Height="56"
+                    CornerRadius="28"
+                    Background="{DynamicResource SurfaceVariant}"
+                    HorizontalAlignment="Center">
+              <Path Width="24" Height="24"
+                    Fill="{DynamicResource TextTertiary}"
+                    Data="{StaticResource IconPackage}"
+                    Stretch="Uniform"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.NoProjectsFound}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.NoProjectsFoundDesc}"
+                       FontSize="13"
+                       Foreground="{DynamicResource TextSecondary}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"/>
+            <Button Command="{Binding LoadSampleProjectCommand}"
+                    Classes="dashboard-primary-btn"
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipExploreTemplates}"
+                    HorizontalAlignment="Center"
+                    Margin="0,8,0,0">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Path Width="14" Height="14"
+                      Fill="White"
+                      Data="{StaticResource IconPackage}"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonExploreTemplates}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <!-- ==================== DOCUMENTATION / TIPS ==================== -->
+      <Border Classes="tips-card" Padding="20,16">
+        <Grid ColumnDefinitions="Auto,*">
+          <Path Grid.Column="0"
+                Width="20" Height="20"
+                Fill="{DynamicResource AccentPrimary}"
+                Data="{StaticResource IconHelp}"
+                Stretch="Uniform"
+                VerticalAlignment="Top"
+                Margin="0,2,16,0"/>
+          <StackPanel Grid.Column="1" Spacing="4">
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.TipWorkflowTitle}"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"/>
+            <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.TipWorkflowDesc}"
+                       FontSize="12"
+                       Foreground="{DynamicResource TextSecondary}"
+                       TextWrapping="Wrap"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

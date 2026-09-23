@@ -38,7 +38,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" MinWidth="58" MaxWidth="350" />
             <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="*" MinWidth="0" />
+            <ColumnDefinition Width="*" MinWidth="250" />
         </Grid.ColumnDefinitions>
         <!-- Sidebar Navigation -->
         <Border Grid.Column="0"

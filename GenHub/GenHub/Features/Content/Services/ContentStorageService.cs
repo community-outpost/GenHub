@@ -887,8 +887,6 @@ public class ContentStorageService : IContentStorageService
             manifest.Files.Count,
             manifest.Id);
 
-        var updatedFiles = new List<ManifestFile>();
-        int processedCount = 0;
         int totalFiles = manifest.Files.Count;
 
         // Initialize progress report
@@ -900,31 +898,14 @@ public class ContentStorageService : IContentStorageService
             _logger.LogInformation("Starting storage of {FileCount} files - this may take a while", totalFiles);
         }
 
-        foreach (var manifestFile in manifest.Files)
+        var storeAllResult = await StoreAllManifestFilesAsync(manifest, sourceDirectory, progress, totalFiles, cancellationToken).ConfigureAwait(false);
+        if (!storeAllResult.Success || storeAllResult.Data == null)
         {
-            var outcome = await ProcessManifestFileAsync(
-                manifestFile,
-                manifest,
-                sourceDirectory,
-                progress,
-                processedCount,
-                cancellationToken);
-
-            if (!outcome.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    outcome.Error ?? $"Failed to store file '{manifestFile.RelativePath}' for manifest {manifest.Id}");
-            }
-
-            if (outcome.StoredFile != null)
-            {
-                updatedFiles.Add(outcome.StoredFile);
-            }
-
-            processedCount++;
-            ReportStorageProgress(progress, processedCount, totalFiles, manifestFile.RelativePath);
+            return OperationResult<ContentManifest>.CreateFailure(
+                storeAllResult.FirstError ?? $"Failed to store content files for manifest {manifest.Id}");
         }
 
+        var updatedFiles = storeAllResult.Data;
         var validationError = ValidateAllRequiredFilesStored(manifest, updatedFiles);
         if (validationError != null)
         {
@@ -940,6 +921,84 @@ public class ContentStorageService : IContentStorageService
             manifest.Id);
 
         return OperationResult<ContentManifest>.CreateSuccess(manifest);
+    }
+
+    /// <summary>
+    /// Stores every manifest file in CAS with bounded parallelism, preserving manifest file order.
+    /// A required-file failure cancels the remaining work and surfaces the first error.
+    /// </summary>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="sourceDirectory">Source directory containing content files.</param>
+    /// <param name="progress">Optional progress reporter for tracking storage operations.</param>
+    /// <param name="totalFiles">The total number of files to process.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stored file entries in manifest order, or the first failure.</returns>
+    private async Task<OperationResult<List<ManifestFile>>> StoreAllManifestFilesAsync(
+        ContentManifest manifest,
+        string sourceDirectory,
+        IProgress<ContentStorageProgress>? progress,
+        int totalFiles,
+        CancellationToken cancellationToken)
+    {
+        var slots = new ManifestFile?[totalFiles];
+        var processedCount = 0;
+        string? firstError = null;
+        var errorLock = new object();
+
+        using var failureScope = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = CasDefaults.MaxConcurrentOperations,
+            CancellationToken = failureScope.Token,
+        };
+
+        try
+        {
+            await Parallel.ForEachAsync(
+                manifest.Files.Select((file, index) => (file, index)),
+                parallelOptions,
+                async (item, ct) =>
+                {
+                    var outcome = await ProcessManifestFileAsync(
+                        item.file,
+                        manifest,
+                        sourceDirectory,
+                        progress,
+                        Volatile.Read(ref processedCount),
+                        ct).ConfigureAwait(false);
+
+                    if (!outcome.Success)
+                    {
+                        lock (errorLock)
+                        {
+                            firstError ??= outcome.Error ?? $"Failed to store file '{item.file.RelativePath}' for manifest {manifest.Id}";
+                        }
+
+                        await failureScope.CancelAsync().ConfigureAwait(false);
+                        return;
+                    }
+
+                    slots[item.index] = outcome.StoredFile;
+
+                    var processed = Interlocked.Increment(ref processedCount);
+                    ReportStorageProgress(progress, processed, totalFiles, item.file.RelativePath);
+                }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Fail-fast cancellation after a required-file failure, not a user request.
+            // The recorded first error is returned below.
+        }
+
+        if (firstError != null)
+        {
+            return OperationResult<List<ManifestFile>>.CreateFailure(firstError);
+        }
+
+        var updatedFiles = new List<ManifestFile>(totalFiles);
+        updatedFiles.AddRange(slots.OfType<ManifestFile>());
+
+        return OperationResult<List<ManifestFile>>.CreateSuccess(updatedFiles);
     }
 
     /// <summary>
@@ -1077,7 +1136,11 @@ public class ContentStorageService : IContentStorageService
         // All source types (ContentAddressable, ExtractedPackage, LocalFile, etc.) are stored
         // in CAS by hash with pool awareness. This ensures all files end up in CAS for proper
         // validation and workspace resolution.
-        var casResult = await _casService.StoreContentAsync(sourcePath, contentType, null, cancellationToken).ConfigureAwait(false);
+        // When the manifest already carries the content hash, it is reused so the source
+        // file is not hashed a second time; the bytes are still verified during the CAS copy.
+        var casResult = !string.IsNullOrEmpty(manifestFile.Hash)
+            ? await _casService.StoreContentWithKnownHashAsync(sourcePath, manifestFile.Hash, contentType, cancellationToken).ConfigureAwait(false)
+            : await _casService.StoreContentAsync(sourcePath, contentType, null, cancellationToken).ConfigureAwait(false);
         if (!casResult.Success || string.IsNullOrEmpty(casResult.Data))
         {
             _logger.LogWarning(

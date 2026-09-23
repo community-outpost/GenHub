@@ -44,6 +44,12 @@ public class ApplicationDataPathConventionTests
 
         // Custom install cleanup removes empty legacy Roaming AppData folder left from earlier versions.
         ["GenHub/GenHub/Common/Services/StorageMigrationService.cs"] = "Cleans orphaned legacy Roaming AppData folder when running from custom install root.",
+
+        // UI image cache service fallback when used outside DI.
+        ["GenHub/GenHub/Infrastructure/Services/ImageCacheService.cs"] = "Fallback default path when used outside DI; DI registration injects IConfigurationProviderService.",
+
+        // Safety check protecting special OS folders from accidental recursive deletion.
+        ["GenHub/GenHub/Features/Tools/ModBuilder/ViewModels/ModBuilderViewModel.cs"] = "Safety check protecting special OS folders from accidental recursive deletion.",
     };
 
     /// <summary>

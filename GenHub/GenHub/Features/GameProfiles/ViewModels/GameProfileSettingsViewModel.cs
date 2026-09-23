@@ -81,6 +81,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly SemaphoreSlim _loadContentSemaphore = new(1, 1);
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
+    private bool _isContentReloadInProgress; // skipcq: CS-R1137
     private int _loadContentVersion;
     private bool _isSynchronizingEnabledContent;
     private string? _currentProfileId;
@@ -240,14 +241,24 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <inheritdoc/>
     public void Receive(Core.Models.Content.ContentAcquiredMessage message)
     {
-        if (Dispatcher.UIThread.CheckAccess())
+        Dispatcher.UIThread.Post(async () =>
         {
-            _ = LoadAvailableContentAsync();
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(() => _ = LoadAvailableContentAsync());
-        }
+            if (_isContentReloadInProgress)
+            {
+                return;
+            }
+
+            _isContentReloadInProgress = true;
+            try
+            {
+                await Task.Delay(75).ConfigureAwait(true);
+                await LoadAvailableContentAsync().ConfigureAwait(true);
+            }
+            finally
+            {
+                _isContentReloadInProgress = false;
+            }
+        });
     }
 
     /// <inheritdoc/>
@@ -1269,7 +1280,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             existing.IsEnabled = false;
             EnabledContent.Remove(existing);
 
-            if (existing.ContentType == SelectedContentType && existing.GameType == GameTypeFilter)
+            if (existing.ContentType == SelectedContentType &&
+                (existing.GameType == GameTypeFilter || existing.GameType == Core.Models.Enums.GameType.Unknown))
             {
                 var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == existing.ManifestId.Value);
                 if (alreadyInAvailable == null)

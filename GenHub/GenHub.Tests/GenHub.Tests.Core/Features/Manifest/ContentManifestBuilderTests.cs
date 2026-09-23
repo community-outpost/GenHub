@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -18,6 +19,28 @@ namespace GenHub.Tests.Core.Features.Manifest;
 /// </summary>
 public class ContentManifestBuilderTests
 {
+    /// <summary>
+    /// Synchronously capturing progress reporter for tests.
+    /// </summary>
+    private sealed class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly object _lock = new();
+
+        /// <summary>
+        /// Gets the captured progress reports.
+        /// </summary>
+        public List<T> Reports { get; } = [];
+
+        /// <inheritdoc/>
+        public void Report(T value)
+        {
+            lock (_lock)
+            {
+                Reports.Add(value);
+            }
+        }
+    }
+
     /// <summary>
     /// Mock logger for the content manifest builder.
     /// </summary>
@@ -376,6 +399,100 @@ public class ContentManifestBuilderTests
         finally
         {
             // Cleanup
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that AddFilesFromDirectoryAsync preserves file enumeration order despite parallel hashing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AddFilesFromDirectoryAsync_PreservesEnumerationOrderAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            for (var i = 0; i < 25; i++)
+            {
+                File.WriteAllText(Path.Combine(tempDir, $"file{i:00}.txt"), $"content-{i}");
+            }
+
+            _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("test-hash");
+
+            // Act
+            var result = await _builder
+                .WithBasicInfo("Test Publisher", "Test Content", "1")
+                .AddFilesFromDirectoryAsync(tempDir) as ContentManifestBuilder;
+
+            var manifest = result!.Build();
+
+            // Assert
+            var expected = Directory.EnumerateFiles(tempDir, "*.*", SearchOption.AllDirectories)
+                .Select(path => Path.GetRelativePath(tempDir, path))
+                .ToList();
+            Assert.Equal(expected, manifest.Files.Select(f => f.RelativePath).ToList());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that AddFilesFromDirectoryAsync reports hashing phase progress for every file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AddFilesFromDirectoryAsync_ReportsHashingProgressAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            const int fileCount = 10;
+            for (var i = 0; i < fileCount; i++)
+            {
+                File.WriteAllText(Path.Combine(tempDir, $"file{i:00}.txt"), $"content-{i}");
+            }
+
+            _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("test-hash");
+
+            var progress = new SynchronousProgress<ContentStorageProgress>();
+
+            // Act
+            var result = await _builder
+                .WithBasicInfo("Test Publisher", "Test Content", "1")
+                .AddFilesFromDirectoryAsync(tempDir, progress: progress) as ContentManifestBuilder;
+
+            _ = result!.Build();
+
+            // Assert
+            Assert.Equal(fileCount, progress.Reports.Count);
+            Assert.All(progress.Reports, report =>
+            {
+                Assert.Equal(ContentStoragePhase.Hashing, report.Phase);
+                Assert.Equal(fileCount, report.TotalCount);
+            });
+            Assert.Equal(
+                Enumerable.Range(1, fileCount),
+                progress.Reports.Select(report => report.ProcessedCount).OrderBy(count => count));
+        }
+        finally
+        {
             if (Directory.Exists(tempDir))
             {
                 Directory.Delete(tempDir, true);

@@ -31,6 +31,8 @@ public interface ILocalContentService
     /// <param name="progress">Optional progress reporter for content storage operations.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="entryPoint">Optional relative path to the primary executable.</param>
+    /// <param name="publisherId">Optional publisher identifier. Null selects the default local publisher.</param>
+    /// <param name="manifestVersion">Optional manifest version string. Null selects the default version.</param>
     /// <returns>The created ContentManifest or an error result.</returns>
     Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
         string directoryPath,
@@ -40,7 +42,9 @@ public interface ILocalContentService
         string? sourcePath = null,
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default,
-        string? entryPoint = null);
+        string? entryPoint = null,
+        string? publisherId = null,
+        string? manifestVersion = null);
 
     /// <summary>
     /// Creates a ContentManifest from a local directory, hashes all files,

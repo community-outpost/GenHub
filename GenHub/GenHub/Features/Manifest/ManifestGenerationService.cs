@@ -279,29 +279,47 @@ public class ManifestGenerationService(
     /// <param name="manifestVersion">Manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <param name="contentType">Type of content (Mod, Patch, Addon, etc).</param>
     /// <param name="targetGame">Target game type.</param>
+    /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateContentManifestAsync(
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest generation overloads preserve parameter parity across int/string version forms including the optional hashing progress reporter.")]
+    public Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
         string publisherId,
         string contentName,
         int manifestVersion = 0,
         ContentType contentType = ContentType.Mod,
         GameType targetGame = GameType.Generals,
+        IProgress<ContentStorageProgress>? progress = null,
+        params ContentDependency[] dependencies)
+    {
+        return CreateContentManifestAsync(contentDirectory, publisherId, contentName, manifestVersion.ToString(), contentType, targetGame, progress, dependencies);
+    }
+
+    /// <inheritdoc />
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest generation overloads preserve parameter parity across int/string version forms including the optional hashing progress reporter.")]
+    public async Task<IContentManifestBuilder> CreateContentManifestAsync(
+        string contentDirectory,
+        string publisherId,
+        string contentName,
+        string? manifestVersion,
+        ContentType contentType = ContentType.Mod,
+        GameType targetGame = GameType.Generals,
+        IProgress<ContentStorageProgress>? progress = null,
         params ContentDependency[] dependencies)
     {
         try
         {
-            logger.LogDebug(
-                "Creating {ContentType} manifest for {ContentName} at {ContentDirectory} (Publisher: {PublisherId})",
+            logger.LogInformation(
+                "Hashing content directory for {ContentType} manifest '{ContentName}' at {ContentDirectory}",
                 contentType,
                 contentName,
-                contentDirectory,
-                publisherId);
+                contentDirectory);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
-                .WithBasicInfo(publisherId, contentName, manifestVersion.ToString())
+                .WithBasicInfo(publisherId, contentName, ToIdentityVersion(manifestVersion))
+                .WithVersion(manifestVersion ?? "0")
                 .WithContentType(contentType, targetGame);
 
             // Add dependencies
@@ -317,12 +335,17 @@ public class ManifestGenerationService(
             // Add files from content directory
             if (!string.IsNullOrEmpty(contentDirectory) && Directory.Exists(contentDirectory))
             {
-                await builder.AddFilesFromDirectoryAsync(contentDirectory, ContentSourceType.ContentAddressable);
+                await builder.AddFilesFromDirectoryAsync(contentDirectory, ContentSourceType.ContentAddressable, progress: progress);
             }
             else
             {
                 logger.LogWarning("Content directory {ContentDirectory} not found or empty. Manifest will have no files.", contentDirectory);
             }
+
+            logger.LogInformation(
+                "Finished hashing content directory for {ContentType} manifest '{ContentName}'",
+                contentType,
+                contentName);
 
             return builder;
         }
@@ -704,6 +727,28 @@ public class ManifestGenerationService(
 
         var unreadableList = FormatFileListWithEllipsis(skippedRequiredFiles);
         return $"{gameType} could not read {skippedRequiredFiles.Count} required file(s) (e.g. file lock, permissions, or symlink): {unreadableList}. Please verify permissions or close background processes.";
+    }
+
+    /// <summary>
+    /// Converts a display version string to the numeric identity version used in manifest IDs.
+    /// Plain integers pass through unchanged; dotted versions are normalized with the same
+    /// rules as release tags (for example "2.0.0" becomes "200" and "1.08" becomes "108").
+    /// </summary>
+    /// <param name="manifestVersion">The display version string.</param>
+    /// <returns>The numeric identity version string.</returns>
+    private static string? ToIdentityVersion(string? manifestVersion)
+    {
+        if (string.IsNullOrWhiteSpace(manifestVersion))
+        {
+            return manifestVersion;
+        }
+
+        if (int.TryParse(manifestVersion, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+        {
+            return manifestVersion;
+        }
+
+        return ManifestIdGenerator.ExtractVersionFromTag(manifestVersion).ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>

@@ -11,6 +11,9 @@
 //  Version: 2025-06-17
 // -----------------------------------------------------------------------------
 using System.Diagnostics.CodeAnalysis;
+using Xunit;
+
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 [assembly: SuppressMessage(
     "StyleCop.CSharp.SpacingRules",

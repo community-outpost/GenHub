@@ -1805,7 +1805,7 @@ public class GameProcessManager(
     {
         try
         {
-            process.WaitForExit();
+            process.WaitForExit(ProcessConstants.StderrDrainTimeoutMs);
         }
         catch (Exception ex)
         {

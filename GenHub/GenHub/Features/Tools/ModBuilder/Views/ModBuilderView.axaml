@@ -1,0 +1,596 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+             xmlns:views="using:GenHub.Features.Tools.ModBuilder.Views"
+             xmlns:conv="using:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
+             x:Class="GenHub.Features.Tools.ModBuilder.Views.ModBuilderView"
+             x:DataType="vm:ModBuilderViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <!-- Modern Header Action Button -->
+    <Style Selector="Button.header-action-btn">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,7" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.header-action-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+    </Style>
+
+    <!-- Accent Header Button -->
+    <Style Selector="Button.header-accent-btn">
+      <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,7" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.header-accent-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Quick Access Navigation Row Button -->
+    <Style Selector="Button.quick-nav-btn">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,9" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.quick-nav-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+    </Style>
+
+    <!-- Execute Build CTA Button -->
+    <Style Selector="Button.build-cta-btn">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="16,13" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.build-cta-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+      <Setter Property="RenderTransform" Value="scale(1.01)" />
+    </Style>
+    <Style Selector="Button.build-cta-btn:pressed">
+      <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}" />
+      <Setter Property="RenderTransform" Value="scale(0.99)" />
+    </Style>
+
+    <!-- Abort Danger Button -->
+    <Style Selector="Button.abort-danger-btn">
+      <Setter Property="Background" Value="{DynamicResource ErrorBadgeBackgroundBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.abort-danger-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Fast Responsive Tooltips & Cursors -->
+    <Style Selector="Button">
+      <Setter Property="ToolTip.ShowDelay" Value="150" />
+    </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="ToolTip.ShowDelay" Value="150" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="ToolTip.ShowDelay" Value="150" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+  </UserControl.Styles>
+
+  <Panel Background="Transparent">
+    <!-- Main Content -->
+    <Grid RowDefinitions="Auto,*" Margin="20">
+
+      <!-- Header: Project Management & Quick Actions -->
+      <Border Grid.Row="0" Background="{DynamicResource CardBackground}"
+              CornerRadius="12" Padding="16,12" Margin="0,0,0,16"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              BoxShadow="0 4 16 0 #30000000">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <!-- Project Path -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <Border Width="38" Height="38" Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                    CornerRadius="8" VerticalAlignment="Center">
+              <Path Width="18" Height="18" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconModBuilder}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.View.CurrentProjectHeader}" FontSize="10.5" Foreground="{DynamicResource TextSecondary}" FontWeight="Bold" LetterSpacing="0.5"/>
+              <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+            </StackPanel>
+            <TextBox Text="{Binding CurrentProjectPath}" IsReadOnly="True"
+                     Watermark="{localization:Localize Tools.ModBuilder.View.NoProjectLoadedWatermark}" MinWidth="260" MaxWidth="440"
+                     Background="{DynamicResource SurfaceElevatedBrush}"
+                     BorderBrush="{DynamicResource BorderBrush}"
+                     CornerRadius="8" Padding="10,6"
+                     VerticalAlignment="Center" VerticalContentAlignment="Center"
+                     Foreground="{DynamicResource TextSecondary}" FontSize="11.5" Margin="8,0,0,0"/>
+          </StackPanel>
+
+          <!-- Quick Actions -->
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Command="{Binding SaveProjectCommand}" Classes="header-action-btn"
+                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipSaveProject}">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="13" Height="13" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconSave}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonSave}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding CloseProjectCommand}" Classes="header-action-btn"
+                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipCloseProject}">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonClose}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Main Resizable 3-Column Content Area -->
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="320" MinWidth="240" MaxWidth="480"/>
+          <ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="*" MinWidth="320"/>
+          <ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="340" MinWidth="260" MaxWidth="520"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Panel: Configuration & Actions -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,4,0">
+          <StackPanel Spacing="12">
+
+            <!-- File Count Card -->
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16"
+                    IsVisible="{Binding IsProjectLoaded}">
+              <Grid RowDefinitions="Auto,Auto,Auto">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,0,0,4">
+                  <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.View.FilesInStagingHeader}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                             FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="32" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,2,0,8"/>
+                <Button Grid.Row="2" Command="{Binding RefreshFileCountCommand}"
+                        Classes="quick-nav-btn"
+                        HorizontalContentAlignment="Center"
+                        Padding="10,7"
+                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipRefreshCount}">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonRefreshCount}" FontSize="12" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </Grid>
+            </Border>
+
+            <!-- Quick Access -->
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16"
+                    IsVisible="{Binding IsProjectLoaded}">
+              <StackPanel Spacing="10">
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.QuickAccessHeader}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                <Button Command="{Binding OpenProjectFolderCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenProjectFolder}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenProjectFolder}" FontWeight="Medium" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenEditFolderCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenGameFilesEdited}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenGameFilesEdited}" FontWeight="Medium" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenFileManagerCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipGameAssetManager}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonGameAssetManager}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding ImportBigFilesCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipImportBig}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchive}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonImportBig}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenConfigEditorCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipEditConfiguration}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconSettings}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonEditConfiguration}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenManifestsCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipManifests}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonManifests}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </Border>
+
+            <!-- Bundle Packs -->
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
+              <StackPanel Spacing="10">
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.BundlePacksHeader}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="10" MinHeight="90">
+                  <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding BundlePacks}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:BundleItemViewModel">
+                          <Grid ColumnDefinitions="*,Auto" Margin="0,3">
+                            <CheckBox Grid.Column="0" Content="{Binding Name}" IsChecked="{Binding IsSelected}"
+                                      Margin="0,2" Foreground="{DynamicResource TextPrimary}"
+                                      ToolTip.Tip="{Binding Name, StringFormat='Build {0}'}"/>
+                            <Border Grid.Column="1" Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                    IsVisible="{Binding IsBig}"
+                                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipPackCompilesBig}">
+                              <TextBlock Text="{localization:Localize Tools.ModBuilder.View.TagBigArchive}" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                            </Border>
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- Build Actions -->
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
+              <StackPanel Spacing="10" IsEnabled="{Binding !IsBuilding}">
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.BuildActionsHeader}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="10">
+                  <StackPanel Spacing="6">
+                    <CheckBox Content="{localization:Localize Tools.ModBuilder.View.ActionClean}" IsChecked="{Binding CleanEnabled}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipActionClean}"/>
+                    <CheckBox Content="{localization:Localize Tools.ModBuilder.View.ActionBuild}" IsChecked="{Binding BuildEnabled}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipActionBuild}"/>
+                    <CheckBox Content="{localization:Localize Tools.ModBuilder.View.ActionRelease}" IsChecked="{Binding ReleaseEnabled}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipActionRelease}"/>
+                    <CheckBox Content="{localization:Localize Tools.ModBuilder.View.ActionCreateManifest}" IsChecked="{Binding CreateManifestEnabled}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipActionCreateManifest}"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- Left Column Splitter -->
+        <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns" Cursor="SizeWestEast"/>
+
+        <!-- Center: Build Output Terminal (Streaming Live) -->
+        <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #30000000">
+          <Grid RowDefinitions="Auto,*">
+            <!-- Console Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Path Width="16" Height="16" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconTerminal}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.BuildOutputHeader}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="6,2" Margin="4,0,0,0">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.View.BuildOutputTerminal}" FontSize="10.5" Foreground="{DynamicResource TextSecondary}" FontWeight="Medium"/>
+                </Border>
+              </StackPanel>
+              <Button Grid.Column="1" Command="{Binding ClearOutputCommand}" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipClearOutput}"
+                      Classes="header-action-btn" Padding="10,6">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Path Width="11" Height="11" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonClearOutput}" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+
+            <!-- Live Streaming Console Output -->
+            <Border Grid.Row="1" Background="{DynamicResource SurfaceBackgroundDarkBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="8" ClipToBounds="True">
+              <ScrollViewer Name="BuildOutputScroller" VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Auto">
+                <TextBox Name="BuildOutputTextBox" Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
+                         BorderThickness="0" Background="Transparent"
+                         FontFamily="JetBrains Mono,Consolas,Courier New,monospace" FontSize="12"
+                         Foreground="{DynamicResource TextPrimary}" Padding="14" AcceptsReturn="True"/>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </Border>
+
+        <!-- Right Column Splitter -->
+        <GridSplitter Grid.Column="3" Width="8" Background="Transparent" ResizeDirection="Columns" Cursor="SizeWestEast"/>
+
+        <!-- Right Panel: Build Control & Status -->
+        <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="4,0,0,0">
+          <StackPanel Spacing="12">
+
+            <!-- Build Status Card -->
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
+              <StackPanel Spacing="12">
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.BuildStatusHeader}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="14">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelStatus}" Foreground="{DynamicResource TextSecondary}" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding BuildStatus, FallbackValue='Ready'}"
+                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelStage}" Foreground="{DynamicResource TextSecondary}" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentStage, FallbackValue='Idle'}"
+                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelFile}" Foreground="{DynamicResource TextSecondary}" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentFile, FallbackValue='—'}"
+                                 TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"
+                                 ToolTip.Tip="{Binding CurrentFile}"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding CurrentStep, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelStep}" Foreground="{DynamicResource TextSecondary}" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentStep}"
+                                 TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"
+                                 ToolTip.Tip="{Binding CurrentStep}"/>
+                    </Grid>
+
+                    <Separator Background="{DynamicResource BorderBrush}" Height="1" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelProgress}" Foreground="{DynamicResource TextSecondary}" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding ProgressText, FallbackValue='0%'}"
+                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    </Grid>
+
+                    <ProgressBar Value="{Binding PercentComplete}" Minimum="0" Maximum="100"
+                                 Height="8" CornerRadius="4"
+                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                 Foreground="{DynamicResource AccentBrush}"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- Project Info Card -->
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16"
+                    IsVisible="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <StackPanel Spacing="12">
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ProjectInfoHeader}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="14">
+                  <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelProjectName}" Foreground="{DynamicResource TextSecondary}" Width="65"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Name, FallbackValue='—'}"
+                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelProjectTarget}" Foreground="{DynamicResource TextSecondary}" Width="65" VerticalAlignment="Center"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableTargetGames}"
+                                SelectedItem="{Binding SelectedTargetGame}"
+                                FontSize="11.5" Padding="6,2" Height="28" CornerRadius="6"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipInfoTargetGame}"
+                                HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate>
+                            <TextBlock Text="{Binding Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" />
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelProjectType}" Foreground="{DynamicResource TextSecondary}" Width="65" VerticalAlignment="Center"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableContentTypes}"
+                                SelectedItem="{Binding SelectedContentType}"
+                                FontSize="11.5" Padding="6,2" Height="28" CornerRadius="6"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipInfoContentType}"
+                                HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate>
+                            <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelProjectVersion}" Foreground="{DynamicResource TextSecondary}" Width="65"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Version, FallbackValue='—'}"
+                                 Foreground="{DynamicResource TextPrimary}"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelProjectAuthor}" Foreground="{DynamicResource TextSecondary}" Width="65"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Author, FallbackValue='—'}"
+                                 Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.View.LabelProjectPacks}" Foreground="{DynamicResource TextSecondary}" Width="65"/>
+                      <TextBlock Grid.Column="1" Text="{Binding BundlePacks.Count, FallbackValue='0'}"
+                                 Foreground="{DynamicResource TextPrimary}"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- Build Control Buttons -->
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
+              <StackPanel Spacing="10">
+                <!-- Execute Build Button -->
+                <Button Command="{Binding BuildCommand}"
+                        Classes="build-cta-btn"
+                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipExecuteBuild}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="16" Height="16" Fill="White" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonExecuteBuild}" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <!-- Abort Build Button -->
+                <Button Command="{Binding AbortBuildCommand}"
+                        Classes="abort-danger-btn"
+                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipAbortBuild}"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        IsEnabled="{Binding IsBuilding}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{Binding $parent[Button].Foreground}" Data="{StaticResource IconStop}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonAbortBuild}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <!-- Create Manifest Button -->
+                <Button Command="{Binding CreateManifestCommand}"
+                        Classes="quick-nav-btn"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipCreateManifest}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonCreateManifest}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <Separator Background="{DynamicResource BorderBrush}" Height="1" Margin="0,4"/>
+
+                <!-- Dedicated Folder Buttons -->
+                <Button Command="{Binding OpenBuildFolderCommand}"
+                        Classes="quick-nav-btn"
+                        HorizontalContentAlignment="Center"
+                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenBuildFolder}"
+                        IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenBuildFolder}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <Button Command="{Binding OpenReleaseFolderCommand}"
+                        Classes="quick-nav-btn"
+                        HorizontalContentAlignment="Center"
+                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenReleaseFolder}"
+                        IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenReleaseFolder}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
+
+      </Grid>
+
+    </Grid>
+  </Panel>
+</UserControl>

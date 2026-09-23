@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -585,5 +586,64 @@ public sealed class ControlBarPackageProcessorTests : IDisposable
 
         // Assert: Returns empty, metadata BIG is not included
         Assert.Empty(outputs);
+    }
+
+    /// <summary>
+    /// Verifies that cooperative cancellation during the fallback metadata write propagates instead of being swallowed.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task ProcessAndRepackControlBarAsync_WhenCancelledDuringFallbackMetadataWrite_ThrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange: flat prebuilt BIG with no metadata file, so the pipeline
+        // reaches the embedded fallback metadata write. The prebuilt path
+        // performs no cancellable awaits before the fallback.
+        Directory.CreateDirectory(_testDir);
+        await File.WriteAllTextAsync(Path.Combine(_testDir, "340_ControlBarPro1080ZH.big"), "prebuilt");
+        var converter = new CompressedImageToTgaConverter(NullLogger<CompressedImageToTgaConverter>.Instance);
+        var processor = new ControlBarPackageProcessor(converter, NullLogger<ControlBarPackageProcessor>.Instance);
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.103.communityoutpost.addon.cbpr"),
+            Name = "Control Bar Pro",
+            ContentType = ContentType.Addon,
+        };
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act / Assert: the BCL surfaces cancellation as TaskCanceledException,
+        // which must propagate instead of being swallowed by the fallback.
+        await Assert.ThrowsAsync<TaskCanceledException>(() =>
+            processor.ProcessAndRepackControlBarAsync(_testDir, manifest, "1080p", cleanupSources: false, cancellationToken: cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that an I/O failure during the fallback metadata write is tolerated and prebuilt outputs are still returned.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task ProcessAndRepackControlBarAsync_WhenFallbackMetadataWriteFailsWithIoError_ReturnsPrebuiltOutputsAsync()
+    {
+        // Arrange: block the metadata target path with a directory so the
+        // fallback write fails with an I/O error.
+        Directory.CreateDirectory(_testDir);
+        await File.WriteAllTextAsync(Path.Combine(_testDir, "340_ControlBarPro1080ZH.big"), "prebuilt");
+        Directory.CreateDirectory(Path.Combine(_testDir, "340_ControlBarProZH.big"));
+        var converter = new CompressedImageToTgaConverter(NullLogger<CompressedImageToTgaConverter>.Instance);
+        var processor = new ControlBarPackageProcessor(converter, NullLogger<ControlBarPackageProcessor>.Instance);
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.103.communityoutpost.addon.cbpr"),
+            Name = "Control Bar Pro",
+            ContentType = ContentType.Addon,
+        };
+
+        // Act
+        var outputs = await processor.ProcessAndRepackControlBarAsync(_testDir, manifest, "1080p", cleanupSources: false);
+
+        // Assert: prebuilt outputs survive the failed fallback write
+        Assert.Contains("340_ControlBarPro1080ZH.big", outputs);
+        Assert.DoesNotContain("340_ControlBarProZH.big", outputs);
     }
 }

@@ -644,6 +644,115 @@ public class ContentStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that files carrying a manifest hash are stored through the known-hash path
+    /// instead of being hashed a second time.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WithManifestHash_UsesKnownHashStoreAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "KnownHashSource");
+        Directory.CreateDirectory(sourceDir);
+
+        var addonFile = Path.Combine(sourceDir, "addon.big");
+        await File.WriteAllTextAsync(addonFile, "sample-addon-bytes");
+
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+        _casServiceMock
+            .Setup(c => c.StoreContentWithKnownHashAsync(addonFile, "known_hash_addon_123", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("known_hash_addon_123"));
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.local.addon.known-hash",
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    SourcePath = addonFile,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    Hash = "known_hash_addon_123",
+                },
+            ],
+        };
+
+        // Act
+        var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+        // Assert
+        Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
+        _casServiceMock.Verify(
+            c => c.StoreContentWithKnownHashAsync(addonFile, "known_hash_addon_123", ContentType.Addon, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _casServiceMock.Verify(
+            c => c.StoreContentAsync(addonFile, ContentType.Addon, null, It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that parallel CAS storage preserves manifest file order.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WithMultipleFiles_PreservesManifestOrderAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "OrderSource");
+        Directory.CreateDirectory(sourceDir);
+
+        var files = new List<ManifestFile>();
+        for (var i = 0; i < 10; i++)
+        {
+            var fileName = $"file{i:00}.txt";
+            var filePath = Path.Combine(sourceDir, fileName);
+            await File.WriteAllTextAsync(filePath, $"content-{i}");
+            files.Add(new ManifestFile
+            {
+                RelativePath = fileName,
+                SourcePath = filePath,
+                SourceType = ContentSourceType.ContentAddressable,
+                Hash = $"known_hash_{i:00}",
+            });
+        }
+
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+        _casServiceMock
+            .Setup(c => c.StoreContentWithKnownHashAsync(It.IsAny<string>(), It.IsAny<string>(), ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string source, string hash, ContentType contentType, CancellationToken token) =>
+                OperationResult<string>.CreateSuccess(hash));
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.local.addon.ordered",
+            ContentType = ContentType.Addon,
+            Files = files,
+        };
+
+        // Act
+        var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+        // Assert
+        Assert.True(result.Success, $"Operation failed with: {result.FirstError}");
+        Assert.NotNull(result.Data);
+        Assert.Equal(
+            files.Select(f => f.RelativePath).ToList(),
+            result.Data.Files.Select(f => f.RelativePath).ToList());
+    }
+
+    /// <summary>
     /// Disposes resources.
     /// </summary>
     /// <param name="disposing">Whether managed resources should be disposed.</param>
