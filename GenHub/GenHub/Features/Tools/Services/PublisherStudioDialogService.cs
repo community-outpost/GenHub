@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
@@ -24,7 +25,8 @@ namespace GenHub.Features.Tools.Services;
 public class PublisherStudioDialogService(
     IDialogService dialogService,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
-    ILogger<PublisherStudioDialogService>? logger = null) : IPublisherStudioDialogService
+    ILogger<PublisherStudioDialogService>? logger = null,
+    INotificationService? notificationService = null) : IPublisherStudioDialogService
 {
     /// <inheritdoc/>
     public Func<string, (string Name, string Url, long Size)?>? DuplicateAssetLookup { get; set; }
@@ -72,7 +74,7 @@ public class PublisherStudioDialogService(
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
             callback =>
             {
-                var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService, catalog);
+                var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService, catalog, notificationService);
                 var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
                 if (pathsList is { Count: > 0 })
                 {
@@ -87,7 +89,7 @@ public class PublisherStudioDialogService(
     public async Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing, PublisherCatalog? catalog = null)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService, catalog));
+            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService, catalog, notificationService));
     }
 
     /// <inheritdoc/>
@@ -96,19 +98,8 @@ public class PublisherStudioDialogService(
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
            async callback =>
            {
-               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService);
-               if (initialPaths != null)
-               {
-                   try
-                   {
-                       await vm.AddArtifactsFromPathsAsync(initialPaths);
-                   }
-                   catch (Exception ex)
-                   {
-                       logger?.LogWarning(ex, "Failed to stage initial artifacts for release dialog.");
-                   }
-               }
-
+               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, notificationService: notificationService);
+               await StageInitialArtifactsAsync(vm, initialPaths);
                return vm;
            });
     }
@@ -117,7 +108,7 @@ public class PublisherStudioDialogService(
     public async Task<ContentRelease?> ShowEditReleaseDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog)
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-            callback => new AddReleaseDialogViewModel(existing, parent, catalog, callback, this, localizationService));
+            callback => new AddReleaseDialogViewModel(existing, parent, catalog, callback, this, localizationService, notificationService: notificationService));
     }
 
     /// <inheritdoc/>
@@ -126,19 +117,8 @@ public class PublisherStudioDialogService(
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
            async callback =>
            {
-               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true);
-               if (initialPaths != null)
-               {
-                   try
-                   {
-                       await vm.AddArtifactsFromPathsAsync(initialPaths);
-                   }
-                   catch (Exception ex)
-                   {
-                       logger?.LogWarning(ex, "Failed to stage initial artifacts for addon dialog.");
-                   }
-               }
-
+               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true, notificationService: notificationService);
+               await StageInitialArtifactsAsync(vm, initialPaths);
                return vm;
            });
     }
@@ -147,7 +127,7 @@ public class PublisherStudioDialogService(
     public async Task<ContentRelease?> ShowEditAddonDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog)
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-            callback => new AddReleaseDialogViewModel(existing, parent, catalog, callback, this, localizationService, isAddon: true));
+            callback => new AddReleaseDialogViewModel(existing, parent, catalog, callback, this, localizationService, isAddon: true, notificationService: notificationService));
     }
 
     /// <inheritdoc/>
@@ -213,6 +193,23 @@ public class PublisherStudioDialogService(
 
         var file = await mainWindow.StorageProvider.SaveFilePickerAsync(options);
         return file?.Path.LocalPath;
+    }
+
+    /// <inheritdoc/>
+    public async Task<string?> ShowCatalogFilePickerAsync(string title)
+    {
+        return await ShowOpenPickerAsync(
+            title,
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType("Catalog JSON (*.json)")
+                {
+                    Patterns = ["*.json"],
+                },
+                new Avalonia.Platform.Storage.FilePickerFileType("All Files")
+                {
+                    Patterns = ["*.*"],
+                },
+            ]);
     }
 
     /// <inheritdoc/>
@@ -442,6 +439,26 @@ public class PublisherStudioDialogService(
         // on screen and its inner ScrollViewer handles overflow instead of clipping.
         toolWindow.MaxWidth = Math.Max(toolWindow.MinWidth, maxWidth);
         toolWindow.MaxHeight = Math.Max(toolWindow.MinHeight, maxHeight);
+    }
+
+    private async Task StageInitialArtifactsAsync(AddReleaseDialogViewModel vm, IEnumerable<string>? initialPaths)
+    {
+        if (initialPaths == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await vm.AddArtifactsFromPathsAsync(initialPaths);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to stage initial artifacts for dialog.");
+            var title = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle") ?? "Could Not Stage Files";
+            var message = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage") ?? "Some dropped files could not be staged and were skipped. See logs for details.";
+            notificationService?.ShowWarning(title, message);
+        }
     }
 
     private async Task<string?> ShowOpenPickerAsync(

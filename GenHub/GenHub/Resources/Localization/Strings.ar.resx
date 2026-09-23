@@ -13193,6 +13193,88 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.OrCreateNewProfileTip" xml:space="preserve">
     <value>Start with a brand new profile instead of pulling this definition</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.ImportCatalogTooltip" xml:space="preserve">
+    <value>استيراد كتالوج (.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogTitle" xml:space="preserve">
+    <value>استيراد كتالوج (.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogPromptTitle" xml:space="preserve">
+    <value>إضافة كتالوج إلى المزود؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogPromptMessage" xml:space="preserve">
+    <value>تم اكتشاف ملف كتالوج '{0}' يحتوي على {1} من عناصر المحتوى بواسطة '{2}'.
+هل تريد إضافة هذا الكتالوج إلى مشروع المزود الخاص بك؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.AddCatalogConfirm" xml:space="preserve">
+    <value>إضافة كتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogImportedFormat" xml:space="preserve">
+    <value>تمت إضافة الكتالوج '{0}' مع {1} من عناصر المحتوى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogErrorFormat" xml:space="preserve">
+    <value>فشل استيراد الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InvalidPathTitle" xml:space="preserve">
+    <value>مسار غير صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InvalidPathMessage" xml:space="preserve">
+    <value>الملف أو المجلد المحدد غير موجود.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportButton" xml:space="preserve">
+    <value>استيراد جماعي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportTooltip" xml:space="preserve">
+    <value>استيراد ملفات أو أرشيفات متعددة كعناصر محتوى فردية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportSuccessTitle" xml:space="preserve">
+    <value>اكتمل الاستيراد الجماعي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportSuccessMessage" xml:space="preserve">
+    <value>تم استيراد {0} من عناصر المحتوى بنجاح (إصدار واحد لكل عنصر).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportPickerTitle" xml:space="preserve">
+    <value>حدد الملفات أو الأرشيفات للاستيراد الجماعي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.AddButton" xml:space="preserve">
+    <value>إضافة ملحق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.AddTitle" xml:space="preserve">
+    <value>إضافة ملحق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.EditTitle" xml:space="preserve">
+    <value>تحرير ملحق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.DeleteTitle" xml:space="preserve">
+    <value>حذف ملحق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.TitleRequired" xml:space="preserve">
+    <value>عنوان / اسم الملحق مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.Title" xml:space="preserve">
+    <value>تم اكتشاف ملف مكرر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.UploadNew" xml:space="preserve">
+    <value>رفع نسخة جديدة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.UseExisting" xml:space="preserve">
+    <value>استخدام الملف الموجود</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DropErrorTitle" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DropErrorMessage" xml:space="preserve">
+    <value>تعذر استيراد الملفات المسحوبة. راجع السجلات للاطلاع على التفاصيل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveInspecting" xml:space="preserve">
+    <value>أرشيف (جارٍ فحص المحتويات...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle" xml:space="preserve">
+    <value>تعذر تجهيز الملفات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage" xml:space="preserve">
+    <value>تعذر تجهيز بعض الملفات المسحوبة وتم تخطيها. راجع السجلات للاطلاع على التفاصيل.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

@@ -328,6 +328,50 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Prompts the user to subscribe to a dropped catalog JSON file.
+    /// </summary>
+    /// <param name="filePath">The file path to the catalog JSON.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task PromptSubscribeToCatalogPathAsync(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var importVm = new ImportSubscriptionViewModel(serviceProvider);
+            await importVm.LaunchConfirmationDialogAsync(filePath);
+            if (importVm.LastConfirmResult == true)
+            {
+                await InitializeAsync();
+                notificationService.ShowSuccess(
+                    localizationService?.GetString("Downloads.Subscription.SubscribedNotificationTitle") ?? "Subscribed",
+                    localizationService?.GetString("Downloads.Subscription.SubscribedNotificationBody") ?? "Catalog subscription added successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to import catalog subscription from dropped file: {FilePath}", filePath);
+            notificationService.ShowError(
+                localizationService?.GetString("Downloads.ImportSubscription.ImportErrorTitle") ?? "Import Error",
+                localizationService?.GetString("Downloads.ImportSubscription.ImportErrorBody", ex.Message) ?? $"Failed to open import dialog: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Shows an error notification when a dropped catalog file cannot be read.
+    /// </summary>
+    /// <param name="details">The underlying error details for diagnostics.</param>
+    public void NotifyCatalogDropFailed(string details)
+    {
+        notificationService.ShowError(
+            localizationService?.GetString("Downloads.ImportSubscription.ImportErrorTitle") ?? "Import Error",
+            localizationService?.GetString("Downloads.ImportSubscription.ImportErrorBody", details) ?? $"Failed to open import dialog: {details}");
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

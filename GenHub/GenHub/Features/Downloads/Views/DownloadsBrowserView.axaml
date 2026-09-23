@@ -13,7 +13,8 @@
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="GenHub.Features.Downloads.Views.DownloadsBrowserView"
              x:DataType="vm:DownloadsBrowserViewModel"
-             Background="Transparent">
+             Background="Transparent"
+             DragDrop.AllowDrop="True">
 
     <UserControl.Styles>
         <!-- Header style -->

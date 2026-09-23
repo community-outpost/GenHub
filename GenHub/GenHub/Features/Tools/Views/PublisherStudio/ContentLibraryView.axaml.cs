@@ -4,8 +4,11 @@ using Avalonia.Input;
 using Avalonia.VisualTree;
 using GenHub.Features.Tools.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.Views.PublisherStudio;
 
@@ -53,6 +56,72 @@ public partial class ContentLibraryView : UserControl
         return false;
     }
 
+    private static List<string> ExtractDroppedPaths(DragEventArgs e)
+    {
+        return e.Data.GetFiles()?
+            .Select(f => f.Path?.LocalPath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Cast<string>()
+            .ToList() ?? [];
+    }
+
+    private static async Task<bool> TryImportCatalogDropAsync(ContentLibraryViewModel vm, List<string> paths, DragEventArgs e)
+    {
+        if (paths.Count != 1 || !Path.GetExtension(paths[0]).Equals(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (await vm.TryImportCatalogFileAsync(paths[0]))
+        {
+            e.Handled = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static async Task RouteDroppedPathsAsync(ContentLibraryViewModel vm, List<string> paths, Visual? sourceVisual)
+    {
+        if (IsInSubtree(sourceVisual, "AddonsDropZone") || IsInSubtree(sourceVisual, "AddonsSection"))
+        {
+            await vm.AddAddonWithPathsAsync(paths);
+            return;
+        }
+
+        if (IsInSubtree(sourceVisual, "ReleasesDropZone") || IsInSubtree(sourceVisual, "ReleasesSection"))
+        {
+            await vm.AddReleaseWithPathsAsync(paths);
+            return;
+        }
+
+        if (IsInSubtree(sourceVisual, "ContentItemsDropZone") || IsInSubtree(sourceVisual, "CatalogListPanel"))
+        {
+            await AddContentItemsDropAsync(vm, paths);
+            return;
+        }
+
+        if (vm.SelectedContent != null && IsInSubtree(sourceVisual, "ContentDetailPanel"))
+        {
+            await vm.AddReleaseWithPathsAsync(paths);
+            return;
+        }
+
+        await vm.AddContentWithPathsAsync(paths);
+    }
+
+    private static async Task AddContentItemsDropAsync(ContentLibraryViewModel vm, List<string> paths)
+    {
+        if (paths.Count > 1)
+        {
+            await vm.BatchImportContentItemsAsync(paths);
+        }
+        else
+        {
+            await vm.AddContentWithPathsAsync(paths);
+        }
+    }
+
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         if (e.Handled || !e.Data.Contains(DataFormats.Files))
@@ -67,72 +136,24 @@ public partial class ContentLibraryView : UserControl
 
         try
         {
-            var files = e.Data.GetFiles();
-            if (files == null)
-            {
-                return;
-            }
-
-            var paths = files
-                .Select(f => f.Path?.LocalPath)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Cast<string>()
-                .ToList();
-
+            var paths = ExtractDroppedPaths(e);
             if (paths.Count == 0)
             {
                 return;
             }
 
-            var sourceVisual = e.Source as Visual;
-
-            // 1. Dropped on Addons section or dropzone
-            if (IsInSubtree(sourceVisual, "AddonsDropZone") || IsInSubtree(sourceVisual, "AddonsSection"))
+            if (await TryImportCatalogDropAsync(vm, paths, e))
             {
-                e.Handled = true;
-                await vm.AddAddonWithPathsAsync(paths);
                 return;
             }
 
-            // 2. Dropped on Releases section or dropzone
-            if (IsInSubtree(sourceVisual, "ReleasesDropZone") || IsInSubtree(sourceVisual, "ReleasesSection"))
-            {
-                e.Handled = true;
-                await vm.AddReleaseWithPathsAsync(paths);
-                return;
-            }
-
-            // 3. Dropped on Left Catalog Panel or Content Items DropZone
-            if (IsInSubtree(sourceVisual, "ContentItemsDropZone") || IsInSubtree(sourceVisual, "CatalogListPanel"))
-            {
-                e.Handled = true;
-                if (paths.Count > 1)
-                {
-                    await vm.BatchImportContentItemsAsync(paths);
-                }
-                else
-                {
-                    await vm.AddContentWithPathsAsync(paths);
-                }
-
-                return;
-            }
-
-            // 4. Dropped on Content Detail Panel when a content item is selected -> default to adding release
-            if (vm.SelectedContent != null && IsInSubtree(sourceVisual, "ContentDetailPanel"))
-            {
-                e.Handled = true;
-                await vm.AddReleaseWithPathsAsync(paths);
-                return;
-            }
-
-            // 5. Default fallback: add new content item
             e.Handled = true;
-            await vm.AddContentWithPathsAsync(paths);
+            await RouteDroppedPathsAsync(vm, paths, e.Source as Visual);
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Failed to process dropped files: {ex}");
+            vm.NotifyDropFailed();
         }
     }
 }

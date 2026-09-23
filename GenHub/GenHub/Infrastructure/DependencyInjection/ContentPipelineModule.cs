@@ -266,6 +266,7 @@ public static class ContentPipelineModule
 
         // Register GitHub resolver
         services.AddTransient<IContentResolver, GitHubResolver>();
+        services.AddTransient<IContentResolver, GitHubArtifactResolver>();
 
         // Register GitHub deliverer
         services.AddTransient<IContentDeliverer, GitHubContentDeliverer>();

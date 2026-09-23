@@ -1,20 +1,24 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services;
 using GenHub.Features.Tools.Services.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -267,12 +271,111 @@ public partial class PublisherStudioViewModel(
 
         logger.LogInformation("Handling dropped path: {Path}", path);
 
+        // Check if the dropped file is a catalog JSON definition
+        if (string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase))
+        {
+            if (await ImportCatalogFromFileAsync(path))
+            {
+                return;
+            }
+        }
+
         // Switch to Content Library tab
         SelectedTabIndex = TabCatalogs;
 
         if (ContentLibraryViewModel != null)
         {
             await ContentLibraryViewModel.AddContentWithPathAsync(path);
+        }
+    }
+
+    /// <summary>
+    /// Attempts to import a catalog from a JSON file path, prompting the user for confirmation.
+    /// </summary>
+    /// <param name="filePath">The file path to the catalog JSON.</param>
+    /// <returns>True if the file was recognized as a catalog and processed; false otherwise.</returns>
+    public async Task<bool> ImportCatalogFromFileAsync(string filePath)
+    {
+        if (CurrentProject == null || !File.Exists(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var content = await File.ReadAllTextAsync(filePath);
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return false;
+            }
+
+            PublisherCatalog? catalog;
+            try
+            {
+                catalog = JsonSerializer.Deserialize<PublisherCatalog>(content, PublisherJsonOptions.Definition);
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+
+            if (catalog == null || (catalog.Content == null && catalog.Publisher == null))
+            {
+                return false;
+            }
+
+            var itemCount = catalog.Content?.Count ?? 0;
+            if (itemCount == 0 && string.IsNullOrWhiteSpace(catalog.Publisher?.Id))
+            {
+                return false;
+            }
+
+            var publisherName = ResolvePublisherDisplayName(catalog);
+            var fileName = Path.GetFileName(filePath);
+            var catalogName = BuildImportedCatalogName(catalog, filePath);
+
+            var promptTitle = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogPromptTitle") ?? "Add Catalog to Provider?";
+            var promptTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogPromptMessage") ??
+                "A catalog file '{0}' was detected containing {1} content items by '{2}'.\n\nWould you like to add this catalog to your provider project?";
+            var promptMessage = string.Format(promptTemplate, fileName, itemCount, publisherName);
+
+            var confirmText = localizationService?.GetString("Tools.PublisherStudio.Studio.AddCatalogConfirm") ?? "Add Catalog";
+            var cancelText = localizationService?.GetString("Common.Cancel") ?? "Cancel";
+
+            var confirmed = await dialogService.ShowConfirmationAsync(
+                promptTitle,
+                promptMessage,
+                confirmText: confirmText,
+                cancelText: cancelText);
+
+            if (!confirmed)
+            {
+                return true;
+            }
+
+            var namedCatalog = CreateImportedCatalogEntry(catalog, catalogName, fileName);
+            AttachImportedCatalog(namedCatalog);
+
+            await SaveProjectAsync();
+
+            var successTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.CatalogImportedFormat") ??
+                "Added catalog '{0}' with {1} content items.";
+            var successMessage = string.Format(successTemplate, catalogName, itemCount);
+
+            StatusMessage = successMessage;
+            notificationService?.ShowSuccess(StudioNotificationTitle, successMessage, NotificationDurations.Medium);
+            logger.LogInformation("Imported catalog {CatalogId} from {FilePath} with {ItemCount} items", namedCatalog.Id, filePath, itemCount);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to import catalog from {FilePath}", filePath);
+            var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
+                "Failed to import catalog: {0}";
+            var errMessage = string.Format(errTemplate, ex.Message);
+            notificationService?.ShowError(StudioNotificationTitle, errMessage, NotificationDurations.Long);
+            return false;
         }
     }
 
@@ -380,6 +483,34 @@ public partial class PublisherStudioViewModel(
         }
     }
 
+    private static string ResolvePublisherDisplayName(PublisherCatalog catalog)
+    {
+        if (!string.IsNullOrWhiteSpace(catalog.Publisher?.Name))
+        {
+            return catalog.Publisher.Name;
+        }
+
+        return !string.IsNullOrWhiteSpace(catalog.Publisher?.Id)
+            ? catalog.Publisher.Id
+            : "Unknown Publisher";
+    }
+
+    private static string BuildImportedCatalogName(PublisherCatalog catalog, string filePath)
+    {
+        var rawName = !string.IsNullOrWhiteSpace(catalog.Publisher?.Name)
+            && !string.Equals(catalog.Publisher.Name, "New Publisher", StringComparison.OrdinalIgnoreCase)
+            ? $"{catalog.Publisher.Name} Catalog"
+            : Path.GetFileNameWithoutExtension(filePath).Replace(".catalog", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+        if (!rawName.Contains('-') && !rawName.Contains('_'))
+        {
+            return rawName;
+        }
+
+        var words = rawName.Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(" ", words.Select(w => char.ToUpperInvariant(w[0]) + w[1..]));
+    }
+
     private static string Slugify(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return "catalog";
@@ -389,6 +520,79 @@ public partial class PublisherStudioViewModel(
         slug = Regex.Replace(slug, @"-+", "-", RegexOptions.None, TimeSpan.FromSeconds(1));
         slug = slug.Trim('-');
         return string.IsNullOrEmpty(slug) ? "catalog" : slug;
+    }
+
+    private NamedCatalog CreateImportedCatalogEntry(PublisherCatalog catalog, string catalogName, string fileName)
+    {
+        CurrentProject!.Catalogs ??= [];
+
+        var baseSlug = Path.GetFileNameWithoutExtension(fileName)
+            .Replace(".catalog", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .ToLowerInvariant()
+            .Replace(" ", "-");
+        if (string.IsNullOrWhiteSpace(baseSlug))
+        {
+            baseSlug = "imported-catalog";
+        }
+
+        var existingIds = new HashSet<string>(CurrentProject.Catalogs.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+        var newId = baseSlug;
+        var counter = 2;
+        while (existingIds.Contains(newId))
+        {
+            newId = $"{baseSlug}-{counter++}";
+        }
+
+        return new NamedCatalog
+        {
+            Id = newId,
+            Name = catalogName,
+            FileName = fileName,
+            Catalog = catalog,
+        };
+    }
+
+    private void AttachImportedCatalog(NamedCatalog namedCatalog)
+    {
+        var defaultEmpty = CurrentProject!.Catalogs!.FirstOrDefault(c =>
+            c.Id == "default" && (c.Catalog?.Content == null || c.Catalog.Content.Count == 0));
+        if (defaultEmpty != null && CurrentProject.Catalogs.Count == 1)
+        {
+            CurrentProject.Catalogs.Remove(defaultEmpty);
+            Catalogs.Remove(defaultEmpty);
+        }
+
+        AdoptImportedPublisher(namedCatalog.Catalog.Publisher);
+
+        CurrentProject.Catalogs.Add(namedCatalog);
+        Catalogs.Add(namedCatalog);
+        SelectedCatalog = namedCatalog;
+
+        MarkDirty();
+        OnPropertyChanged(nameof(CanRemoveCatalog));
+        PublishShareViewModel?.SyncAvailableCatalogs();
+    }
+
+    private void AdoptImportedPublisher(PublisherProfile? publisher)
+    {
+        if (CurrentProject!.Catalog?.Publisher != null
+            && !string.IsNullOrWhiteSpace(CurrentProject.Catalog.Publisher.Id)
+            && !string.Equals(CurrentProject.Catalog.Publisher.Name, "New Publisher", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (publisher == null || string.IsNullOrWhiteSpace(publisher.Id))
+        {
+            return;
+        }
+
+        CurrentProject.Catalog ??= new();
+        CurrentProject.Catalog.Publisher = publisher;
+        if (string.IsNullOrWhiteSpace(CurrentProject.ProjectName) || CurrentProject.ProjectName == "New Publisher")
+        {
+            CurrentProject.ProjectName = publisher.Name ?? publisher.Id;
+        }
     }
 
     private async Task SaveProjectCoreAsync(PublisherStudioProject project, bool silent)
@@ -781,6 +985,25 @@ public partial class PublisherStudioViewModel(
         OnPropertyChanged(nameof(CanRemoveCatalog));
         PublishShareViewModel?.SyncAvailableCatalogs();
         logger.LogInformation("Added new catalog: {CatalogId}", newId);
+    }
+
+    /// <summary>
+    /// Prompts the user to pick a catalog JSON file and imports it into the current project.
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportCatalogAsync()
+    {
+        if (CurrentProject == null)
+        {
+            return;
+        }
+
+        var title = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogTitle") ?? "Import Catalog (.json)";
+        var filePath = await dialogService.ShowCatalogFilePickerAsync(title);
+        if (!string.IsNullOrEmpty(filePath))
+        {
+            await ImportCatalogFromFileAsync(filePath);
+        }
     }
 
     /// <summary>

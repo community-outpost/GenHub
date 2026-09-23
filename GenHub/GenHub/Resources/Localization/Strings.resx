@@ -13291,6 +13291,88 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Hosting.OrCreateNewProfileTip" xml:space="preserve">
     <value>Start with a brand new profile instead of pulling this definition</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.ImportCatalogTooltip" xml:space="preserve">
+    <value>Import Catalog (.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogTitle" xml:space="preserve">
+    <value>Import Catalog (.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogPromptTitle" xml:space="preserve">
+    <value>Add Catalog to Provider?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogPromptMessage" xml:space="preserve">
+    <value>A catalog file '{0}' was detected containing {1} content items by '{2}'.
+Would you like to add this catalog to your provider project?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.AddCatalogConfirm" xml:space="preserve">
+    <value>Add Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogImportedFormat" xml:space="preserve">
+    <value>Added catalog '{0}' with {1} content items.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogErrorFormat" xml:space="preserve">
+    <value>Failed to import catalog: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InvalidPathTitle" xml:space="preserve">
+    <value>Invalid Path</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InvalidPathMessage" xml:space="preserve">
+    <value>The specified file or folder does not exist.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportButton" xml:space="preserve">
+    <value>Batch Import</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportTooltip" xml:space="preserve">
+    <value>Batch import multiple files or archives as individual content items</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportSuccessTitle" xml:space="preserve">
+    <value>Batch Import Complete</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportSuccessMessage" xml:space="preserve">
+    <value>Successfully imported {0} content items (1 release each).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportPickerTitle" xml:space="preserve">
+    <value>Select Files or Archives to Batch Import</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.AddButton" xml:space="preserve">
+    <value>Add Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.AddTitle" xml:space="preserve">
+    <value>Add Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.EditTitle" xml:space="preserve">
+    <value>Edit Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.DeleteTitle" xml:space="preserve">
+    <value>Delete Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.TitleRequired" xml:space="preserve">
+    <value>Addon title / name is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.Title" xml:space="preserve">
+    <value>Duplicate File Detected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.UploadNew" xml:space="preserve">
+    <value>Upload New Copy</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.UseExisting" xml:space="preserve">
+    <value>Use Existing File</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DropErrorTitle" xml:space="preserve">
+    <value>Import Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DropErrorMessage" xml:space="preserve">
+    <value>Could not import the dropped files. See logs for details.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveInspecting" xml:space="preserve">
+    <value>Archive (inspecting contents...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle" xml:space="preserve">
+    <value>Could Not Stage Files</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage" xml:space="preserve">
+    <value>Some dropped files could not be staged and were skipped. See logs for details.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

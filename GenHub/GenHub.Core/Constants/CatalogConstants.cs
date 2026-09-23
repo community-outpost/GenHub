@@ -202,6 +202,11 @@ public static class CatalogConstants
     public const string AnyPublisherId = ManifestConstants.AnyPublisherToken;
 
     /// <summary>
+    /// Fallback publisher type for content without publisher metadata.
+    /// </summary>
+    public const string GenericPublisherType = "generic";
+
+    /// <summary>
     /// Variant axis name for target game discrimination (Generals vs Zero Hour).
     /// </summary>
     public const string GameTypeVariantAxis = "game-type";

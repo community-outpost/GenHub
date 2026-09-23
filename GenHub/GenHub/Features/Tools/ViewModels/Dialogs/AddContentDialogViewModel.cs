@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
@@ -27,7 +28,8 @@ public partial class AddContentDialogViewModel(
     Action<CatalogContentItem?> onContentCreated,
     IPublisherStudioDialogService? dialogService = null,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
-    PublisherCatalog? catalog = null) : ObservableValidator, IDisposable
+    PublisherCatalog? catalog = null,
+    INotificationService? notificationService = null) : ObservableValidator, IDisposable
 {
     /// <summary>
     /// A local file or folder staged for the initial release.
@@ -221,13 +223,15 @@ public partial class AddContentDialogViewModel(
     /// <param name="dialogService">Optional dialog service for browsing files.</param>
     /// <param name="localizationService">Optional localization service.</param>
     /// <param name="catalog">Optional parent catalog.</param>
+    /// <param name="notificationService">Optional notification service for user feedback.</param>
     public AddContentDialogViewModel(
         CatalogContentItem existing,
         Action<CatalogContentItem?> onContentSaved,
         IPublisherStudioDialogService? dialogService = null,
         GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
-        PublisherCatalog? catalog = null)
-        : this(onContentSaved, dialogService, localizationService, catalog)
+        PublisherCatalog? catalog = null,
+        INotificationService? notificationService = null)
+        : this(onContentSaved, dialogService, localizationService, catalog, notificationService)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
@@ -433,6 +437,16 @@ public partial class AddContentDialogViewModel(
     {
         Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Shows an error notification when drag-and-drop staging fails unexpectedly.
+    /// </summary>
+    public void NotifyDropFailed()
+    {
+        var title = GetLocalizedString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle", "Could Not Stage Files");
+        var message = GetLocalizedString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage", "Some dropped files could not be staged and were skipped. See logs for details.");
+        notificationService?.ShowError(title, message);
     }
 
     /// <summary>
@@ -843,10 +857,49 @@ public partial class AddContentDialogViewModel(
 
         if (entry.IsArchive)
         {
-            entry.ArchiveNoteText = DescribeArchive(path);
+            // Zip central-directory reads are cheap; other formats may scan the
+            // whole archive, so their notes are computed off the UI thread.
+            if (Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                entry.ArchiveNoteText = FormatArchiveNote(TryGetArchiveEntryCount(path));
+            }
+            else
+            {
+                entry.ArchiveNoteText = GetLocalizedString(
+                    "Tools.PublisherStudio.Content.StagedArchiveInspecting",
+                    "Archive (inspecting contents...)");
+                StartArchiveNoteCompute(entry);
+            }
         }
 
         return entry;
+    }
+
+    private void StartArchiveNoteCompute(StagedContentFile entry)
+    {
+        _ = DescribeArchiveAsync(entry);
+    }
+
+    private async Task DescribeArchiveAsync(StagedContentFile entry)
+    {
+        var entryCount = await Task.Run(() => TryGetArchiveEntryCount(entry.LocalPath));
+        entry.ArchiveNoteText = FormatArchiveNote(entryCount);
+    }
+
+    private string FormatArchiveNote(int entryCount)
+    {
+        if (entryCount >= 0)
+        {
+            return string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Content.StagedArchiveFormat",
+                    "Archive with {0} files. Contents are extracted automatically when players install this content."),
+                entryCount);
+        }
+
+        return GetLocalizedString(
+            "Tools.PublisherStudio.Content.StagedArchiveUnknownFormat",
+            "Archive. Contents are extracted automatically when players install this content.");
     }
 
     private bool IsArchivePath(string path)
@@ -862,23 +915,6 @@ public partial class AddContentDialogViewModel(
             extension.Equals(".xz", StringComparison.OrdinalIgnoreCase);
     }
 
-    private string DescribeArchive(string path)
-    {
-        var entryCount = TryGetArchiveEntryCount(path);
-        if (entryCount >= 0)
-        {
-            return string.Format(
-                GetLocalizedString(
-                    "Tools.PublisherStudio.Content.StagedArchiveFormat",
-                    "Archive with {0} files. Contents are extracted automatically when players install this content."),
-                entryCount);
-        }
-
-        return GetLocalizedString(
-            "Tools.PublisherStudio.Content.StagedArchiveUnknownFormat",
-            "Archive. Contents are extracted automatically when players install this content.");
-    }
-
     private int TryGetArchiveEntryCount(string path)
     {
         var ext = Path.GetExtension(path);
@@ -889,7 +925,7 @@ public partial class AddContentDialogViewModel(
                 using var zipArchive = ZipFile.OpenRead(path);
                 return zipArchive.Entries.Count(e => !string.IsNullOrEmpty(e.Name));
             }
-            catch
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
             {
                 // Fall through to SharpCompress archive reader
             }

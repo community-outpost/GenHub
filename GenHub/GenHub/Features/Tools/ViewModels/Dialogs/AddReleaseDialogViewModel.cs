@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.Interfaces;
 using System;
@@ -26,7 +27,8 @@ public partial class AddReleaseDialogViewModel(
     Action<ContentRelease> onReleaseCreated,
     IPublisherStudioDialogService dialogService,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
-    bool isAddon = false) : ObservableValidator
+    bool isAddon = false,
+    INotificationService? notificationService = null) : ObservableValidator
 {
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -116,6 +118,7 @@ public partial class AddReleaseDialogViewModel(
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="localizationService">Optional localization service.</param>
     /// <param name="isAddon">True if editing an addon; false if editing a release.</param>
+    /// <param name="notificationService">Optional notification service for user feedback.</param>
     public AddReleaseDialogViewModel(
         ContentRelease existing,
         CatalogContentItem contentItem,
@@ -123,8 +126,9 @@ public partial class AddReleaseDialogViewModel(
         Action<ContentRelease> onReleaseCreated,
         IPublisherStudioDialogService dialogService,
         GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
-        bool isAddon = false)
-        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService, isAddon)
+        bool isAddon = false,
+        INotificationService? notificationService = null)
+        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService, isAddon, notificationService)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
@@ -292,6 +296,16 @@ public partial class AddReleaseDialogViewModel(
         }
 
         ImageUrlsInput = string.Join(Environment.NewLine, existingUrls);
+    }
+
+    /// <summary>
+    /// Shows an error notification when drag-and-drop staging fails unexpectedly.
+    /// </summary>
+    public void NotifyDropFailed()
+    {
+        var title = GetLocalizedString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle", "Could Not Stage Files");
+        var message = GetLocalizedString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage", "Some dropped files could not be staged and were skipped. See logs for details.");
+        notificationService?.ShowError(title, message);
     }
 
     [GeneratedRegex(@"^(\d+)\.(\d+)\.(\d+)")]

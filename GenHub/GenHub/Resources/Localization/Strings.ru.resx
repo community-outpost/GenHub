@@ -13193,6 +13193,88 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.OrCreateNewProfileTip" xml:space="preserve">
     <value>Start with a brand new profile instead of pulling this definition</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.ImportCatalogTooltip" xml:space="preserve">
+    <value>Импорт каталога (.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogTitle" xml:space="preserve">
+    <value>Импорт каталога (.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogPromptTitle" xml:space="preserve">
+    <value>Добавить каталог к поставщику?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogPromptMessage" xml:space="preserve">
+    <value>Обнаружен файл каталога '{0}', содержащий элементов контента: {1} (автор: '{2}').
+Добавить этот каталог в проект поставщика?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.AddCatalogConfirm" xml:space="preserve">
+    <value>Добавить каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogImportedFormat" xml:space="preserve">
+    <value>Добавлен каталог '{0}' с элементами контента: {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogErrorFormat" xml:space="preserve">
+    <value>Не удалось импортировать каталог: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InvalidPathTitle" xml:space="preserve">
+    <value>Недопустимый путь</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InvalidPathMessage" xml:space="preserve">
+    <value>Указанный файл или папка не существует.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportButton" xml:space="preserve">
+    <value>Пакетный импорт</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportTooltip" xml:space="preserve">
+    <value>Пакетный импорт нескольких файлов или архивов как отдельных элементов контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportSuccessTitle" xml:space="preserve">
+    <value>Пакетный импорт завершён</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportSuccessMessage" xml:space="preserve">
+    <value>Успешно импортировано элементов контента: {0} (по одному выпуску на каждый).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportPickerTitle" xml:space="preserve">
+    <value>Выберите файлы или архивы для пакетного импорта</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.AddButton" xml:space="preserve">
+    <value>Добавить дополнение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.AddTitle" xml:space="preserve">
+    <value>Добавить дополнение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.EditTitle" xml:space="preserve">
+    <value>Изменить дополнение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.DeleteTitle" xml:space="preserve">
+    <value>Удалить дополнение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.TitleRequired" xml:space="preserve">
+    <value>Требуется название дополнения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.Title" xml:space="preserve">
+    <value>Обнаружен повторяющийся файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.UploadNew" xml:space="preserve">
+    <value>Загрузить новую копию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.UseExisting" xml:space="preserve">
+    <value>Использовать существующий файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DropErrorTitle" xml:space="preserve">
+    <value>Импорт не удался</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DropErrorMessage" xml:space="preserve">
+    <value>Не удалось импортировать перетащенные файлы. Подробности см. в журнале.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveInspecting" xml:space="preserve">
+    <value>Архив (просмотр содержимого...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle" xml:space="preserve">
+    <value>Не удалось подготовить файлы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage" xml:space="preserve">
+    <value>Некоторые перетащенные файлы не удалось подготовить, и они были пропущены. Подробности см. в журнале.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

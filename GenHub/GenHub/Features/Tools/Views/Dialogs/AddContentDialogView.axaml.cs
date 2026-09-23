@@ -184,6 +184,10 @@ public partial class AddContentDialogView : UserControl
         catch (Exception ex)
         {
             Debug.WriteLine($"Failed to process dropped files: {ex}");
+            if (DataContext is AddContentDialogViewModel dialogVm)
+            {
+                dialogVm.NotifyDropFailed();
+            }
         }
     }
 }

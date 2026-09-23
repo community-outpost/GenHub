@@ -140,6 +140,11 @@ public static class ProcessConstants
     public const int AbandonedLauncherKillWaitMs = 2_000;
 
     /// <summary>
+    /// How long to wait for a force-killed process to exit before reporting termination failure.
+    /// </summary>
+    public const int ForceKillExitWaitMs = 5_000;
+
+    /// <summary>
     /// How long to keep polling for the expected child after the launcher itself exits cleanly.
     /// Covers the race between the child being spawned and becoming enumerable, without waiting
     /// out <see cref="SpawnedChildDiscoveryTimeoutMs"/> once the launcher is known to be gone.

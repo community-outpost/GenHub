@@ -221,9 +221,14 @@ public class GenericCatalogManifestFactory(
 
         var extension = Path.GetExtension(relativePath).ToLowerInvariant();
 
-        if (extension == ".map" ||
+        // Extension-based map routing only applies when the content type does not explicitly
+        // declare a non-map payload. Mod/Patch payloads can ship .map files that belong in
+        // the workspace rather than the user maps directory.
+        var isExplicitNonMapType = contentType is ContentType.Mod or ContentType.Patch;
+        if (!isExplicitNonMapType &&
+            (extension == ".map" ||
             (extension == ".tga" && relativePath.Contains("maps", StringComparison.OrdinalIgnoreCase)) ||
-            (extension == ".wak" && relativePath.Contains("maps", StringComparison.OrdinalIgnoreCase)))
+            (extension == ".wak" && relativePath.Contains("maps", StringComparison.OrdinalIgnoreCase))))
         {
             return ContentInstallTarget.UserMapsDirectory;
         }

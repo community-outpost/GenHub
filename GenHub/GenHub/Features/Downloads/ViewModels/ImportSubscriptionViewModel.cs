@@ -52,29 +52,12 @@ public partial class ImportSubscriptionViewModel : ObservableObject
     /// </summary>
     public bool? LastConfirmResult { get; private set; }
 
-    private static string ResolveTargetUrl(string raw)
-    {
-        var targetUrl = CommandLineParser.ExtractSubscriptionUrl([raw]);
-        if (string.IsNullOrWhiteSpace(targetUrl))
-        {
-            targetUrl = raw;
-        }
-
-        return CloudUrlHelper.NormalizeDirectDownloadUrl(targetUrl);
-    }
-
-    private string GetLocalizedString(string key, string fallback) =>
-        _localizationService?.GetString(key) ?? fallback;
-
-    private string GetLocalizedString(string key, string fallback, params object?[] args)
-    {
-        var format = _localizationService?.GetString(key);
-        return string.IsNullOrEmpty(format) || string.Equals(format, key, StringComparison.Ordinal)
-            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, fallback, args)
-            : string.Format(System.Globalization.CultureInfo.InvariantCulture, format, args);
-    }
-
-    private async Task LaunchConfirmationDialogAsync(string targetUrl)
+    /// <summary>
+    /// Launches the confirmation dialog for subscribing to a catalog URL or file.
+    /// </summary>
+    /// <param name="targetUrl">The catalog URL or local file path.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task LaunchConfirmationDialogAsync(string targetUrl)
     {
         var desktop = Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var parent = desktop?.MainWindow;
@@ -102,6 +85,28 @@ public partial class ImportSubscriptionViewModel : ObservableObject
             };
             confirmDialog.Show();
         }
+    }
+
+    private static string ResolveTargetUrl(string raw)
+    {
+        var targetUrl = CommandLineParser.ExtractSubscriptionUrl([raw]);
+        if (string.IsNullOrWhiteSpace(targetUrl))
+        {
+            targetUrl = raw;
+        }
+
+        return CloudUrlHelper.NormalizeDirectDownloadUrl(targetUrl);
+    }
+
+    private string GetLocalizedString(string key, string fallback) =>
+        _localizationService?.GetString(key) ?? fallback;
+
+    private string GetLocalizedString(string key, string fallback, params object?[] args)
+    {
+        var format = _localizationService?.GetString(key);
+        return string.IsNullOrEmpty(format) || string.Equals(format, key, StringComparison.Ordinal)
+            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, fallback, args)
+            : string.Format(System.Globalization.CultureInfo.InvariantCulture, format, args);
     }
 
     [RelayCommand]

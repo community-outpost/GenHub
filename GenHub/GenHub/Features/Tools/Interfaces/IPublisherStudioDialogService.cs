@@ -141,6 +141,13 @@ public interface IPublisherStudioDialogService
     Task<string?> ShowProjectSavePromptAsync(string title);
 
     /// <summary>
+    /// Shows a file picker dialog for selecting a catalog JSON file.
+    /// </summary>
+    /// <param name="title">Title of the dialog.</param>
+    /// <returns>The selected file path, or null if cancelled.</returns>
+    Task<string?> ShowCatalogFilePickerAsync(string title);
+
+    /// <summary>
     /// Shows a file picker dialog for selecting artifact files.
     /// </summary>
     /// <param name="title">Title of the dialog.</param>

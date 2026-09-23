@@ -112,6 +112,10 @@ public partial class AddReleaseDialogView : UserControl
         catch (Exception ex)
         {
             Debug.WriteLine($"Failed to process dropped files: {ex}");
+            if (DataContext is AddReleaseDialogViewModel dialogVm)
+            {
+                dialogVm.NotifyDropFailed();
+            }
         }
     }
 }

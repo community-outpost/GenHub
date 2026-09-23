@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using GenHub.Common.Controls;
 using GenHub.Core.Constants;
@@ -8,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 
 namespace GenHub.Features.Downloads.Views;
@@ -33,6 +35,9 @@ public partial class DownloadsBrowserView : UserControl
     public DownloadsBrowserView()
     {
         InitializeComponent();
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
     /// <inheritdoc/>
@@ -232,5 +237,64 @@ public partial class DownloadsBrowserView : UserControl
     private SidebarLayout? FindSidebarLayout()
     {
         return Content as SidebarLayout;
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.Data.Contains(DataFormats.Files))
+        {
+            e.DragEffects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Handled || !e.Data.Contains(DataFormats.Files))
+        {
+            return;
+        }
+
+        if (DataContext is not DownloadsBrowserViewModel vm)
+        {
+            return;
+        }
+
+        try
+        {
+            var files = e.Data.GetFiles();
+            if (files == null)
+            {
+                return;
+            }
+
+            var jsonFile = files
+                .Select(f => f.Path?.LocalPath)
+                .FirstOrDefault(p => !string.IsNullOrEmpty(p) && Path.GetExtension(p).Equals(".json", StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrEmpty(jsonFile) || !File.Exists(jsonFile))
+            {
+                return;
+            }
+
+            var content = await File.ReadAllTextAsync(jsonFile);
+            if (!content.Contains("content", StringComparison.OrdinalIgnoreCase) &&
+                !content.Contains("publisher", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            await vm.PromptSubscribeToCatalogPathAsync(jsonFile);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error handling dropped catalog in Downloads: {ex}");
+            vm.NotifyCatalogDropFailed(ex.Message);
+        }
     }
 }

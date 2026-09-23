@@ -146,6 +146,17 @@
                                     Cursor="Hand">
                                 <PathIcon Data="{StaticResource AddIcon}" Width="11" Height="11" Foreground="{DynamicResource AccentColorBrush}"/>
                             </Button>
+                            <!-- Import Catalog (.json) -->
+                            <Button Command="{Binding ImportCatalogCommand}"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ImportCatalogTooltip}"
+                                    Background="{DynamicResource GlassFillBrush}"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="6"
+                                    Cursor="Hand">
+                                <PathIcon Data="{StaticResource FolderOpenIcon}" Width="11" Height="11" Foreground="{DynamicResource AccentColorBrush}"/>
+                            </Button>
                             <!-- Remove Catalog -->
                             <Button Command="{Binding RemoveCatalogCommand}"
                                     CommandParameter="{Binding SelectedCatalog}"
@@ -186,11 +197,11 @@
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                         <Button Command="{Binding BatchAddContentCommand}"
-                                ToolTip.Tip="Batch import multiple files or archives as individual content items"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.BatchImportTooltip}"
                                 Classes="accent-glass-btn">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                <TextBlock Text="Batch Import" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.BatchImportButton}" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding AddContentCommand}"
