@@ -47,8 +47,10 @@ jobs:
         with:
           filters: |
             resx:
+              - '.gitattributes'
               - 'GenHub/GenHub/Resources/Localization/*.resx'
               - 'scripts/git_merge_resx.py'
+              - 'scripts/validate_resx.py'
               - 'scripts/auto_merge_development.py'
               - '.github/workflows/resx-auto-merge.yml'
 
@@ -66,11 +68,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          # Fetch full history of the target branch so git merge-tree can
+          # find merge bases back to root.
           fetch-depth: 0
+          # We push merge commits back through the repo token or a PAT.
+          # Checkout with a token that has workflow permission if you want
+          # downstream CI runs to trigger on the merged branch; otherwise
+          # actions/checkout's default GITHUB_TOKEN suffices.
+          token: ${{ secrets.AUTO_MERGE_PAT || github.token }}
 
-      - name: Merge conflicted pull requests
+      - name: Set Up Python
+        uses: actions/setup-python@a269b596f26e5e8e3488820f4c33ea986b627196 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Auto Merge
         env:
           GH_TOKEN: ${{ secrets.AUTO_MERGE_PAT || github.token }}
           AUTO_MERGE_USING_PAT: ${{ secrets.AUTO_MERGE_PAT != '' }}
         run: |
-          python3 scripts/auto_merge_development.py
+          python scripts/auto_merge_development.py --base development

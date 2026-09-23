@@ -32,7 +32,7 @@ import xml.etree.ElementTree as element_tree
 
 DATA_OPEN_RE = re.compile(r'<data\b[^>]*?\bname="([^"]+)"')
 DATA_CLOSE = '</data>'
-SELF_CLOSE = '/>'
+DATA_SELF_CLOSE_RE = re.compile(r'<data\b[^>]*?/>')
 
 MARKER_CURRENT = '<<<<<<< current'
 MARKER_ANCESTOR = '||||||| ancestor'
@@ -82,7 +82,7 @@ def read_input(path):
 
 def _find_block_end(lines, i, total, key):
     line = lines[i]
-    if SELF_CLOSE in line or DATA_CLOSE in line:
+    if DATA_SELF_CLOSE_RE.search(line) is not None or DATA_CLOSE in line:
         return i
     for j in range(i + 1, total):
         if DATA_CLOSE in lines[j]:
@@ -159,145 +159,166 @@ def merge_snippet(base, current, other):
     return None
 
 
-def render_conflict(current, base, other):
-    """Render one conflicting key with familiar merge markers."""
-    lines = [MARKER_CURRENT]
-    if current is None:
-        lines.append('(key deleted in current)')
-    else:
-        lines.extend(current)
-    lines.append(MARKER_ANCESTOR)
-    if base is None:
-        lines.append('(key not present in ancestor)')
-    else:
-        lines.extend(base)
-    lines.append(MARKER_SEPARATOR)
-    if other is None:
-        lines.append('(key deleted in other)')
-    else:
-        lines.extend(other)
-    lines.append(MARKER_OTHER)
-    return lines
-
-
-def _collect_chunks(keys, surviving, emitted_folds):
-    chunks = []
-    had_conflict = False
-    for key in keys:
-        fold = key.casefold()
-        if fold in emitted_folds:
-            continue
-        group = surviving.get(fold)
-        if group is None:
-            continue
-        emitted_folds.add(fold)
-        chunks.extend(group)
-        if any(kind != 'lines' for kind, *_ in group):
-            had_conflict = True
-    return chunks, had_conflict
-
-
-def _render_chunk(chunk):
-    kind = chunk[0]
-    if kind == 'lines':
-        return chunk[1], False
-    if kind == 'conflict':
-        return render_conflict(chunk[1], chunk[2], chunk[3]), True
-    if kind == 'conflict-group':
-        lines = [
-            MARKER_CURRENT,
-            '(keys differ only in case; resource names are case-insensitive)',
-        ]
-        for name, cur, _, oth in chunk[1]:
-            lines.append(f'--- variant: {name} ---')
-            lines.extend(cur if cur is not None else oth or [])
-        lines.append(MARKER_OTHER)
-        return lines, True
-    _, region_base, region_cur, region_oth = chunk
-    lines = [
-        MARKER_CURRENT,
-        *region_cur,
-        MARKER_ANCESTOR,
-        *region_base,
+def merge_sections(base_sec, current_sec, other_sec, label):
+    """Three-way merge of header or footer lines with conflict markers on disagreement."""
+    merged = merge_snippet(base_sec, current_sec, other_sec)
+    if merged is not None:
+        return merged, False
+    conflict = [
+        f'{MARKER_CURRENT} ({label})',
+        *current_sec,
+        f'{MARKER_ANCESTOR} ({label})',
+        *base_sec,
         MARKER_SEPARATOR,
-        *region_oth,
-        MARKER_OTHER,
+        *other_sec,
+        f'{MARKER_OTHER} ({label})',
     ]
-    return lines, True
-
-
-def merge_documents(base, current, other):
-    """Merge three loaded documents.
-
-    Returns (output_lines, had_conflict).
-    """
-    header = merge_snippet(base['header'], current['header'], other['header'])
-    footer = merge_snippet(base['footer'], current['footer'], other['footer'])
-    chunks = []
-    had_conflict = False
-    if header is None:
-        chunks.append(('conflict-text', base['header'],
-                       current['header'], other['header']))
-        had_conflict = True
-    else:
-        chunks.append(('lines', header))
-
-    surviving = resolve_keys(base['by_key'], current['by_key'], other['by_key'])
-    emitted_folds = set()
-    cur_chunks, cur_conf = _collect_chunks(current['order'], surviving, emitted_folds)
-    oth_chunks, oth_conf = _collect_chunks(other['order'], surviving, emitted_folds)
-    chunks.extend(cur_chunks)
-    chunks.extend(oth_chunks)
-    had_conflict = had_conflict or cur_conf or oth_conf
-
-    if footer is None:
-        chunks.append(('conflict-text', base['footer'],
-                       current['footer'], other['footer']))
-        had_conflict = True
-    else:
-        chunks.append(('lines', footer))
-
-    output = []
-    for chunk in chunks:
-        lines, conf = _render_chunk(chunk)
-        output.extend(lines)
-        if conf:
-            had_conflict = True
-    return output, had_conflict
+    return conflict, True
 
 
 def _group_keys_by_fold(base, current, other):
+    """Collect keys into buckets keyed by casefolded name, keeping original case."""
+    all_keys = (
+        list(base['order'])
+        + [k for k in current['order'] if k not in base['order']]
+        + [k for k in other['order'] if k not in base['order'] and k not in current['order']]
+    )
     groups = {}
-    all_keys = list(current) + [k for k in other if k not in current]
     for key in all_keys:
-        groups.setdefault(key.casefold(), []).append(key)
-    for key in base:
         groups.setdefault(key.casefold(), []).append(key)
     return groups
 
 
-def _resolve_single_key(base_block, current_block, other_block):
-    if current_block == other_block or base_block == other_block:
-        return [('lines', current_block)] if current_block is not None else []
-    if base_block == current_block:
-        return [('lines', other_block)] if other_block is not None else []
-    return [('conflict', current_block, base_block, other_block)]
+def _resolve_single_key(name, base, current, other):
+    """Three-way merge for a single key that appears with identical casing on all sides."""
+    in_base = name in base['by_key']
+    in_cur = name in current['by_key']
+    in_oth = name in other['by_key']
+
+    if in_cur and in_oth:
+        cur_block = current['by_key'][name]
+        oth_block = other['by_key'][name]
+        if cur_block == oth_block:
+            return cur_block, False
+        if in_base:
+            base_block = base['by_key'][name]
+            if cur_block == base_block:
+                return oth_block, False
+            if oth_block == base_block:
+                return cur_block, False
+            return _format_conflict(base_block, cur_block, oth_block), True
+        return _format_conflict([], cur_block, oth_block), True
+
+    if in_cur and not in_oth:
+        if in_base and current['by_key'][name] == base['by_key'][name]:
+            return [], False
+        if not in_base:
+            return current['by_key'][name], False
+        return _format_conflict(base['by_key'][name], current['by_key'][name], []), True
+
+    if in_oth and not in_cur:
+        if in_base and other['by_key'][name] == base['by_key'][name]:
+            return [], False
+        if not in_base:
+            return other['by_key'][name], False
+        return _format_conflict(base['by_key'][name], [], other['by_key'][name]), True
+
+    return [], False
+
+
+def _format_conflict(base_lines, cur_lines, oth_lines):
+    return [
+        MARKER_CURRENT,
+        *cur_lines,
+        MARKER_ANCESTOR,
+        *base_lines,
+        MARKER_SEPARATOR,
+        *oth_lines,
+        MARKER_OTHER,
+    ]
 
 
 def _resolve_fold_group(names, base, current, other):
-    exact = list(dict.fromkeys(names))
-    if len(exact) > 1:
-        members = [
-            (name, current.get(name), base.get(name), other.get(name))
-            for name in exact
-        ]
-        return [('conflict-group', members)]
-    name = exact[0]
-    if name not in current and name not in other:
-        return []
-    return _resolve_single_key(
-        base.get(name), current.get(name), other.get(name)
-    )
+    """Resolve a casefold group. Multiple distinct casings produce a conflict."""
+    if len(names) == 1:
+        chunk, conflict = _resolve_single_key(names[0], base, current, other)
+        return [(chunk, conflict)] if chunk else []
+    cur_lines = []
+    oth_lines = []
+    base_lines = []
+    for name in names:
+        if name in current['by_key']:
+            cur_lines.extend(current['by_key'][name])
+        if name in other['by_key']:
+            oth_lines.extend(other['by_key'][name])
+        if name in base['by_key']:
+            base_lines.extend(base['by_key'][name])
+    return [(_format_conflict(base_lines, cur_lines, oth_lines), True)]
+
+
+def _anchor_index(target_index, resolved, target_order):
+    """Return the output index of the latest target key that has already been placed."""
+    for key in reversed(target_order[:target_index]):
+        fold = key.casefold()
+        if fold in resolved:
+            return resolved[fold]
+    return -1
+
+
+def _place_surviving_keys(ordered_folds, fold_to_chunks, current_order, other_order):
+    """Insert surviving keys into a deterministic order with adjacent insertions paired."""
+    current_folds = [k.casefold() for k in current_order if k.casefold() in fold_to_chunks]
+    other_folds = [k.casefold() for k in other_order if k.casefold() in fold_to_chunks]
+    output = []
+    resolved = {}
+
+    def insert(fold, pos):
+        output.insert(pos, fold)
+        for idx in range(pos, len(output)):
+            resolved[output[idx]] = idx
+
+    for fold in ordered_folds:
+        if fold in fold_to_chunks and fold not in resolved:
+            insert(fold, len(output))
+
+    for fold in current_folds:
+        if fold in fold_to_chunks and fold not in resolved:
+            pos = _anchor_index(current_folds.index(fold), resolved, current_folds) + 1
+            insert(fold, pos)
+
+    for fold in other_folds:
+        if fold in fold_to_chunks and fold not in resolved:
+            pos = _anchor_index(other_folds.index(fold), resolved, other_folds) + 1
+            insert(fold, pos)
+
+    return output
+
+
+def merge_documents(base, current, other):
+    """Three-way merge of loaded resx documents.
+
+    Returns (merged_lines, had_conflict).
+    """
+    header, header_conflict = merge_sections(
+        base['header'], current['header'], other['header'], 'header')
+    footer, footer_conflict = merge_sections(
+        base['footer'], current['footer'], other['footer'], 'footer')
+
+    fold_to_chunks = resolve_keys(base, current, other)
+    base_folds = [k.casefold() for k in base['order']]
+    ordered_folds = [f for f in base_folds if f in fold_to_chunks]
+    final_order = _place_surviving_keys(
+        ordered_folds, fold_to_chunks, current['order'], other['order'])
+
+    output = list(header)
+    had_conflict = header_conflict or footer_conflict
+    for fold in final_order:
+        for chunk, conflict in fold_to_chunks[fold]:
+            output.extend(chunk)
+            if conflict:
+                had_conflict = True
+    output.extend(footer)
+    return output, had_conflict
 
 
 def resolve_keys(base, current, other):
@@ -312,21 +333,34 @@ def resolve_keys(base, current, other):
 
 
 def write_output(path, lines, newline, has_bom, has_trailing_nl):
-    """Write merged lines back using the current file's encoding habits."""
+    """Write merged lines atomically using the current file's encoding habits."""
     text = newline.join(lines)
     if has_trailing_nl:
         text += newline
     raw = text.encode('utf-8')
     if has_bom:
         raw = _UTF8_BOM + raw
-    with open(path, 'wb') as handle:
-        handle.write(raw)
+    dir_name = os.path.dirname(os.path.abspath(path))
+    temp_file = tempfile.NamedTemporaryFile(mode='wb', dir=dir_name, delete=False)
+    temp_path = temp_file.name
+    try:
+        temp_file.write(raw)
+        temp_file.flush()
+        temp_file.close()
+        os.replace(temp_path, path)
+    except Exception:
+        try:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        except OSError:
+            pass
+        raise
 
 
 def fallback_line_merge(ancestor_path, current_path, other_path):
     """Write a standard diff3 merge into current so no side is lost."""
     try:
-        subprocess.run(
+        proc = subprocess.run(
             [
                 'git', 'merge-file', '--diff3',
                 '-L', 'current', '-L', 'ancestor', '-L', 'other',
@@ -341,7 +375,11 @@ def fallback_line_merge(ancestor_path, current_path, other_path):
         f'git_merge_resx: fell back to a line merge for {current_path}; '
         'review the result manually\n'
     )
-    return EXIT_CONFLICT
+    if proc.returncode == 0:
+        return EXIT_OK
+    if proc.returncode > 0:
+        return EXIT_CONFLICT
+    return EXIT_ERROR
 
 
 def merge_files(ancestor_path, current_path, other_path):
@@ -354,6 +392,15 @@ def merge_files(ancestor_path, current_path, other_path):
         sys.stderr.write(f'git_merge_resx: error: {exc}\n')
         return fallback_line_merge(ancestor_path, current_path, other_path)
     output, had_conflict = merge_documents(base, current, other)
+    if not had_conflict:
+        merged_xml = current['newline'].join(output)
+        if current['has_trailing_nl']:
+            merged_xml += current['newline']
+        try:
+            element_tree.fromstring(merged_xml.encode('utf-8'))
+        except element_tree.ParseError as exc:
+            sys.stderr.write(f'git_merge_resx: merged XML validation failed for {current_path}: {exc}\n')
+            return fallback_line_merge(ancestor_path, current_path, other_path)
     try:
         write_output(current_path, output, current['newline'],
                      current['has_bom'], current['has_trailing_nl'])
@@ -569,7 +616,7 @@ def _get_self_test_cases(a):
 
 def _run_header_merge_test():
     header_base = list(_TEST_HEADER)
-    header_cur = [
+    header_cur = [\
         TEST_XML_DECL,
         TEST_ROOT_OPEN,
         '  <!-- touched by current -->',
@@ -577,7 +624,7 @@ def _run_header_merge_test():
         TEST_RESHEADER_VALUE,
         TEST_RESHEADER_CLOSE,
     ]
-    header_oth = [
+    header_oth = [\
         TEST_XML_DECL,
         TEST_ROOT_OPEN,
         '  <!-- touched by other -->',

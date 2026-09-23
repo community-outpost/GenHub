@@ -54,15 +54,25 @@ RESX_ATTR_RULE = "GenHub/GenHub/Resources/Localization/*.resx merge=resx\n"
 
 def run_git(args, timeout=COMMAND_TIMEOUT, env=None):
     """Run a git command, returning the completed process."""
-    return subprocess.run(
-        ["git", *args],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        timeout=timeout,
-        env=env,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            ["git", *args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=timeout,
+            env=env,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        msg = f"auto_merge: command timed out after {timeout}s: git {' '.join(args)}\n"
+        print(msg, file=sys.stderr)
+        return subprocess.CompletedProcess(
+            args=["git", *args],
+            returncode=124,
+            stdout=exc.stdout or msg,
+            stderr=msg,
+        )
 
 
 def fail(message):
@@ -105,6 +115,11 @@ def setup_trusted_tools(temp_dir):
     return target_driver, target_validator
 
 
+def cleanup_git_config():
+    """Unset any local git config options configured by this script."""
+    run_git(["config", "--unset", "merge.resx.driver"])
+
+
 def ensure_info_attributes():
     """Ensure the merge=resx attribute is set in Git info/attributes."""
     proc = run_git(["rev-parse", "--git-path", "info/attributes"])
@@ -134,14 +149,18 @@ def base_repository():
     env_repo = os.environ.get("GITHUB_REPOSITORY", "").strip()
     if env_repo and "/" in env_repo:
         return env_repo
-    proc = subprocess.run(
-        ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        timeout=COMMAND_TIMEOUT,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=COMMAND_TIMEOUT,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print("auto_merge: error: timed out executing gh repo view", file=sys.stderr)
+        return None
     if proc.returncode != 0:
         return None
     return proc.stdout.strip()
@@ -149,23 +168,27 @@ def base_repository():
 
 def list_pull_requests(base):
     """Return open pull requests targeting the base branch, oldest first."""
-    proc = subprocess.run(
-        [
-            "gh", "pr", "list",
-            "--base", base,
-            "--state", "open",
-            "--limit", "500",
-            "--json", "number,url,headRefName,isDraft,labels,"
-                      "headRepositoryOwner,headRepository",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        timeout=COMMAND_TIMEOUT,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            [
+                "gh", "pr", "list",
+                "--base", base,
+                "--state", "open",
+                "--limit", "500",
+                "--json", "number,url,headRefName,isDraft,labels,"
+                          "headRepositoryOwner,headRepository",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=COMMAND_TIMEOUT,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print("auto_merge: error: timed out executing gh pr list", file=sys.stderr)
+        return None
     if proc.returncode != 0:
-        print(proc.stdout, file=sys.stderr)
+        print(proc.stderr or proc.stdout, file=sys.stderr)
         return None
     try:
         prs = json.loads(proc.stdout or "[]")
@@ -188,17 +211,14 @@ def is_ancestor(ancestor_sha, head_sha):
     return proc.returncode == 0
 
 
-def conflicted_files(base_sha, head_sha, other_sha):
-    """Compare the three sides in memory using merge-tree, returning conflict paths.
+def conflicted_files(head_sha, other_sha):
+    """Compare the two sides in memory using merge-tree, returning conflict paths.
 
     Returns (True, paths) with the paths that would conflict, or
     (False, []) when the comparison itself cannot run. The worktree and
     the index are never touched.
     """
-    args = ["merge-tree", "--write-tree", "--name-only"]
-    if base_sha:
-        args.append(f"--merge-base={base_sha}")
-    args.extend([head_sha, other_sha])
+    args = ["-c", "merge.resx.driver=", "merge-tree", "--write-tree", "--name-only", head_sha, other_sha]
     proc = run_git(args)
     if proc.returncode == 0:
         return True, []
@@ -222,10 +242,7 @@ def classify_merge(head_sha, base_sha):
     resx-only when the bot should attempt the merge, other when a human
     must resolve non-resx conflicts, or unknown when the comparison fails.
     """
-    base_proc = run_git(["merge-base", head_sha, base_sha])
-    if base_proc.returncode != 0:
-        return "unknown", []
-    ok, paths = conflicted_files(base_proc.stdout.strip(), head_sha, base_sha)
+    ok, paths = conflicted_files(head_sha, base_sha)
     if not ok:
         return "unknown", []
     if not paths:
@@ -238,14 +255,18 @@ def classify_merge(head_sha, base_sha):
 def validate_localization(validator_path):
     """Run the snapshotted validate_resx.py against the current worktree."""
     target_dir = os.path.abspath(RESX_DIR)
-    proc = subprocess.run(
-        [sys.executable, validator_path, target_dir],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        timeout=COMMAND_TIMEOUT,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, validator_path, target_dir],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=COMMAND_TIMEOUT,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print("auto_merge: error: timed out executing validate_resx.py", file=sys.stderr)
+        return False
     if proc.returncode != 0:
         print(proc.stdout, file=sys.stderr)
         return False
@@ -294,7 +315,7 @@ def eligible_pull_request(pr, repo):
 
 def notify_pr_merged(number, base):
     """Post an informative comment to the PR after merging."""
-    using_pat = os.environ.get("AUTO_MERGE_USING_PAT", "").lower() in ("true", "1")
+    using_pat = os.environ.get("AUTO_MERGE_USING_PAT", "").strip().lower() in ("true", "1", "yes")
     if using_pat:
         note = "*(CI workflows have been automatically triggered.)*"
     else:
@@ -306,13 +327,16 @@ def notify_pr_merged(number, base):
         f"GenHub bot merged `{base}` into this branch to resolve localization merge conflicts.\n\n"
         f"{note}"
     )
-    subprocess.run(
-        ["gh", "pr", "comment", str(number), "--body", comment],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=60,
-        check=False,
-    )
+    try:
+        subprocess.run(
+            ["gh", "pr", "comment", str(number), "--body", comment],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=60,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"auto_merge: warning: timed out commenting on PR #{number}", file=sys.stderr)
 
 
 def process_pull_request(pr, repo, base, base_sha, dry_run, validator_path):
@@ -322,7 +346,7 @@ def process_pull_request(pr, repo, base, base_sha, dry_run, validator_path):
         return skipped
     number = pr.get("number", 0)
     head_ref = pr.get("headRefName", "")
-    if run_git(["fetch", "--quiet", "origin", head_ref]).returncode != 0:
+    if run_git(["fetch", "--quiet", "origin", "--", head_ref]).returncode != 0:
         return "fetch-failed"
     head_sha = resolve_revision("FETCH_HEAD")
     if head_sha is None:
@@ -393,7 +417,7 @@ def _prepare_environment(base_branch, dry_run, temp_dir):
     if not repo:
         fail("cannot determine the base repository")
         return None
-    if run_git(["fetch", "--quiet", "origin", base_branch]).returncode != 0:
+    if run_git(["fetch", "--quiet", "origin", "--", base_branch]).returncode != 0:
         fail(f"cannot fetch the base branch {base_branch}")
         return None
     base_sha = resolve_revision(f"origin/{base_branch}")
@@ -443,6 +467,7 @@ def main(argv=None):
     parser.add_argument("--max-prs", type=int, default=DEFAULT_MAX_PRS)
     args = parser.parse_args(argv)
 
+    results = []
     temp_dir = tempfile.mkdtemp(prefix="automerge-driver-")
     try:
         prep = _prepare_environment(args.base, args.dry_run, temp_dir)
@@ -455,6 +480,7 @@ def main(argv=None):
         finally:
             restore_revision(start_revision)
     finally:
+        cleanup_git_config()
         shutil.rmtree(temp_dir, ignore_errors=True)
 
     write_summary(results)

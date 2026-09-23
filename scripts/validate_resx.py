@@ -5,14 +5,14 @@ Checks every ``Strings*.resx`` file under
 ``GenHub/GenHub/Resources/Localization``:
 
 - each file is well-formed XML with a <root> element;
-- all <data> elements are direct children of <root> and have both a name
-  attribute and a <value> element;
+- all <data> elements are direct children of <root> and have both a non-whitespace name
+  attribute without leading/trailing whitespace and a <value> element;
 - no resource key appears twice, including keys that differ only in case
   (MSBuild resource generation is case-insensitive on Windows);
 - every satellite file carries exactly the same key set as the neutral
   ``Strings.resx`` (the repository's strict 1:1 parity rule);
 - every translated value preserves the neutral file's composite formatting
-  placeholders (e.g. {0}, {0:N2}, {0,-10}).
+  placeholders (e.g. {0}, {0:N2}, {0,-10}) and has balanced formatting braces.
 
 Only the Python standard library is used. Exits 0 when everything passes,
 1 with a grouped error report otherwise. Run from anywhere::
@@ -37,6 +37,24 @@ def extract_placeholders(text):
         return []
     unescaped = re.sub(r'\{\{|\}\}', '', text)
     return re.findall(r'\{(\d+)(?:,-?\d+)?(?::[^{}]*)?\}', unescaped)
+
+
+def check_unbalanced_braces(text):
+    """Return True if single braces in composite format strings are properly balanced."""
+    if not text:
+        return True
+    unescaped = re.sub(r'\{\{|\}\}', '', text)
+    depth = 0
+    for char in unescaped:
+        if char == '{':
+            depth += 1
+            if depth > 1:
+                return False
+        elif char == '}':
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0
 
 
 def repo_localization_dir():
@@ -78,14 +96,20 @@ def load_entries(path, errors):
     entries = []
     for node in direct_data:
         name = node.get('name')
-        if not name:
-            errors.append(f'{base_name}: <data> element missing name attribute')
+        if not name or not name.strip():
+            errors.append(f'{base_name}: <data> element missing or whitespace-only name attribute')
+            continue
+        if name.strip() != name:
+            errors.append(f'{base_name}: key "{name}" has leading or trailing whitespace')
             continue
         val_elem = node.find('value')
         if val_elem is None:
             errors.append(f'{base_name}: key "{name}" is missing a <value> element')
             continue
         value = val_elem.text or ''
+        if not check_unbalanced_braces(value):
+            errors.append(f'{base_name}: key "{name}" has unbalanced braces in value: {value!r}')
+            continue
         entries.append((name, value))
 
     return entries
@@ -126,8 +150,8 @@ def check_placeholders(neutral_name, neutral_values, path, entries, errors):
     for key, value in entries:
         if key not in neutral_values:
             continue
-        expected = sorted(set(extract_placeholders(neutral_values[key])))
-        found = sorted(set(extract_placeholders(value)))
+        expected = sorted(extract_placeholders(neutral_values[key]))
+        found = sorted(extract_placeholders(value))
         if expected != found:
             errors.append(
                 f'{base_name}: key "{key}" placeholders {found}, expected {expected} from {neutral_name}'
