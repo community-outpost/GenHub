@@ -186,6 +186,12 @@ public static class OnlineConstants
     public const int SidecarStopTimeoutMs = 5000;
 
     /// <summary>
+    /// Delay in milliseconds before retrying deletion of a staged sidecar
+    /// config that was still locked by the sidecar process.
+    /// </summary>
+    public const int SidecarConfigDeleteRetryDelayMs = 30000;
+
+    /// <summary>
     /// Overlay name reported by the edge until the Phase 0 selection lands.
     /// </summary>
     public const string OverlayPendingSelection = "pending-selection";
@@ -277,6 +283,26 @@ public static class OnlineConstants
     public const int MeshProbeTokenBytes = 8;
 
     /// <summary>
+    /// Zero Hour LAN discovery port the tunnel runner listens on.
+    /// </summary>
+    public const int ZeroHourDiscoveryPort = 8086;
+
+    /// <summary>
+    /// Zero Hour game traffic port the tunnel runner delivers to.
+    /// </summary>
+    public const int ZeroHourGamePort = 16000;
+
+    /// <summary>
+    /// Default UDP port of the relay server.
+    /// </summary>
+    public const int DefaultRelayPort = 8088;
+
+    /// <summary>
+    /// Keep-alive registration interval in seconds for the relay server.
+    /// </summary>
+    public const int KeepAliveIntervalSeconds = 15;
+
+    /// <summary>
     /// Connection-outcome value for a directly reached peer.
     /// </summary>
     public const string OutcomeDirect = "direct";
@@ -356,7 +382,7 @@ public static class OnlineConstants
     /// Retired fingerprint prefixes still accepted when extracting the game
     /// client key, so mixed-version lobbies keep same-client detection.
     /// </summary>
-    public static readonly string[] LegacyProfileFingerprintPrefixes = ["opf1", "opf2"];
+    public static readonly IReadOnlyList<string> LegacyProfileFingerprintPrefixes = ["opf1", "opf2"];
 
     /// <summary>
     /// Gets a value indicating whether the Online feature is enabled.

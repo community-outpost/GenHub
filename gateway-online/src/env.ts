@@ -17,6 +17,8 @@ export interface OnlineEnv {
   DIRECTORY_RATE_PER_MIN?: string;
   REPORT_RATE_LIMIT?: string;
   REPORT_RATE_WINDOW_SECONDS?: string;
+  OUTCOME_RATE_LIMIT?: string;
+  OUTCOME_RATE_WINDOW_SECONDS?: string;
   OVERLAY_SUBNET?: string;
   OVERLAY_NAME?: string;
   TURN_URIS?: string;

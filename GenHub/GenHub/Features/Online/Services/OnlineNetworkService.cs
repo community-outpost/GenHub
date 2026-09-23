@@ -35,6 +35,7 @@ public sealed class OnlineNetworkService(
     ILogger<OnlineNetworkService> logger) : IOnlineNetworkService
 {
     private readonly SemaphoreSlim _sessionLock = new(1, 1);
+    private readonly SemaphoreSlim _failoverLock = new(1, 1);
     private readonly object _joinLock = new();
     private string? _sessionToken;
     private bool _presenceSubscribed;
@@ -120,7 +121,7 @@ public sealed class OnlineNetworkService(
             return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
                 OnlineConstants.ErrorServiceUnavailable);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             logger.LogWarning(ex, "Online directory response was malformed.");
             return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
@@ -173,7 +174,7 @@ public sealed class OnlineNetworkService(
             logger.LogWarning(ex, "Online detail request timed out.");
             return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             logger.LogWarning(ex, "Online detail response was malformed.");
             return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
@@ -220,7 +221,7 @@ public sealed class OnlineNetworkService(
             logger.LogWarning(ex, "Online network creation timed out.");
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             logger.LogWarning(ex, "Online creation response was malformed.");
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
@@ -297,7 +298,7 @@ public sealed class OnlineNetworkService(
             logger.LogWarning(ex, "Online join request timed out.");
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             logger.LogWarning(ex, "Online join response was malformed.");
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
@@ -418,6 +419,19 @@ public sealed class OnlineNetworkService(
         if (peers.Count == 0)
         {
             return OperationResult<OnlineMeshCheckResult>.CreateSuccess(new OnlineMeshCheckResult { Peers = [] });
+        }
+
+        // Relay joins never start the UDP listener, so probes would fail with
+        // "Listener is not started" and report reachable peers as failed.
+        // Start one for the check; without it there is nothing honest to report.
+        if (!p2p.IsListening)
+        {
+            var listen = await p2p.StartListeningAsync(0, cancellationToken);
+            if (listen is null || !listen.Success)
+            {
+                logger.LogInformation("Mesh check skipped: no UDP listener available for probing.");
+                return OperationResult<OnlineMeshCheckResult>.CreateSuccess(new OnlineMeshCheckResult { Peers = [] });
+            }
         }
 
         var results = await Task.WhenAll(peers.Select(m => ProbeMemberAsync(m, cancellationToken)));
@@ -670,6 +684,10 @@ public sealed class OnlineNetworkService(
             return _sessionToken;
         }
 
+        // The fallback attempt runs outside the session lock: the shared
+        // failover helper owns its own lock, and nesting them in opposite
+        // order across the send and session paths could deadlock.
+        Exception? failoverCause = null;
         await _sessionLock.WaitAsync(cancellationToken);
         try
         {
@@ -685,20 +703,31 @@ public sealed class OnlineNetworkService(
             }
             catch (Exception ex) when (IsNetworkFailoverCandidate(ex, cancellationToken))
             {
-                var fallbackToken = await TryFallbackSessionAsync(cancellationToken);
-                if (fallbackToken is not null)
-                {
-                    return fallbackToken;
-                }
-
-                logger.LogWarning(ex, "Primary session request failed and fallback attempt was unsuccessful: {Message}", ex.Message);
-                return null;
+                failoverCause = ex;
             }
         }
         finally
         {
             _sessionLock.Release();
         }
+
+        var fallbackToken = await TryFallbackSessionAsync(cancellationToken);
+        if (fallbackToken is not null)
+        {
+            await _sessionLock.WaitAsync(cancellationToken);
+            try
+            {
+                _sessionToken = fallbackToken;
+                return fallbackToken;
+            }
+            finally
+            {
+                _sessionLock.Release();
+            }
+        }
+
+        logger.LogWarning(failoverCause, "Primary session request failed and fallback attempt was unsuccessful: {Message}", failoverCause?.Message);
+        return null;
     }
 
     private async Task<HttpResponseMessage?> TryFallbackSendAsync(
@@ -706,55 +735,75 @@ public sealed class OnlineNetworkService(
         string? priorToken,
         CancellationToken cancellationToken)
     {
-        var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
-        if (string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
+        return await TryEdgeFailoverAsync(AttemptSendAsync, cancellationToken);
 
-        ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
-        await InvalidateSessionAsync(priorToken, cancellationToken);
-
-        try
+        async Task<HttpResponseMessage?> AttemptSendAsync(string fallbackUrl, CancellationToken ct)
         {
-            var fallbackClient = await CreateAuthenticatedClientAsync(cancellationToken);
-            if (fallbackClient.Client is not null)
+            await InvalidateSessionAsync(priorToken, ct);
+            var fallbackClient = await CreateAuthenticatedClientAsync(ct);
+            if (fallbackClient.Client is null)
             {
-                using (fallbackClient.Client)
-                {
-                    return await send(fallbackClient.Client, cancellationToken);
-                }
+                return null;
+            }
+
+            using (fallbackClient.Client)
+            {
+                return await send(fallbackClient.Client, ct);
             }
         }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Fallback send failed: {Message}", ex.Message);
-            ApiConstants.ResetActiveOnlineEdgeBaseUrl();
-            return null;
-        }
-
-        return null;
     }
 
     private async Task<string?> TryFallbackSessionAsync(CancellationToken cancellationToken)
     {
-        var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
-        if (string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
+        return await TryEdgeFailoverAsync(RequestSessionTokenAsync, cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs one attempt against the fallback edge when a distinct fallback is
+    /// configured. Owns the active-edge switch and its reset under a dedicated
+    /// lock so concurrent failovers cannot interleave set and reset, and
+    /// propagates caller cancellation instead of reporting it as an outage.
+    /// A successful attempt keeps the sticky fallback; only failures reset.
+    /// </summary>
+    /// <typeparam name="T">The attempt result type.</typeparam>
+    /// <param name="attempt">The operation to run against the fallback base URL.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The attempt result, or null when no distinct fallback exists or the attempt failed.</returns>
+    private async Task<T?> TryEdgeFailoverAsync<T>(
+        Func<string, CancellationToken, Task<T?>> attempt,
+        CancellationToken cancellationToken)
+        where T : class
+    {
+        // Compare against the primary, not the active URL: once failed over,
+        // the active URL equals the fallback, and that must still retry.
+        if (string.Equals(ApiConstants.PrimaryOnlineEdgeBaseUrl, ApiConstants.FallbackOnlineEdgeBaseUrl, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
+        await _failoverLock.WaitAsync(cancellationToken);
         try
         {
-            _sessionToken = await RequestSessionTokenAsync(fallback, cancellationToken);
-            return _sessionToken;
+            ApiConstants.ActiveOnlineEdgeBaseUrl = ApiConstants.FallbackOnlineEdgeBaseUrl;
+            try
+            {
+                return await attempt(ApiConstants.FallbackOnlineEdgeBaseUrl, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Fallback edge attempt failed: {Message}", ex.Message);
+                ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+                return null;
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            logger.LogDebug(ex, "Fallback session request failed: {Message}", ex.Message);
-            ApiConstants.ResetActiveOnlineEdgeBaseUrl();
-            return null;
+            _failoverLock.Release();
         }
     }
 
@@ -1050,7 +1099,7 @@ public sealed class OnlineNetworkService(
             logger.LogWarning(ex, "Online network mutation timed out.");
             return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             logger.LogWarning(ex, "Online mutation response was malformed.");
             return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);

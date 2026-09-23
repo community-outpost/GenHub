@@ -158,6 +158,13 @@ public sealed class SharedVirtualLanAdapter(
                     _lifecycleLock.Release();
                 }
             }
+            else
+            {
+                // An in-flight bring-up owns the lock with a live sidecar or
+                // tunnel; stop it in the background so shutdown never orphans it.
+                logger.LogWarning("Virtual LAN adapter disposal timed out waiting for the lifecycle lock; stopping in the background.");
+                _ = StopOrphanedAsync();
+            }
         }
         catch (ObjectDisposedException)
         {
@@ -166,6 +173,30 @@ public sealed class SharedVirtualLanAdapter(
         finally
         {
             _lifecycleLock.Dispose();
+        }
+    }
+
+    private async Task StopOrphanedAsync()
+    {
+        try
+        {
+            await host.StopAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Background host stop failed during adapter disposal: {Message}", ex.Message);
+        }
+
+        try
+        {
+            if (tunnelRunner?.IsRunning == true)
+            {
+                await tunnelRunner.StopAsync(CancellationToken.None);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Background tunnel runner stop failed during adapter disposal: {Message}", ex.Message);
         }
     }
 
@@ -187,7 +218,9 @@ public sealed class SharedVirtualLanAdapter(
     {
         try
         {
-            host.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+            // Off the calling thread so continuations inside StopAsync never
+            // marshal back to a blocked UI synchronization context.
+            Task.Run(() => host.StopAsync(CancellationToken.None)).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
@@ -204,7 +237,7 @@ public sealed class SharedVirtualLanAdapter(
 
         try
         {
-            tunnelRunner.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+            Task.Run(() => tunnelRunner.StopAsync(CancellationToken.None)).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {

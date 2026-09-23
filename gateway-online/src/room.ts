@@ -64,6 +64,10 @@ const DEFAULT_JOIN_LIMIT = 10;
 const DEFAULT_JOIN_WINDOW = 600;
 const DEFAULT_REPORT_LIMIT = 5;
 const DEFAULT_REPORT_WINDOW = 600;
+// Outcome posts are bounded like reports: a lobby-sized burst per Play is
+// legitimate, but line-rate posting from one member is a cost vector.
+const DEFAULT_OUTCOME_LIMIT = 60;
+const DEFAULT_OUTCOME_WINDOW = 600;
 
 // Overlay allocation inside 10.42.0.0/20: slot -> 10.42.<high>.<low>.
 const allocateIp = (slot: number): string => {
@@ -82,15 +86,16 @@ const toPublic = (member: RoomMember): PublicMember => ({
   profileName: member.profileName ?? "",
 });
 
-interface HeartbeatAdvertisement {
-  profileFingerprint: string;
-  profileName: string;
-}
+type HeartbeatMessage =
+  // Liveness only: refreshes lastSeen without touching the advertisement.
+  | { kind: "ping" }
+  | { kind: "advertisement"; profileFingerprint: string; profileName: string };
 
 // Legacy clients send {"type":"heartbeat"} with no advertisement; newer ones
 // attach the selected profile fingerprint so the roster can show per-member
-// match state. Anything else on the socket is ignored.
-const parseHeartbeat = (data: unknown): HeartbeatAdvertisement | null => {
+// match state. Anything else on the socket is ignored. A truncated frame is
+// only a liveness ping: it must never clear a previously advertised profile.
+const parseHeartbeat = (data: unknown): HeartbeatMessage | null => {
   if (typeof data !== "string") {
     return null;
   }
@@ -98,7 +103,7 @@ const parseHeartbeat = (data: unknown): HeartbeatAdvertisement | null => {
   try {
     parsed = JSON.parse(data) as unknown;
   } catch {
-    return data.includes("heartbeat") ? { profileFingerprint: "", profileName: "" } : null;
+    return data.includes("heartbeat") ? { kind: "ping" } : null;
   }
   if (parsed === null || typeof parsed !== "object") {
     return null;
@@ -109,7 +114,7 @@ const parseHeartbeat = (data: unknown): HeartbeatAdvertisement | null => {
   }
   const fingerprint = typeof raw.profileFingerprint === "string" ? raw.profileFingerprint.substring(0, 256) : "";
   const name = typeof raw.profileName === "string" ? sanitizeText(raw.profileName).substring(0, 64) : "";
-  return { profileFingerprint: fingerprint, profileName: name };
+  return { kind: "advertisement", profileFingerprint: fingerprint, profileName: name };
 };
 
 const aggregateQuality = (members: RoomMember[]): number => {
@@ -442,6 +447,25 @@ export class PresenceRoom {
     return allowed;
   }
 
+  private outcomeLimit(): { limit: number; window: number } {
+    const limit = Number.parseInt(this.env.OUTCOME_RATE_LIMIT ?? "", 10);
+    const window = Number.parseInt(this.env.OUTCOME_RATE_WINDOW_SECONDS ?? "", 10);
+    return {
+      limit: Number.isSafeInteger(limit) && limit > 0 ? limit : DEFAULT_OUTCOME_LIMIT,
+      window: Number.isSafeInteger(window) && window > 0 ? window : DEFAULT_OUTCOME_WINDOW,
+    };
+  }
+
+  private async checkOutcomeRate(sub: string): Promise<boolean> {
+    const { limit, window } = this.outcomeLimit();
+    const now = Math.floor(Date.now() / 1000);
+    const attempts = (await this.state.storage.get<Record<string, RateCounter>>("outcomeAttempts")) ?? {};
+    pruneCounters(attempts, now, window);
+    const allowed = allowRequest(attempts, sub, now, limit, window);
+    await this.state.storage.put("outcomeAttempts", attempts);
+    return allowed;
+  }
+
   private async loadBannedIps(): Promise<string[]> {
     return (await this.state.storage.get<string[]>("bannedIps")) ?? [];
   }
@@ -508,7 +532,7 @@ export class PresenceRoom {
   }
 
   private async handleJoin(request: Request): Promise<Response> {
-    const meta = await this.loadMeta();
+    let meta = await this.loadMeta();
     if (meta === null) {
       return json({ error: "Network not found", code: "online.network-not-found" }, 404);
     }
@@ -521,7 +545,11 @@ export class PresenceRoom {
       return json({ error: "Too many join attempts", code: "online.rate-limited" }, 429);
     }
 
-    await this.evictStale();
+    // evictStale can persist host changes on its own snapshot; reload so the
+    // summary below never publishes the departed host's name.
+    if (await this.evictStale()) {
+      meta = (await this.loadMeta()) ?? meta;
+    }
     const members = await this.loadMembers();
     const rejection = await this.rejectJoin(meta, members, body);
     if (rejection !== null) {
@@ -634,7 +662,7 @@ export class PresenceRoom {
   }
 
   private async handleHeartbeat(request: Request): Promise<Response> {
-    const meta = await this.loadMeta();
+    let meta = await this.loadMeta();
     if (meta === null) {
       return json({ error: "Network not found" }, 404);
     }
@@ -643,6 +671,11 @@ export class PresenceRoom {
       return json({ error: "Invalid request body" }, 400);
     }
     const changed = await this.evictStale();
+    if (changed) {
+      // evictStale can promote a new host on its own snapshot; reload so the
+      // published summary carries the live host name, not the departed one.
+      meta = (await this.loadMeta()) ?? meta;
+    }
     const members = await this.loadMembers();
     const member = members.find((m) => m.sub === body.sub);
     if (member === undefined) {
@@ -751,6 +784,9 @@ export class PresenceRoom {
     }
     if (!members.some((m) => m.sub === body.sub)) {
       return json({ error: "Not a member" }, 403);
+    }
+    if (!(await this.checkOutcomeRate(body.sub))) {
+      return json({ error: "Too many outcome reports", code: "online.rate-limited" }, 429);
     }
     if (body.outcome !== OUTCOME_DIRECT && body.outcome !== OUTCOME_RELAY && body.outcome !== OUTCOME_FAILED) {
       return json({ error: "Invalid outcome" }, 400);
@@ -879,6 +915,16 @@ export class PresenceRoom {
     server.serializeAttachment({ sub: owner });
     this.state.acceptWebSocket(server, [owner]);
 
+    // The membership read above races ban/leave: re-validate under the lock
+    // after registration, otherwise a ban that landed in between leaves a
+    // live socket that keeps receiving roster broadcasts.
+    await this.withLock(async () => {
+      const current = await this.loadMembers();
+      if (!current.some((m) => m.sub === owner)) {
+        this.closeSocketsFor(owner, 4001, "Membership ended");
+      }
+    }).catch(() => undefined);
+
     server.send(JSON.stringify({ type: "roster", members: members.map(toPublic) }));
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -905,7 +951,7 @@ export class PresenceRoom {
     console.error("Presence WebSocket error:", error);
   }
 
-  private async touchMember(sub: string, advertisement?: HeartbeatAdvertisement): Promise<void> {
+  private async touchMember(sub: string, message?: HeartbeatMessage): Promise<void> {
     const members = await this.loadMembers();
     const member = members.find((m) => m.sub === sub);
     if (member === undefined) {
@@ -917,14 +963,14 @@ export class PresenceRoom {
     // actually changed; every heartbeat rewriting the roster would fan out
     // a roster storm on every interval for every member.
     const changed =
-      advertisement !== undefined &&
-      (member.profileFingerprint !== advertisement.profileFingerprint ||
-        member.profileName !== advertisement.profileName);
-    if (changed && advertisement !== undefined) {
-      member.profileFingerprint = advertisement.profileFingerprint;
-      member.profileName = advertisement.profileName;
+      message?.kind === "advertisement" &&
+      (member.profileFingerprint !== message.profileFingerprint ||
+        member.profileName !== message.profileName);
+    if (changed && message?.kind === "advertisement") {
+      member.profileFingerprint = message.profileFingerprint;
+      member.profileName = message.profileName;
     }
-    if (stale || changed) {
+    if (stale || changed || message?.kind === "ping") {
       member.lastSeen = now;
       await this.saveMembers(members);
     }

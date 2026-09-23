@@ -20,14 +20,10 @@ namespace GenHub.Core.Services.Online;
 /// </summary>
 public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logger) : ITunnelRunner
 {
-    private const int ZeroHourDiscoveryPort = 8086;
-    private const int ZeroHourGamePort = 16000;
-    private const int DefaultRelayPort = 8088;
-    private const int KeepAliveIntervalSeconds = 15;
-
     private readonly SemaphoreSlim _lock = new(1, 1);
     private UdpClient? _relayClient;
     private UdpClient? _broadcastListener;
+    private UdpClient? _localSender;
     private CancellationTokenSource? _cts;
     private Task? _relayReceiveTask;
     private Task? _broadcastReceiveTask;
@@ -74,12 +70,12 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             {
                 _broadcastListener = new UdpClient();
                 _broadcastListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                _broadcastListener.Client.Bind(new IPEndPoint(IPAddress.Any, ZeroHourDiscoveryPort));
+                _broadcastListener.Client.Bind(new IPEndPoint(IPAddress.Any, OnlineConstants.ZeroHourDiscoveryPort));
                 _broadcastReceiveTask = Task.Run(() => BroadcastReceiveLoopAsync(_broadcastListener, parsed, ct), ct);
             }
             catch (SocketException ex)
             {
-                logger.LogInformation(ex, "Zero Hour discovery port {Port} shared or already in use: {Message}", ZeroHourDiscoveryPort, ex.Message);
+                logger.LogInformation(ex, "Zero Hour discovery port {Port} shared or already in use: {Message}", OnlineConstants.ZeroHourDiscoveryPort, ex.Message);
             }
 
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -160,6 +156,13 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                     _lock.Release();
                 }
             }
+            else
+            {
+                // The lock holder keeps running with live sockets; cancel the
+                // loops without the lock so nothing is orphaned silently.
+                logger.LogWarning("Virtual LAN tunnel runner disposal timed out waiting for the lock; stopping without it.");
+                StopWithoutLock();
+            }
         }
         catch (ObjectDisposedException)
         {
@@ -199,7 +202,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
             if (!IPAddress.TryParse(ipStr, out var parsedIp))
             {
-                parsedIp = IPAddress.Parse(OnlineConstants.DefaultOverlayFallbackIp);
+                return (false, default!);
             }
 
             var ep = await ParseRelayEndpointAsync(root, cancellationToken).ConfigureAwait(false);
@@ -245,7 +248,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
     private static async Task<IPEndPoint> ParseRelayEndpointAsync(JsonElement root, CancellationToken cancellationToken)
     {
         var relayHost = ApiConstants.OnlineRelayHost;
-        var relayPort = DefaultRelayPort;
+        var relayPort = OnlineConstants.DefaultRelayPort;
 
         if (root.TryGetProperty("relay", out var relayProp) && relayProp.ValueKind == JsonValueKind.Object)
         {
@@ -300,7 +303,8 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             }
         }
 
-        isBroadcast = data[16] == 255 || (data[16] == 10 && data[17] == 42 && (data[18] == 255 || data[19] == 255));
+        var sameSubnet = data[16] == config.OverlayIpBytes[0] && data[17] == config.OverlayIpBytes[1];
+        isBroadcast = data[16] == 255 || (sameSubnet && (data[18] == 255 || data[19] == 255));
         var isUnicastToMe = data[16] == config.OverlayIpBytes[0] &&
                             data[17] == config.OverlayIpBytes[1] &&
                             data[18] == config.OverlayIpBytes[2] &&
@@ -349,6 +353,32 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         }
     }
 
+    private void StopWithoutLock()
+    {
+        try
+        {
+            _cts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already canceled
+        }
+
+        _relayClient?.Dispose();
+        _relayClient = null;
+
+        _broadcastListener?.Dispose();
+        _broadcastListener = null;
+
+        _localSender?.Dispose();
+        _localSender = null;
+
+        _cts?.Dispose();
+        _cts = null;
+
+        IsRunning = false;
+    }
+
     private async Task StopInternalAsync()
     {
         if (!IsRunning && _cts == null)
@@ -363,6 +393,9 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
         _broadcastListener?.Dispose();
         _broadcastListener = null;
+
+        _localSender?.Dispose();
+        _localSender = null;
 
         await AwaitCancellationSilentlyAsync(_relayReceiveTask).ConfigureAwait(false);
         _relayReceiveTask = null;
@@ -397,7 +430,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private async Task KeepAliveLoopAsync(ParsedTunnelConfig config, CancellationToken ct)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(KeepAliveIntervalSeconds));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(OnlineConstants.KeepAliveIntervalSeconds));
         while (!ct.IsCancellationRequested)
         {
             try
@@ -452,16 +485,18 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private async Task DispatchLocalPacketAsync(byte[] data, int payloadLength, bool isBroadcast)
     {
-        var targetPort = isBroadcast ? ZeroHourDiscoveryPort : ZeroHourGamePort;
+        var targetPort = isBroadcast ? OnlineConstants.ZeroHourDiscoveryPort : OnlineConstants.ZeroHourGamePort;
         try
         {
-            using var localSender = new UdpClient();
-            localSender.EnableBroadcast = isBroadcast;
+            // One reusable sender keeps the loopback source endpoint stable
+            // across packets instead of churning a socket per datagram.
+            _localSender ??= new UdpClient();
+            _localSender.EnableBroadcast = isBroadcast;
             var localTarget = new IPEndPoint(IPAddress.Loopback, targetPort);
 
             var payload = new byte[payloadLength];
             Buffer.BlockCopy(data, 24, payload, 0, payloadLength);
-            await localSender.SendAsync(payload, payload.Length, localTarget).ConfigureAwait(false);
+            await _localSender.SendAsync(payload, payload.Length, localTarget).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

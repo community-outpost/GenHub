@@ -547,6 +547,46 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
+    /// Tests that the mesh check starts a UDP listener before probing, so relay
+    /// joins report real reachability instead of listener errors.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunMeshCheckAsync_WithoutListener_ShouldStartListenerBeforeProbingAsync()
+    {
+        // Arrange
+        const string JoinWithEndpoint = """{"networkId":"net-1","grant":"grant-token","grantExpiresUtc":"2026-09-20T01:00:00Z","overlayIp":"10.42.0.7","adapterConfig":"opaque-config","expectedProfileId":"zh-1.04","members":[{"displayName":"Peer","overlayIp":"10.42.0.8","endpoint":"203.0.113.9:4321","quality":1,"isHost":false}]}""";
+        var adapter = new Mock<IVirtualLanAdapter>();
+        adapter.Setup(a => a.BringUpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+        var bound = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 0);
+        var p2p = new Mock<IP2PConnectionService>();
+        p2p.SetupGet(p => p.IsListening).Returns(false);
+        p2p.Setup(p => p.StartListeningAsync(0, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<System.Net.IPEndPoint>.CreateSuccess(bound));
+        p2p.Setup(p => p.ProbePeerAsync("203.0.113.9", 4321, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+        var service = CreateService(
+            CreateFactory(responder: request =>
+                request.Method == HttpMethod.Post && (request.RequestUri?.AbsolutePath ?? string.Empty).EndsWith("/join", StringComparison.Ordinal)
+                    ? JsonResponse(JoinWithEndpoint)
+                    : Route(request, HttpStatusCode.OK)),
+            adapter.Object,
+            p2p.Object);
+        await service.JoinNetworkAsync("net-1", "secret", true);
+
+        // Act
+        var result = await service.RunMeshCheckAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Single(result.Data.Peers);
+        Assert.True(result.Data.Peers[0].Reachable);
+        p2p.Verify(p => p.StartListeningAsync(0, It.IsAny<CancellationToken>()), Times.Once);
+        p2p.Verify(p => p.ProbePeerAsync("203.0.113.9", 4321, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
     /// Tests that a failed join releases the UDP listener and clears the endpoint.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

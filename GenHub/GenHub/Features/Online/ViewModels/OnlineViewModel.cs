@@ -136,6 +136,14 @@ public sealed partial class OnlineViewModel(
     [ObservableProperty]
     private bool _isLoading;
 
+    /// <summary>
+    /// Directory-only refresh indicator. The network-list spinner binds to
+    /// this instead of the shared operation flag so joining, playing, or
+    /// moderating never looks like a directory refresh.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isRefreshingDirectory;
+
     [ObservableProperty]
     private bool _directoryEmpty;
 
@@ -241,6 +249,7 @@ public sealed partial class OnlineViewModel(
         try
         {
             IsLoading = true;
+            IsRefreshingDirectory = true;
             DirectoryFailed = false;
             var result = await networkService.GetNetworksAsync(SearchText, cancellationToken);
             if (!result.Success)
@@ -266,6 +275,7 @@ public sealed partial class OnlineViewModel(
         finally
         {
             IsLoading = false;
+            IsRefreshingDirectory = false;
             _refreshLock.Release();
         }
     }
@@ -427,6 +437,7 @@ public sealed partial class OnlineViewModel(
         // user submitted, not what the fields hold when awaits complete.
         var networkName = CreateName.Trim();
         var description = CreateDescription.Trim();
+        var password = CreatePassword.Trim();
         var createProfile = SelectedCreateProfile;
         var slotsMax = Math.Clamp(CreateSlots, 2, OnlineConstants.MaxSlotCap);
         var isPublic = CreateIsPublic;
@@ -439,7 +450,7 @@ public sealed partial class OnlineViewModel(
             var request = new OnlineCreateNetworkRequest
             {
                 Name = networkName,
-                Password = CreatePassword.Trim(),
+                Password = password,
                 SlotsMax = slotsMax,
                 IsPublic = isPublic,
                 Description = description,

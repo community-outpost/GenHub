@@ -71,8 +71,10 @@ of failing silently.
    when one is set, then returns a grant, an overlay
    IP, an opaque adapter config, the initial roster, and the expected profile
    block. Joiners advertise their own profile fingerprint with the join.
-4. The client brings the platform adapter up (skipped while the edge reports
-   `overlay: "pending-selection"`; the lobby stays usable without tunneling),
+4. The client brings the platform adapter up (while the edge reports
+   `overlay: "pending-selection"` only the sidecar spawn is skipped and the
+   client falls back to the in-process tunnel runner; the lobby stays usable
+   either way),
    opens the grant-scoped presence socket
    (`/v1/networks/{id}/presence?ticket=`), and shows live roster updates.
    Reconnect uses exponential backoff; eviction/ban closes the socket (code

@@ -25,7 +25,8 @@ public static class OverlayConfigInspector
         {
             var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(adapterConfig));
             using var document = JsonDocument.Parse(decoded);
-            if (document.RootElement.TryGetProperty("overlay", out var overlay) &&
+            if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty("overlay", out var overlay) &&
                 overlay.ValueKind == JsonValueKind.String)
             {
                 return overlay.GetString();

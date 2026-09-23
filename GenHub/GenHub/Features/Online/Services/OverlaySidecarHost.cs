@@ -153,6 +153,7 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
                 if (!process.HasExited)
                 {
                     process.Kill(true);
+                    process.WaitForExit(OnlineConstants.SidecarStopTimeoutMs);
                 }
             }
             catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
@@ -267,27 +268,6 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         }
     }
 
-    private static void DeleteConfig(string? configPath)
-    {
-        if (string.IsNullOrEmpty(configPath))
-        {
-            return;
-        }
-
-        try
-        {
-            File.Delete(configPath);
-        }
-        catch (IOException)
-        {
-            // Best effort cleanup of staged config.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Best effort cleanup of staged config.
-        }
-    }
-
     private static async Task WaitForExitAsync(Process process, CancellationToken cancellationToken)
     {
         using var registration = cancellationToken.Register(() =>
@@ -311,6 +291,12 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         try
         {
             await Task.Delay(OnlineConstants.SidecarStartupGraceMs, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller canceled: propagate instead of misreporting a crash.
+            // The spawned process stays tracked for StopAsync/Dispose cleanup.
+            throw;
         }
         catch (OperationCanceledException)
         {
@@ -398,6 +384,44 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         lock (_syncLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+        }
+    }
+
+    private void DeleteConfig(string? configPath)
+    {
+        if (string.IsNullOrEmpty(configPath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(configPath);
+        }
+        catch (IOException ex)
+        {
+            // The sidecar may still hold the credential file open after a
+            // kill timeout; retry once in the background instead of leaving
+            // TURN credentials in temp indefinitely.
+            logger.LogWarning(ex, "Staged overlay config still locked; retrying deletion in the background.");
+            _ = DeleteConfigLaterAsync(configPath);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup of staged config.
+        }
+    }
+
+    private async Task DeleteConfigLaterAsync(string configPath)
+    {
+        try
+        {
+            await Task.Delay(OnlineConstants.SidecarConfigDeleteRetryDelayMs);
+            File.Delete(configPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Background deletion of staged overlay config failed.");
         }
     }
 }

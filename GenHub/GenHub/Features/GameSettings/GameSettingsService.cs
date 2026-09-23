@@ -114,11 +114,12 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" }))
         {
+            var filePath = GetOptionsFilePath(gameType);
+
             // Acquire semaphore to serialize Options.ini writes
             await _optionsIniWriteSemaphore.WaitAsync();
             try
             {
-                var filePath = GetOptionsFilePath(gameType);
                 _logger.LogDebug("Saving to path: {FilePath}", filePath);
 
                 var directory = Path.GetDirectoryName(filePath);
@@ -149,7 +150,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 // Atomic replace: a crash mid-write must never leave a truncated
                 // Options.ini behind. The temp file lives beside the target so the
                 // move stays on one volume.
-                var temporaryPath = filePath + ".tmp";
+                var temporaryPath = filePath + FileTypes.AtomicWriteTempSuffix;
                 await File.WriteAllLinesAsync(temporaryPath, lines, Encoding.UTF8);
                 File.Move(temporaryPath, filePath, overwrite: true);
 
@@ -159,6 +160,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Failed to save Options.ini for {GameType}", gameType);
+                DiscardTemporaryFile(filePath + FileTypes.AtomicWriteTempSuffix);
                 return OperationResult<bool>.CreateFailure($"Failed to save options: {ex.Message}");
             }
             finally
@@ -356,6 +358,25 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
         return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+    }
+
+    private static void DiscardTemporaryFile(string temporaryPath)
+    {
+        try
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+        catch (IOException)
+        {
+            // Best effort; a leftover staging file is not worth failing the save over.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort; a leftover staging file is not worth failing the save over.
+        }
     }
 
     private static void DiscardTemporarySettingsFile(string? temporaryPath)

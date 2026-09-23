@@ -29,7 +29,13 @@ export default defineWorkersConfig({
             JOIN_RATE_WINDOW_SECONDS: "600",
             SESSION_RATE_LIMIT: "5",
             SESSION_RATE_WINDOW_SECONDS: "60",
+            // Stays above the file's total creates: without an explicit
+            // CF-Connecting-IP every create here shares one client IP, so the
+            // cap must clear the whole suite. The per-IP limiter itself is
+            // proven below with a dedicated quota IP driven to this exact cap.
             MAX_NETWORKS_PER_IP: "100",
+            DIRECTORY_RATE_PER_MIN: "600",
+            EMPTY_NETWORK_TTL_SECONDS: "300",
             OVERLAY_SUBNET: "10.42.0.0/20", // NOSONAR - private test overlay range
             TURN_URIS: "turn:turn.example.invalid:3478",
           },

@@ -25,9 +25,22 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     private readonly object _syncLock = new();
     private readonly Dictionary<string, TaskCompletionSource<bool>> _pendingProbes = new();
     private UdpClient? _listener;
+
     private CancellationTokenSource? _receiveCts;
     private Task? _receiveTask;
     private bool _disposed;
+
+    /// <inheritdoc/>
+    public bool IsListening
+    {
+        get
+        {
+            lock (_syncLock)
+            {
+                return _listener is not null;
+            }
+        }
+    }
 
     /// <inheritdoc/>
     public OnlineConnectionQuality CurrentQuality { get; private set; } = OnlineConnectionQuality.Unknown;

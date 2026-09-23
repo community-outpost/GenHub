@@ -37,10 +37,12 @@ denied-peer-ip=240.0.0.0-255.255.255.255
 denied-peer-ip=::1
 denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-# Game traffic is UDP only; bound relay abuse cost with quotas.
+# Game traffic is UDP only; bound relay abuse cost with quotas. Keep the
+# total at or below the 1000-allocation capacity the host is sized for, so
+# quota errors surface before CPU/memory saturation does.
 no-tcp-relay
 user-quota=12
-total-quota=1200
+total-quota=1000
 fingerprint
 # Relay-only by product design: no direct peer-to-peer hole punching.
 no-cli
