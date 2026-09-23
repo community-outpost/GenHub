@@ -617,8 +617,14 @@ public static class WndConstants
         /// <summary>JPEG texture extension.</summary>
         public const string TextureExtensionJpg = ".jpg";
 
+        /// <summary>Portable Network Graphics texture extension, used by some mods.</summary>
+        public const string TextureExtensionPng = ".png";
+
+        /// <summary>Windows bitmap texture extension, used by some mods.</summary>
+        public const string TextureExtensionBmp = ".bmp";
+
         /// <summary>Texture page extensions probed in order.</summary>
-        public static readonly string[] TextureExtensions = [TextureExtensionDds, TextureExtensionTga, TextureExtensionJpg];
+        public static readonly string[] TextureExtensions = [TextureExtensionDds, TextureExtensionTga, TextureExtensionJpg, TextureExtensionPng, TextureExtensionBmp];
 
         /// <summary>Language folders probed for localized texture pages, in order.</summary>
         public static readonly string[] TextureLanguages = ["english", "german", "french", "spanish", "italian", "russian", "polish", "brazilian", "japanese", "korean", "chinese"];

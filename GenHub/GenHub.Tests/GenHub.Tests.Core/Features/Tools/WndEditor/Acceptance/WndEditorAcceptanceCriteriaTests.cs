@@ -1,15 +1,14 @@
-using System;
-using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
+using System;
+using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace GenHub.Tests.Core.Features.Tools.WndEditor.Acceptance;
 
@@ -25,12 +24,18 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
 {
     private readonly string _tempRoot;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WndEditorAcceptanceCriteriaTests"/> class.
+    /// </summary>
     public WndEditorAcceptanceCriteriaTests()
     {
         _tempRoot = Path.Combine(Path.GetTempPath(), "GenHub_Acceptance_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempRoot);
     }
 
+    /// <summary>
+    /// Cleans up the temporary directory.
+    /// </summary>
     public void Dispose()
     {
         if (Directory.Exists(_tempRoot))
@@ -110,14 +115,11 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
         {
             entries.Add(WndDrawDataEntry.Empty);
         }
-        entries[0] = new WndDrawDataEntry(
-            Image: "MainMenuRuler",
-            Color: null,
-            BorderColor: null,
-            UserData: null);
+
+        entries[0] = new WndDrawDataEntry("MainMenuRuler", WndRgbaColor.Undefined, WndRgbaColor.Undefined);
 
         var drawDataSet = new WndDrawDataSet(entries);
-        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, drawDataSet.ToDrawDataString());
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, drawDataSet.ToString());
 
         // Act
         var plan = WndPreviewPlanner.Plan(window);
@@ -233,7 +235,6 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
         //   4 bytes: size (BigEndian)
         //   null-terminated relative path
         // File data at specified offsets
-
         var dirEntries = new List<(string Path, byte[] Data, int PathBytesLength)>();
         int dirTableSize = 0;
         foreach (var (relPath, data) in entries)

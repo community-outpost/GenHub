@@ -277,6 +277,182 @@ public sealed class WndImageAssetServiceTests : IDisposable
         decoded.Height.Should().Be(4);
     }
 
+    /// <summary>
+    /// Tests that a mod texture with a different file extension wins over a retail texture
+    /// whose extension exactly matches the mapped image reference.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_ModDdsTexture_BeatsRetailTgaTexture()
+    {
+        // Arrange: retail ships a small Defeated.tga; the mod redefines the image
+        // (6x6 crop) but ships the replacement as Defeated.dds.
+        WriteTextureAt(_gameRoot, Path.Combine("Data", "English", "Art", "Textures"), "Defeated.tga", MagickColors.Red, 4, 4, MagickFormat.Tga);
+
+        var modDir = Path.Combine(Path.GetTempPath(), "GenHub_ShadowTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(modDir, "Data", "INI", "MappedImages", "HandCreated"));
+            var modIniContent =
+                "MappedImage Defeated\n" +
+                "  Texture = Defeated.tga\n" +
+                "  Coords = Left:0 Top:0 Right:6 Bottom:6\n" +
+                "  Status = NONE\n" +
+                "End\n";
+            File.WriteAllText(Path.Combine(modDir, "Data", "INI", "MappedImages", "HandCreated", "Mod.ini"), modIniContent);
+            WriteTextureAt(modDir, Path.Combine("Data", "English", "Art", "Textures"), "Defeated.dds", MagickColors.Green, 16, 16, MagickFormat.Dds);
+
+            // Act
+            var result = await _service.GetImagesAsync(["Defeated"], _gameRoot, null, modDir);
+
+            // Assert: the 6x6 green mod crop wins, not the 4x4-clamped red retail page.
+            result.Success.Should().BeTrue();
+            result.Data.Should().ContainKey("Defeated");
+            using var decoded = new MagickImage(result.Data!["Defeated"]);
+            decoded.Width.Should().Be(6);
+            decoded.Height.Should().Be(6);
+            PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Green.ToString());
+        }
+        finally
+        {
+            if (Directory.Exists(modDir))
+            {
+                Directory.Delete(modDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that a mod definition referencing a retail-only texture still resolves
+    /// through lower-tier fallback.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_ModDefinitionWithRetailOnlyTexture_FallsBackToRetail()
+    {
+        // Arrange: retail ships the texture page; the mod only redefines the crop.
+        WriteTextureAt(_gameRoot, Path.Combine("Art", "Textures"), "RetailPage.tga", MagickColors.Red, 16, 16, MagickFormat.Tga);
+
+        var modDir = Path.Combine(Path.GetTempPath(), "GenHub_BandFallbackTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(modDir, "Data", "INI", "MappedImages", "HandCreated"));
+            var modIniContent =
+                "MappedImage RetailCrop\n" +
+                "  Texture = RetailPage\n" +
+                "  Coords = Left:0 Top:0 Right:4 Bottom:4\n" +
+                "  Status = NONE\n" +
+                "End\n";
+            File.WriteAllText(Path.Combine(modDir, "Data", "INI", "MappedImages", "HandCreated", "Mod.ini"), modIniContent);
+
+            // Act
+            var result = await _service.GetImagesAsync(["RetailCrop"], _gameRoot, null, modDir);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().ContainKey("RetailCrop");
+            using var decoded = new MagickImage(result.Data!["RetailCrop"]);
+            decoded.Width.Should().Be(4);
+            decoded.Height.Should().Be(4);
+            PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Red.ToString());
+        }
+        finally
+        {
+            if (Directory.Exists(modDir))
+            {
+                Directory.Delete(modDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that when the primary Zero Hour definition's texture is missing,
+    /// fallback prefers a Zero Hour alternate over a Generals alternate.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_PrimaryTextureMissing_PrefersZeroHourAlternateOverGenerals()
+    {
+        // Arrange: Zero Hour primary points at a missing page; its TextureSize alternate is valid.
+        Directory.CreateDirectory(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "HandCreated"));
+        var primaryIniContent =
+            "MappedImage AltBtn\n" +
+            "  Texture = MissingPage\n" +
+            "  Coords = Left:0 Top:0 Right:9 Bottom:9\n" +
+            "  Status = NONE\n" +
+            "End\n";
+        File.WriteAllText(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "HandCreated", "ZHUI.ini"), primaryIniContent);
+        var alternateIniContent =
+            "MappedImage AltBtn\n" +
+            "  Texture = ZHAltPage\n" +
+            "  Coords = Left:0 Top:0 Right:5 Bottom:5\n" +
+            "  Status = NONE\n" +
+            "End\n";
+        File.WriteAllText(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "TextureSize_512", "ZH512.ini"), alternateIniContent);
+        WriteTextureAt(_gameRoot, Path.Combine("Art", "Textures"), "ZHAltPage.tga", MagickColors.Blue, 16, 16, MagickFormat.Tga);
+
+        // Arrange: Generals fallback defines the same image with a valid but smaller crop.
+        var generalsRoot = Path.Combine(Path.GetTempPath(), "GenHub_AltTierTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(generalsRoot, "Data", "INI", "MappedImages", "HandCreated"));
+            Directory.CreateDirectory(Path.Combine(generalsRoot, "Art", "Textures"));
+            var generalsIniContent =
+                "MappedImage AltBtn\n" +
+                "  Texture = GenPage\n" +
+                "  Coords = Left:0 Top:0 Right:2 Bottom:2\n" +
+                "  Status = NONE\n" +
+                "End\n";
+            File.WriteAllText(Path.Combine(generalsRoot, "Data", "INI", "MappedImages", "HandCreated", "AAGenUI.ini"), generalsIniContent);
+            WriteTextureAt(generalsRoot, Path.Combine("Art", "Textures"), "GenPage.tga", MagickColors.Red, 16, 16, MagickFormat.Tga);
+
+            // Act
+            var result = await _service.GetImagesAsync(["AltBtn"], _gameRoot, generalsRoot, null, null, true);
+
+            // Assert: the 5x5 blue Zero Hour alternate wins over the 2x2 red Generals one.
+            result.Success.Should().BeTrue();
+            result.Data.Should().ContainKey("AltBtn");
+            using var decoded = new MagickImage(result.Data!["AltBtn"]);
+            decoded.Width.Should().Be(5);
+            decoded.Height.Should().Be(5);
+            PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Blue.ToString());
+        }
+        finally
+        {
+            if (Directory.Exists(generalsRoot))
+            {
+                Directory.Delete(generalsRoot, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that an extensionless texture reference resolves a PNG file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_ExtensionlessTextureReference_ResolvesPngFile()
+    {
+        // Arrange
+        WriteMappedImages(
+            "MappedImage PngBtn\n" +
+            "  Texture = PngPage\n" +
+            "  Coords = Left:0 Top:0 Right:3 Bottom:3\n" +
+            "  Status = NONE\n" +
+            "End\n");
+        WriteTextureAt(_gameRoot, Path.Combine("Art", "Textures"), "PngPage.png", MagickColors.Green, 8, 8, MagickFormat.Png);
+
+        // Act
+        var result = await _service.GetImagesAsync(["PngBtn"], _gameRoot, null, null);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().ContainKey("PngBtn");
+        using var decoded = new MagickImage(result.Data!["PngBtn"]);
+        decoded.Width.Should().Be(3);
+        decoded.Height.Should().Be(3);
+    }
+
     private void WriteMappedImages(string content)
     {
         File.WriteAllText(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "TextureSize_512", "Test.ini"), content);
@@ -287,5 +463,20 @@ public sealed class WndImageAssetServiceTests : IDisposable
         using var image = new MagickImage(MagickColors.Red, width, height);
         image.Format = MagickFormat.Tga;
         image.Write(Path.Combine(_gameRoot, "Art", "Textures", fileName));
+    }
+
+    private static void WriteTextureAt(string root, string relativeDirectory, string fileName, MagickColor color, uint width, uint height, MagickFormat format)
+    {
+        var directory = Path.Combine(root, relativeDirectory);
+        Directory.CreateDirectory(directory);
+        using var image = new MagickImage(color, width, height);
+        image.Format = format;
+        image.Write(Path.Combine(directory, fileName));
+    }
+
+    private static IMagickColor<ushort> PixelAt(MagickImage image, int x, int y)
+    {
+        using var pixels = image.GetPixels();
+        return pixels.GetPixel(x, y)!.ToColor()!;
     }
 }

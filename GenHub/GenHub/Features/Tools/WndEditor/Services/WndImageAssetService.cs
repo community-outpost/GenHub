@@ -256,9 +256,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return cropped.ToByteArray(MagickFormat.Png);
     }
 
-    private static Dictionary<string, WndMappedImage> CollectRequests(IReadOnlyCollection<string> names, AssetIndex index)
+    private static Dictionary<string, TieredImage> CollectRequests(IReadOnlyCollection<string> names, AssetIndex index)
     {
-        var requests = new Dictionary<string, WndMappedImage>(StringComparer.OrdinalIgnoreCase);
+        var requests = new Dictionary<string, TieredImage>(StringComparer.OrdinalIgnoreCase);
         foreach (var name in names)
         {
             if (string.IsNullOrWhiteSpace(name)
@@ -269,11 +269,11 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
             if (index.Images.TryGetValue(name.Trim(), out var image))
             {
-                requests[image.Name] = image;
+                requests[image.Image.Name] = image;
             }
             else if (index.Alternates.TryGetValue(name.Trim(), out var list) && list.Count > 0)
             {
-                requests[list[0].Name] = list[0];
+                requests[list[0].Image.Name] = list[0];
             }
         }
 
@@ -347,8 +347,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             searchDirs.Add(string.Concat(language, "\\INI"));
         }
 
-        var images = new Dictionary<string, (WndMappedImage Image, int Score, int Size)>(StringComparer.OrdinalIgnoreCase);
-        var alternates = new Dictionary<string, List<WndMappedImage>>(StringComparer.OrdinalIgnoreCase);
+        var images = new Dictionary<string, TieredImage>(StringComparer.OrdinalIgnoreCase);
+        var alternates = new Dictionary<string, List<TieredImage>>(StringComparer.OrdinalIgnoreCase);
         var processedInis = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var dir in searchDirs)
@@ -356,23 +356,39 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             IndexDirectoryIniFiles(fileSystem, dir, images, alternates, processedInis, cancellationToken);
         }
 
+        SortAlternatesByTierAndScore(alternates);
+
         logger.LogInformation(
             "Indexed {Count} mapped images for {Target} (fallback: {Fallback})",
             images.Count,
             baseRoot,
             overrideRoot ?? "none");
-        return new AssetIndex(
-            key,
-            fileSystem,
-            images.ToDictionary(pair => pair.Key, pair => pair.Value.Image, StringComparer.OrdinalIgnoreCase),
-            alternates);
+        return new AssetIndex(key, fileSystem, images, alternates);
+    }
+
+    private static void SortAlternatesByTierAndScore(Dictionary<string, List<TieredImage>> alternates)
+    {
+        foreach (var list in alternates.Values)
+        {
+            list.Sort(static (a, b) =>
+            {
+                var tier = b.Tier.CompareTo(a.Tier);
+                if (tier != 0)
+                {
+                    return tier;
+                }
+
+                var score = b.Score.CompareTo(a.Score);
+                return score != 0 ? score : b.Size.CompareTo(a.Size);
+            });
+        }
     }
 
     private static void IndexDirectoryIniFiles(
         SageVirtualFileSystem fileSystem,
         string directory,
-        Dictionary<string, (WndMappedImage Image, int Score, int Size)> images,
-        Dictionary<string, List<WndMappedImage>> alternates,
+        Dictionary<string, TieredImage> images,
+        Dictionary<string, List<TieredImage>> alternates,
         HashSet<string> processedInis,
         CancellationToken cancellationToken)
     {
@@ -391,8 +407,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     private static void IndexSingleIniFile(
         SageVirtualFileSystem fileSystem,
         string iniPath,
-        Dictionary<string, (WndMappedImage Image, int Score, int Size)> images,
-        Dictionary<string, List<WndMappedImage>> alternates)
+        Dictionary<string, TieredImage> images,
+        Dictionary<string, List<TieredImage>> alternates)
     {
         var bytes = fileSystem.Read(iniPath);
         if (bytes == null || bytes.Length == 0)
@@ -411,41 +427,39 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var score = DefinitionScore(iniPath, size, tier);
         foreach (var image in WndMappedImage.ParseDefinitions(text))
         {
-            IndexParsedImage(image, score, size, images, alternates);
+            IndexParsedImage(new TieredImage(image, tier, score, size), images, alternates);
         }
     }
 
     private static void IndexParsedImage(
-        WndMappedImage image,
-        int score,
-        int size,
-        Dictionary<string, (WndMappedImage Image, int Score, int Size)> images,
-        Dictionary<string, List<WndMappedImage>> alternates)
+        TieredImage candidate,
+        Dictionary<string, TieredImage> images,
+        Dictionary<string, List<TieredImage>> alternates)
     {
-        if (!images.TryGetValue(image.Name, out var incumbent) || IsBetterMatch(score, size, incumbent))
+        if (!images.TryGetValue(candidate.Image.Name, out var incumbent) || IsBetterMatch(candidate, incumbent))
         {
-            if (incumbent.Image != null)
+            if (incumbent != null)
             {
-                AddAlternate(alternates, image.Name, incumbent.Image);
+                AddAlternate(alternates, candidate.Image.Name, incumbent);
             }
 
-            images[image.Name] = (image, score, size);
+            images[candidate.Image.Name] = candidate;
         }
         else
         {
-            AddAlternate(alternates, image.Name, image);
+            AddAlternate(alternates, candidate.Image.Name, candidate);
         }
     }
 
-    private static bool IsBetterMatch(int score, int size, (WndMappedImage Image, int Score, int Size) incumbent)
+    private static bool IsBetterMatch(TieredImage candidate, TieredImage incumbent)
     {
-        return score > incumbent.Score || (score == incumbent.Score && size >= incumbent.Size);
+        return candidate.Score > incumbent.Score || (candidate.Score == incumbent.Score && candidate.Size >= incumbent.Size);
     }
 
     private static void AddAlternate(
-        Dictionary<string, List<WndMappedImage>> alternates,
+        Dictionary<string, List<TieredImage>> alternates,
         string name,
-        WndMappedImage image)
+        TieredImage image)
     {
         if (!alternates.TryGetValue(name, out var altList))
         {
@@ -453,7 +467,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             alternates[name] = altList;
         }
 
-        if (altList.Count < 5 && !altList.Any(a => string.Equals(a.Texture, image.Texture, StringComparison.OrdinalIgnoreCase)))
+        if (altList.Count < 5 && !altList.Any(a => string.Equals(a.Image.Texture, image.Image.Texture, StringComparison.OrdinalIgnoreCase)))
         {
             altList.Add(image);
         }
@@ -461,7 +475,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private Dictionary<string, byte[]> DecodeRequests(
         IReadOnlyCollection<string> names,
-        Dictionary<string, WndMappedImage> requests,
+        Dictionary<string, TieredImage> requests,
         AssetIndex index,
         CancellationToken cancellationToken)
     {
@@ -478,16 +492,16 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     }
 
     private void DecodeSharedTextureGroups(
-        Dictionary<string, WndMappedImage> requests,
+        Dictionary<string, TieredImage> requests,
         AssetIndex index,
         Dictionary<string, byte[]> resolved,
         CancellationToken cancellationToken)
     {
-        var textureGroups = requests.Values.GroupBy(r => r.Texture, StringComparer.OrdinalIgnoreCase);
+        var textureGroups = requests.Values.GroupBy(r => r.Image.Texture, StringComparer.OrdinalIgnoreCase);
         foreach (var group in textureGroups)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            DecodeTextureGroup(group.Key, group.ToList(), index, resolved);
+            DecodeTextureTierGroups(group.Key, group.ToList(), index, resolved);
         }
     }
 
@@ -548,9 +562,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return false;
     }
 
-    private byte[]? DecodeAlternateImage(AssetIndex index, WndMappedImage image, string imageName)
+    private byte[]? DecodeAlternateImage(AssetIndex index, TieredImage image, string imageName)
     {
-        var altData = ReadTexture(index.FileSystem, image.Texture);
+        var altData = ReadTexture(index.FileSystem, image.Image.Texture, image.Tier);
         if (altData == null)
         {
             return null;
@@ -560,22 +574,35 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         {
             var readSettings = new MagickReadSettings { Format = altData.Value.Format };
             using var page = new MagickImage(altData.Value.Bytes, readSettings);
-            return CropMappedImage(page, image);
+            return CropMappedImage(page, image.Image);
         }
         catch (Exception ex) when (ex is MagickException or IOException)
         {
-            logger.LogDebug(ex, "Failed to decode alternate texture {Texture} for {Image}", image.Texture, imageName);
+            logger.LogDebug(ex, "Failed to decode alternate texture {Texture} for {Image}", image.Image.Texture, imageName);
             return null;
+        }
+    }
+
+    private void DecodeTextureTierGroups(
+        string texture,
+        List<TieredImage> images,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved)
+    {
+        foreach (var tierGroup in images.GroupBy(image => image.Tier))
+        {
+            DecodeTextureGroup(texture, tierGroup.Key, tierGroup.ToList(), index, resolved);
         }
     }
 
     private void DecodeTextureGroup(
         string texture,
-        List<WndMappedImage> images,
+        SageFileTier definitionTier,
+        List<TieredImage> images,
         AssetIndex index,
         Dictionary<string, byte[]> resolved)
     {
-        var textureData = ReadTexture(index.FileSystem, texture);
+        var textureData = ReadTexture(index.FileSystem, texture, definitionTier);
         if (textureData == null)
         {
             logger.LogDebug("Texture {Texture} not found in game files", texture);
@@ -588,10 +615,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             using var page = new MagickImage(textureData.Value.Bytes, readSettings);
             foreach (var img in images)
             {
-                var png = CropMappedImage(page, img);
+                var png = CropMappedImage(page, img.Image);
                 if (png.Length > 0)
                 {
-                    resolved[img.Name] = png;
+                    resolved[img.Image.Name] = png;
                 }
             }
         }
@@ -606,7 +633,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         AssetIndex index,
         Dictionary<string, byte[]> resolved)
     {
-        var texture = ReadTexture(index.FileSystem, trimmedName);
+        var texture = ReadTexture(index.FileSystem, trimmedName, SageFileTier.BaseGame);
         if (texture == null)
         {
             return;
@@ -626,14 +653,41 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
     }
 
-    private (string Path, byte[] Bytes, MagickFormat Format)? ReadTexture(SageVirtualFileSystem fileSystem, string texture)
+    private (string Path, byte[] Bytes, MagickFormat Format)? ReadTexture(
+        SageVirtualFileSystem fileSystem,
+        string texture,
+        SageFileTier definitionTier)
     {
         var trimmed = texture.Trim();
+        var match = SearchCandidatesInBand(fileSystem, trimmed, definitionTier, SageFileTier.LinkedAsset);
+        if (match != null)
+        {
+            return match;
+        }
+
+        if (definitionTier > SageFileTier.BaseGame)
+        {
+            match = SearchCandidatesInBand(fileSystem, trimmed, SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1));
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
+        return TryReadTextureByFileName(fileSystem, trimmed, definitionTier);
+    }
+
+    private (string Path, byte[] Bytes, MagickFormat Format)? SearchCandidatesInBand(
+        SageVirtualFileSystem fileSystem,
+        string trimmed,
+        SageFileTier minTier,
+        SageFileTier maxTier)
+    {
         foreach (var candidate in TextureCandidates(trimmed))
         {
             try
             {
-                var bytes = fileSystem.Read(candidate);
+                var bytes = fileSystem.ReadInTierBand(candidate, minTier, maxTier);
                 if (bytes != null && bytes.Length > 0 && TryDetectFormat(bytes, out var format))
                 {
                     return (candidate, bytes, format);
@@ -645,12 +699,13 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             }
         }
 
-        return TryReadTextureByFileName(fileSystem, trimmed);
+        return null;
     }
 
     private static (string Path, byte[] Bytes, MagickFormat Format)? TryReadTextureByFileName(
         SageVirtualFileSystem fileSystem,
-        string trimmed)
+        string trimmed,
+        SageFileTier definitionTier)
     {
         var fileName = Path.GetFileName(trimmed);
         if (string.IsNullOrWhiteSpace(fileName))
@@ -667,15 +722,35 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             }
         }
 
+        var match = SearchFileNameInBand(fileSystem, candidates, definitionTier, SageFileTier.LinkedAsset);
+        if (match != null)
+        {
+            return match;
+        }
+
+        if (definitionTier > SageFileTier.BaseGame)
+        {
+            return SearchFileNameInBand(fileSystem, candidates, SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1));
+        }
+
+        return null;
+    }
+
+    private static (string Path, byte[] Bytes, MagickFormat Format)? SearchFileNameInBand(
+        SageVirtualFileSystem fileSystem,
+        List<string> candidates,
+        SageFileTier minTier,
+        SageFileTier maxTier)
+    {
         foreach (var candidate in candidates)
         {
-            var looseModBytes = fileSystem.TryReadModLooseFileByName(candidate);
+            var looseModBytes = fileSystem.TryReadModLooseFileByName(candidate, minTier, maxTier);
             if (looseModBytes != null && looseModBytes.Length > 0 && TryDetectFormat(looseModBytes, out var modFormat))
             {
                 return (candidate, looseModBytes, modFormat);
             }
 
-            var archiveBytes = fileSystem.TryReadArchiveFileByName(candidate);
+            var archiveBytes = fileSystem.TryReadArchiveFileByName(candidate, minTier, maxTier);
             if (archiveBytes != null && archiveBytes.Length > 0 && TryDetectFormat(archiveBytes, out var archiveFormat))
             {
                 return (candidate, archiveBytes, archiveFormat);
@@ -726,9 +801,11 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return true;
     }
 
+    private sealed record TieredImage(WndMappedImage Image, SageFileTier Tier, int Score, int Size);
+
     private sealed record AssetIndex(
         string Key,
         SageVirtualFileSystem FileSystem,
-        IReadOnlyDictionary<string, WndMappedImage> Images,
-        IReadOnlyDictionary<string, List<WndMappedImage>> Alternates);
+        IReadOnlyDictionary<string, TieredImage> Images,
+        IReadOnlyDictionary<string, List<TieredImage>> Alternates);
 }

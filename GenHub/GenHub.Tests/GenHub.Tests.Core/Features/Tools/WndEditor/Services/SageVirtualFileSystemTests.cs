@@ -78,4 +78,60 @@ public sealed class SageVirtualFileSystemTests : IDisposable
         readBytes.Should().NotBeNull();
         readBytes.Should().Equal(expectedBytes);
     }
+
+    /// <summary>
+    /// Tests that a tier band floor excludes lower-tier matches.
+    /// </summary>
+    [Fact]
+    public void ReadInTierBand_WithMinTier_ExcludesLowerTiers()
+    {
+        // Arrange: base file only exists at the base game tier
+        var baseDir = Path.Combine(_tempRoot, "Base");
+        var baseFileDir = Path.Combine(baseDir, "Data");
+        Directory.CreateDirectory(baseFileDir);
+        File.WriteAllBytes(Path.Combine(baseFileDir, "Shared.ini"), [0x01]);
+
+        var modDir = Path.Combine(_tempRoot, "Mod");
+        Directory.CreateDirectory(modDir);
+
+        var vfs = new SageVirtualFileSystem(baseDir, isZeroHour: false, logger: Mock.Of<ILogger>());
+        vfs.AddMod(modDir);
+
+        // Act
+        var floored = vfs.ReadInTierBand("Data\\Shared.ini", SageFileTier.Mod, SageFileTier.LinkedAsset);
+        var unbanded = vfs.Read("Data\\Shared.ini");
+
+        // Assert
+        floored.Should().BeNull();
+        unbanded.Should().Equal([0x01]);
+    }
+
+    /// <summary>
+    /// Tests that a tier band ceiling excludes higher-tier matches.
+    /// </summary>
+    [Fact]
+    public void ReadInTierBand_WithMaxTier_ExcludesHigherTiers()
+    {
+        // Arrange: same relative path exists in base and mod layers
+        var baseDir = Path.Combine(_tempRoot, "BaseOnly");
+        var baseFileDir = Path.Combine(baseDir, "Data");
+        Directory.CreateDirectory(baseFileDir);
+        File.WriteAllBytes(Path.Combine(baseFileDir, "Shared.ini"), [0x01]);
+
+        var modDir = Path.Combine(_tempRoot, "ModOnly");
+        var modFileDir = Path.Combine(modDir, "Data");
+        Directory.CreateDirectory(modFileDir);
+        File.WriteAllBytes(Path.Combine(modFileDir, "Shared.ini"), [0x02]);
+
+        var vfs = new SageVirtualFileSystem(baseDir, isZeroHour: false, logger: Mock.Of<ILogger>());
+        vfs.AddMod(modDir);
+
+        // Act
+        var capped = vfs.ReadInTierBand("Data\\Shared.ini", SageFileTier.BaseGame, SageFileTier.BaseGame);
+        var unbanded = vfs.Read("Data\\Shared.ini");
+
+        // Assert
+        capped.Should().Equal([0x01]);
+        unbanded.Should().Equal([0x02]);
+    }
 }

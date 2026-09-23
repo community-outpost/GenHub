@@ -36,7 +36,7 @@ public sealed class SageVirtualFileSystem
 
     private readonly List<(string Path, SageFileTier Tier)> _looseRoots = [];
     private readonly Dictionary<string, (BigArchiveEntry Entry, SageFileTier Tier)> _archiveEntries = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> _modLooseFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (string Path, SageFileTier Tier)> _modLooseFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string?> _loosePathCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger? _logger;
 
@@ -153,7 +153,7 @@ public sealed class SageVirtualFileSystem
         if (Directory.Exists(path))
         {
             _looseRoots.Add((path, SageFileTier.Mod));
-            IndexModLooseDirectory(path);
+            IndexModLooseDirectory(path, SageFileTier.Mod);
 
             var bigFiles = Directory.GetFiles(path, SageChecksumConstants.BigFileSearchPattern, BigFileEnumerationOptions);
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
@@ -186,7 +186,7 @@ public sealed class SageVirtualFileSystem
         if (Directory.Exists(path))
         {
             _looseRoots.Add((path, SageFileTier.LinkedAsset));
-            IndexModLooseDirectory(path);
+            IndexModLooseDirectory(path, SageFileTier.LinkedAsset);
 
             var bigFiles = Directory.GetFiles(path, SageChecksumConstants.BigFileSearchPattern, BigFileEnumerationOptions);
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
@@ -213,11 +213,30 @@ public sealed class SageVirtualFileSystem
     /// <returns>The file contents, or <c>null</c> if not found.</returns>
     public byte[]? Read(string relativePath)
     {
+        return ReadInTierBand(relativePath, SageFileTier.BaseGame, SageFileTier.LinkedAsset);
+    }
+
+    /// <summary>
+    /// Reads the byte contents of a file restricted to a priority tier band, so callers can
+    /// prefer same-or-higher tier matches (e.g. a mod texture for a mod mapped image)
+    /// before falling back to lower tiers.
+    /// </summary>
+    /// <param name="relativePath">Relative file path (e.g. Data\\INI\\GameData.ini).</param>
+    /// <param name="minTier">The lowest tier to consider.</param>
+    /// <param name="maxTier">The highest tier to consider.</param>
+    /// <returns>The file contents, or <c>null</c> if not found within the band.</returns>
+    public byte[]? ReadInTierBand(string relativePath, SageFileTier minTier, SageFileTier maxTier)
+    {
+        if (minTier > maxTier)
+        {
+            return null;
+        }
+
         string normalizedRel = relativePath.Replace('/', '\\');
         string fsRel = normalizedRel.Replace('\\', Path.DirectorySeparatorChar);
         string lowerRel = normalizedRel.ToLowerInvariant();
 
-        for (int tier = (int)SageFileTier.LinkedAsset; tier >= (int)SageFileTier.BaseGame; tier--)
+        for (int tier = (int)maxTier; tier >= (int)minTier; tier--)
         {
             var currentTier = (SageFileTier)tier;
 
@@ -238,15 +257,15 @@ public sealed class SageVirtualFileSystem
                 }
             }
 
-            if (currentTier == SageFileTier.Mod && _modLooseFiles.TryGetValue(lowerRel, out var modPath) && File.Exists(modPath))
+            if (_modLooseFiles.TryGetValue(lowerRel, out var modEntry) && modEntry.Tier == currentTier && File.Exists(modEntry.Path))
             {
                 try
                 {
-                    return File.ReadAllBytes(modPath);
+                    return File.ReadAllBytes(modEntry.Path);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    _logger?.LogDebug(ex, "Failed to read indexed mod loose file at {Path}", modPath);
+                    _logger?.LogDebug(ex, "Failed to read indexed mod loose file at {Path}", modEntry.Path);
                 }
             }
 
@@ -291,9 +310,9 @@ public sealed class SageVirtualFileSystem
                 }
             }
 
-            if (currentTier == SageFileTier.Mod && _modLooseFiles.ContainsKey(lowerRel))
+            if (_modLooseFiles.TryGetValue(lowerRel, out var modEntry) && modEntry.Tier == currentTier)
             {
-                return SageFileTier.Mod;
+                return currentTier;
             }
 
             if (_archiveEntries.TryGetValue(lowerRel, out var archivePair) && archivePair.Tier == currentTier)
@@ -309,23 +328,27 @@ public sealed class SageVirtualFileSystem
     /// Attempts to read a loose file from indexed mod directories by its filename alone.
     /// </summary>
     /// <param name="fileName">The filename of the asset (e.g. MainMenuBackdrop_16_9.tga).</param>
+    /// <param name="minTier">Optional lowest tier to consider.</param>
+    /// <param name="maxTier">Optional highest tier to consider.</param>
     /// <returns>The file bytes if found; otherwise <c>null</c>.</returns>
-    public byte[]? TryReadModLooseFileByName(string fileName)
+    public byte[]? TryReadModLooseFileByName(string fileName, SageFileTier? minTier = null, SageFileTier? maxTier = null)
     {
         if (string.IsNullOrWhiteSpace(fileName))
         {
             return null;
         }
 
-        if (_modLooseFiles.TryGetValue(fileName.ToLowerInvariant(), out var path) && File.Exists(path))
+        if (_modLooseFiles.TryGetValue(fileName.ToLowerInvariant(), out var entry)
+            && IsTierInBand(entry.Tier, minTier, maxTier)
+            && File.Exists(entry.Path))
         {
             try
             {
-                return File.ReadAllBytes(path);
+                return File.ReadAllBytes(entry.Path);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger?.LogDebug(ex, "Failed to read indexed mod loose file at {Path}", path);
+                _logger?.LogDebug(ex, "Failed to read indexed mod loose file at {Path}", entry.Path);
             }
         }
 
@@ -337,8 +360,10 @@ public sealed class SageVirtualFileSystem
     /// prioritizing higher tiers (Mod > Expansion > BaseGame).
     /// </summary>
     /// <param name="fileName">The filename of the asset.</param>
+    /// <param name="minTier">Optional lowest tier to consider.</param>
+    /// <param name="maxTier">Optional highest tier to consider.</param>
     /// <returns>The file bytes if found; otherwise <c>null</c>.</returns>
-    public byte[]? TryReadArchiveFileByName(string fileName)
+    public byte[]? TryReadArchiveFileByName(string fileName, SageFileTier? minTier = null, SageFileTier? maxTier = null)
     {
         if (string.IsNullOrWhiteSpace(fileName))
         {
@@ -350,6 +375,11 @@ public sealed class SageVirtualFileSystem
 
         foreach (var (key, pair) in _archiveEntries)
         {
+            if (!IsTierInBand(pair.Tier, minTier, maxTier))
+            {
+                continue;
+            }
+
             if (key.EndsWith(searchKey, StringComparison.OrdinalIgnoreCase)
                 && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\'))
             {
@@ -454,7 +484,12 @@ public sealed class SageVirtualFileSystem
         return Directory.Exists(current) ? current : null;
     }
 
-    private void IndexModLooseDirectory(string directory)
+    private static bool IsTierInBand(SageFileTier tier, SageFileTier? minTier, SageFileTier? maxTier)
+    {
+        return (minTier == null || tier >= minTier) && (maxTier == null || tier <= maxTier);
+    }
+
+    private void IndexModLooseDirectory(string directory, SageFileTier tier)
     {
         try
         {
@@ -462,10 +497,10 @@ public sealed class SageVirtualFileSystem
             foreach (var file in files)
             {
                 var name = Path.GetFileName(file).ToLowerInvariant();
-                _modLooseFiles.TryAdd(name, file);
+                _modLooseFiles.TryAdd(name, (file, tier));
 
                 var rel = Path.GetRelativePath(directory, file).Replace('/', '\\').ToLowerInvariant();
-                _modLooseFiles.TryAdd(rel, file);
+                _modLooseFiles.TryAdd(rel, (file, tier));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
