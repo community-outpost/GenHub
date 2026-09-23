@@ -235,8 +235,8 @@ public static class WndPreviewPlanner
         var isTinyMarker = window.TryGetScreenRect(out var srect) && srect != null &&
             (srect.BottomRightX - srect.UpperLeftX <= 30 || srect.BottomRightY - srect.UpperLeftY <= 30);
 
-        if ((name.EndsWith(":BackgroundMarker", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(name, "BackgroundMarker", StringComparison.OrdinalIgnoreCase)) && isTinyMarker)
+        if ((name.EndsWith(":" + WndConstants.ControlBarScheme.BackgroundMarkerKey, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, WndConstants.ControlBarScheme.BackgroundMarkerKey, StringComparison.OrdinalIgnoreCase)) && isTinyMarker)
         {
             single = null;
         }
@@ -245,13 +245,13 @@ public static class WndPreviewPlanner
                  name.EndsWith(":ControlBarParent", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(name, "ControlBarParent", StringComparison.OrdinalIgnoreCase))
         {
-            if (overrides != null && overrides.TryGetValue("BackgroundMarker", out var schemeBg) && !string.IsNullOrWhiteSpace(schemeBg))
+            if (overrides != null && overrides.TryGetValue(WndConstants.ControlBarScheme.BackgroundMarkerKey, out var schemeBg) && !string.IsNullOrWhiteSpace(schemeBg))
             {
                 single = schemeBg;
             }
             else if (string.IsNullOrWhiteSpace(single))
             {
-                single = "InGameUIAmericaBase";
+                single = WndConstants.ControlBarScheme.DefaultAmericaBaseGenerals;
             }
         }
 

@@ -545,7 +545,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             }
         }
 
-        return resolved.ContainsKey(trimmedName);
+        return false;
     }
 
     private byte[]? DecodeAlternateImage(AssetIndex index, WndMappedImage image, string imageName)

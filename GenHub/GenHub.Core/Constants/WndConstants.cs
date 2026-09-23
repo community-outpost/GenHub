@@ -943,6 +943,12 @@ public static class WndConstants
         /// <summary>Override key name for queue button image.</summary>
         public const string QueueButtonImageKey = "QueueButtonImage";
 
+        /// <summary>Default America HUD base image name for Generals.</summary>
+        public const string DefaultAmericaBaseGenerals = "InGameUIAmericaBase";
+
+        /// <summary>Default America HUD base image name for Zero Hour.</summary>
+        public const string DefaultAmericaBaseZeroHour = "InGameUIAmericaBaseZH";
+
         /// <summary>Standard virtual path to ControlBarScheme.ini under Data\\INI.</summary>
         public static readonly string DataIniPath = $"{DataDirectory}\\{IniDirectory}\\{FileName}";
 

@@ -2827,7 +2827,7 @@ public sealed partial class WndEditorViewModel(
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            [WndConstants.ControlBarScheme.BackgroundMarkerKey] = roots.IsZeroHour ? "InGameUIAmericaBaseZH" : "InGameUIAmericaBase",
+            [WndConstants.ControlBarScheme.BackgroundMarkerKey] = roots.IsZeroHour ? WndConstants.ControlBarScheme.DefaultAmericaBaseZeroHour : WndConstants.ControlBarScheme.DefaultAmericaBaseGenerals,
             [WndConstants.ControlBarScheme.RightHUDKey] = "SALogo",
             [WndConstants.ControlBarScheme.ButtonOptionsKey] = "SAOptions",
             [WndConstants.ControlBarScheme.ButtonIdleWorkerKey] = "SAWorker",
