@@ -222,6 +222,12 @@ public static class GameClientConstants
     /// <summary>Display name for cross-platform/generic platform.</summary>
     public const string PlatformCrossPlatformDisplayName = "Cross-Platform";
 
+    /// <summary>Runtime identifier for Windows x86 architecture.</summary>
+    public const string WindowsX86RuntimeIdentifier = "win-x86";
+
+    /// <summary>Runtime identifier for Windows x64 architecture.</summary>
+    public const string WindowsX64RuntimeIdentifier = "win-x64";
+
     /// <summary>BrowserEngine.dll filename.</summary>
     public const string BrowserEngineDll = "BrowserEngine.dll";
 
