@@ -1534,8 +1534,76 @@ public partial class ContentDetailViewModel(
     private static string CreateFileContentId(string? downloadUrl, string? name) =>
         $"{ContentConstants.FileContentIdPrefix}{(!string.IsNullOrWhiteSpace(downloadUrl) ? downloadUrl : name)}";
 
-    private static string CreateFileContentId(DownloadableFile file) =>
-        CreateFileContentId(file.DownloadUrl, file.Name);
+    private static string CreateFileContentId(DownloadableFile file)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+
+        if (!string.IsNullOrWhiteSpace(file.DownloadUrl))
+        {
+            return CreateFileContentId(file.DownloadUrl, file.Name);
+        }
+
+        // Resolver-backed rows carry no download URL, so the bare name alone cannot
+        // distinguish same-name rows. Compose a deterministic identity from stable row
+        // fields, mirroring the populate-time deduplication key.
+        var discriminator = string.Join(
+            '|',
+            file.Name?.Trim().ToLowerInvariant(),
+            file.DetailsUrl?.Trim().TrimEnd('/').ToLowerInvariant(),
+            file.Filename?.Trim().ToLowerInvariant(),
+            file.Version?.Trim().ToLowerInvariant(),
+            file.FileSectionType.ToString());
+        return $"{ContentConstants.FileContentIdPrefix}{discriminator}";
+    }
+
+    private static string RowContentId(IDownloadableRowViewModel row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        return row is DownloadableItemViewModel { File: { } rowFile }
+            ? CreateFileContentId(rowFile)
+            : CreateFileContentId(row.DownloadUrl, row.Name);
+    }
+
+    /// <summary>
+    /// Selects the single best variant from ambiguous matches, preferring a version match
+    /// and then an addon content-type match. Returns null when several candidates remain
+    /// indistinguishable so callers fall back to the parent result instead of risking
+    /// the wrong artifact's resolver metadata.
+    /// </summary>
+    /// <param name="matches">The candidate variants.</param>
+    /// <param name="file">The file being matched.</param>
+    /// <returns>The disambiguated variant, or null when no single winner exists.</returns>
+    private static ContentSearchResult? SelectDisambiguatedMatch(
+        List<ContentSearchResult> matches,
+        DownloadableFile file)
+    {
+        if (matches.Count == 1)
+        {
+            return matches[0];
+        }
+
+        if (!string.IsNullOrWhiteSpace(file.Version))
+        {
+            var matchByVersion = matches.FirstOrDefault(sr =>
+                string.Equals(sr.Version?.Trim(), file.Version.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (matchByVersion != null)
+            {
+                return matchByVersion;
+            }
+        }
+
+        if (file.FileSectionType == FileSectionType.Addons)
+        {
+            var matchAddon = matches.FirstOrDefault(sr => sr.ContentType == ContentType.Addon);
+            if (matchAddon != null)
+            {
+                return matchAddon;
+            }
+        }
+
+        return null;
+    }
 
     private static List<Comment> FlattenComments(IEnumerable<Comment> comments)
     {
@@ -2658,7 +2726,7 @@ public partial class ContentDetailViewModel(
         {
             foreach (var row in EnumerateRows())
             {
-                var rowContentId = CreateFileContentId(row.DownloadUrl, row.Name);
+                var rowContentId = RowContentId(row);
                 var matches = rowContentId == contentId
                               || (!string.IsNullOrEmpty(manifestId) && row.DownloadedManifestId == manifestId);
 
@@ -4728,9 +4796,10 @@ public partial class ContentDetailViewModel(
                     return;
                 }
 
+                var fileId = CreateFileContentId(file);
                 var row = EnumerateRows().FirstOrDefault(r =>
                     (r is DownloadableItemViewModel vm && vm.File == file) ||
-                    CreateFileContentId(r.DownloadUrl, r.Name) == CreateFileContentId(file));
+                    RowContentId(r) == fileId);
 
                 if (row != null)
                 {
@@ -4754,15 +4823,30 @@ public partial class ContentDetailViewModel(
             .Select(kvp => kvp.Value)
             .ToList();
 
-        // 1. Direct match on SelectedDownloadUrl or SourceUrl if non-empty
+        // 1. Direct match on SelectedDownloadUrl (the artifact key), then SourceUrl
         if (!string.IsNullOrWhiteSpace(file.DownloadUrl))
         {
-            var matchByUrl = candidates.FirstOrDefault(sr =>
-                string.Equals(sr.SelectedDownloadUrl, file.DownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(sr.SourceUrl, file.DownloadUrl, StringComparison.OrdinalIgnoreCase));
-            if (matchByUrl != null)
+            var artifactMatches = candidates.Where(sr =>
+                string.Equals(sr.SelectedDownloadUrl, file.DownloadUrl, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (artifactMatches.Count == 1)
             {
-                return matchByUrl;
+                return artifactMatches[0];
+            }
+
+            if (artifactMatches.Count > 1)
+            {
+                var disambiguated = SelectDisambiguatedMatch(artifactMatches, file);
+                if (disambiguated != null)
+                {
+                    return disambiguated;
+                }
+            }
+
+            var sourceMatches = candidates.Where(sr =>
+                string.Equals(sr.SourceUrl, file.DownloadUrl, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (sourceMatches.Count > 0)
+            {
+                return SelectDisambiguatedMatch(sourceMatches, file);
             }
         }
 
@@ -4785,33 +4869,9 @@ public partial class ContentDetailViewModel(
                 string.Equals(sr.Name?.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(sr.Id?.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            if (matches.Count == 1)
+            if (matches.Count > 0)
             {
-                return matches[0];
-            }
-
-            if (matches.Count > 1)
-            {
-                if (!string.IsNullOrWhiteSpace(file.Version))
-                {
-                    var matchByVersion = matches.FirstOrDefault(sr =>
-                        string.Equals(sr.Version?.Trim(), file.Version.Trim(), StringComparison.OrdinalIgnoreCase));
-                    if (matchByVersion != null)
-                    {
-                        return matchByVersion;
-                    }
-                }
-
-                if (file.FileSectionType == FileSectionType.Addons)
-                {
-                    var matchAddon = matches.FirstOrDefault(sr => sr.ContentType == ContentType.Addon);
-                    if (matchAddon != null)
-                    {
-                        return matchAddon;
-                    }
-                }
-
-                return matches[0];
+                return SelectDisambiguatedMatch(matches, file);
             }
         }
 
@@ -4823,33 +4883,9 @@ public partial class ContentDetailViewModel(
                 string.Equals(sr.Name?.Trim(), filenameWithoutExt, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(sr.Id?.Trim(), filenameWithoutExt, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            if (matches.Count == 1)
+            if (matches.Count > 0)
             {
-                return matches[0];
-            }
-
-            if (matches.Count > 1)
-            {
-                if (!string.IsNullOrWhiteSpace(file.Version))
-                {
-                    var matchByVersion = matches.FirstOrDefault(sr =>
-                        string.Equals(sr.Version?.Trim(), file.Version.Trim(), StringComparison.OrdinalIgnoreCase));
-                    if (matchByVersion != null)
-                    {
-                        return matchByVersion;
-                    }
-                }
-
-                if (file.FileSectionType == FileSectionType.Addons)
-                {
-                    var matchAddon = matches.FirstOrDefault(sr => sr.ContentType == ContentType.Addon);
-                    if (matchAddon != null)
-                    {
-                        return matchAddon;
-                    }
-                }
-
-                return matches[0];
+                return SelectDisambiguatedMatch(matches, file);
             }
         }
 

@@ -340,6 +340,161 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a row matching several indistinguishable variants falls back to the parent
+    /// result instead of adopting an arbitrary variant's resolver metadata.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_WhenVariantMatchIsAmbiguous_FallsBackToParentMetadataAsync()
+    {
+        // Arrange
+        const string parentCatalogId = "ambiguous-parent";
+        const string parentResolver = "ParentResolver";
+        const string childManifestId = "1.100.custom.mod.ambiguous";
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentCatalogId,
+            Name = "Shared",
+            ProviderName = "Custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = parentResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shared",
+        };
+
+        ContentSearchResult CreateAmbiguousVariant(string id, string variantKey)
+        {
+            var variant = new ContentSearchResult
+            {
+                Id = id,
+                Name = "Shared",
+                ProviderName = "Custom",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                ResolverId = "VariantResolver",
+                RequiresResolution = true,
+                SourceUrl = "https://example.com/shared",
+            };
+            variant.ResolverMetadata[variantKey] = "value";
+            return variant;
+        }
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["1.100.custom.mod.ambiguousA"] = CreateAmbiguousVariant("1.100.custom.mod.ambiguousA", "variantKeyA"),
+            ["1.100.custom.mod.ambiguousB"] = CreateAmbiguousVariant("1.100.custom.mod.ambiguousB", "variantKeyB"),
+        };
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(childManifestId),
+                Name = "Shared",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object, variantSearchResults: variants);
+        var ambiguousFile = new DownloadableFile(
+            Name: "Shared",
+            FileSectionType: FileSectionType.Downloads);
+        viewModel.PopulateReleases([ambiguousFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.Equal(parentResolver, coordinatorInput.ResolverId);
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey("variantKeyA"));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey("variantKeyB"));
+        Assert.True(release.IsDownloaded);
+        Assert.Equal(childManifestId, release.DownloadedManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that same-name rows without download URLs receive distinct synthesized IDs
+    /// so their downloads and state updates do not coalesce.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_SameNameRowsWithoutUrls_UseDistinctRowIdsAsync()
+    {
+        // Arrange
+        const string childManifestId = "1.100.custom.mod.samename";
+
+        var parent = new ContentSearchResult
+        {
+            Id = "samename-parent",
+            Name = "Shared Name",
+            ProviderName = "Custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = "CustomResolver",
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shared",
+        };
+
+        var coordinatorInputs = new List<ContentSearchResult>();
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInputs.Add(content))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(childManifestId),
+                Name = "Shared Name",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        viewModel.PopulateReleases(
+        [
+            new DownloadableFile(
+                Name: "Shared Name",
+                DetailsUrl: "https://example.com/shared/1.0",
+                Version: "1.0",
+                FileSectionType: FileSectionType.Downloads),
+            new DownloadableFile(
+                Name: "Shared Name",
+                DetailsUrl: "https://example.com/shared/2.0",
+                Version: "2.0",
+                FileSectionType: FileSectionType.Downloads),
+        ]);
+        Assert.Equal(2, viewModel.Releases.Count);
+
+        // Act
+        foreach (var row in viewModel.Releases.ToList())
+        {
+            await Assert.IsAssignableFrom<IAsyncRelayCommand>(row.DownloadCommand).ExecuteAsync(null);
+        }
+
+        // Assert
+        Assert.Equal(2, coordinatorInputs.Count);
+        Assert.NotEqual(coordinatorInputs[0].Id, coordinatorInputs[1].Id);
+        Assert.All(
+            coordinatorInputs,
+            input => Assert.StartsWith(ContentConstants.FileContentIdPrefix, input.Id, StringComparison.Ordinal));
+        Assert.All(viewModel.Releases, row => Assert.True(row.IsDownloaded));
+    }
+
+    /// <summary>
     /// Verifies that attempting to select an item while a download is active is ignored.
     /// </summary>
     [Fact]
