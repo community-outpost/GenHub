@@ -184,37 +184,7 @@ public class GameLauncher(
             if (System.Text.RegularExpressions.Regex.IsMatch(content, @":\s*-?(?:nan|1\.#(?:inf|ind|qnan|snan|j))\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
             {
                 logger?.LogWarning("[GameLauncher] Detected corrupted MapCache.ini containing NaN values at {MapCachePath}. Backing up and removing to prevent game startup crash.", mapCachePath);
-                var backupPath = mapCachePath + GameClientConstants.CorruptMapCacheBackupExtension;
-                try
-                {
-                    File.Copy(mapCachePath, backupPath, overwrite: true);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger?.LogWarning(ex, "[GameLauncher] Failed to create backup of corrupted MapCache.ini");
-                }
-
-                try
-                {
-                    File.Delete(mapCachePath);
-                    logger?.LogInformation("[GameLauncher] Removed corrupted MapCache.ini; game engine will regenerate a clean cache.");
-                }
-                catch (Exception delEx) when (delEx is IOException or UnauthorizedAccessException)
-                {
-                    logger?.LogWarning(delEx, "[GameLauncher] Failed to delete corrupted MapCache.ini at {MapCachePath}, attempting truncation fallback", mapCachePath);
-                    try
-                    {
-                        File.WriteAllText(mapCachePath, string.Empty);
-                        logger?.LogInformation("[GameLauncher] Truncated corrupted MapCache.ini to empty file.");
-                    }
-                    catch (Exception truncEx) when (truncEx is IOException or UnauthorizedAccessException)
-                    {
-                        logger?.LogError(truncEx, "[GameLauncher] Failed to truncate corrupted MapCache.ini at {MapCachePath}", mapCachePath);
-                        return false;
-                    }
-                }
-
-                return true;
+                return BackupAndPurgeCorruptMapCache(mapCachePath, logger);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or System.Text.RegularExpressions.RegexMatchTimeoutException)
@@ -223,6 +193,41 @@ public class GameLauncher(
         }
 
         return false;
+    }
+
+    private static bool BackupAndPurgeCorruptMapCache(string mapCachePath, ILogger? logger)
+    {
+        var backupPath = mapCachePath + GameClientConstants.CorruptMapCacheBackupExtension;
+        try
+        {
+            File.Copy(mapCachePath, backupPath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[GameLauncher] Failed to create backup of corrupted MapCache.ini");
+        }
+
+        try
+        {
+            File.Delete(mapCachePath);
+            logger?.LogInformation("[GameLauncher] Removed corrupted MapCache.ini; game engine will regenerate a clean cache.");
+            return true;
+        }
+        catch (Exception delEx) when (delEx is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(delEx, "[GameLauncher] Failed to delete corrupted MapCache.ini at {MapCachePath}, attempting truncation fallback", mapCachePath);
+            try
+            {
+                File.WriteAllText(mapCachePath, string.Empty);
+                logger?.LogInformation("[GameLauncher] Truncated corrupted MapCache.ini to empty file.");
+                return true;
+            }
+            catch (Exception truncEx) when (truncEx is IOException or UnauthorizedAccessException)
+            {
+                logger?.LogError(truncEx, "[GameLauncher] Failed to truncate corrupted MapCache.ini at {MapCachePath}", mapCachePath);
+                return false;
+            }
+        }
     }
 
     private async Task<IDisposable> AcquireSteamInstallationLockAsync(

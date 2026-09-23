@@ -1271,9 +1271,9 @@ public partial class MapManagerViewModel(
                 IsMapPackPanelOpen = false;
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Profile selection canceled by user");
+            logger.LogInformation(ex, "Profile selection canceled by user");
         }
         catch (Exception ex)
         {
