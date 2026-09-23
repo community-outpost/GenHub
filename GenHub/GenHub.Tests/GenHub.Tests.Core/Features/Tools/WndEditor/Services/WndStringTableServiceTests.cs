@@ -77,34 +77,34 @@ public sealed class WndStringTableServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that override roots win over base roots.
+    /// Tests that primary base roots win over fallback roots.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetStringsAsync_OverrideRoot_Wins()
+    public async Task GetStringsAsync_BaseRoot_WinsOverFallbackRoot()
     {
         // Arrange
         WriteStrings(("GUI:Accept", "Base"));
-        var overrideRoot = Path.Combine(Path.GetTempPath(), "GenHub_WndStringOverride_" + Guid.NewGuid().ToString("N"));
+        var fallbackRoot = Path.Combine(Path.GetTempPath(), "GenHub_WndStringFallback_" + Guid.NewGuid().ToString("N"));
         try
         {
-            Directory.CreateDirectory(Path.Combine(overrideRoot, "Data", "english"));
+            Directory.CreateDirectory(Path.Combine(fallbackRoot, "Data", "english"));
             var table = new CsfFile();
-            table.SetString("GUI:Accept", "Override");
-            table.Save(Path.Combine(overrideRoot, "Data", "english", "Generals.csf"));
+            table.SetString("GUI:Accept", "Fallback");
+            table.Save(Path.Combine(fallbackRoot, "Data", "english", "Generals.csf"));
 
             // Act
-            var result = await _service.GetStringsAsync(["GUI:Accept"], _gameRoot, overrideRoot, null);
+            var result = await _service.GetStringsAsync(["GUI:Accept"], _gameRoot, fallbackRoot, null);
 
             // Assert
             result.Success.Should().BeTrue();
-            result.Data.Should().Contain("GUI:Accept", "Override");
+            result.Data.Should().Contain("GUI:Accept", "Base");
         }
         finally
         {
-            if (Directory.Exists(overrideRoot))
+            if (Directory.Exists(fallbackRoot))
             {
-                Directory.Delete(overrideRoot, recursive: true);
+                Directory.Delete(fallbackRoot, recursive: true);
             }
         }
     }

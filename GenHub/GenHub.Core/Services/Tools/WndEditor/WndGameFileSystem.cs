@@ -151,7 +151,7 @@ public static class WndGameFileSystem
 
         if (!isZeroHour && HasUsableOverrideRoot(overrideRoot, baseRoot))
         {
-            baseFileSystem.AddSideload(overrideRoot!);
+            baseFileSystem.AddBaseFallback(overrideRoot!);
         }
 
         return baseFileSystem;
@@ -181,13 +181,13 @@ public static class WndGameFileSystem
                 continue;
             }
 
-            if (File.Exists(bigFile))
+            if (File.Exists(bigFile) || Directory.Exists(bigFile))
             {
                 fileSystem.AddLinkedAsset(bigFile);
             }
             else
             {
-                logger.LogWarning("Linked .BIG archive '{Path}' does not exist and was skipped", bigFile);
+                logger.LogWarning("Linked asset path '{Path}' does not exist and was skipped", bigFile);
             }
         }
     }

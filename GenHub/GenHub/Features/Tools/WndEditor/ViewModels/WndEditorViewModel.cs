@@ -69,6 +69,7 @@ public sealed partial class WndEditorViewModel(
     private readonly Stack<WndEditAction> _redoStack = new();
     private readonly Dictionary<string, Bitmap> _composedBitmaps = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _previewSync = new();
+    private readonly object _linkedAssetsSync = new();
     private WndDocument? _document;
     private double _canvasBaseWidth = WndConstants.Editor.MinCanvasWidth;
     private double _canvasBaseHeight = WndConstants.Editor.MinCanvasHeight;
@@ -947,7 +948,16 @@ public sealed partial class WndEditorViewModel(
         var localPath = folders[0].TryGetLocalPath();
         if (!string.IsNullOrEmpty(localPath))
         {
-            LinkedModFolder = localPath;
+            lock (_linkedAssetsSync)
+            {
+                if (string.Equals(LinkedModFolder, localPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                LinkedModFolder = localPath;
+            }
+
             UpdateLinkedAssetsSummary();
             assetService.InvalidateCache();
             RefreshAssetPreviews();
@@ -984,12 +994,22 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        foreach (var file in files)
+        int initialCount;
+        lock (_linkedAssetsSync)
         {
-            var localPath = file.TryGetLocalPath();
-            if (!string.IsNullOrEmpty(localPath) && !LinkedBigFiles.Contains(localPath))
+            initialCount = LinkedBigFiles.Count;
+            foreach (var file in files)
             {
-                LinkedBigFiles.Add(localPath);
+                var localPath = file.TryGetLocalPath();
+                if (!string.IsNullOrEmpty(localPath) && !LinkedBigFiles.Contains(localPath))
+                {
+                    LinkedBigFiles.Add(localPath);
+                }
+            }
+
+            if (LinkedBigFiles.Count == initialCount)
+            {
+                return;
             }
         }
 
@@ -1004,8 +1024,12 @@ public sealed partial class WndEditorViewModel(
     [RelayCommand]
     private void ClearLinkedAssets()
     {
-        LinkedModFolder = null;
-        LinkedBigFiles.Clear();
+        lock (_linkedAssetsSync)
+        {
+            LinkedModFolder = null;
+            LinkedBigFiles.Clear();
+        }
+
         UpdateLinkedAssetsSummary();
         assetService.InvalidateCache();
         RefreshAssetPreviews();
@@ -1022,7 +1046,13 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        if (LinkedBigFiles.Remove(path))
+        bool removed;
+        lock (_linkedAssetsSync)
+        {
+            removed = LinkedBigFiles.Remove(path);
+        }
+
+        if (removed)
         {
             UpdateLinkedAssetsSummary();
             assetService.InvalidateCache();
@@ -1042,7 +1072,15 @@ public sealed partial class WndEditorViewModel(
 
     private void UpdateLinkedAssetsSummary()
     {
-        HasLinkedAssets = !string.IsNullOrEmpty(LinkedModFolder) || LinkedBigFiles.Count > 0;
+        string? modFolder;
+        List<string> bigFiles;
+        lock (_linkedAssetsSync)
+        {
+            modFolder = LinkedModFolder;
+            bigFiles = LinkedBigFiles.ToList();
+        }
+
+        HasLinkedAssets = !string.IsNullOrEmpty(modFolder) || bigFiles.Count > 0;
         if (!HasLinkedAssets)
         {
             LinkedAssetsSummary = string.Empty;
@@ -1052,17 +1090,17 @@ public sealed partial class WndEditorViewModel(
 
         var parts = new List<string>();
         var tooltipLines = new List<string>();
-        if (!string.IsNullOrEmpty(LinkedModFolder))
+        if (!string.IsNullOrEmpty(modFolder))
         {
-            var folderName = Path.GetFileName(LinkedModFolder);
+            var folderName = Path.GetFileName(modFolder);
             parts.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedModSummary", folderName));
-            tooltipLines.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedTooltipModPrefix", LinkedModFolder));
+            tooltipLines.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedTooltipModPrefix", modFolder));
         }
 
-        if (LinkedBigFiles.Count > 0)
+        if (bigFiles.Count > 0)
         {
-            parts.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedBigSummary", LinkedBigFiles.Count));
-            tooltipLines.AddRange(LinkedBigFiles.Select(b => localizationService.GetString("Tools.WndEditor.Assets.LinkedTooltipBigPrefix", b)));
+            parts.Add(localizationService.GetString("Tools.WndEditor.Assets.LinkedBigSummary", bigFiles.Count));
+            tooltipLines.AddRange(bigFiles.Select(b => localizationService.GetString("Tools.WndEditor.Assets.LinkedTooltipBigPrefix", b)));
         }
 
         var separator = localizationService.GetString("Tools.WndEditor.Assets.LinkedSummarySeparator");
@@ -2538,8 +2576,11 @@ public sealed partial class WndEditorViewModel(
             cts = new CancellationTokenSource();
             _previewCts = cts;
             generation = ++_previewGeneration;
-            linkedModFolderSnapshot = LinkedModFolder;
-            linkedBigFilesSnapshot = LinkedBigFiles.Count > 0 ? LinkedBigFiles.ToList() : null;
+            lock (_linkedAssetsSync)
+            {
+                linkedModFolderSnapshot = LinkedModFolder;
+                linkedBigFilesSnapshot = LinkedBigFiles.Count > 0 ? LinkedBigFiles.ToList() : null;
+            }
         }
 
         CancelAndDisposeCts(toCancel);
@@ -2570,8 +2611,8 @@ public sealed partial class WndEditorViewModel(
     private async Task LoadAssetPreviewsAsync(
         CancellationToken cancellationToken,
         int generation,
-        string? linkedModFolderSnapshot = null,
-        IReadOnlyCollection<string>? linkedBigFilesSnapshot = null)
+        string? linkedModFolderSnapshot,
+        IReadOnlyCollection<string>? linkedBigFilesSnapshot)
     {
         try
         {

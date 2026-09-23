@@ -428,7 +428,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         Directory.CreateDirectory(generalsDir);
         Directory.CreateDirectory(zhDir);
         File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), string.Empty);
-        Directory.CreateDirectory(Path.Combine(generalsDir, "Data"));
+        Directory.CreateDirectory(Path.Combine(generalsDir, ModBuilderConstants.DataDirectoryName));
 
         // Act
         var method = typeof(WndEditorViewModel).GetMethod("FindSiblingGeneralsPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
