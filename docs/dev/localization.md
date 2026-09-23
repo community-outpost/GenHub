@@ -67,6 +67,18 @@ automation described below runs the driver server-side. (Local `git merge`
 or `git rebase` operations on developer machines will still use standard
 line-based merging unless the custom driver is configured locally.)
 
+To configure the driver locally, run this once per clone:
+
+```sh
+git config merge.resx.driver "python3 scripts/git_merge_resx.py %O %A %B"
+```
+
+On Windows, use `python` instead of `python3`:
+
+```sh
+git config merge.resx.driver "python scripts/git_merge_resx.py %O %A %B"
+```
+
 CI validates every `Strings*.resx` on each run (`scripts/validate_resx.py`):
 well-formed XML with flat `<data>` blocks, no duplicate keys, exact key-set
 parity across cultures, and preserved `{0}`-style placeholders (run locally
