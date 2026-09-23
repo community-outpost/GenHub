@@ -363,6 +363,14 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             images.Count,
             baseRoot,
             overrideRoot ?? "none");
+        logger.LogInformation(
+            "Mapped image definitions by tier: {Tiers}",
+            string.Join(
+                ", ",
+                images.Values
+                    .GroupBy(image => image.Tier)
+                    .OrderBy(group => group.Key)
+                    .Select(group => $"{group.Key}={group.Count()}")));
         return new AssetIndex(key, fileSystem, images, alternates);
     }
 
