@@ -2549,7 +2549,7 @@ public sealed class ProjectConfigService(
             if (!string.IsNullOrEmpty(dir) &&
                 !string.IsNullOrEmpty(filename) &&
                 Directory.Exists(dir) &&
-                Directory.EnumerateFiles(dir).Any(f => string.Equals(Path.GetFileName(f), filename, StringComparison.OrdinalIgnoreCase)))
+                Directory.EnumerateFiles(dir, filename, new EnumerationOptions { MatchCasing = MatchCasing.CaseInsensitive, MatchType = MatchType.Simple }).Any())
             {
                 return true;
             }
