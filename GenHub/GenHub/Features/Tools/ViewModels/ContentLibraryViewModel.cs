@@ -242,7 +242,7 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var created = await dialogService.ShowAddAddonDialogAsync(SelectedContent, activeCatalog.Catalog);
+        var created = await dialogService.ShowAddAddonDialogAsync(SelectedContent, activeCatalog.Catalog, paths);
         if (created != null)
         {
             SelectedContent.AddonReleases.Add(created);
@@ -267,7 +267,7 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var created = await dialogService.ShowAddReleaseDialogAsync(SelectedContent, activeCatalog.Catalog);
+        var created = await dialogService.ShowAddReleaseDialogAsync(SelectedContent, activeCatalog.Catalog, paths);
         if (created != null)
         {
             if (created.IsLatest)

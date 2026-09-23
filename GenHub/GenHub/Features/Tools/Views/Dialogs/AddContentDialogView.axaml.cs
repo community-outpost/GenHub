@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using System.IO;
 using System.Linq;
@@ -20,32 +22,11 @@ public partial class AddContentDialogView : UserControl
     {
         InitializeComponent();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
-
-        var contentMediaDropZone = this.FindControl<Border>("ContentMediaDropZone");
-        if (contentMediaDropZone != null)
-        {
-            contentMediaDropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-            contentMediaDropZone.AddHandler(DragDrop.DropEvent, OnContentMediaDrop, handledEventsToo: true);
-        }
-
-        var initialReleaseDropZone = this.FindControl<Border>("InitialReleaseDropZone");
-        if (initialReleaseDropZone != null)
-        {
-            initialReleaseDropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-            initialReleaseDropZone.AddHandler(DragDrop.DropEvent, OnInitialReleaseDrop, handledEventsToo: true);
-        }
-
-        var releaseMediaDropZone = this.FindControl<Border>("ReleaseMediaDropZone");
-        if (releaseMediaDropZone != null)
-        {
-            releaseMediaDropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-            releaseMediaDropZone.AddHandler(DragDrop.DropEvent, OnReleaseMediaDrop, handledEventsToo: true);
-        }
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
-    private static void OnDragOver(object? sender, DragEventArgs e)
+    private void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files))
         {
@@ -58,69 +39,6 @@ public partial class AddContentDialogView : UserControl
         }
     }
 
-    private async void OnContentMediaDrop(object? sender, DragEventArgs e)
-    {
-        if (!e.Data.Contains(DataFormats.Files)) return;
-        if (DataContext is not AddContentDialogViewModel vm) return;
-
-        var files = e.Data.GetFiles();
-        if (files != null)
-        {
-            var paths = files
-                .Select(f => f.Path?.LocalPath)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Cast<string>()
-                .ToList();
-            if (paths.Count > 0)
-            {
-                e.Handled = true;
-                await vm.AddScreenshotsFromPathsAsync(paths);
-            }
-        }
-    }
-
-    private async void OnInitialReleaseDrop(object? sender, DragEventArgs e)
-    {
-        if (!e.Data.Contains(DataFormats.Files)) return;
-        if (DataContext is not AddContentDialogViewModel vm) return;
-
-        var files = e.Data.GetFiles();
-        if (files != null)
-        {
-            var paths = files
-                .Select(f => f.Path?.LocalPath)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Cast<string>()
-                .ToList();
-            if (paths.Count > 0)
-            {
-                e.Handled = true;
-                await vm.AddReleaseArtifactsFromPathsAsync(paths);
-            }
-        }
-    }
-
-    private async void OnReleaseMediaDrop(object? sender, DragEventArgs e)
-    {
-        if (!e.Data.Contains(DataFormats.Files)) return;
-        if (DataContext is not AddContentDialogViewModel vm) return;
-
-        var files = e.Data.GetFiles();
-        if (files != null)
-        {
-            var paths = files
-                .Select(f => f.Path?.LocalPath)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Cast<string>()
-                .ToList();
-            if (paths.Count > 0)
-            {
-                e.Handled = true;
-                await vm.AddReleaseImagesFromPathsAsync(paths);
-            }
-        }
-    }
-
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         if (e.Handled || !e.Data.Contains(DataFormats.Files))
@@ -128,29 +46,114 @@ public partial class AddContentDialogView : UserControl
             return;
         }
 
-        if (DataContext is not AddContentDialogViewModel vm) return;
+        if (DataContext is not AddContentDialogViewModel vm)
+        {
+            return;
+        }
 
         var files = e.Data.GetFiles();
-        if (files != null)
+        if (files == null)
         {
-            var paths = files
-                .Select(f => f.Path?.LocalPath)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Cast<string>()
-                .ToList();
-            if (paths.Count > 0)
+            return;
+        }
+
+        var paths = files
+            .Select(f => f.Path?.LocalPath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Cast<string>()
+            .ToList();
+
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        var sourceVisual = e.Source as Visual;
+
+        // Dropped specifically on Icon field
+        if (IsInSubtree(sourceVisual, "IconDropTarget") || IsInSubtree(sourceVisual, "IconTextBox"))
+        {
+            e.Handled = true;
+            vm.IconArtwork = paths[0];
+            return;
+        }
+
+        // Dropped specifically on Banner field
+        if (IsInSubtree(sourceVisual, "BannerDropTarget") || IsInSubtree(sourceVisual, "BannerTextBox"))
+        {
+            e.Handled = true;
+            vm.BannerArtwork = paths[0];
+            return;
+        }
+
+        // Dropped specifically on Backdrop field
+        if (IsInSubtree(sourceVisual, "BackdropDropTarget") || IsInSubtree(sourceVisual, "BackdropTextBox"))
+        {
+            e.Handled = true;
+            vm.BackdropArtwork = paths[0];
+            return;
+        }
+
+        // Dropped specifically on Screenshots drop zone
+        if (IsInSubtree(sourceVisual, "ContentMediaDropZone"))
+        {
+            e.Handled = true;
+            await vm.AddScreenshotsFromPathsAsync(paths);
+            return;
+        }
+
+        // Dropped specifically on Initial Release drop zone or section
+        if (IsInSubtree(sourceVisual, "InitialReleaseDropZone") || IsInSubtree(sourceVisual, "InitialReleaseSection"))
+        {
+            e.Handled = true;
+            await vm.AddReleaseArtifactsFromPathsAsync(paths);
+            return;
+        }
+
+        // Fallback for drops elsewhere on the dialog:
+        e.Handled = true;
+        var allImages = paths.All(p => ImageExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()));
+        if (allImages)
+        {
+            if (string.IsNullOrWhiteSpace(vm.IconArtwork))
             {
-                e.Handled = true;
-                var allImages = paths.All(p => ImageExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()));
-                if (allImages)
+                vm.IconArtwork = paths[0];
+                if (paths.Count > 1)
                 {
-                    await vm.AddScreenshotsFromPathsAsync(paths);
-                }
-                else
-                {
-                    vm.PopulateFromPaths(paths);
+                    await vm.AddScreenshotsFromPathsAsync(paths.Skip(1));
                 }
             }
+            else if (string.IsNullOrWhiteSpace(vm.BannerArtwork))
+            {
+                vm.BannerArtwork = paths[0];
+                if (paths.Count > 1)
+                {
+                    await vm.AddScreenshotsFromPathsAsync(paths.Skip(1));
+                }
+            }
+            else
+            {
+                await vm.AddScreenshotsFromPathsAsync(paths);
+            }
         }
+        else
+        {
+            vm.PopulateFromPaths(paths);
+        }
+    }
+
+    private bool IsInSubtree(Visual? visual, string name)
+    {
+        while (visual != null)
+        {
+            if (visual is Control control && control.Name == name)
+            {
+                return true;
+            }
+
+            visual = visual.GetVisualParent();
+        }
+
+        return false;
     }
 }

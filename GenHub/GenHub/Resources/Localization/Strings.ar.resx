@@ -10919,7 +10919,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>إدارة اتصالات التخزين السحابي ومراقبة المساحة وفحص الملفات الحالية</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.TabLibrary" xml:space="preserve">
-    <value>مكتبة المحتوى</value>
+    <value>الكتالوج</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.TabLibraryTooltip" xml:space="preserve">
     <value>إدارة التعديلات والخرائط والتصحيحات والإضافات في هذا الكتالوج</value>

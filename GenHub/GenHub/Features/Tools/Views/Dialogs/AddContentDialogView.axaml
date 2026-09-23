@@ -13,6 +13,7 @@
 
     <UserControl.Resources>
         <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
+        <converters:StringToImageConverter x:Key="StringToImageConverter"/>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -157,7 +158,7 @@
                           BorderThickness="1"
                           CornerRadius="8"
                           Padding="16"
-                          IsExpanded="False"
+                          IsExpanded="True"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Stretch">
                     <Expander.Header>
@@ -171,55 +172,109 @@
                         <!-- Icon -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IconArtwork}" Classes="label"/>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBox Text="{Binding IconArtwork, Mode=TwoWay}"
-                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"/>
-                                <Button Grid.Column="1"
-                                        Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
-                                        Command="{Binding BrowseArtworkCommand}"
-                                        CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetIcon}"
-                                        Padding="12,8"
-                                        Margin="8,0,0,0"
-                                        Background="{DynamicResource GlassStrongBrush}"
-                                        CornerRadius="6"
-                                        Foreground="{DynamicResource TextPrimary}"/>
-                            </Grid>
+                            <Border x:Name="IconDropTarget"
+                                    DragDrop.AllowDrop="True"
+                                    Background="{DynamicResource GlassFillBrush}"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="4">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="4" Margin="2,0,6,0"
+                                            ClipToBounds="True" Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                            IsVisible="{Binding IconArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Image Source="{Binding IconArtwork, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <TextBox Grid.Column="1"
+                                             x:Name="IconTextBox"
+                                             Text="{Binding IconArtwork, Mode=TwoWay}"
+                                             Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
+                                             VerticalAlignment="Center"
+                                             BorderThickness="0"
+                                             Background="Transparent"/>
+                                    <Button Grid.Column="2"
+                                            Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
+                                            Command="{Binding BrowseArtworkCommand}"
+                                            CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetIcon}"
+                                            Padding="10,6"
+                                            Margin="4,0,2,0"
+                                            Background="{DynamicResource GlassStrongBrush}"
+                                            CornerRadius="6"
+                                            Foreground="{DynamicResource TextPrimary}"/>
+                                </Grid>
+                            </Border>
                         </StackPanel>
 
                         <!-- Banner -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BannerArtwork}" Classes="label"/>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBox Text="{Binding BannerArtwork, Mode=TwoWay}"
-                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"/>
-                                <Button Grid.Column="1"
-                                        Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
-                                        Command="{Binding BrowseArtworkCommand}"
-                                        CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetBanner}"
-                                        Padding="12,8"
-                                        Margin="8,0,0,0"
-                                        Background="{DynamicResource GlassStrongBrush}"
-                                        CornerRadius="6"
-                                        Foreground="{DynamicResource TextPrimary}"/>
-                            </Grid>
+                            <Border x:Name="BannerDropTarget"
+                                    DragDrop.AllowDrop="True"
+                                    Background="{DynamicResource GlassFillBrush}"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="4">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Width="64" Height="36" CornerRadius="4" Margin="2,0,6,0"
+                                            ClipToBounds="True" Background="{DynamicResource GlassBorderBrush}"
+                                            IsVisible="{Binding BannerArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Image Source="{Binding BannerArtwork, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <TextBox Grid.Column="1"
+                                             x:Name="BannerTextBox"
+                                             Text="{Binding BannerArtwork, Mode=TwoWay}"
+                                             Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
+                                             VerticalAlignment="Center"
+                                             BorderThickness="0"
+                                             Background="Transparent"/>
+                                    <Button Grid.Column="2"
+                                            Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
+                                            Command="{Binding BrowseArtworkCommand}"
+                                            CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetBanner}"
+                                            Padding="10,6"
+                                            Margin="4,0,2,0"
+                                            Background="{DynamicResource GlassStrongBrush}"
+                                            CornerRadius="6"
+                                            Foreground="{DynamicResource TextPrimary}"/>
+                                </Grid>
+                            </Border>
                         </StackPanel>
 
                         <!-- Backdrop cover -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BackdropArtwork}" Classes="label"/>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBox Text="{Binding BackdropArtwork, Mode=TwoWay}"
-                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"/>
-                                <Button Grid.Column="1"
-                                        Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
-                                        Command="{Binding BrowseArtworkCommand}"
-                                        CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetBackdrop}"
-                                        Padding="12,8"
-                                        Margin="8,0,0,0"
-                                        Background="{DynamicResource GlassStrongBrush}"
-                                        CornerRadius="6"
-                                        Foreground="{DynamicResource TextPrimary}"/>
-                            </Grid>
+                            <Border x:Name="BackdropDropTarget"
+                                    DragDrop.AllowDrop="True"
+                                    Background="{DynamicResource GlassFillBrush}"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="4">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Border Grid.Column="0" Width="64" Height="36" CornerRadius="4" Margin="2,0,6,0"
+                                            ClipToBounds="True" Background="{DynamicResource GlassBorderBrush}"
+                                            IsVisible="{Binding BackdropArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Image Source="{Binding BackdropArtwork, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <TextBox Grid.Column="1"
+                                             x:Name="BackdropTextBox"
+                                             Text="{Binding BackdropArtwork, Mode=TwoWay}"
+                                             Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
+                                             VerticalAlignment="Center"
+                                             BorderThickness="0"
+                                             Background="Transparent"/>
+                                    <Button Grid.Column="2"
+                                            Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
+                                            Command="{Binding BrowseArtworkCommand}"
+                                            CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetBackdrop}"
+                                            Padding="10,6"
+                                            Margin="4,0,2,0"
+                                            Background="{DynamicResource GlassStrongBrush}"
+                                            CornerRadius="6"
+                                            Foreground="{DynamicResource TextPrimary}"/>
+                                </Grid>
+                            </Border>
                         </StackPanel>
 
                         <!-- Accent color -->
@@ -373,7 +428,8 @@
                 </Expander>
 
                 <!-- ==================== INITIAL RELEASE & ARTIFACT (Create Mode Only) ==================== -->
-                <Expander Background="{DynamicResource GlassFillSubtleBrush}"
+                <Expander x:Name="InitialReleaseSection"
+                          Background="{DynamicResource GlassFillSubtleBrush}"
                           BorderBrush="{DynamicResource GlassStrongBrush}"
                           BorderThickness="1"
                           CornerRadius="8"
@@ -587,42 +643,7 @@
                                 <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsComputingHash}" Margin="0,4,0,0"/>
                             </StackPanel>
 
-                            <!-- Release Media (Images & Videos) -->
-                            <Expander Background="{DynamicResource GlassFillSubtleBrush}"
-                                      BorderBrush="{DynamicResource GlassBorderBrush}"
-                                      BorderThickness="1"
-                                      CornerRadius="6"
-                                      Padding="8"
-                                      Margin="0,4,0,0"
-                                      HorizontalAlignment="Stretch"
-                                      HorizontalContentAlignment="Stretch">
-                                <Expander.Header>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ReleaseMediaHeader}" Classes="label"/>
-                                </Expander.Header>
-                                <StackPanel Spacing="8" Margin="0,4,0,0">
-                                    <Border x:Name="ReleaseMediaDropZone"
-                                            DragDrop.AllowDrop="True"
-                                            BorderBrush="{DynamicResource GlassBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="6"
-                                            Background="{DynamicResource GlassFillBrush}"
-                                            Padding="10"
-                                            Cursor="Hand">
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                                            <PathIcon Data="{StaticResource DocumentIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropReleaseImagesHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <TextBox Text="{Binding ReleaseImageUrlsInput, Mode=TwoWay}"
-                                             AcceptsReturn="True"
-                                             Height="50"
-                                             Watermark="{localization:Localize Tools.PublisherStudio.Release.ReleaseImages}"/>
-                                    <TextBox Text="{Binding ReleaseVideoUrlsInput, Mode=TwoWay}"
-                                             AcceptsReturn="True"
-                                             Height="50"
-                                             Watermark="{localization:Localize Tools.PublisherStudio.Release.ReleaseVideos}"/>
-                                </StackPanel>
-                            </Expander>
+
 
                             <!-- Release Dependencies -->
                             <StackPanel Spacing="6" Margin="0,4,0,0">

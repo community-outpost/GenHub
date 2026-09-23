@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using System.Linq;
 
@@ -18,25 +20,11 @@ public partial class AddReleaseDialogView : UserControl
     {
         InitializeComponent();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
-
-        var artifactsZone = this.FindControl<Border>("ArtifactsDropZone");
-        if (artifactsZone != null)
-        {
-            artifactsZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-            artifactsZone.AddHandler(DragDrop.DropEvent, OnArtifactsDrop, handledEventsToo: true);
-        }
-
-        var imagesZone = this.FindControl<Border>("ImagesDropZone");
-        if (imagesZone != null)
-        {
-            imagesZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-            imagesZone.AddHandler(DragDrop.DropEvent, OnImagesDrop, handledEventsToo: true);
-        }
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
-    private static void OnDragOver(object? sender, DragEventArgs e)
+    private void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files))
         {
@@ -46,52 +34,6 @@ public partial class AddReleaseDialogView : UserControl
         else
         {
             e.DragEffects = DragDropEffects.None;
-        }
-    }
-
-    private async void OnArtifactsDrop(object? sender, DragEventArgs e)
-    {
-        if (!e.Data.Contains(DataFormats.Files) || DataContext is not AddReleaseDialogViewModel vm)
-        {
-            return;
-        }
-
-        var files = e.Data.GetFiles();
-        if (files == null) return;
-
-        var paths = files
-            .Select(f => f.Path?.LocalPath)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Cast<string>()
-            .ToList();
-
-        if (paths.Count > 0)
-        {
-            e.Handled = true;
-            await vm.AddArtifactsFromPathsAsync(paths);
-        }
-    }
-
-    private async void OnImagesDrop(object? sender, DragEventArgs e)
-    {
-        if (!e.Data.Contains(DataFormats.Files) || DataContext is not AddReleaseDialogViewModel vm)
-        {
-            return;
-        }
-
-        var files = e.Data.GetFiles();
-        if (files == null) return;
-
-        var paths = files
-            .Select(f => f.Path?.LocalPath)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Cast<string>()
-            .ToList();
-
-        if (paths.Count > 0)
-        {
-            e.Handled = true;
-            await vm.AddImagesFromPathsAsync(paths);
         }
     }
 
@@ -114,18 +56,53 @@ public partial class AddReleaseDialogView : UserControl
             .Cast<string>()
             .ToList();
 
-        if (paths.Count > 0)
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        var sourceVisual = e.Source as Visual;
+
+        // Specific drop on ImagesZone
+        if (IsInSubtree(sourceVisual, "ImagesDropZone"))
         {
             e.Handled = true;
-            var allImages = paths.All(AddReleaseDialogViewModel.IsImageFile);
-            if (allImages)
-            {
-                await vm.AddImagesFromPathsAsync(paths);
-            }
-            else
-            {
-                await vm.AddArtifactsFromPathsAsync(paths);
-            }
+            await vm.AddImagesFromPathsAsync(paths);
+            return;
         }
+
+        // Specific drop on ArtifactsZone
+        if (IsInSubtree(sourceVisual, "ArtifactsDropZone"))
+        {
+            e.Handled = true;
+            await vm.AddArtifactsFromPathsAsync(paths);
+            return;
+        }
+
+        e.Handled = true;
+        var allImages = paths.All(AddReleaseDialogViewModel.IsImageFile);
+        if (allImages)
+        {
+            await vm.AddImagesFromPathsAsync(paths);
+        }
+        else
+        {
+            await vm.AddArtifactsFromPathsAsync(paths);
+        }
+    }
+
+    private bool IsInSubtree(Visual? visual, string name)
+    {
+        while (visual != null)
+        {
+            if (visual is Control control && control.Name == name)
+            {
+                return true;
+            }
+
+            visual = visual.GetVisualParent();
+        }
+
+        return false;
     }
 }

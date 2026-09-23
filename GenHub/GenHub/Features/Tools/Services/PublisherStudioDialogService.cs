@@ -83,10 +83,19 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<ContentRelease?> ShowAddReleaseDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog)
+    public async Task<ContentRelease?> ShowAddReleaseDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog, IEnumerable<string>? initialPaths = null)
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-           callback => new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService));
+           callback =>
+           {
+               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService);
+               if (initialPaths != null)
+               {
+                   _ = vm.AddArtifactsFromPathsAsync(initialPaths);
+               }
+
+               return vm;
+           });
     }
 
     /// <inheritdoc/>
@@ -97,10 +106,19 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<ContentRelease?> ShowAddAddonDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog)
+    public async Task<ContentRelease?> ShowAddAddonDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog, IEnumerable<string>? initialPaths = null)
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-           callback => new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true));
+           callback =>
+           {
+               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true);
+               if (initialPaths != null)
+               {
+                   _ = vm.AddArtifactsFromPathsAsync(initialPaths);
+               }
+
+               return vm;
+           });
     }
 
     /// <inheritdoc/>

@@ -10919,7 +10919,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Управление подключением к облаку, мониторинг места и поиск файлов</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.TabLibrary" xml:space="preserve">
-    <value>Библиотека контента</value>
+    <value>Каталог</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.TabLibraryTooltip" xml:space="preserve">
     <value>Управление модами, картами, патчами и дополнениями в этом каталоге</value>

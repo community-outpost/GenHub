@@ -11017,7 +11017,7 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Manage cloud storage connections, monitor space, and scan for existing files</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.TabLibrary" xml:space="preserve">
-    <value>Content Library</value>
+    <value>Catalog</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.TabLibraryTooltip" xml:space="preserve">
     <value>Manage mods, maps, patches, and add-ons in this catalog</value>

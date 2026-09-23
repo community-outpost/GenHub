@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using GenHub.Features.Tools.ViewModels;
 using System;
 using System.Diagnostics;
@@ -19,32 +21,11 @@ public partial class ContentLibraryView : UserControl
     {
         InitializeComponent();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
-
-        var contentItemsDropZone = this.FindControl<Border>("ContentItemsDropZone");
-        if (contentItemsDropZone != null)
-        {
-            contentItemsDropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-            contentItemsDropZone.AddHandler(DragDrop.DropEvent, OnContentItemsDrop, handledEventsToo: true);
-        }
-
-        var addonsDropZone = this.FindControl<Border>("AddonsDropZone");
-        if (addonsDropZone != null)
-        {
-            addonsDropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-            addonsDropZone.AddHandler(DragDrop.DropEvent, OnAddonsDrop, handledEventsToo: true);
-        }
-
-        var releasesDropZone = this.FindControl<Border>("ReleasesDropZone");
-        if (releasesDropZone != null)
-        {
-            releasesDropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
-            releasesDropZone.AddHandler(DragDrop.DropEvent, OnReleasesDrop, handledEventsToo: true);
-        }
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
-    private static void OnDragOver(object? sender, DragEventArgs e)
+    private void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files))
         {
@@ -57,86 +38,6 @@ public partial class ContentLibraryView : UserControl
         }
     }
 
-    private async void OnContentItemsDrop(object? sender, DragEventArgs e)
-    {
-        if (!e.Data.Contains(DataFormats.Files)) return;
-        if (DataContext is not ContentLibraryViewModel vm) return;
-
-        try
-        {
-            var files = e.Data.GetFiles();
-            if (files != null)
-            {
-                var first = files.FirstOrDefault();
-                if (first?.Path?.LocalPath is { } path)
-                {
-                    e.Handled = true;
-                    await vm.AddContentWithPathAsync(path);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Failed to add dropped content: {ex}");
-        }
-    }
-
-    private async void OnAddonsDrop(object? sender, DragEventArgs e)
-    {
-        if (!e.Data.Contains(DataFormats.Files)) return;
-        if (DataContext is not ContentLibraryViewModel vm) return;
-
-        try
-        {
-            var files = e.Data.GetFiles();
-            if (files != null)
-            {
-                var paths = files
-                    .Select(f => f.Path?.LocalPath)
-                    .Where(p => !string.IsNullOrWhiteSpace(p))
-                    .Cast<string>()
-                    .ToList();
-                if (paths.Count > 0)
-                {
-                    e.Handled = true;
-                    await vm.AddAddonWithPathsAsync(paths);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Failed to add dropped addon: {ex}");
-        }
-    }
-
-    private async void OnReleasesDrop(object? sender, DragEventArgs e)
-    {
-        if (!e.Data.Contains(DataFormats.Files)) return;
-        if (DataContext is not ContentLibraryViewModel vm) return;
-
-        try
-        {
-            var files = e.Data.GetFiles();
-            if (files != null)
-            {
-                var paths = files
-                    .Select(f => f.Path?.LocalPath)
-                    .Where(p => !string.IsNullOrWhiteSpace(p))
-                    .Cast<string>()
-                    .ToList();
-                if (paths.Count > 0)
-                {
-                    e.Handled = true;
-                    await vm.AddReleaseWithPathsAsync(paths);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Failed to add dropped release: {ex}");
-        }
-    }
-
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         if (e.Handled || !e.Data.Contains(DataFormats.Files))
@@ -144,24 +45,86 @@ public partial class ContentLibraryView : UserControl
             return;
         }
 
-        if (DataContext is not ContentLibraryViewModel vm) return;
+        if (DataContext is not ContentLibraryViewModel vm)
+        {
+            return;
+        }
 
         try
         {
             var files = e.Data.GetFiles();
-            if (files != null)
+            if (files == null)
             {
-                var first = files.FirstOrDefault();
-                if (first?.Path?.LocalPath is { } path)
-                {
-                    e.Handled = true;
-                    await vm.AddContentWithPathAsync(path);
-                }
+                return;
             }
+
+            var paths = files
+                .Select(f => f.Path?.LocalPath)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Cast<string>()
+                .ToList();
+
+            if (paths.Count == 0)
+            {
+                return;
+            }
+
+            var sourceVisual = e.Source as Visual;
+
+            // 1. Dropped on Addons section or dropzone
+            if (IsInSubtree(sourceVisual, "AddonsDropZone") || IsInSubtree(sourceVisual, "AddonsSection"))
+            {
+                e.Handled = true;
+                await vm.AddAddonWithPathsAsync(paths);
+                return;
+            }
+
+            // 2. Dropped on Releases section or dropzone
+            if (IsInSubtree(sourceVisual, "ReleasesDropZone") || IsInSubtree(sourceVisual, "ReleasesSection"))
+            {
+                e.Handled = true;
+                await vm.AddReleaseWithPathsAsync(paths);
+                return;
+            }
+
+            // 3. Dropped on Left Catalog Panel or Content Items DropZone
+            if (IsInSubtree(sourceVisual, "ContentItemsDropZone") || IsInSubtree(sourceVisual, "CatalogListPanel"))
+            {
+                e.Handled = true;
+                await vm.AddContentWithPathAsync(paths[0]);
+                return;
+            }
+
+            // 4. Dropped on Content Detail Panel when a content item is selected -> default to adding release
+            if (vm.SelectedContent != null && IsInSubtree(sourceVisual, "ContentDetailPanel"))
+            {
+                e.Handled = true;
+                await vm.AddReleaseWithPathsAsync(paths);
+                return;
+            }
+
+            // 5. Default fallback: add new content item
+            e.Handled = true;
+            await vm.AddContentWithPathAsync(paths[0]);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Failed to add dropped content: {ex}");
+            Debug.WriteLine($"Failed to process dropped files: {ex}");
         }
+    }
+
+    private bool IsInSubtree(Visual? visual, string name)
+    {
+        while (visual != null)
+        {
+            if (visual is Control control && control.Name == name)
+            {
+                return true;
+            }
+
+            visual = visual.GetVisualParent();
+        }
+
+        return false;
     }
 }

@@ -67,8 +67,9 @@ public interface IPublisherStudioDialogService
     /// </summary>
     /// <param name="contentItem">The parent content item.</param>
     /// <param name="catalog">The parent catalog.</param>
+    /// <param name="initialPaths">Optional file or directory paths to pre-populate as artifacts.</param>
     /// <returns>The created release, or null if cancelled.</returns>
-    Task<ContentRelease?> ShowAddReleaseDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog);
+    Task<ContentRelease?> ShowAddReleaseDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog, IEnumerable<string>? initialPaths = null);
 
     /// <summary>
     /// Shows the edit release dialog for an existing release.
@@ -84,8 +85,9 @@ public interface IPublisherStudioDialogService
     /// </summary>
     /// <param name="contentItem">The parent content item.</param>
     /// <param name="catalog">The parent catalog.</param>
+    /// <param name="initialPaths">Optional file or directory paths to pre-populate as artifacts.</param>
     /// <returns>The created addon release, or null if cancelled.</returns>
-    Task<ContentRelease?> ShowAddAddonDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog);
+    Task<ContentRelease?> ShowAddAddonDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog, IEnumerable<string>? initialPaths = null);
 
     /// <summary>
     /// Shows the edit addon dialog for an existing addon release.
