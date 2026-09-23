@@ -466,73 +466,107 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         CancellationToken cancellationToken)
     {
         var resolved = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-        var textureGroups = requests.Values.GroupBy(r => r.Texture, StringComparer.OrdinalIgnoreCase);
+        DecodeSharedTextureGroups(requests, index, resolved, cancellationToken);
 
+        foreach (var name in names)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ResolveSingleImage(name, index, resolved, cancellationToken);
+        }
+
+        return resolved;
+    }
+
+    private void DecodeSharedTextureGroups(
+        Dictionary<string, WndMappedImage> requests,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved,
+        CancellationToken cancellationToken)
+    {
+        var textureGroups = requests.Values.GroupBy(r => r.Texture, StringComparer.OrdinalIgnoreCase);
         foreach (var group in textureGroups)
         {
             cancellationToken.ThrowIfCancellationRequested();
             DecodeTextureGroup(group.Key, group.ToList(), index, resolved);
         }
+    }
 
-        foreach (var name in names)
+    private void ResolveSingleImage(
+        string name,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(name))
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
-
-            var trimmedName = name.Trim();
-            if (resolved.ContainsKey(trimmedName))
-            {
-                continue;
-            }
-
-            if (_imageCache.TryGetValue(CacheKey(index.Key, trimmedName), out var cached))
-            {
-                resolved[trimmedName] = cached;
-                continue;
-            }
-
-            if (index.Alternates.TryGetValue(trimmedName, out var alts))
-            {
-                foreach (var alt in alts)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var altData = ReadTexture(index.FileSystem, alt.Texture);
-                    if (altData == null)
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        var readSettings = new MagickReadSettings { Format = altData.Value.Format };
-                        using var page = new MagickImage(altData.Value.Bytes, readSettings);
-                        var png = CropMappedImage(page, alt);
-                        if (png.Length > 0)
-                        {
-                            resolved[trimmedName] = png;
-                            _imageCache[CacheKey(index.Key, trimmedName)] = png;
-                            break;
-                        }
-                    }
-                    catch (Exception ex) when (ex is MagickException or IOException)
-                    {
-                        logger.LogDebug(ex, "Failed to decode alternate texture {Texture} for {Image}", alt.Texture, trimmedName);
-                    }
-                }
-
-                if (resolved.ContainsKey(trimmedName))
-                {
-                    continue;
-                }
-            }
-
-            TryResolveDirectTexture(trimmedName, index, resolved);
+            return;
         }
 
-        return resolved;
+        var trimmedName = name.Trim();
+        if (resolved.ContainsKey(trimmedName))
+        {
+            return;
+        }
+
+        if (_imageCache.TryGetValue(CacheKey(index.Key, trimmedName), out var cached))
+        {
+            resolved[trimmedName] = cached;
+            return;
+        }
+
+        if (TryResolveAlternateTexture(trimmedName, index, resolved, cancellationToken))
+        {
+            return;
+        }
+
+        TryResolveDirectTexture(trimmedName, index, resolved);
+    }
+
+    private bool TryResolveAlternateTexture(
+        string trimmedName,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved,
+        CancellationToken cancellationToken)
+    {
+        if (!index.Alternates.TryGetValue(trimmedName, out var alts))
+        {
+            return false;
+        }
+
+        foreach (var alt in alts)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var png = DecodeAlternateImage(index, alt, trimmedName);
+            if (png is { Length: > 0 })
+            {
+                resolved[trimmedName] = png;
+                _imageCache[CacheKey(index.Key, trimmedName)] = png;
+                return true;
+            }
+        }
+
+        return resolved.ContainsKey(trimmedName);
+    }
+
+    private byte[]? DecodeAlternateImage(AssetIndex index, WndMappedImage image, string imageName)
+    {
+        var altData = ReadTexture(index.FileSystem, image.Texture);
+        if (altData == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var readSettings = new MagickReadSettings { Format = altData.Value.Format };
+            using var page = new MagickImage(altData.Value.Bytes, readSettings);
+            return CropMappedImage(page, image);
+        }
+        catch (Exception ex) when (ex is MagickException or IOException)
+        {
+            logger.LogDebug(ex, "Failed to decode alternate texture {Texture} for {Image}", image.Texture, imageName);
+            return null;
+        }
     }
 
     private void DecodeTextureGroup(
