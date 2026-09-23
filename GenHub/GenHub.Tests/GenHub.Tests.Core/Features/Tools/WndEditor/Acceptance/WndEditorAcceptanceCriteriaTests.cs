@@ -1,7 +1,15 @@
 using FluentAssertions;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Core.Services.Tools.Checksum;
+using GenHub.Features.Tools.WndEditor.Services;
+using GenHub.Features.Tools.WndEditor.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -9,6 +17,8 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.Tools.WndEditor.Acceptance;
 
@@ -136,24 +146,44 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
     /// the virtual screen dimensions expand to the full width/height so the border is full-screen,
     /// rather than being confined to an 800x600 corner.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public void Criterion2_WidescreenWindowCoordinates_ExpandVirtualScreenDimensions()
+    public async Task Criterion2_WidescreenWindowCoordinates_ExpandVirtualScreenDimensions()
     {
-        // Arrange
-        int screenW = 800;
-        int screenH = 600;
-        int maxWidth = 1920;
-        int maxHeight = 1080;
+        // Arrange: a document whose window boundaries extend to 1920x1080 despite default creation resolution
+        const string widescreenDocument =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 1920 1080, CREATIONRESOLUTION: 800 600;\n" +
+            "  NAME = \"Menu.wnd:Parent\";\n" +
+            "END\n";
 
-        // Act: compute virtual screen size using the updated formula
-        int virtualScreenWidth = (int)Math.Max(screenW, Math.Max(maxWidth, WndConstants.Editor.MinCanvasWidth));
-        int virtualScreenHeight = (int)Math.Max(screenH, Math.Max(maxHeight, WndConstants.Editor.MinCanvasHeight));
+        var mockGameInstallService = new Mock<IGameInstallationService>();
+        mockGameInstallService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
 
-        // Assert
-        virtualScreenWidth.Should().Be(1920);
-        virtualScreenHeight.Should().Be(1080);
-        virtualScreenWidth.Should().BeGreaterThanOrEqualTo(maxWidth);
-        virtualScreenHeight.Should().BeGreaterThanOrEqualTo(maxHeight);
+        var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        var assetService = new WndEditorAssetService(
+            Mock.Of<IWndImageAssetService>(),
+            Mock.Of<IWndStringTableService>());
+        var viewModel = new WndEditorViewModel(
+            documentService,
+            Mock.Of<INotificationService>(),
+            Mock.Of<ILocalizationService>(),
+            Mock.Of<IDialogService>(),
+            mockGameInstallService.Object,
+            assetService,
+            Mock.Of<ILogger<WndEditorViewModel>>());
+
+        // Act: load document into ViewModel
+        var loaded = await viewModel.LoadFromTextAsync(widescreenDocument, null);
+
+        // Assert: ViewModel VirtualScreenWidth and VirtualScreenHeight expand to widescreen dimensions
+        loaded.Should().BeTrue();
+        viewModel.VirtualScreenWidth.Should().Be(1920);
+        viewModel.VirtualScreenHeight.Should().Be(1080);
     }
 
     /// <summary>
