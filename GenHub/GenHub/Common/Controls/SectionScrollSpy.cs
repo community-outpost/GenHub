@@ -61,26 +61,44 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     }
 
     /// <summary>
+    /// Animates the scroll viewer so the target control top aligns with the viewport top.
+    /// </summary>
+    /// <param name="targetControl">The target control to scroll to.</param>
+    public void ScrollToControl(Control targetControl)
+    {
+        if (targetControl is null || scrollViewer.Content is not Control content)
+        {
+            return;
+        }
+
+        try
+        {
+            var transform = targetControl.TransformToVisual(content);
+            if (!transform.HasValue)
+            {
+                return;
+            }
+
+            var position = transform.Value.Transform(new Point(0, 0));
+            var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+            StartAnimation(Math.Clamp(position.Y, 0, maxScrollY));
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    /// <summary>
     /// Animates the scroll viewer so the section top aligns with the viewport top.
     /// </summary>
     /// <param name="key">The section identifier.</param>
     public void ScrollToSection(TKey key)
     {
         var targetControl = FindControl(key);
-        if (targetControl is null || scrollViewer.Content is not Control content)
+        if (targetControl is not null)
         {
-            return;
+            ScrollToControl(targetControl);
         }
-
-        var transform = targetControl.TransformToVisual(content);
-        if (!transform.HasValue)
-        {
-            return;
-        }
-
-        var position = transform.Value.Transform(new Point(0, 0));
-        var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
-        StartAnimation(Math.Clamp(position.Y, 0, maxScrollY));
     }
 
     /// <inheritdoc/>
@@ -104,7 +122,17 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
 
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
-        if (IsScrollingProgrammatically || _sections.Count == 0)
+        if (IsScrollingProgrammatically)
+        {
+            return;
+        }
+
+        UpdateActiveSection();
+    }
+
+    private void UpdateActiveSection()
+    {
+        if (_sections.Count == 0)
         {
             return;
         }
@@ -197,6 +225,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         {
             scrollViewer.Offset = new Vector(scrollViewer.Offset.X, targetY);
             IsScrollingProgrammatically = false;
+            UpdateActiveSection();
             return;
         }
 
@@ -236,7 +265,16 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         if (progress >= 1.0)
         {
             StopAnimationTimer();
-            Dispatcher.UIThread.Post(() => IsScrollingProgrammatically = false, DispatcherPriority.Normal);
+            Dispatcher.UIThread.Post(
+                () =>
+                {
+                    if (!_disposed)
+                    {
+                        IsScrollingProgrammatically = false;
+                        UpdateActiveSection();
+                    }
+                },
+                DispatcherPriority.Normal);
         }
     }
 

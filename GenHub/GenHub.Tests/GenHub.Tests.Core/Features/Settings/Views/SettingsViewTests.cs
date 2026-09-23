@@ -71,6 +71,47 @@ public class SettingsViewTests
     }
 
     /// <summary>
+    /// Verifies that expanding a collapsed section directly scrolls it fully into view
+    /// the same way selecting it from the sidebar does.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ExpandingCollapsedSection_ScrollsItFullyIntoViewAsync()
+    {
+        using var viewModel = CreateViewModel();
+        var view = new SettingsView { DataContext = viewModel };
+        var window = new Window { Width = 1100, Height = 700, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var expander = view.FindControl<Expander>("Expander_Updates");
+            var scrollViewer = view.FindControl<ScrollViewer>("SettingsScrollViewer");
+            Assert.NotNull(expander);
+            Assert.NotNull(scrollViewer);
+            Assert.False(expander.IsExpanded);
+
+            expander.IsExpanded = true;
+
+            await WaitForScrollToSettleAsync(scrollViewer, expander);
+
+            Assert.True(expander.IsExpanded);
+            var content = Assert.IsAssignableFrom<Control>(scrollViewer.Content);
+            var transform = expander.TransformToVisual(content);
+            Assert.True(transform.HasValue);
+            var position = transform.Value.Transform(new Point(0, 0));
+            var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+            var expected = Math.Clamp(position.Y, 0, maxScrollY);
+            Assert.InRange(scrollViewer.Offset.Y, expected - 2, expected + 2);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// Polls the dispatcher until the scroll offset converges on the expanded section target
     /// and holds there, instead of sleeping a fixed delay that can race slow CI agents.
     /// </summary>

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.Controls;
@@ -13,33 +14,36 @@ using System.Linq;
 namespace GenHub.Features.Settings.Views;
 
 /// <summary>
-/// Represents the view for application settings in the GenHub application.
+/// Interaction logic for SettingsView.axaml.
+/// Coordinates bidirectional synchronization between the sidebar section list
+/// and the scrollable settings content via <see cref="SectionScrollSpy{TKey}"/>.
 /// </summary>
 public partial class SettingsView : UserControl
 {
-    // Sidebar sections in visual order. Cloud Uploads is intentionally omitted because
-    // it has content but no sidebar entry to highlight.
-    private static readonly string[] SectionIdsInVisualOrder =
+    private static readonly (string SectionId, string ExpanderName)[] SectionExpanderMap =
     [
-        SettingsConstants.SectionGameConfig,
-        SettingsConstants.SectionDownloads,
-        SettingsConstants.SectionAppearance,
-        SettingsConstants.SectionDataDirectories,
-        SettingsConstants.SectionMigrateInstallation,
-        SettingsConstants.SectionLogs,
-        SettingsConstants.SectionPerformance,
-        SettingsConstants.SectionCas,
-        SettingsConstants.SectionLocalContent,
-        SettingsConstants.SectionGitHubDiscovery,
-        SettingsConstants.SectionUpdates,
-        SettingsConstants.SectionSubscriptions,
-        SettingsConstants.SectionDangerZone,
+        (SettingsConstants.SectionGameConfig, "Expander_GameConfig"),
+        (SettingsConstants.SectionDownloads, "Expander_Downloads"),
+        (SettingsConstants.SectionAppearance, "Expander_Appearance"),
+        (SettingsConstants.SectionDataDirectories, "Expander_DataDirectories"),
+        (SettingsConstants.SectionMigrateInstallation, "Expander_MigrateInstallation"),
+        (SettingsConstants.SectionLogs, "Expander_Logs"),
+        (SettingsConstants.SectionPerformance, "Expander_Performance"),
+        (SettingsConstants.SectionCas, "Expander_Cas"),
+        (SettingsConstants.SectionLocalContent, "Expander_LocalContent"),
+        (SettingsConstants.SectionGitHubDiscovery, "Expander_GitHubDiscovery"),
+        (SettingsConstants.SectionUpdates, "Expander_Updates"),
+        (SettingsConstants.SectionSubscriptions, "Expander_Subscriptions"),
+        (SettingsConstants.SectionCloudUploads, SettingsConstants.ExpanderCloudUploads),
+        (SettingsConstants.SectionDangerZone, "Expander_DangerZone"),
     ];
 
     private SettingsViewModel? _boundViewModel;
     private SectionScrollSpy<string>? _scrollSpy;
     private bool _syncingSelectionFromScroll;
     private bool _deferredScrollPending;
+    private bool _isNavigatingToSection;
+    private Expander? _pendingLayoutExpander;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsView"/> class.
@@ -50,6 +54,7 @@ public partial class SettingsView : UserControl
 
         // Handle pointer press to unfocus text boxes when clicking elsewhere
         AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(Expander.ExpandedEvent, OnExpanderExpanded);
     }
 
     /// <summary>
@@ -94,6 +99,7 @@ public partial class SettingsView : UserControl
         _scrollSpy?.Dispose();
         _scrollSpy = null;
         _deferredScrollPending = false;
+        _pendingLayoutExpander = null;
         UnhookViewModel();
         if (DataContext is SettingsViewModel vm)
         {
@@ -102,14 +108,12 @@ public partial class SettingsView : UserControl
         }
     }
 
-    /// <summary>
-    /// Called when the DataContext changes.
-    /// </summary>
-    /// <param name="e">The event arguments.</param>
+    /// <inheritdoc/>
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
         UnhookViewModel();
+
         if (DataContext is SettingsViewModel vm)
         {
             // Sync visibility state with current visual tree state
@@ -118,25 +122,47 @@ public partial class SettingsView : UserControl
         }
     }
 
-    private static string? GetExpanderName(string sectionId)
+    private static string? MapExpanderToSectionId(string expanderName)
     {
-        return sectionId switch
+        return expanderName switch
         {
-            SettingsConstants.SectionGameConfig => "Expander_GameConfig",
-            SettingsConstants.SectionDownloads => "Expander_Downloads",
-            SettingsConstants.SectionAppearance => "Expander_Appearance",
-            SettingsConstants.SectionDataDirectories => "Expander_DataDirectories",
-            SettingsConstants.SectionMigrateInstallation => "Expander_MigrateInstallation",
-            SettingsConstants.SectionLogs => "Expander_Logs",
-            SettingsConstants.SectionPerformance => "Expander_Performance",
-            SettingsConstants.SectionCas => "Expander_Cas",
-            SettingsConstants.SectionLocalContent => "Expander_LocalContent",
-            SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
-            SettingsConstants.SectionUpdates => "Expander_Updates",
-            SettingsConstants.SectionSubscriptions => "Expander_Subscriptions",
-            SettingsConstants.SectionCloudUploads => SettingsConstants.ExpanderCloudUploads,
-            SettingsConstants.SectionDangerZone => "Expander_DangerZone",
+            "Expander_GameConfig" => SettingsConstants.SectionGameConfig,
+            "Expander_Downloads" => SettingsConstants.SectionDownloads,
+            "Expander_Appearance" => SettingsConstants.SectionAppearance,
+            "Expander_DataDirectories" => SettingsConstants.SectionDataDirectories,
+            "Expander_MigrateInstallation" => SettingsConstants.SectionMigrateInstallation,
+            "Expander_Logs" => SettingsConstants.SectionLogs,
+            "Expander_Performance" => SettingsConstants.SectionPerformance,
+            "Expander_Cas" => SettingsConstants.SectionCas,
+            "Expander_LocalContent" => SettingsConstants.SectionLocalContent,
+            "Expander_GitHubDiscovery" => SettingsConstants.SectionGitHubDiscovery,
+            "Expander_Updates" => SettingsConstants.SectionUpdates,
+            "Expander_Subscriptions" => SettingsConstants.SectionSubscriptions,
+            SettingsConstants.ExpanderCloudUploads => SettingsConstants.SectionCloudUploads,
+            "Expander_DangerZone" => SettingsConstants.SectionDangerZone,
             _ => null,
+        };
+    }
+
+    private static bool IsSectionExpander(Expander expander)
+    {
+        return expander.Name switch
+        {
+            "Expander_GameConfig" or
+            "Expander_Downloads" or
+            "Expander_Appearance" or
+            "Expander_DataDirectories" or
+            "Expander_MigrateInstallation" or
+            "Expander_Logs" or
+            "Expander_Performance" or
+            "Expander_Cas" or
+            "Expander_LocalContent" or
+            "Expander_GitHubDiscovery" or
+            "Expander_Updates" or
+            "Expander_Subscriptions" or
+            SettingsConstants.ExpanderCloudUploads or
+            "Expander_DangerZone" => true,
+            _ => false,
         };
     }
 
@@ -154,7 +180,7 @@ public partial class SettingsView : UserControl
 
     private void UnhookViewModel()
     {
-        if (_boundViewModel != null)
+        if (_boundViewModel is not null)
         {
             _boundViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _boundViewModel = null;
@@ -182,11 +208,12 @@ public partial class SettingsView : UserControl
             return;
         }
 
-        var spy = new SectionScrollSpy<string>(scrollViewer, OnSpySectionActivated);
-        foreach (var sectionId in SectionIdsInVisualOrder)
+        var spy = new SectionScrollSpy<string>(scrollViewer, OnActiveSectionChangedFromScroll);
+
+        foreach (var (sectionId, expanderName) in SectionExpanderMap)
         {
-            var expander = FindSectionExpander(sectionId);
-            if (expander != null)
+            var expander = this.FindControl<Expander>(expanderName);
+            if (expander is not null)
             {
                 spy.RegisterSection(sectionId, expander);
             }
@@ -196,15 +223,9 @@ public partial class SettingsView : UserControl
         _scrollSpy = spy;
     }
 
-    private Expander? FindSectionExpander(string sectionId)
+    private void OnActiveSectionChangedFromScroll(string sectionId)
     {
-        var expanderName = GetExpanderName(sectionId);
-        return expanderName is null ? null : this.FindControl<Expander>(expanderName);
-    }
-
-    private void OnSpySectionActivated(string sectionId)
-    {
-        if (_deferredScrollPending || _boundViewModel is null)
+        if (_deferredScrollPending || _isNavigatingToSection || _boundViewModel is null)
         {
             return;
         }
@@ -226,6 +247,19 @@ public partial class SettingsView : UserControl
         }
     }
 
+    private void OnExpanderExpanded(object? sender, RoutedEventArgs e)
+    {
+        if (_isNavigatingToSection)
+        {
+            return;
+        }
+
+        if (e.Source is Expander expander && IsSectionExpander(expander))
+        {
+            ScrollToExpander(expander, wasAlreadyExpanded: false);
+        }
+    }
+
     private void ScrollToSection(SettingsSectionItem? section)
     {
         if (section is null)
@@ -234,42 +268,75 @@ public partial class SettingsView : UserControl
         }
 
         var expander = FindSectionExpander(section.Id);
-        if (expander is null || _scrollSpy is null)
+        if (expander is null)
         {
             return;
         }
 
         var wasExpanded = expander.IsExpanded;
-        expander.IsExpanded = true;
-        if (wasExpanded && expander.IsMeasureValid)
+        _isNavigatingToSection = true;
+        try
         {
-            _scrollSpy.ScrollToSection(section.Id);
+            ScrollToExpander(expander, wasExpanded);
+        }
+        finally
+        {
+            _isNavigatingToSection = false;
+        }
+    }
+
+    private void ScrollToExpander(Expander expander, bool wasAlreadyExpanded)
+    {
+        if (_scrollSpy is null)
+        {
+            return;
+        }
+
+        expander.IsExpanded = true;
+        if (wasAlreadyExpanded && expander.IsMeasureValid)
+        {
+            _scrollSpy.ScrollToControl(expander);
             return;
         }
 
         // Expanding changes the scrollable extent, so scrolling synchronously would clamp
         // against stale measurements and leave bottom sections only partly visible.
-        ScrollAfterLayout(expander, section.Id);
+        ScrollAfterLayout(expander);
     }
 
-    private void ScrollAfterLayout(Expander expander, string sectionId)
+    private void ScrollAfterLayout(Expander expander)
     {
         _deferredScrollPending = true;
+        _pendingLayoutExpander = expander;
         var spy = _scrollSpy;
         EventHandler? onLayoutUpdated = null;
         onLayoutUpdated = (_, _) =>
         {
             expander.LayoutUpdated -= onLayoutUpdated;
-            if (ReferenceEquals(_scrollSpy, spy))
+            if (ReferenceEquals(_scrollSpy, spy) && ReferenceEquals(_pendingLayoutExpander, expander))
             {
+                _pendingLayoutExpander = null;
                 _deferredScrollPending = false;
-                spy?.ScrollToSection(sectionId);
+                spy?.ScrollToControl(expander);
             }
         };
         expander.LayoutUpdated += onLayoutUpdated;
     }
 
-    private void OnPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    private Expander? FindSectionExpander(string sectionId)
+    {
+        foreach (var (mapSectionId, expanderName) in SectionExpanderMap)
+        {
+            if (string.Equals(mapSectionId, sectionId, StringComparison.OrdinalIgnoreCase))
+            {
+                return this.FindControl<Expander>(expanderName);
+            }
+        }
+
+        return null;
+    }
+
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         // If clicking outside of a TextBox, clear focus from any focused TextBox
         if (e.Source is not TextBox)
@@ -285,9 +352,6 @@ public partial class SettingsView : UserControl
         // This method exists for potential future enhancements
     }
 
-    /// <summary>
-    /// Loads and initializes the XAML components for this view.
-    /// </summary>
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
