@@ -375,11 +375,18 @@ def fallback_line_merge(ancestor_path, current_path, other_path):
         f'git_merge_resx: fell back to a line merge for {current_path}; '
         'review the result manually\n'
     )
-    if proc.returncode == 0:
-        return EXIT_OK
+    if proc.returncode < 0 or proc.returncode > 127:
+        return EXIT_ERROR
     if proc.returncode > 0:
         return EXIT_CONFLICT
-    return EXIT_ERROR
+    try:
+        element_tree.parse(current_path)
+    except element_tree.ParseError as exc:
+        sys.stderr.write(
+            f'git_merge_resx: line merge produced invalid XML for {current_path}: {exc}\n'
+        )
+        return EXIT_CONFLICT
+    return EXIT_OK
 
 
 def merge_files(ancestor_path, current_path, other_path):
@@ -437,7 +444,7 @@ _TEST_FOOTER = [TEST_ROOT_CLOSE]
 
 
 def _block(key, value, comment=None):
-    lines = [f'  <data name="{key}" xml:space="preserve">',
+    lines = [f'  <data name="{key}" xml:space=\"preserve\">',
              f'    <value>{value}</value>']
     if comment is not None:
         lines.append(f'    <comment>{comment}</comment>')
@@ -616,7 +623,7 @@ def _get_self_test_cases(a):
 
 def _run_header_merge_test():
     header_base = list(_TEST_HEADER)
-    header_cur = [\
+    header_cur = [
         TEST_XML_DECL,
         TEST_ROOT_OPEN,
         '  <!-- touched by current -->',
@@ -624,7 +631,7 @@ def _run_header_merge_test():
         TEST_RESHEADER_VALUE,
         TEST_RESHEADER_CLOSE,
     ]
-    header_oth = [\
+    header_oth = [
         TEST_XML_DECL,
         TEST_ROOT_OPEN,
         '  <!-- touched by other -->',
