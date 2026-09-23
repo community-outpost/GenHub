@@ -13,6 +13,13 @@ namespace GenHub.Tests.Core.Common.Controls;
 /// </summary>
 public class SectionScrollSpyTests
 {
+    private sealed record ScrollSpyHost(
+        Window Window,
+        ScrollViewer ScrollViewer,
+        Control First,
+        Control Second,
+        Control Third);
+
     /// <summary>
     /// Verifies that scrolling reports the last section whose top is above the visibility threshold.
     /// </summary>
@@ -232,11 +239,4 @@ public class SectionScrollSpyTests
         spy.Attach();
         return spy;
     }
-
-    private sealed record ScrollSpyHost(
-        Window Window,
-        ScrollViewer ScrollViewer,
-        Control First,
-        Control Second,
-        Control Third);
 }

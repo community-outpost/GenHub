@@ -85,6 +85,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         }
         catch (InvalidOperationException)
         {
+            // Visual target is detached from visual tree; ignore transform calculation.
         }
     }
 
@@ -275,6 +276,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             }
             catch (InvalidOperationException)
             {
+                // Visual target is detached during animation; retain current target offset.
             }
         }
 
