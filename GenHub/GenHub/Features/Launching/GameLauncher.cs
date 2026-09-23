@@ -193,7 +193,7 @@ public class GameLauncher(
                     File.Delete(mapCachePath);
                     logger?.LogInformation("[GameLauncher] Removed corrupted MapCache.ini; game engine will regenerate a clean cache.");
                 }
-                catch (Exception delEx)
+                catch (Exception delEx) when (delEx is IOException or UnauthorizedAccessException)
                 {
                     logger?.LogWarning(delEx, "[GameLauncher] Failed to delete corrupted MapCache.ini at {MapCachePath}, attempting truncation fallback", mapCachePath);
                     try
@@ -201,7 +201,7 @@ public class GameLauncher(
                         File.WriteAllText(mapCachePath, string.Empty);
                         logger?.LogInformation("[GameLauncher] Truncated corrupted MapCache.ini to empty file.");
                     }
-                    catch (Exception truncEx)
+                    catch (Exception truncEx) when (truncEx is IOException or UnauthorizedAccessException)
                     {
                         logger?.LogError(truncEx, "[GameLauncher] Failed to truncate corrupted MapCache.ini at {MapCachePath}", mapCachePath);
                         return false;
@@ -211,7 +211,7 @@ public class GameLauncher(
                 return true;
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
             logger?.LogWarning(ex, "[GameLauncher] Failed to inspect or sanitize MapCache.ini at {MapCachePath}", mapCachePath);
         }
@@ -1839,7 +1839,7 @@ public class GameLauncher(
             var mapCachePath = Path.Combine(userDataDir, "Maps", "MapCache.ini");
             TrySanitizeMapCacheFile(mapCachePath, logger);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             logger.LogDebug(ex, "[GameLauncher] Failed to resolve MapCache.ini path for {GameType}", gameType);
         }
