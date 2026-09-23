@@ -212,57 +212,15 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return OperationResult<string>.CreateSuccess(cachedIni.Crc);
         }
 
-        Task<OperationResult<string>> inFlightTask;
-        lock (InFlightCalculations)
-        {
-            if (InFlightCalculations.TryGetValue(cacheKey, out var existingTask) && existingTask != null)
-            {
-                inFlightTask = existingTask;
-            }
-            else
-            {
-                var task = Task.Run(
-                    () =>
-                    {
-                        ct.ThrowIfCancellationRequested();
-
-                        bool isZeroHour = gameType == GameType.ZeroHour;
-                        var vfs = new SageVirtualFileSystem(gameRootPath, isZeroHour, _logger, cancellationToken: ct);
-                        var crc = new XferChecksum();
-
-                        var order = isZeroHour
-                            ? SageChecksumConstants.GeneralsMdOrder
-                            : BuildGeneralsOrder();
-
-                        // Phase 1: Load GameData before sideloads/mods are mounted
-                        LoadOrderStep(order[0], vfs, crc);
-
-                        // Phase 2: Mount Sideloads and Mods
-                        MountSideloadsAndMods(vfs, sideloadPaths, modPath);
-
-                        // Phase 3: Load remaining categories
-                        for (int i = 1; i < order.Length; i++)
-                        {
-                            ct.ThrowIfCancellationRequested();
-                            LoadOrderStep(order[i], vfs, crc);
-                        }
-
-                        var calculated = $"0x{crc.Value:X8}";
-                        IniCrcCache[cacheKey] = (freshness.MaxTicks, freshness.TotalLength, freshness.FileCount, calculated);
-                        return OperationResult<string>.CreateSuccess(calculated);
-                    },
-                    ct);
-
-                _ = task.ContinueWith(
-                    _ => InFlightCalculations.TryRemove(cacheKey, out Task<OperationResult<string>>? _),
-                    CancellationToken.None,
-                    TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Default);
-
-                inFlightTask = task;
-                InFlightCalculations[cacheKey] = inFlightTask;
-            }
-        }
+        var inFlightTask = GetOrCreateInFlightTask(
+            cacheKey,
+            freshness,
+            gameRootPath,
+            gameType,
+            sideloadPaths,
+            modPath,
+            _logger,
+            ct);
 
         try
         {
@@ -530,6 +488,77 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         cached.MaxTicks == current.MaxTicks &&
         cached.TotalLength == current.TotalLength &&
         cached.FileCount == current.FileCount;
+
+    private static Task<OperationResult<string>> GetOrCreateInFlightTask(
+        string cacheKey,
+        (long MaxTicks, long TotalLength, int FileCount) freshness,
+        string gameRootPath,
+        GameType gameType,
+        IReadOnlyList<string>? sideloadPaths,
+        string? modPath,
+        ILogger? logger,
+        CancellationToken ct)
+    {
+        lock (InFlightCalculations)
+        {
+            if (InFlightCalculations.TryGetValue(cacheKey, out var existingTask) && existingTask != null)
+            {
+                return existingTask;
+            }
+
+            var task = Task.Run(
+                () =>
+                {
+                    var calculated = ComputeIniCrc(gameRootPath, gameType, sideloadPaths, modPath, logger, ct);
+                    IniCrcCache[cacheKey] = (freshness.MaxTicks, freshness.TotalLength, freshness.FileCount, calculated);
+                    return OperationResult<string>.CreateSuccess(calculated);
+                },
+                ct);
+
+            _ = task.ContinueWith(
+                _ => InFlightCalculations.TryRemove(cacheKey, out Task<OperationResult<string>>? _),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+
+            InFlightCalculations[cacheKey] = task;
+            return task;
+        }
+    }
+
+    private static string ComputeIniCrc(
+        string gameRootPath,
+        GameType gameType,
+        IReadOnlyList<string>? sideloadPaths,
+        string? modPath,
+        ILogger? logger,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        bool isZeroHour = gameType == GameType.ZeroHour;
+        var vfs = new SageVirtualFileSystem(gameRootPath, isZeroHour, logger, cancellationToken: ct);
+        var crc = new XferChecksum();
+
+        var order = isZeroHour
+            ? SageChecksumConstants.GeneralsMdOrder
+            : BuildGeneralsOrder();
+
+        // Phase 1: Load GameData before sideloads/mods are mounted
+        LoadOrderStep(order[0], vfs, crc);
+
+        // Phase 2: Mount Sideloads and Mods
+        MountSideloadsAndMods(vfs, sideloadPaths, modPath);
+
+        // Phase 3: Load remaining categories
+        for (int i = 1; i < order.Length; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            LoadOrderStep(order[i], vfs, crc);
+        }
+
+        return $"0x{crc.Value:X8}";
+    }
 
     private static void LoadOrderStep((string DefaultPath, string OverridePath) step, SageVirtualFileSystem vfs, XferChecksum crc)
     {
