@@ -279,8 +279,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
         logger.LogInformation("Generating fallback manifest for installation {Id}", gameInstallation.Id);
 
         // Determine the correct source path based on the game type
-        var manifestGameType = gameType;
-        var gamePath = manifestGameType == GameType.ZeroHour
+        var gamePath = gameType == GameType.ZeroHour
             ? gameInstallation.ZeroHourPath
             : gameInstallation.GeneralsPath;
         var sourcePath = string.IsNullOrEmpty(gamePath) ? gameInstallation.InstallationPath : gamePath;
@@ -288,10 +287,10 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
         var publisherName = gameInstallation.InstallationType.GetDisplayName();
 
         var builder = manifestBuilder
-            .WithBasicInfo(gameInstallation.InstallationType, manifestGameType, manifestVersion)
-            .WithContentType(ContentType.GameInstallation, manifestGameType)
+            .WithBasicInfo(gameInstallation.InstallationType, gameType, manifestVersion)
+            .WithContentType(ContentType.GameInstallation, gameType)
             .WithPublisher(publisherName, string.Empty)
-            .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
+            .WithMetadata($"Generated manifest for {gameType} at {sourcePath}")
             .AddRequiredDirectories("Data", "Maps")
             .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
@@ -310,7 +309,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
         // For now: Manifest files will have Hash=null for GameInstallation source type
         if (!string.IsNullOrEmpty(sourcePath) && Directory.Exists(sourcePath))
         {
-            await builder.AddFilesFromDirectoryAsync(sourcePath, cancellationToken, ContentSourceType.GameInstallation);
+            await builder.AddFilesFromDirectoryAsync(sourcePath, ContentSourceType.GameInstallation, cancellationToken: cancellationToken);
         }
 
         var generated = builder.Build();

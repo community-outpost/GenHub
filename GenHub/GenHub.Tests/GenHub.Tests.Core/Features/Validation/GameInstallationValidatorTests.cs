@@ -1048,9 +1048,10 @@ public class GameInstallationValidatorTests
 
             Assert.Single(result.Issues, i => i.Message == issue.Message);
             _contentValidatorMock.Verify(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()), Times.Never);
-            _contentValidatorMock.Verify(c => c.ValidateAllAsync(directory.FullName, manifest, null, It.IsAny<CancellationToken>()), Times.Once);
+            _contentValidatorMock.Verify(c => c.ValidateAllAsync(directory.FullName, manifest, It.IsNotNull<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
             Assert.NotEmpty(progress.GetReports());
-            Assert.All(progress.GetReports(), report => Assert.Equal(4, report.Total));
+            Assert.All(progress.GetReports(), report => Assert.Equal(100, report.Total));
+            Assert.Contains(progress.GetReports(), report => report.Processed == 50 && report.CurrentFile == "Nested");
         }
         finally
         {
@@ -1114,8 +1115,8 @@ public class GameInstallationValidatorTests
             var progress = new SynchronousProgress<ValidationProgress>();
             var result = await _validator.ValidateAsync(installation, progress, default);
             var reports = progress.GetReports();
-            Assert.All(reports, report => Assert.Equal(8, report.Total));
-            Assert.Equal(new[] { 1, 3, 4, 5, 7, 8 }, reports.Select(report => report.Processed));
+            Assert.All(reports, report => Assert.Equal(200, report.Total));
+            Assert.Equal(new[] { 0, 25, 100, 100, 125, 200 }, reports.Select(report => report.Processed));
 
             Assert.True(result.IsValid);
             _manifestProviderMock.Verify(

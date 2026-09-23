@@ -81,7 +81,16 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var (installation, accessDenied) = InspectRoot(root, cancellationToken);
+                var (installation, accessDenied) = InspectRoot(
+                    root,
+                    cancellationToken,
+                    allowFlatRoot: string.Equals(
+                    root,
+                    Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                        GameClientConstants.NativeDeployParentDirectoryName,
+                        GameClientConstants.NativeDeployZeroHourDirectoryName),
+                    StringComparison.Ordinal));
 
                 if (accessDenied)
                 {
@@ -161,16 +170,17 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     /// </summary>
     /// <param name="root">Directory to inspect.</param>
     /// <param name="cancellationToken">Cancellation for this root and its child scan.</param>
+    /// <param name="allowFlatRoot">Whether this is an explicitly designated flat deployment root.</param>
     /// <returns>
     /// The installation found under <paramref name="root"/>, or null, and whether access
     /// was denied.
     /// </returns>
     /// <remarks>
     /// Named child installations take precedence over loose archives at a scan root.
-    /// When no valid child is found, archive classification also supports flat native
+    /// For an explicitly designated root, archive classification also supports flat native
     /// deployments whose directory names do not match a retail layout.
     /// </remarks>
-    internal static (GameInstallation? Installation, bool AccessDenied) InspectRoot(string root, CancellationToken cancellationToken = default)
+    internal static (GameInstallation? Installation, bool AccessDenied) InspectRoot(string root, CancellationToken cancellationToken = default, bool allowFlatRoot = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         string? generalsPath = null;
@@ -179,7 +189,7 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
         try
         {
             (generalsPath, zeroHourPath) = FindGameDirectories(root, cancellationToken);
-            if (generalsPath is null && zeroHourPath is null)
+            if (allowFlatRoot && generalsPath is null && zeroHourPath is null)
             {
                 var rootClassification = RetailArchiveClassifier.ClassifyArchives(root);
 
@@ -339,14 +349,14 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             var directoryName = Path.GetFileName(directory);
             if (generalsPath is null &&
                 GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)
-                && RetailArchiveClassifier.ClassifyArchives(directory).HasGeneralsArchives)
+                && RetailArchiveClassifier.ClassifyArchivesSafely(directory).HasGeneralsArchives)
             {
                 generalsPath = directory;
             }
 
             if (zeroHourPath is null &&
                 ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)
-                && RetailArchiveClassifier.ClassifyArchives(directory).HasZeroHourArchives)
+                && RetailArchiveClassifier.ClassifyArchivesSafely(directory).HasZeroHourArchives)
             {
                 zeroHourPath = directory;
             }

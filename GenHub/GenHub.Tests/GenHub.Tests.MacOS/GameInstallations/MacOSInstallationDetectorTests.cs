@@ -10,6 +10,82 @@ namespace GenHub.Tests.MacOS.GameInstallations;
 /// </summary>
 public class MacOSInstallationDetectorTests
 {
+    /// <summary>An unreadable child does not hide a readable sibling or report root denial.</summary>
+    [Fact]
+    public void InspectRoot_UnreadableChild_PreservesReadableSibling()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        var denied = Directory.CreateDirectory(Path.Combine(root, GameClientConstants.GeneralsDirectoryName)).FullName;
+        var mode = File.GetUnixFileMode(denied);
+        try
+        {
+            var readable = Directory.CreateDirectory(Path.Combine(root, GameClientConstants.ZeroHourDirectoryName)).FullName;
+            File.WriteAllText(Path.Combine(readable, "INIZH.big"), "archive");
+            File.SetUnixFileMode(denied, UnixFileMode.None);
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.False(accessDenied);
+            Assert.NotNull(installation);
+            Assert.True(installation.HasZeroHour);
+            Assert.False(installation.HasGenerals);
+        }
+        finally
+        {
+            File.SetUnixFileMode(denied, mode);
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>An unreadable search root remains a retryable incomplete scan.</summary>
+    [Fact]
+    public void InspectRoot_UnreadableRoot_ReportsAccessDenied()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        var mode = File.GetUnixFileMode(root);
+        try
+        {
+            File.SetUnixFileMode(root, UnixFileMode.None);
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.Null(installation);
+            Assert.True(accessDenied);
+        }
+        finally
+        {
+            File.SetUnixFileMode(root, mode);
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>Loose retail or mod archives do not turn a generic search root into an installation.</summary>
+    /// <param name="archive">A plausible archive downloaded into a generic folder.</param>
+    [Theory]
+    [InlineData("INI.big")]
+    [InlineData("SomeModZH.big")]
+    public void InspectRoot_GenericRootWithLooseArchive_FindsNothing(string archive)
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, archive), "archive");
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.Null(installation);
+            Assert.False(accessDenied);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     /// <summary>A cancelled root scan stops before enumerating the filesystem.</summary>
     [Fact]
     public void InspectRoot_Cancelled_ThrowsBeforeFilesystemAccess()
@@ -106,7 +182,7 @@ public class MacOSInstallationDetectorTests
             File.WriteAllText(Path.Combine(root, "INI.big"), "archive");
             File.WriteAllText(Path.Combine(root, "INIZH.big"), "archive");
 
-            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root, allowFlatRoot: true);
 
             Assert.False(accessDenied);
             Assert.NotNull(installation);
@@ -132,7 +208,7 @@ public class MacOSInstallationDetectorTests
         {
             File.WriteAllText(Path.Combine(root, "INIZH.big"), "archive");
 
-            var (installation, _) = MacOSInstallationDetector.InspectRoot(root);
+            var (installation, _) = MacOSInstallationDetector.InspectRoot(root, allowFlatRoot: true);
 
             Assert.NotNull(installation);
             Assert.True(installation.HasZeroHour);
@@ -207,7 +283,7 @@ public class MacOSInstallationDetectorTests
         {
             File.WriteAllText(Path.Combine(root, "somemod.big"), "archive");
 
-            var (installation, _) = MacOSInstallationDetector.InspectRoot(root);
+            var (installation, _) = MacOSInstallationDetector.InspectRoot(root, allowFlatRoot: true);
 
             Assert.Null(installation);
         }

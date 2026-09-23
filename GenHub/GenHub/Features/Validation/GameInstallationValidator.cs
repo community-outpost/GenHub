@@ -40,6 +40,9 @@ public class GameInstallationValidator(
     : FileSystemValidator(logger, hashProvider),
       IGameInstallationValidator, IValidator<GameInstallation>
 {
+    private const int ProgressUnitsPerTarget = 100;
+    private const int HashingStartUnits = 25;
+
     private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
     private readonly IContentProvider? _resolvedCsvProvider = csvContentProvider ??
         contentProviders?.OfType<CsvContentProvider>().FirstOrDefault() ??
@@ -240,7 +243,7 @@ public class GameInstallationValidator(
             gameType,
             normalizedLanguage);
 
-        progress?.Report(new ValidationProgress((targetIndex * 4) + 1, targetCount * 4, "Resolving manifest"));
+        progress?.Report(new ValidationProgress(targetIndex * ProgressUnitsPerTarget, targetCount * ProgressUnitsPerTarget, "Resolving manifest"));
 
         ContentManifest? manifest = null;
         var csvIssues = new List<ValidationIssue>();
@@ -276,19 +279,19 @@ public class GameInstallationValidator(
                 });
             }
 
-            progress?.Report(new ValidationProgress((targetIndex * 4) + 4, targetCount * 4, "Validation complete"));
+            progress?.Report(new ValidationProgress((targetIndex + 1) * ProgressUnitsPerTarget, targetCount * ProgressUnitsPerTarget, "Validation complete"));
             stopwatch.Stop();
             return new ValidationResult(installationPath, issues, stopwatch.Elapsed, 0);
         }
 
-        progress?.Report(new ValidationProgress((targetIndex * 4) + 3, targetCount * 4, "Validating content files"));
+        progress?.Report(new ValidationProgress((targetIndex * ProgressUnitsPerTarget) + HashingStartUnits, targetCount * ProgressUnitsPerTarget, "Validating content files"));
         int totalFiles = 0;
         try
         {
             var fullValidation = await contentValidator.ValidateAllAsync(
                 installationPath,
                 manifest,
-                null,
+                progress is null ? null : new TargetValidationProgress(progress, targetIndex, targetCount),
                 cancellationToken);
             var contentIssues = installation?.IsCombinedDirectory == true
                 ? fullValidation.Issues.Where(issue => !IsSiblingGameRootArchive(issue, gameType))
@@ -322,7 +325,7 @@ public class GameInstallationValidator(
             issues.AddRange(dirIssues);
         }
 
-        progress?.Report(new ValidationProgress((targetIndex * 4) + 4, targetCount * 4, "Validation complete"));
+        progress?.Report(new ValidationProgress((targetIndex + 1) * ProgressUnitsPerTarget, targetCount * ProgressUnitsPerTarget, "Validation complete"));
 
         stopwatch.Stop();
         return new ValidationResult(installationPath, issues, stopwatch.Elapsed, totalFiles);
@@ -457,6 +460,19 @@ public class GameInstallationValidator(
                 installationPath,
                 $"Validation catalog unavailable for {gameType} ({language}): {ex.Message}");
             return null;
+        }
+    }
+
+    /// <summary>Maps file-level reports into the current target's share of overall validation.</summary>
+    private sealed class TargetValidationProgress(IProgress<ValidationProgress> progress, int targetIndex, int targetCount) : IProgress<ValidationProgress>
+    {
+        /// <inheritdoc/>
+        public void Report(ValidationProgress value)
+        {
+            var fraction = value.Total > 0 ? Math.Clamp((double)value.Processed / value.Total, 0, 1) : 0;
+            var processed = (targetIndex * ProgressUnitsPerTarget) + HashingStartUnits
+                + (int)(fraction * (ProgressUnitsPerTarget - HashingStartUnits));
+            progress.Report(new ValidationProgress(processed, targetCount * ProgressUnitsPerTarget, value.CurrentFile));
         }
     }
 }

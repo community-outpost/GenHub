@@ -565,17 +565,6 @@ public partial class ContentManifestBuilder(
         return this;
     }
 
-    /// <inheritdoc/>
-    public Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
-        string sourceDirectory,
-        CancellationToken cancellationToken,
-        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
-        string fileFilter = "*",
-        bool isExecutable = false)
-    {
-        return AddFilesFromDirectoryAsync(sourceDirectory, sourceType, fileFilter, isExecutable, progress: null, cancellationToken: cancellationToken);
-    }
-
     /// <summary>
     /// Adds a local file from the filesystem.
     /// </summary>

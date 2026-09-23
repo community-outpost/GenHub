@@ -94,7 +94,7 @@ public static class RetailArchiveConstants
         "audio.big",
         "audioenglish.big",
         "english.big",
-        "gensec.big",
+        GameClientConstants.GeneralsSecurityBig,
         GameClientConstants.GeneralsIniBig,
         "maps.big",
         GameClientConstants.GeneralsPatchBig,

@@ -347,7 +347,7 @@ public class ContentManifestBuilderTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            _builder.AddFilesFromDirectoryAsync("invalid\0directory", cancellation.Token, ContentSourceType.GameInstallation));
+            _builder.AddFilesFromDirectoryAsync("invalid\0directory", ContentSourceType.GameInstallation, cancellationToken: cancellation.Token));
     }
 
     /// <summary>Cancellation reaches hashing and prevents the remaining files from being scanned.</summary>
@@ -369,7 +369,7 @@ public class ContentManifestBuilderTests
                     Assert.True(token.IsCancellationRequested);
                     return Task.FromCanceled<string>(token);
                 });
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _builder.AddFilesFromDirectoryAsync(directory, cancellation.Token));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _builder.AddFilesFromDirectoryAsync(directory, cancellationToken: cancellation.Token));
             _hashProviderMock.Verify(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.Is<CancellationToken>(token => token.IsCancellationRequested)), Times.AtLeastOnce);
         }
         finally
