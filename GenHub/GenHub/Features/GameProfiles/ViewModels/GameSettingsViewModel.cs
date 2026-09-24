@@ -1478,6 +1478,11 @@ public partial class GameSettingsViewModel(
 
     partial void OnSelectedResolutionPresetChanged(string? value)
     {
+        if (_initializationDepth > 0 || _isLoadingFromOptions)
+        {
+            return;
+        }
+
         if (!string.IsNullOrEmpty(value))
         {
             ApplyResolutionPreset(value);
