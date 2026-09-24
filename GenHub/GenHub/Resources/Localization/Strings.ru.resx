@@ -12614,6 +12614,33 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.WndEditor.Import.SuccessMessage" xml:space="preserve">
     <value>Импортировано текстур: {0} в {1}.</value>
   </data>
+  <data name="Tools.WndEditor.Assets.LibraryTitle" xml:space="preserve">
+    <value>Библиотека графики</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibrarySearchHint" xml:space="preserve">
+    <value>Поиск графики…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ApplyOne" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryEmpty" xml:space="preserve">
+    <value>Графика не найдена.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryTruncated" xml:space="preserve">
+    <value>Показано {0} из {1} — уточните поиск.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionTitle" xml:space="preserve">
+    <value>Окно не выбрано</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionMessage" xml:space="preserve">
+    <value>Выберите окно в дереве или на холсте, затем примените к нему графику.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessTitle" xml:space="preserve">
+    <value>Графика применена</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessMessage" xml:space="preserve">
+    <value>{0} применено к {1}.</value>
+  </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Изменить размер окна</value>
   </data>

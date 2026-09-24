@@ -110,6 +110,38 @@ public sealed class WndStringTableServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that Zero Hour mode never resolves labels from the Generals fallback root.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetStringsAsync_ZhMode_IgnoresGeneralsFallbackRoot()
+    {
+        // Arrange: the label exists only in the Generals fallback table.
+        var fallbackRoot = Path.Combine(Path.GetTempPath(), "GenHub_WndStringZhStrict_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(fallbackRoot, "Data", "english"));
+            var table = new CsfFile();
+            table.SetString("GUI:Accept", "Fallback");
+            table.Save(Path.Combine(fallbackRoot, "Data", "english", "Generals.csf"));
+
+            // Act
+            var result = await _service.GetStringsAsync(["GUI:Accept"], _gameRoot, fallbackRoot, null, null, true);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotContainKey("GUI:Accept");
+        }
+        finally
+        {
+            if (Directory.Exists(fallbackRoot))
+            {
+                Directory.Delete(fallbackRoot, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Tests that a missing game root fails gracefully.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

@@ -46,11 +46,9 @@ public sealed partial class WndEditorViewModel(
     IWndTextureImportService textureImportService,
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
-    private sealed record AssetRoots(string TargetGameRoot, string? FallbackBaseRoot, bool IsZeroHour)
+    private sealed record AssetRoots(string TargetGameRoot, bool IsZeroHour)
     {
         public string BaseRoot => TargetGameRoot;
-
-        public string? OverrideRoot => FallbackBaseRoot;
     }
 
     private const int MaxUndoHistory = 200;
@@ -361,6 +359,24 @@ public sealed partial class WndEditorViewModel(
     /// </summary>
     [ObservableProperty]
     private string _knownImagesStatusText = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the art library search filter.
+    /// </summary>
+    [ObservableProperty]
+    private string _libraryFilter = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the filtered art library rows shown in the Assets tab.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _filteredKnownImageNames = [];
+
+    /// <summary>
+    /// Gets or sets the art library truncation hint, or empty when everything fits.
+    /// </summary>
+    [ObservableProperty]
+    private string _libraryStatusText = string.Empty;
 
     /// <summary>
     /// Gets a value indicating whether undo is available.
@@ -1245,6 +1261,55 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
+    /// <summary>
+    /// Applies a mapped image to the selected window's enabled draw data.
+    /// </summary>
+    /// <param name="imageName">The mapped image name to apply.</param>
+    [RelayCommand]
+    private void ApplyImageToSelectedWindow(string? imageName)
+    {
+        if (string.IsNullOrWhiteSpace(imageName))
+        {
+            return;
+        }
+
+        var node = SelectedNode;
+        if (node == null)
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                NotificationDurations.Medium);
+            return;
+        }
+
+        var name = imageName.Trim();
+        var entries = WndDrawDataSet.TryParse(node.Window.GetProperty(WndConstants.PropertyKeys.EnabledDrawData), out var parsed) && parsed != null
+            ? parsed.Entries.ToList()
+            : [];
+        if (entries.Count == 0)
+        {
+            entries.Add(new WndDrawDataEntry(name, WndRgbaColor.White, WndRgbaColor.White));
+        }
+        else
+        {
+            var first = entries[0];
+            entries[0] = new WndDrawDataEntry(name, first.Color, first.BorderColor);
+        }
+
+        var updated = new WndDrawDataSet(entries).ToString();
+        if (string.Equals(node.Window.GetProperty(WndConstants.PropertyKeys.EnabledDrawData), updated, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        CommitPropertyEdit(node.Window, WndConstants.PropertyKeys.EnabledDrawData, updated);
+        notificationService.ShowSuccess(
+            localizationService.GetString("Tools.WndEditor.Apply.SuccessTitle"),
+            localizationService.GetString("Tools.WndEditor.Apply.SuccessMessage", name, node.DisplayName),
+            NotificationDurations.Medium);
+    }
+
     private string? ResolveImportProjectDirectory()
     {
         if (!string.IsNullOrWhiteSpace(LinkedModFolder))
@@ -1766,6 +1831,16 @@ public sealed partial class WndEditorViewModel(
     {
         SyncCanvasSelection();
         RebuildProperties();
+    }
+
+    partial void OnLibraryFilterChanged(string value)
+    {
+        RefreshLibrary();
+    }
+
+    partial void OnKnownImageNamesChanged(IReadOnlyList<string> value)
+    {
+        RefreshLibrary();
     }
 
     partial void OnWindowsFilterChanged(string value)
@@ -2375,125 +2450,19 @@ public sealed partial class WndEditorViewModel(
             if (!string.IsNullOrEmpty(installation.GeneralsPath)
                 && string.Equals(selection.Path, installation.GeneralsPath, StringComparison.OrdinalIgnoreCase))
             {
-                return new AssetRoots(installation.GeneralsPath, null, false);
+                return new AssetRoots(installation.GeneralsPath, false);
             }
         }
 
-        // If selection.Path is a Zero Hour folder without a matched installation, try finding Generals base
-        var fallbackGenerals = _installations.FirstOrDefault(i => !string.IsNullOrEmpty(i.GeneralsPath) && i.HasGenerals);
-        if (fallbackGenerals != null && !string.IsNullOrEmpty(fallbackGenerals.GeneralsPath)
-            && (selection.IsZeroHour || IsZeroHourPath(selection)))
-        {
-            return new AssetRoots(selection.Path, fallbackGenerals.GeneralsPath, true);
-        }
-
-        var siblingGenerals = FindSiblingGeneralsPath(selection.Path);
-        if (siblingGenerals != null && (selection.IsZeroHour || IsZeroHourPath(selection)))
-        {
-            return new AssetRoots(selection.Path, siblingGenerals, true);
-        }
-
-        return new AssetRoots(selection.Path, null, selection.IsZeroHour || IsZeroHourPath(selection));
+        return new AssetRoots(selection.Path, selection.IsZeroHour || IsZeroHourPath(selection));
     }
 
-    private AssetRoots ResolveZeroHourAssetRoots(GameInstallation installation)
+    private static AssetRoots ResolveZeroHourAssetRoots(GameInstallation installation)
     {
-        if (!string.IsNullOrEmpty(installation.GeneralsPath) && installation.HasGenerals)
-        {
-            return new AssetRoots(installation.ZeroHourPath, installation.GeneralsPath, true);
-        }
-
-        // If this installation does not directly link Generals (e.g. Steam standalone),
-        // search for ANY detected Generals installation across all installations
-        var anyGenerals = _installations.FirstOrDefault(i => !string.IsNullOrEmpty(i.GeneralsPath) && i.HasGenerals);
-        if (anyGenerals != null && !string.IsNullOrEmpty(anyGenerals.GeneralsPath))
-        {
-            return new AssetRoots(installation.ZeroHourPath, anyGenerals.GeneralsPath, true);
-        }
-
-        // Also check sibling directory (e.g. Steam: Command & Conquer Generals)
-        var siblingGenerals = FindSiblingGeneralsPath(installation.ZeroHourPath);
-        if (siblingGenerals != null)
-        {
-            return new AssetRoots(installation.ZeroHourPath, siblingGenerals, true);
-        }
-
-        return new AssetRoots(installation.ZeroHourPath, null, true);
-    }
-
-    private static bool ContainsFileMatching(string directory, string expectedFilename)
-    {
-        try
-        {
-            return Directory.EnumerateFiles(directory)
-                .Any(f => string.Equals(Path.GetFileName(f), expectedFilename, StringComparison.OrdinalIgnoreCase));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-            return false;
-        }
-    }
-
-    private static bool ContainsDirectoryMatching(string directory, string expectedDirName)
-    {
-        try
-        {
-            return Directory.EnumerateDirectories(directory)
-                .Any(d => string.Equals(Path.GetFileName(d), expectedDirName, StringComparison.OrdinalIgnoreCase));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-            return false;
-        }
-    }
-
-    private static bool IsValidGeneralsDirectory(string path, string zeroHourPath)
-    {
-        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path) || string.Equals(path, zeroHourPath, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var hasExecutableOrWindow = ContainsFileMatching(path, GameClientConstants.GeneralsExecutable)
-            || ContainsFileMatching(path, GameClientConstants.GeneralsWindowBig);
-
-        if (!hasExecutableOrWindow)
-        {
-            return false;
-        }
-
-        return ContainsDirectoryMatching(path, ModBuilderConstants.DataDirectoryName)
-            || ContainsFileMatching(path, GameClientConstants.GeneralsIniBig);
-    }
-
-    private static string? FindSiblingGeneralsPath(string zeroHourPath)
-    {
-        try
-        {
-            var parent = Directory.GetParent(zeroHourPath)?.FullName;
-            if (!string.IsNullOrEmpty(parent))
-            {
-                if (IsValidGeneralsDirectory(parent, zeroHourPath))
-                {
-                    return parent;
-                }
-
-                foreach (var candidate in GameClientConstants.GeneralsCandidateDirectoryNames)
-                {
-                    var sibling = Path.Combine(parent, candidate);
-                    if (IsValidGeneralsDirectory(sibling, zeroHourPath))
-                    {
-                        return sibling;
-                    }
-                }
-            }
-        }
-        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException or UnauthorizedAccessException)
-        {
-            // Fall back to ZeroHourPath
-        }
-
-        return null;
+        // Strict per-game isolation: a Zero Hour target resolves only the Zero Hour
+        // install (plus mod project and linked assets). Zero Hour never reads the
+        // Generals install folder, so no Generals fallback is attached.
+        return new AssetRoots(installation.ZeroHourPath, true);
     }
 
     private void RefreshItemPreview(WndCanvasItemViewModel item)
@@ -2902,15 +2871,15 @@ public sealed partial class WndEditorViewModel(
             _schemeOverrides = schemeOverrides;
             var names = CollectPreviewImageNames(document, _schemeOverrides);
             var labels = CollectPreviewLabels(document, _schemeOverrides);
-            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
-            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
+            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
+            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
             if ((!images.Success && !strings.Success) || generation != _previewGeneration)
             {
                 return;
             }
 
             // The asset index is already built above, so listing known names is cheap.
-            var known = await assetService.Images.GetKnownImageNamesAsync(roots.BaseRoot, roots.OverrideRoot, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
+            var known = await assetService.Images.GetKnownImageNamesAsync(roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
             if (generation != _previewGeneration)
             {
                 return;
@@ -3062,6 +3031,27 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
+    private void RefreshLibrary()
+    {
+        var filter = LibraryFilter.Trim();
+        var matches = string.IsNullOrEmpty(filter)
+            ? KnownImageNames
+            : KnownImageNames.Where(name => name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (matches.Count == 0)
+        {
+            FilteredKnownImageNames = [];
+            LibraryStatusText = KnownImageNames.Count == 0
+                ? string.Empty
+                : localizationService.GetString("Tools.WndEditor.Assets.LibraryEmpty");
+            return;
+        }
+
+        FilteredKnownImageNames = matches.Take(WndConstants.Editor.MaxLibraryResults).ToList();
+        LibraryStatusText = matches.Count > FilteredKnownImageNames.Count
+            ? localizationService.GetString("Tools.WndEditor.Assets.LibraryTruncated", FilteredKnownImageNames.Count, matches.Count)
+            : string.Empty;
+    }
+
     private string FormatMissingNames(IReadOnlyList<string> missing)
     {
         var shown = missing.Take(WndConstants.Preview.MaxMissingTooltipNames).ToList();
@@ -3087,8 +3077,7 @@ public sealed partial class WndEditorViewModel(
             return null;
         }
 
-        if (IsPathUnder(filePath, roots.BaseRoot)
-            || (roots.OverrideRoot != null && IsPathUnder(filePath, roots.OverrideRoot)))
+        if (IsPathUnder(filePath, roots.BaseRoot))
         {
             return directory;
         }
@@ -3161,7 +3150,7 @@ public sealed partial class WndEditorViewModel(
 
         try
         {
-            var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, additionalBigFiles, roots.IsZeroHour, cancellationToken);
+            var fs = WndGameFileSystem.Open(roots.BaseRoot, null, projectDirectory, logger, additionalBigFiles, roots.IsZeroHour, cancellationToken);
             var iniBytes = fs.Read(WndConstants.ControlBarScheme.DataIniPath) ?? fs.Read(WndConstants.ControlBarScheme.IniPath);
             if (iniBytes != null && iniBytes.Length > 0)
             {

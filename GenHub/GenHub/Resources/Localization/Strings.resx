@@ -12712,6 +12712,33 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.WndEditor.Import.SuccessMessage" xml:space="preserve">
     <value>Imported {0} texture(s) into {1}.</value>
   </data>
+  <data name="Tools.WndEditor.Assets.LibraryTitle" xml:space="preserve">
+    <value>Art library</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibrarySearchHint" xml:space="preserve">
+    <value>Search art…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ApplyOne" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryEmpty" xml:space="preserve">
+    <value>No art matches the search.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryTruncated" xml:space="preserve">
+    <value>Showing {0} of {1} — refine the search.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionTitle" xml:space="preserve">
+    <value>No window selected</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionMessage" xml:space="preserve">
+    <value>Select a window in the tree or on the canvas, then apply art to it.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessTitle" xml:space="preserve">
+    <value>Art applied</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessMessage" xml:space="preserve">
+    <value>Applied {0} to {1}.</value>
+  </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Resize window</value>
   </data>

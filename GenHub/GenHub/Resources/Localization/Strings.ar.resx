@@ -12614,6 +12614,33 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.WndEditor.Import.SuccessMessage" xml:space="preserve">
     <value>تم استيراد {0} من القوام إلى {1}.</value>
   </data>
+  <data name="Tools.WndEditor.Assets.LibraryTitle" xml:space="preserve">
+    <value>مكتبة الفن</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibrarySearchHint" xml:space="preserve">
+    <value>ابحث في الفن…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ApplyOne" xml:space="preserve">
+    <value>تطبيق</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryEmpty" xml:space="preserve">
+    <value>لا يوجد فن يطابق البحث.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryTruncated" xml:space="preserve">
+    <value>عرض {0} من {1} — حدد البحث.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionTitle" xml:space="preserve">
+    <value>لم يتم تحديد نافذة</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionMessage" xml:space="preserve">
+    <value>حدد نافذة في الشجرة أو على اللوحة، ثم طبق الفن عليها.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessTitle" xml:space="preserve">
+    <value>تم تطبيق الفن</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessMessage" xml:space="preserve">
+    <value>تم تطبيق {0} على {1}.</value>
+  </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>تغيير حجم النافذة</value>
   </data>

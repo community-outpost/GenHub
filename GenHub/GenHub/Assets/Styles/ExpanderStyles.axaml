@@ -173,7 +173,10 @@
 
     <!-- Compact Expander Style for Inspectors / Tool Sidebars -->
     <Style Selector="Expander.compact">
-        <Setter Property="Margin" Value="0,0,0,1" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
         <Setter Property="CornerRadius" Value="4" />
     </Style>
 

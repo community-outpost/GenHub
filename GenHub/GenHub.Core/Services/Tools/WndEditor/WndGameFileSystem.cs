@@ -21,7 +21,7 @@ public static class WndGameFileSystem
     /// Opens a virtual file system with override and mod layers applied.
     /// </summary>
     /// <param name="baseRoot">The primary game root directory (Zero Hour if isZeroHour is true, otherwise Generals).</param>
-    /// <param name="overrideRoot">Optional fallback base root (e.g. Generals when Zero Hour is primary, or vice versa).</param>
+    /// <param name="overrideRoot">Optional fallback base root. Ignored for Zero Hour targets, which mount only the Zero Hour install.</param>
     /// <param name="projectDirectory">Optional mod project directory layered above game files (multiple paths can be semicolon-delimited).</param>
     /// <param name="logger">The logger sink.</param>
     /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
@@ -123,30 +123,30 @@ public static class WndGameFileSystem
         bool isZeroHour,
         CancellationToken cancellationToken)
     {
-        if (isZeroHour && HasUsableOverrideRoot(overrideRoot, baseRoot))
+        if (isZeroHour)
         {
-            // baseRoot is Zero Hour active target; overrideRoot is Generals base fallback
-            var fileSystem = new SageVirtualFileSystem(
+            // Zero Hour targets mount only the Zero Hour install. The Zero Hour game
+            // never reads the Generals install folder, so the override root is ignored
+            // here: strict per-game isolation keeps Generals art, strings, and schemes
+            // out of Zero Hour previews instead of leaking them in as fallback.
+            return new SageVirtualFileSystem(
                 baseRoot,
                 isZeroHour: true,
                 logger: logger,
                 cancellationToken: cancellationToken,
                 skipIniZhBig: false,
                 initialTier: SageFileTier.Expansion);
-
-            fileSystem.AddBaseFallback(overrideRoot!);
-            return fileSystem;
         }
 
         var baseFileSystem = new SageVirtualFileSystem(
             baseRoot,
-            isZeroHour: isZeroHour,
+            isZeroHour: false,
             logger: logger,
             cancellationToken: cancellationToken,
             skipIniZhBig: false,
-            initialTier: isZeroHour ? SageFileTier.Expansion : SageFileTier.BaseGame);
+            initialTier: SageFileTier.BaseGame);
 
-        if (!isZeroHour && HasUsableOverrideRoot(overrideRoot, baseRoot))
+        if (HasUsableOverrideRoot(overrideRoot, baseRoot))
         {
             baseFileSystem.AddBaseFallback(overrideRoot!);
         }

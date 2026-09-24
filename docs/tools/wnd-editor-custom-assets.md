@@ -14,7 +14,13 @@ For every mapped image the editor resolves, in order:
    lives inside a project (loose `GameFilesEdited` files plus built release
    archives).
 3. **The selected game installation** (Zero Hour or Generals).
-4. **The fallback installation** (Generals when Zero Hour is selected).
+
+Resolution is strictly per-game: a Zero Hour target loads only Zero Hour art
+(plus mod and linked layers), and a Generals target loads only Generals art.
+The games never read each other's install folders, so neither does the
+editor. A Generals-era `.wnd` opened under Zero Hour shows honestly missing
+art for names Zero Hour does not ship; import replacements from the Assets
+tab to fix them.
 
 The preview status line reports how many referenced images resolved
 (`16 of 16 images`). Anything missing is listed in the tooltip and in the
@@ -51,9 +57,11 @@ End
 ```
 
 3. Reference the mapped image name from the window's draw data
-   (for example `ENABLEDDRAWDATA = IMAGE: MyMenuBackdrop, ...`). Draw data
-   image fields offer an autocomplete picker listing every mapped image the
-   current asset roots know about.
+   (for example `ENABLEDDRAWDATA = IMAGE: MyMenuBackdrop, ...`). Three ways:
+   select the window and press **Apply** on any row of the Assets tab's art
+   library (search filters the list); type in a draw data image field, which
+   autocompletes over every mapped image the current asset roots know about;
+   or edit the raw property text directly.
 
 When ModBuilder bundles the project, `Data/INI/**/*.ini` ships verbatim and
 `Art/Textures/**/*.tga` is converted to DXT5 `.dds`; both land in the release

@@ -5,7 +5,7 @@
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndControlPropertiesView"
              x:DataType="vm:WndWindowPropertiesViewModel">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-    <StackPanel Spacing="1" Margin="0">
+    <StackPanel Spacing="0" Margin="0">
       <Border IsVisible="{Binding !IsControlDataSupported}" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8">
         <TextBlock Text="{localization:Localize Tools.WndEditor.Control.Unsupported}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
       </Border>

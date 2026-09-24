@@ -426,29 +426,6 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that Sibling Generals path is discovered from parent directory.
-    /// </summary>
-    [Fact]
-    public void FindSiblingGeneralsPath_DiscoversSiblingGeneralsDirectory()
-    {
-        // Arrange
-        var root = Path.Combine(_tempDirectory, "SteamLibrary", "GeneralsZeroHour");
-        var generalsDir = Path.Combine(root, "Command and Conquer Generals");
-        var zhDir = Path.Combine(root, "Command and Conquer Generals Zero Hour");
-        Directory.CreateDirectory(generalsDir);
-        Directory.CreateDirectory(zhDir);
-        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), string.Empty);
-        Directory.CreateDirectory(Path.Combine(generalsDir, ModBuilderConstants.DataDirectoryName));
-
-        // Act
-        var method = typeof(WndEditorViewModel).GetMethod("FindSiblingGeneralsPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        var result = (string?)method?.Invoke(null, [zhDir]);
-
-        // Assert
-        result.Should().Be(generalsDir);
-    }
-
-    /// <summary>
     /// Tests that saving writes canonical text to the file.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -762,6 +739,66 @@ public sealed class WndEditorViewModelTests : IDisposable
             out var set);
         parsed.Should().BeTrue();
         set!.Entries[0].Image.Should().Be("Circle_Small03_Black");
+    }
+
+    /// <summary>
+    /// Tests that applying art to the selected window sets its enabled draw data image.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ApplyImageToSelectedWindow_WithSelection_SetsEnabledDrawData()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+
+        // Act
+        _viewModel.ApplyImageToSelectedWindowCommand.Execute("ZhBackdrop");
+
+        // Assert
+        var parsed = WndDrawDataSet.TryParse(
+            _viewModel.SelectedNode!.Window.GetProperty("ENABLEDDRAWDATA"),
+            out var set);
+        parsed.Should().BeTrue();
+        set!.Entries[0].Image.Should().Be("ZhBackdrop");
+        _viewModel.CanUndo.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that applying art without a selection warns instead of editing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ApplyImageToSelectedWindow_WithoutSelection_Warns()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = null;
+
+        // Act
+        _viewModel.ApplyImageToSelectedWindowCommand.Execute("ZhBackdrop");
+
+        // Assert
+        _mockNotificationService.Verify(
+            s => s.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _viewModel.CanUndo.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that the art library filter matches names case-insensitively.
+    /// </summary>
+    [Fact]
+    public void LibraryFilter_Text_FiltersKnownNames()
+    {
+        // Arrange
+        _viewModel.KnownImageNames = ["AlphaButton", "BetaBackdrop", "GammaGlyph"];
+
+        // Act
+        _viewModel.LibraryFilter = "back";
+
+        // Assert
+        _viewModel.FilteredKnownImageNames.Should().Equal("BetaBackdrop");
     }
 
     /// <summary>

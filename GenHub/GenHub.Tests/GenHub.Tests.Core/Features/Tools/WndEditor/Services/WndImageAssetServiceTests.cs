@@ -427,6 +427,79 @@ public sealed class WndImageAssetServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that Zero Hour mode never resolves mapped images defined only in the Generals fallback root.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_ZhMode_IgnoresGeneralsOnlyDefinitions()
+    {
+        // Arrange: the image exists only in Generals; the Zero Hour root is empty.
+        var generalsRoot = Path.Combine(Path.GetTempPath(), "GenHub_ZhStrictTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(generalsRoot, "Data", "INI", "MappedImages", "HandCreated"));
+            Directory.CreateDirectory(Path.Combine(generalsRoot, "Art", "Textures"));
+            var generalsIniContent =
+                "MappedImage GenOnlyBtn\n" +
+                "  Texture = GenPage\n" +
+                "  Coords = Left:0 Top:0 Right:4 Bottom:4\n" +
+                "  Status = NONE\n" +
+                "End\n";
+            File.WriteAllText(Path.Combine(generalsRoot, "Data", "INI", "MappedImages", "HandCreated", "GenUI.ini"), generalsIniContent);
+            WriteTextureAt(generalsRoot, Path.Combine("Art", "Textures"), "GenPage.tga", MagickColors.Red, 16, 16, MagickFormat.Tga);
+
+            // Act
+            var result = await _service.GetImagesAsync(["GenOnlyBtn"], _gameRoot, generalsRoot, null, null, true);
+
+            // Assert: strict per-game isolation leaves the Generals-only image unresolved.
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotContainKey("GenOnlyBtn");
+        }
+        finally
+        {
+            if (Directory.Exists(generalsRoot))
+            {
+                Directory.Delete(generalsRoot, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that a Zero Hour definition never decodes its texture from the Generals fallback root.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_ZhMode_ZhDefinitionNeverUsesGeneralsTexture()
+    {
+        // Arrange: Zero Hour defines the crop but ships no texture page; Generals has the page.
+        WriteMappedImages(
+            "MappedImage ZhBtn\n" +
+            "  Texture = ZhPage\n" +
+            "  Coords = Left:0 Top:0 Right:4 Bottom:4\n" +
+            "End\n");
+        var generalsRoot = Path.Combine(Path.GetTempPath(), "GenHub_ZhStrictTexTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(generalsRoot, "Art", "Textures"));
+            WriteTextureAt(generalsRoot, Path.Combine("Art", "Textures"), "ZhPage.tga", MagickColors.Red, 16, 16, MagickFormat.Tga);
+
+            // Act
+            var result = await _service.GetImagesAsync(["ZhBtn"], _gameRoot, generalsRoot, null, null, true);
+
+            // Assert: no cross-game texture fallback; the image stays unresolved.
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotContainKey("ZhBtn");
+        }
+        finally
+        {
+            if (Directory.Exists(generalsRoot))
+            {
+                Directory.Delete(generalsRoot, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Tests that an extensionless texture reference resolves a PNG file.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

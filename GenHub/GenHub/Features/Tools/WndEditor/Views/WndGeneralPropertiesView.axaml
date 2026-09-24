@@ -62,7 +62,7 @@
     </DataTemplate>
   </UserControl.Resources>
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-    <StackPanel Spacing="1" Margin="0">
+    <StackPanel Spacing="0" Margin="0">
       <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.Identity}" Classes="compact" IsExpanded="True">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">

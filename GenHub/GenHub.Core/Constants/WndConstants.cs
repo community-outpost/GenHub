@@ -835,6 +835,9 @@ public static class WndConstants
 
         /// <summary>Minimum width or height when resizing a window on the canvas.</summary>
         public const int MinResizeDimension = 8;
+
+        /// <summary>Maximum art library rows shown before the user must refine the search.</summary>
+        public const int MaxLibraryResults = 200;
     }
 
     /// <summary>

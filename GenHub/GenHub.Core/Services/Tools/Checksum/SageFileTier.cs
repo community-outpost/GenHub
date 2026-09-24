@@ -7,7 +7,8 @@ namespace GenHub.Core.Services.Tools.Checksum;
 public enum SageFileTier
 {
     /// <summary>
-    /// Base game vanilla assets (e.g. Generals vanilla when Zero Hour is active).
+    /// Base game vanilla assets (the Generals install for Generals targets, or an
+    /// explicit fallback root for non-Zero Hour targets).
     /// </summary>
     BaseGame = 0,
 
