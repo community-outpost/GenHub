@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -94,7 +95,7 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             }
 
             DrainOutput(process);
-            var survived = await WaitForStartupAsync(process, cancellationToken);
+            var survived = await WaitForStartupAsync(process, configPath, cancellationToken);
             if (!survived)
             {
                 var exit = ReadExitCode(process);
@@ -239,19 +240,50 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         return path;
     }
 
+    private static bool IsAdministrator()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static Process CreateProcess(string binary, string arguments)
     {
+        var psi = new ProcessStartInfo
+        {
+            FileName = binary,
+            Arguments = arguments,
+        };
+
+        if (OperatingSystem.IsWindows() && !IsAdministrator())
+        {
+            psi.UseShellExecute = true;
+            psi.Verb = "runas";
+            psi.WindowStyle = ProcessWindowStyle.Hidden;
+        }
+        else
+        {
+            psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+        }
+
         return new Process
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = binary,
-                Arguments = arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            },
+            StartInfo = psi,
             EnableRaisingEvents = true,
         };
     }
@@ -286,21 +318,38 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         registration.Unregister();
     }
 
-    private static async Task<bool> WaitForStartupAsync(Process process, CancellationToken cancellationToken)
+    private static async Task<bool> WaitForStartupAsync(Process process, string configPath, CancellationToken cancellationToken)
     {
-        try
+        var readyFile = configPath + ".ready";
+        var maxWaitMs = OnlineConstants.SidecarStartupGraceMs + (OperatingSystem.IsWindows() ? 4000 : 0);
+        var deadline = DateTime.UtcNow.AddMilliseconds(maxWaitMs);
+
+        while (DateTime.UtcNow < deadline)
         {
-            await Task.Delay(OnlineConstants.SidecarStartupGraceMs, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            // The caller canceled: propagate instead of misreporting a crash.
-            // The spawned process stays tracked for StopAsync/Dispose cleanup.
-            throw;
-        }
-        catch (OperationCanceledException)
-        {
-            return false;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (process.HasExited)
+            {
+                return false;
+            }
+
+            if (File.Exists(readyFile))
+            {
+                return true;
+            }
+
+            try
+            {
+                await Task.Delay(100, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
         }
 
         return !process.HasExited;
@@ -308,6 +357,11 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
 
     private void DrainOutput(Process process)
     {
+        if (!process.StartInfo.RedirectStandardOutput || !process.StartInfo.RedirectStandardError)
+        {
+            return;
+        }
+
         process.OutputDataReceived += (_, e) =>
         {
             if (!string.IsNullOrEmpty(e.Data))
@@ -396,7 +450,16 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
 
         try
         {
-            File.Delete(configPath);
+            if (File.Exists(configPath))
+            {
+                File.Delete(configPath);
+            }
+
+            var readyPath = configPath + ".ready";
+            if (File.Exists(readyPath))
+            {
+                File.Delete(readyPath);
+            }
         }
         catch (IOException ex)
         {
@@ -417,7 +480,16 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         try
         {
             await Task.Delay(OnlineConstants.SidecarConfigDeleteRetryDelayMs);
-            File.Delete(configPath);
+            if (File.Exists(configPath))
+            {
+                File.Delete(configPath);
+            }
+
+            var readyPath = configPath + ".ready";
+            if (File.Exists(readyPath))
+            {
+                File.Delete(readyPath);
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {

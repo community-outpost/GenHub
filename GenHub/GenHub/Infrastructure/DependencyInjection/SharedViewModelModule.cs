@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfiles;
@@ -47,7 +48,8 @@ public static class SharedViewModelModule
         services.AddSingleton(sp => new OnlineViewModelDependencies(
             sp.GetService<ILocalizationService>(),
             sp.GetService<IUserSettingsService>(),
-            sp.GetService<IGameInstallationService>()));
+            sp.GetService<IGameInstallationService>(),
+            sp.GetService<IGameCrcCalculatorService>()));
         services.AddSingleton<OnlineViewModel>();
         services.AddSingleton<NotificationManagerViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(

@@ -617,20 +617,14 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             default:
                 // If network settings were inadvertently written under a custom section (e.g. legacy serialization bug),
                 // extract and restore them to root-level Network options.
-                if (values.Remove("IPAddress", out var ipVal))
+                if (values.Remove("IPAddress", out var ipVal) && string.IsNullOrEmpty(options.Network.IPAddress))
                 {
-                    if (string.IsNullOrEmpty(options.Network.IPAddress))
-                    {
-                        options.Network.IPAddress = ipVal;
-                    }
+                    options.Network.IPAddress = ipVal;
                 }
 
-                if (values.Remove("GameSpyIPAddress", out var gsVal))
+                if (values.Remove("GameSpyIPAddress", out var gsVal) && string.IsNullOrEmpty(options.Network.GameSpyIPAddress))
                 {
-                    if (string.IsNullOrEmpty(options.Network.GameSpyIPAddress))
-                    {
-                        options.Network.GameSpyIPAddress = gsVal;
-                    }
+                    options.Network.GameSpyIPAddress = gsVal;
                 }
 
                 options.AdditionalSections[sectionName] = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);

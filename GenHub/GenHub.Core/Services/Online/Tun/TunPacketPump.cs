@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -23,6 +24,7 @@ public sealed class TunPacketPump : IDisposable
     private readonly IPEndPoint _relayEndpoint;
     private readonly byte[] _networkIdBytes;
     private readonly IPAddress _overlayIp;
+    private readonly byte[] _directedBroadcastBytes;
     private readonly ILogger _logger;
     private readonly UdpClient _udpClient;
 
@@ -40,12 +42,14 @@ public sealed class TunPacketPump : IDisposable
     /// <param name="networkId">The network identifier string or GUID.</param>
     /// <param name="overlayIp">The local overlay IPv4 address.</param>
     /// <param name="logger">Optional logger.</param>
+    /// <param name="prefixLength">The subnet prefix length (defaults to 20).</param>
     public TunPacketPump(
         ITunDevice device,
         IPEndPoint relayEndpoint,
         string networkId,
         IPAddress overlayIp,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        int prefixLength = 20)
     {
         _device = device ?? throw new ArgumentNullException(nameof(device));
         _relayEndpoint = relayEndpoint ?? throw new ArgumentNullException(nameof(relayEndpoint));
@@ -53,6 +57,7 @@ public sealed class TunPacketPump : IDisposable
         _logger = logger ?? NullLogger.Instance;
 
         _networkIdBytes = ParseNetworkIdBytes(networkId);
+        _directedBroadcastBytes = CalculateDirectedBroadcast(_overlayIp, prefixLength);
         _udpClient = new UdpClient();
         _udpClient.Connect(_relayEndpoint);
     }
@@ -90,7 +95,7 @@ public sealed class TunPacketPump : IDisposable
 
         try
         {
-            _pumpCts.Cancel();
+            await _pumpCts.CancelAsync().ConfigureAwait(false);
 
             var tasks = new List<Task>();
             if (_outboundTask != null)
@@ -168,6 +173,109 @@ public sealed class TunPacketPump : IDisposable
         return bytes;
     }
 
+    private static byte[] CalculateDirectedBroadcast(IPAddress ip, int prefixLength)
+    {
+        var ipBytes = ip.GetAddressBytes();
+        if (ipBytes.Length != 4)
+        {
+            return [255, 255, 255, 255];
+        }
+
+        if (prefixLength is < 0 or > 32)
+        {
+            prefixLength = 20;
+        }
+
+        uint ipNum = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) | ((uint)ipBytes[2] << 8) | ipBytes[3];
+        uint hostMask = prefixLength == 32 ? 0 : uint.MaxValue >> prefixLength;
+        uint broadcastNum = ipNum | hostMask;
+
+        return
+        [
+            (byte)((broadcastNum >> 24) & 0xFF),
+            (byte)((broadcastNum >> 16) & 0xFF),
+            (byte)((broadcastNum >> 8) & 0xFF),
+            (byte)(broadcastNum & 0xFF),
+        ];
+    }
+
+    private bool IsBroadcastAddress(byte b0, byte b1, byte b2, byte b3)
+    {
+        if (b0 == 255 && b1 == 255 && b2 == 255 && b3 == 255)
+        {
+            return true;
+        }
+
+        return b0 == _directedBroadcastBytes[0] &&
+               b1 == _directedBroadcastBytes[1] &&
+               b2 == _directedBroadcastBytes[2] &&
+               b3 == _directedBroadcastBytes[3];
+    }
+
+    private bool TryBuildOutboundFrame(
+        byte[] readBuffer,
+        int length,
+        byte[] overlayBytes,
+        [NotNullWhen(true)] out byte[]? frame)
+    {
+        frame = null;
+        if (length < MinIpv4HeaderLength || (readBuffer[0] >> 4) != 4)
+        {
+            return false;
+        }
+
+        var isBroadcast = IsBroadcastAddress(readBuffer[16], readBuffer[17], readBuffer[18], readBuffer[19]);
+
+        var builtFrame = new byte[RelayHeaderLength + length];
+        Buffer.BlockCopy(_networkIdBytes, 0, builtFrame, 0, 16);
+
+        if (isBroadcast)
+        {
+            builtFrame[16] = 255;
+            builtFrame[17] = 255;
+            builtFrame[18] = 255;
+            builtFrame[19] = 255;
+        }
+        else
+        {
+            Buffer.BlockCopy(readBuffer, 16, builtFrame, 16, 4);
+        }
+
+        Buffer.BlockCopy(overlayBytes, 0, builtFrame, 20, 4);
+        Buffer.BlockCopy(readBuffer, 0, builtFrame, RelayHeaderLength, length);
+
+        frame = builtFrame;
+        return true;
+    }
+
+    private bool IsInboundFrameForUs(byte[] data, byte[] overlayBytes)
+    {
+        if (data.Length < RelayHeaderLength + MinIpv4HeaderLength)
+        {
+            return false;
+        }
+
+        // Verify NetworkId matches
+        for (var i = 0; i < 16; i++)
+        {
+            if (data[i] != _networkIdBytes[i])
+            {
+                return false;
+            }
+        }
+
+        var targetB0 = data[16];
+        var targetB1 = data[17];
+        var targetB2 = data[18];
+        var targetB3 = data[19];
+
+        return IsBroadcastAddress(targetB0, targetB1, targetB2, targetB3) ||
+               (targetB0 == overlayBytes[0] &&
+                targetB1 == overlayBytes[1] &&
+                targetB2 == overlayBytes[2] &&
+                targetB3 == overlayBytes[3]);
+    }
+
     private async Task OutboundLoopAsync(CancellationToken cancellationToken)
     {
         var readBuffer = new byte[65535];
@@ -178,48 +286,10 @@ public sealed class TunPacketPump : IDisposable
             try
             {
                 var length = await _device.ReadPacketAsync(readBuffer, cancellationToken).ConfigureAwait(false);
-                if (length < MinIpv4HeaderLength)
+                if (TryBuildOutboundFrame(readBuffer, length, overlayBytes, out var frame))
                 {
-                    continue;
+                    await _udpClient.SendAsync(frame, frame.Length).ConfigureAwait(false);
                 }
-
-                // Verify IPv4 header (version 4)
-                if ((readBuffer[0] >> 4) != 4)
-                {
-                    continue;
-                }
-
-                var destB0 = readBuffer[16];
-                var destB1 = readBuffer[17];
-                var destB2 = readBuffer[18];
-                var destB3 = readBuffer[19];
-
-                // Detect broadcast (255.255.255.255 or 10.42.15.255 / 10.42.255.255)
-                var isBroadcast = destB0 == 255 ||
-                    (destB0 == 10 && destB1 == 42 && (destB2 == 15 || destB2 == 255 || destB3 == 255));
-
-                var frame = new byte[RelayHeaderLength + length];
-                Buffer.BlockCopy(_networkIdBytes, 0, frame, 0, 16);
-
-                if (isBroadcast)
-                {
-                    frame[16] = 255;
-                    frame[17] = 255;
-                    frame[18] = 255;
-                    frame[19] = 255;
-                }
-                else
-                {
-                    frame[16] = destB0;
-                    frame[17] = destB1;
-                    frame[18] = destB2;
-                    frame[19] = destB3;
-                }
-
-                Buffer.BlockCopy(overlayBytes, 0, frame, 20, 4);
-                Buffer.BlockCopy(readBuffer, 0, frame, RelayHeaderLength, length);
-
-                await _udpClient.SendAsync(frame, frame.Length).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -244,51 +314,11 @@ public sealed class TunPacketPump : IDisposable
             try
             {
                 var result = await _udpClient.ReceiveAsync(cancellationToken).ConfigureAwait(false);
-                var data = result.Buffer;
-                if (data.Length < RelayHeaderLength + MinIpv4HeaderLength)
+                if (IsInboundFrameForUs(result.Buffer, overlayBytes))
                 {
-                    continue;
+                    var ipPacket = result.Buffer.AsMemory(RelayHeaderLength);
+                    await _device.WritePacketAsync(ipPacket, cancellationToken).ConfigureAwait(false);
                 }
-
-                // Verify NetworkId matches
-                var matchNet = true;
-                for (var i = 0; i < 16; i++)
-                {
-                    if (data[i] != _networkIdBytes[i])
-                    {
-                        matchNet = false;
-                        break;
-                    }
-                }
-
-                if (!matchNet)
-                {
-                    continue;
-                }
-
-                // Verify target IP is broadcast or our overlay IP
-                var targetB0 = data[16];
-                var targetB1 = data[17];
-                var targetB2 = data[18];
-                var targetB3 = data[19];
-
-                var isBroadcast = targetB0 == 255 ||
-                    (targetB0 == 10 && targetB1 == 42 && (targetB2 == 15 || targetB2 == 255 || targetB3 == 255));
-
-                var isForUs = isBroadcast ||
-                    (targetB0 == overlayBytes[0] &&
-                     targetB1 == overlayBytes[1] &&
-                     targetB2 == overlayBytes[2] &&
-                     targetB3 == overlayBytes[3]);
-
-                if (!isForUs)
-                {
-                    continue;
-                }
-
-                // Extract raw IPv4 packet and inject into TUN device
-                var ipPacket = data.AsMemory(RelayHeaderLength);
-                await _device.WritePacketAsync(ipPacket, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
@@ -262,6 +263,11 @@ public static class OnlineConstants
     public const int TunOverlayPrefixLength = 20;
 
     /// <summary>
+    /// Default TUN subnet mask (corresponds to /20 prefix length).
+    /// </summary>
+    public const string DefaultTunSubnetMask = "255.255.240.0";
+
+    /// <summary>
     /// Sidecar exit code for clean shutdown.
     /// </summary>
     public const int SidecarExitSuccess = 0;
@@ -365,6 +371,10 @@ public static class OnlineConstants
     /// <summary>
     /// Native SO_REUSEPORT option value on macOS for UDP port sharing.
     /// </summary>
+    /// <remarks>
+    /// The SocketOptionName enumeration exposes no ReusePort member, so the
+    /// native value is passed through. Linux and macOS disagree on the value.
+    /// </remarks>
     public const int SocketReusePortMacOS = 512;
 
     /// <summary>
@@ -379,6 +389,10 @@ public static class OnlineConstants
     /// <summary>
     /// Native SOL_SOCKET level value on macOS for raw socket options.
     /// </summary>
+    /// <remarks>
+    /// The raw socket option API takes native levels verbatim: unlike the
+    /// managed SocketOptionLevel enumeration, Linux expects 1 here.
+    /// </remarks>
     public const int SocketLevelMacOS = 0xFFFF;
 
     /// <summary>

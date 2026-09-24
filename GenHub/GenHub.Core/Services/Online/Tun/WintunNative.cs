@@ -140,101 +140,114 @@ internal static class WintunNative
 
             _initialized = true;
 
-            var archFolder = RuntimeInformation.ProcessArchitecture switch
-            {
-                Architecture.X64 => "x64",
-                Architecture.X86 => "x86",
-                Architecture.Arm64 => "arm64",
-                _ => null,
-            };
-
+            var archFolder = GetArchitectureFolder();
             if (archFolder == null)
             {
                 return false;
             }
 
-            // Extract embedded wintun.dll to local app data if needed
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var targetDir = Path.Combine(localAppData, "GenHub", "overlay", archFolder);
-            Directory.CreateDirectory(targetDir);
-            var targetDll = Path.Combine(targetDir, "wintun.dll");
-
-            var resourceName = $"GenHub.Core.Resources.Wintun.{archFolder}.wintun.dll";
-            using var resourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-            if (resourceStream != null)
-            {
-                var shouldWrite = true;
-                if (File.Exists(targetDll))
-                {
-                    try
-                    {
-                        var existing = new FileInfo(targetDll);
-                        if (existing.Length == resourceStream.Length)
-                        {
-                            shouldWrite = false;
-                        }
-                    }
-                    catch
-                    {
-                        shouldWrite = true;
-                    }
-                }
-
-                if (shouldWrite)
-                {
-                    try
-                    {
-                        using var fileStream = File.Create(targetDll);
-                        resourceStream.CopyTo(fileStream);
-                    }
-                    catch
-                    {
-                        // Best effort write
-                    }
-                }
-            }
-
-            // Try loading from target directory first, then standard path
-            if (File.Exists(targetDll))
-            {
-                NativeLibrary.TryLoad(targetDll, out _moduleHandle);
-            }
-
-            if (_moduleHandle == IntPtr.Zero)
-            {
-                NativeLibrary.TryLoad("wintun.dll", out _moduleHandle);
-            }
-
+            var targetDll = ExtractEmbeddedWintunDll(archFolder);
+            _moduleHandle = TryLoadWintunModule(targetDll);
             if (_moduleHandle == IntPtr.Zero)
             {
                 return false;
             }
 
-            // Resolve function delegates
-            CreateAdapter = Marshal.GetDelegateForFunctionPointer<WintunCreateAdapterFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunCreateAdapter"));
-            OpenAdapter = Marshal.GetDelegateForFunctionPointer<WintunOpenAdapterFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunOpenAdapter"));
-            CloseAdapter = Marshal.GetDelegateForFunctionPointer<WintunCloseAdapterFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunCloseAdapter"));
-            GetAdapterLUID = Marshal.GetDelegateForFunctionPointer<WintunGetAdapterLUIDFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunGetAdapterLUID"));
-            StartSession = Marshal.GetDelegateForFunctionPointer<WintunStartSessionFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunStartSession"));
-            EndSession = Marshal.GetDelegateForFunctionPointer<WintunEndSessionFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunEndSession"));
-            GetReadWaitEvent = Marshal.GetDelegateForFunctionPointer<WintunGetReadWaitEventFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunGetReadWaitEvent"));
-            ReceivePacket = Marshal.GetDelegateForFunctionPointer<WintunReceivePacketFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunReceivePacket"));
-            ReleaseReceivePacket = Marshal.GetDelegateForFunctionPointer<WintunReleaseReceivePacketFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunReleaseReceivePacket"));
-            AllocateSendPacket = Marshal.GetDelegateForFunctionPointer<WintunAllocateSendPacketFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunAllocateSendPacket"));
-            SendPacket = Marshal.GetDelegateForFunctionPointer<WintunSendPacketFunc>(
-                NativeLibrary.GetExport(_moduleHandle, "WintunSendPacket"));
-
+            ResolveDelegates(_moduleHandle);
             return true;
         }
+    }
+
+    private static string? GetArchitectureFolder() =>
+        RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X64 => "x64",
+            Architecture.X86 => "x86",
+            Architecture.Arm64 => "arm64",
+            _ => null,
+        };
+
+    private static string ExtractEmbeddedWintunDll(string archFolder)
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var targetDir = Path.Combine(localAppData, "GenHub", "overlay", archFolder);
+        Directory.CreateDirectory(targetDir);
+        var targetDll = Path.Combine(targetDir, "wintun.dll");
+
+        var resourceName = $"GenHub.Core.Resources.Wintun.{archFolder}.wintun.dll";
+        using var resourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+        if (resourceStream != null && ShouldExtractResource(targetDll, resourceStream.Length))
+        {
+            try
+            {
+                using var fileStream = File.Create(targetDll);
+                resourceStream.CopyTo(fileStream);
+            }
+            catch
+            {
+                // Best effort write
+            }
+        }
+
+        return targetDll;
+    }
+
+    private static bool ShouldExtractResource(string targetDll, long expectedLength)
+    {
+        if (!File.Exists(targetDll))
+        {
+            return true;
+        }
+
+        try
+        {
+            var existing = new FileInfo(targetDll);
+            return existing.Length != expectedLength;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static IntPtr TryLoadWintunModule(string targetDll)
+    {
+        if (File.Exists(targetDll) && NativeLibrary.TryLoad(targetDll, out var handle))
+        {
+            return handle;
+        }
+
+        if (NativeLibrary.TryLoad("wintun.dll", out handle))
+        {
+            return handle;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private static void ResolveDelegates(IntPtr moduleHandle)
+    {
+        CreateAdapter = Marshal.GetDelegateForFunctionPointer<WintunCreateAdapterFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunCreateAdapter"));
+        OpenAdapter = Marshal.GetDelegateForFunctionPointer<WintunOpenAdapterFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunOpenAdapter"));
+        CloseAdapter = Marshal.GetDelegateForFunctionPointer<WintunCloseAdapterFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunCloseAdapter"));
+        GetAdapterLUID = Marshal.GetDelegateForFunctionPointer<WintunGetAdapterLUIDFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunGetAdapterLUID"));
+        StartSession = Marshal.GetDelegateForFunctionPointer<WintunStartSessionFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunStartSession"));
+        EndSession = Marshal.GetDelegateForFunctionPointer<WintunEndSessionFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunEndSession"));
+        GetReadWaitEvent = Marshal.GetDelegateForFunctionPointer<WintunGetReadWaitEventFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunGetReadWaitEvent"));
+        ReceivePacket = Marshal.GetDelegateForFunctionPointer<WintunReceivePacketFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunReceivePacket"));
+        ReleaseReceivePacket = Marshal.GetDelegateForFunctionPointer<WintunReleaseReceivePacketFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunReleaseReceivePacket"));
+        AllocateSendPacket = Marshal.GetDelegateForFunctionPointer<WintunAllocateSendPacketFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunAllocateSendPacket"));
+        SendPacket = Marshal.GetDelegateForFunctionPointer<WintunSendPacketFunc>(
+            NativeLibrary.GetExport(moduleHandle, "WintunSendPacket"));
     }
 }

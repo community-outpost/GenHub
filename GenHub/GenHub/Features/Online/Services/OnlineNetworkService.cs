@@ -475,6 +475,12 @@ public sealed class OnlineNetworkService(
             return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorInvalidSlots);
         }
 
+        if (!string.IsNullOrEmpty(request.Password) &&
+            request.Password.Length < OnlineConstants.MinPasswordLength)
+        {
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorPasswordTooShort);
+        }
+
         if (request.Password.Length > OnlineConstants.MaxPasswordLength)
         {
             return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorPasswordTooLong);

@@ -76,7 +76,8 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                         parsed.RelayEndpoint,
                         parsed.NetworkId,
                         parsed.OverlayIp,
-                        logger);
+                        logger,
+                        parsed.PrefixLength);
                     _tunPump.Start();
 
                     IsRunning = true;
@@ -89,9 +90,12 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                     return OperationResult<bool>.CreateSuccess(true);
                 }
 
-                logger.LogWarning(
-                    "Wintun adapter unavailable: {Error}. Falling back to UDP proxy.",
+                logger.LogError(
+                    "Wintun adapter unavailable: {Error}",
                     winResult.AllErrors);
+
+                return OperationResult<bool>.CreateFailure(
+                    $"Virtual LAN network adapter unavailable: {winResult.FirstError}");
             }
             else if (OperatingSystem.IsLinux() && LinuxTunInterface.Exists(OnlineConstants.TunDefaultInterfaceName))
             {
@@ -104,7 +108,8 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                         parsed.RelayEndpoint,
                         parsed.NetworkId,
                         parsed.OverlayIp,
-                        logger);
+                        logger,
+                        parsed.PrefixLength);
                     _tunPump.Start();
 
                     IsRunning = true;
@@ -276,47 +281,92 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 return (false, default!);
             }
 
-            var networkIdStr = root.TryGetProperty("networkId", out var netProp) && netProp.ValueKind == JsonValueKind.String
-                ? netProp.GetString() ?? string.Empty
-                : string.Empty;
+            var networkIdStr = ExtractNetworkId(root);
             var netBytes = ParseNetworkIdBytes(networkIdStr);
 
-            var ipStr = overlayIp;
-            if (string.IsNullOrWhiteSpace(ipStr) && root.TryGetProperty("overlayIp", out var ipProp) && ipProp.ValueKind == JsonValueKind.String)
-            {
-                ipStr = ipProp.GetString() ?? string.Empty;
-            }
-
+            var ipStr = ExtractOverlayIpString(root, overlayIp);
             if (!IPAddress.TryParse(ipStr, out var parsedIp))
             {
                 return (false, default!);
             }
 
-            var prefixLength = OnlineConstants.TunOverlayPrefixLength;
-            if (root.TryGetProperty("prefixLength", out var plProp) && plProp.TryGetInt32(out var pl))
-            {
-                prefixLength = pl;
-            }
-            else if (root.TryGetProperty("subnet", out var subnetProp) && subnetProp.ValueKind == JsonValueKind.String)
-            {
-                var subnet = subnetProp.GetString();
-                if (!string.IsNullOrEmpty(subnet) && subnet.Contains('/'))
-                {
-                    var slashIdx = subnet.IndexOf('/');
-                    if (int.TryParse(subnet[(slashIdx + 1)..], out var parsedPrefix))
-                    {
-                        prefixLength = parsedPrefix;
-                    }
-                }
-            }
-
+            var prefixLength = ExtractPrefixLength(root);
             var ep = await ParseRelayEndpointAsync(root, cancellationToken).ConfigureAwait(false);
-            return (true, new ParsedTunnelConfig(networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep, prefixLength));
+            var broadcastBytes = CalculateDirectedBroadcast(parsedIp, prefixLength);
+
+            return (true, new ParsedTunnelConfig(
+                networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep, prefixLength, broadcastBytes));
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException or FormatException or InvalidOperationException)
         {
             return (false, default!);
         }
+    }
+
+    private static string ExtractNetworkId(JsonElement root) =>
+        root.TryGetProperty("networkId", out var netProp) && netProp.ValueKind == JsonValueKind.String
+            ? netProp.GetString() ?? string.Empty
+            : string.Empty;
+
+    private static string ExtractOverlayIpString(JsonElement root, string overlayIp)
+    {
+        if (!string.IsNullOrWhiteSpace(overlayIp))
+        {
+            return overlayIp;
+        }
+
+        return root.TryGetProperty("overlayIp", out var ipProp) && ipProp.ValueKind == JsonValueKind.String
+            ? ipProp.GetString() ?? string.Empty
+            : string.Empty;
+    }
+
+    private static int ExtractPrefixLength(JsonElement root)
+    {
+        if (root.TryGetProperty("prefixLength", out var plProp) && plProp.TryGetInt32(out var pl))
+        {
+            return pl;
+        }
+
+        if (root.TryGetProperty("subnet", out var subnetProp) && subnetProp.ValueKind == JsonValueKind.String)
+        {
+            var subnet = subnetProp.GetString();
+            if (!string.IsNullOrEmpty(subnet) && subnet.Contains('/'))
+            {
+                var slashIdx = subnet.IndexOf('/');
+                if (int.TryParse(subnet[(slashIdx + 1)..], out var parsedPrefix))
+                {
+                    return parsedPrefix;
+                }
+            }
+        }
+
+        return OnlineConstants.TunOverlayPrefixLength;
+    }
+
+    private static byte[] CalculateDirectedBroadcast(IPAddress ip, int prefixLength)
+    {
+        var ipBytes = ip.GetAddressBytes();
+        if (ipBytes.Length != 4)
+        {
+            return [255, 255, 255, 255];
+        }
+
+        if (prefixLength is < 0 or > 32)
+        {
+            prefixLength = 20;
+        }
+
+        uint ipNum = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) | ((uint)ipBytes[2] << 8) | ipBytes[3];
+        uint hostMask = prefixLength == 32 ? 0 : uint.MaxValue >> prefixLength;
+        uint broadcastNum = ipNum | hostMask;
+
+        return
+        [
+            (byte)((broadcastNum >> 24) & 0xFF),
+            (byte)((broadcastNum >> 16) & 0xFF),
+            (byte)((broadcastNum >> 8) & 0xFF),
+            (byte)(broadcastNum & 0xFF),
+        ];
     }
 
     private static string ExtractJson(string adapterConfig)
@@ -351,6 +401,18 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
     }
 
     private static async Task<IPEndPoint> ParseRelayEndpointAsync(JsonElement root, CancellationToken cancellationToken)
+    {
+        var (relayHost, relayPort) = ExtractRelayHostAndPort(root);
+
+        if (!IPAddress.TryParse(relayHost, out var ip))
+        {
+            ip = await ResolveHostAddressAsync(relayHost, cancellationToken).ConfigureAwait(false);
+        }
+
+        return new IPEndPoint(ip, relayPort);
+    }
+
+    private static (string Host, int Port) ExtractRelayHostAndPort(JsonElement root)
     {
         var relayHost = ApiConstants.OnlineRelayHost;
         var relayPort = OnlineConstants.DefaultRelayPort;
@@ -388,22 +450,22 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             }
         }
 
-        if (!IPAddress.TryParse(relayHost, out var ip))
-        {
-            try
-            {
-                var addresses = await Dns.GetHostAddressesAsync(relayHost, cancellationToken).ConfigureAwait(false);
-                ip = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
-                    ?? addresses.FirstOrDefault()
-                    ?? throw new FormatException($"Cannot resolve host {relayHost}");
-            }
-            catch (SocketException ex)
-            {
-                throw new FormatException($"Failed to resolve relay host {relayHost}", ex);
-            }
-        }
+        return (relayHost, relayPort);
+    }
 
-        return new IPEndPoint(ip, relayPort);
+    private static async Task<IPAddress> ResolveHostAddressAsync(string relayHost, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(relayHost, cancellationToken).ConfigureAwait(false);
+            return addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
+                ?? addresses.FirstOrDefault()
+                ?? throw new FormatException($"Cannot resolve host {relayHost}");
+        }
+        catch (SocketException ex)
+        {
+            throw new FormatException($"Failed to resolve relay host {relayHost}", ex);
+        }
     }
 
     private static bool IsValidRelayPacket(byte[] data, ParsedTunnelConfig config, out bool isBroadcast, out int payloadLength)
@@ -424,9 +486,12 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             }
         }
 
-        var isBroadcastTarget = data[16] == 255 && data[17] == 255 && data[18] == 255 && data[19] == 255;
-        var isOverlaySubnetBroadcast = data[16] == 10 && data[17] == 42 && (data[18] == 15 || data[18] == 255 || data[19] == 255);
-        isBroadcast = isBroadcastTarget || isOverlaySubnetBroadcast;
+        var isLimitedBroadcast = data[16] == 255 && data[17] == 255 && data[18] == 255 && data[19] == 255;
+        var isDirectedBroadcast = data[16] == config.DirectedBroadcastBytes[0] &&
+                                  data[17] == config.DirectedBroadcastBytes[1] &&
+                                  data[18] == config.DirectedBroadcastBytes[2] &&
+                                  data[19] == config.DirectedBroadcastBytes[3];
+        isBroadcast = isLimitedBroadcast || isDirectedBroadcast;
 
         var isTargetMe = data[16] == config.OverlayIpBytes[0] &&
                          data[17] == config.OverlayIpBytes[1] &&
@@ -536,165 +601,153 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
         await CancelTokenSourceSilentlyAsync(_cts).ConfigureAwait(false);
 
-        _relayClient?.Dispose();
-        _relayClient = null;
+        _localSender?.Dispose();
+        _localSender = null;
 
         _broadcastListener?.Dispose();
         _broadcastListener = null;
 
-        _localSender?.Dispose();
-        _localSender = null;
+        _relayClient?.Dispose();
+        _relayClient = null;
 
         await AwaitCancellationSilentlyAsync(_relayReceiveTask).ConfigureAwait(false);
-        _relayReceiveTask = null;
-
         await AwaitCancellationSilentlyAsync(_broadcastReceiveTask).ConfigureAwait(false);
-        _broadcastReceiveTask = null;
-
         await AwaitCancellationSilentlyAsync(_keepAliveTask).ConfigureAwait(false);
-        _keepAliveTask = null;
 
         _cts?.Dispose();
         _cts = null;
+        _relayReceiveTask = null;
+        _broadcastReceiveTask = null;
+        _keepAliveTask = null;
 
         IsRunning = false;
-        logger.LogInformation("Virtual LAN tunnel runner stopped.");
     }
 
     private void SendRegistrationPing(ParsedTunnelConfig config)
     {
+        var ping = new byte[24];
+        Buffer.BlockCopy(config.NetworkIdBytes, 0, ping, 0, 16);
+        Buffer.BlockCopy(config.OverlayIpBytes, 0, ping, 16, 4);
+
         try
         {
-            var packet = new byte[24];
-            Buffer.BlockCopy(config.NetworkIdBytes, 0, packet, 0, 16);
-            Buffer.BlockCopy(config.OverlayIpBytes, 0, packet, 20, 4);
-            _relayClient?.Send(packet, packet.Length);
+            _relayClient?.Send(ping, ping.Length);
         }
-        catch (Exception ex)
+        catch (SocketException ex)
         {
-            logger.LogDebug(ex, "Registration ping failed: {Message}", ex.Message);
+            logger.LogDebug(ex, "Failed to send initial registration ping to relay.");
         }
     }
 
     private async Task KeepAliveLoopAsync(ParsedTunnelConfig config, CancellationToken ct)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(OnlineConstants.KeepAliveIntervalSeconds));
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                if (!await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
-                {
-                    break;
-                }
+        var ping = new byte[24];
+        Buffer.BlockCopy(config.NetworkIdBytes, 0, ping, 0, 16);
+        Buffer.BlockCopy(config.OverlayIpBytes, 0, ping, 16, 4);
 
-                SendRegistrationPing(config);
-            }
-            catch (OperationCanceledException)
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(OnlineConstants.KeepAliveIntervalSeconds));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                break;
+                try
+                {
+                    if (_relayClient != null)
+                    {
+                        await _relayClient.SendAsync(ping, ping.Length).ConfigureAwait(false);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    logger.LogDebug(ex, "Relay keepalive send failed: {Message}", ex.Message);
+                }
             }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Keep-alive error: {Message}", ex.Message);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Clean exit
         }
     }
 
     private async Task RelayReceiveLoopAsync(UdpClient client, ParsedTunnelConfig config, CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        _localSender = new UdpClient();
+
+        try
         {
-            try
+            while (!ct.IsCancellationRequested)
             {
                 var result = await client.ReceiveAsync(ct).ConfigureAwait(false);
                 var data = result.Buffer;
+
                 if (!IsValidRelayPacket(data, config, out var isBroadcast, out var payloadLength))
                 {
                     continue;
                 }
 
-                await DispatchLocalPacketAsync(data, payloadLength, isBroadcast).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Relay receive loop error: {Message}", ex.Message);
+                var payload = new byte[payloadLength];
+                Buffer.BlockCopy(data, 24, payload, 0, payloadLength);
+
+                try
+                {
+                    var targetEp = new IPEndPoint(IPAddress.Loopback, OnlineConstants.ZeroHourDiscoveryPort);
+                    await _localSender.SendAsync(payload, payload.Length, targetEp).ConfigureAwait(false);
+                }
+                catch (SocketException ex)
+                {
+                    logger.LogDebug(ex, "Failed to deliver relayed packet locally: {Message}", ex.Message);
+                }
             }
         }
-    }
-
-    private async Task DispatchLocalPacketAsync(byte[] data, int payloadLength, bool isBroadcast)
-    {
-        var targetPort = isBroadcast ? OnlineConstants.ZeroHourDiscoveryPort : OnlineConstants.ZeroHourGamePort;
-        if (!isBroadcast && payloadLength >= 20 && (data[24] >> 4) == 4 && data[24 + 9] == 17)
+        catch (OperationCanceledException)
         {
-            var destPort = (data[24 + 22] << 8) | data[24 + 23];
-            if (destPort > 0)
-            {
-                targetPort = destPort;
-            }
+            // Clean exit
         }
-
-        try
+        catch (ObjectDisposedException)
         {
-            _localSender ??= new UdpClient();
-            _localSender.EnableBroadcast = isBroadcast;
-            var localTarget = new IPEndPoint(IPAddress.Loopback, targetPort);
-
-            var payload = new byte[payloadLength];
-            Buffer.BlockCopy(data, 24, payload, 0, payloadLength);
-            await _localSender.SendAsync(payload, payload.Length, localTarget).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Local dispatch error: {Message}", ex.Message);
+            // Clean exit on client disposal
         }
     }
 
     private async Task BroadcastReceiveLoopAsync(UdpClient listener, ParsedTunnelConfig config, CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        try
         {
-            try
+            while (!ct.IsCancellationRequested)
             {
                 var result = await listener.ReceiveAsync(ct).ConfigureAwait(false);
                 var data = result.Buffer;
-                if (data.Length == 0 || _relayClient == null)
+
+                if (result.RemoteEndPoint.Address.Equals(IPAddress.Loopback) ||
+                    result.RemoteEndPoint.Address.Equals(config.OverlayIp))
                 {
-                    continue;
+                    var packet = new byte[24 + data.Length];
+                    Buffer.BlockCopy(config.NetworkIdBytes, 0, packet, 0, 16);
+                    Buffer.BlockCopy(config.DirectedBroadcastBytes, 0, packet, 16, 4);
+                    Buffer.BlockCopy(config.OverlayIpBytes, 0, packet, 20, 4);
+                    Buffer.BlockCopy(data, 0, packet, 24, data.Length);
+
+                    try
+                    {
+                        if (_relayClient != null)
+                        {
+                            await _relayClient.SendAsync(packet, packet.Length).ConfigureAwait(false);
+                        }
+                    }
+                    catch (SocketException ex)
+                    {
+                        logger.LogDebug(ex, "Failed to relay broadcast packet: {Message}", ex.Message);
+                    }
                 }
-
-                var packet = new byte[24 + data.Length];
-                Buffer.BlockCopy(config.NetworkIdBytes, 0, packet, 0, 16);
-                packet[16] = 255;
-                packet[17] = 255;
-                packet[18] = 255;
-                packet[19] = 255;
-                Buffer.BlockCopy(config.OverlayIpBytes, 0, packet, 20, 4);
-                Buffer.BlockCopy(data, 0, packet, 24, data.Length);
-
-                await _relayClient.SendAsync(packet, packet.Length).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Broadcast receive loop error: {Message}", ex.Message);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Clean exit
+        }
+        catch (ObjectDisposedException)
+        {
+            // Clean exit on listener disposal
         }
     }
 
@@ -704,5 +757,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         IPAddress OverlayIp,
         byte[] OverlayIpBytes,
         IPEndPoint RelayEndpoint,
-        int PrefixLength = 20);
+        int PrefixLength,
+        byte[] DirectedBroadcastBytes);
 }
