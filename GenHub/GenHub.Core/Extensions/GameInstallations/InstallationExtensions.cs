@@ -21,6 +21,16 @@ public static class InstallationExtensions
             .Concat(new[] { PublisherInfoConstants.Retail.Name }),
         StringComparer.OrdinalIgnoreCase);
 
+    private static readonly char[] FileNameWildcards = ['*', '?'];
+
+    private static readonly EnumerationOptions CaseInsensitiveFileSearch = new()
+    {
+        MatchCasing = MatchCasing.CaseInsensitive,
+        RecurseSubdirectories = false,
+        IgnoreInaccessible = true,
+        AttributesToSkip = 0,
+    };
+
     /// <summary>
     /// Attempts to find a file in a case-insensitive manner, returning a path to the file if found.
     /// </summary>
@@ -35,34 +45,39 @@ public static class InstallationExtensions
             return false;
         }
 
-        // First try direct filesystem check (efficient on Windows NTFS)
-        if (File.Exists(filePath))
-        {
-            matchedPath = filePath;
-            return true;
-        }
-
-        // Fallback: explicit case-insensitive search for case-sensitive filesystems
         try
         {
-            var directory = Path.GetDirectoryName(filePath);
+            var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
             var fileName = Path.GetFileName(filePath);
+            var searchDirectory = directory.Length == 0 ? "." : directory;
 
-            if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
+            if (string.IsNullOrEmpty(fileName) || !Directory.Exists(searchDirectory))
             {
                 return false;
             }
 
-            var directoryInfo = new DirectoryInfo(directory);
-            if (!directoryInfo.Exists)
+            var candidates = fileName.IndexOfAny(FileNameWildcards) >= 0
+                ? Directory.EnumerateFiles(searchDirectory, "*", CaseInsensitiveFileSearch)
+                : Directory.EnumerateFiles(searchDirectory, fileName, CaseInsensitiveFileSearch);
+            string? actualName = null;
+            foreach (var candidate in candidates)
             {
-                return false;
+                var candidateName = Path.GetFileName(candidate);
+                if (string.Equals(candidateName, fileName, StringComparison.Ordinal))
+                {
+                    actualName = candidateName;
+                    break;
+                }
+
+                if (actualName is null && string.Equals(candidateName, fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    actualName = candidateName;
+                }
             }
 
-            var matchingFile = directoryInfo.GetFiles().FirstOrDefault(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
-            if (matchingFile is not null)
+            if (actualName is not null)
             {
-                matchedPath = matchingFile.FullName;
+                matchedPath = Path.Combine(directory, actualName);
                 return true;
             }
         }
@@ -83,7 +98,7 @@ public static class InstallationExtensions
     /// <returns>True if the file exists (case-insensitive match).</returns>
     public static bool FileExistsCaseInsensitive(this string filePath)
     {
-        return TryGetFileCaseInsensitive(filePath, out _);
+        return File.Exists(filePath) || TryGetFileCaseInsensitive(filePath, out _);
     }
 
     /// <summary>
