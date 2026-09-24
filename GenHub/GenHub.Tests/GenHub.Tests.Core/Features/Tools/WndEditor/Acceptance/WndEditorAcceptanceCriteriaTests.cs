@@ -10,10 +10,11 @@ using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Core.Services.Tools.Checksum;
 using GenHub.Features.Tools.WndEditor.Services;
 using GenHub.Features.Tools.WndEditor.ViewModels;
+using GenHub.Tests.Core.Features.Tools.WndEditor.TestSupport;
+using ImageMagick;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -24,7 +25,8 @@ namespace GenHub.Tests.Core.Features.Tools.WndEditor.Acceptance;
 
 /// <summary>
 /// Acceptance criteria tests for the 3 core WND Editor issues:
-/// 1. Asset loading resolves Zero Hour over Generals (Expansion tier beats BaseGame loose/archive fallback),
+/// 1. Asset loading resolves Zero Hour over Generals (Expansion tier beats BaseGame loose/archive fallback;
+///    expansion archives beat same-tier base archives for shared paths, names, and string tables),
 ///    and MainMenuRuler does not inject Generals MainMenuBackdrop behind Zero Hour screens.
 /// 2. Border/window bounds expand virtual screen width/height so widescreen borders are full-screen, not corner-boxed.
 /// 3. ModBuilder sample project (ElTioRata / ImprovedMenus) loose assets in GameFilesEdited are discovered
@@ -85,7 +87,7 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
         // Zero Hour has EnglishZH.big containing Data\English\Generals.csf
         var zhCsfBytes = Encoding.UTF8.GetBytes("Zero Hour Expansion String Table");
         var zhBigPath = Path.Combine(zhRoot, "EnglishZH.big");
-        CreateBigArchive(zhBigPath, ("Data\\English\\Generals.csf", zhCsfBytes));
+        WndTestAssets.CreateBigArchive(zhBigPath, ("Data\\English\\Generals.csf", zhCsfBytes));
 
         // Create VFS with Zero Hour as active target and Generals as base fallback
         var vfs = new SageVirtualFileSystem(
@@ -219,7 +221,7 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
         Directory.CreateDirectory(baseDir);
         var baseBigPath = Path.Combine(baseDir, "Textures.big");
         byte[] baseTextureBytes = [0x54, 0x47, 0x41, 0x00, 0x00, 0x00];
-        CreateBigArchive(baseBigPath, ("Data\\English\\Art\\Textures\\mainmenuruleruserinterface.tga", baseTextureBytes));
+        WndTestAssets.CreateBigArchive(baseBigPath, ("Data\\English\\Art\\Textures\\mainmenuruleruserinterface.tga", baseTextureBytes));
 
         // Create VFS with base game and add the mod project
         var vfs = new SageVirtualFileSystem(
@@ -253,91 +255,115 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
     }
 
     /// <summary>
-    /// Helper to construct a valid .BIG archive containing arbitrary file entries.
+    /// Acceptance Criterion 1C:
+    /// Inside one Zero Hour installation, expansion archives override same-path base archives.
+    /// A mapped image and texture shared by INI.big (red) and INIZH.big (blue) must resolve
+    /// to the expansion (blue) pixels end to end through the image asset service.
     /// </summary>
-    private static void CreateBigArchive(string archivePath, params (string RelPath, byte[] Data)[] entries)
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Criterion1C_ZeroHourRoot_SamePathArtResolvesToZeroHourPixels()
     {
-        // Big format:
-        // 0..3: "BIG4"
-        // 4..7: total file size (uint32 LittleEndian)
-        // 8..11: entry count (uint32 BigEndian)
-        // 12..15: header size (uint32 BigEndian) = 16 + directory table size
-        // Directory table: for each entry:
-        //   4 bytes: offset (BigEndian)
-        //   4 bytes: size (BigEndian)
-        //   null-terminated relative path
-        // File data at specified offsets
-        var dirEntries = new List<(string Path, byte[] Data, int PathBytesLength)>();
-        int dirTableSize = 0;
-        foreach (var (relPath, data) in entries)
-        {
-            var normalized = relPath.Replace('/', '\\');
-            var pathBytesLen = Encoding.Latin1.GetByteCount(normalized) + 1; // including null terminator
-            dirEntries.Add((normalized, data, pathBytesLen));
-            dirTableSize += 8 + pathBytesLen;
-        }
+        // Arrange: base and expansion archives share one MappedImages INI path and one texture path
+        var zhRoot = Path.Combine(_tempRoot, "ZeroHourPixels");
+        Directory.CreateDirectory(zhRoot);
+        var redPng = WndTestAssets.CreateSolidPng(MagickColors.Red);
+        var bluePng = WndTestAssets.CreateSolidPng(MagickColors.Blue);
+        const string iniPath = "Data\\INI\\MappedImages\\HandCreated\\Shared.ini";
+        const string iniText = "MappedImage SharedImage\n  Texture = shared.tga\n  Coords = Left:0 Top:0 Right:1 Bottom:1\nEnd\n";
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "INI.big"),
+            (iniPath, Encoding.UTF8.GetBytes(iniText)),
+            ("shared.tga", redPng));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "INIZH.big"),
+            (iniPath, Encoding.UTF8.GetBytes(iniText)),
+            ("shared.tga", bluePng));
 
-        int headerSize = 16 + dirTableSize;
-        int currentOffset = headerSize;
-        var entryOffsets = new List<int>();
+        var service = new WndImageAssetService(Mock.Of<ILogger<WndImageAssetService>>());
 
-        foreach (var (_, data, _) in dirEntries)
-        {
-            entryOffsets.Add(currentOffset);
-            currentOffset += data.Length;
-        }
+        // Act
+        var result = await service.GetImagesAsync(["SharedImage"], zhRoot, null, null, null, true, CancellationToken.None);
 
-        int totalFileSize = currentOffset;
+        // Assert: the resolved pixels are the expansion texture, not the base one
+        result.Success.Should().BeTrue();
+        var sharedImages = result.Data;
+        sharedImages.Should().NotBeNull().And.ContainKey("SharedImage");
+        WndTestAssets.ComparePngs(sharedImages!["SharedImage"], bluePng).Should().Be(0);
+        WndTestAssets.ComparePngs(sharedImages!["SharedImage"], redPng).Should().BeGreaterThan(0);
+    }
 
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
+    /// <summary>
+    /// Acceptance Criterion 1D:
+    /// When base and expansion archives define the same mapped image name in different INI files,
+    /// the expansion (later-mounted) definition wins even when its INI path sorts alphabetically
+    /// earlier than the base definition path.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Criterion1D_SameNameMappedImage_LaterMountedArchiveWinsDespitePathOrder()
+    {
+        // Arrange: expansion definition in an alphabetically-early path, base definition in a late path
+        var zhRoot = Path.Combine(_tempRoot, "ZeroHourNameOrder");
+        Directory.CreateDirectory(zhRoot);
+        var redPng = WndTestAssets.CreateSolidPng(MagickColors.Red);
+        var bluePng = WndTestAssets.CreateSolidPng(MagickColors.Blue);
+        const string baseIniText = "MappedImage OrderImage\n  Texture = orderbase.tga\n  Coords = Left:0 Top:0 Right:1 Bottom:1\nEnd\n";
+        const string zhIniText = "MappedImage OrderImage\n  Texture = orderzh.tga\n  Coords = Left:0 Top:0 Right:1 Bottom:1\nEnd\n";
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "A_Base.big"),
+            ("Data\\INI\\MappedImages\\HandCreated\\Z_Late.ini", Encoding.UTF8.GetBytes(baseIniText)),
+            ("orderbase.tga", redPng));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "Z_Expansion.big"),
+            ("Data\\INI\\MappedImages\\HandCreated\\A_Early.ini", Encoding.UTF8.GetBytes(zhIniText)),
+            ("orderzh.tga", bluePng));
 
-        // Magic "BIG4"
-        writer.Write((byte)'B');
-        writer.Write((byte)'I');
-        writer.Write((byte)'G');
-        writer.Write((byte)'4');
+        var service = new WndImageAssetService(Mock.Of<ILogger<WndImageAssetService>>());
 
-        // Total file size (Little Endian uint32)
-        writer.Write((uint)totalFileSize);
+        // Act
+        var result = await service.GetImagesAsync(["OrderImage"], zhRoot, null, null, null, true, CancellationToken.None);
 
-        // Entry count (Big Endian uint32)
-        byte[] countBytes = new byte[4];
-        BinaryPrimitives.WriteUInt32BigEndian(countBytes, (uint)entries.Length);
-        writer.Write(countBytes);
+        // Assert: the expansion definition (blue texture) wins over the base definition (red texture)
+        result.Success.Should().BeTrue();
+        var orderImages = result.Data;
+        orderImages.Should().NotBeNull().And.ContainKey("OrderImage");
+        WndTestAssets.ComparePngs(orderImages!["OrderImage"], bluePng).Should().Be(0);
+        WndTestAssets.ComparePngs(orderImages!["OrderImage"], redPng).Should().BeGreaterThan(0);
+    }
 
-        // Header size (Big Endian uint32)
-        byte[] headerSizeBytes = new byte[4];
-        BinaryPrimitives.WriteUInt32BigEndian(headerSizeBytes, (uint)headerSize);
-        writer.Write(headerSizeBytes);
+    /// <summary>
+    /// Acceptance Criterion 1E:
+    /// The shared string table path (Data\English\Generals.csf) resolves to the expansion
+    /// archive content inside one Zero Hour installation, so Zero Hour labels load instead
+    /// of showing raw GUI: labels.
+    /// </summary>
+    [Fact]
+    public void Criterion1E_StringTable_SamePathResolvesToZeroHour()
+    {
+        // Arrange: base and expansion archives share the string table path
+        var zhRoot = Path.Combine(_tempRoot, "ZeroHourStrings");
+        Directory.CreateDirectory(zhRoot);
+        var baseCsf = Encoding.UTF8.GetBytes("generals-base-strings");
+        var zhCsf = Encoding.UTF8.GetBytes("zerohour-expansion-strings");
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "English.big"),
+            ("Data\\English\\Generals.csf", baseCsf));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "EnglishZH.big"),
+            ("Data\\English\\Generals.csf", zhCsf));
 
-        // Directory table
-        byte[] u32Buf = new byte[4];
-        for (int i = 0; i < dirEntries.Count; i++)
-        {
-            var (path, data, _) = dirEntries[i];
-            int offset = entryOffsets[i];
+        var vfs = new SageVirtualFileSystem(
+            zhRoot,
+            isZeroHour: true,
+            logger: Mock.Of<ILogger>(),
+            initialTier: SageFileTier.Expansion);
 
-            // Offset BigEndian
-            BinaryPrimitives.WriteUInt32BigEndian(u32Buf, (uint)offset);
-            writer.Write(u32Buf);
+        // Act
+        var resolvedBytes = vfs.Read("Data\\English\\Generals.csf");
 
-            // Size BigEndian
-            BinaryPrimitives.WriteUInt32BigEndian(u32Buf, (uint)data.Length);
-            writer.Write(u32Buf);
-
-            // Path null-terminated Latin1
-            writer.Write(Encoding.Latin1.GetBytes(path));
-            writer.Write((byte)0);
-        }
-
-        // File payload data
-        foreach (var (_, data, _) in dirEntries)
-        {
-            writer.Write(data);
-        }
-
-        writer.Flush();
-        File.WriteAllBytes(archivePath, ms.ToArray());
+        // Assert
+        resolvedBytes.Should().NotBeNull();
+        resolvedBytes.Should().Equal(zhCsf);
     }
 }

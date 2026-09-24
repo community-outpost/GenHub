@@ -25,6 +25,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 {
     private const int MaxCachedIndexes = 8;
     private const int MaxCachedImages = 500;
+    private const int ArchiveRankWeight = 1000;
+    private const int MaxArchiveRankSteps = 89;
+    private const int LooseFileRank = 90000;
     private const string DataPrefix = "Data\\";
     private const string ArtTexturesPrefix = @"Art\Textures\";
     private const string TexturesPrefix = @"Textures\";
@@ -171,7 +174,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return string.Concat(indexKey, "|", name);
     }
 
-    private static int DefinitionScore(string relativePath, int size, SageFileTier tier)
+    private static int DefinitionScore(string relativePath, int size, SageFileTier tier, int sourceOrder)
     {
         var tierBase = (int)tier * 1_000_000;
 
@@ -194,7 +197,14 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         var sizeBonus = size < 0 ? 0 : Math.Clamp(size, 0, 4096);
 
-        return tierBase + handCreatedBonus + sizeBonus;
+        // Later-mounted archives override earlier ones at the same tier (expansion
+        // archives sort after base archives), so definitions from later mounts win
+        // same-name ties. Loose files outrank every archive, matching the engine.
+        // The rank stays below the HandCreated bonus to preserve the established
+        // authoritative-definition preference.
+        var archiveRank = sourceOrder < 0 ? LooseFileRank : Math.Min(sourceOrder, MaxArchiveRankSteps) * ArchiveRankWeight;
+
+        return tierBase + handCreatedBonus + archiveRank + sizeBonus;
     }
 
     private static int ParseTextureSize(string relativePath)
@@ -482,7 +492,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         var tier = fileSystem.GetFileTier(iniPath) ?? SageFileTier.BaseGame;
         var size = ParseTextureSize(iniPath);
-        var score = DefinitionScore(iniPath, size, tier);
+        var sourceOrder = fileSystem.TryGetSourceArchiveOrder(iniPath, out var order) ? order : -1;
+        var score = DefinitionScore(iniPath, size, tier, sourceOrder);
         foreach (var image in WndMappedImage.ParseDefinitions(text))
         {
             IndexParsedImage(new TieredImage(image, tier, score, size, iniPath), images, alternates);

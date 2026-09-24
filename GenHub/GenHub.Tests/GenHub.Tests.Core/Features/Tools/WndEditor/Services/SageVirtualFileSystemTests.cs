@@ -1,9 +1,11 @@
 using FluentAssertions;
 using GenHub.Core.Services.Tools.Checksum;
+using GenHub.Tests.Core.Features.Tools.WndEditor.TestSupport;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.IO;
+using System.Text;
 
 namespace GenHub.Tests.Core.Features.Tools.WndEditor.Services;
 
@@ -174,5 +176,152 @@ public sealed class SageVirtualFileSystemTests : IDisposable
         // Assert: LinkedAsset (0xBB) wins over Mod (0xAA) regardless of registration order
         readBytes.Should().NotBeNull();
         readBytes.Should().Equal([0xBB]);
+    }
+
+    /// <summary>
+    /// Tests that same-tier archives resolve same-path files in mount order: the later-sorted
+    /// archive wins, so Zero Hour expansion archives (INIZH.big) override same-path base
+    /// archives (INI.big) inside one installation, mirroring the engine.
+    /// </summary>
+    [Fact]
+    public void Read_SamePathInBaseAndExpansionArchives_LaterSortedArchiveWins()
+    {
+        // Arrange: a Zero Hour root shipping both base and expansion archives
+        var zhRoot = Path.Combine(_tempRoot, "ZeroHourRoot");
+        Directory.CreateDirectory(zhRoot);
+        var baseBytes = Encoding.UTF8.GetBytes("generals-base-gamedata");
+        var zhBytes = Encoding.UTF8.GetBytes("zerohour-expansion-gamedata");
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "INI.big"),
+            ("Data\\INI\\GameData.ini", baseBytes),
+            ("Data\\INI\\BaseOnly.ini", baseBytes));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "INIZH.big"),
+            ("Data\\INI\\GameData.ini", zhBytes));
+
+        var vfs = new SageVirtualFileSystem(
+            zhRoot,
+            isZeroHour: true,
+            logger: Mock.Of<ILogger>(),
+            initialTier: SageFileTier.Expansion);
+
+        // Act
+        var resolvedBytes = vfs.Read("Data\\INI\\GameData.ini");
+        var resolvedTier = vfs.GetFileTier("Data\\INI\\GameData.ini");
+        var baseOrderFound = vfs.TryGetSourceArchiveOrder("Data\\INI\\BaseOnly.ini", out var baseOrder);
+        var sharedOrderFound = vfs.TryGetSourceArchiveOrder("Data\\INI\\GameData.ini", out var sharedOrder);
+
+        // Assert: the expansion archive wins the shared path at the expansion tier
+        resolvedBytes.Should().NotBeNull();
+        resolvedBytes.Should().Equal(zhBytes);
+        resolvedTier.Should().Be(SageFileTier.Expansion);
+        baseOrderFound.Should().BeTrue();
+        sharedOrderFound.Should().BeTrue();
+        sharedOrder.Should().BeGreaterThan(baseOrder);
+    }
+
+    /// <summary>
+    /// Tests that filename-only archive lookups apply the same later-sorted-wins rule
+    /// within one tier, so expansion textures beat same-name base textures.
+    /// </summary>
+    [Fact]
+    public void TryReadArchiveFileByName_SameTierDuplicates_LaterSortedArchiveWins()
+    {
+        // Arrange: same texture filename stored under different paths in base and expansion archives
+        var zhRoot = Path.Combine(_tempRoot, "ZeroHourTextures");
+        Directory.CreateDirectory(zhRoot);
+        byte[] baseTexture = [0x54, 0x47, 0x41, 0x00];
+        byte[] zhTexture = [0x54, 0x47, 0x41, 0x01];
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "Textures.big"),
+            ("Art\\Textures\\Shared.tga", baseTexture));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "TexturesZH.big"),
+            ("Data\\Art\\Textures\\Shared.tga", zhTexture));
+
+        var vfs = new SageVirtualFileSystem(
+            zhRoot,
+            isZeroHour: true,
+            logger: Mock.Of<ILogger>(),
+            initialTier: SageFileTier.Expansion);
+
+        // Act
+        var resolvedBytes = vfs.TryReadArchiveFileByName("Shared.tga");
+
+        // Assert
+        resolvedBytes.Should().NotBeNull();
+        resolvedBytes.Should().Equal(zhTexture);
+    }
+
+    /// <summary>
+    /// Tests that loose files keep precedence over same-tier archived files, matching
+    /// the engine where loose game-directory files override archive contents.
+    /// </summary>
+    [Fact]
+    public void Read_LooseFileBeatsSameTierArchive()
+    {
+        // Arrange: same path exists loose and inside an archive of the game root
+        var gameRoot = Path.Combine(_tempRoot, "LooseBeatsArchive");
+        var looseDir = Path.Combine(gameRoot, "Data", "INI");
+        Directory.CreateDirectory(looseDir);
+        var looseBytes = Encoding.UTF8.GetBytes("loose-override");
+        File.WriteAllBytes(Path.Combine(looseDir, "Shared.ini"), looseBytes);
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(gameRoot, "M.big"),
+            ("Data\\INI\\Shared.ini", Encoding.UTF8.GetBytes("archived")));
+
+        var vfs = new SageVirtualFileSystem(
+            gameRoot,
+            isZeroHour: false,
+            logger: Mock.Of<ILogger>(),
+            initialTier: SageFileTier.BaseGame);
+
+        // Act
+        var resolvedBytes = vfs.Read("Data\\INI\\Shared.ini");
+        var missingOrderFound = vfs.TryGetSourceArchiveOrder("Data\\Missing.ini", out _);
+
+        // Assert
+        resolvedBytes.Should().NotBeNull();
+        resolvedBytes.Should().Equal(looseBytes);
+        missingOrderFound.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that a base fallback directory fills gaps only and never overrides
+    /// same-tier primary entries.
+    /// </summary>
+    [Fact]
+    public void AddBaseFallback_SameTier_DoesNotOverridePrimary()
+    {
+        // Arrange: primary and fallback archives share one path; fallback sorts later
+        var primaryRoot = Path.Combine(_tempRoot, "Primary");
+        var fallbackRoot = Path.Combine(_tempRoot, "Fallback");
+        Directory.CreateDirectory(primaryRoot);
+        Directory.CreateDirectory(fallbackRoot);
+        var primaryBytes = Encoding.UTF8.GetBytes("primary");
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(primaryRoot, "A_Primary.big"),
+            ("Data\\INI\\Shared.ini", primaryBytes));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(fallbackRoot, "Z_Fallback.big"),
+            ("Data\\INI\\Shared.ini", Encoding.UTF8.GetBytes("fallback")),
+            ("Data\\INI\\FallbackOnly.ini", Encoding.UTF8.GetBytes("gap")));
+
+        var vfs = new SageVirtualFileSystem(
+            primaryRoot,
+            isZeroHour: false,
+            logger: Mock.Of<ILogger>(),
+            initialTier: SageFileTier.BaseGame);
+        vfs.AddBaseFallback(fallbackRoot);
+
+        // Act
+        var sharedBytes = vfs.Read("Data\\INI\\Shared.ini");
+        var gapBytes = vfs.Read("Data\\INI\\FallbackOnly.ini");
+
+        // Assert
+        sharedBytes.Should().NotBeNull();
+        sharedBytes.Should().Equal(primaryBytes);
+        gapBytes.Should().NotBeNull();
+        gapBytes.Should().Equal(Encoding.UTF8.GetBytes("gap"));
     }
 }

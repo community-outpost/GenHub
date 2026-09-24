@@ -37,8 +37,10 @@ public sealed class SageVirtualFileSystem
     private readonly List<(string Path, SageFileTier Tier)> _looseRoots = [];
     private readonly Dictionary<string, (BigArchiveEntry Entry, SageFileTier Tier)> _archiveEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (string Path, SageFileTier Tier)> _modLooseFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _archiveMountOrder = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string?> _loosePathCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger? _logger;
+    private int _nextArchiveOrder;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SageVirtualFileSystem"/> class.
@@ -104,7 +106,7 @@ public sealed class SageVirtualFileSystem
         Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
         foreach (string bigFile in bigFiles)
         {
-            AddArchive(bigFile, SageFileTier.BaseGame);
+            AddArchive(bigFile, SageFileTier.BaseGame, overwriteSameTier: false);
         }
     }
 
@@ -298,6 +300,30 @@ public sealed class SageVirtualFileSystem
     }
 
     /// <summary>
+    /// Gets the mount sequence of the archive currently providing a file, so callers
+    /// can prefer definitions from later-mounted (expansion) archives when the same
+    /// logical content is defined in multiple archives at the same tier.
+    /// </summary>
+    /// <param name="relativePath">The relative file path.</param>
+    /// <param name="order">The zero-based mount sequence when the file comes from a mounted archive.</param>
+    /// <returns>True when the winning entry for the path comes from a mounted archive.</returns>
+    public bool TryGetSourceArchiveOrder(string relativePath, out int order)
+    {
+        order = -1;
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return false;
+        }
+
+        if (!_archiveEntries.TryGetValue(relativePath.Replace('/', '\\').ToLowerInvariant(), out var pair))
+        {
+            return false;
+        }
+
+        return _archiveMountOrder.TryGetValue(pair.Entry.ArchivePath, out order);
+    }
+
+    /// <summary>
     /// Attempts to read a loose file from indexed mod directories by its filename alone.
     /// </summary>
     /// <param name="fileName">The filename of the asset (e.g. MainMenuBackdrop_16_9.tga).</param>
@@ -466,9 +492,11 @@ public sealed class SageVirtualFileSystem
 
         if (candidate.Tier == currentBest.Value.Tier)
         {
+            // Same rule as AddArchive: later-sorted archives override earlier ones,
+            // so expansion archives (INIZH.big, ...) beat same-tier base archives.
             string candidateBaseName = Path.GetFileName(candidate.Entry.ArchivePath);
             string bestBaseName = Path.GetFileName(currentBest.Value.Entry.ArchivePath);
-            return string.Compare(candidateBaseName, bestBaseName, StringComparison.OrdinalIgnoreCase) < 0;
+            return string.Compare(candidateBaseName, bestBaseName, StringComparison.OrdinalIgnoreCase) > 0;
         }
 
         return false;
@@ -693,7 +721,7 @@ public sealed class SageVirtualFileSystem
         }
     }
 
-    private void AddArchive(string archivePath, SageFileTier tier)
+    private void AddArchive(string archivePath, SageFileTier tier, bool overwriteSameTier = true)
     {
         if (!BigArchiveReader.TryReadIndex(archivePath, out var entries))
         {
@@ -701,20 +729,24 @@ public sealed class SageVirtualFileSystem
             return;
         }
 
-        string newBaseName = Path.GetFileName(archivePath);
+        if (!_archiveMountOrder.ContainsKey(archivePath))
+        {
+            _archiveMountOrder[archivePath] = _nextArchiveOrder++;
+        }
+
         foreach (var (key, entry) in entries)
         {
             if (!_archiveEntries.TryGetValue(key, out var incumbent) || tier > incumbent.Tier)
             {
                 _archiveEntries[key] = (entry, tier);
             }
-            else if (tier == incumbent.Tier)
+            else if (tier == incumbent.Tier && overwriteSameTier)
             {
-                string incumbentBaseName = Path.GetFileName(incumbent.Entry.ArchivePath);
-                if (string.Compare(newBaseName, incumbentBaseName, StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    _archiveEntries[key] = (entry, tier);
-                }
+                // Same-tier mounts resolve in mount order: every call site mounts
+                // archives in ascending-sorted order, so the later-sorted archive wins.
+                // This mirrors the engine, where expansion archives (INIZH.big,
+                // EnglishZH.big, ...) override same-path base archives (INI.big, ...).
+                _archiveEntries[key] = (entry, tier);
             }
         }
     }
