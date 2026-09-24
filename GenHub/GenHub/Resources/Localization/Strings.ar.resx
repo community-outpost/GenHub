@@ -13320,6 +13320,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage" xml:space="preserve">
     <value>تعذر تجهيز بعض الملفات المسحوبة وتم تخطيها. راجع السجلات للاطلاع على التفاصيل.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
+    <value>لم يتم العثور على ملفات صور أو فيديو مدعومة.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

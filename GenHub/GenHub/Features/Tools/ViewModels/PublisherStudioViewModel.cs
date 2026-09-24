@@ -21,7 +21,6 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -376,7 +375,9 @@ public partial class PublisherStudioViewModel(
                 }
                 catch (FormatException)
                 {
-                    errMessage = $"{errTemplate}: {ex.Message}";
+                    errMessage = errTemplate.Contains("{0}")
+                        ? errTemplate.Replace("{0}", ex.Message)
+                        : $"{errTemplate}: {ex.Message}";
                 }
 
                 notificationService?.ShowError(StudioNotificationTitle, errMessage, NotificationDurations.Long);
@@ -619,7 +620,9 @@ public partial class PublisherStudioViewModel(
         }
         catch (FormatException)
         {
-            formattedReason = $"{errTemplate}: {reason}";
+            formattedReason = errTemplate.Contains("{0}")
+                ? errTemplate.Replace("{0}", reason)
+                : $"{errTemplate}: {reason}";
         }
 
         notificationService?.ShowError(StudioNotificationTitle, formattedReason, NotificationDurations.Long);

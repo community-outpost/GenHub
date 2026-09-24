@@ -388,17 +388,10 @@ public partial class SubscriptionConfirmationViewModel(
         try
         {
             ErrorMessage = null;
-            var publisherId = (!string.IsNullOrWhiteSpace(_resolvedDefinition?.Publisher?.Id))
-                ? _resolvedDefinition.Publisher.Id
-                : _parsedCatalog.Publisher.Id;
-
-            var publisherName = (!string.IsNullOrWhiteSpace(_resolvedDefinition?.Publisher?.Name))
-                ? _resolvedDefinition.Publisher.Name
-                : _parsedCatalog.Publisher.Name;
-
-            var publisherAvatar = (!string.IsNullOrWhiteSpace(_resolvedDefinition?.Publisher?.AvatarUrl))
-                ? _resolvedDefinition.Publisher.AvatarUrl
-                : _parsedCatalog.Publisher.AvatarUrl;
+            var effectivePublisher = ResolveEffectivePublisher(_parsedCatalog);
+            var publisherId = effectivePublisher.Id;
+            var publisherName = effectivePublisher.Name;
+            var publisherAvatar = effectivePublisher.AvatarUrl;
 
             logger.LogInformation("Confirming subscription for {Publisher}", publisherId);
 
@@ -627,21 +620,35 @@ public partial class SubscriptionConfirmationViewModel(
         return (null, null, null, null);
     }
 
+    private PublisherProfile ResolveEffectivePublisher(PublisherCatalog catalog)
+    {
+        var def = _resolvedDefinition?.Publisher;
+        var cat = catalog.Publisher;
+        return new PublisherProfile
+        {
+            Id = !string.IsNullOrWhiteSpace(def?.Id) ? def.Id : cat.Id,
+            Name = !string.IsNullOrWhiteSpace(def?.Name) ? def.Name : cat.Name,
+            Description = !string.IsNullOrWhiteSpace(def?.Description) ? def.Description : cat.Description,
+            AvatarUrl = !string.IsNullOrWhiteSpace(def?.AvatarUrl) ? def.AvatarUrl : cat.AvatarUrl,
+            Website = !string.IsNullOrWhiteSpace(def?.Website) ? def.Website : cat.Website,
+            SupportUrl = !string.IsNullOrWhiteSpace(def?.SupportUrl) ? def.SupportUrl : cat.SupportUrl,
+            ContactEmail = !string.IsNullOrWhiteSpace(def?.ContactEmail) ? def.ContactEmail : cat.ContactEmail,
+        };
+    }
+
     private async Task PopulatePublisherDetailsAsync(
         PublisherCatalog catalog,
         CancellationToken cancellationToken)
     {
-        var pubProfile = (_resolvedDefinition?.Publisher != null && !string.IsNullOrWhiteSpace(_resolvedDefinition.Publisher.Name))
-            ? _resolvedDefinition.Publisher
-            : catalog.Publisher;
+        var pubProfile = ResolveEffectivePublisher(catalog);
 
         PublisherName = pubProfile.Name;
         PublisherAvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(pubProfile.AvatarUrl);
-        PublisherWebsite = pubProfile.WebsiteUrl ?? pubProfile.Website;
+        PublisherWebsite = pubProfile.Website;
         PublisherSupportUrl = pubProfile.SupportUrl ?? string.Empty;
         PublisherContactEmail = pubProfile.ContactEmail ?? string.Empty;
 
-        var publisherId = !string.IsNullOrWhiteSpace(pubProfile.Id) ? pubProfile.Id : catalog.Publisher.Id;
+        var publisherId = pubProfile.Id;
 
         // check if this publisher is already in the subscription store
         var subCheck = await subscriptionStore.IsSubscribedAsync(publisherId, cancellationToken);

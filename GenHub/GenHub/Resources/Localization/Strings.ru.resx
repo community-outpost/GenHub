@@ -13320,6 +13320,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage" xml:space="preserve">
     <value>Некоторые перетащенные файлы не удалось подготовить, и они были пропущены. Подробности см. в журнале.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
+    <value>Поддерживаемые файлы изображений или видео не найдены.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

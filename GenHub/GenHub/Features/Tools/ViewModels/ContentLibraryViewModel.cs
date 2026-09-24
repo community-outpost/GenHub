@@ -415,7 +415,8 @@ public partial class ContentLibraryViewModel(
             {
                 try
                 {
-                    mediaPath = new Uri(path).AbsoluteUri;
+                    var escapedPath = path.Replace("#", "%23");
+                    mediaPath = new Uri(escapedPath).AbsoluteUri;
                 }
                 catch (UriFormatException)
                 {
@@ -878,7 +879,7 @@ public partial class ContentLibraryViewModel(
         }
 
         var title = GetLocalizedString("Tools.PublisherStudio.Library.MediaOpenFailedTitle", "Cannot Open Media");
-        var message = GetLocalizedString("Tools.PublisherStudio.Library.MediaOpenFailedMessage", "This media entry is neither an existing image/video file nor a valid web URL.");
+        var message = GetLocalizedString("Tools.PublisherStudio.Library.MediaOpenFailedMessage", "This media entry is neither an existing file nor a valid web URL.");
         notificationService?.ShowWarning(title, message);
     }
 

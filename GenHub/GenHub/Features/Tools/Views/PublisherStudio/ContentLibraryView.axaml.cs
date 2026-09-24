@@ -72,12 +72,13 @@ public partial class ContentLibraryView : UserControl
             return false;
         }
 
+        e.Handled = true;
         if (await vm.TryImportCatalogFileAsync(paths[0]))
         {
-            e.Handled = true;
             return true;
         }
 
+        e.Handled = false;
         return false;
     }
 

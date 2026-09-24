@@ -10,7 +10,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,7 +22,8 @@ namespace GenHub.Features.Content.Services.Catalog;
 /// This is the interchange format for modular catalogs: any publisher can host a schema-valid
 /// file and users subscribe without a GenHub code change. Distinct from bundled
 /// <see cref="ProviderDefinition"/> JSON and from proprietary catalog formats used by built-in
-/// providers (e.g. GeneralsOnline API, genpatcher-dat).
+/// providers (e.g. GeneralsOnline API, genpatcher-dat). Uses <see cref="PublisherJsonOptions.CatalogImport"/>
+/// to unify serialization options across import workflows, supporting trailing commas and comments.
 /// </remarks>
 public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logger) : IPublisherCatalogParser
 {

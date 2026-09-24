@@ -13418,6 +13418,9 @@ Would you like to add this catalog to your provider project?</value>
   <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage" xml:space="preserve">
     <value>Some dropped files could not be staged and were skipped. See logs for details.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
+    <value>No supported image or video files found.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>
