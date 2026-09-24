@@ -103,13 +103,6 @@ def load_raw_text(path):
     return text, newline, has_bom
 
 
-def _find_first_data_open(lines):
-    for idx, line in enumerate(lines):
-        if RE_DATA_OPEN.search(line):
-            return idx
-    return None
-
-
 def _find_root_close(lines, path):
     for idx in range(len(lines) - 1, -1, -1):
         if '</root>' in lines[idx]:
@@ -117,26 +110,70 @@ def _find_root_close(lines, path):
     raise ResxError(f'{path}: missing </root> element')
 
 
-def _find_last_data_close(lines, first_data_idx, path):
-    for idx in range(len(lines) - 1, first_data_idx - 1, -1):
-        if RE_DATA_CLOSE.search(lines[idx]):
-            return idx
-    raise ResxError(f'{path}: unclosed <data> element')
+def _strip_comments_and_cdata(line, in_comment, in_cdata):
+    """Strip XML comments and CDATA sections from a line to expose structural XML tags."""
+    i = 0
+    n = len(line)
+    result = []
+    while i < n:
+        if in_comment:
+            end = line.find('-->', i)
+            if end == -1:
+                return ''.join(result), True, False
+            i = end + 3
+            in_comment = False
+        elif in_cdata:
+            end = line.find(']]>', i)
+            if end == -1:
+                return ''.join(result), False, True
+            i = end + 3
+            in_cdata = False
+        else:
+            comment_start = line.find('<!--', i)
+            cdata_start = line.find('<![CDATA[', i)
+            if comment_start != -1 and (cdata_start == -1 or comment_start < cdata_start):
+                result.append(line[i:comment_start])
+                result.append(' ')
+                i = comment_start + 4
+                in_comment = True
+            elif cdata_start != -1:
+                result.append(line[i:cdata_start])
+                result.append(' ')
+                i = cdata_start + 9
+                in_cdata = True
+            else:
+                result.append(line[i:])
+                break
+    return ''.join(result), in_comment, in_cdata
 
 
 def extract_header_and_body(lines, path):
-    first_data_idx = _find_first_data_open(lines)
+    first_data_idx = None
+    last_data_close = None
+    in_comment = False
+    in_cdata = False
+
+    for idx, line in enumerate(lines):
+        clean_line, in_comment, in_cdata = _strip_comments_and_cdata(line, in_comment, in_cdata)
+        if first_data_idx is None and RE_DATA_OPEN.search(clean_line):
+            first_data_idx = idx
+        if first_data_idx is not None and RE_DATA_CLOSE.search(clean_line):
+            last_data_close = idx
+
     if first_data_idx is None:
         close_idx = _find_root_close(lines, path)
         return list(lines[:close_idx]), list(lines[close_idx:]), []
 
-    last_data_close = _find_last_data_close(lines, first_data_idx, path)
+    if last_data_close is None:
+        raise ResxError(f'{path}: unclosed <data> element')
+
     footer_start = last_data_close + 1
     return list(lines[:first_data_idx]), list(lines[footer_start:]), list(lines[first_data_idx:footer_start])
 
 
-def _handle_body_line(line, path, current_key, current_block, by_key, order):
-    match = RE_DATA_OPEN.search(line)
+def _handle_body_line(line, path, current_key, current_block, by_key, order, in_comment, in_cdata):
+    clean_line, in_comment, in_cdata = _strip_comments_and_cdata(line, in_comment, in_cdata)
+    match = RE_DATA_OPEN.search(clean_line)
     if match:
         if current_key is not None:
             raise ResxError(f'{path}: nested <data> tag at line: {line.strip()}')
@@ -145,16 +182,16 @@ def _handle_body_line(line, path, current_key, current_block, by_key, order):
     elif current_key is not None:
         current_block.append(line)
     else:
-        stripped = line.strip()
+        stripped = clean_line.strip()
         if stripped and not stripped.startswith('<!--'):
             raise ResxError(f'{path}: unexpected non-data content: {stripped}')
-        return None, []
+        return None, [], in_comment, in_cdata
 
-    if RE_DATA_CLOSE.search(line):
+    if RE_DATA_CLOSE.search(clean_line):
         _record_block(path, current_key, current_block, by_key, order)
-        return None, []
+        return None, [], in_comment, in_cdata
 
-    return current_key, current_block
+    return current_key, current_block, in_comment, in_cdata
 
 
 def parse_data_blocks(body_lines, path):
@@ -162,10 +199,12 @@ def parse_data_blocks(body_lines, path):
     order = []
     current_key = None
     current_block = []
+    in_comment = False
+    in_cdata = False
 
     for line in body_lines:
-        current_key, current_block = _handle_body_line(
-            line, path, current_key, current_block, by_key, order
+        current_key, current_block, in_comment, in_cdata = _handle_body_line(
+            line, path, current_key, current_block, by_key, order, in_comment, in_cdata
         )
 
     if current_key is not None:
@@ -297,6 +336,8 @@ def _resolve_fold_group(names, base, current, other):
             oth_lines.extend(other['by_key'][name])
         if name in base['by_key']:
             base_lines.extend(base['by_key'][name])
+    if cur_lines == oth_lines:
+        return [(cur_lines, False)]
     return [(_format_conflict(base_lines, cur_lines, oth_lines), True)]
 
 
@@ -615,6 +656,14 @@ def _get_self_test_cases(a):
         ('case-variant-add', _doc(a), _doc(a + [('K.C', 'c', None)]),
          _doc(a + [('k.c', 'c-oth', None)]),
          EXIT_CONFLICT, _verify_conflict_markers),
+        ('case-rename-identical', _doc(a),
+         _doc([('k.a', 'a', None), ('K.B', 'b', None)]),
+         _doc([('k.a', 'a', None), ('K.B', 'b', None)]),
+         EXIT_OK, _expect_keys('k.a', 'K.B')),
+        ('cdata-and-comment-embedded-closing-tag', _doc(a),
+         _doc([('K.A', '<![CDATA[val </data> inside]]>', 'keep <!-- </data> -->'), ('K.B', 'b', None)]),
+         _doc(a + [('K.C', 'c', None)]),
+         EXIT_OK, _expect_keys('K.A', 'K.B', 'K.C')),
         ('comment-preserved', _doc(a),
          _doc([('K.A', 'a', 'keep me'), ('K.B', 'b', None)]),
          _doc(a), EXIT_OK, _verify_comment_kept),

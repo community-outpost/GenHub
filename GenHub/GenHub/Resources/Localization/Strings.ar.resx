@@ -596,27 +596,27 @@
     <comment>Badge indicating admin privileges required</comment>
   </data>
   <data name="GameProfiles.Badge.RetailCompatible" xml:space="preserve">
-    <value>متوافق مع نسخة التجزئة</value>
-    <comment>Badge indicating the profile game client executable CRC matches retail 1.04</comment>
+    <value>متوافق مع 1.04 / 1.05</value>
+    <comment>Badge indicating the profile game client rules/INIs and executable match retail</comment>
   </data>
   <data name="GameProfiles.Badge.NonRetailCompatible" xml:space="preserve">
-    <value>غير متوافق مع نسخة التجزئة</value>
-    <comment>Badge indicating the profile game client uses a non-retail executable</comment>
+    <value>غير متوافق مع 1.04 / 1.05</value>
+    <comment>Badge indicating the profile uses non-retail rules/INIs or custom executables</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatible" xml:space="preserve">
-    <value>متوافق مع النسخة 1.04 الأصلية (تطابق CRC للملف التنفيذي)</value>
+    <value>متوافق مع النسخة الأصلية 1.04 / 1.05 (قواعد/INI رسمية)</value>
     <comment>Tooltip for retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatible" xml:space="preserve">
-    <value>يستخدم ملفاً تنفيذياً مخصصاً؛ غير متوافق مع النسخة 1.04</value>
+    <value>تكوين غير متوافق مع نسخة التجزئة (قواعد/INI تختلف عن 1.04 / 1.05)</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
-    <value>متوافق مع نسخة Generals الأصلية 1.08 / 1.09 (ملف تنفيذي رسمي)</value>
+    <value>متوافق مع نسخة Generals الأصلية 1.08 / 1.09 (قواعد/INI رسمية)</value>
     <comment>Tooltip for retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
-    <value>ملف تنفيذي غير تابع للنسخة الأصلية لـ Generals 1.08 / 1.09</value>
+    <value>تكوين غير متوافق مع نسخة التجزئة (قواعد/INI تختلف عن Generals 1.08 / 1.09)</value>
     <comment>Tooltip for non-retail compatible Generals profile badge</comment>
   </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">

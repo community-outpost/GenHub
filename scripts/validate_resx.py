@@ -33,7 +33,7 @@ def extract_placeholders(text):
     if not text:
         return []
     unescaped = re.sub(r'\{\{|\}\}', '', text)
-    return re.findall(r'\{(\d+)(?:,-?\d+)?(?::[^{}]*)?\}', unescaped)
+    return re.findall(r'\{\d+(?:,-?\d+)?(?::[^{}]*)?\}', unescaped)
 
 
 def check_unbalanced_braces(text):
