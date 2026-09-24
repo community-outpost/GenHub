@@ -902,7 +902,7 @@
 
                                                         <!-- Release Images / Media -->
                                                         <StackPanel Spacing="8" Margin="0,12,0,0" IsVisible="{Binding ImageUrls.Count}">
-                                                            <TextBlock Text="Images" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.Images}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                                                             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                                                                 <ItemsControl ItemsSource="{Binding ImageUrls}">
                                                                     <ItemsControl.ItemsPanel>
@@ -923,7 +923,7 @@
 
                                                         <!-- Release Videos -->
                                                         <StackPanel Spacing="8" Margin="0,12,0,0" IsVisible="{Binding VideoUrls.Count}">
-                                                            <TextBlock Text="Videos" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.Videos}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                                                             <ItemsControl ItemsSource="{Binding VideoUrls}">
                                                                 <ItemsControl.ItemTemplate>
                                                                     <DataTemplate>
