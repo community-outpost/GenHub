@@ -930,6 +930,9 @@ public class GameProfileLauncherViewModelTests
     [InlineData(true, true, true)]
     [InlineData(false, false, false)]
     [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, true, false)]
     public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUserAsync(bool includeProfile, bool isTool, bool announced)
     {
         var gameProcessManager = new Mock<IGameProcessManager>();
@@ -970,7 +973,7 @@ public class GameProfileLauncherViewModelTests
         }));
         await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
 
-        var notified = announced && !isTool;
+        var notified = !isTool && (announced || includeProfile);
         Assert.Equal(!includeProfile, profile.IsProcessRunning);
         Assert.Equal(includeProfile ? 0 : 4242, profile.ProcessId);
         if (notified)
@@ -989,7 +992,7 @@ public class GameProfileLauncherViewModelTests
                 It.Is<string>(s => s.Contains("TexturesZH.big") && (!includeProfile || s.Contains("Failing Profile"))),
                 It.IsAny<int?>(),
                 It.IsAny<bool>()),
-            isTool || !announced ? Times.Never() : Times.Once());
+            notified ? Times.Once() : Times.Never());
     }
 
     /// <summary>
@@ -1107,6 +1110,57 @@ public class GameProfileLauncherViewModelTests
         Assert.True(profile.IsProcessRunning);
         Assert.Equal(4253, profile.ProcessId);
         Assert.Equal("Relaunched Profile launched successfully (Process ID: 4253)", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// A delayed exit with the old process identity must not stop a relaunch that reused its PID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ProcessExitedWithFailure_ForReusedPidWithOldIdentity_KeepsRelaunchAsync()
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Relaunched Profile");
+        var oldIdentity = Guid.NewGuid();
+        var newIdentity = Guid.NewGuid();
+        vm.Profiles.Add(profile);
+        vm.Receive(new ProfileLaunchedMessage("profile-1", 4252) { ProcessInstanceId = oldIdentity });
+        vm.Receive(new ProfileStoppedMessage("profile-1", 4252) { ProcessInstanceId = oldIdentity });
+        vm.Receive(new ProfileLaunchedMessage("profile-1", 4252) { ProcessInstanceId = newIdentity });
+        vm.StatusMessage = "Relaunched Profile is running";
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4252,
+            ProcessInstanceId = oldIdentity,
+            ExitCode = -1,
+        });
+
+        Assert.True(profile.IsProcessRunning);
+        Assert.Equal(4252, profile.ProcessId);
+        Assert.Equal(newIdentity, profile.ProcessInstanceId);
+        Assert.Equal("Relaunched Profile is running", vm.StatusMessage);
+        notificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4252,
+            ProcessInstanceId = newIdentity,
+            ExitCode = -1,
+        });
+
+        Assert.False(profile.IsProcessRunning);
+        Assert.Equal(0, profile.ProcessId);
+        Assert.StartsWith("Relaunched Profile: ", vm.StatusMessage);
+        notificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     private static ProfileResourceService CreateProfileResourceService()
