@@ -10,10 +10,10 @@ namespace GenHub.Features.Online.ViewModels;
 /// a null member) disables localization fallback strings, nickname
 /// persistence, installation path resolution, or CRC calculation respectively.
 /// </summary>
-/// <param name=\"LocalizationService\">The optional localization service.</param>
-/// <param name=\"UserSettingsService\">The optional user settings service persisting the nickname.</param>
-/// <param name=\"GameInstallationService\">The optional game installation service resolving install roots.</param>
-/// <param name=\"CrcCalculator\">The optional game CRC calculator service.</param>
+/// <param name="LocalizationService">The optional localization service.</param>
+/// <param name="UserSettingsService">The optional user settings service persisting the nickname.</param>
+/// <param name="GameInstallationService">The optional game installation service resolving install roots.</param>
+/// <param name="CrcCalculator">The optional game CRC calculator service.</param>
 public sealed record OnlineViewModelDependencies(
     ILocalizationService? LocalizationService = null,
     IUserSettingsService? UserSettingsService = null,
