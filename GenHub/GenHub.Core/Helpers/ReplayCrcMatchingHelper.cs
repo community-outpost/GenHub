@@ -535,8 +535,8 @@ public static class ReplayCrcMatchingHelper
             return true;
         }
 
-        return !string.Equals(ext, ".exe", StringComparison.OrdinalIgnoreCase) &&
-               !string.Equals(ext, ".dat", StringComparison.OrdinalIgnoreCase);
+        return !string.Equals(ext, GameClientConstants.ExeExtension, StringComparison.OrdinalIgnoreCase) &&
+               !string.Equals(ext, GameClientConstants.DatExtension, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
