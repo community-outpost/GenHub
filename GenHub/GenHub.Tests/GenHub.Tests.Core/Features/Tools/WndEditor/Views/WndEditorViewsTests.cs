@@ -127,27 +127,35 @@ public sealed class WndEditorViewsTests
     public void WndPropertiesViews_Sections_HaveZeroSpacing()
     {
         // Arrange: load the compact expander styles like the application does.
-        Avalonia.Application.Current!.Styles.Add(new StyleInclude(new Uri("avares://GenHub/"))
+        var style = new StyleInclude(new Uri("avares://GenHub/"))
         {
             Source = new Uri("avares://GenHub/Assets/Styles/ExpanderStyles.axaml"),
-        });
-        var window = new WndWindow();
-        window.SetProperty("NAME", "TestWindow");
-        var viewModel = new WndWindowPropertiesViewModel(
-            window,
-            new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>()),
-            Mock.Of<INotificationService>(),
-            CreateLocalizationService(),
-            (key, value) => { },
-            key => { },
-            properties => { });
+        };
+        Avalonia.Application.Current!.Styles.Add(style);
+        try
+        {
+            var window = new WndWindow();
+            window.SetProperty("NAME", "TestWindow");
+            var viewModel = new WndWindowPropertiesViewModel(
+                window,
+                new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>()),
+                Mock.Of<INotificationService>(),
+                CreateLocalizationService(),
+                (key, value) => { },
+                key => { },
+                properties => { });
 
-        // Act + Assert: the general view always lays out every section, so it
-        // carries the layout assertions; the control view gates sections by
-        // control type, so it carries the style assertions.
-        AssertZeroSectionSpacing(new WndGeneralPropertiesView { DataContext = viewModel, Width = 400 }, expectLayout: true);
-        viewModel.ControlKind = WndControlType.ScrollListBox;
-        AssertZeroSectionSpacing(new WndControlPropertiesView { DataContext = viewModel, Width = 400 }, expectLayout: false);
+            // Act + Assert: the general view always lays out every section, so it
+            // carries the layout assertions; the control view gates sections by
+            // control type, so it carries the style assertions.
+            AssertZeroSectionSpacing(new WndGeneralPropertiesView { DataContext = viewModel, Width = 400 }, expectLayout: true);
+            viewModel.ControlKind = WndControlType.ScrollListBox;
+            AssertZeroSectionSpacing(new WndControlPropertiesView { DataContext = viewModel, Width = 400 }, expectLayout: false);
+        }
+        finally
+        {
+            Avalonia.Application.Current!.Styles.Remove(style);
+        }
     }
 
     private static void AssertZeroSectionSpacing(UserControl view, bool expectLayout)

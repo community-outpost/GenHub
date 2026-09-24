@@ -1,3 +1,4 @@
+using System.Globalization;
 using GenHub.Core.Constants;
 using System;
 
@@ -75,7 +76,7 @@ public sealed record WndFontValue
     {
         return WndValueFormatter.JoinPairs(
             (WndConstants.FontKeys.Name, WndValueTokenizer.Quote(Name)),
-            (WndConstants.FontKeys.Size, Size.ToString()),
+            (WndConstants.FontKeys.Size, Size.ToString(CultureInfo.InvariantCulture)),
             (WndConstants.FontKeys.Bold, Bold ? "1" : "0"));
     }
 }

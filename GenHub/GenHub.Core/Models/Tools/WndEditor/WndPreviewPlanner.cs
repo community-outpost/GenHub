@@ -461,12 +461,12 @@ public static class WndPreviewPlanner
     {
         if (IsCommandBarBackground(name, drawCallback))
         {
-            return ResolveOverrideOrFallback(overrides, "BackgroundMarker", "InGameUIAmericaBase");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.BackgroundMarkerKey, WndConstants.ControlBarScheme.DefaultAmericaBaseGenerals);
         }
 
-        if (name.EndsWith(":RightHUD", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "RightHUD", StringComparison.OrdinalIgnoreCase))
+        if (name.EndsWith(":RightHUD", StringComparison.OrdinalIgnoreCase) || string.Equals(name, WndConstants.ControlBarScheme.RightHUDKey, StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "RightHUD", "SALogo");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.RightHUDKey, "SALogo");
         }
 
         return ResolveButtonOrMarkerFallback(name, overrides);
@@ -483,42 +483,42 @@ public static class WndPreviewPlanner
     {
         if (name.EndsWith(":ButtonOptions", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonOptions", "SAOptions");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.ButtonOptionsKey, "SAOptions");
         }
 
         if (name.EndsWith(":ButtonIdleWorker", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonIdleWorker", "SAWorker");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.ButtonIdleWorkerKey, "SAWorker");
         }
 
         if (name.EndsWith(":ButtonChat", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonChat", "SAChat");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.ButtonChatKey, "SAChat");
         }
 
         if (name.EndsWith(":ButtonPlaceBeacon", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonPlaceBeacon", "SABeacon");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.ButtonPlaceBeaconKey, "SABeacon");
         }
 
         if (name.EndsWith(":ButtonGeneral", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonGeneral", "SAGeneral");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.ButtonGeneralKey, "SAGeneral");
         }
 
         if (name.EndsWith(":ButtonUAttack", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ButtonUAttack", "SAUAttackI");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.ButtonUAttackKey, "SAUAttackI");
         }
 
         if (name.EndsWith(":ExpBarForeground", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "ExpBarForeground", "SAExpBar");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.ExpBarForegroundKey, "SAExpBar");
         }
 
         if (name.Contains("ButtonCommand", StringComparison.OrdinalIgnoreCase) || name.Contains("CommandMarker", StringComparison.OrdinalIgnoreCase))
         {
-            return ResolveOverrideOrFallback(overrides, "QueueButtonImage", "SCBigButton");
+            return ResolveOverrideOrFallback(overrides, WndConstants.ControlBarScheme.QueueButtonImageKey, "SCBigButton");
         }
 
         return null;

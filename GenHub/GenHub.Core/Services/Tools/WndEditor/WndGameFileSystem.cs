@@ -102,35 +102,7 @@ public static class WndGameFileSystem
 
             foreach (var file in ordered)
             {
-                sb.Append(file);
-                try
-                {
-                    if (File.Exists(file))
-                    {
-                        var info = new FileInfo(file);
-                        sb.Append(':').Append(info.Length).Append(':').Append(info.LastWriteTimeUtc.Ticks);
-                    }
-                    else if (Directory.Exists(file))
-                    {
-                        var dirInfo = new DirectoryInfo(file);
-                        long latestTicks = dirInfo.LastWriteTimeUtc.Ticks;
-                        foreach (var f in dirInfo.EnumerateFiles("*", SearchOption.AllDirectories))
-                        {
-                            if (f.LastWriteTimeUtc.Ticks > latestTicks)
-                            {
-                                latestTicks = f.LastWriteTimeUtc.Ticks;
-                            }
-                        }
-
-                        sb.Append(":DIR:").Append(latestTicks);
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
-                {
-                    // Fall back to path alone if file inspection fails
-                }
-
-                sb.Append(';');
+                AppendItemCacheStamp(sb, file);
             }
         }
 
@@ -291,5 +263,34 @@ public static class WndGameFileSystem
         {
             logger.LogDebug(ex, "Access denied enumerating .BIG archives under {Directory}", directory);
         }
+    }
+
+    private static void AppendItemCacheStamp(StringBuilder sb, string file)
+    {
+        sb.Append(file);
+        try
+        {
+            if (File.Exists(file))
+            {
+                var info = new FileInfo(file);
+                sb.Append(':').Append(info.Length).Append(':').Append(info.LastWriteTimeUtc.Ticks);
+            }
+            else if (Directory.Exists(file))
+            {
+                var dirInfo = new DirectoryInfo(file);
+                var latestTicks = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories)
+                    .Select(f => f.LastWriteTimeUtc.Ticks)
+                    .DefaultIfEmpty(dirInfo.LastWriteTimeUtc.Ticks)
+                    .Max();
+
+                sb.Append(":DIR:").Append(Math.Max(dirInfo.LastWriteTimeUtc.Ticks, latestTicks));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            // Fall back to path alone if file inspection fails
+        }
+
+        sb.Append(';');
     }
 }

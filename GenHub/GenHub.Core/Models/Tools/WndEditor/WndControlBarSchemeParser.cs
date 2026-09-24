@@ -294,11 +294,17 @@ public static class WndControlBarSchemeParser
 
         if (schemes.Count > 0)
         {
-            selectedScheme = schemes.Find(s =>
-                (!string.IsNullOrEmpty(preferredScheme) && s.Name.Equals(preferredScheme, StringComparison.OrdinalIgnoreCase)) ||
-                s.Name.Contains(WndConstants.ControlBarScheme.AmericaFaction, StringComparison.OrdinalIgnoreCase)).Overrides;
+            if (!string.IsNullOrEmpty(preferredScheme))
+            {
+                var preferred = schemes.Find(s => s.Name.Equals(preferredScheme, StringComparison.OrdinalIgnoreCase));
+                selectedScheme = preferred.Overrides;
+            }
 
-            selectedScheme ??= schemes[0].Overrides;
+            if (selectedScheme == null)
+            {
+                var america = schemes.Find(s => s.Name.Contains(WndConstants.ControlBarScheme.AmericaFaction, StringComparison.OrdinalIgnoreCase));
+                selectedScheme = america.Overrides ?? schemes[0].Overrides;
+            }
         }
 
         if (selectedScheme != null)

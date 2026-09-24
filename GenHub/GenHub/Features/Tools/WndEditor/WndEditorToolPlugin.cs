@@ -100,7 +100,7 @@ public sealed class WndEditorToolPlugin : IToolPlugin, IFileOpenTarget
             return null;
         }
 
-        if (Application.Current != null && !Dispatcher.UIThread.CheckAccess())
+        if (!Dispatcher.UIThread.CheckAccess())
         {
             await Dispatcher.UIThread.InvokeAsync(() => CreateControl());
         }

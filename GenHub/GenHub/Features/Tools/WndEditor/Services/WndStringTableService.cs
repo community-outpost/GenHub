@@ -29,7 +29,16 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
     /// <inheritdoc />
     public void InvalidateCache()
     {
-        _tables.Clear();
+        _tableLock.Wait();
+        try
+        {
+            _tables.Clear();
+        }
+        finally
+        {
+            _tableLock.Release();
+        }
+
         logger.LogDebug("Invalidated string table caches");
     }
 

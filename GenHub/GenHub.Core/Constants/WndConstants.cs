@@ -1105,10 +1105,10 @@ public static class WndConstants
         /// <summary>Default America HUD base image name for Zero Hour.</summary>
         public const string DefaultAmericaBaseZeroHour = "InGameUIAmericaBaseZH";
 
-        /// <summary>Standard virtual path to ControlBarScheme.ini under Data\\INI.</summary>
-        public static readonly string DataIniPath = $"{DataDirectory}\\{IniDirectory}\\{FileName}";
+        /// <summary>Standard virtual path to ControlBarScheme.ini under Data/INI.</summary>
+        public const string DataIniPath = $"{DataDirectory}/{IniDirectory}/{FileName}";
 
         /// <summary>Alternative virtual path to ControlBarScheme.ini under INI.</summary>
-        public static readonly string IniPath = $"{IniDirectory}\\{FileName}";
+        public const string IniPath = $"{IniDirectory}/{FileName}";
     }
 }

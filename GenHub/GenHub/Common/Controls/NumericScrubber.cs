@@ -156,6 +156,13 @@ public static class NumericScrubber
                 return;
             }
 
+            // Do not arm scrubbing if the inner text box already has focus
+            var textBox = control.FindDescendantOfType<TextBox>();
+            if (textBox != null && textBox.IsFocused)
+            {
+                return;
+            }
+
             _startPoint = e.GetPosition(control);
             _startValue = control.Value ?? 0m;
             _isPressed = true;

@@ -161,12 +161,12 @@ public sealed class SageVirtualFileSystem
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
             foreach (string bigFile in bigFiles)
             {
-                AddArchive(bigFile, SageFileTier.Mod);
+                AddArchive(bigFile, SageFileTier.Mod, overwriteSameTier: true);
             }
         }
         else if (File.Exists(path) && path.EndsWith(SageChecksumConstants.BigFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            AddArchive(path, SageFileTier.Mod);
+            AddArchive(path, SageFileTier.Mod, overwriteSameTier: true);
         }
         else
         {
@@ -368,7 +368,8 @@ public sealed class SageVirtualFileSystem
     /// <summary>
     /// Gets the mounted archive file names in mount order, for diagnostics.
     /// </summary>
-    public IReadOnlyList<string> MountedArchivesInOrder =>
+    /// <returns>A list of mounted archive file names in mount order.</returns>
+    public IReadOnlyList<string> GetMountedArchivesInOrder() =>
         _archiveMountOrder
             .OrderBy(pair => pair.Value)
             .Select(pair => Path.GetFileName(pair.Key))
@@ -801,14 +802,10 @@ public sealed class SageVirtualFileSystem
 
         foreach (var (key, entry) in entries)
         {
-            if (!_archiveEntries.TryGetValue(key, out var incumbent) || tier > incumbent.Tier)
+            if (!_archiveEntries.TryGetValue(key, out var incumbent)
+                || tier > incumbent.Tier
+                || (tier == incumbent.Tier && overwriteSameTier))
             {
-                _archiveEntries[key] = (entry, tier);
-            }
-            else if (tier == incumbent.Tier && overwriteSameTier)
-            {
-                // Explicit user-linked archives behave like the engine's mod BIG,
-                // which loads with overwrite enabled and wins over directory mounts.
                 _archiveEntries[key] = (entry, tier);
             }
 

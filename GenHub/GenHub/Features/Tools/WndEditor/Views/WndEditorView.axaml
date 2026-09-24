@@ -391,6 +391,7 @@
                           Background="Transparent"
                           BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                           CornerRadius="6"
+                          AutomationProperties.Name="{localization:Localize Tools.WndEditor.Tree.ExpandAll}"
                           ToolTip.Tip="{localization:Localize Tools.WndEditor.Tree.ExpandAll}">
                     <material:MaterialIcon Kind="ArrowExpandAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
                   </Button>
@@ -400,6 +401,7 @@
                           Background="Transparent"
                           BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                           CornerRadius="6"
+                          AutomationProperties.Name="{localization:Localize Tools.WndEditor.Tree.CollapseAll}"
                           ToolTip.Tip="{localization:Localize Tools.WndEditor.Tree.CollapseAll}">
                     <material:MaterialIcon Kind="ArrowCollapseAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
                   </Button>

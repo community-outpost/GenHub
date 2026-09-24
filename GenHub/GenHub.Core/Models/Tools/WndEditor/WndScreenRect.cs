@@ -1,3 +1,4 @@
+using System.Globalization;
 using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
@@ -110,25 +111,25 @@ public sealed record WndScreenRect
             WndConstants.ScreenRectKeys.UpperLeft,
             WndConstants.Syntax.CoordinateSeparator,
             " ",
-            UpperLeftX,
+            UpperLeftX.ToString(CultureInfo.InvariantCulture),
             " ",
-            UpperLeftY,
+            UpperLeftY.ToString(CultureInfo.InvariantCulture),
             WndConstants.Syntax.ComponentSeparator,
             " ",
             WndConstants.ScreenRectKeys.BottomRight,
             WndConstants.Syntax.CoordinateSeparator,
             " ",
-            BottomRightX,
+            BottomRightX.ToString(CultureInfo.InvariantCulture),
             " ",
-            BottomRightY,
+            BottomRightY.ToString(CultureInfo.InvariantCulture),
             WndConstants.Syntax.ComponentSeparator,
             " ",
             WndConstants.ScreenRectKeys.CreationResolution,
             WndConstants.Syntax.CoordinateSeparator,
             " ",
-            CreationWidth,
+            CreationWidth.ToString(CultureInfo.InvariantCulture),
             " ",
-            CreationHeight);
+            CreationHeight.ToString(CultureInfo.InvariantCulture));
     }
 
     private static List<string> SplitComponents(string value)

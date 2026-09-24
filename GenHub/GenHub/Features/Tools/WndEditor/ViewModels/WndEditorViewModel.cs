@@ -671,30 +671,27 @@ public sealed partial class WndEditorViewModel(
     {
         var medalImages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var window in EnumerateWindows(document.Windows))
+        foreach (var windowName in EnumerateWindows(document.Windows)
+                     .Select(w => w.Name)
+                     .Where(name => !string.IsNullOrWhiteSpace(name)))
         {
-            if (string.IsNullOrWhiteSpace(window.Name))
-            {
-                continue;
-            }
-
-            var decorated = WndDecoratedName.Parse(window.Name);
+            var decorated = WndDecoratedName.Parse(windowName);
             if (IsMapStartMarker(decorated.ShortName))
             {
                 // Map start markers are repositioned by the shell once a map loads
                 // (WOLGameSetupMenu positionStartSpots); at rest they sit at stacked
                 // file positions, so the editor hides them like other runtime windows.
-                hidden.Add(window.Name);
+                hidden.Add(windowName);
                 continue;
             }
 
             if (string.Equals(decorated.FileName, WndConstants.Challenge.FileName, StringComparison.OrdinalIgnoreCase))
             {
-                ApplyChallengeRuntimeArt(window.Name, decorated.ShortName, medals, medalImages, hidden);
+                ApplyChallengeRuntimeArt(windowName, decorated.ShortName, medals, medalImages, hidden);
             }
             else if (string.Equals(decorated.FileName, WndConstants.ShellRuntime.MainMenuFileName, StringComparison.OrdinalIgnoreCase))
             {
-                ApplyMainMenuRuntimeArt(window.Name, decorated.ShortName, hidden);
+                ApplyMainMenuRuntimeArt(windowName, decorated.ShortName, hidden);
             }
         }
 
@@ -1522,6 +1519,8 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
+        SelectedProperties?.FlushPendingEdits();
+
         if (string.IsNullOrEmpty(FilePath))
         {
             await SaveFileAsWithDialogAsync(cancellationToken);
@@ -1541,6 +1540,8 @@ public sealed partial class WndEditorViewModel(
         {
             return;
         }
+
+        SelectedProperties?.FlushPendingEdits();
 
         var topLevel = GetTopLevel();
         if (topLevel == null)
@@ -2030,6 +2031,12 @@ public sealed partial class WndEditorViewModel(
         RefreshAssetPreviews();
     }
 
+    partial void OnLinkedModFolderChanged(string? value)
+    {
+        _ = value;
+        UpdateLinkedAssetsSummary();
+    }
+
     private void RefreshAssetRootDisplay(GameInstallationOption? selection)
     {
         if (selection == null)
@@ -2071,7 +2078,7 @@ public sealed partial class WndEditorViewModel(
         {
             var text = wndDocumentService.WriteDocument(_document);
             var directory = Path.GetDirectoryName(filePath);
-            tempPath = Path.Combine(directory ?? Path.GetTempPath(), Path.GetRandomFileName());
+            tempPath = Path.Combine(string.IsNullOrEmpty(directory) ? Path.GetTempPath() : directory, Path.GetRandomFileName());
             await File.WriteAllTextAsync(tempPath, text, cancellationToken).ConfigureAwait(false);
             File.Move(tempPath, filePath, overwrite: true);
             tempPath = null;
@@ -2990,10 +2997,18 @@ public sealed partial class WndEditorViewModel(
             return false;
         }
 
-        using var stream = new MemoryStream(composed);
-        bitmap = new Bitmap(stream);
-        _composedBitmaps[key] = bitmap;
-        return true;
+        try
+        {
+            using var stream = new MemoryStream(composed);
+            bitmap = new Bitmap(stream);
+            _composedBitmaps[key] = bitmap;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException)
+        {
+            logger.LogWarning(ex, "Failed to decode composed bitmap for {Key}", key);
+            return false;
+        }
     }
 
     private void ClearComposedBitmaps()
@@ -3143,43 +3158,12 @@ public sealed partial class WndEditorViewModel(
 
         if (images != null)
         {
-            var previous = _previewBitmaps;
-            var bitmaps = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (name, png) in images)
-            {
-                using var stream = new MemoryStream(png);
-                bitmaps[name] = new Bitmap(stream);
-            }
-
-            _previewBitmaps = bitmaps;
-            _previewPngs = images;
-            ClearComposedBitmaps();
-            foreach (var old in previous.Values)
-            {
-                old.Dispose();
-            }
+            UpdatePreviewBitmaps(images);
         }
 
         if (strings != null || attemptedLabels != null)
         {
-            var resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (attemptedLabels != null)
-            {
-                foreach (var label in attemptedLabels)
-                {
-                    resolved[label] = string.Empty;
-                }
-            }
-
-            if (strings != null)
-            {
-                foreach (var (key, value) in strings)
-                {
-                    resolved[key] = value;
-                }
-            }
-
-            _resolvedStrings = resolved;
+            UpdatePreviewStrings(strings, attemptedLabels);
         }
 
         foreach (var item in CanvasItems)
@@ -3188,6 +3172,59 @@ public sealed partial class WndEditorViewModel(
         }
 
         RefreshAssetStatus(logMissing: images != null);
+    }
+
+    private void UpdatePreviewBitmaps(IReadOnlyDictionary<string, byte[]> images)
+    {
+        var previous = _previewBitmaps;
+        var bitmaps = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var (name, png) in images)
+            {
+                using var stream = new MemoryStream(png);
+                bitmaps[name] = new Bitmap(stream);
+            }
+        }
+        catch
+        {
+            foreach (var bitmap in bitmaps.Values)
+            {
+                bitmap.Dispose();
+            }
+
+            throw;
+        }
+
+        _previewBitmaps = bitmaps;
+        _previewPngs = images;
+        ClearComposedBitmaps();
+        foreach (var old in previous.Values)
+        {
+            old.Dispose();
+        }
+    }
+
+    private void UpdatePreviewStrings(IReadOnlyDictionary<string, string>? strings, IReadOnlyCollection<string>? attemptedLabels)
+    {
+        var resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (attemptedLabels != null)
+        {
+            foreach (var label in attemptedLabels)
+            {
+                resolved[label] = string.Empty;
+            }
+        }
+
+        if (strings != null)
+        {
+            foreach (var (key, value) in strings)
+            {
+                resolved[key] = value;
+            }
+        }
+
+        _resolvedStrings = resolved;
     }
 
     private void RefreshAssetStatus(bool logMissing = false)

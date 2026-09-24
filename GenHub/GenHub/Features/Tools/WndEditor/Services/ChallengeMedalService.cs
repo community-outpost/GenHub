@@ -183,32 +183,13 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
 
             if (IsEnd(line))
             {
-                if (index.HasValue)
-                {
-                    result[index.Value] = new PersonaEntry(template, startsEnabled);
-                }
-
+                result[index!.Value] = new PersonaEntry(template, startsEnabled);
                 inPersona = false;
                 index = null;
                 continue;
             }
 
-            var separator = line.IndexOf(WndConstants.MappedImages.KeySeparator);
-            if (separator < 0)
-            {
-                continue;
-            }
-
-            var key = line[..separator].Trim();
-            var value = line[(separator + 1)..].Trim();
-            if (key.Equals(WndConstants.Challenge.PlayerTemplateField, StringComparison.OrdinalIgnoreCase))
-            {
-                template = value;
-            }
-            else if (key.Equals(WndConstants.Challenge.StartsEnabledField, StringComparison.OrdinalIgnoreCase))
-            {
-                startsEnabled = IsAffirmative(value);
-            }
+            ApplyPersonaProperty(line, ref template, ref startsEnabled);
         }
 
         return result;
@@ -256,20 +237,7 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
                 continue;
             }
 
-            var separator = line.IndexOf(WndConstants.MappedImages.KeySeparator);
-            if (separator < 0)
-            {
-                continue;
-            }
-
-            var key = line[..separator].Trim();
-            var value = line[(separator + 1)..].Trim();
-            if (template != null
-                && key.Equals(WndConstants.Challenge.MedallionRegularField, StringComparison.OrdinalIgnoreCase)
-                && value.Length > 0)
-            {
-                result[template] = value;
-            }
+            ApplyMedallionProperty(line, template, result);
         }
 
         return result;
@@ -285,7 +253,20 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
     private static string? ReadFirst(SageVirtualFileSystem fileSystem, string first, string second)
     {
         var bytes = fileSystem.Read(first) ?? fileSystem.Read(second);
-        return bytes == null ? null : Encoding.UTF8.GetString(bytes);
+        if (bytes == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+            return utf8.GetString(bytes);
+        }
+        catch (DecoderFallbackException)
+        {
+            return Encoding.Latin1.GetString(bytes);
+        }
     }
 
     private static bool TryParsePersonaStart(string line, out int index)
@@ -335,5 +316,43 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
     {
         var comment = line.IndexOf(WndConstants.MappedImages.CommentPrefix);
         return comment < 0 ? line : line[..comment];
+    }
+
+    private static void ApplyPersonaProperty(string line, ref string? template, ref bool startsEnabled)
+    {
+        var separator = line.IndexOf(WndConstants.MappedImages.KeySeparator);
+        if (separator < 0)
+        {
+            return;
+        }
+
+        var key = line[..separator].Trim();
+        var value = line[(separator + 1)..].Trim();
+        if (key.Equals(WndConstants.Challenge.PlayerTemplateField, StringComparison.OrdinalIgnoreCase))
+        {
+            template = value;
+        }
+        else if (key.Equals(WndConstants.Challenge.StartsEnabledField, StringComparison.OrdinalIgnoreCase))
+        {
+            startsEnabled = IsAffirmative(value);
+        }
+    }
+
+    private static void ApplyMedallionProperty(string line, string? template, Dictionary<string, string> result)
+    {
+        var separator = line.IndexOf(WndConstants.MappedImages.KeySeparator);
+        if (separator < 0)
+        {
+            return;
+        }
+
+        var key = line[..separator].Trim();
+        var value = line[(separator + 1)..].Trim();
+        if (template != null
+            && key.Equals(WndConstants.Challenge.MedallionRegularField, StringComparison.OrdinalIgnoreCase)
+            && value.Length > 0)
+        {
+            result[template] = value;
+        }
     }
 }

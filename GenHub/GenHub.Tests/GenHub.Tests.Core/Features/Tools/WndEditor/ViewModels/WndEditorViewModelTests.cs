@@ -409,10 +409,8 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.LinkedAssetsSummary.Should().BeEmpty();
 
         // Act - set linked mod folder and big archive
-        _viewModel.LinkedModFolder = Path.Combine(_tempDirectory, "MyMod");
         _viewModel.LinkedBigFiles.Add(Path.Combine(_tempDirectory, "Textures.big"));
-        _viewModel.GetType().GetMethod("UpdateLinkedAssetsSummary", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-            ?.Invoke(_viewModel, null);
+        _viewModel.LinkedModFolder = Path.Combine(_tempDirectory, "MyMod");
 
         // Assert
         _viewModel.HasLinkedAssets.Should().BeTrue();

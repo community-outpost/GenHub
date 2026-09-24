@@ -27,7 +27,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     private const int MaxCachedImages = 500;
     private const int ArchiveRankWeight = 2000;
     private const int MaxArchiveRankSteps = 39;
-    private const int LooseFileRank = 80000;
+    private const int LooseFileRank = 85000;
     private const string DataPrefix = "Data\\";
     private const string ArtTexturesPrefix = @"Art\Textures\";
     private const string TexturesPrefix = @"Textures\";
@@ -227,11 +227,24 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return int.TryParse(span, out var parsed) ? parsed : -1;
     }
 
+    private static string GetVirtualFileName(string path)
+    {
+        var lastSlash = path.LastIndexOfAny(['/', '\\']);
+        return lastSlash >= 0 ? path[(lastSlash + 1)..] : path;
+    }
+
+    private static string GetVirtualFileNameWithoutExtension(string path)
+    {
+        var fileName = GetVirtualFileName(path);
+        var dot = fileName.LastIndexOf('.');
+        return dot > 0 ? fileName[..dot] : fileName;
+    }
+
     private static IEnumerable<string> TextureCandidates(string texture)
     {
         var returned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var baseName = Path.GetFileName(texture);
-        var baseWithoutExt = Path.GetFileNameWithoutExtension(texture);
+        var baseName = GetVirtualFileName(texture);
+        var baseWithoutExt = GetVirtualFileNameWithoutExtension(texture);
 
         var localizedStems = new List<string>();
         foreach (var language in WndConstants.MappedImages.TextureLanguages)
@@ -424,24 +437,21 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         SortAlternatesByTierAndScore(alternates);
 
         logger.LogInformation(
-            "Indexed {Count} mapped images for {Target} (fallback: {Fallback})",
+            "Indexed {Count} mapped images for {Target} (fallback: {Fallback}); tiers: {Tiers}",
             images.Count,
             baseRoot,
-            overrideRoot ?? "none");
-        logger.LogInformation(
-            "Mapped image definitions by tier: {Tiers}",
+            overrideRoot ?? "none",
             string.Join(
                 ", ",
                 images.Values
                     .GroupBy(image => image.Tier)
                     .OrderBy(group => group.Key)
                     .Select(group => $"{group.Key}={group.Count()}")));
+        var mountedArchives = fileSystem.GetMountedArchivesInOrder();
         logger.LogInformation(
-            "Mounted {Count} archives in engine order: {Archives}",
-            fileSystem.MountedArchivesInOrder.Count,
-            string.Join(", ", fileSystem.MountedArchivesInOrder));
-        logger.LogInformation(
-            "Winning definitions by source kind: HandCreated={HandCreated}, TextureSize={TextureSize}",
+            "Mounted {Count} archives: {Archives}; Winning sources: HandCreated={HandCreated}, TextureSize={TextureSize}",
+            mountedArchives.Count,
+            string.Join(", ", mountedArchives),
             images.Values.Count(image => image.SourceIniPath.Contains(WndConstants.Preview.HandCreatedDirectory, StringComparison.OrdinalIgnoreCase)),
             images.Values.Count(image => image.SourceIniPath.Contains(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase)));
         return new AssetIndex(key, fileSystem, images, alternates);
@@ -917,7 +927,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string trimmed,
         SageFileTier definitionTier)
     {
-        var fileName = Path.GetFileName(trimmed);
+        var fileName = GetVirtualFileName(trimmed);
         if (string.IsNullOrWhiteSpace(fileName))
         {
             return null;

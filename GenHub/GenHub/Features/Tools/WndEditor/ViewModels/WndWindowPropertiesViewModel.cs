@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -56,7 +57,7 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         _commitEdit = commitEdit;
         _removeProperty = removeProperty;
         _replaceProperties = replaceProperties;
-        _knownKeys = new HashSet<string>(KnownTypedKeys(), StringComparer.Ordinal);
+        _knownKeys = new HashSet<string>(KnownTypedKeys(), StringComparer.OrdinalIgnoreCase);
         _windowTypeOptions = BuildWindowTypeOptions();
         RefreshFromWindow();
     }
@@ -1314,7 +1315,7 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
     partial void OnTooltipDelayChanged(int value)
     {
         _ = value;
-        CommitUnlessSuppressed(() => _commitEdit(WndConstants.PropertyKeys.TooltipDelay, TooltipDelay.ToString()));
+        CommitUnlessSuppressed(() => _commitEdit(WndConstants.PropertyKeys.TooltipDelay, TooltipDelay.ToString(CultureInfo.InvariantCulture)));
     }
 
     partial void OnFontNameChanged(string value)
