@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="..\Shared\TestDataRootInitializer.cs" Link="Shared\TestDataRootInitializer.cs" />
   </ItemGroup>
 
   <ItemGroup>
