@@ -73,7 +73,7 @@ public partial class GameProfileLauncherViewModel(
 {
     private const int MaxReceiptDriftNoticeLines = 5;
 
-    private readonly Dictionary<int, (Guid Identity, bool IsTool)> _announcedProcesses = new();
+    private readonly Dictionary<int, (Guid Identity, bool IsTool, string ProfileId)> _announcedProcesses = new();
 
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
@@ -243,7 +243,7 @@ public partial class GameProfileLauncherViewModel(
                                 item.IsProcessRunning = true;
                                 item.ProcessId = processInfo.ProcessId;
                                 item.ProcessInstanceId = processInfo.ProcessInstanceId;
-                                _announcedProcesses[processInfo.ProcessId] = (processInfo.ProcessInstanceId, item.Profile is GameProfile { IsToolProfile: true });
+                                _announcedProcesses[processInfo.ProcessId] = (processInfo.ProcessInstanceId, item.Profile is GameProfile { IsToolProfile: true }, item.ProfileId);
                                 item.NotifyCanLaunchChanged();
                             }
                         }
@@ -369,7 +369,7 @@ public partial class GameProfileLauncherViewModel(
         {
             try
             {
-                _announcedProcesses[message.ProcessId] = (message.ProcessInstanceId, message.IsToolProfile);
+                _announcedProcesses[message.ProcessId] = (message.ProcessInstanceId, message.IsToolProfile, message.ProfileId);
                 var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
                 if (profile != null)
                 {
@@ -1968,7 +1968,12 @@ public partial class GameProfileLauncherViewModel(
                     logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
                 }
 
-                NotifyUnexpectedProcessExit(e, profile, announced, announcement.IsTool);
+                // A stop message can clear the PID before this event arrives, so fall back to the announced profile for naming.
+                var namedProfile = profile ?? (announced
+                    ? Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(announcement.ProfileId, StringComparison.OrdinalIgnoreCase))
+                    : null);
+
+                NotifyUnexpectedProcessExit(e, namedProfile, announced, announcement.IsTool);
             }
             catch (Exception ex)
             {
@@ -1993,9 +1998,14 @@ public partial class GameProfileLauncherViewModel(
         var message = e.UnmountableArchives.Count > 0
             ? localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", string.Join(", ", e.UnmountableArchives), e.ExitCode!)
             : localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Message", e.ExitCode!);
-        notificationService.ShowError(
-            localizationService["GameProfiles.Notification.UnexpectedExit.Title"],
-            profile == null ? message : $"{profile.Name}: {message}");
+        var text = profile == null ? message : $"{profile.Name}: {message}";
+        notificationService.ShowError(localizationService["GameProfiles.Notification.UnexpectedExit.Title"], text);
+
+        // A relaunch that is already running owns the status line; a stale exit must not overwrite it.
+        if (profile?.IsProcessRunning != true)
+        {
+            StatusMessage = text;
+        }
     }
 
     /// <summary>
