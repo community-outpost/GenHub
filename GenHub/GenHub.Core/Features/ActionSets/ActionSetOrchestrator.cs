@@ -245,6 +245,14 @@ public class ActionSetOrchestrator(
         List<string> errors,
         CancellationToken ct)
     {
+        var gameType = installation.HasZeroHour && installation.HasGenerals
+            ? "Both"
+            : installation.HasZeroHour
+                ? "ZeroHour"
+                : installation.HasGenerals
+                    ? "Generals"
+                    : "Unknown";
+
         try
         {
             logger.LogInformation("Applying action set {Index}/{Total}: {Title}", index, totalCount, actionSet.Title);
@@ -257,7 +265,7 @@ public class ActionSetOrchestrator(
                 {
                     [TelemetryConstants.Properties.FixId] = actionSet.Id,
                     [TelemetryConstants.Properties.FixName] = actionSet.Title,
-                    [TelemetryConstants.Properties.GameType] = installation.GameType.ToString(),
+                    [TelemetryConstants.Properties.GameType] = gameType,
                     [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
                     [TelemetryConstants.Properties.Success] = true,
                 });
@@ -271,7 +279,7 @@ public class ActionSetOrchestrator(
             {
                 [TelemetryConstants.Properties.FixId] = actionSet.Id,
                 [TelemetryConstants.Properties.FixName] = actionSet.Title,
-                [TelemetryConstants.Properties.GameType] = installation.GameType.ToString(),
+                [TelemetryConstants.Properties.GameType] = gameType,
                 [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
                 [TelemetryConstants.Properties.Success] = false,
                 [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
@@ -298,7 +306,7 @@ public class ActionSetOrchestrator(
             {
                 [TelemetryConstants.Properties.FixId] = actionSet.Id,
                 [TelemetryConstants.Properties.FixName] = actionSet.Title,
-                [TelemetryConstants.Properties.GameType] = installation.GameType.ToString(),
+                [TelemetryConstants.Properties.GameType] = gameType,
                 [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
                 [TelemetryConstants.Properties.Success] = false,
                 [TelemetryConstants.Properties.ErrorMessage] = ex.Message,

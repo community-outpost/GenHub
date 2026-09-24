@@ -40,7 +40,7 @@ public class TelemetryInstrumentationTests
         var orchestrator = new ActionSetOrchestrator([fix.Object], [], _orchestratorLoggerMock.Object, _telemetryServiceMock.Object);
         var installation = new GameInstallation("C:\\TestPath", GameInstallationType.Steam)
         {
-            GameType = GameType.ZeroHour,
+            HasZeroHour = true,
         };
 
         var result = await orchestrator.ApplyActionSetsAsync(installation, [fix.Object]);
@@ -77,7 +77,7 @@ public class TelemetryInstrumentationTests
         var orchestrator = new ActionSetOrchestrator([fix.Object], [], _orchestratorLoggerMock.Object, _telemetryServiceMock.Object);
         var installation = new GameInstallation("C:\\TestPath", GameInstallationType.Steam)
         {
-            GameType = GameType.Generals,
+            HasGenerals = true,
         };
 
         var result = await orchestrator.ApplyActionSetsAsync(installation, [fix.Object]);
@@ -115,7 +115,7 @@ public class TelemetryInstrumentationTests
         var orchestrator = new ActionSetOrchestrator([fix.Object], [], _orchestratorLoggerMock.Object, _telemetryServiceMock.Object);
         var installation = new GameInstallation("C:\\TestPath", GameInstallationType.Retail)
         {
-            GameType = GameType.ZeroHour,
+            HasZeroHour = true,
         };
 
         var result = await orchestrator.ApplyActionSetsAsync(installation, [fix.Object]);
