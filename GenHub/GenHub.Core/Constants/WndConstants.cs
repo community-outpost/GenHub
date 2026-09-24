@@ -784,6 +784,53 @@ public static class WndConstants
     }
 
     /// <summary>
+    /// Challenge menu shell constants mirroring ChallengeMenu.cpp and ChallengeMode.ini.
+    /// The challenge menu assigns general medallions and hides windows at runtime,
+    /// so the editor reproduces that behavior from game data instead of draw data.
+    /// </summary>
+    public static class Challenge
+    {
+        /// <summary>Challenge menu layout file name.</summary>
+        public const string FileName = "ChallengeMenu.wnd";
+
+        /// <summary>Biography panel hidden by ChallengeMenuInit until a general is selected.</summary>
+        public const string BioParentShortName = "GeneralsBioParent";
+
+        /// <summary>Play button hidden by ChallengeMenuInit until a general is selected.</summary>
+        public const string ButtonPlayShortName = "ButtonPlay";
+
+        /// <summary>General token window short name prefix (suffixed with the persona index).</summary>
+        public const string GeneralPositionPrefix = "GeneralPosition";
+
+        /// <summary>Challenge personas INI path in game data.</summary>
+        public const string ChallengeModeIniPath = "Data/INI/ChallengeMode.ini";
+
+        /// <summary>Localized challenge personas INI fallback path.</summary>
+        public const string ChallengeModeEnglishIniPath = "Data/English/INI/ChallengeMode.ini";
+
+        /// <summary>Player templates INI path in game data.</summary>
+        public const string PlayerTemplateIniPath = "Data/INI/PlayerTemplate.ini";
+
+        /// <summary>Localized player templates INI fallback path.</summary>
+        public const string PlayerTemplateEnglishIniPath = "Data/English/INI/PlayerTemplate.ini";
+
+        /// <summary>Persona block tag prefix (suffixed with the persona index).</summary>
+        public const string PersonaBlockPrefix = "GeneralPersona";
+
+        /// <summary>Player template block tag.</summary>
+        public const string PlayerTemplateBlockTag = "PlayerTemplate";
+
+        /// <summary>Persona player template field.</summary>
+        public const string PlayerTemplateField = "PlayerTemplate";
+
+        /// <summary>Persona starts-enabled field.</summary>
+        public const string StartsEnabledField = "StartsEnabled";
+
+        /// <summary>Player template resting medallion field.</summary>
+        public const string MedallionRegularField = "MedallionRegular";
+    }
+
+    /// <summary>
     /// Engine draw callback names that procedurally render window content.
     /// </summary>
     public static class DrawCallbacks

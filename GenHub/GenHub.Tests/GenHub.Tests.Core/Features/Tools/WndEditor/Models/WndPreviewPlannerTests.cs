@@ -1,6 +1,7 @@
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
+using System;
 using System.Collections.Generic;
 
 namespace GenHub.Tests.Core.Features.Tools.WndEditor.Models;
@@ -30,6 +31,53 @@ public sealed class WndPreviewPlannerTests
         plan.RightImage.Should().Be("Right");
         plan.SingleImage.Should().BeNull();
         plan.ReferencedImages.Should().BeEquivalentTo("Left", "Middle", "Right");
+    }
+
+    /// <summary>
+    /// Tests that a runtime medallion replaces the token button face.
+    /// </summary>
+    [Fact]
+    public void Plan_MedalOverride_PlansSingleMedallion()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.PushButton };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "ChallengeMenu.wnd:GeneralPosition0");
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Left", 0), ("Middle", 5), ("Right", 6)));
+        var runtimeArt = new WndRuntimeArt(
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ChallengeMenu.wnd:GeneralPosition0"] = "AirGeneral_slvr",
+            },
+            new HashSet<string>());
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window, null, runtimeArt);
+
+        // Assert
+        plan.SingleImage.Should().Be("AirGeneral_slvr");
+        plan.IsThreePiece.Should().BeFalse();
+        plan.ReferencedImages.Should().Contain("AirGeneral_slvr");
+    }
+
+    /// <summary>
+    /// Tests that runtime-hidden windows plan as hidden without the status flag.
+    /// </summary>
+    [Fact]
+    public void Plan_RuntimeHiddenWindow_PlansHidden()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.PushButton };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "ChallengeMenu.wnd:ButtonPlay");
+        window.SetProperty(WndConstants.PropertyKeys.Status, "ENABLED");
+        var runtimeArt = new WndRuntimeArt(
+            new Dictionary<string, string>(),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ChallengeMenu.wnd:ButtonPlay" });
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window, null, runtimeArt);
+
+        // Assert
+        plan.IsHidden.Should().BeTrue();
     }
 
     /// <summary>

@@ -134,6 +134,16 @@ public sealed class WndEditorViewModelTests : IDisposable
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
         var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
         var assetService = new WndEditorAssetService(_mockImageAssetService.Object, _mockStringTableService.Object);
+        var mockMedalService = new Mock<IChallengeMedalService>();
+        mockMedalService
+            .Setup(s => s.GetMedalsAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyCollection<string>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ChallengeMedals>.CreateSuccess(ChallengeMedals.Empty));
         _viewModel = new WndEditorViewModel(
             documentService,
             _mockNotificationService.Object,
@@ -142,6 +152,7 @@ public sealed class WndEditorViewModelTests : IDisposable
             _mockGameInstallService.Object,
             assetService,
             Mock.Of<IWndTextureImportService>(),
+            mockMedalService.Object,
             Mock.Of<ILogger<WndEditorViewModel>>());
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
@@ -783,6 +794,80 @@ public sealed class WndEditorViewModelTests : IDisposable
             s => s.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         _viewModel.CanUndo.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that challenge menu runtime facts hide shell windows and map medallions.
+    /// </summary>
+    [Fact]
+    public void BuildRuntimeArt_ChallengeMenu_HidesShellAndMapsMedals()
+    {
+        // Arrange
+        var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        var text =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600;\n" +
+            "  NAME = \"ChallengeMenu.wnd:Parent\";\n" +
+            "  CHILD\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = USER;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 100, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"ChallengeMenu.wnd:GeneralsBioParent\";\n" +
+            "  END\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = PUSHBUTTON;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 30, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"ChallengeMenu.wnd:ButtonPlay\";\n" +
+            "  END\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = PUSHBUTTON;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 40 40, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"ChallengeMenu.wnd:GeneralPosition0\";\n" +
+            "  END\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = PUSHBUTTON;\n" +
+            "    SCREENRECT = UPPERLEFT: 50 0, BOTTOMRIGHT: 90 40, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"ChallengeMenu.wnd:GeneralPosition1\";\n" +
+            "  END\n" +
+            "  ENDALLCHILDREN\n" +
+            "END\n";
+        var parsed = documentService.ParseText(text);
+        parsed.Success.Should().BeTrue();
+        var medals = new ChallengeMedals(
+            new Dictionary<int, string> { [0] = "AirGeneral_slvr" },
+            new HashSet<int> { 1 });
+
+        // Act
+        var runtimeArt = WndEditorViewModel.BuildRuntimeArt(parsed.Data!, medals);
+
+        // Assert: parsed names keep their file quotes on both sides of the match.
+        runtimeArt.HiddenWindows.Should().BeEquivalentTo(
+            "\"ChallengeMenu.wnd:GeneralsBioParent\"",
+            "\"ChallengeMenu.wnd:ButtonPlay\"",
+            "\"ChallengeMenu.wnd:GeneralPosition1\"");
+        runtimeArt.MedalImages.Should().ContainSingle()
+            .Which.Should().Be(new KeyValuePair<string, string>("\"ChallengeMenu.wnd:GeneralPosition0\"", "AirGeneral_slvr"));
+    }
+
+    /// <summary>
+    /// Tests that other menus build no runtime facts.
+    /// </summary>
+    [Fact]
+    public void BuildRuntimeArt_OtherMenu_ReturnsEmpty()
+    {
+        // Arrange
+        var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        var parsed = documentService.ParseText(SampleDocument);
+        parsed.Success.Should().BeTrue();
+
+        // Act
+        var runtimeArt = WndEditorViewModel.BuildRuntimeArt(parsed.Data!, null);
+
+        // Assert
+        runtimeArt.HiddenWindows.Should().BeEmpty();
+        runtimeArt.MedalImages.Should().BeEmpty();
     }
 
     /// <summary>

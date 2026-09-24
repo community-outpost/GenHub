@@ -176,6 +176,7 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
             mockGameInstallService.Object,
             assetService,
             Mock.Of<IWndTextureImportService>(),
+            Mock.Of<IChallengeMedalService>(),
             Mock.Of<ILogger<WndEditorViewModel>>());
 
         // Act: load document into ViewModel

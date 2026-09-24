@@ -74,6 +74,11 @@ editor merges them at mod priority with no import step required.
 
 ## Notes and limits
 
+- Shell-driven presentation is reproduced from game data, not draw data: the
+  challenge menu hides its biography panel, play button, and locked general
+  tokens at rest (as `ChallengeMenuInit` does), and resolves token medallions
+  from `ChallengeMode.ini` personas joined with `PlayerTemplate.ini`
+  `MedallionRegular` fields. Mods overriding those INIs change the preview.
 - Procedural content (minimaps, 3D menu shells, runtime text such as player
   names or challenge biographies) has no static art. The editor shows an
   honest placeholder: map previews render their file fill plus a caption,

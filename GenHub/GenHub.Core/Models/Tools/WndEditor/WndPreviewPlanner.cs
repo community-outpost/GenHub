@@ -17,13 +17,18 @@ public static class WndPreviewPlanner
     /// </summary>
     /// <param name="window">The WND window model to plan.</param>
     /// <param name="windowImageOverrides">Optional mapped image overrides keyed by control or scheme name.</param>
+    /// <param name="runtimeArt">Optional runtime presentation facts applied by game code.</param>
     /// <returns>The computed preview plan.</returns>
-    public static WndPreviewPlan Plan(WndWindow window, IReadOnlyDictionary<string, string>? windowImageOverrides = null)
+    public static WndPreviewPlan Plan(
+        WndWindow window,
+        IReadOnlyDictionary<string, string>? windowImageOverrides = null,
+        WndRuntimeArt? runtimeArt = null)
     {
         ArgumentNullException.ThrowIfNull(window);
         WndDrawDataSet.TryParse(window.GetProperty(WndConstants.PropertyKeys.EnabledDrawData), out var drawData);
         var status = WndStatusValue.ParseStatus(window.GetProperty(WndConstants.PropertyKeys.Status));
-        var isHidden = status.Flags.Contains(WndConstants.StatusFlags.Hidden, StringComparer.OrdinalIgnoreCase);
+        var isHidden = status.Flags.Contains(WndConstants.StatusFlags.Hidden, StringComparer.OrdinalIgnoreCase)
+            || IsRuntimeHidden(window, runtimeArt);
         var isSeeThru = status.Flags.Contains(WndConstants.StatusFlags.SeeThru, StringComparer.OrdinalIgnoreCase);
         var isImageWindow = status.Flags.Contains(WndConstants.StatusFlags.Image, StringComparer.OrdinalIgnoreCase);
         var text = PlanText(window);
@@ -43,7 +48,31 @@ public static class WndPreviewPlanner
             _ => PlanGeneric(drawData, style, textCentered, isHidden, isSeeThru, isImageWindow, window.ControlType),
         };
 
-        return ApplySchemeAndBackdropContext(window, plan, windowImageOverrides);
+        return ApplySchemeAndBackdropContext(window, plan, windowImageOverrides, runtimeArt);
+    }
+
+    private static bool IsRuntimeHidden(WndWindow window, WndRuntimeArt? runtimeArt)
+    {
+        return runtimeArt != null
+            && window.Name != null
+            && runtimeArt.HiddenWindows.Contains(window.Name);
+    }
+
+    private static bool TryGetMedal(string name, WndRuntimeArt? runtimeArt, out string medal)
+    {
+        medal = string.Empty;
+        if (runtimeArt == null)
+        {
+            return false;
+        }
+
+        if (!runtimeArt.MedalImages.TryGetValue(name, out var candidate) || string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        medal = candidate.Trim();
+        return true;
     }
 
     private static WndPreviewPlan PlanButton(
@@ -296,19 +325,36 @@ public static class WndPreviewPlanner
     private static WndPreviewPlan ApplySchemeAndBackdropContext(
         WndWindow window,
         WndPreviewPlan plan,
-        IReadOnlyDictionary<string, string>? overrides)
+        IReadOnlyDictionary<string, string>? overrides,
+        WndRuntimeArt? runtimeArt)
     {
         var name = window.Name ?? string.Empty;
         var drawCallback = window.GetProperty(WndConstants.PropertyKeys.DrawCallback) ?? string.Empty;
         var isTinyMarker = IsTinyMarker(window);
 
-        var single = ResolveContextSingleImage(name, plan.SingleImage, drawCallback, isTinyMarker, overrides);
+        var single = ResolveContextSingleImage(name, plan.SingleImage, drawCallback, isTinyMarker, overrides, runtimeArt);
         var underlay = ResolveShellMenuUnderlay(single, overrides, plan.UnderlayImage);
         var textCentered = ResolveTextCentered(plan, drawCallback);
 
-        if (single != plan.SingleImage || underlay != plan.UnderlayImage || textCentered != plan.TextCentered)
+        // A runtime medallion replaces the whole button face: the shell overwrites
+        // the three-piece slots, collapsing any static bar into the single image.
+        var isMedal = TryGetMedal(name, runtimeArt, out _);
+        var left = isMedal ? null : plan.LeftImage;
+        var center = isMedal ? null : plan.CenterImage;
+        var right = isMedal ? null : plan.RightImage;
+
+        if (single != plan.SingleImage || underlay != plan.UnderlayImage || textCentered != plan.TextCentered
+            || left != plan.LeftImage || center != plan.CenterImage || right != plan.RightImage)
         {
-            return plan with { SingleImage = single, UnderlayImage = underlay, TextCentered = textCentered };
+            return plan with
+            {
+                SingleImage = single,
+                LeftImage = left,
+                CenterImage = center,
+                RightImage = right,
+                UnderlayImage = underlay,
+                TextCentered = textCentered,
+            };
         }
 
         return plan;
@@ -325,8 +371,16 @@ public static class WndPreviewPlanner
         string? currentSingle,
         string drawCallback,
         bool isTinyMarker,
-        IReadOnlyDictionary<string, string>? overrides)
+        IReadOnlyDictionary<string, string>? overrides,
+        WndRuntimeArt? runtimeArt)
     {
+        // Runtime medallion assignment wins over everything: the challenge shell
+        // overwrites the token button images after layout load.
+        if (TryGetMedal(name, runtimeArt, out var medal))
+        {
+            return medal;
+        }
+
         var single = ResolveControlBarSingle(name, currentSingle, isTinyMarker, overrides);
         if (string.IsNullOrWhiteSpace(single) && !isTinyMarker)
         {

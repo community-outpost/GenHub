@@ -46,6 +46,7 @@ public sealed partial class WndEditorViewModel(
     IGameInstallationService gameInstallationService,
     IWndEditorAssetService assetService,
     IWndTextureImportService textureImportService,
+    IChallengeMedalService medalService,
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
     private sealed record AssetRoots(string TargetGameRoot, bool IsZeroHour)
@@ -84,6 +85,8 @@ public sealed partial class WndEditorViewModel(
     private IReadOnlyDictionary<string, byte[]> _previewPngs = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string> _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string> _schemeOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    private WndRuntimeArt _runtimeArt = WndRuntimeArt.Empty;
     private CancellationTokenSource? _previewCts;
     private int _previewGeneration;
     private bool _installationsLoaded;
@@ -381,6 +384,18 @@ public sealed partial class WndEditorViewModel(
     private string _libraryStatusText = string.Empty;
 
     /// <summary>
+    /// Gets or sets the active asset root display text (installation name and game).
+    /// </summary>
+    [ObservableProperty]
+    private string _assetRootDisplayText = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the active asset root tooltip (full game root path).
+    /// </summary>
+    [ObservableProperty]
+    private string? _assetRootDisplayTooltip;
+
+    /// <summary>
     /// Gets a value indicating whether undo is available.
     /// </summary>
     public bool CanUndo => _undoStack.Count > 0;
@@ -645,6 +660,54 @@ public sealed partial class WndEditorViewModel(
         WndControlBarSchemeParser.Parse(iniText, result, preferredScheme);
     }
 
+    /// <summary>
+    /// Builds runtime presentation facts for challenge menu windows.
+    /// </summary>
+    /// <param name="document">The layout document.</param>
+    /// <param name="medals">The resolved medallions, if any.</param>
+    /// <returns>The runtime presentation facts.</returns>
+    internal static WndRuntimeArt BuildRuntimeArt(WndDocument document, ChallengeMedals? medals)
+    {
+        var medalImages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var window in EnumerateWindows(document.Windows))
+        {
+            if (string.IsNullOrWhiteSpace(window.Name))
+            {
+                continue;
+            }
+
+            var decorated = WndDecoratedName.Parse(window.Name);
+            if (!string.Equals(decorated.FileName, WndConstants.Challenge.FileName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // ChallengeMenuInit hides the biography panel and play button until a
+            // general is selected; locked personas start hidden the same way.
+            if (string.Equals(decorated.ShortName, WndConstants.Challenge.BioParentShortName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(decorated.ShortName, WndConstants.Challenge.ButtonPlayShortName, StringComparison.OrdinalIgnoreCase))
+            {
+                hidden.Add(window.Name);
+                continue;
+            }
+
+            if (medals != null && TryParseGeneralPosition(decorated.ShortName, out var position))
+            {
+                if (medals.HiddenPositions.Contains(position))
+                {
+                    hidden.Add(window.Name);
+                }
+                else if (medals.MedalsByPosition.TryGetValue(position, out var medal))
+                {
+                    medalImages[window.Name] = medal;
+                }
+            }
+        }
+
+        return new WndRuntimeArt(medalImages, hidden);
+    }
+
     private static TopLevel? GetTopLevel()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime lifetime)
@@ -818,12 +881,15 @@ public sealed partial class WndEditorViewModel(
         return MatchesWindowsFilter(window, filter) || window.Children.Any(child => SubtreeMatchesFilter(child, filter));
     }
 
-    private static IReadOnlyCollection<string> CollectPreviewImageNames(WndDocument document, IReadOnlyDictionary<string, string>? overrides = null)
+    private static IReadOnlyCollection<string> CollectPreviewImageNames(
+        WndDocument document,
+        IReadOnlyDictionary<string, string>? overrides = null,
+        WndRuntimeArt? runtimeArt = null)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var window in EnumerateWindows(document.Windows))
         {
-            foreach (var name in WndPreviewPlanner.Plan(window, overrides).ReferencedImages)
+            foreach (var name in WndPreviewPlanner.Plan(window, overrides, runtimeArt).ReferencedImages)
             {
                 names.Add(name);
             }
@@ -832,7 +898,10 @@ public sealed partial class WndEditorViewModel(
         return names;
     }
 
-    private static IReadOnlyCollection<string> CollectPreviewLabels(WndDocument document, IReadOnlyDictionary<string, string>? overrides = null)
+    private static IReadOnlyCollection<string> CollectPreviewLabels(
+        WndDocument document,
+        IReadOnlyDictionary<string, string>? overrides = null,
+        WndRuntimeArt? runtimeArt = null)
     {
         var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var window in EnumerateWindows(document.Windows))
@@ -842,7 +911,7 @@ public sealed partial class WndEditorViewModel(
                 continue;
             }
 
-            var text = WndPreviewPlanner.Plan(window, overrides).Text;
+            var text = WndPreviewPlanner.Plan(window, overrides, runtimeArt).Text;
             if (!string.IsNullOrWhiteSpace(text))
             {
                 labels.Add(text);
@@ -1114,6 +1183,7 @@ public sealed partial class WndEditorViewModel(
     private void ReloadAssets()
     {
         assetService.InvalidateCache();
+        medalService.InvalidateCache();
         RefreshAssetPreviews();
     }
 
@@ -1884,10 +1954,25 @@ public sealed partial class WndEditorViewModel(
 
     partial void OnSelectedAssetInstallationChanged(GameInstallationOption? value)
     {
-        _ = value;
         _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         assetService.InvalidateCache();
+        medalService.InvalidateCache();
+        RefreshAssetRootDisplay(value);
         RefreshAssetPreviews();
+    }
+
+    private void RefreshAssetRootDisplay(GameInstallationOption? selection)
+    {
+        if (selection == null)
+        {
+            AssetRootDisplayText = string.Empty;
+            AssetRootDisplayTooltip = null;
+            return;
+        }
+
+        var roots = ResolveAssetRoots(selection);
+        AssetRootDisplayText = selection.DisplayName;
+        AssetRootDisplayTooltip = roots.BaseRoot;
     }
 
     private async Task<bool> ConfirmDiscardUnsavedAsync(CancellationToken cancellationToken)
@@ -2289,7 +2374,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         RebuildCanvas();
-        var plan = WndPreviewPlanner.Plan(window, _schemeOverrides);
+        var plan = WndPreviewPlanner.Plan(window, _schemeOverrides, _runtimeArt);
         var missingImage = plan.ReferencedImages.Any(imageName => !_previewBitmaps.ContainsKey(imageName));
         var missingLabel = plan.Text != null
             && window.ControlType != WndControlType.EntryField
@@ -2467,15 +2552,43 @@ public sealed partial class WndEditorViewModel(
     private static AssetRoots ResolveZeroHourAssetRoots(GameInstallation installation)
     {
         // Strict per-game isolation: a Zero Hour target resolves only the Zero Hour
-        // install (plus mod project and linked assets). Although retail Zero Hour mounts
-        // Generals BIG archives via registry fallback, GenHub isolates previews to
-        // ensure mods and installations are self-contained without cross-install dependencies.
+        // install (plus mod project and linked assets). Zero Hour never reads the
+        // Generals install folder, so no Generals fallback is attached.
         return new AssetRoots(installation.ZeroHourPath, true);
+    }
+
+    private static bool TryParseGeneralPosition(string shortName, out int position)
+    {
+        position = -1;
+        var prefix = WndConstants.Challenge.GeneralPositionPrefix;
+        if (!shortName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || shortName.Length <= prefix.Length)
+        {
+            return false;
+        }
+
+        return int.TryParse(shortName[prefix.Length..], out position);
+    }
+
+    private bool HasHiddenAncestor(WndWindow window)
+    {
+        var node = FindNode(window.Id)?.Parent;
+        while (node != null)
+        {
+            if (WndPreviewPlanner.Plan(node.Window, _schemeOverrides, _runtimeArt).IsHidden)
+            {
+                return true;
+            }
+
+            node = node.Parent;
+        }
+
+        return false;
     }
 
     private void RefreshItemPreview(WndCanvasItemViewModel item)
     {
-        var plan = WndPreviewPlanner.Plan(item.Window, _schemeOverrides);
+        var plan = WndPreviewPlanner.Plan(item.Window, _schemeOverrides, _runtimeArt);
+        var hidden = plan.IsHidden || HasHiddenAncestor(item.Window);
         item.FillOverlay = ToOverlayBrush(plan.FillColor);
         item.BorderOverlay = ToOverlayBrush(plan.BorderColor);
         item.ContentText = ResolveDisplayText(plan, item.Window);
@@ -2484,8 +2597,8 @@ public sealed partial class WndEditorViewModel(
         item.ContentFontWeight = plan.FontBold ? FontWeight.Bold : FontWeight.Normal;
         item.ContentTextAlignment = plan.TextCentered ? TextAlignment.Center : TextAlignment.Left;
         item.ContentFontFamily = ResolveFontFamily(plan.FontName);
-        item.CanvasOpacity = plan.IsHidden ? WndConstants.Preview.HiddenOpacity : 1.0;
-        item.IsPreviewHidden = plan.IsHidden;
+        item.CanvasOpacity = hidden ? WndConstants.Preview.HiddenOpacity : 1.0;
+        item.IsPreviewHidden = hidden;
         item.Image = ResolvePlanImage(plan, item);
         RefreshItemGlyph(item, plan);
         item.Overlays = ResolveOverlays(plan, item);
@@ -2877,11 +2990,14 @@ public sealed partial class WndEditorViewModel(
             var linkedBigs = linkedBigFilesSnapshot;
             var schemeOverrides = await Task.Run(() => ResolveSchemeOverrides(roots, projectDirectory, cancellationToken, linkedBigs), cancellationToken).ConfigureAwait(false);
             _schemeOverrides = schemeOverrides;
-            var names = CollectPreviewImageNames(document, _schemeOverrides);
-            var labels = CollectPreviewLabels(document, _schemeOverrides);
+            var medalsResult = await medalService.GetMedalsAsync(roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
+            var medals = medalsResult.Success && medalsResult.Data != null ? medalsResult.Data : null;
+            var runtimeArt = BuildRuntimeArt(document, medals);
+            var names = CollectPreviewImageNames(document, _schemeOverrides, runtimeArt);
+            var labels = CollectPreviewLabels(document, _schemeOverrides, runtimeArt);
             var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
             var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
-            if ((!images.Success && !strings.Success) || generation != _previewGeneration)
+            if (generation != _previewGeneration)
             {
                 return;
             }
@@ -2896,7 +3012,7 @@ public sealed partial class WndEditorViewModel(
             var bitmaps = images.Success ? images.Data : null;
             var values = strings.Success ? strings.Data : null;
             var knownNames = known.Success && known.Data != null ? known.Data : null;
-            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation, labels, knownNames)).ConfigureAwait(false);
+            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation, labels, knownNames, runtimeArt)).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex)
         {
@@ -2913,11 +3029,17 @@ public sealed partial class WndEditorViewModel(
         IReadOnlyDictionary<string, string>? strings,
         int generation,
         IReadOnlyCollection<string>? attemptedLabels = null,
-        IReadOnlyList<string>? knownNames = null)
+        IReadOnlyList<string>? knownNames = null,
+        WndRuntimeArt? runtimeArt = null)
     {
         if (generation != _previewGeneration)
         {
             return;
+        }
+
+        if (runtimeArt != null)
+        {
+            _runtimeArt = runtimeArt;
         }
 
         if (knownNames != null)
@@ -2992,7 +3114,7 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var names = CollectPreviewImageNames(_document, _schemeOverrides);
+        var names = CollectPreviewImageNames(_document, _schemeOverrides, _runtimeArt);
         if (names.Count == 0)
         {
             AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.EmptyStatus");

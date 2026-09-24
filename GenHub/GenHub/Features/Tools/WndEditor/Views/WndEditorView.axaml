@@ -558,7 +558,7 @@
               </Grid>
             </TabItem>
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Assets}">
-              <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto,2*" Margin="0,4,0,0">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="0,4,0,0">
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" Margin="0,0,0,4">
                   <Button Grid.Column="0"
                           Command="{Binding ImportTexturesWithDialogCommand}"
@@ -578,94 +578,108 @@
                           FontSize="11"/>
                 </Grid>
                 <TextBlock Grid.Row="1"
+                           Text="{Binding AssetRootDisplayText}"
+                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
+                           Margin="0,0,0,2"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding AssetRootDisplayTooltip}"
+                           IsVisible="{Binding AssetRootDisplayText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <TextBlock Grid.Row="1"
+                           Text="{localization:Localize Tools.WndEditor.Assets.SelectorWatermark}"
+                           FontSize="11" Foreground="{DynamicResource TextMuted}"
+                           Margin="0,0,0,2"
+                           IsVisible="{Binding AssetRootDisplayText, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                <TextBlock Grid.Row="2"
                            Text="{Binding KnownImagesStatusText}"
                            FontSize="11" Foreground="{DynamicResource TextSecondary}"
                            Margin="0,0,0,4"
                            IsVisible="{Binding KnownImagesStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                <TextBlock Grid.Row="2"
-                           Text="{localization:Localize Tools.WndEditor.Assets.MissingTitle}"
-                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
-                           Margin="0,2,0,4"/>
-                <Border Grid.Row="3"
-                        Background="{DynamicResource SurfaceElevatedBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="6" Padding="4" ClipToBounds="True">
-                  <Grid>
-                    <TextBlock Text="{localization:Localize Tools.WndEditor.Assets.MissingEmpty}"
-                               FontSize="11" Foreground="{DynamicResource TextMuted}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               TextWrapping="Wrap" TextAlignment="Center" Margin="12"
-                               IsVisible="{Binding !HasMissingImages}"/>
-                    <ListBox ItemsSource="{Binding MissingImageNames}"
-                             IsVisible="{Binding HasMissingImages}"
-                             Background="Transparent" BorderThickness="0" Padding="0">
-                      <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="x:String">
-                          <Grid ColumnDefinitions="*,Auto" Margin="0,1">
-                            <TextBlock Grid.Column="0"
-                                       Text="{Binding}"
-                                       FontSize="11" Foreground="{DynamicResource TextPrimary}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip.Tip="{Binding}"/>
-                            <Button Grid.Column="1" x:CompileBindings="False"
-                                    Command="{Binding ElementName=Root, Path=DataContext.ImportTextureForMissingCommand}"
-                                    CommandParameter="{Binding}"
-                                    Padding="6,2" Margin="6,0,0,0"
-                                    Background="Transparent"
-                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                    CornerRadius="6"
-                                    Content="{localization:Localize Tools.WndEditor.Assets.ImportOne}"
-                                    FontSize="10"/>
-                          </Grid>
-                        </DataTemplate>
-                      </ListBox.ItemTemplate>
-                    </ListBox>
+                <Expander Grid.Row="3" Classes="compact"
+                          Header="{localization:Localize Tools.WndEditor.Assets.MissingTitle}"
+                          IsExpanded="{Binding HasMissingImages, Mode=OneWay}">
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6" Padding="4" ClipToBounds="True">
+                    <Grid>
+                      <TextBlock Text="{localization:Localize Tools.WndEditor.Assets.MissingEmpty}"
+                                 FontSize="11" Foreground="{DynamicResource TextMuted}"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 TextWrapping="Wrap" TextAlignment="Center" Margin="12"
+                                 IsVisible="{Binding !HasMissingImages}"/>
+                      <ListBox ItemsSource="{Binding MissingImageNames}"
+                               IsVisible="{Binding HasMissingImages}"
+                               MaxHeight="200"
+                               Background="Transparent" BorderThickness="0" Padding="0">
+                        <ListBox.ItemTemplate>
+                          <DataTemplate x:DataType="x:String">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,1">
+                              <TextBlock Grid.Column="0"
+                                         Text="{Binding}"
+                                         FontSize="11" Foreground="{DynamicResource TextPrimary}"
+                                         VerticalAlignment="Center"
+                                         TextTrimming="CharacterEllipsis"
+                                         ToolTip.Tip="{Binding}"/>
+                              <Button Grid.Column="1" x:CompileBindings="False"
+                                      Command="{Binding ElementName=Root, Path=DataContext.ImportTextureForMissingCommand}"
+                                      CommandParameter="{Binding}"
+                                      Padding="6,2" Margin="6,0,0,0"
+                                      Background="Transparent"
+                                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                      CornerRadius="6"
+                                      Content="{localization:Localize Tools.WndEditor.Assets.ImportOne}"
+                                      FontSize="10"/>
+                            </Grid>
+                          </DataTemplate>
+                        </ListBox.ItemTemplate>
+                      </ListBox>
+                    </Grid>
+                  </Border>
+                </Expander>
+                <Expander Grid.Row="4" Classes="compact"
+                          Header="{localization:Localize Tools.WndEditor.Assets.LibraryTitle}"
+                          IsExpanded="True">
+                  <Grid RowDefinitions="Auto,Auto,*">
+                    <TextBox Grid.Row="0"
+                             Text="{Binding LibraryFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             FontSize="11"
+                             Watermark="{localization:Localize Tools.WndEditor.Assets.LibrarySearchHint}"/>
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding LibraryStatusText}"
+                               FontSize="10" Foreground="{DynamicResource TextMuted}"
+                               TextWrapping="Wrap" Margin="0,2,0,0"
+                               IsVisible="{Binding LibraryStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <Border Grid.Row="2"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="6" Padding="4" ClipToBounds="True" Margin="0,4,0,0">
+                      <ListBox ItemsSource="{Binding FilteredKnownImageNames}"
+                               Background="Transparent" BorderThickness="0" Padding="0">
+                        <ListBox.ItemTemplate>
+                          <DataTemplate x:DataType="x:String">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,1">
+                              <TextBlock Grid.Column="0"
+                                         Text="{Binding}"
+                                         FontSize="11" Foreground="{DynamicResource TextPrimary}"
+                                         VerticalAlignment="Center"
+                                         TextTrimming="CharacterEllipsis"
+                                         ToolTip.Tip="{Binding}"/>
+                              <Button Grid.Column="1" x:CompileBindings="False"
+                                      Command="{Binding ElementName=Root, Path=DataContext.ApplyImageToSelectedWindowCommand}"
+                                      CommandParameter="{Binding}"
+                                      IsEnabled="{Binding ElementName=Root, Path=DataContext.SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                      Padding="6,2" Margin="6,0,0,0"
+                                      Background="Transparent"
+                                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                      CornerRadius="6"
+                                      Content="{localization:Localize Tools.WndEditor.Assets.ApplyOne}"
+                                      FontSize="10"/>
+                            </Grid>
+                          </DataTemplate>
+                        </ListBox.ItemTemplate>
+                      </ListBox>
+                    </Border>
                   </Grid>
-                </Border>
-                <TextBlock Grid.Row="4"
-                           Text="{localization:Localize Tools.WndEditor.Assets.LibraryTitle}"
-                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
-                           Margin="0,8,0,4"/>
-                <StackPanel Grid.Row="5" Spacing="2" Margin="0,0,0,4">
-                  <TextBox Text="{Binding LibraryFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                           FontSize="11"
-                           Watermark="{localization:Localize Tools.WndEditor.Assets.LibrarySearchHint}"/>
-                  <TextBlock Text="{Binding LibraryStatusText}"
-                             FontSize="10" Foreground="{DynamicResource TextMuted}"
-                             TextWrapping="Wrap"
-                             IsVisible="{Binding LibraryStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                </StackPanel>
-                <Border Grid.Row="6"
-                        Background="{DynamicResource SurfaceElevatedBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="6" Padding="4" ClipToBounds="True">
-                  <ListBox ItemsSource="{Binding FilteredKnownImageNames}"
-                           Background="Transparent" BorderThickness="0" Padding="0">
-                    <ListBox.ItemTemplate>
-                      <DataTemplate x:DataType="x:String">
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,1">
-                          <TextBlock Grid.Column="0"
-                                     Text="{Binding}"
-                                     FontSize="11" Foreground="{DynamicResource TextPrimary}"
-                                     VerticalAlignment="Center"
-                                     TextTrimming="CharacterEllipsis"
-                                     ToolTip.Tip="{Binding}"/>
-                          <Button Grid.Column="1" x:CompileBindings="False"
-                                  Command="{Binding ElementName=Root, Path=DataContext.ApplyImageToSelectedWindowCommand}"
-                                  CommandParameter="{Binding}"
-                                  IsEnabled="{Binding ElementName=Root, Path=DataContext.SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                  Padding="6,2" Margin="6,0,0,0"
-                                  Background="Transparent"
-                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                  CornerRadius="6"
-                                  Content="{localization:Localize Tools.WndEditor.Assets.ApplyOne}"
-                                  FontSize="10"/>
-                        </Grid>
-                      </DataTemplate>
-                    </ListBox.ItemTemplate>
-                  </ListBox>
-                </Border>
+                </Expander>
               </Grid>
             </TabItem>
           </TabControl>

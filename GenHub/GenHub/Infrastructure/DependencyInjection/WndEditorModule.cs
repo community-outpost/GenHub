@@ -20,6 +20,7 @@ public static class WndEditorModule
     public static IServiceCollection AddWndEditor(this IServiceCollection services)
     {
         services.AddSingleton<IWndDocumentService, WndDocumentService>();
+        services.AddSingleton<IChallengeMedalService, ChallengeMedalService>();
         services.AddSingleton<IWndImageAssetService, WndImageAssetService>();
         services.AddSingleton<IWndTextureImportService, WndTextureImportService>();
         services.AddSingleton<IWndStringTableService, WndStringTableService>();

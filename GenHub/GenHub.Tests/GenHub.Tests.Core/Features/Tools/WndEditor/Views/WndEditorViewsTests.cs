@@ -222,6 +222,7 @@ public sealed class WndEditorViewsTests
             gameInstallService.Object,
             new WndEditorAssetService(Mock.Of<IWndImageAssetService>(), Mock.Of<IWndStringTableService>()),
             Mock.Of<IWndTextureImportService>(),
+            Mock.Of<IChallengeMedalService>(),
             Mock.Of<ILogger<WndEditorViewModel>>());
     }
 
