@@ -409,7 +409,7 @@ public partial class ContentLibraryViewModel(
         return path;
     }
 
-    private static bool TryAppendMediaToMetadata(ContentMetadata metadata, string path, string mediaPath)
+    private static bool TryAppendMediaToMetadata(ContentRichMetadata metadata, string path, string mediaPath)
     {
         if (MediaFileHelper.IsImageFile(path)
             && !metadata.ScreenshotUrls.Contains(mediaPath, StringComparer.OrdinalIgnoreCase))
