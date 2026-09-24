@@ -1079,7 +1079,6 @@ public class GameProcessManager(
 
         return "Native";
     }
-    }
 
     /// <summary>
     /// Reads a process's start time in UTC, or reports that it could not be read.
@@ -2258,3 +2257,4 @@ public class GameProcessManager(
             }
         }
     }
+}

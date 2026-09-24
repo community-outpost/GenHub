@@ -94,14 +94,47 @@ public static class TelemetryConstants
         /// <summary>Emitted when a game process exits.</summary>
         public const string GameSessionEnded = "game_session_ended";
 
+        /// <summary>Emitted when a game profile is launched from the UI.</summary>
+        public const string ProfileLaunched = "profile_launched";
+
+        /// <summary>Emitted when a game profile is launched directly from a desktop shortcut or command line.</summary>
+        public const string ProfileLaunchedFromShortcut = "profile_launched_from_shortcut";
+
+        /// <summary>Emitted when a desktop or start menu shortcut is created for a game profile.</summary>
+        public const string ProfilePinned = "profile_pinned";
+
+        /// <summary>Emitted when a profile package is exported or shared.</summary>
+        public const string ProfileShared = "profile_shared";
+
+        /// <summary>Emitted when a profile package is imported.</summary>
+        public const string ProfileImported = "profile_imported";
+
         /// <summary>Emitted when a content or mod download completes.</summary>
         public const string ContentDownloadCompleted = "content_download_completed";
 
         /// <summary>Emitted when an application update check finishes.</summary>
         public const string AppUpdateChecked = "app_update_checked";
 
+        /// <summary>Emitted when an application update package finishes downloading.</summary>
+        public const string AppUpdateDownloaded = "app_update_downloaded";
+
         /// <summary>Emitted when an application update is applied.</summary>
         public const string AppUpdateApplied = "app_update_applied";
+
+        /// <summary>Emitted when an upload to UploadThing completes successfully.</summary>
+        public const string UploadThingUploadCompleted = "uploadthing_upload_completed";
+
+        /// <summary>Emitted when an upload to UploadThing fails.</summary>
+        public const string UploadThingUploadFailed = "uploadthing_upload_failed";
+
+        /// <summary>Emitted when a GenPatcher fix or action set is applied.</summary>
+        public const string GenPatcherFixApplied = "genpatcher_fix_applied";
+
+        /// <summary>Emitted when a new ModBuilder project is created.</summary>
+        public const string ModProjectCreated = "modbuilder_project_created";
+
+        /// <summary>Emitted when a ModBuilder build pipeline execution completes.</summary>
+        public const string ModBuilt = "modbuilder_mod_built";
 
         /// <summary>Emitted when CAS workspace reconciliation completes.</summary>
         public const string CasReconcileCompleted = "cas_reconcile_completed";
@@ -126,6 +159,48 @@ public static class TelemetryConstants
 
         /// <summary>Profile name.</summary>
         public const string ProfileName = "profile_name";
+
+        /// <summary>Launch trigger source (e.g. "launcher", "shortcut", "command_line", "ipc").</summary>
+        public const string LaunchSource = "launch_source";
+
+        /// <summary>Shortcut type (e.g. "desktop", "start_menu").</summary>
+        public const string ShortcutType = "shortcut_type";
+
+        /// <summary>Profile share format (e.g. "uri", "file", "json").</summary>
+        public const string ShareFormat = "share_format";
+
+        /// <summary>Profile import source (e.g. "uri", "file", "json").</summary>
+        public const string ImportSource = "import_source";
+
+        /// <summary>Fix or action set identifier.</summary>
+        public const string FixId = "fix_id";
+
+        /// <summary>Fix or action set display name.</summary>
+        public const string FixName = "fix_name";
+
+        /// <summary>Indicates whether the fix is crucial or mandatory.</summary>
+        public const string IsCrucial = "is_crucial";
+
+        /// <summary>Indicates whether the operation succeeded.</summary>
+        public const string Success = "success";
+
+        /// <summary>Error message describing the failure.</summary>
+        public const string ErrorMessage = "error_message";
+
+        /// <summary>ModBuilder project name.</summary>
+        public const string ProjectName = "project_name";
+
+        /// <summary>ModBuilder build steps executed.</summary>
+        public const string BuildSteps = "build_steps";
+
+        /// <summary>Originating tool or feature name for an upload.</summary>
+        public const string ToolSource = "tool_source";
+
+        /// <summary>Name of file uploaded or processed.</summary>
+        public const string FileName = "file_name";
+
+        /// <summary>Size of file in bytes.</summary>
+        public const string FileSizeBytes = "file_size_bytes";
 
         /// <summary>Duration in seconds.</summary>
         public const string DurationSeconds = "duration_seconds";

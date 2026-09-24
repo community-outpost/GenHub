@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using System.Linq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Telemetry;
@@ -37,9 +38,20 @@ public class TelemetryConstantsTests
             TelemetryConstants.Events.GameSessionStarted,
             TelemetryConstants.Events.GameSessionHeartbeat,
             TelemetryConstants.Events.GameSessionEnded,
+            TelemetryConstants.Events.ProfileLaunched,
+            TelemetryConstants.Events.ProfileLaunchedFromShortcut,
+            TelemetryConstants.Events.ProfilePinned,
+            TelemetryConstants.Events.ProfileShared,
+            TelemetryConstants.Events.ProfileImported,
             TelemetryConstants.Events.ContentDownloadCompleted,
             TelemetryConstants.Events.AppUpdateChecked,
+            TelemetryConstants.Events.AppUpdateDownloaded,
             TelemetryConstants.Events.AppUpdateApplied,
+            TelemetryConstants.Events.UploadThingUploadCompleted,
+            TelemetryConstants.Events.UploadThingUploadFailed,
+            TelemetryConstants.Events.GenPatcherFixApplied,
+            TelemetryConstants.Events.ModProjectCreated,
+            TelemetryConstants.Events.ModBuilt,
             TelemetryConstants.Events.CasReconcileCompleted,
             TelemetryConstants.Events.AppCrash,
         };
@@ -64,6 +76,20 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.GameType,
             TelemetryConstants.Properties.ProfileId,
             TelemetryConstants.Properties.ProfileName,
+            TelemetryConstants.Properties.LaunchSource,
+            TelemetryConstants.Properties.ShortcutType,
+            TelemetryConstants.Properties.ShareFormat,
+            TelemetryConstants.Properties.ImportSource,
+            TelemetryConstants.Properties.FixId,
+            TelemetryConstants.Properties.FixName,
+            TelemetryConstants.Properties.IsCrucial,
+            TelemetryConstants.Properties.Success,
+            TelemetryConstants.Properties.ErrorMessage,
+            TelemetryConstants.Properties.ProjectName,
+            TelemetryConstants.Properties.BuildSteps,
+            TelemetryConstants.Properties.ToolSource,
+            TelemetryConstants.Properties.FileName,
+            TelemetryConstants.Properties.FileSizeBytes,
             TelemetryConstants.Properties.DurationSeconds,
             TelemetryConstants.Properties.ExitCode,
             TelemetryConstants.Properties.Platform,

@@ -1936,15 +1936,26 @@ Constants for telemetry event names, properties, data scrubbing masks, and queue
 - `GameSessionStarted`: `"game_session_started"` - Emitted when a game process starts.
 - `GameSessionHeartbeat`: `"game_session_heartbeat"` - Emitted periodically while a game process is running.
 - `GameSessionEnded`: `"game_session_ended"` - Emitted when a game process exits.
+- `ProfileLaunched`: `"profile_launched"` - Emitted when a game profile is launched from the UI.
+- `ProfileLaunchedFromShortcut`: `"profile_launched_from_shortcut"` - Emitted when a game profile is launched directly from a desktop shortcut or command line.
+- `ProfilePinned`: `"profile_pinned"` - Emitted when a desktop or start menu shortcut is created/pinned for a profile.
+- `ProfileShared`: `"profile_shared"` - Emitted when a game profile package is exported or shared.
+- `ProfileImported`: `"profile_imported"` - Emitted when a game profile package is imported.
 - `ContentDownloadCompleted`: `"content_download_completed"` - Emitted when a content or mod download completes.
 - `AppUpdateChecked`: `"app_update_checked"` - Emitted when an application update check finishes.
+- `AppUpdateDownloaded`: `"app_update_downloaded"` - Emitted when an application update package finishes downloading.
 - `AppUpdateApplied`: `"app_update_applied"` - Emitted when an application update is applied.
+- `UploadThingUploadCompleted`: `"uploadthing_upload_completed"` - Emitted when an upload to UploadThing completes successfully.
+- `UploadThingUploadFailed`: `"uploadthing_upload_failed"` - Emitted when an upload to UploadThing fails.
+- `GenPatcherFixApplied`: `"genpatcher_fix_applied"` - Emitted when a GenPatcher fix or action set is applied.
+- `ModProjectCreated`: `"modbuilder_project_created"` - Emitted when a new ModBuilder project is initialized.
+- `ModBuilt`: `"modbuilder_mod_built"` - Emitted when a ModBuilder build pipeline execution completes.
 - `CasReconcileCompleted`: `"cas_reconcile_completed"` - Emitted when CAS workspace reconciliation completes.
 - `AppCrash`: `"app_unhandled_crash"` - Emitted when an unhandled application exception or crash occurs.
 
 ### Telemetry Properties (`TelemetryConstants.Properties`)
 
-Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
+Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `LaunchSource`, `ShortcutType`, `ShareFormat`, `ImportSource`, `FixId`, `FixName`, `IsCrucial`, `Success`, `ErrorMessage`, `ProjectName`, `BuildSteps`, `ToolSource`, `FileName`, `FileSizeBytes`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
 
 ---
 
