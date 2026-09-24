@@ -242,6 +242,11 @@ public class GenLauncherDeliverer(
         return "[redacted]";
     }
 
+    private static string NormalizeRelativePath(string relativePath)
+    {
+        return relativePath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+    }
+
     private async Task<OperationResult<bool>> DownloadAllFilesAsync(
         List<ManifestFile> files,
         string targetDirectory,
@@ -251,6 +256,14 @@ public class GenLauncherDeliverer(
         var totalFiles = files.Count;
         var totalBytes = files.Sum(f => Math.Max(f.Size, 0));
         logger.LogInformation("Beginning download of {TotalFiles} files ({TotalBytes} bytes)...", totalFiles, totalBytes);
+
+        var duplicatePath = files
+            .GroupBy(file => Path.GetFullPath(Path.Combine(targetDirectory, NormalizeRelativePath(file.RelativePath))), StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Skip(1).Any());
+        if (duplicatePath != null)
+        {
+            return OperationResult<bool>.CreateFailure($"Manifest contains duplicate destination path: {duplicatePath.Key}");
+        }
 
         var configuredConcurrency = configurationProvider?.GetMaxConcurrentDownloads() ?? DownloadDefaults.MaxConcurrentDownloads;
         var maxConcurrency = Math.Clamp(
@@ -307,14 +320,6 @@ public class GenLauncherDeliverer(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var duplicatePath = files
-            .GroupBy(file => Path.GetFullPath(Path.Combine(targetDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar))), StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault(group => group.Skip(1).Any());
-        if (duplicatePath != null)
-        {
-            return OperationResult<bool>.CreateFailure($"Manifest contains duplicate destination path: {duplicatePath.Key}");
-        }
-
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
         var state = new ConcurrentDownloadState(files.Count, totalBytes, progress);
@@ -334,7 +339,7 @@ public class GenLauncherDeliverer(
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && state.FirstError != null)
         {
-            // Expected when a download task fails and cancels linkedCts
+            // Expected when a concurrent download fails and cancels other downloads
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -379,7 +384,6 @@ public class GenLauncherDeliverer(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error downloading {File}", file.RelativePath);
             state.RecordFileFailure($"Error downloading {file.RelativePath}: {ex.Message}");
             await linkedCts.CancelAsync().ConfigureAwait(false);
         }
@@ -397,7 +401,7 @@ public class GenLauncherDeliverer(
         IProgress<DownloadProgress>? fileProgress,
         CancellationToken cancellationToken)
     {
-        var destinationPath = Path.Combine(targetDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+        var destinationPath = Path.Combine(targetDirectory, NormalizeRelativePath(file.RelativePath));
 
         // Prevent path traversal
         if (!ContentPathPolicy.IsContained(targetDirectory, destinationPath))
@@ -438,9 +442,7 @@ public class GenLauncherDeliverer(
         }
 
         logger.LogInformation(
-            "Finished downloading GenLauncher file [{Index}/{Total}]: {File} in {ElapsedMs}ms",
-            fileIndex + 1,
-            totalFiles,
+            "Successfully downloaded GenLauncher file {File} in {ElapsedMs}ms",
             file.RelativePath,
             fileStopwatch.ElapsedMilliseconds);
 
