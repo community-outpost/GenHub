@@ -194,11 +194,10 @@ public class PostSpawnFailureDetectionTests : IDisposable
             WorkingDirectory = _tempDir,
         });
 
-        Assert.True(result.Success, $"Launch failed: {string.Join(" ", result.Errors)}");
-        Assert.NotNull(result.Data);
-
         try
         {
+            Assert.True(result.Success, $"Launch failed: {string.Join(" ", result.Errors)}");
+            Assert.NotNull(result.Data);
             var info = await _processManager.GetProcessInfoAsync(result.Data!.ProcessId);
             Assert.True(info.Success);
 
@@ -214,7 +213,10 @@ public class PostSpawnFailureDetectionTests : IDisposable
         }
         finally
         {
-            await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+            if (result.Data is not null && !exited.Task.IsCompleted)
+            {
+                await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+            }
         }
     }
 
@@ -347,6 +349,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
         return launch!;
     }
 
+    /// <summary>Creates an executable shell fixture without running a game engine.</summary>
+    /// <param name="content">The shell script contents.</param>
+    /// <returns>The path to the executable fixture.</returns>
     private async Task<string> WriteScriptAsync(string content)
     {
         var binary = Path.Combine(_tempDir, NativeClientFixture.BinaryName);

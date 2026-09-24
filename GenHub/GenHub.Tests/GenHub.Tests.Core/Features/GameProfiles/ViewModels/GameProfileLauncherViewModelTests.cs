@@ -745,7 +745,7 @@ public class GameProfileLauncherViewModelTests
         };
         vm.Profiles.Add(item);
 
-        // A message arrives with a different, stale PID (e.g. from an earlier instance that exited late)
+        // The PID was reused, but this message carries the stale identity of an earlier instance.
         vm.Receive(new ProfileStoppedMessage("test-profile-123", 45678) { ProcessInstanceId = Guid.NewGuid() });
 
         Assert.True(item.IsProcessRunning);
