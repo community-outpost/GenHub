@@ -723,6 +723,7 @@ MoneyTransactionVolume = 70
     /// Verifies that network IP settings are serialized before any [TheSuperHackers] or custom section
     /// headers so the engine does not treat IPAddress as a section-scoped setting and drop it.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
     public async Task SaveOptionsAsync_WithTheSuperHackersSection_ShouldSerializeNetworkBeforeSectionAsync()
     {
@@ -772,6 +773,7 @@ MoneyTransactionVolume = 70
     /// Verifies that if an existing Options.ini file has IPAddress trapped inside [TheSuperHackers],
     /// it is extracted into Network.IPAddress and not left in AdditionalSections.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
     public async Task LoadOptionsAsync_WithLeakedNetworkInAdditionalSection_ShouldRestoreToNetworkSettingsAsync()
     {

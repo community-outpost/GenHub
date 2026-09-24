@@ -39,14 +39,6 @@ namespace GenHub.Features.Online.ViewModels;
 /// and share one virtual LAN for in-game LAN lobbies. Anyone can join any
 /// lobby; profile match state only tells members whose setup fits the game.
 /// </summary>
-/// <param name="networkService">The online network service.</param>
-/// <param name="launchService">The online launch service.</param>
-/// <param name="profileManager">The game profile manager for profile lookup.</param>
-/// <param name="notificationService">The notification service for toasts.</param>
-/// <param name="dialogService">The dialog service for confirmations.</param>
-/// <param name="logger">The logger.</param>
-/// <param name="dependencies">The optional localization and settings services.</param>
-/// <param name="crcCalculator">The optional engine CRC calculator for lobby compatibility fingerprints.</param>
 public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecipient<ProfileUpdatedMessage>
 {
     private sealed record OnlineProfileSetup(
@@ -73,12 +65,19 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     private readonly IGameInstallationService? _installationService;
 
     private IOnlineNetworkService networkService => _networkService;
+
     private IOnlineLaunchService launchService => _launchService;
+
     private IGameProfileManager profileManager => _profileManager;
+
     private INotificationService notificationService => _notificationService;
+
     private IDialogService dialogService => _dialogService;
+
     private ILogger<OnlineViewModel> logger => _logger;
+
     private OnlineViewModelDependencies? dependencies => _dependencies;
+
     private IGameCrcCalculatorService? crcCalculator => _crcCalculator;
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
