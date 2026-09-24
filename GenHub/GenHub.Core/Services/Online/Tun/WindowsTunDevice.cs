@@ -1,9 +1,12 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Results;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -194,7 +197,7 @@ public sealed class WindowsTunDevice : ITunDevice
     {
         if (prefixLength is < 0 or > 32)
         {
-            return "255.255.240.0";
+            return OnlineConstants.DefaultTunSubnetMask;
         }
 
         uint mask = prefixLength == 0 ? 0 : 0xFFFFFFFF << (32 - prefixLength);
@@ -207,6 +210,7 @@ public sealed class WindowsTunDevice : ITunDevice
         return $"{bytes[0]}.{bytes[1]}.{bytes[2]}.{bytes[3]}";
     }
 
+    [SuppressMessage("Security", "S4036:ProcessStartInfo.FileName should not be relative", Justification = "netsh.exe path is resolved via SpecialFolder.System")]
     private static void ConfigureInterfaceViaNetsh(string interfaceName, string ipAddress, string mask, int mtu)
     {
         try
@@ -215,7 +219,7 @@ public sealed class WindowsTunDevice : ITunDevice
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "netsh.exe",
+                    FileName = ResolveNetshPath(),
                     Arguments = $"interface ipv4 set address name=\"{interfaceName}\" source=static addr={ipAddress} mask={mask}",
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -235,7 +239,7 @@ public sealed class WindowsTunDevice : ITunDevice
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "netsh.exe",
+                    FileName = ResolveNetshPath(),
                     Arguments = $"interface ipv4 set subinterface name=\"{interfaceName}\" mtu={mtu} store=active",
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -248,6 +252,13 @@ public sealed class WindowsTunDevice : ITunDevice
         {
             // Best effort MTU configuration
         }
+    }
+
+    private static string ResolveNetshPath()
+    {
+        var systemFolder = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        var netshPath = string.IsNullOrEmpty(systemFolder) ? "netsh.exe" : Path.Combine(systemFolder, "netsh.exe");
+        return File.Exists(netshPath) ? netshPath : "netsh.exe";
     }
 
     private static async Task WaitForEventAsync(SafeWaitHandle handle, CancellationToken cancellationToken)

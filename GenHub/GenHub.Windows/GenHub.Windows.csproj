@@ -54,8 +54,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- Build-order-only: guarantees the proxy binary exists before BuildProxyLauncher packs it. -->
+        <!-- Build-order-only: guarantees the proxy and overlay binaries exist before MSBuild targets pack them. -->
         <ProjectReference Include="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <Private>false</Private>
+            <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+        </ProjectReference>
+        <ProjectReference Include="..\GenHub.Overlay\GenHub.Overlay.csproj">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
             <Private>false</Private>
             <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
@@ -63,4 +68,39 @@
     </ItemGroup>
 
     <Import Project="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.Bundle.targets" />
+
+    <!-- Ensure Overlay is PUBLISHED as SingleFile and copied to build output -->
+    <Target Name="BuildOverlay" BeforeTargets="Build">
+        <Exec Command="dotnet publish &quot;..\GenHub.Overlay\GenHub.Overlay.csproj&quot; -c $(Configuration) -f net8.0 -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IntermediateOutputPath=&quot;obj/$(Configuration)/net8.0/win-x64/Overlay/&quot; -p:Version=$(Version) -p:GitShortHash=$(GitShortHash) -p:PullRequestNumber=$(PullRequestNumber) -p:BuildChannel=$(BuildChannel) -o &quot;$(MSBuildProjectDirectory)\..\GenHub.Overlay\bin\Publish\$(Configuration)&quot;" />
+    </Target>
+
+    <Target Name="CopyOverlay" AfterTargets="Build">
+        <PropertyGroup>
+            <OverlaySourceDir>$(MSBuildProjectDirectory)\..\GenHub.Overlay\bin\Publish\$(Configuration)</OverlaySourceDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.exe" />
+            <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.pdb" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.pdb')" />
+            <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json')" />
+        </ItemGroup>
+        <Message Importance="High" Text="[CopyOverlay] Copying SingleFile from $(OverlaySourceDir) to $(TargetDir)" />
+        <Copy SourceFiles="@(OverlayFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    </Target>
+
+    <!-- Ensure Overlay is included in Publish output for Velopack -->
+    <Target Name="PublishOverlay" AfterTargets="ComputeFilesToPublish">
+        <PropertyGroup>
+            <OverlaySourceDir>$(MSBuildProjectDirectory)\..\GenHub.Overlay\bin\Publish\$(Configuration)</OverlaySourceDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <ResolvedFileToPublish Include="$(OverlaySourceDir)\genhub-overlay.exe">
+                <RelativePath>genhub-overlay.exe</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+            <ResolvedFileToPublish Include="$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json')">
+                <RelativePath>genhub-overlay.runtimeconfig.json</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+        </ItemGroup>
+    </Target>
 </Project>

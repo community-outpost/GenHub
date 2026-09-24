@@ -54,31 +54,15 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     private const int SearchDebounceMs = 350;
     private const string CreateErrorTitleKey = "Online.Error.CreateTitle";
 
-    private readonly IOnlineNetworkService _networkService;
-    private readonly IOnlineLaunchService _launchService;
-    private readonly IGameProfileManager _profileManager;
-    private readonly INotificationService _notificationService;
-    private readonly IDialogService _dialogService;
-    private readonly ILogger<OnlineViewModel> _logger;
-    private readonly OnlineViewModelDependencies? _dependencies;
-    private readonly IGameCrcCalculatorService? _crcCalculator;
-    private readonly IGameInstallationService? _installationService;
-
-    private IOnlineNetworkService networkService => _networkService;
-
-    private IOnlineLaunchService launchService => _launchService;
-
-    private IGameProfileManager profileManager => _profileManager;
-
-    private INotificationService notificationService => _notificationService;
-
-    private IDialogService dialogService => _dialogService;
-
-    private ILogger<OnlineViewModel> logger => _logger;
-
-    private OnlineViewModelDependencies? dependencies => _dependencies;
-
-    private IGameCrcCalculatorService? crcCalculator => _crcCalculator;
+    private readonly IOnlineNetworkService networkService;
+    private readonly IOnlineLaunchService launchService;
+    private readonly IGameProfileManager profileManager;
+    private readonly INotificationService notificationService;
+    private readonly IDialogService dialogService;
+    private readonly ILogger<OnlineViewModel> logger;
+    private readonly OnlineViewModelDependencies? dependencies;
+    private readonly IGameCrcCalculatorService? crcCalculator;
+    private readonly IGameInstallationService? installationService;
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly SemaphoreSlim _profileLock = new(1, 1);
@@ -108,7 +92,6 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger instance.</param>
     /// <param name="dependencies">Optional view model dependencies.</param>
-    /// <param name="crcCalculator">Optional game CRC calculator service.</param>
     public OnlineViewModel(
         IOnlineNetworkService networkService,
         IOnlineLaunchService launchService,
@@ -116,18 +99,17 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         INotificationService notificationService,
         IDialogService dialogService,
         ILogger<OnlineViewModel> logger,
-        OnlineViewModelDependencies? dependencies = null,
-        IGameCrcCalculatorService? crcCalculator = null)
+        OnlineViewModelDependencies? dependencies = null)
     {
-        _networkService = networkService ?? throw new ArgumentNullException(nameof(networkService));
-        _launchService = launchService ?? throw new ArgumentNullException(nameof(launchService));
-        _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
-        _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
-        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _dependencies = dependencies;
-        _crcCalculator = crcCalculator;
-        _installationService = dependencies?.GameInstallationService;
+        this.networkService = networkService ?? throw new ArgumentNullException(nameof(networkService));
+        this.launchService = launchService ?? throw new ArgumentNullException(nameof(launchService));
+        this.profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
+        this.notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
+        this.dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.dependencies = dependencies;
+        this.crcCalculator = dependencies?.CrcCalculator;
+        this.installationService = dependencies?.GameInstallationService;
 
         WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
     }
@@ -1830,6 +1812,23 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         GameProfile profile,
         CancellationToken cancellationToken)
     {
+        var (gameRoot, exePath) = ResolveProfileRootAndExe(profile);
+
+        if (string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot))
+        {
+            gameRoot = await ResolveInstallationRootAsync(profile, cancellationToken);
+        }
+
+        if (!string.IsNullOrEmpty(gameRoot) && (string.IsNullOrEmpty(exePath) || !File.Exists(exePath)))
+        {
+            exePath = ResolveExePathCandidate(profile, gameRoot);
+        }
+
+        return (gameRoot, exePath);
+    }
+
+    private (string? GameRoot, string? ExePath) ResolveProfileRootAndExe(GameProfile profile)
+    {
         string? gameRoot = null;
         string? exePath = null;
 
@@ -1854,73 +1853,81 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             gameRoot = profile.GameClient.WorkingDirectory;
         }
 
-        if ((string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot)) &&
-            _installationService is not null &&
-            !string.IsNullOrWhiteSpace(profile.GameInstallationId))
-        {
-            try
-            {
-                var installResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-                if (installResult.Success && installResult.Data is not null)
-                {
-                    var installation = installResult.Data;
-                    var targetPath = profile.GameClient?.GameType == GameType.Generals
-                        ? installation.GeneralsPath
-                        : installation.ZeroHourPath;
-
-                    if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
-                    {
-                        gameRoot = targetPath;
-                    }
-                    else if (!string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath))
-                    {
-                        gameRoot = installation.InstallationPath;
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Failed to resolve installation path for profile {ProfileId}", profile.Id);
-            }
-        }
-
-        if (!string.IsNullOrEmpty(gameRoot) && (string.IsNullOrEmpty(exePath) || !File.Exists(exePath)))
-        {
-            var candidates = new List<string?>();
-            if (!string.IsNullOrWhiteSpace(profile.CustomExecutablePath))
-            {
-                candidates.Add(Path.IsPathRooted(profile.CustomExecutablePath) ? profile.CustomExecutablePath : Path.Combine(gameRoot, profile.CustomExecutablePath));
-            }
-
-            if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
-            {
-                candidates.Add(Path.IsPathRooted(profile.ExecutablePath) ? profile.ExecutablePath : Path.Combine(gameRoot, profile.ExecutablePath));
-            }
-
-            if (profile.GameClient != null)
-            {
-                if (!string.IsNullOrWhiteSpace(profile.GameClient.ExecutablePath))
-                {
-                    candidates.Add(Path.IsPathRooted(profile.GameClient.ExecutablePath) ? profile.GameClient.ExecutablePath : Path.Combine(gameRoot, profile.GameClient.ExecutablePath));
-                }
-
-                var defaultName = ReplayCrcMatchingHelper.GetDefaultExecutableName(profile.GameClient.GameType, profile.GameClient.PublisherType);
-                candidates.Add(Path.Combine(gameRoot, defaultName));
-            }
-
-            candidates.Add(Path.Combine(gameRoot, GameClientConstants.SuperHackersZeroHourExecutable));
-            candidates.Add(Path.Combine(gameRoot, GameClientConstants.ZeroHourExecutable));
-            candidates.Add(Path.Combine(gameRoot, GameClientConstants.GeneralsExecutable));
-            candidates.Add(Path.Combine(gameRoot, GameClientConstants.SteamGameDatExecutable));
-
-            exePath = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c) && File.Exists(c));
-        }
-
         return (gameRoot, exePath);
+    }
+
+    private async Task<string?> ResolveInstallationRootAsync(GameProfile profile, CancellationToken cancellationToken)
+    {
+        if (installationService is null || string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        {
+            return null;
+        }
+
+        try
+        {
+            var installResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+            if (!installResult.Success || installResult.Data is null)
+            {
+                return null;
+            }
+
+            var installation = installResult.Data;
+            var targetPath = profile.GameClient?.GameType == GameType.Generals
+                ? installation.GeneralsPath
+                : installation.ZeroHourPath;
+
+            if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
+            {
+                return targetPath;
+            }
+
+            if (!string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath))
+            {
+                return installation.InstallationPath;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to resolve installation path for profile {ProfileId}", profile.Id);
+        }
+
+        return null;
+    }
+
+    private string? ResolveExePathCandidate(GameProfile profile, string gameRoot)
+    {
+        var candidates = new List<string?>();
+        if (!string.IsNullOrWhiteSpace(profile.CustomExecutablePath))
+        {
+            candidates.Add(Path.IsPathRooted(profile.CustomExecutablePath) ? profile.CustomExecutablePath : Path.Combine(gameRoot, profile.CustomExecutablePath));
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
+        {
+            candidates.Add(Path.IsPathRooted(profile.ExecutablePath) ? profile.ExecutablePath : Path.Combine(gameRoot, profile.ExecutablePath));
+        }
+
+        if (profile.GameClient != null)
+        {
+            if (!string.IsNullOrWhiteSpace(profile.GameClient.ExecutablePath))
+            {
+                candidates.Add(Path.IsPathRooted(profile.GameClient.ExecutablePath) ? profile.GameClient.ExecutablePath : Path.Combine(gameRoot, profile.GameClient.ExecutablePath));
+            }
+
+            var defaultName = ReplayCrcMatchingHelper.GetDefaultExecutableName(profile.GameClient.GameType, profile.GameClient.PublisherType);
+            candidates.Add(Path.Combine(gameRoot, defaultName));
+        }
+
+        candidates.Add(Path.Combine(gameRoot, GameClientConstants.SuperHackersZeroHourExecutable));
+        candidates.Add(Path.Combine(gameRoot, GameClientConstants.ZeroHourExecutable));
+        candidates.Add(Path.Combine(gameRoot, GameClientConstants.GeneralsExecutable));
+        candidates.Add(Path.Combine(gameRoot, GameClientConstants.SteamGameDatExecutable));
+
+        return candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c) && File.Exists(c));
     }
 
     private async Task<(string IniCrc, string ExeCrc)> ResolveCompatibilityCrcsAsync(

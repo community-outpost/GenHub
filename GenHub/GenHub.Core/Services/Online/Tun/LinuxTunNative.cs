@@ -38,12 +38,18 @@ internal static class LinuxTunNative
     }
 
     /// <summary>
-    /// Closes a control device descriptor.
+    /// Closes a control device descriptor if valid.
     /// </summary>
     /// <param name="fd">The file descriptor.</param>
-    internal static void CloseDevice(int fd)
+    /// <returns>True if closed successfully; otherwise, false.</returns>
+    internal static bool CloseDevice(int fd)
     {
-        _ = Close(fd);
+        if (fd < 0)
+        {
+            return false;
+        }
+
+        return Close(fd) == 0;
     }
 
     /// <summary>

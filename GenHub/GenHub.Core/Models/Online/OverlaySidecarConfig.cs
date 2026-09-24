@@ -76,118 +76,42 @@ public sealed record OverlaySidecarConfig(
             using var doc = JsonDocument.Parse(decodedJson);
             var root = doc.RootElement;
 
-            // Interface name: default to OS appropriate name if not provided
-            string iface;
-            if (root.TryGetProperty("interface", out var ifaceProp))
+            if (!TryParseInterface(root, out var iface, out var ifaceError))
             {
-                var val = ifaceProp.ValueKind == JsonValueKind.String ? ifaceProp.GetString() : null;
-                if (string.IsNullOrWhiteSpace(val) || !LinuxTunNative.IsValidInterfaceName(val))
-                {
-                    return OperationResult<OverlaySidecarConfig>.CreateFailure("Overlay configuration has an invalid interface name.");
-                }
-
-                iface = val;
-            }
-            else
-            {
-                iface = OperatingSystem.IsWindows()
-                    ? OnlineConstants.TunDefaultWindowsInterfaceName
-                    : OnlineConstants.TunDefaultInterfaceName;
+                return OperationResult<OverlaySidecarConfig>.CreateFailure(ifaceError!);
             }
 
-            // Overlay IP: check "overlayIp" and "assignedIp"
-            var overlayIp = GetStringProperty(root, "overlayIp")
-                ?? GetStringProperty(root, "assignedIp")
-                ?? defaultOverlayIp;
-            if (!IsValidIPv4(overlayIp))
+            if (!TryParseOverlayIp(root, defaultOverlayIp, out var overlayIp, out var ipError))
             {
-                return OperationResult<OverlaySidecarConfig>.CreateFailure("Overlay configuration has an invalid overlay IP.");
+                return OperationResult<OverlaySidecarConfig>.CreateFailure(ipError!);
             }
 
-            // Network ID
-            var networkId = GetStringProperty(root, "networkId");
-            if (string.IsNullOrWhiteSpace(networkId))
+            if (!TryParseNetworkId(root, out var networkId, out var netError))
             {
-                return OperationResult<OverlaySidecarConfig>.CreateFailure("Overlay configuration has a blank network id.");
+                return OperationResult<OverlaySidecarConfig>.CreateFailure(netError!);
             }
 
-            // Relay host and port: check flat fields first, then nested "relay" or "gateway" object, then defaults
-            var relayHost = GetStringProperty(root, "relayHost");
-            int? relayPort = GetIntProperty(root, "relayPort");
-
-            if ((root.TryGetProperty("relay", out var relayElement) || root.TryGetProperty("gateway", out relayElement))
-                && relayElement.ValueKind == JsonValueKind.Object)
+            if (!TryParseRelay(root, out var relayHost, out var relayPort, out var relayError))
             {
-                if (string.IsNullOrWhiteSpace(relayHost))
-                {
-                    relayHost = GetStringProperty(relayElement, "host");
-                }
-
-                relayPort ??= GetIntProperty(relayElement, "port");
+                return OperationResult<OverlaySidecarConfig>.CreateFailure(relayError!);
             }
 
-            if (string.IsNullOrWhiteSpace(relayHost))
+            if (!TryParsePrefixLength(root, out var prefixLength, out var prefixError))
             {
-                relayHost = ApiConstants.OnlineRelayHost;
+                return OperationResult<OverlaySidecarConfig>.CreateFailure(prefixError!);
             }
 
-            relayPort ??= OnlineConstants.DefaultRelayPort;
-
-            if (relayPort is < 1 or > 65535)
+            if (!TryParseMtu(root, out var mtu, out var mtuError))
             {
-                return OperationResult<OverlaySidecarConfig>.CreateFailure("Overlay configuration has an invalid relay port.");
-            }
-
-            // Prefix length / subnet
-            var prefixLength = GetIntProperty(root, "prefixLength");
-            if (prefixLength is null && root.TryGetProperty("subnet", out var subnetElement) && subnetElement.ValueKind == JsonValueKind.String)
-            {
-                var subnet = subnetElement.GetString();
-                if (!string.IsNullOrEmpty(subnet) && subnet.Contains('/'))
-                {
-                    var slashIndex = subnet.IndexOf('/');
-                    if (int.TryParse(subnet[(slashIndex + 1)..], out var parsedPrefix))
-                    {
-                        prefixLength = parsedPrefix;
-                    }
-                }
-            }
-
-            if (prefixLength is null && root.TryGetProperty("subnetMask", out var maskElement) && maskElement.ValueKind == JsonValueKind.String)
-            {
-                var maskStr = maskElement.GetString();
-                if (IPAddress.TryParse(maskStr, out var maskIp))
-                {
-                    var bytes = maskIp.GetAddressBytes();
-                    var bits = 0;
-                    foreach (var b in bytes)
-                    {
-                        bits += BitOperations.PopCount(b);
-                    }
-
-                    prefixLength = bits;
-                }
-            }
-
-            prefixLength ??= OnlineConstants.TunOverlayPrefixLength;
-            if (prefixLength is < 1 or > 32)
-            {
-                return OperationResult<OverlaySidecarConfig>.CreateFailure("Overlay configuration has an invalid prefix length.");
-            }
-
-            // MTU
-            var mtu = GetIntProperty(root, "mtu") ?? OnlineConstants.TunDefaultMtu;
-            if (mtu is < 576 or > 9000)
-            {
-                return OperationResult<OverlaySidecarConfig>.CreateFailure("Overlay configuration has an invalid MTU.");
+                return OperationResult<OverlaySidecarConfig>.CreateFailure(mtuError!);
             }
 
             return OperationResult<OverlaySidecarConfig>.CreateSuccess(new OverlaySidecarConfig(
                 iface,
                 overlayIp,
-                prefixLength.Value,
+                prefixLength,
                 relayHost,
-                relayPort.Value,
+                relayPort,
                 networkId,
                 mtu));
         }
@@ -195,6 +119,160 @@ public sealed record OverlaySidecarConfig(
         {
             return OperationResult<OverlaySidecarConfig>.CreateFailure($"Malformed JSON: {ex.Message}");
         }
+    }
+
+    private static bool TryParseInterface(JsonElement root, out string iface, out string? error)
+    {
+        error = null;
+        if (root.TryGetProperty("interface", out var ifaceProp))
+        {
+            var val = ifaceProp.ValueKind == JsonValueKind.String ? ifaceProp.GetString() : null;
+            if (string.IsNullOrWhiteSpace(val) || !LinuxTunNative.IsValidInterfaceName(val))
+            {
+                error = "Overlay configuration has an invalid interface name.";
+                iface = string.Empty;
+                return false;
+            }
+
+            iface = val;
+            return true;
+        }
+
+        iface = OperatingSystem.IsWindows()
+            ? OnlineConstants.TunDefaultWindowsInterfaceName
+            : OnlineConstants.TunDefaultInterfaceName;
+        return true;
+    }
+
+    private static bool TryParseOverlayIp(JsonElement root, string? defaultOverlayIp, out string overlayIp, out string? error)
+    {
+        error = null;
+        var ip = GetStringProperty(root, "overlayIp")
+            ?? GetStringProperty(root, "assignedIp")
+            ?? defaultOverlayIp;
+
+        if (!IsValidIPv4(ip))
+        {
+            error = "Overlay configuration has an invalid overlay IP.";
+            overlayIp = string.Empty;
+            return false;
+        }
+
+        overlayIp = ip;
+        return true;
+    }
+
+    private static bool TryParseNetworkId(JsonElement root, out string networkId, out string? error)
+    {
+        error = null;
+        var id = GetStringProperty(root, "networkId");
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            error = "Overlay configuration has a blank network id.";
+            networkId = string.Empty;
+            return false;
+        }
+
+        networkId = id;
+        return true;
+    }
+
+    private static bool TryParseRelay(JsonElement root, out string relayHost, out int relayPort, out string? error)
+    {
+        error = null;
+        var host = GetStringProperty(root, "relayHost");
+        int? port = GetIntProperty(root, "relayPort");
+
+        if ((root.TryGetProperty("relay", out var relayElement) || root.TryGetProperty("gateway", out relayElement))
+            && relayElement.ValueKind == JsonValueKind.Object)
+        {
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                host = GetStringProperty(relayElement, "host");
+            }
+
+            port ??= GetIntProperty(relayElement, "port");
+        }
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            host = ApiConstants.OnlineRelayHost;
+        }
+
+        port ??= OnlineConstants.DefaultRelayPort;
+
+        if (port is < 1 or > 65535)
+        {
+            error = "Overlay configuration has an invalid relay port.";
+            relayHost = string.Empty;
+            relayPort = 0;
+            return false;
+        }
+
+        relayHost = host;
+        relayPort = port.Value;
+        return true;
+    }
+
+    private static bool TryParsePrefixLength(JsonElement root, out int prefixLength, out string? error)
+    {
+        error = null;
+        var length = GetIntProperty(root, "prefixLength");
+
+        if (length is null && root.TryGetProperty("subnet", out var subnetElement) && subnetElement.ValueKind == JsonValueKind.String)
+        {
+            var subnet = subnetElement.GetString();
+            if (!string.IsNullOrEmpty(subnet) && subnet.Contains('/'))
+            {
+                var slashIndex = subnet.IndexOf('/');
+                if (int.TryParse(subnet[(slashIndex + 1)..], out var parsedPrefix))
+                {
+                    length = parsedPrefix;
+                }
+            }
+        }
+
+        if (length is null && root.TryGetProperty("subnetMask", out var maskElement) && maskElement.ValueKind == JsonValueKind.String)
+        {
+            var maskStr = maskElement.GetString();
+            if (IPAddress.TryParse(maskStr, out var maskIp))
+            {
+                var bytes = maskIp.GetAddressBytes();
+                var bits = 0;
+                foreach (var b in bytes)
+                {
+                    bits += BitOperations.PopCount(b);
+                }
+
+                length = bits;
+            }
+        }
+
+        length ??= OnlineConstants.TunOverlayPrefixLength;
+        if (length is < 1 or > 32)
+        {
+            error = "Overlay configuration has an invalid prefix length.";
+            prefixLength = 0;
+            return false;
+        }
+
+        prefixLength = length.Value;
+        return true;
+    }
+
+    private static bool TryParseMtu(JsonElement root, out int mtu, out string? error)
+    {
+        error = null;
+        var parsedMtu = GetIntProperty(root, "mtu") ?? OnlineConstants.TunDefaultMtu;
+        if (parsedMtu is < 576 or > 9000)
+        {
+            error = "Overlay configuration has an invalid MTU.";
+            mtu = 0;
+            return false;
+        }
+
+        mtu = parsedMtu;
+        return true;
     }
 
     private static string TryDecodeBase64(string input)

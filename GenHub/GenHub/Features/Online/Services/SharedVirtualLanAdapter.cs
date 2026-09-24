@@ -1,5 +1,4 @@
 using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
@@ -50,8 +49,9 @@ public sealed class SharedVirtualLanAdapter(
             ObjectDisposedException.ThrowIf(_disposed, this);
 
             SetState(OnlineAdapterState.Starting);
+            var hasSidecar = locator.LocateBinary() != null;
             var isPending = OverlayConfigInspector.TryGetOverlayName(adapterConfig) == OnlineConstants.OverlayPendingSelection;
-            var start = isPending
+            var start = isPending && !hasSidecar
                 ? OperationResult<SidecarInfo>.CreateFailure("Overlay selection is pending.")
                 : await host.StartAsync(adapterConfig, locator, cancellationToken);
 
@@ -113,7 +113,7 @@ public sealed class SharedVirtualLanAdapter(
             ObjectDisposedException.ThrowIf(_disposed, this);
 
             SetState(OnlineAdapterState.Stopping);
-            await host.StopAsync(cancellationToken);
+            var stop = await host.StopAsync(cancellationToken);
             if (tunnelRunner?.IsRunning == true)
             {
                 await tunnelRunner.StopAsync(cancellationToken);
@@ -121,7 +121,7 @@ public sealed class SharedVirtualLanAdapter(
 
             OverlayIp = null;
             SetState(OnlineAdapterState.Down);
-            return OperationResult<bool>.CreateSuccess(true);
+            return stop;
         }
         finally
         {
