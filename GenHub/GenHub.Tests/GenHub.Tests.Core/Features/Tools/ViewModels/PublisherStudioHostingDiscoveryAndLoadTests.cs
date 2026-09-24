@@ -311,7 +311,7 @@ public sealed class PublisherStudioHostingDiscoveryAndLoadTests : IDisposable
             FileSize = 1048576,
         };
 
-        Assert.Equal("1 MB", vm.FileSizeFormatted);
+        Assert.Equal("1.0 MB", vm.FileSizeFormatted);
     }
 
     /// <summary>
