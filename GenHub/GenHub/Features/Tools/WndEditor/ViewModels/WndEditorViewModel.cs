@@ -49,10 +49,7 @@ public sealed partial class WndEditorViewModel(
     IChallengeMedalService medalService,
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
-    private sealed record AssetRoots(string TargetGameRoot, bool IsZeroHour)
-    {
-        public string BaseRoot => TargetGameRoot;
-    }
+
 
     private const int MaxUndoHistory = 200;
 
@@ -3449,4 +3446,17 @@ public sealed partial class WndEditorViewModel(
 
         return $"{linkedDir};{autoDetectedDir}";
     }
+}
+
+/// <summary>
+/// Root directories for game asset discovery.
+/// </summary>
+/// <param name="TargetGameRoot">The target game root directory.</param>
+/// <param name="IsZeroHour">Whether the installation is Zero Hour.</param>
+file sealed record AssetRoots(string TargetGameRoot, bool IsZeroHour)
+{
+    /// <summary>
+    /// Gets the base root path.
+    /// </summary>
+    public string BaseRoot => TargetGameRoot;
 }
