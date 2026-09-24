@@ -327,21 +327,7 @@ public partial class PublisherStudioViewModel(
             var fileName = Path.GetFileName(filePath);
             var catalogName = BuildImportedCatalogName(catalog, filePath);
 
-            var promptTitle = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogPromptTitle") ?? "Add Catalog to Provider?";
-            var promptTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogPromptMessage") ??
-                "A catalog file '{0}' was detected containing {1} content items by '{2}'.\n\nWould you like to add this catalog to your provider project?";
-            var promptMessage = string.Format(promptTemplate, fileName, itemCount, publisherName);
-
-            var confirmText = localizationService?.GetString("Tools.PublisherStudio.Studio.AddCatalogConfirm") ?? "Add Catalog";
-            var cancelText = localizationService?.GetString("Common.Cancel") ?? "Cancel";
-
-            var confirmed = await dialogService.ShowConfirmationAsync(
-                promptTitle,
-                promptMessage,
-                confirmText: confirmText,
-                cancelText: cancelText);
-
-            if (!confirmed)
+            if (!await ConfirmCatalogImportAsync(fileName, itemCount, publisherName))
             {
                 return true;
             }
@@ -658,6 +644,23 @@ public partial class PublisherStudioViewModel(
         };
     }
 
+    private async Task<bool> ConfirmCatalogImportAsync(string fileName, int itemCount, string publisherName)
+    {
+        var promptTitle = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogPromptTitle") ?? "Add Catalog to Provider?";
+        var promptTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogPromptMessage") ??
+            "A catalog file '{0}' was detected containing {1} content items by '{2}'.\n\nWould you like to add this catalog to your provider project?";
+        var promptMessage = string.Format(promptTemplate, fileName, itemCount, publisherName);
+
+        var confirmText = localizationService?.GetString("Tools.PublisherStudio.Studio.AddCatalogConfirm") ?? "Add Catalog";
+        var cancelText = localizationService?.GetString("Common.Cancel") ?? "Cancel";
+
+        return await dialogService.ShowConfirmationAsync(
+            promptTitle,
+            promptMessage,
+            confirmText: confirmText,
+            cancelText: cancelText);
+    }
+
     private void AttachImportedCatalog(PublisherStudioProject project, NamedCatalog namedCatalog)
     {
         project.Catalogs ??= [];
@@ -665,12 +668,9 @@ public partial class PublisherStudioViewModel(
         // Strip archive extensions from all content items in the imported catalog
         if (namedCatalog.Catalog?.Content != null)
         {
-            foreach (var item in namedCatalog.Catalog.Content)
+            foreach (var item in namedCatalog.Catalog.Content.Where(item => !string.IsNullOrWhiteSpace(item.Name)))
             {
-                if (!string.IsNullOrWhiteSpace(item.Name))
-                {
-                    item.Name = ContentFormatPolicy.StripArchiveExtensions(item.Name);
-                }
+                item.Name = ContentFormatPolicy.StripArchiveExtensions(item.Name);
             }
         }
 

@@ -1530,6 +1530,46 @@ public partial class PublishShareViewModel(
         }
     }
 
+    private static async Task<long?> ProbeHeadSizeAsync(HttpClient client, string url, ILogger logger, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var headRequest = new HttpRequestMessage(HttpMethod.Head, url);
+            using var headResponse = await client.SendAsync(headRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            if (headResponse.IsSuccessStatusCode)
+            {
+                return headResponse.Content.Headers.ContentLength;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "HEAD probe failed for {Url}", url);
+        }
+
+        return null;
+    }
+
+    private static async Task<long?> ProbeRangedGetSizeAsync(HttpClient client, string url, ILogger logger, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var getRequest = new HttpRequestMessage(HttpMethod.Get, url);
+            getRequest.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, 0);
+            using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            if (getResponse.IsSuccessStatusCode || getResponse.StatusCode == System.Net.HttpStatusCode.PartialContent)
+            {
+                return getResponse.Content.Headers.ContentRange?.Length
+                    ?? getResponse.Content.Headers.ContentLength;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Ranged GET probe failed for {Url}", url);
+        }
+
+        return null;
+    }
+
     private async Task ProbeExternalAssetSizeAsync(HostedAssetItemViewModel item, ReleaseArtifact artifact)
     {
         var url = artifact.DownloadUrl;
@@ -1543,39 +1583,11 @@ public partial class PublishShareViewModel(
         try
         {
             var client = HttpClientOverrideForTesting ?? SharedHttpClient;
-            long? detectedSize = null;
-
-            try
-            {
-                using var headRequest = new HttpRequestMessage(HttpMethod.Head, url);
-                using var headResponse = await client.SendAsync(headRequest, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                if (headResponse.IsSuccessStatusCode)
-                {
-                    detectedSize = headResponse.Content.Headers.ContentLength;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "HEAD probe failed for {Url}", url);
-            }
+            var detectedSize = await ProbeHeadSizeAsync(client, url, logger, CancellationToken.None).ConfigureAwait(false);
 
             if (detectedSize is null or <= 0)
             {
-                try
-                {
-                    using var getRequest = new HttpRequestMessage(HttpMethod.Get, url);
-                    getRequest.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, 0);
-                    using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                    if (getResponse.IsSuccessStatusCode || getResponse.StatusCode == System.Net.HttpStatusCode.PartialContent)
-                    {
-                        detectedSize = getResponse.Content.Headers.ContentRange?.Length
-                            ?? getResponse.Content.Headers.ContentLength;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Ranged GET probe failed for {Url}", url);
-                }
+                detectedSize = await ProbeRangedGetSizeAsync(client, url, logger, CancellationToken.None).ConfigureAwait(false);
             }
 
             if (detectedSize is > 0)

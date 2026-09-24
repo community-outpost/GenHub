@@ -156,53 +156,27 @@ public partial class PublisherProfileViewModel(
             .ToList();
     }
 
-    partial void OnPublisherIdChanged(string value)
+    private void OnProfileFieldChanged()
     {
         ApplyToProject();
         MarkDirty();
     }
 
-    partial void OnPublisherNameChanged(string value)
-    {
-        ApplyToProject();
-        MarkDirty();
-    }
+    partial void OnPublisherIdChanged(string value) => OnProfileFieldChanged();
 
-    partial void OnAvatarUrlChanged(string value)
-    {
-        ApplyToProject();
-        MarkDirty();
-    }
+    partial void OnPublisherNameChanged(string value) => OnProfileFieldChanged();
 
-    partial void OnWebsiteUrlChanged(string value)
-    {
-        ApplyToProject();
-        MarkDirty();
-    }
+    partial void OnAvatarUrlChanged(string value) => OnProfileFieldChanged();
 
-    partial void OnSupportUrlChanged(string value)
-    {
-        ApplyToProject();
-        MarkDirty();
-    }
+    partial void OnWebsiteUrlChanged(string value) => OnProfileFieldChanged();
 
-    partial void OnContactEmailChanged(string value)
-    {
-        ApplyToProject();
-        MarkDirty();
-    }
+    partial void OnSupportUrlChanged(string value) => OnProfileFieldChanged();
 
-    partial void OnDescriptionChanged(string value)
-    {
-        ApplyToProject();
-        MarkDirty();
-    }
+    partial void OnContactEmailChanged(string value) => OnProfileFieldChanged();
 
-    partial void OnTagsStringChanged(string value)
-    {
-        ApplyToProject();
-        MarkDirty();
-    }
+    partial void OnDescriptionChanged(string value) => OnProfileFieldChanged();
+
+    partial void OnTagsStringChanged(string value) => OnProfileFieldChanged();
 
     private void MarkDirty()
     {

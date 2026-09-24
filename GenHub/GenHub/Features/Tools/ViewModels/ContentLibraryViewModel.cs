@@ -391,6 +391,43 @@ public partial class ContentLibraryViewModel(
         }
     }
 
+    private static string NormalizeMediaPath(string path)
+    {
+        if (Path.IsPathRooted(path) && !path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var escapedPath = path.Replace("#", "%23", StringComparison.Ordinal);
+                return new Uri(escapedPath).AbsoluteUri;
+            }
+            catch (UriFormatException)
+            {
+                return path;
+            }
+        }
+
+        return path;
+    }
+
+    private static bool TryAppendMediaToMetadata(ContentMetadata metadata, string path, string mediaPath)
+    {
+        if (MediaFileHelper.IsImageFile(path)
+            && !metadata.ScreenshotUrls.Contains(mediaPath, StringComparer.OrdinalIgnoreCase))
+        {
+            metadata.ScreenshotUrls.Add(mediaPath);
+            return true;
+        }
+
+        if (MediaFileHelper.IsVideoFile(path)
+            && !metadata.VideoUrls.Contains(mediaPath, StringComparer.OrdinalIgnoreCase))
+        {
+            metadata.VideoUrls.Add(mediaPath);
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Adds dropped screenshots and videos to the selected content item's metadata.
     /// </summary>
@@ -410,30 +447,9 @@ public partial class ContentLibraryViewModel(
                 continue;
             }
 
-            var mediaPath = path;
-            if (Path.IsPathRooted(path) && !path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+            var mediaPath = NormalizeMediaPath(path);
+            if (TryAppendMediaToMetadata(SelectedContent.Metadata, path, mediaPath))
             {
-                try
-                {
-                    var escapedPath = path.Replace("#", "%23");
-                    mediaPath = new Uri(escapedPath).AbsoluteUri;
-                }
-                catch (UriFormatException)
-                {
-                    mediaPath = path;
-                }
-            }
-
-            if (MediaFileHelper.IsImageFile(path)
-                && !SelectedContent.Metadata.ScreenshotUrls.Contains(mediaPath, StringComparer.OrdinalIgnoreCase))
-            {
-                SelectedContent.Metadata.ScreenshotUrls.Add(mediaPath);
-                added = true;
-            }
-            else if (MediaFileHelper.IsVideoFile(path)
-                && !SelectedContent.Metadata.VideoUrls.Contains(mediaPath, StringComparer.OrdinalIgnoreCase))
-            {
-                SelectedContent.Metadata.VideoUrls.Add(mediaPath);
                 added = true;
             }
         }
