@@ -1212,15 +1212,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     $"File '{Path.GetFileName(archivePath)}' is not a valid GZIP archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
             }
         }
-        else if (ext.Equals(".bz2", StringComparison.OrdinalIgnoreCase))
+        else if (ext.Equals(".bz2", StringComparison.OrdinalIgnoreCase) &&
+                 (header.Length < 3 || header[0] != 0x42 || header[1] != 0x5A || header[2] != 0x68))
         {
             // BZip2 files start with 'B', 'Z', 'h' (0x42, 0x5A, 0x68)
-            if (header.Length < 3 || header[0] != 0x42 || header[1] != 0x5A || header[2] != 0x68)
-            {
-                var preview = ReadTextPreview(archivePath, maxChars: 120);
-                throw new InvalidDataException(
-                    $"File '{Path.GetFileName(archivePath)}' is not a valid BZip2 archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
-            }
+            var preview = ReadTextPreview(archivePath, maxChars: 120);
+            throw new InvalidDataException(
+                $"File '{Path.GetFileName(archivePath)}' is not a valid BZip2 archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
         }
     }
 
