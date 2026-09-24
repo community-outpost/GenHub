@@ -35,7 +35,10 @@ Telemetry strictly honors user choice and local regulations:
 | `app_update_checked` | `Events.AppUpdateChecked` | Velopack checks for application updates | `current_version`, `channel` |
 | `app_update_downloaded` | `Events.AppUpdateDownloaded` | Velopack finishes downloading an update package | `from_version`, `to_version` |
 | `app_update_applied` | `Events.AppUpdateApplied` | Application update is applied and app restarts | `from_version`, `to_version` |
-| `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `content_id`, `content_name`, `publisher_id`, `content_type`, `size_mb`, `speed_mbps`, `duration_seconds` |
+| `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `content_id`, `content_name`, `file_name`, `publisher_id`, `content_type`, `size_mb`, `speed_mbps`, `duration_seconds` |
+| `content_download_failed` | `Events.ContentDownloadFailed` | Content download fails | `content_id`, `content_name`, `file_name`, `publisher_id`, `content_type`, `error_message`, `duration_seconds` |
+| `content_update_applied` | `Events.ContentUpdateApplied` | Publisher content update (GeneralsOnline, SuperHackers, CommunityOutpost) successfully applied | `publisher_id`, `content_name`, `from_version`, `to_version`, `strategy`, `profiles_updated`, `success` |
+| `content_update_failed` | `Events.ContentUpdateFailed` | Publisher content update fails | `publisher_id`, `content_name`, `from_version`, `to_version`, `strategy`, `error_message` |
 | `uploadthing_upload_completed` | `Events.UploadThingUploadCompleted` | User upload to UploadThing gateway succeeds | `file_name`, `size_mb`, `file_size_bytes`, `duration_seconds` |
 | `uploadthing_upload_failed` | `Events.UploadThingUploadFailed` | User upload to UploadThing gateway fails | `file_name`, `size_mb`, `duration_seconds`, `error_message` |
 | `genpatcher_fix_applied` | `Events.GenPatcherFixApplied` | A GenPatcher compatibility or registry fix is executed | `fix_id`, `fix_name`, `game_type`, `is_crucial`, `success`, `error_message` |

@@ -112,6 +112,15 @@ public static class TelemetryConstants
         /// <summary>Emitted when a content or mod download completes.</summary>
         public const string ContentDownloadCompleted = "content_download_completed";
 
+        /// <summary>Emitted when a content or mod download fails.</summary>
+        public const string ContentDownloadFailed = "content_download_failed";
+
+        /// <summary>Emitted when a publisher content update (e.g. GeneralsOnline, SuperHackers) is applied.</summary>
+        public const string ContentUpdateApplied = "content_update_applied";
+
+        /// <summary>Emitted when a publisher content update fails.</summary>
+        public const string ContentUpdateFailed = "content_update_failed";
+
         /// <summary>Emitted when an application update check finishes.</summary>
         public const string AppUpdateChecked = "app_update_checked";
 
@@ -234,6 +243,9 @@ public static class TelemetryConstants
 
         /// <summary>Reconciliation strategy name.</summary>
         public const string Strategy = "strategy";
+
+        /// <summary>Number of profiles updated during content reconciliation.</summary>
+        public const string ProfilesUpdated = "profiles_updated";
 
         /// <summary>Size in megabytes.</summary>
         public const string SizeMb = "size_mb";

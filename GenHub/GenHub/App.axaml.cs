@@ -1,10 +1,3 @@
-using System;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -33,6 +26,14 @@ using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub;
 
@@ -132,7 +133,8 @@ public partial class App : Application
         Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);
 
-        // App XAML replaces the resource dictionary, so restore the service for views loaded afterward.\n        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
+        // App XAML replaces the resource dictionary, so restore the service for views loaded afterward.
+        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
     }
 
     /// <summary>

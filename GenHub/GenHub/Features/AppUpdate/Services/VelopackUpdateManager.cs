@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.AppUpdate.Interfaces;
@@ -21,7 +22,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Telemetry;
 using Velopack;
 using Velopack.Sources;
 

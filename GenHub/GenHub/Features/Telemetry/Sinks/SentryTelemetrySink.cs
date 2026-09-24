@@ -137,15 +137,6 @@ public sealed class SentryTelemetrySink(
             : OperationResult<bool>.CreateSuccess(true);
     }
 
-    private void EnqueueBounded(TelemetryEvent telemetryEvent)
-    {
-        _crashBuffer.Enqueue(telemetryEvent);
-        while (_crashBuffer.Count > MaxBufferSize)
-        {
-            _crashBuffer.TryDequeue(out _);
-        }
-    }
-
     private static Dictionary<string, object?> BuildSentryPayload(TelemetryEvent telemetryEvent)
     {
         var extra = new Dictionary<string, object?>(telemetryEvent.Properties ?? new Dictionary<string, object?>());
@@ -244,5 +235,14 @@ public sealed class SentryTelemetrySink(
         var storeUrl = $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? string.Empty : $":{uri.Port}")}/api/{projectId}/store/";
 
         return (storeUrl, publicKey);
+    }
+
+    private void EnqueueBounded(TelemetryEvent telemetryEvent)
+    {
+        _crashBuffer.Enqueue(telemetryEvent);
+        while (_crashBuffer.Count > MaxBufferSize)
+        {
+            _crashBuffer.TryDequeue(out _);
+        }
     }
 }

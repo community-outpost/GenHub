@@ -159,6 +159,48 @@ WHERE event = 'content_download_completed'
 GROUP BY provider
 ```
 
+#### Content Updates Applied by Publisher & Version
+```sql
+SELECT
+    properties.publisher_id AS publisher,
+    properties.to_version AS version,
+    properties.strategy AS strategy,
+    count() AS total_updates,
+    sum(toInt32OrNull(properties.profiles_updated)) AS total_profiles_updated
+FROM events
+WHERE event = 'content_update_applied'
+GROUP BY publisher, version, strategy
+ORDER BY total_updates DESC
+```
+
+#### Specific Content & Mod Downloads Clean Tracking
+```sql
+SELECT
+    properties.publisher_id AS publisher,
+    properties.content_name AS content,
+    properties.file_name AS file,
+    count() AS download_count,
+    round(sum(toFloat64OrNull(properties.size_mb)) / 1024, 2) AS total_gb
+FROM events
+WHERE event = 'content_download_completed'
+GROUP BY publisher, content, file
+ORDER BY download_count DESC
+LIMIT 50
+```
+
+#### Download Failures & Errors
+```sql
+SELECT
+    properties.publisher_id AS publisher,
+    properties.content_name AS content,
+    properties.error_message AS error,
+    count() AS failure_count
+FROM events
+WHERE event = 'content_download_failed'
+GROUP BY publisher, content, error
+ORDER BY failure_count DESC
+```
+
 ---
 
 ## 5. Dashboard 5: GenPatcher Fixes & ModBuilder Usage

@@ -333,9 +333,9 @@ public class ProfileSharingService(
             {
                 [TelemetryConstants.Properties.ProfileId] = saveResult.Data.Id,
                 [TelemetryConstants.Properties.ProfileName] = saveResult.Data.Name,
-                [TelemetryConstants.Properties.GameType] = saveResult.Data.GameType.ToString(),
+                [TelemetryConstants.Properties.GameType] = saveResult.Data.GameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.Success] = true,
-                [TelemetryConstants.Properties.FileCount] = request.Package.Manifests.Count,
+                [TelemetryConstants.Properties.FileCount] = request.Package.RequiredManifests.Count,
             });
             return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
         }

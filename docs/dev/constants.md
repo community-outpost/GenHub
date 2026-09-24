@@ -1942,6 +1942,9 @@ Constants for telemetry event names, properties, data scrubbing masks, and queue
 - `ProfileShared`: `"profile_shared"` - Emitted when a game profile package is exported or shared.
 - `ProfileImported`: `"profile_imported"` - Emitted when a game profile package is imported.
 - `ContentDownloadCompleted`: `"content_download_completed"` - Emitted when a content or mod download completes.
+- `ContentDownloadFailed`: `"content_download_failed"` - Emitted when a content or mod download fails.
+- `ContentUpdateApplied`: `"content_update_applied"` - Emitted when a publisher content update (e.g. GeneralsOnline, SuperHackers) is applied.
+- `ContentUpdateFailed`: `"content_update_failed"` - Emitted when a publisher content update fails.
 - `AppUpdateChecked`: `"app_update_checked"` - Emitted when an application update check finishes.
 - `AppUpdateDownloaded`: `"app_update_downloaded"` - Emitted when an application update package finishes downloading.
 - `AppUpdateApplied`: `"app_update_applied"` - Emitted when an application update is applied.
@@ -1955,7 +1958,7 @@ Constants for telemetry event names, properties, data scrubbing masks, and queue
 
 ### Telemetry Properties (`TelemetryConstants.Properties`)
 
-Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `LaunchSource`, `ShortcutType`, `ShareFormat`, `ImportSource`, `FixId`, `FixName`, `IsCrucial`, `Success`, `ErrorMessage`, `ProjectName`, `BuildSteps`, `ToolSource`, `FileName`, `FileSizeBytes`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
+Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `LaunchSource`, `ShortcutType`, `ShareFormat`, `ImportSource`, `FixId`, `FixName`, `IsCrucial`, `Success`, `ErrorMessage`, `ProjectName`, `BuildSteps`, `ToolSource`, `FileName`, `FileSizeBytes`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `ProfilesUpdated`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
 
 ---
 

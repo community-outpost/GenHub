@@ -417,6 +417,77 @@
               "date_from": "-30d"
             }
           }
+        },
+        {
+          "name": "Content Updates Applied by Publisher",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_update_applied",
+                "name": "Updates Applied",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "publisher_id"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Top Content & Packages Downloaded",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Downloads",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "content_name"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Download Success vs Failure Rate",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Successful Downloads",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "content_download_failed",
+                "name": "Failed Downloads",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
         }
       ]
     },

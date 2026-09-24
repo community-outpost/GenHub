@@ -50,6 +50,11 @@ namespace GenHub.Features.Settings.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Gets the available telemetry consent levels for selection in the UI.
+    /// </summary>
+    public static IEnumerable<TelemetryLevel> AvailableTelemetryLevels => Enum.GetValues<TelemetryLevel>();
+
     private enum CasCleanupOutcome
     {
         Success,
@@ -61,11 +66,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private static readonly char[] LineSeparators = ['\r', '\n'];
 
     private string SubscriptionErrorTitle => _localizationService?.GetString("Settings.Subscriptions.ErrorTitle") ?? ErrorTitle;
-
-    /// <summary>
-    /// Gets the available telemetry consent levels for selection in the UI.
-    /// </summary>
-    public static IEnumerable<TelemetryLevel> AvailableTelemetryLevels => Enum.GetValues<TelemetryLevel>();
 
     private readonly IUserSettingsService _userSettingsService;
     private readonly ICasService _casService;

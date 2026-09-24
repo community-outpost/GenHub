@@ -2287,6 +2287,14 @@
     <value>Select Settings File Location</value>
     <comment>Title for file picker dialog when selecting settings file location</comment>
   </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Description" xml:space="preserve">
+    <value>Choose what anonymous usage metrics and crash diagnostics to share to help improve GenHub. All paths and personal identifiers are sanitized before transmission.</value>
+    <comment>Description for telemetry and crash reporting level setting.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Label" xml:space="preserve">
+    <value>Telemetry &amp; Crash Reporting Level</value>
+    <comment>Label for telemetry and crash reporting level setting.</comment>
+  </data>
   <data name="Settings.Download.AllowBackgroundDownloads" xml:space="preserve">
     <value>Allow Background Downloads</value>
     <comment>Label for allow background downloads checkbox</comment>
@@ -2554,6 +2562,10 @@
   <data name="Settings.Section.DataDirectories" xml:space="preserve">
     <value>Data Directories</value>
     <comment>Data directories settings section header.</comment>
+  </data>
+  <data name="Settings.Section.DiagnosticsPrivacy" xml:space="preserve">
+    <value>Diagnostics &amp; Privacy</value>
+    <comment>Diagnostics and privacy settings section header.</comment>
   </data>
   <data name="Settings.Section.Downloads" xml:space="preserve">
     <value>Downloads</value>

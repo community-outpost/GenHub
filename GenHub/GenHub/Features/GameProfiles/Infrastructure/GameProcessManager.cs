@@ -3,6 +3,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
@@ -21,7 +22,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Telemetry;
 
 namespace GenHub.Features.GameProfiles.Infrastructure;
 
@@ -552,6 +552,7 @@ public class GameProcessManager(
 
         // Dispose timers first
         _heartbeatTimer?.Dispose();
+
         // Clean up all managed processes
         foreach (var kvp in _managedProcesses)
         {
