@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Publishers;
+using GenHub.Features.Tools.Interfaces;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;

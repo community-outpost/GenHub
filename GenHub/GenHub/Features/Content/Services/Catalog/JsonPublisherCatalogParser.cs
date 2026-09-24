@@ -272,7 +272,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         NormalizeReleases(content.Releases);
     }
 
-    private static void NormalizeReleases(IList<CatalogRelease>? releases)
+    private static void NormalizeReleases(IList<ContentRelease>? releases)
     {
         if (releases == null)
         {
