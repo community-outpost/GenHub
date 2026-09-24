@@ -264,11 +264,14 @@ def classify_merge(head_sha, base_sha):
     return "other", paths
 
 
-def validate_localization(validator_path):
+def validate_localization(validator_path, target_dir=None):
     """Run the snapshotted validate_resx.py against the current worktree."""
+    if not target_dir:
+        proc = run_git(["rev-parse", "--show-toplevel"])
+        target_dir = proc.stdout.strip() if proc.returncode == 0 and proc.stdout.strip() else os.getcwd()
     try:
         proc = subprocess.run(
-            [sys.executable, validator_path],
+            [sys.executable, validator_path, target_dir],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

@@ -59,6 +59,11 @@ def repo_default_dir():
     project_dir = os.path.join(os.path.dirname(scripts_dir), 'GenHub', 'GenHub')
     if os.path.isdir(project_dir):
         return project_dir
+    cwd_project_dir = os.path.join(os.getcwd(), 'GenHub', 'GenHub')
+    if os.path.isdir(cwd_project_dir):
+        return cwd_project_dir
+    if os.path.isdir(os.path.join(os.getcwd(), 'GenHub')):
+        return os.getcwd()
     return os.path.dirname(scripts_dir)
 
 

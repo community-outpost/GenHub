@@ -52,6 +52,65 @@ Keep keys stable after release. Add translator comments when context or placehol
 
 Do not localize log templates, protocol values, manifest identifiers, command-line arguments, or other developer-facing technical strings.
 
+## Avalonia views
+
+Reference the markup namespace `clr-namespace:GenHub.Common.Markup` and bind the property to a key:
+
+```xml
+<UserControl xmlns:localization="clr-namespace:GenHub.Common.Markup">
+    <TextBlock Text="{localization:Localize Settings.Appearance.Title}" />
+</UserControl>
+```
+
+The extension binds through the application-scoped localization service (`LocalizeExtension`). When `SetCulture` changes the active culture, all localized indexer bindings are notified and refresh immediately without recreating the view or restarting GenHub.
+
+For tool names or dynamically loaded plugin titles where the model is `ToolMetadata` or `IToolPlugin`, use `LocalizedToolNameConverter`:
+
+```xml
+<TextBlock Text="{Binding, Converter={StaticResource LocalizedToolNameConverter}}" />
+```
+
+## View models and services
+
+Inject `ILocalizationService` when text must be produced in code:
+
+```csharp
+var title = localizationService.GetString("GameProfiles.Create.Title");
+var status = localizationService.GetString("Downloads.Status.Progress", completed, total);
+```
+
+Only request cultures returned by `AvailableCultures`, and check the operation result:
+
+```csharp
+var result = localizationService.SetCulture(selectedCulture);
+if (result.Failed)
+{
+    // Surface result.FirstError through the caller's normal error path.
+}
+```
+
+Culture switching is synchronous because it performs no long-running I/O. Do not wrap it in `Task.Run`, block on a task, or introduce a reactive package solely for change notification.
+
+The selected language is applied to `CurrentUICulture` and `DefaultThreadCurrentUICulture` for resource lookup. It does not replace `CurrentCulture`, so changing the UI language cannot silently alter unrelated regional number, date, parsing, or serialization behavior. Format arguments passed to `GetString` use the selected localization culture.
+
+## Adding coverage
+
+Every localization change should test the behavior it introduces. At minimum:
+
+- a translated key resolves from the requested satellite assembly;
+- an omitted translated key falls back to English;
+- placeholders format correctly in the active culture;
+- an unavailable culture fails without changing the current culture;
+- a successful culture change refreshes live bindings;
+- an invalid satellite assembly is ignored without aborting discovery of other languages.
+
+Run tests before pushing localized changes:
+
+```bash
+dotnet build
+dotnet test
+```
+
 ## Merging concurrent changes
 
 Every feature branch touches `.resx` localization files, so plain
@@ -113,52 +172,60 @@ Actions tab (`workflow_dispatch`) if ever needed outside a push to
 > absent, PRs touching workflow files will fail to merge with a clear
 > log message and will be skipped cleanly.
 
-## Using localized strings in code
-
-Inject `ILocalizationService` when text must be produced in code:
-
-```csharp
-var title = localizationService.GetString("GameProfiles.Create.Title");
-var status = localizationService.GetString("Downloads.Status.Progress", completed, total);
-```
-
-Only request cultures returned by `AvailableCultures`, and check the operation result:
-
-```csharp
-var result = localizationService.SetCulture(selectedCulture);
-if (result.Failed)
-{
-    // Surface result.FirstError through the caller's normal error path.
-}
-```
-
-Culture switching is synchronous because it performs no long-running I/O. Do not wrap it in `Task.Run`, block on a task, or introduce a reactive package solely for change notification.
-
-The selected language is applied to `CurrentUICulture` and `DefaultThreadCurrentUICulture` for resource lookup. It does not replace `CurrentCulture`, so changing the UI language cannot silently alter unrelated regional number, date, parsing, or serialization behavior. Format arguments passed to `GetString` use the selected localization culture.
-
-## Adding coverage
-
-Every localization change should test the behavior it introduces. At minimum:
-
-- a translated key resolves from the requested satellite assembly;
-- an omitted translated key falls back to English;
-- placeholders format correctly in the active culture;
-- an unavailable culture fails without changing the current culture;
-- a successful culture change refreshes live bindings;
-- an invalid satellite assembly is ignored without aborting discovery of other languages.
-
-Run tests before pushing localized changes:
-
-```bash
-dotnet build
-dotnet test
-```
-
 ## Language Selection & Persistence
 
 User language preference is saved in `UserSettings` and persisted automatically by `IUserSettingsService`:
 
 - **Model Property:** `UserSettings.Language` (string culture identifier, default: `"en"` defined in `LocalizationConstants.DefaultCultureName`).
 - **ViewModel Integration:** `SettingsViewModel` exposes `AvailableLanguages` (`IReadOnlyList<LanguageOption>`) and `SelectedLanguage` (`LanguageOption?`).
-- **Initial Load:** At application startup, the stored language is read from settings and applied via `ILocalizationService.SetCulture`. If the stored value is invalid or unavailable, it falls back to `"en"`.
-- **Runtime Change:** When the user selects a language in Settings, `SettingsViewModel` calls `ILocalizationService.SetCulture` and saves the selection to `UserSettings`. All bound UI elements refresh immediately.
+  - `LanguageOption` encapsulates `(CultureInfo Culture, string DisplayName)`.
+  - When `SelectedLanguage` changes, `SettingsViewModel` calls `_localizationService.SetCulture(selectedOption.Culture)`.
+  - On `SaveSettingsCommand`, the selected culture's `Name` is written to `UserSettings.Language` and persisted to disk.
+  - When resetting to defaults, `SelectedLanguage` resets to the default English culture (`en`).
+  - `SettingsViewModel` listens to `_localizationService.PropertyChanged` on `CurrentCulture` to keep its dropdown synchronized if culture is changed elsewhere.
+
+## Application Startup Flow
+
+During application startup in `App.axaml.cs`:
+
+1. `App.Initialize()` retrieves the persisted `UserSettings.Language`.
+2. If configured and valid, `_localizationService.SetCulture(...)` is invoked before Avalonia XAML loading begins.
+3. `Resources[LocalizationConstants.ResourceServiceKey]` is populated with `_localizationService`.
+4. `AvaloniaXamlLoader.Load(this)` executes, resolving all `{localization:Localize ...}` markup bindings directly with the restored culture.
+
+## Guidelines for Future Agents & Contributors
+
+When adding new features, views, dialogs, or modifying existing ones, strictly follow these requirements:
+
+1. **Extract every user-facing string to `Strings.resx`:**
+   - Neutral English is maintained in `GenHub/GenHub/Resources/Localization/Strings.resx`.
+   - Use hierarchical, semantic dot-separated keys:
+     - Views: `<View>.<Section>.<Element>`, e.g., `Settings.Appearance.Language.Label`
+     - Common/Shared: `Common.<Action>`, e.g., `Common.Save`, `Common.Cancel`
+     - Tooltips: `<View>.<Control>.ToolTip` or `Tooltips.<Control>`
+     - Errors/Validation: `<Feature>.Error.<Reason>` or `Validation.<Rule>`
+2. **Never hardcode string literals:**
+   - In XAML views: Bind with `{localization:Localize Key}`.
+   - In C# ViewModels / Services: Call `_localizationService.GetString("Key")`.
+3. **Preserve Case-Insensitive Key Uniqueness:**
+   - MSBuild resource generators on Windows treat resource keys case-insensitively. Do not define keys that differ only in casing (e.g., avoid having both `Foo.Bar` and `Foo.bar`).
+4. **Parameter Placeholders:**
+   - Format strings with parameters must use standard indexed placeholders `{0}`, `{1}`, etc.
+   - Example: `<value>Downloaded {0} of {1}</value>`
+   - C# call: `_localizationService.GetString("Downloads.Status.Progress", completed, total)`
+5. **Strict 1:1 Resx Key Parity Across All Languages:**
+   - Every key present in `Strings.resx` must also exist in all satellite `.resx` files (`Strings.ar.resx`, `Strings.ru.resx`, etc.).
+   - When adding, updating, or removing keys in `Strings.resx`, always apply the corresponding changes to all satellite files simultaneously with appropriate translations.
+   - Never leave translated resources missing keys from the neutral file.
+6. **Dynamic Collections & Navigation Sidebars:**
+   - When navigation items or sidebars (such as `SettingsViewModel.Sections`) are generated from collections with localized titles, subscribe to `_localizationService.PropertyChanged` (checking for `CurrentCulture` or indexer changes) to update item titles dynamically upon culture switches without requiring an application restart.
+7. **Tool & Plugin Localization:**
+   - For dynamically loaded tools/plugins where models implement `ToolMetadata` or `IToolPlugin`, use `LocalizedToolNameConverter` (`{Binding, Converter={StaticResource LocalizedToolNameConverter}}`) in XAML. The converter checks for `Tools.Plugin.<ToolId>.Name` in resources, falling back to the plugin's metadata title.
+8. **Adding New Language Translations (Future PRs):**
+   - Create satellite resource files matching the culture name beside `Strings.resx`:
+     - `Strings.de.resx` (German)
+     - `Strings.fr.resx` (French)
+     - `Strings.zh-Hans.resx` (Simplified Chinese)
+     - `Strings.es.resx` (Spanish)
+   - Ensure all keys from `Strings.resx` are copied and translated with strict 1:1 key parity.
+   - At runtime, `LocalizationService` discovers satellite assemblies automatically and populates `AvailableCultures`, which will appear in the Settings Language selector without manual list edits.
