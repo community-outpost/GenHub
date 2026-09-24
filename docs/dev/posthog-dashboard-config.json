@@ -1,0 +1,544 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "GenHub Product Analytics Dashboard",
+  "description": "Comprehensive PostHog product analytics dashboard configurations and insight definitions for GenHub telemetry events.",
+  "dashboards": [
+    {
+      "id": "genhub-executive-overview",
+      "name": "GenHub - Executive Overview & Engagement",
+      "description": "High-level engagement metrics including active users, game launches, updates, downloads, and sharing volume.",
+      "pinned": true,
+      "tiles": [
+        {
+          "name": "Daily Active Installations (DAU)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_started",
+                "name": "Game Launchers",
+                "math": "dau"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day"
+          }
+        },
+        {
+          "name": "Total Game Sessions Started",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_started",
+                "name": "Total Game Sessions",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Profile Launches: Launcher UI vs Shortcut / Pinned",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_launched",
+                "name": "Profile Launches",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "launch_source"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Profiles Pinned to Desktop",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_pinned",
+                "name": "Profiles Pinned",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "App Updates Served Funnel (Check -> Download -> Apply)",
+          "type": "Funnels",
+          "display": "FunnelViz",
+          "query": {
+            "kind": "FunnelsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_update_checked",
+                "name": "Updates Checked"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "app_update_downloaded",
+                "name": "Updates Downloaded"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "app_update_applied",
+                "name": "Updates Applied & Restarted"
+              }
+            ],
+            "funnelsFilter": {
+              "funnelOrderType": "ordered",
+              "funnelWindowInterval": 1,
+              "funnelWindowIntervalUnit": "day"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Publisher Content Downloads Completed",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Downloads Completed",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "UploadThing Files Uploaded",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "uploadthing_upload_completed",
+                "name": "Successful Uploads",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "uploadthing_upload_failed",
+                "name": "Failed Uploads",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "genhub-game-launch-sessions",
+      "name": "GenHub - Game Launch & Session Dynamics",
+      "description": "Deep-dive into game sessions, game variants (Zero Hour vs Generals), runners (Wine, Proton, Native), and session length.",
+      "pinned": false,
+      "tiles": [
+        {
+          "name": "Game Sessions by Game Type",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_started",
+                "name": "Sessions",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "game_type"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Runner Environments (Linux / Wine / Proton / Native)",
+          "type": "Trends",
+          "display": "ActionsBarValue",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_started",
+                "name": "Sessions",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "runner_environment"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Average Session Duration (Minutes)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_ended",
+                "name": "Avg Session Duration",
+                "math": "avg",
+                "math_property": "session_duration_seconds"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Session Exit Gracefulness Rate",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_ended",
+                "name": "Graceful Exits",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "was_graceful"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "genhub-profile-sharing-funnel",
+      "name": "GenHub - Profile Sharing & Social Ecosystem",
+      "description": "Lifecycle analysis of profile creation, pinning, sharing via URIs/files, and importing from other players.",
+      "pinned": false,
+      "tiles": [
+        {
+          "name": "Profile Sharing Volume by Format (URI vs File vs JSON)",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_shared",
+                "name": "Shared Profiles",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "share_format"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Profile Import Success Rate",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_imported",
+                "name": "Imports",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "success"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Shortcut Adoption (Pinned vs Launched from Shortcut)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_pinned",
+                "name": "New Profiles Pinned",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "profile_launched_from_shortcut",
+                "name": "Launches via Shortcut",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "genhub-publishers-and-downloads",
+      "name": "GenHub - Content Distribution & Publishers",
+      "description": "Metrics on content deliveries, download speeds, file sizes, and top content publishers.",
+      "pinned": false,
+      "tiles": [
+        {
+          "name": "Downloads by Publisher",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Total Downloads",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "publisher_id"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Average Download Speed (Mbps)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Avg Speed (Mbps)",
+                "math": "avg",
+                "math_property": "speed_mbps"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "source_provider"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Total Data Transferred (GB)",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "content_download_completed",
+                "name": "Total Downloaded (MB)",
+                "math": "sum",
+                "math_property": "size_mb"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "genhub-genpatcher-and-modbuilder",
+      "name": "GenHub - GenPatcher Fixes & ModBuilder Usage",
+      "description": "Observability into GenPatcher compatibility fixes and ModBuilder creator pipelines.",
+      "pinned": false,
+      "tiles": [
+        {
+          "name": "GenPatcher Fixes Applied by Fix Name",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "genpatcher_fix_applied",
+                "name": "Applications",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "fix_name"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "GenPatcher Fix Success Rate",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "genpatcher_fix_applied",
+                "name": "Fix Executions",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "success"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "ModBuilder Projects Created by Content Type",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "modbuilder_project_created",
+                "name": "Projects Created",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "content_type"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "ModBuilder Mods Built (Success vs Failed)",
+          "type": "Trends",
+          "display": "ActionsBarValue",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "modbuilder_mod_built",
+                "name": "Mod Builds",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "success"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Average ModBuilder Build Duration (Seconds)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "modbuilder_mod_built",
+                "name": "Avg Build Duration (s)",
+                "math": "avg",
+                "math_property": "duration_seconds"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
