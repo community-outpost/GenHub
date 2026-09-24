@@ -1586,20 +1586,20 @@ public partial class ContentDetailViewModel(
 
         if (!string.IsNullOrWhiteSpace(file.Version))
         {
-            var matchByVersion = matches.FirstOrDefault(sr =>
-                string.Equals(sr.Version?.Trim(), file.Version.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (matchByVersion != null)
+            var versionMatches = matches.Where(sr =>
+                string.Equals(sr.Version?.Trim(), file.Version.Trim(), StringComparison.OrdinalIgnoreCase)).Take(2).ToList();
+            if (versionMatches.Count == 1)
             {
-                return matchByVersion;
+                return versionMatches[0];
             }
         }
 
         if (file.FileSectionType == FileSectionType.Addons)
         {
-            var matchAddon = matches.FirstOrDefault(sr => sr.ContentType == ContentType.Addon);
-            if (matchAddon != null)
+            var addonMatches = matches.Where(sr => sr.ContentType == ContentType.Addon).Take(2).ToList();
+            if (addonMatches.Count == 1)
             {
-                return matchAddon;
+                return addonMatches[0];
             }
         }
 

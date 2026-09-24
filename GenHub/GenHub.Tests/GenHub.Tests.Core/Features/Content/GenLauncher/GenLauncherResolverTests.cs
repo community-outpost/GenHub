@@ -500,6 +500,37 @@ public sealed class GenLauncherResolverTests
             ItExpr.IsAny<CancellationToken>());
     }
 
+    /// <summary>
+    /// Tests that ResolveAsync skips an unsafe SelectedDownloadUrl and falls back to a safe SimpleDownloadLink.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithUnsafeSelectedDownloadUrl_FallsBackToSafeSimpleDownloadLinkAsync()
+    {
+        var resolver = CreateResolver();
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "fallback-mod",
+            Name = "Fallback Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "http://127.0.0.1:8080/unsafe.zip",
+            ResolverMetadata =
+            {
+                [GenLauncherConstants.SimpleDownloadLinkMetadataKey] = "https://example.com/safe.zip",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+        var file = Assert.Single(result.Data.Files);
+        Assert.Equal("https://example.com/safe.zip", file.DownloadUrl);
+    }
+
     private static GenLauncherResolver CreateResolver(
         IHttpClientFactory? httpClientFactory = null,
         ILogger<GenLauncherResolver>? logger = null)

@@ -262,7 +262,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             IsScrollingProgrammatically = false;
             if (targetKey.HasValue && targetKey.Value is not null)
             {
-                _suppressNextScrollChanged = true;
+                _suppressNextScrollChanged = !EqualityComparer<double>.Default.Equals(currentY, effectiveTargetY);
                 ReportActiveKey(targetKey.Value);
             }
             else

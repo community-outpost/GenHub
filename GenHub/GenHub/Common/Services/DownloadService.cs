@@ -76,6 +76,11 @@ public class DownloadService(
         request.Headers.Add("User-Agent", configuration.UserAgent);
         foreach (var header in configuration.Headers)
         {
+            if (string.Equals(header.Key, "ETag", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             request.Headers.Add(header.Key, header.Value);
         }
 
@@ -185,12 +190,12 @@ public class DownloadService(
         CancellationToken cancellationToken)
     {
         var destFileInfo = new FileInfo(configuration.DestinationPath);
-        var existingBytes = (configuration.EnableResumption && destFileInfo.Exists) ? destFileInfo.Length : 0L;
-
-        if (existingBytes > 0 && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
+        if (destFileInfo.Exists && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
         {
-            return DownloadResult.CreateSuccess(configuration.DestinationPath, existingBytes, TimeSpan.Zero, true);
+            return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
         }
+
+        var existingBytes = (configuration.EnableResumption && destFileInfo.Exists && configuration.Headers.TryGetValue("ETag", out var etag) && EntityTagHeaderValue.TryParse(etag, out _)) ? destFileInfo.Length : 0L;
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(configuration.Timeout);
@@ -257,14 +262,14 @@ public class DownloadService(
             if (response.StatusCode == HttpStatusCode.PartialContent)
             {
                 var contentRange = response.Content.Headers.ContentRange;
-                if (contentRange?.From == null || contentRange.From.Value == existingBytes)
+                if (contentRange?.From == existingBytes)
                 {
                     var totalBytes = contentRange?.Length
                         ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
                     return new DownloadConnection(response, true, existingBytes, totalBytes);
                 }
 
-                logger.LogWarning("Range {Range} mismatch on {Url}; expected {Expected}. Restarting download.", contentRange.From, configuration.Url, existingBytes);
+                logger.LogWarning("Range {Range} mismatch on {Url}; expected {Expected}. Restarting download.", contentRange?.From, configuration.Url, existingBytes);
             }
             else if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
             {

@@ -267,6 +267,54 @@ public sealed class GenLauncherDelivererTests
         }
     }
 
+    /// <summary>
+    /// Tests that DeliverContentAsync rejects manifests with duplicate destination paths.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithDuplicateDestinationPaths_ReturnsFailureAsync()
+    {
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.duplicate"),
+                Name = "Duplicate Paths Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile { RelativePath = "data/file.big", DownloadUrl = "https://example.com/file1.big", Size = 100 },
+                    new ManifestFile { RelativePath = "data\\file.big", DownloadUrl = "https://example.com/file2.big", Size = 200 },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse();
+            result.FirstError.Should().Contain("Manifest contains duplicate destination path");
+            _downloadServiceMock.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
     private GenLauncherDeliverer CreateDeliverer(IConfigurationProviderService? configurationProvider = null)
     {
         var factory = new GenLauncherManifestFactory(

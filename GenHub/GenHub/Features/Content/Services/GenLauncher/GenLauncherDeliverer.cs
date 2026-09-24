@@ -307,6 +307,14 @@ public class GenLauncherDeliverer(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
+        var duplicatePath = files
+            .GroupBy(file => Path.GetFullPath(Path.Combine(targetDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar))), StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Skip(1).Any());
+        if (duplicatePath != null)
+        {
+            return OperationResult<bool>.CreateFailure($"Manifest contains duplicate destination path: {duplicatePath.Key}");
+        }
+
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
         var state = new ConcurrentDownloadState(files.Count, totalBytes, progress);

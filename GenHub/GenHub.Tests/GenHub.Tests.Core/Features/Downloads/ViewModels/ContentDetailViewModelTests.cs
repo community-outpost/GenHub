@@ -4780,4 +4780,99 @@ public sealed class ContentDetailViewModelTests
             Times.Never);
         Assert.False(release.IsDownloading);
     }
+
+    /// <summary>
+    /// Verifies that when multiple candidate variants match a row with ambiguous versions,
+    /// disambiguation rejects picking an arbitrary variant and falls back to parent result.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_WithAmbiguousVersionVariants_FallsBackToParentAsync()
+    {
+        // Arrange
+        const string parentCatalogId = "genlauncher-parent";
+        const string variant1Id = "1.20260101.genlauncher.mod.v1";
+        const string variant2Id = "1.20260101.genlauncher.mod.v2";
+        const string childManifestId = "1.20260101.genlauncher.mod.child";
+        const string testResolver = "GenLauncher";
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentCatalogId,
+            Name = "Shockwave",
+            ProviderName = "GenLauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shockwave",
+        };
+
+        var variant1 = new ContentSearchResult
+        {
+            Id = variant1Id,
+            Name = "Shockwave 1.2 A",
+            Version = "1.2",
+            ProviderName = "GenLauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shockwave/1.2/a",
+        };
+        variant1.ResolverMetadata["variantKey"] = "fromVariant1";
+
+        var variant2 = new ContentSearchResult
+        {
+            Id = variant2Id,
+            Name = "Shockwave 1.2 B",
+            Version = "1.2",
+            ProviderName = "GenLauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shockwave/1.2/b",
+        };
+        variant2.ResolverMetadata["variantKey"] = "fromVariant2";
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            [variant1Id] = variant1,
+            [variant2Id] = variant2,
+        };
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(childManifestId),
+                Name = "Shockwave 1.2",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object, variantSearchResults: variants);
+        var releaseFile = new DownloadableFile(
+            Name: "Shockwave 1.2 Release",
+            DownloadUrl: "https://example.com/shockwave/1.2/release.zip",
+            FileSectionType: FileSectionType.Downloads,
+            Version: "1.2");
+        viewModel.PopulateReleases([releaseFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert: coordinatorInput falls back to parent and does not take variant1's or variant2's metadata
+        Assert.NotNull(coordinatorInput);
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey("variantKey"));
+    }
 }

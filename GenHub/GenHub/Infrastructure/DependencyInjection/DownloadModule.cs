@@ -26,31 +26,33 @@ public static class DownloadModule
         services.AddSingleton<IDownloadUrlValidator, DownloadUrlValidator>();
 
         // DownloadService is shared by singleton content deliverers and manifest factories.
-        // Its dependencies are singleton-safe, and its HttpClient is supplied by the factory.
-        services.AddSingleton<DownloadService>(serviceProvider => new DownloadService(
-            serviceProvider.GetService<ILogger<DownloadService>>() ?? NullLogger<DownloadService>.Instance,
-            serviceProvider.GetRequiredService<HttpClient>(),
-            serviceProvider.GetRequiredService<IFileHashProvider>(),
-            serviceProvider.GetRequiredService<IDownloadUrlValidator>()));
+        // It requires an infinite HttpClient.Timeout for streaming large files, while managing
+        // connection and per-read inactivity timeouts via its internal CTS.
+        services.AddSingleton<DownloadService>(serviceProvider =>
+        {
+            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+            var handler = CreateDownloadHttpHandler();
+            var downloadClient = new HttpClient(handler, disposeHandler: true);
+            ConfigureDownloadClient(downloadClient, configProvider);
+
+            return new DownloadService(
+                serviceProvider.GetService<ILogger<DownloadService>>() ?? NullLogger<DownloadService>.Instance,
+                downloadClient,
+                serviceProvider.GetRequiredService<IFileHashProvider>(),
+                serviceProvider.GetRequiredService<IDownloadUrlValidator>());
+        });
         services.AddSingleton<IDownloadService>(serviceProvider => serviceProvider.GetRequiredService<DownloadService>());
 
         // Note: IContentStateService is registered as Singleton in ContentPipelineModule.AddSharedComponents
         // to ensure a single instance with consistent state change events.
 
-        // Register HttpClient with configuration from IConfigurationProviderService
+        // Register default HttpClient for general DI consumers with a finite timeout.
         services.AddSingleton<HttpClient>(serviceProvider =>
         {
             var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
-            var handler = new SocketsHttpHandler
-            {
-                ConnectTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds),
-                PooledConnectionLifetime = TimeSpan.FromMinutes(DownloadDefaults.HttpPooledConnectionLifetimeMinutes),
-                PooledConnectionIdleTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpPooledConnectionIdleTimeoutSeconds),
-                EnableMultipleHttp2Connections = true,
-                MaxConnectionsPerServer = DownloadDefaults.HttpMaxConnectionsPerServer,
-            };
+            var handler = CreateDownloadHttpHandler();
             var client = new HttpClient(handler, disposeHandler: true);
-            ConfigureDownloadClient(client, configProvider);
+            ConfigureNamedClient(client, configProvider);
             return client;
         });
 
@@ -75,6 +77,15 @@ public static class DownloadModule
 
         return services;
     }
+
+    private static SocketsHttpHandler CreateDownloadHttpHandler() => new()
+    {
+        ConnectTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(DownloadDefaults.HttpPooledConnectionLifetimeMinutes),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpPooledConnectionIdleTimeoutSeconds),
+        EnableMultipleHttp2Connections = true,
+        MaxConnectionsPerServer = DownloadDefaults.HttpMaxConnectionsPerServer,
+    };
 
     private static void ConfigureDownloadClient(HttpClient client, IConfigurationProviderService configProvider)
     {

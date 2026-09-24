@@ -383,7 +383,10 @@ public class GenLauncherResolver(
             discoveredItem.SourceUrl,
         };
 
-        var rawDownloadLink = candidateLinks.FirstOrDefault(link => !string.IsNullOrWhiteSpace(link) && !IsDescriptorUrl(link));
+        var rawDownloadLink = candidateLinks.FirstOrDefault(link =>
+            !string.IsNullOrWhiteSpace(link) &&
+            !IsDescriptorUrl(link) &&
+            ImageCacheService.IsSafeRemoteUrl(GenLauncherDownloadLinkParser.ParseDownloadLink(link), out _));
 
         if (string.IsNullOrWhiteSpace(rawDownloadLink))
         {

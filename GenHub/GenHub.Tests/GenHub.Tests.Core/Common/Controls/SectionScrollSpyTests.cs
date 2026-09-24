@@ -256,6 +256,36 @@ public class SectionScrollSpyTests
         }
     }
 
+    /// <summary>
+    /// Verifies that scrolling to the section that is already at the current offset does not suppress
+    /// subsequent user scroll notifications.
+    /// </summary>
+    [AvaloniaFact]
+    public void ScrollToSection_WhenAlreadyAtTarget_DoesNotSuppressSubsequentUserScroll()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+            reported.Clear();
+
+            // "first" section is already at offset Y = 0
+            spy.ScrollToSection("first");
+            Assert.False(spy.IsScrollingProgrammatically);
+
+            // User scrolls to second section
+            host.ScrollViewer.Offset = new Vector(0, 450);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal(new[] { "first", "second" }, reported);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
     private static ScrollSpyHost CreateHost()
     {
         var first = new Border { Height = 400 };

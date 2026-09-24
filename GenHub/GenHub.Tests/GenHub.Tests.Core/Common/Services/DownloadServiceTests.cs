@@ -351,6 +351,7 @@ public class DownloadServiceTests
                 Url = new Uri("http://test/resume.bin"),
                 DestinationPath = tempFile,
                 EnableResumption = true,
+                Headers = { { "ETag", "\"sample-etag\"" } },
             };
 
             // Act
@@ -361,6 +362,8 @@ public class DownloadServiceTests
             Assert.NotNull(capturedRequest);
             Assert.NotNull(capturedRequest.Headers.Range);
             Assert.Equal(3, capturedRequest.Headers.Range.Ranges.First().From);
+            Assert.NotNull(capturedRequest.Headers.IfRange);
+            Assert.Equal("\"sample-etag\"", capturedRequest.Headers.IfRange.EntityTag?.Tag);
             Assert.Equal(new byte[] { 1, 2, 3, 4, 5 }, File.ReadAllBytes(tempFile));
         }
         finally
@@ -404,6 +407,7 @@ public class DownloadServiceTests
                 Url = new Uri("http://test/no-range.bin"),
                 DestinationPath = tempFile,
                 EnableResumption = true,
+                Headers = { { "ETag", "\"sample-etag\"" } },
             };
 
             // Act
@@ -464,12 +468,182 @@ public class DownloadServiceTests
                 Url = new Uri("http://test/range-416.bin"),
                 DestinationPath = tempFile,
                 EnableResumption = true,
+                Headers = { { "ETag", "\"sample-etag\"" } },
             };
 
             // Act
             var result = await service.DownloadFileAsync(config);
 
             // Assert
+            Assert.True(result.Success);
+            Assert.Equal(2, requestCount);
+            Assert.Equal(fullContent, File.ReadAllBytes(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when an existing partial file exists but no ETag header is provided, resumption is skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WithExistingPartialFile_WithoutETag_OverwritesFromBeginningAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, new byte[] { 99, 99, 99 });
+        var fullContent = new byte[] { 1, 2, 3, 4, 5 };
+
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(fullContent),
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/no-etag.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(capturedRequest);
+            Assert.Null(capturedRequest.Headers.Range);
+            Assert.Equal(fullContent, File.ReadAllBytes(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that supplying an ETag header in configuration does not throw an InvalidOperationException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WithETagHeader_DoesNotThrowMisusedHeaderExceptionAsync()
+    {
+        var tempFile = Path.GetTempFileName();
+        var fullContent = new byte[] { 1, 2, 3 };
+
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(fullContent),
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/etag-test.bin"),
+                DestinationPath = tempFile,
+                Headers = { { "ETag", "\"test-etag\"" } },
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.NotNull(capturedRequest);
+            Assert.False(capturedRequest.Headers.Contains("ETag"));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when 206 Partial Content is returned but ContentRange.From does not match existing bytes,
+    /// the service retries from scratch.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WithPartialContentAndContentRangeMismatch_DeletesAndRestartsAsync()
+    {
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, new byte[] { 1, 2, 3 });
+        var fullContent = new byte[] { 1, 2, 3, 4, 5 };
+
+        int requestCount = 0;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() =>
+            {
+                requestCount++;
+                if (requestCount == 1)
+                {
+                    // Server returns 206 but ContentRange From is 0 (mismatch with 3)
+                    var badResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                    {
+                        Content = new ByteArrayContent(new byte[] { 9, 9 }),
+                    };
+                    badResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 1, 5);
+                    return badResponse;
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(fullContent),
+                };
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/range-mismatch.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+                Headers = { { "ETag", "\"etag-1\"" } },
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
             Assert.True(result.Success);
             Assert.Equal(2, requestCount);
             Assert.Equal(fullContent, File.ReadAllBytes(tempFile));
