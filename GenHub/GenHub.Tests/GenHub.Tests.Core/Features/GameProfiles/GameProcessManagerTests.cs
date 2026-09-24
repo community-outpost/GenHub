@@ -75,6 +75,26 @@ public class GameProcessManagerTests
         }
     }
 
+    /// <summary>A positive PID that no longer exists is an idempotent successful stop.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task TerminateProcessAsync_MissingPositiveProcess_ReturnsSuccessAsync()
+    {
+        var lookups = 0;
+        _processManager.TerminationProcessLookup = processId =>
+        {
+            Assert.Equal(12345, processId);
+            lookups++;
+            throw new ArgumentException("The process has exited.");
+        };
+
+        var result = await _processManager.TerminateProcessAsync(12345);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.Equal(1, lookups);
+    }
+
     /// <summary>A delayed callback cannot throw when its process has already been disposed.</summary>
     [Fact]
     public void OnProcessExited_DisposedProcess_DoesNotThrow()

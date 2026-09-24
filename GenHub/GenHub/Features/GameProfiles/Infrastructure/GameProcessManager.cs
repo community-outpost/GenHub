@@ -186,6 +186,7 @@ public class GameProcessManager(
             }
 
             // Enabling exit events can synchronously finalize and dispose an exited process.
+            // This can wait up to StderrDrainTimeoutMs for stderr; subscribers must return promptly.
             var processInfo = BuildProcessInfo(process, configuration.ExecutablePath);
             RegisterProcessEventHandlers(process);
 

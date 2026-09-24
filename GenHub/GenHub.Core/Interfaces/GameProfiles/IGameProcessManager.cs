@@ -27,6 +27,10 @@ public interface IGameProcessManager
     /// <summary>
     /// Terminates a game process by its process ID.
     /// </summary>
+    /// <remarks>
+    /// Managed processes publish <see cref="ProcessExited"/> with their tracked identity.
+    /// A system-lookup stop of an untracked process does not publish a managed exit event.
+    /// </remarks>
     /// <param name="processId">The positive process ID to terminate. Zero and negative values are rejected before process access.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result indicating success or failure.</returns>
