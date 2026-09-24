@@ -1560,7 +1560,6 @@ public partial class PublishShareViewModel(
         }
     }
 
-
     private async Task<long?> ProbeRangedGetSizeAsync(HttpClient client, string url, CancellationToken cancellationToken)
     {
         try
