@@ -73,6 +73,8 @@ public partial class GameProfileLauncherViewModel(
 {
     private const int MaxReceiptDriftNoticeLines = 5;
 
+    private readonly Dictionary<int, (Guid Identity, bool IsTool)> _announcedProcesses = new();
+
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
     private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
@@ -228,17 +230,20 @@ public partial class GameProfileLauncherViewModel(
                     {
                         var activeLaunches = await Task.Run(() => launchRegistry.GetAllActiveLaunchesAsync());
                         var activeLaunchDict = activeLaunches
+                            .Where(l => l.ProcessInfo.IsRunning)
                             .GroupBy(l => l.ProfileId, StringComparer.OrdinalIgnoreCase)
                             .ToDictionary(
                                 g => g.Key,
-                                g => g.OrderByDescending(l => l.LaunchedAt).First().ProcessInfo.ProcessId,
+                                g => g.OrderByDescending(l => l.LaunchedAt).First().ProcessInfo,
                                 StringComparer.OrdinalIgnoreCase);
                         foreach (var item in Profiles.OfType<GameProfileItemViewModel>())
                         {
-                            if (activeLaunchDict.TryGetValue(item.ProfileId, out var pid))
+                            if (activeLaunchDict.TryGetValue(item.ProfileId, out var processInfo) && processInfo.IsRunning)
                             {
                                 item.IsProcessRunning = true;
-                                item.ProcessId = pid;
+                                item.ProcessId = processInfo.ProcessId;
+                                item.ProcessInstanceId = processInfo.ProcessInstanceId;
+                                _announcedProcesses[processInfo.ProcessId] = (processInfo.ProcessInstanceId, item.Profile is GameProfile { IsToolProfile: true });
                                 item.NotifyCanLaunchChanged();
                             }
                         }
@@ -364,11 +369,13 @@ public partial class GameProfileLauncherViewModel(
         {
             try
             {
+                _announcedProcesses[message.ProcessId] = (message.ProcessInstanceId, message.IsToolProfile);
                 var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
                 if (profile != null)
                 {
                     profile.IsProcessRunning = true;
                     profile.ProcessId = message.ProcessId;
+                    profile.ProcessInstanceId = message.ProcessInstanceId;
                     profile.NotifyCanLaunchChanged();
                 }
             }
@@ -396,7 +403,9 @@ public partial class GameProfileLauncherViewModel(
                     (message.ProcessId > 0 && p.ProcessId == message.ProcessId));
                 if (profile != null)
                 {
-                    if (message.ProcessId > 0 && profile.ProcessId > 0 && message.ProcessId != profile.ProcessId)
+                    if ((message.ProcessId > 0 && profile.ProcessId > 0 && message.ProcessId != profile.ProcessId)
+                        || (message.ProcessInstanceId != Guid.Empty && profile.ProcessInstanceId != Guid.Empty
+                            && message.ProcessInstanceId != profile.ProcessInstanceId))
                     {
                         logger.LogDebug(
                             "Ignoring stale stop message for {ProfileId} (Msg PID: {MsgPid}, Current PID: {CurrentPid})",
@@ -408,6 +417,7 @@ public partial class GameProfileLauncherViewModel(
 
                     profile.IsProcessRunning = false;
                     profile.ProcessId = 0;
+                    profile.ProcessInstanceId = Guid.Empty;
                     profile.NotifyCanLaunchChanged();
                 }
             }
@@ -1431,6 +1441,7 @@ public partial class GameProfileLauncherViewModel(
 
             liveProfile.IsProcessRunning = true;
             liveProfile.ProcessId = launchResult.Data.ProcessInfo.ProcessId;
+            liveProfile.ProcessInstanceId = launchResult.Data.ProcessInfo.ProcessInstanceId;
 
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
@@ -1480,6 +1491,7 @@ public partial class GameProfileLauncherViewModel(
                 // Update IsProcessRunning to hide Stop button and show Launch button
                 profile.IsProcessRunning = false;
                 profile.ProcessId = 0;
+                profile.ProcessInstanceId = Guid.Empty;
                 OnPropertyChanged(nameof(profile.CanLaunch));
                 OnPropertyChanged(nameof(profile.CanEdit));
 
@@ -1930,23 +1942,60 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private void OnProcessExited(object? sender, Core.Models.Events.GameProcessExitedEventArgs e)
     {
-        try
+        RunOnUi(() =>
         {
-            logger.LogInformation("Game process {ProcessId} exited with code {ExitCode}", e.ProcessId, e.ExitCode);
-
-            // Find the profile that was running this process
-            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProcessId == e.ProcessId);
-            if (profile != null)
+            try
             {
-                profile.IsProcessRunning = false;
-                profile.ProcessId = 0;
-                logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+                logger.LogInformation("Game process {ProcessId} exited with code {ExitCode}", e.ProcessId, e.ExitCode);
+
+                // Find the profile that was running this process
+                var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProcessId == e.ProcessId
+                    && (p.ProcessInstanceId == Guid.Empty || e.ProcessInstanceId == Guid.Empty
+                        || p.ProcessInstanceId == e.ProcessInstanceId));
+                var announced = _announcedProcesses.TryGetValue(e.ProcessId, out var announcement)
+                    && (announcement.Identity == e.ProcessInstanceId
+                        || announcement.Identity == Guid.Empty || e.ProcessInstanceId == Guid.Empty);
+                if (announced)
+                {
+                    _announcedProcesses.Remove(e.ProcessId);
+                }
+
+                if (profile != null)
+                {
+                    profile.IsProcessRunning = false;
+                    profile.ProcessId = 0;
+                    profile.ProcessInstanceId = Guid.Empty;
+                    logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+                }
+
+                NotifyUnexpectedProcessExit(e, profile, announced, announcement.IsTool);
             }
-        }
-        catch (Exception ex)
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error handling process exit event for process {ProcessId}", e.ProcessId);
+            }
+        });
+    }
+
+    private void NotifyUnexpectedProcessExit(
+        Core.Models.Events.GameProcessExitedEventArgs e,
+        GameProfileItemViewModel? profile,
+        bool announced,
+        bool announcedAsTool)
+    {
+        if (e.DescribeFailure() == null || (!announced && profile == null)
+            || (announced && announcedAsTool)
+            || profile?.Profile is GameProfile { IsToolProfile: true })
         {
-            logger.LogError(ex, "Error handling process exit event for process {ProcessId}", e.ProcessId);
+            return;
         }
+
+        var message = e.UnmountableArchives.Count > 0
+            ? localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", string.Join(", ", e.UnmountableArchives), e.ExitCode!)
+            : localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Message", e.ExitCode!);
+        notificationService.ShowError(
+            localizationService["GameProfiles.Notification.UnexpectedExit.Title"],
+            profile == null ? message : $"{profile.Name}: {message}");
     }
 
     /// <summary>

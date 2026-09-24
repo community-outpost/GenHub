@@ -10276,4 +10276,25 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
     <value>جاري إنشاء حزمة الخرائط...</value>
   </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
+    <value>خرجت اللعبة بشكل غير متوقع</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Message" xml:space="preserve">
+    <value>أُغلقت اللعبة بشكل غير متوقع (الرمز {0}). راجع السجلات للاطلاع على التفاصيل.</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Archives" xml:space="preserve">
+    <value>تعذر على اللعبة تحميل الأرشيفات التالية: {0}. رمز الخروج: {1}.</value>
+  </data>
+  <data name="GameProfiles.Notification.EarlyExit.WithCode" xml:space="preserve">
+    <value>انتهت العملية قبل اكتمال التشغيل (رمز الخروج {0}). راجع السجلات للاطلاع على التفاصيل.</value>
+  </data>
+  <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
+    <value>انتهت العملية قبل اكتمال التشغيل. راجع السجلات للاطلاع على التفاصيل.</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
+    <value>تم تشغيل الأداة</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
+    <value>تم تشغيل '{0}' بنجاح</value>
+  </data>
 </root>

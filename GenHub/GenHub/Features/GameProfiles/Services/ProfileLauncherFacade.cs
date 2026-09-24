@@ -14,6 +14,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
@@ -30,6 +31,7 @@ using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -465,6 +467,90 @@ public class ProfileLauncherFacade(
         }
     }
 
+    /// <summary>Registers a started tool and confirms it survived before reporting success.</summary>
+    /// <param name="process">The started process, whose ownership transfers to the manager if still running.</param>
+    /// <param name="profile">The tool profile.</param>
+    /// <param name="workspaceId">The prepared workspace identifier.</param>
+    /// <param name="executablePath">The executable path.</param>
+    /// <returns>The registered launch or a localized early-exit failure.</returns>
+    internal async Task<ProfileOperationResult<GameLaunchInfo>> CompleteToolLaunchAsync(
+        Process process,
+        GameProfile profile,
+        string? workspaceId,
+        string executablePath)
+    {
+        var processId = process.Id;
+        var tracked = gameProcessManager.TrackProcess(process);
+        if (tracked != null && string.IsNullOrWhiteSpace(tracked.ExecutablePath))
+        {
+            tracked.ExecutablePath = executablePath;
+        }
+
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString("N"),
+            ProfileId = profile.Id,
+            WorkspaceId = workspaceId ?? ProfileConstants.ToolProfileWorkspaceId,
+            ProcessInfo = tracked ?? new GameProcessInfo
+            {
+                ProcessId = processId,
+                ExecutablePath = executablePath,
+                IsRunning = false,
+            },
+        };
+        if (tracked == null)
+        {
+            // Tracking declined an already-exited process; the caller still owns this handle.
+            try
+            {
+                try
+                {
+                    launchInfo.ExitCode = process.ExitCode;
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+                {
+                    logger.LogDebug(ex, "Unable to read exit code for tool process {ProcessId}", processId);
+                }
+
+                launchInfo.TerminatedAt = DateTime.UtcNow;
+                try
+                {
+                    launchInfo.TerminatedAt = process.ExitTime.ToUniversalTime();
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+                {
+                    logger.LogDebug(ex, "Unable to read exit time for tool process {ProcessId}", processId);
+                }
+
+                launchInfo.FailureReason = new GameProcessExitedEventArgs { ExitCode = launchInfo.ExitCode }.DescribeFailure();
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        // Tracking may have published an exit before registration; drain it using the assigned identity.
+        await launchRegistry.RegisterLaunchAsync(launchInfo);
+        if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed || !launchInfo.ProcessInfo.IsRunning)
+        {
+            // Preserve the terminated entry and its exit diagnostics, as for game launches.
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(LaunchExitMessages.Describe(launchInfo, localizationService));
+        }
+
+        logger.LogInformation("Tool launch {LaunchId} registered with process {ProcessId}", launchInfo.LaunchId, launchInfo.ProcessInfo.ProcessId);
+        notificationService.ShowSuccess(
+            LaunchExitMessages.GetString(ProfileValidationConstants.ToolLaunchSuccessTitleKey, localizationService),
+            LaunchExitMessages.GetString(ProfileValidationConstants.ToolLaunchSuccessMessageKey, localizationService, profile.Name),
+            NotificationDurations.Medium);
+        WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profile.Id, launchInfo.ProcessInfo.ProcessId)
+        {
+            ProcessInstanceId = launchInfo.ProcessInfo.ProcessInstanceId,
+            IsToolProfile = true,
+        });
+        return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
+    }
+
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(
         GameProfile profile,
         string profileId,
@@ -517,41 +603,7 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<GameLaunchInfo>.CreateFailure(ProfileValidationConstants.ToolProcessStartFailed);
             }
 
-            var launchId = Guid.NewGuid().ToString("N");
-            var toolLaunchInfo = new GameLaunchInfo
-            {
-                LaunchId = launchId,
-                ProfileId = profile.Id,
-                WorkspaceId = actualWorkspaceId ?? ProfileConstants.ToolProfileWorkspaceId,
-                ProcessInfo = new GameProcessInfo
-                {
-                    ProcessId = process.Id,
-                    ExecutablePath = toolExecutablePath,
-                    IsRunning = true,
-                },
-            };
-
-            logger.LogInformation(
-                "=== TOOL LAUNCH SUCCESS: Profile {ProfileId}, ProcessId {ProcessId} ===",
-                profileId,
-                toolLaunchInfo.ProcessInfo.ProcessId);
-
-            await launchRegistry.RegisterLaunchAsync(toolLaunchInfo);
-            logger.LogDebug("[Launch] Registered tool launch {LaunchId} with LaunchRegistry", launchId);
-
-            gameProcessManager.TrackProcess(process);
-
-            notificationService.ShowSuccess(
-                ProfileValidationConstants.ToolLaunchSuccessTitle,
-                $"Successfully launched '{profile.Name}'",
-                NotificationDurations.Medium);
-
-            if (toolLaunchInfo.ProcessInfo.ProcessId > 0)
-            {
-                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, toolLaunchInfo.ProcessInfo.ProcessId));
-            }
-
-            return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(toolLaunchInfo);
+            return await CompleteToolLaunchAsync(process, profile, actualWorkspaceId, toolExecutablePath);
         }
         catch (Exception ex)
         {
@@ -969,9 +1021,15 @@ public class ProfileLauncherFacade(
                 }
             }
 
+            if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
+            {
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                    LaunchExitMessages.Describe(launchInfo, localizationService));
+            }
+
             if (launchInfo.ProcessInfo.ProcessId > 0)
             {
-                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, launchInfo.ProcessInfo.ProcessId));
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, launchInfo.ProcessInfo.ProcessId) { ProcessInstanceId = launchInfo.ProcessInfo.ProcessInstanceId });
             }
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);

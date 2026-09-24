@@ -81,9 +81,18 @@ public static class ProfileValidationConstants
     public const string ToolProcessStartFailed = "Failed to start tool process (Process.Start returned null)";
 
     /// <summary>
-    /// Notification title when tool launches successfully.
+    /// Resource key for the title when a tool launches successfully.
     /// </summary>
-    public const string ToolLaunchSuccessTitle = "Tool Launched";
+    public const string ToolLaunchSuccessTitleKey = "GameProfiles.Notification.ToolLaunchSuccess.Title";
+
+    /// <summary>Resource key for the successful tool launch message.</summary>
+    public const string ToolLaunchSuccessMessageKey = "GameProfiles.Notification.ToolLaunchSuccess.Message";
+
+    /// <summary>Resource key for an early exit with a known code.</summary>
+    public const string EarlyExitWithCodeKey = "GameProfiles.Notification.EarlyExit.WithCode";
+
+    /// <summary>Resource key for an early exit with an unknown code.</summary>
+    public const string EarlyExitUnknownCodeKey = "GameProfiles.Notification.EarlyExit.UnknownCode";
 
     /// <summary>
     /// Notification title when tool launch fails.

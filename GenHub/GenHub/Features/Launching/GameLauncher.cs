@@ -299,7 +299,7 @@ public class GameLauncher(
                     if (!process.Start())
                         return LaunchResult.CreateFailure("Failed to start process", null);
                     var launchDuration = DateTime.UtcNow - startTime;
-                    return LaunchResult.CreateSuccess(process.Id, process.StartTime, launchDuration);
+                    return LaunchResult.CreateSuccess(process.Id, process.StartTime.ToUniversalTime(), launchDuration);
                 },
                 cancellationToken);
         }
@@ -342,7 +342,8 @@ public class GameLauncher(
                     {
                         ProcessId = process.Id,
                         ProcessName = process.ProcessName,
-                        StartTime = process.StartTime,
+                        StartTime = process.StartTime.ToUniversalTime(),
+                        HasVerifiedStartTime = true,
                         WorkingDirectory = workingDirectory,
                         CommandLine = commandLine,
                         IsResponding = process.Responding,
@@ -1466,6 +1467,13 @@ public class GameLauncher(
             };
             logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
             await launchRegistry.RegisterLaunchAsync(launchInfo);
+            if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
+            {
+                // Keep the terminated entry so its exit code and diagnostics remain inspectable.
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                    LaunchExitMessages.Describe(launchInfo, localizationService), launchId, profile.Id);
+            }
+
             await RecordLaunchReceiptAsync(receiptContext);
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });

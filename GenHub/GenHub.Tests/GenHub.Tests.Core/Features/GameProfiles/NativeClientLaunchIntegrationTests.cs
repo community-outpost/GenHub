@@ -34,11 +34,20 @@ public class NativeClientLaunchIntegrationTests
     /// <summary>How long the engine must stay up to count as a successful launch.</summary>
     private static readonly TimeSpan LaunchSettleTime = TimeSpan.FromSeconds(12);
 
-    private readonly GameProcessManager _processManager = new(
-        NullLogger<GameProcessManager>.Instance,
-        new DirectRunner(NullLogger<DirectRunner>.Instance),
-        Mock.Of<ILocalizationService>(),
-        new FlatpakProvisioner(NullLogger<FlatpakProvisioner>.Instance));
+    private readonly GameProcessManager _processManager;
+
+    /// <summary>Initializes a new instance of the <see cref="NativeClientLaunchIntegrationTests"/> class.</summary>
+    public NativeClientLaunchIntegrationTests()
+    {
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(service => service.GetString("GameProfiles.Notification.UnexpectedExit.Archives", It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((_, arguments) => $"Localized archive failure: {arguments[0]}. Exit code: {arguments[1]}.");
+        _processManager = new GameProcessManager(
+            NullLogger<GameProcessManager>.Instance,
+            new DirectRunner(NullLogger<DirectRunner>.Instance),
+            localization.Object,
+            new FlatpakProvisioner(NullLogger<FlatpakProvisioner>.Instance));
+    }
 
     /// <summary>
     /// Launches the engine with the install directory as the working directory, exactly
@@ -71,7 +80,7 @@ public class NativeClientLaunchIntegrationTests
 
         try
         {
-            // StartProcessAsync only waits out the launcher-detection delay. Give the
+            // StartProcessAsync only waits out the post-spawn detection window. Give the
             // engine long enough to fail the way it fails for real: mounting archives and
             // initialising the renderer, both of which happen after the process exists.
             await Task.Delay(LaunchSettleTime);
@@ -142,7 +151,11 @@ public class NativeClientLaunchIntegrationTests
             // The expected path: it dies during startup and the failure names the reason
             // rather than reporting a bare exit code.
             Assert.False(result.Success);
-            Assert.Contains("exited immediately", string.Join(" ", result.Errors), StringComparison.OrdinalIgnoreCase);
+            var error = string.Join(" ", result.Errors);
+            Assert.True(
+                error.StartsWith("Localized archive failure:", StringComparison.Ordinal)
+                || error.Contains("exited immediately", StringComparison.OrdinalIgnoreCase),
+                error);
         }
         finally
         {

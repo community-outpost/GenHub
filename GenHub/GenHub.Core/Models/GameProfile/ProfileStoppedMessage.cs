@@ -5,4 +5,8 @@ namespace GenHub.Core.Models.GameProfile;
 /// </summary>
 /// <param name="ProfileId">The ID of the stopped profile.</param>
 /// <param name="ProcessId">The process ID of the stopped game process.</param>
-public record ProfileStoppedMessage(string ProfileId, int ProcessId);
+public record ProfileStoppedMessage(string ProfileId, int ProcessId)
+{
+    /// <summary>Gets the manager-assigned process identity when available.</summary>
+    public Guid ProcessInstanceId { get; init; }
+}
