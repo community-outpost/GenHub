@@ -1,3 +1,10 @@
+using System;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -15,6 +22,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
@@ -25,13 +33,6 @@ using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub;
 
@@ -69,6 +70,7 @@ public partial class App : Application
     private readonly ILocalizationService _localizationService;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
+    private readonly ITelemetryService? _telemetryService;
     private bool _startupArgsHandled;
 
     /// <summary>
@@ -88,6 +90,7 @@ public partial class App : Application
         _localizationService = _serviceProvider.GetRequiredService<ILocalizationService>();
         _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
         _themeService = _serviceProvider.GetService<IThemeService>();
+        _telemetryService = _serviceProvider.GetService<ITelemetryService>();
     }
 
     /// <summary>
@@ -129,8 +132,7 @@ public partial class App : Application
         Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);
 
-        // App XAML replaces the resource dictionary, so restore the service for views loaded afterward.
-        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
+        // App XAML replaces the resource dictionary, so restore the service for views loaded afterward.\n        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
     }
 
     /// <summary>
@@ -143,6 +145,29 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // Hook global unhandled exceptions to telemetry
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            {
+                if (args.ExceptionObject is Exception ex)
+                {
+                    _telemetryService?.TrackException(ex, "AppDomain.UnhandledException", isFatal: true);
+                    try
+                    {
+                        using var crashFlushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                        _telemetryService?.FlushAsync(crashFlushCts.Token).GetAwaiter().GetResult();
+                    }
+                    catch
+                    {
+                        // Suppress crash flush failures during terminal exception
+                    }
+                }
+            };
+
+            TaskScheduler.UnobservedTaskException += (sender, args) =>
+                _telemetryService?.TrackException(args.Exception, "TaskScheduler.UnobservedTaskException", isFatal: false);
+
+            _telemetryService?.AddBreadcrumb("Application initialized", "lifecycle");
+
             var mainWindow = new MainWindow
             {
                 DataContext = _serviceProvider.GetService<MainViewModel>(),
@@ -396,6 +421,19 @@ public partial class App : Application
         }
         finally
         {
+            if (_telemetryService != null)
+            {
+                try
+                {
+                    using var flushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    await _telemetryService.FlushAsync(flushCts.Token);
+                }
+                catch
+                {
+                    // Suppress telemetry flush errors during application exit
+                }
+            }
+
             try
             {
                 if (_serviceProvider is IAsyncDisposable disposable)

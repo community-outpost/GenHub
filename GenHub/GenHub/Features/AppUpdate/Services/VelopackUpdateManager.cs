@@ -21,6 +21,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Telemetry;
 using Velopack;
 using Velopack.Sources;
 
@@ -42,6 +43,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private readonly IGitHubAuthService? _gitHubAuthService;
     private readonly IUserSettingsService? _userSettingsService;
     private readonly IFileDownloader _fileDownloader;
+    private readonly ITelemetryService? _telemetryService;
     private readonly UpdateManager? _updateManager;
     private readonly GithubSource _githubSource;
 
@@ -123,18 +125,21 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// <param name="gitHubAuthService">The GitHub authentication service (optional).</param>
     /// <param name="userSettingsService">The user settings service (optional).</param>
     /// <param name="fileDownloader">The high-performance file downloader (optional).</param>
+    /// <param name="telemetryService">The telemetry service (optional).</param>
     public VelopackUpdateManager(
         ILogger<VelopackUpdateManager> logger,
         IHttpClientFactory httpClientFactory,
         IGitHubAuthService? gitHubAuthService = null,
         IUserSettingsService? userSettingsService = null,
-        IFileDownloader? fileDownloader = null)
+        IFileDownloader? fileDownloader = null,
+        ITelemetryService? telemetryService = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _gitHubAuthService = gitHubAuthService;
         _userSettingsService = userSettingsService;
         _fileDownloader = fileDownloader ?? new FastHttpClientFileDownloader();
+        _telemetryService = telemetryService;
 
         // Always initialize GithubSource for update checking with high-performance downloader
         _githubSource = new GithubSource(AppConstants.GitHubRepositoryUrl, string.Empty, true, _fileDownloader);
@@ -191,6 +196,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    private string TelemetryChannel =>
+        _subscribedPrNumber.HasValue ? $"PR-{_subscribedPrNumber}" : _subscribedBranch ?? "Release";
+
     /// <inheritdoc/>
     public async Task<UpdateInfo?> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
@@ -212,6 +220,13 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         _logger.LogInformation("Starting GitHub update check for repository: {Url}", AppConstants.GitHubRepositoryUrl);
+
+        _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateChecked, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.FromVersion] = AppConstants.AppVersion,
+            [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+            [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+        });
 
         try
         {
@@ -353,6 +368,14 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogInformation("Applying update {Version} and restarting...", updateInfo.TargetFullRelease.Version);
             _logger.LogInformation("Update package: {Package}", updateInfo.TargetFullRelease.FileName);
             _logger.LogInformation("Current app will exit and restart with new version");
+
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateApplied, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FromVersion] = AppConstants.AppVersion,
+                [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
+                [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+                [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+            });
 
             _updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
 
