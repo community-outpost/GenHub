@@ -68,10 +68,6 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 new WndTextureImportResult(name, textureFileName, width, height, texturePath, definitionsPath),
                 stopwatch.Elapsed);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to import texture {Source}", sourceFilePath);
