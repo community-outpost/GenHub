@@ -30,6 +30,11 @@ public interface IOnlineNetworkService
     OnlineAdapterState AdapterState { get; }
 
     /// <summary>
+    /// Gets the last error reported by the virtual LAN adapter, or null if healthy.
+    /// </summary>
+    string? AdapterError { get; }
+
+    /// <summary>
     /// Occurs when the joined roster changes.
     /// </summary>
     event EventHandler<IReadOnlyList<OnlineMember>>? RosterChanged;
@@ -95,10 +100,11 @@ public interface IOnlineNetworkService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Leaves the current network and tears down overlay state.
+    /// Leaves the currently joined network and tears the adapter down.
+    /// Safe to call when not joined.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The result of the leave operation.</returns>
+    /// <returns>True when the network was left.</returns>
     Task<OperationResult<bool>> LeaveNetworkAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -114,7 +120,8 @@ public interface IOnlineNetworkService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sets the local profile advertisement attached to presence heartbeats.
+    /// Updates the profile information advertised by the local client.
+    /// If currently joined, sends an immediate presence heartbeat to publish the change.
     /// </summary>
     /// <param name="fingerprint">The local profile fingerprint.</param>
     /// <param name="profileName">The local profile display name.</param>

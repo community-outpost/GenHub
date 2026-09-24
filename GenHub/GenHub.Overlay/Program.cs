@@ -27,9 +27,10 @@ public static class Program
         }
 
         var config = parsedConfig!;
+        var configPath = args.Length >= 2 ? args[1] : null;
         var overlayIp = IPAddress.Parse(config.OverlayIp);
 
-        if (!TryCreateDevice(config, overlayIp, out var tunDevice, out var attachExitCode))
+        if (!TryCreateDevice(config, overlayIp, configPath, out var tunDevice, out var attachExitCode))
         {
             return attachExitCode;
         }
@@ -42,7 +43,7 @@ public static class Program
 
         Console.WriteLine($"ready interface={device.InterfaceName} ip={config.OverlayIp}");
 
-        var readyPath = args.Length >= 2 ? args[1] + ".ready" : null;
+        var readyPath = !string.IsNullOrEmpty(configPath) ? configPath + ".ready" : null;
         if (!string.IsNullOrEmpty(readyPath))
         {
             try
@@ -93,14 +94,17 @@ public static class Program
             return false;
         }
 
+        var configPath = args[1];
         string configContents;
         try
         {
-            configContents = File.ReadAllText(args[1]);
+            configContents = File.ReadAllText(configPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Console.Error.WriteLine($"Cannot read config: {ex.Message}");
+            var err = $"Cannot read config: {ex.Message}";
+            Console.Error.WriteLine(err);
+            WriteErrorFile(configPath, err);
             exitCode = OnlineConstants.SidecarExitConfigError;
             return false;
         }
@@ -108,7 +112,9 @@ public static class Program
         var parsed = OverlaySidecarConfig.Parse(configContents);
         if (!parsed.Success || parsed.Data is null)
         {
-            Console.Error.WriteLine($"Invalid config: {parsed.AllErrors}");
+            var err = $"Invalid config: {parsed.AllErrors}";
+            Console.Error.WriteLine(err);
+            WriteErrorFile(configPath, err);
             exitCode = OnlineConstants.SidecarExitConfigError;
             return false;
         }
@@ -121,6 +127,7 @@ public static class Program
     private static bool TryCreateDevice(
         OverlaySidecarConfig config,
         IPAddress overlayIp,
+        string? configPath,
         out ITunDevice? tunDevice,
         out int exitCode)
     {
@@ -135,7 +142,9 @@ public static class Program
 
             if (!winResult.Success || winResult.Data is null)
             {
-                Console.Error.WriteLine($"Wintun device creation failed: {winResult.AllErrors}");
+                var err = $"Wintun device creation failed: {winResult.AllErrors}";
+                Console.Error.WriteLine(err);
+                WriteErrorFile(configPath, err);
                 exitCode = OnlineConstants.SidecarExitAttachFailed;
                 return false;
             }
@@ -147,7 +156,9 @@ public static class Program
             var linuxResult = LinuxTunDevice.Attach(config.InterfaceName, overlayIp);
             if (!linuxResult.Success || linuxResult.Data is null)
             {
-                Console.Error.WriteLine($"Linux TUN attach failed: {linuxResult.AllErrors}");
+                var err = $"Linux TUN attach failed: {linuxResult.AllErrors}";
+                Console.Error.WriteLine(err);
+                WriteErrorFile(configPath, err);
                 exitCode = OnlineConstants.SidecarExitAttachFailed;
                 return false;
             }
@@ -156,13 +167,32 @@ public static class Program
         }
         else
         {
-            Console.Error.WriteLine("Unsupported operating system for TUN overlay.");
+            const string err = "Unsupported operating system for TUN overlay.";
+            Console.Error.WriteLine(err);
+            WriteErrorFile(configPath, err);
             exitCode = OnlineConstants.SidecarExitAttachFailed;
             return false;
         }
 
         exitCode = OnlineConstants.SidecarExitSuccess;
         return true;
+    }
+
+    private static void WriteErrorFile(string? configPath, string message)
+    {
+        if (string.IsNullOrWhiteSpace(configPath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.WriteAllText(configPath + ".err", message);
+        }
+        catch
+        {
+            // Best effort error reporting
+        }
     }
 
     private static IPEndPoint ResolveRelayEndpoint(string relayHost, int relayPort)

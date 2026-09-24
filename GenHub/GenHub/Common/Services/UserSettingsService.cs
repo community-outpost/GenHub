@@ -454,6 +454,13 @@ public class UserSettingsService : IUserSettingsService
             return;
         }
 
+        var defaultPath = GetDefaultSettingsFilePath();
+        if (PathHelper.AreSamePath(path, defaultPath))
+        {
+            _target = SettingsFileTarget.Verified(path);
+            return;
+        }
+
         var moved = _target.MoveTo(path);
         if (moved.CanWrite)
         {

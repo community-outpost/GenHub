@@ -149,6 +149,9 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     private bool _isLobbyOnly;
 
     [ObservableProperty]
+    private string? _adapterStatusTooltip;
+
+    [ObservableProperty]
     private ObservableCollection<GameProfile> _availableProfiles = [];
 
     [ObservableProperty]
@@ -1142,10 +1145,12 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             OnlineConstants.ErrorWrongPassword => "Online.Error.WrongPassword",
             OnlineConstants.ErrorNetworkFull => "Online.Error.NetworkFull",
             OnlineConstants.ErrorNetworkBanned => "Online.Error.NetworkBanned",
+            OnlineConstants.ErrorNetworkNotFound => "Online.Error.NetworkNotFound",
+            OnlineConstants.ErrorServiceUnavailable => "Online.Error.ServiceUnavailable",
             OnlineConstants.ErrorAdapterFailed => "Online.Error.AdapterFailed",
-            _ => "Online.Error.JoinFailed",
+            _ => null,
         };
-        ShowErrorToast("Online.Error.JoinTitle", GetString(messageKey));
+        ShowErrorToast("Online.Error.JoinTitle", messageKey is not null ? GetString(messageKey) : errorCode);
     }
 
     private void ShowCreateErrorToast(string? errorCode)
@@ -1164,7 +1169,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
     private void ShowErrorToast(string titleKey, string? detail)
     {
-        var detailText = string.IsNullOrWhiteSpace(detail) || detail.StartsWith(OnlineConstants.ErrorCodePrefix, StringComparison.Ordinal)
+        var detailText = string.IsNullOrWhiteSpace(detail)
             ? GetString("Online.Error.GenericDetail")
             : OnlineLogScrubber.Scrub(detail);
         _notificationService.ShowError(GetString(titleKey), detailText, NotificationDurations.Long);
@@ -1181,12 +1186,25 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         IsLobbyOnly = _networkService.AdapterState != OnlineAdapterState.Up;
         if (!IsLobbyOnly)
         {
+            AdapterStatusTooltip = null;
+            return;
+        }
+
+        var adapterErr = _networkService.AdapterError;
+        if (!string.IsNullOrWhiteSpace(adapterErr))
+        {
+            AdapterStatusTooltip = adapterErr;
+            _notificationService.ShowWarning(
+                GetString("Online.Adapter.UnavailableTitle"),
+                adapterErr,
+                NotificationDurations.Long);
             return;
         }
 
         if (IsOverlayPending())
         {
             // Expected pre-overlay state: lobby works, tunneling waits.
+            AdapterStatusTooltip = GetString("Online.Adapter.PendingMessage");
             _notificationService.ShowInfo(
                 GetString("Online.Adapter.PendingTitle"),
                 GetString("Online.Adapter.PendingMessage"),
@@ -1194,6 +1212,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             return;
         }
 
+        AdapterStatusTooltip = GetString("Online.Adapter.UnavailableMessage");
         _notificationService.ShowWarning(
             GetString("Online.Adapter.UnavailableTitle"),
             GetString("Online.Adapter.UnavailableMessage"),

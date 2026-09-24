@@ -30,6 +30,26 @@ public sealed record OverlaySidecarConfig(
     string NetworkId,
     int Mtu)
 {
+    private static readonly JsonSerializerOptions WireSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    /// <summary>
+    /// Serializes this configuration to JSON for the sidecar process.
+    /// </summary>
+    /// <returns>JSON string representation.</returns>
+    public string ToJson() => JsonSerializer.Serialize(
+        new WireShape(
+            InterfaceName,
+            OverlayIp,
+            PrefixLength,
+            RelayHost,
+            RelayPort,
+            NetworkId,
+            Mtu),
+        WireSerializerOptions);
+
     /// <summary>
     /// Raw wire shape of the sidecar configuration file.
     /// </summary>
