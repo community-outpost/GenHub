@@ -6,6 +6,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.Tools.WndEditor.Services;
@@ -552,6 +553,109 @@ public sealed class WndImageAssetServiceTests : IDisposable
         result.Data.Should().Equal("apple", "Zebra");
     }
 
+    /// <summary>
+    /// Tests that a shared Zero Hour / Generals image resolves its texture from the
+    /// earliest-mounted archive (Zero Hour) even when the Generals copy lives at an
+    /// internal path that speculative candidate probing would reach first.
+    /// Mirrors the Steam layout: Zero Hour BIGs at the install root, base Generals
+    /// BIGs in a subdirectory mounted later at the same tier.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_SharedImageAtDifferentArchivePaths_PrefersZeroHourTexture()
+    {
+        // Arrange: both games define the same image with a bare texture reference.
+        const string definition =
+            "MappedImage ZhSharedBtn\n" +
+            "  Texture = SharedPage.tga\n" +
+            "  Coords = Left:0 Top:0 Right:8 Bottom:8\n" +
+            "  Status = NONE\n" +
+            "End\n";
+        WriteBigArchive(
+            Path.Combine(_gameRoot, "INIZH.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\TextureSize_512\ZHUI.ini"] = System.Text.Encoding.UTF8.GetBytes(definition),
+            });
+        WriteBigArchive(
+            Path.Combine(_gameRoot, "TexturesZH.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\Art\Textures\SharedPage.tga"] = SolidTga(MagickColors.Blue, 8, 8),
+            });
+
+        var generalsDir = Path.Combine(_gameRoot, "ZH_Generals");
+        WriteBigArchive(
+            Path.Combine(generalsDir, "INI.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\TextureSize_512\BaseUI.ini"] = System.Text.Encoding.UTF8.GetBytes(definition),
+            });
+        WriteBigArchive(
+            Path.Combine(generalsDir, "Textures.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\English\Textures\SharedPage.tga"] = SolidTga(MagickColors.Orange, 8, 8),
+            });
+
+        // Act
+        var result = await _service.GetImagesAsync(["ZhSharedBtn"], _gameRoot, null, null, null, true);
+
+        // Assert: the Zero Hour (blue) page wins over the Generals (orange) page.
+        result.Success.Should().BeTrue();
+        result.Data.Should().ContainKey("ZhSharedBtn");
+        using var decoded = new MagickImage(result.Data!["ZhSharedBtn"]);
+        decoded.Width.Should().Be(8);
+        decoded.Height.Should().Be(8);
+        PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Blue.ToString());
+    }
+
+    /// <summary>
+    /// Tests that a same-path texture conflict between Zero Hour and Generals archives
+    /// resolves to the earliest-mounted (Zero Hour) bytes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_SharedImageAtSameArchivePath_PrefersZeroHourTexture()
+    {
+        // Arrange
+        const string definition =
+            "MappedImage ZhSamePathBtn\n" +
+            "  Texture = SamePage\n" +
+            "  Coords = Left:0 Top:0 Right:8 Bottom:8\n" +
+            "  Status = NONE\n" +
+            "End\n";
+        WriteBigArchive(
+            Path.Combine(_gameRoot, "INIZH.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\TextureSize_512\ZHUI.ini"] = System.Text.Encoding.UTF8.GetBytes(definition),
+            });
+        WriteBigArchive(
+            Path.Combine(_gameRoot, "TexturesZH.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\Art\Textures\SamePage.tga"] = SolidTga(MagickColors.Blue, 8, 8),
+            });
+
+        var generalsDir = Path.Combine(_gameRoot, "ZH_Generals");
+        WriteBigArchive(
+            Path.Combine(generalsDir, "Textures.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\Art\Textures\SamePage.tga"] = SolidTga(MagickColors.Orange, 8, 8),
+            });
+
+        // Act
+        var result = await _service.GetImagesAsync(["ZhSamePathBtn"], _gameRoot, null, null, null, true);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().ContainKey("ZhSamePathBtn");
+        using var decoded = new MagickImage(result.Data!["ZhSamePathBtn"]);
+        PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Blue.ToString());
+    }
+
     private void WriteMappedImages(string content)
     {
         File.WriteAllText(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "TextureSize_512", "Test.ini"), content);
@@ -577,5 +681,46 @@ public sealed class WndImageAssetServiceTests : IDisposable
     {
         using var pixels = image.GetPixels();
         return pixels.GetPixel(x, y)!.ToColor()!;
+    }
+
+    private static byte[] SolidTga(MagickColor color, uint width, uint height)
+    {
+        using var image = new MagickImage(color, width, height);
+        image.Format = MagickFormat.Tga;
+        return image.ToByteArray();
+    }
+
+    private static void WriteBigArchive(string archivePath, Dictionary<string, byte[]> entries)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(archivePath)!);
+        var names = entries.Keys.Select(name => System.Text.Encoding.Latin1.GetBytes(name)).ToList();
+        var payloads = entries.Values.ToList();
+        var directorySize = names.Sum(name => 8 + name.Length + 1);
+        var dataStart = 16 + directorySize;
+
+        using var stream = new FileStream(archivePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        Span<byte> header = stackalloc byte[16];
+        System.Text.Encoding.ASCII.GetBytes("BIGF", header[..4]);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(header[4..8], (uint)(dataStart + payloads.Sum(payload => payload.Length)));
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(header[8..12], (uint)entries.Count);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(header[12..16], (uint)dataStart);
+        stream.Write(header);
+
+        var offset = dataStart;
+        for (var i = 0; i < names.Count; i++)
+        {
+            Span<byte> entry = stackalloc byte[8];
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(entry[..4], (uint)offset);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(entry[4..8], (uint)payloads[i].Length);
+            stream.Write(entry);
+            stream.Write(names[i]);
+            stream.WriteByte(0);
+            offset += payloads[i].Length;
+        }
+
+        foreach (var payload in payloads)
+        {
+            stream.Write(payload);
+        }
     }
 }

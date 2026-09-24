@@ -3453,7 +3453,7 @@ public sealed partial class WndEditorViewModel(
 /// </summary>
 /// <param name="TargetGameRoot">The target game root directory.</param>
 /// <param name="IsZeroHour">Whether the installation is Zero Hour.</param>
-file sealed record AssetRoots(string TargetGameRoot, bool IsZeroHour)
+internal sealed record AssetRoots(string TargetGameRoot, bool IsZeroHour)
 {
     /// <summary>
     /// Gets the base root path.
