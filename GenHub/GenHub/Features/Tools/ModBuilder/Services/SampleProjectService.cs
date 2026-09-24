@@ -453,8 +453,7 @@ public class SampleProjectService(
 
     private static string GetSampleCacheDirectory()
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(localAppData, AppConstants.AppName, ModBuilderConstants.SampleCacheDirName);
+        return Path.Combine(AppDataPathHelper.GetDataRoot(), ModBuilderConstants.SampleCacheDirName);
     }
 
     private static async Task ExtractArchiveFileAsync(

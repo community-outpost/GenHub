@@ -36,8 +36,8 @@ public class ApplicationDataPathConventionTests
         ["GenHub/GenHub/Common/Services/AppConfiguration.cs"] = "Resolves the legacy roaming root the upgrade migration reads from.",
         ["GenHub/GenHub/Common/Services/UserSettingsService.cs"] = "Loads the settings file that stores the override; cannot depend on it.",
 
-        // Legacy action set marker migration from Roaming AppData into LocalAppData.
-        ["GenHub/GenHub.Core/Features/ActionSets/BaseActionSet.cs"] = "Migrates legacy fix markers from roaming AppData into LocalAppData.",
+        // Legacy roaming root for marker, backup and token migration; null while the data root is overridden.
+        ["GenHub/GenHub.Core/Helpers/AppDataPathHelper.cs"] = "Resolves the legacy roaming root that marker, backup and token migrations read from.",
 
         // Core-layer fallback, overridden at the composition root by ContentPipelineModule.
         ["GenHub/GenHub.Core/Services/Providers/ProviderDefinitionLoader.cs"] = "Default only; the DI registration supplies an override.",

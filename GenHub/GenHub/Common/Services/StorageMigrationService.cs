@@ -426,25 +426,12 @@ public class StorageMigrationService(
         }
 
         var configured = _configuredDataPathResolver?.Invoke();
-        if (string.IsNullOrWhiteSpace(configured))
-        {
-            configured = Environment.GetEnvironmentVariable(StorageMigrationConstants.AppDataPathEnvVar);
-        }
-
         if (!string.IsNullOrWhiteSpace(configured) && PathHelper.TrySanitizeLocalPath(configured, out var sanitized))
         {
             return sanitized;
         }
 
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (string.IsNullOrWhiteSpace(localAppData))
-        {
-            localAppData = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        }
-
-        return !string.IsNullOrWhiteSpace(localAppData)
-            ? Path.Combine(localAppData, AppConstants.AppName)
-            : Path.Combine(Path.GetTempPath(), AppConstants.AppName);
+        return AppDataPathHelper.GetDataRoot();
     }
 
     /// <summary>

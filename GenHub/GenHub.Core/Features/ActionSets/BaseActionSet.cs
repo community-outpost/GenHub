@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using System;
@@ -191,24 +192,21 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     /// Resolves the local marker file path for an action set, migrating any legacy roaming marker if present.
     /// </summary>
     /// <param name="markerFileName">The marker file name (e.g. "MyFix.done").</param>
-    /// <returns>The path to the marker file in LocalApplicationData.</returns>
+    /// <returns>The path to the marker file under the application data root.</returns>
     protected static string GetMarkerPath(string markerFileName)
     {
         var localDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName,
+            AppDataPathHelper.GetDataRoot(),
             ActionSetConstants.Paths.SubActionSetMarkers);
 
         var localPath = Path.Combine(localDir, markerFileName);
 
         try
         {
-            if (!File.Exists(localPath))
+            var legacyRoot = AppDataPathHelper.GetLegacyRoamingRoot();
+            if (legacyRoot != null && !File.Exists(localPath))
             {
-                var roamingDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    AppConstants.AppName,
-                    ActionSetConstants.Paths.SubActionSetMarkers);
+                var roamingDir = Path.Combine(legacyRoot, ActionSetConstants.Paths.SubActionSetMarkers);
                 var roamingPath = Path.Combine(roamingDir, markerFileName);
 
                 if (File.Exists(roamingPath))

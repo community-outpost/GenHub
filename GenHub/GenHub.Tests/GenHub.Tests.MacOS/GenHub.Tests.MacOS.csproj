@@ -32,6 +32,7 @@
   <ItemGroup>
     <Compile Include="..\Shared\CompositionRootAssertions.cs" Link="Shared\CompositionRootAssertions.cs" />
     <Compile Include="..\Shared\TemporaryApplicationEnvironment.cs" Link="Shared\TemporaryApplicationEnvironment.cs" />
+    <Compile Include="..\Shared\TestDataRootInitializer.cs" Link="Shared\TestDataRootInitializer.cs" />
   </ItemGroup>
 
 </Project>

@@ -359,10 +359,7 @@ public class ConfigurationProviderService(
             var appDataPath = GetApplicationDataPath();
             var defaultPath = !string.IsNullOrWhiteSpace(appDataPath)
                 ? Path.Combine(appDataPath, DirectoryNames.CasPool)
-                : Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    AppConstants.AppName,
-                    DirectoryNames.CasPool);
+                : Path.Combine(AppDataPathHelper.GetDataRoot(), DirectoryNames.CasPool);
 
             var defaultConfig = (CasConfiguration)casConfig.Clone();
             defaultConfig.CasRootPath = defaultPath;
@@ -375,10 +372,7 @@ public class ConfigurationProviderService(
     /// <inheritdoc />
     public string GetLogsPath()
     {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName,
-            DirectoryNames.Logs);
+        return Path.Combine(AppDataPathHelper.GetDataRoot(), DirectoryNames.Logs);
     }
 
     /// <inheritdoc />
@@ -573,6 +567,11 @@ public class ConfigurationProviderService(
 
     private void MigrateLegacyDataRoot()
     {
+        if (AppDataPathHelper.GetLegacyRoamingRoot() == null)
+        {
+            return;
+        }
+
         try
         {
             MigrateLegacyDataRoot(

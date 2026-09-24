@@ -226,17 +226,17 @@ public abstract class BasePackageDeploymentFix(
     {
         var key = ComputeInstallationKey(installation);
         var localDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName,
-            "Backups",
+            AppDataPathHelper.GetDataRoot(),
+            DirectoryNames.Backups,
             $"{Id}_{key}");
 
-        var roamingDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            AppConstants.AppName,
-            "Backups",
-            $"{Id}_{key}");
+        var legacyRoot = AppDataPathHelper.GetLegacyRoamingRoot();
+        if (legacyRoot == null)
+        {
+            return localDir;
+        }
 
+        var roamingDir = Path.Combine(legacyRoot, DirectoryNames.Backups, $"{Id}_{key}");
         return MigrateRoamingBackupDirectory(roamingDir, localDir);
     }
 

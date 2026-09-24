@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -289,9 +290,7 @@ public sealed class ContentArtworkService(
             var appDataPath = configurationProvider?.GetApplicationDataPath();
             if (string.IsNullOrWhiteSpace(appDataPath))
             {
-                appDataPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    AppConstants.AppName);
+                appDataPath = AppDataPathHelper.GetDataRoot();
             }
 
             return Path.Combine(appDataPath, ContentArtworkConstants.ArtworkDirectoryName);

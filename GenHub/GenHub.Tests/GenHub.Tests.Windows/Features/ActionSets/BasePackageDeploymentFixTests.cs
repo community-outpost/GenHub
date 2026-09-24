@@ -1,6 +1,7 @@
 using FluentAssertions;
 using GenHub.Core.Exceptions;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Windows.Features.ActionSets.Fixes;
@@ -43,6 +44,7 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
     /// </summary>
     public void Dispose()
     {
+        AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(null);
         try
         {
             if (Directory.Exists(_testDirectory))
@@ -58,6 +60,48 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         {
             // Ignored on test cleanup
         }
+    }
+
+    /// <summary>
+    /// Verifies backups and deployment markers resolve under the configured data root, never the user's real GenHub data.
+    /// </summary>
+    [Fact]
+    public void GetBackupDirectoryAndMarkerPath_ResolveUnderConfiguredDataRoot()
+    {
+        var fix = new TestPackageDeploymentFix(_loggerMock.Object, _httpClientFactoryMock.Object);
+        var installation = new GameInstallation(Path.Combine(_testDirectory, "GameInstall"), GameInstallationType.Steam);
+        var dataRoot = AppDataPathHelper.GetDataRoot();
+
+        PathHelper.IsPathWithinDirectory(dataRoot, fix.PublicGetBackupDirectory(installation)).Should().BeTrue();
+        PathHelper.IsPathWithinDirectory(dataRoot, fix.PublicGetMarkerPath(installation)).Should().BeTrue();
+        dataRoot.Should().StartWith(Path.GetTempPath());
+    }
+
+    /// <summary>
+    /// Verifies a legacy roaming backup directory is moved under the data root when a legacy root applies.
+    /// </summary>
+    [Fact]
+    public void GetBackupDirectory_WithLegacyRoot_MigratesLegacyBackups()
+    {
+        var fix = new TestPackageDeploymentFix(_loggerMock.Object, _httpClientFactoryMock.Object);
+        var installation = new GameInstallation(Path.Combine(_testDirectory, "GameInstall"), GameInstallationType.Steam);
+        var legacyRoot = Path.Combine(_testDirectory, "Roaming");
+        AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(legacyRoot);
+        var backupDir = fix.PublicGetBackupDirectory(installation);
+        var legacyBackupDir = Path.Combine(legacyRoot, "Backups", Path.GetFileName(backupDir));
+        if (Directory.Exists(backupDir))
+        {
+            Directory.Delete(backupDir, recursive: true);
+        }
+
+        Directory.CreateDirectory(legacyBackupDir);
+        File.WriteAllText(Path.Combine(legacyBackupDir, "original.big"), "legacy backup");
+
+        var migrated = fix.PublicGetBackupDirectory(installation);
+
+        migrated.Should().Be(backupDir);
+        File.ReadAllText(Path.Combine(migrated, "original.big")).Should().Be("legacy backup");
+        Directory.Exists(legacyBackupDir).Should().BeFalse();
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -132,9 +133,7 @@ public static class LoggingModule
             }
             else
             {
-                rootDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    AppConstants.AppName);
+                rootDir = AppDataPathHelper.GetDataRoot();
             }
 
             var logDir = Path.Combine(rootDir, DirectoryNames.Logs);
@@ -164,10 +163,7 @@ public static class LoggingModule
     {
         try
         {
-            var fallbackDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                DirectoryNames.Logs);
+            var fallbackDir = Path.Combine(AppDataPathHelper.GetDataRoot(), DirectoryNames.Logs);
             Directory.CreateDirectory(fallbackDir);
             var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             return Path.Combine(fallbackDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
@@ -261,39 +257,25 @@ public static class LoggingModule
         {
             var rootDir = StorageMigrationService.IsCustomInstallRoot()
                 ? StorageMigrationService.GetSourceRootDirectory()
-                : Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    AppConstants.AppName);
+                : AppDataPathHelper.GetDataRoot();
 
             return Path.Combine(rootDir, FileTypes.SettingsFileName);
         }
         catch (IOException)
         {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                FileTypes.SettingsFileName);
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
         }
         catch (UnauthorizedAccessException)
         {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                FileTypes.SettingsFileName);
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
         }
         catch (System.Security.SecurityException)
         {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                FileTypes.SettingsFileName);
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
         }
         catch (ArgumentException)
         {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                FileTypes.SettingsFileName);
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
         }
     }
 
