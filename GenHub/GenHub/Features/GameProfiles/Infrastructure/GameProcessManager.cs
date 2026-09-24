@@ -653,12 +653,13 @@ public class GameProcessManager(
     /// <summary>Bounds notification delivery so a missing callback cannot block future stops.</summary>
     /// <param name="notification">Completion of the managed exit notification.</param>
     /// <param name="processId">The process that has exited.</param>
+    /// <param name="timeProvider">The clock for the timeout; defaults to the system clock.</param>
     /// <returns>A task completing after notification delivery or its timeout.</returns>
-    internal async Task WaitForExitNotificationAsync(Task notification, int processId)
+    internal async Task WaitForExitNotificationAsync(Task notification, int processId, TimeProvider? timeProvider = null)
     {
         try
         {
-            await notification.WaitAsync(TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs));
+            await notification.WaitAsync(TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs), timeProvider ?? TimeProvider.System);
         }
         catch (TimeoutException ex)
         {

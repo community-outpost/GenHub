@@ -90,10 +90,29 @@ public class GameProcessManagerTests
     public async Task WaitForExitNotificationAsync_MissingNotification_ReturnsAfterTimeoutAsync()
     {
         var missing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var elapsed = System.Diagnostics.Stopwatch.StartNew();
-        await _processManager.WaitForExitNotificationAsync(missing.Task, 12345)
-            .WaitAsync(TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs + 5000));
-        Assert.True(elapsed.ElapsedMilliseconds >= ProcessConstants.TerminationExitNotificationTimeoutMs);
+        var clock = new Mock<TimeProvider>();
+        var timer = new Mock<ITimer>();
+        TimerCallback? timeoutCallback = null;
+        object? timeoutState = null;
+        clock.Setup(provider => provider.CreateTimer(
+                It.IsAny<TimerCallback>(),
+                It.IsAny<object?>(),
+                TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs),
+                Timeout.InfiniteTimeSpan))
+            .Callback<TimerCallback, object?, TimeSpan, TimeSpan>((callback, state, _, _) =>
+            {
+                timeoutCallback = callback;
+                timeoutState = state;
+            })
+            .Returns(timer.Object);
+
+        var waiting = _processManager.WaitForExitNotificationAsync(missing.Task, 12345, clock.Object);
+        Assert.NotNull(timeoutCallback);
+        Assert.False(waiting.IsCompleted);
+        timeoutCallback(timeoutState);
+        await waiting.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(missing.Task.IsCompleted);
+        timer.Verify(value => value.Dispose(), Times.Once);
     }
 
     /// <summary>A cancelled stop keeps monitoring and does not mask a later unexpected exit.</summary>
