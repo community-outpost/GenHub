@@ -31,6 +31,36 @@ public static class DownloadDefaults
     public const int MaxConcurrentDownloads = 3;
 
     /// <summary>
+    /// Minimum allowed concurrent downloads.
+    /// </summary>
+    public const int MinConcurrentDownloads = 1;
+
+    /// <summary>
+    /// Upper bound on concurrent file downloads for bulk delivery.
+    /// </summary>
+    public const int MaxDeliveryConcurrency = 8;
+
+    /// <summary>
+    /// SocketsHttpHandler connection timeout in seconds.
+    /// </summary>
+    public const int HttpConnectTimeoutSeconds = 30;
+
+    /// <summary>
+    /// SocketsHttpHandler pooled connection lifetime in minutes.
+    /// </summary>
+    public const int HttpPooledConnectionLifetimeMinutes = 5;
+
+    /// <summary>
+    /// SocketsHttpHandler pooled connection idle timeout in seconds.
+    /// </summary>
+    public const int HttpPooledConnectionIdleTimeoutSeconds = 60;
+
+    /// <summary>
+    /// SocketsHttpHandler maximum connections per server.
+    /// </summary>
+    public const int HttpMaxConnectionsPerServer = 16;
+
+    /// <summary>
     /// Default maximum retry attempts for failed downloads.
     /// </summary>
     public const int MaxRetryAttempts = 3;

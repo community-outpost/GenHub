@@ -23,6 +23,12 @@ public class DownloadService(
     IFileHashProvider hashProvider,
     IDownloadUrlValidator? urlValidator = null) : IDownloadService
 {
+    private sealed record DownloadConnection(
+        HttpResponseMessage Response,
+        bool IsResumed,
+        long ExistingBytes,
+        long TotalBytes);
+
     /// <inheritdoc/>
     public async Task<DownloadResult> DownloadFileAsync(
         DownloadConfiguration configuration,
@@ -76,9 +82,38 @@ public class DownloadService(
         if (rangeStart > 0 && request.Headers.Range == null)
         {
             request.Headers.Range = new RangeHeaderValue(rangeStart, null);
+            if (request.Headers.IfRange == null && configuration.Headers.TryGetValue("ETag", out var etag))
+            {
+                if (EntityTagHeaderValue.TryParse(etag, out var parsedEtag))
+                {
+                    request.Headers.IfRange = new RangeConditionHeaderValue(parsedEtag);
+                }
+            }
         }
 
         return request;
+    }
+
+    private static void ReportDownloadProgress(
+        IProgress<DownloadProgress> progress,
+        long downloadedBytes,
+        long existingBytes,
+        long totalBytes,
+        string fileName,
+        Uri url,
+        TimeSpan elapsed)
+    {
+        var elapsedSeconds = elapsed.TotalSeconds;
+        var sessionBytes = downloadedBytes - existingBytes;
+        var speed = elapsedSeconds > 0 ? (long)(sessionBytes / elapsedSeconds) : 0;
+
+        progress.Report(new DownloadProgress(
+            downloadedBytes,
+            totalBytes,
+            fileName,
+            url,
+            speed,
+            elapsed));
     }
 
     private async Task<HttpResponseMessage> SendRequestAsync(
@@ -108,7 +143,7 @@ public class DownloadService(
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
-        Exception? lastException;
+        Exception? lastException = null;
 
         for (int attempt = 1; attempt <= configuration.MaxRetryAttempts; attempt++)
         {
@@ -132,20 +167,16 @@ public class DownloadService(
                 {
                     logger.LogWarning(ex, "Download attempt {Attempt} failed for {Url}, retrying...", attempt, configuration.Url);
                 }
-                else
-                {
-                    var errorMessage = $"Download failed after {configuration.MaxRetryAttempts} attempts";
-                    if (lastException != null)
-                    {
-                        errorMessage += $": {lastException.Message}";
-                    }
-
-                    return DownloadResult.CreateFailure(errorMessage);
-                }
             }
         }
 
-        return DownloadResult.CreateFailure($"Download failed after {configuration.MaxRetryAttempts} attempts (unexpected error)");
+        var errorMessage = $"Download failed after {configuration.MaxRetryAttempts} attempts";
+        if (lastException != null)
+        {
+            errorMessage += $": {lastException.Message}";
+        }
+
+        return DownloadResult.CreateFailure(errorMessage);
     }
 
     private async Task<DownloadResult> PerformDownloadAsync(
@@ -153,133 +184,207 @@ public class DownloadService(
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var fileName = Path.GetFileName(configuration.DestinationPath);
-        var stopwatch = Stopwatch.StartNew();
-        var lastProgressReport = DateTime.UtcNow;
+        var destFileInfo = new FileInfo(configuration.DestinationPath);
+        var existingBytes = (configuration.EnableResumption && destFileInfo.Exists) ? destFileInfo.Length : 0L;
+
+        if (existingBytes > 0 && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
+        {
+            return DownloadResult.CreateSuccess(configuration.DestinationPath, existingBytes, TimeSpan.Zero, true);
+        }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(configuration.Timeout);
         var validator = urlValidator ?? new DownloadUrlValidator();
 
-        var destFileInfo = new FileInfo(configuration.DestinationPath);
-        var existingBytes = (configuration.EnableResumption && destFileInfo.Exists) ? destFileInfo.Length : 0L;
-
-        // If file already exists and hash verification passes, skip download immediately
-        if (existingBytes > 0 && !string.IsNullOrWhiteSpace(configuration.ExpectedHash))
+        var connection = await EstablishDownloadConnectionAsync(configuration, validator, existingBytes, cts);
+        using (connection.Response)
         {
-            var existingHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
-            if (string.Equals(existingHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase))
-            {
-                logger.LogInformation("File {FilePath} already exists and matches expected hash; skipping download", configuration.DestinationPath);
-                return DownloadResult.CreateSuccess(configuration.DestinationPath, existingBytes, TimeSpan.Zero, true);
-            }
+            var stopwatch = Stopwatch.StartNew();
+            var downloadedBytes = await StreamContentToFileAsync(
+                connection.Response,
+                configuration,
+                connection.IsResumed,
+                connection.ExistingBytes,
+                connection.TotalBytes,
+                progress,
+                stopwatch,
+                cts);
+
+            return await FinalizeDownloadAsync(configuration, downloadedBytes, stopwatch.Elapsed, cancellationToken);
         }
+    }
 
-        HttpResponseMessage response;
-        bool isResumed = false;
-        long totalBytes;
-        long downloadedBytes = 0;
-
+    private async Task<DownloadConnection> EstablishDownloadConnectionAsync(
+        DownloadConfiguration configuration,
+        IDownloadUrlValidator validator,
+        long existingBytes,
+        CancellationTokenSource cts)
+    {
         if (existingBytes > 0)
         {
-            response = await SendRequestAsync(configuration, validator, existingBytes, cts.Token);
+            var resumedConnection = await TryEstablishResumedConnectionAsync(configuration, validator, existingBytes, cts);
+            if (resumedConnection != null)
+            {
+                return resumedConnection;
+            }
+
+            TryDeleteFile(configuration.DestinationPath);
+        }
+
+        var response = await SendRequestAsync(configuration, validator, 0, cts.Token);
+        try
+        {
+            response.EnsureSuccessStatusCode();
+            var totalBytes = response.Content.Headers.ContentLength ?? 0;
+            return new DownloadConnection(response, false, 0, totalBytes);
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
+    }
+
+    private async Task<DownloadConnection?> TryEstablishResumedConnectionAsync(
+        DownloadConfiguration configuration,
+        IDownloadUrlValidator validator,
+        long existingBytes,
+        CancellationTokenSource cts)
+    {
+        var response = await SendRequestAsync(configuration, validator, existingBytes, cts.Token);
+        try
+        {
             if (response.StatusCode == HttpStatusCode.PartialContent)
             {
-                isResumed = true;
-                downloadedBytes = existingBytes;
-                totalBytes = response.Content.Headers.ContentRange?.Length
-                    ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
+                var contentRange = response.Content.Headers.ContentRange;
+                if (contentRange?.From == null || contentRange.From.Value == existingBytes)
+                {
+                    var totalBytes = contentRange?.Length
+                        ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
+                    return new DownloadConnection(response, true, existingBytes, totalBytes);
+                }
+
+                logger.LogWarning("Range {Range} mismatch on {Url}; expected {Expected}. Restarting download.", contentRange.From, configuration.Url, existingBytes);
             }
             else if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
             {
-                response.Dispose();
                 logger.LogWarning("Range {Range} not satisfiable for {Url}. Restarting download from scratch.", existingBytes, configuration.Url);
-                try
-                {
-                    File.Delete(configuration.DestinationPath);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to delete file {FilePath} on 416 retry", configuration.DestinationPath);
-                }
-
-                existingBytes = 0;
-                response = await SendRequestAsync(configuration, validator, 0, cts.Token);
-                response.EnsureSuccessStatusCode();
-                totalBytes = response.Content.Headers.ContentLength ?? 0;
+            }
+            else if (response.IsSuccessStatusCode)
+            {
+                // Server responded 200 OK: ignored Range header and sent full content
+                var totalBytes = response.Content.Headers.ContentLength ?? 0;
+                return new DownloadConnection(response, false, 0, totalBytes);
             }
             else
             {
                 response.EnsureSuccessStatusCode();
-                totalBytes = response.Content.Headers.ContentLength ?? 0;
-                existingBytes = 0;
             }
         }
-        else
+        catch
         {
-            response = await SendRequestAsync(configuration, validator, 0, cts.Token);
-            response.EnsureSuccessStatusCode();
-            totalBytes = response.Content.Headers.ContentLength ?? 0;
+            response.Dispose();
+            throw;
         }
 
+        response.Dispose();
+        return null;
+    }
+
+    private async Task<long> StreamContentToFileAsync(
+        HttpResponseMessage response,
+        DownloadConfiguration configuration,
+        bool isResumed,
+        long existingBytes,
+        long totalBytes,
+        IProgress<DownloadProgress>? progress,
+        Stopwatch stopwatch,
+        CancellationTokenSource cts)
+    {
+        var fileName = Path.GetFileName(configuration.DestinationPath);
         var fileMode = isResumed ? FileMode.Append : FileMode.Create;
         var buffer = new byte[configuration.BufferSize];
+        var downloadedBytes = existingBytes;
+        var lastProgressReport = DateTime.UtcNow;
 
-        using (response)
-        await using (var contentStream = await response.Content.ReadAsStreamAsync(cts.Token))
-        await using (var fileStream = new FileStream(configuration.DestinationPath, fileMode, FileAccess.Write, FileShare.None, configuration.BufferSize, useAsync: true))
+        await using var contentStream = await response.Content.ReadAsStreamAsync(cts.Token);
+        await using var fileStream = new FileStream(configuration.DestinationPath, fileMode, FileAccess.Write, FileShare.None, configuration.BufferSize, useAsync: true);
+
+        int bytesRead;
+        while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token)) > 0)
         {
-            int bytesRead;
-            while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token)) > 0)
+            cts.CancelAfter(configuration.Timeout);
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cts.Token);
+            downloadedBytes += bytesRead;
+
+            var now = DateTime.UtcNow;
+            if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || downloadedBytes == totalBytes))
             {
-                // Reset inactivity / stall timeout countdown timer because data is actively arriving
-                cts.CancelAfter(configuration.Timeout);
-
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cts.Token);
-                downloadedBytes += bytesRead;
-
-                // Report progress at specified intervals
-                var now = DateTime.UtcNow;
-                if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || downloadedBytes == totalBytes))
-                {
-                    var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
-                    var sessionBytes = downloadedBytes - existingBytes;
-                    var speed = elapsedSeconds > 0 ? (long)(sessionBytes / elapsedSeconds) : 0;
-
-                    progress.Report(new DownloadProgress(
-                        downloadedBytes,
-                        totalBytes,
-                        fileName,
-                        configuration.Url,
-                        speed,
-                        stopwatch.Elapsed));
-
-                    lastProgressReport = now;
-                }
+                ReportDownloadProgress(progress, downloadedBytes, existingBytes, totalBytes, fileName, configuration.Url, stopwatch.Elapsed);
+                lastProgressReport = now;
             }
         }
 
-        // Hash verification if required
-        bool hashVerified = false;
-        if (!string.IsNullOrWhiteSpace(configuration.ExpectedHash))
-        {
-            var actualHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
-            hashVerified = string.Equals(actualHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase);
-            if (!hashVerified)
-            {
-                try
-                {
-                    File.Delete(configuration.DestinationPath);
-                }
-                catch
-                {
-                    logger.LogWarning("Failed to delete corrupted file: {FilePath}", configuration.DestinationPath);
-                }
+        return downloadedBytes;
+    }
 
-                return DownloadResult.CreateFailure($"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}", downloadedBytes, stopwatch.Elapsed);
-            }
+    private async Task<DownloadResult> FinalizeDownloadAsync(
+        DownloadConfiguration configuration,
+        long downloadedBytes,
+        TimeSpan elapsed,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(configuration.ExpectedHash))
+        {
+            return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, false);
         }
 
-        return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, stopwatch.Elapsed, hashVerified);
+        var actualHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
+        var hashVerified = string.Equals(actualHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase);
+        if (!hashVerified)
+        {
+            TryDeleteFile(configuration.DestinationPath);
+
+            return DownloadResult.CreateFailure(
+                $"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}",
+                downloadedBytes,
+                elapsed);
+        }
+
+        return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, true);
+    }
+
+    private async Task<bool> TrySkipAlreadyCompletedDownloadAsync(
+        DownloadConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(configuration.ExpectedHash))
+        {
+            return false;
+        }
+
+        var existingHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
+        if (string.Equals(existingHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation("File {FilePath} already exists and matches expected hash; skipping download", configuration.DestinationPath);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete file {FilePath}", path);
+        }
     }
 }

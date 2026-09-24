@@ -37,6 +37,78 @@ public class GenLauncherDeliverer(
     IConfigurationProviderService? configurationProvider = null)
     : IContentDeliverer
 {
+    private sealed class ConcurrentDownloadState(
+        int totalFiles,
+        long totalBytes,
+        IProgress<ContentAcquisitionProgress>? progress)
+    {
+        private readonly long[] fileDownloadedBytes = new long[totalFiles];
+        private readonly Stopwatch overallStopwatch = Stopwatch.StartNew();
+        private int completedFiles;
+        private string? firstError;
+
+        public string? FirstError => Volatile.Read(ref firstError);
+
+        public void RecordFileFailure(string error)
+        {
+            Interlocked.CompareExchange(ref firstError, error, null);
+        }
+
+        public void RecordFileSuccess(int index, long fileSize)
+        {
+            if (fileSize > 0)
+            {
+                Volatile.Write(ref fileDownloadedBytes[index], fileSize);
+            }
+
+            Interlocked.Increment(ref completedFiles);
+        }
+
+        public IProgress<DownloadProgress>? CreateFileProgress(int index, ManifestFile file)
+        {
+            if (progress == null)
+            {
+                return null;
+            }
+
+            return new Progress<DownloadProgress>(p => ReportProgress(index, file, p.BytesReceived));
+        }
+
+        private void ReportProgress(int index, ManifestFile file, long bytesReceived)
+        {
+            Volatile.Write(ref fileDownloadedBytes[index], bytesReceived);
+
+            long currentTotalBytes = 0;
+            for (int j = 0; j < totalFiles; j++)
+            {
+                currentTotalBytes += Volatile.Read(ref fileDownloadedBytes[j]);
+            }
+
+            var doneCount = Volatile.Read(ref completedFiles);
+            double progressPct = totalBytes > 0
+                ? Math.Min(80.0, Math.Max(0.0, (double)currentTotalBytes / totalBytes * 80.0))
+                : Math.Min(80.0, Math.Max(0.0, (double)doneCount / totalFiles * 80.0));
+
+            var elapsedSec = overallStopwatch.Elapsed.TotalSeconds;
+            long speed = elapsedSec > 0 ? (long)(currentTotalBytes / elapsedSec) : 0;
+            var speedStr = speed > 0 ? $" at {ByteFormatHelper.FormatBytes(speed)}/s" : string.Empty;
+            var bytesStr = totalBytes > 0
+                ? $" [{ByteFormatHelper.FormatBytes(currentTotalBytes)} / {ByteFormatHelper.FormatBytes(totalBytes)}]"
+                : string.Empty;
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = progressPct,
+                CurrentOperation = $"Downloading {file.RelativePath} ({doneCount}/{totalFiles}){bytesStr}{speedStr}",
+                BytesProcessed = currentTotalBytes,
+                TotalBytes = totalBytes,
+                FilesProcessed = doneCount,
+                TotalFiles = totalFiles,
+            });
+        }
+    }
+
     /// <inheritdoc/>
     public string SourceName => PublisherTypeConstants.GenLauncher;
 
@@ -180,142 +252,133 @@ public class GenLauncherDeliverer(
         var totalBytes = files.Sum(f => Math.Max(f.Size, 0));
         logger.LogInformation("Beginning download of {TotalFiles} files ({TotalBytes} bytes)...", totalFiles, totalBytes);
 
-        var maxConcurrency = configurationProvider?.GetMaxConcurrentDownloads() ?? DownloadDefaults.MaxConcurrentDownloads;
-        maxConcurrency = Math.Clamp(maxConcurrency, 1, 8);
+        var configuredConcurrency = configurationProvider?.GetMaxConcurrentDownloads() ?? DownloadDefaults.MaxConcurrentDownloads;
+        var maxConcurrency = Math.Clamp(
+            configuredConcurrency,
+            DownloadDefaults.MinConcurrentDownloads,
+            DownloadDefaults.MaxDeliveryConcurrency);
 
         if (totalFiles <= 1 || maxConcurrency <= 1)
         {
-            for (var i = 0; i < totalFiles; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var file = files[i];
-
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = (i / (double)totalFiles) * 80,
-                    CurrentOperation = $"{file.RelativePath} ({i + 1}/{totalFiles})",
-                    FilesProcessed = i,
-                    TotalFiles = totalFiles,
-                });
-
-                var fileProgress = CreateFileProgress(progress, i, totalFiles, file.RelativePath);
-
-                var result = await DownloadSingleFileAsync(file, i, totalFiles, targetDirectory, fileProgress, cancellationToken).ConfigureAwait(false);
-                if (!result.Success)
-                {
-                    return result;
-                }
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
+            return await DownloadSequentiallyAsync(files, targetDirectory, progress, cancellationToken).ConfigureAwait(false);
         }
 
-        // Concurrent multi-file download bounded by configured MaxConcurrentDownloads
+        return await DownloadConcurrentlyAsync(files, targetDirectory, maxConcurrency, totalBytes, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<bool>> DownloadSequentiallyAsync(
+        List<ManifestFile> files,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var totalFiles = files.Count;
+        for (var i = 0; i < totalFiles; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var file = files[i];
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = (i / (double)totalFiles) * 80,
+                CurrentOperation = $"{file.RelativePath} ({i + 1}/{totalFiles})",
+                FilesProcessed = i,
+                TotalFiles = totalFiles,
+            });
+
+            var fileProgress = CreateFileProgress(progress, i, totalFiles, file.RelativePath);
+
+            var result = await DownloadSingleFileAsync(file, i, totalFiles, targetDirectory, fileProgress, cancellationToken).ConfigureAwait(false);
+            if (!result.Success)
+            {
+                return result;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> DownloadConcurrentlyAsync(
+        List<ManifestFile> files,
+        string targetDirectory,
+        int maxConcurrency,
+        long totalBytes,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
-        var fileDownloadedBytes = new long[totalFiles];
-        int completedFiles = 0;
-        var overallStopwatch = Stopwatch.StartNew();
-        string? firstError = null;
+        var state = new ConcurrentDownloadState(files.Count, totalBytes, progress);
 
-        var tasks = files.Select((file, index) => Task.Run(
-            async () =>
-            {
-                await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-                try
-                {
-                    linkedCts.Token.ThrowIfCancellationRequested();
-
-                    var fileProgress = progress == null ? null : new Progress<DownloadProgress>(p =>
-                    {
-                        Volatile.Write(ref fileDownloadedBytes[index], p.BytesReceived);
-
-                        long currentTotalBytes = 0;
-                        for (int j = 0; j < totalFiles; j++)
-                        {
-                            currentTotalBytes += Volatile.Read(ref fileDownloadedBytes[j]);
-                        }
-
-                        var doneCount = Volatile.Read(ref completedFiles);
-                        double progressPct;
-                        if (totalBytes > 0)
-                        {
-                            progressPct = Math.Min(80.0, Math.Max(0.0, (double)currentTotalBytes / totalBytes * 80.0));
-                        }
-                        else
-                        {
-                            progressPct = Math.Min(80.0, Math.Max(0.0, (double)doneCount / totalFiles * 80.0));
-                        }
-
-                        var elapsedSec = overallStopwatch.Elapsed.TotalSeconds;
-                        long speed = elapsedSec > 0 ? (long)(currentTotalBytes / elapsedSec) : 0;
-                        var speedStr = speed > 0 ? $" at {ByteFormatHelper.FormatBytes(speed)}/s" : string.Empty;
-                        var bytesStr = totalBytes > 0
-                            ? $" [{ByteFormatHelper.FormatBytes(currentTotalBytes)} / {ByteFormatHelper.FormatBytes(totalBytes)}]"
-                            : string.Empty;
-
-                        progress.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.Downloading,
-                            ProgressPercentage = progressPct,
-                            CurrentOperation = $"Downloading {file.RelativePath} ({doneCount}/{totalFiles}){bytesStr}{speedStr}",
-                            BytesProcessed = currentTotalBytes,
-                            TotalBytes = totalBytes,
-                            FilesProcessed = doneCount,
-                            TotalFiles = totalFiles,
-                        });
-                    });
-
-                    var result = await DownloadSingleFileAsync(file, index, totalFiles, targetDirectory, fileProgress, linkedCts.Token).ConfigureAwait(false);
-                    if (!result.Success)
-                    {
-                        Interlocked.CompareExchange(ref firstError, result.FirstError ?? $"Failed to download {file.RelativePath}", null);
-                        linkedCts.Cancel();
-                        return;
-                    }
-
-                    if (file.Size > 0)
-                    {
-                        Volatile.Write(ref fileDownloadedBytes[index], file.Size);
-                    }
-
-                    Interlocked.Increment(ref completedFiles);
-                }
-                catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
-                {
-                    // Handled via firstError or cancellationToken
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Unexpected error downloading {File}", file.RelativePath);
-                    Interlocked.CompareExchange(ref firstError, $"Error downloading {file.RelativePath}: {ex.Message}", null);
-                    linkedCts.Cancel();
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            },
-            linkedCts.Token)).ToList();
+        var tasks = files.Select((file, index) => RunConcurrentFileDownloadAsync(
+            file,
+            index,
+            files.Count,
+            targetDirectory,
+            state,
+            semaphore,
+            linkedCts)).ToList();
 
         try
         {
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && firstError != null)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && state.FirstError != null)
         {
             // Expected when a download task fails and cancels linkedCts
         }
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (firstError != null)
+        if (state.FirstError != null)
         {
-            return OperationResult<bool>.CreateFailure(firstError);
+            return OperationResult<bool>.CreateFailure(state.FirstError);
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task RunConcurrentFileDownloadAsync(
+        ManifestFile file,
+        int index,
+        int totalFiles,
+        string targetDirectory,
+        ConcurrentDownloadState state,
+        SemaphoreSlim semaphore,
+        CancellationTokenSource linkedCts)
+    {
+        await Task.Yield();
+        await semaphore.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        try
+        {
+            linkedCts.Token.ThrowIfCancellationRequested();
+
+            var fileProgress = state.CreateFileProgress(index, file);
+            var result = await DownloadSingleFileAsync(file, index, totalFiles, targetDirectory, fileProgress, linkedCts.Token).ConfigureAwait(false);
+            if (!result.Success)
+            {
+                state.RecordFileFailure(result.FirstError ?? $"Failed to download {file.RelativePath}");
+                await linkedCts.CancelAsync().ConfigureAwait(false);
+                return;
+            }
+
+            state.RecordFileSuccess(index, file.Size);
+        }
+        catch (OperationCanceledException) when (linkedCts.IsCancellationRequested)
+        {
+            // Handled via firstError or cancellationToken
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error downloading {File}", file.RelativePath);
+            state.RecordFileFailure($"Error downloading {file.RelativePath}: {ex.Message}");
+            await linkedCts.CancelAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     private async Task<OperationResult<bool>> DownloadSingleFileAsync(

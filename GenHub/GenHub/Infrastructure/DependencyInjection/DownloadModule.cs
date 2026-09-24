@@ -43,11 +43,11 @@ public static class DownloadModule
             var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
             var handler = new SocketsHttpHandler
             {
-                ConnectTimeout = TimeSpan.FromSeconds(30),
-                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-                PooledConnectionIdleTimeout = TimeSpan.FromSeconds(60),
+                ConnectTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(DownloadDefaults.HttpPooledConnectionLifetimeMinutes),
+                PooledConnectionIdleTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpPooledConnectionIdleTimeoutSeconds),
                 EnableMultipleHttp2Connections = true,
-                MaxConnectionsPerServer = 16,
+                MaxConnectionsPerServer = DownloadDefaults.HttpMaxConnectionsPerServer,
             };
             var client = new HttpClient(handler, disposeHandler: true);
             ConfigureDownloadClient(client, configProvider);
@@ -60,7 +60,7 @@ public static class DownloadModule
             (serviceProvider, client) =>
             {
                 var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
-                ConfigureDownloadClient(client, configProvider);
+                ConfigureNamedClient(client, configProvider);
             })
             .ConfigurePrimaryHttpMessageHandler(() => ImageCacheService.CreateSsrfSafeSocketsHttpHandler());
 
@@ -70,7 +70,7 @@ public static class DownloadModule
             (serviceProvider, client) =>
             {
                 var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
-                ConfigureDownloadClient(client, configProvider);
+                ConfigureNamedClient(client, configProvider);
             });
 
         return services;
@@ -87,5 +87,14 @@ public static class DownloadModule
         // and per-read inactivity timeouts are managed via SocketsHttpHandler.ConnectTimeout
         // and CancellationTokenSource inside DownloadService.
         client.Timeout = Timeout.InfiniteTimeSpan;
+    }
+
+    private static void ConfigureNamedClient(HttpClient client, IConfigurationProviderService configProvider)
+    {
+        var userAgent = configProvider.GetDownloadUserAgent();
+        var timeoutSeconds = configProvider.GetDownloadTimeoutSeconds();
+
+        client.DefaultRequestHeaders.Add("User-Agent", userAgent ?? ApiConstants.DefaultUserAgent);
+        client.Timeout = TimeSpan.FromSeconds(timeoutSeconds > 0 ? timeoutSeconds : DownloadDefaults.TimeoutSeconds);
     }
 }
