@@ -11,6 +11,7 @@
 !.claude/
 !.pr_agent.toml
 !.sonarcloud.properties
+!.macroscope/
 
 *.suo
 *.user
