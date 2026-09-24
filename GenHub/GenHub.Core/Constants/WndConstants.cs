@@ -617,6 +617,9 @@ public static class WndConstants
         /// <summary>JPEG texture extension.</summary>
         public const string TextureExtensionJpg = ".jpg";
 
+        /// <summary>JPEG texture extension alternate spelling.</summary>
+        public const string TextureExtensionJpeg = ".jpeg";
+
         /// <summary>Portable Network Graphics texture extension, used by some mods.</summary>
         public const string TextureExtensionPng = ".png";
 
@@ -624,7 +627,7 @@ public static class WndConstants
         public const string TextureExtensionBmp = ".bmp";
 
         /// <summary>Texture page extensions probed in order.</summary>
-        public static readonly string[] TextureExtensions = [TextureExtensionDds, TextureExtensionTga, TextureExtensionJpg, TextureExtensionPng, TextureExtensionBmp];
+        public static readonly string[] TextureExtensions = [TextureExtensionDds, TextureExtensionTga, TextureExtensionJpg, TextureExtensionJpeg, TextureExtensionPng, TextureExtensionBmp];
 
         /// <summary>Language folders probed for localized texture pages, in order.</summary>
         public static readonly string[] TextureLanguages = ["english", "german", "french", "spanish", "italian", "russian", "polish", "brazilian", "japanese", "korean", "chinese"];
@@ -780,7 +783,15 @@ public static class WndConstants
         public const string FallbackMappedName = "ImportedTexture";
 
         /// <summary>Source extensions accepted by the texture importer.</summary>
-        public static readonly IReadOnlyList<string> SourceExtensions = new[] { ".png", ".tga", ".dds", ".jpg", ".jpeg", ".bmp" };
+        public static readonly IReadOnlyList<string> SourceExtensions =
+        [
+            MappedImages.TextureExtensionPng,
+            MappedImages.TextureExtensionTga,
+            MappedImages.TextureExtensionDds,
+            MappedImages.TextureExtensionJpg,
+            MappedImages.TextureExtensionJpeg,
+            MappedImages.TextureExtensionBmp,
+        ];
     }
 
     /// <summary>
@@ -805,13 +816,13 @@ public static class WndConstants
         /// <summary>Challenge personas INI path in game data.</summary>
         public const string ChallengeModeIniPath = "Data/INI/ChallengeMode.ini";
 
-        /// <summary>Localized challenge personas INI fallback path.</summary>
+        /// <summary>GenHub convenience probe path for localized challenge personas INI.</summary>
         public const string ChallengeModeEnglishIniPath = "Data/English/INI/ChallengeMode.ini";
 
         /// <summary>Player templates INI path in game data.</summary>
         public const string PlayerTemplateIniPath = "Data/INI/PlayerTemplate.ini";
 
-        /// <summary>Localized player templates INI fallback path.</summary>
+        /// <summary>GenHub convenience probe path for localized player templates INI.</summary>
         public const string PlayerTemplateEnglishIniPath = "Data/English/INI/PlayerTemplate.ini";
 
         /// <summary>Persona block tag prefix (suffixed with the persona index).</summary>
@@ -958,6 +969,15 @@ public static class WndConstants
 
         /// <summary>Opacity for windows carrying the hidden flag.</summary>
         public const double HiddenOpacity = 0.35;
+
+        /// <summary>Maximum dimension in pixels for tiny marker controls.</summary>
+        public const int TinyMarkerMaxDimension = 30;
+
+        /// <summary>Maximum bonus score awarded to mapped images matching texture size hints.</summary>
+        public const int MaxTextureSizeScoreBonus = 4096;
+
+        /// <summary>Maximum width or height in pixels permitted for imported textures.</summary>
+        public const int MaxImportedTextureDimension = 8192;
     }
 
     /// <summary>
@@ -1013,6 +1033,12 @@ public static class WndConstants
 
         /// <summary>Override key name for right HUD image.</summary>
         public const string RightHUDKey = "RightHUD";
+
+        /// <summary>Legacy internal control bar root token.</summary>
+        public const string MunkeeToken = ":Munkee";
+
+        /// <summary>Standard control bar parent window name.</summary>
+        public const string ControlBarParentName = "ControlBarParent";
 
         /// <summary>Override key name for options button image.</summary>
         public const string ButtonOptionsKey = "ButtonOptions";

@@ -15,7 +15,7 @@ public interface IChallengeMedalService
     /// Resolves medallion images for challenge menu token positions.
     /// </summary>
     /// <param name="baseRoot">The primary game root directory.</param>
-    /// <param name="overrideRoot">Optional higher-priority root layered over the base.</param>
+    /// <param name="overrideRoot">Optional fallback root or secondary game directory.</param>
     /// <param name="projectDirectory">Optional mod project directory layered above game files.</param>
     /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
     /// <param name="isZeroHour">Whether the target game is Zero Hour.</param>

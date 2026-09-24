@@ -6,7 +6,6 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using System;
-using System.Windows.Input;
 
 namespace GenHub.Features.Tools.WndEditor.Views;
 
@@ -28,50 +27,6 @@ public partial class WndEditorView : UserControl
         InitializeComponent();
         Focusable = true;
         DataContextChanged += OnDataContextChanged;
-    }
-
-    /// <inheritdoc/>
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-        if (e.Handled || DataContext is not WndEditorViewModel viewModel)
-        {
-            return;
-        }
-
-        if (e.Source is TextBox)
-        {
-            return;
-        }
-
-        if ((e.KeyModifiers & KeyModifiers.Control) == 0)
-        {
-            return;
-        }
-
-        HandleUndoRedoKey(viewModel, e);
-    }
-
-    private static void HandleUndoRedoKey(WndEditorViewModel viewModel, KeyEventArgs e)
-    {
-        var isShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
-        if (e.Key == Key.Z && !isShift)
-        {
-            TryExecuteCommand(viewModel.UndoCommand, e);
-        }
-        else if (e.Key == Key.Z || e.Key == Key.Y)
-        {
-            TryExecuteCommand(viewModel.RedoCommand, e);
-        }
-    }
-
-    private static void TryExecuteCommand(ICommand command, KeyEventArgs e)
-    {
-        if (command.CanExecute(null))
-        {
-            command.Execute(null);
-            e.Handled = true;
-        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)

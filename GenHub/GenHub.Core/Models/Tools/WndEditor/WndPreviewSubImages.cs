@@ -20,7 +20,10 @@ public sealed record WndPreviewSubImages(
     /// <summary>
     /// Gets a value indicating whether the scrollbar track has all three vertical pieces.
     /// </summary>
-    public bool HasScrollTrack => ScrollTrackTop != null && ScrollTrackCenter != null && ScrollTrackBottom != null;
+    public bool HasScrollTrack =>
+        !string.IsNullOrWhiteSpace(ScrollTrackTop)
+        && !string.IsNullOrWhiteSpace(ScrollTrackCenter)
+        && !string.IsNullOrWhiteSpace(ScrollTrackBottom);
 
     /// <summary>
     /// Gets the distinct mapped image names referenced by these sub-images.

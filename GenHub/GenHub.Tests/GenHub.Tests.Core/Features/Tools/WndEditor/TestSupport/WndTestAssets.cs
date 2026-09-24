@@ -105,14 +105,16 @@ internal static class WndTestAssets
     }
 
     /// <summary>
-    /// Creates a 1x1 solid-color PNG for texture fixtures.
+    /// Creates a solid-color PNG for texture fixtures with specified dimensions.
     /// </summary>
     /// <param name="color">The solid color.</param>
+    /// <param name="width">The image width.</param>
+    /// <param name="height">The image height.</param>
     /// <returns>The PNG bytes.</returns>
-    internal static byte[] CreateSolidPng(MagickColor color)
+    internal static byte[] CreateSolidPng(MagickColor color, uint width = 1, uint height = 1)
     {
         ArgumentNullException.ThrowIfNull(color);
-        using var image = new MagickImage(color, 1, 1);
+        using var image = new MagickImage(color, width, height);
         return image.ToByteArray(MagickFormat.Png);
     }
 

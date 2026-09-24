@@ -1291,6 +1291,11 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
     private void CommitPositionProperty(string propertyName)
     {
         _ = propertyName;
+        if (!HasScreenRect)
+        {
+            return;
+        }
+
         CommitUnlessSuppressed(CommitPosition);
     }
 

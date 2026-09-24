@@ -219,7 +219,8 @@ public sealed class SageVirtualFileSystem
     }
 
     /// <summary>
-    /// Reads the byte contents of a file restricted to a priority tier band, so callers can
+    /// Reads the byte contents of a file restricted to a priority tier band, scanning from
+    /// <paramref name="maxTier"/> down to <paramref name="minTier"/>, so callers can
     /// prefer same-or-higher tier matches (e.g. a mod texture for a mod mapped image)
     /// before falling back to lower tiers.
     /// </summary>
@@ -315,9 +316,29 @@ public sealed class SageVirtualFileSystem
             return false;
         }
 
-        if (!_archiveEntries.TryGetValue(relativePath.Replace('/', '\\').ToLowerInvariant(), out var pair))
+        string normalizedRel = relativePath.Replace('/', '\\');
+        string fsRel = normalizedRel.Replace('\\', Path.DirectorySeparatorChar);
+        string lowerRel = normalizedRel.ToLowerInvariant();
+
+        if (!_archiveEntries.TryGetValue(lowerRel, out var pair))
         {
             return false;
+        }
+
+        // Loose files take precedence over archives. If a loose root or indexed mod loose file
+        // at equal or higher tier serves this path, the content does not originate from an archive.
+        for (int tier = (int)SageFileTier.LinkedAsset; tier >= (int)pair.Tier; tier--)
+        {
+            var currentTier = (SageFileTier)tier;
+            if (HasLooseRootAtTier(fsRel, currentTier))
+            {
+                return false;
+            }
+
+            if (_modLooseFiles.TryGetValue(lowerRel, out var modEntry) && modEntry.Tier == currentTier)
+            {
+                return false;
+            }
         }
 
         return _archiveMountOrder.TryGetValue(pair.Entry.ArchivePath, out order);
@@ -443,16 +464,27 @@ public sealed class SageVirtualFileSystem
             return root;
         }
 
-        var direct = Path.Combine(root, relativeDir.Replace('\\', Path.DirectorySeparatorChar));
-        if (Directory.Exists(direct))
+        string fullRoot = Path.GetFullPath(root);
+        string combined = Path.GetFullPath(Path.Combine(fullRoot, relativeDir.Replace('\\', Path.DirectorySeparatorChar)));
+        if (!combined.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
         {
-            return direct;
+            return null;
         }
 
-        string current = root;
+        if (Directory.Exists(combined))
+        {
+            return combined;
+        }
+
+        string current = fullRoot;
         var parts = relativeDir.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
         foreach (var part in parts)
         {
+            if (part == ".." || part == ".")
+            {
+                continue;
+            }
+
             if (!Directory.Exists(current))
             {
                 return null;
@@ -467,7 +499,7 @@ public sealed class SageVirtualFileSystem
             current = match;
         }
 
-        return Directory.Exists(current) ? current : null;
+        return Directory.Exists(current) && current.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase) ? current : null;
     }
 
     private static bool IsTierInBand(SageFileTier tier, SageFileTier? minTier, SageFileTier? maxTier)
@@ -492,8 +524,11 @@ public sealed class SageVirtualFileSystem
 
         if (candidate.Tier == currentBest.Value.Tier)
         {
-            // Same rule as AddArchive: later-sorted archives override earlier ones,
-            // so expansion archives (INIZH.big, ...) beat same-tier base archives.
+            // Deliberate GenHub preview design: later-sorted archives override earlier ones
+            // within the same tier so expansion archives (e.g. INIZH.big) override base archives
+            // (e.g. INI.big) when both are present in the same install directory. Note that this
+            // is a GenHub-specific preview precedence policy rather than the retail engine's
+            // init-time first-registered-wins BigFileSystem behavior.
             string candidateBaseName = Path.GetFileName(candidate.Entry.ArchivePath);
             string bestBaseName = Path.GetFileName(currentBest.Value.Entry.ArchivePath);
             return string.Compare(candidateBaseName, bestBaseName, StringComparison.OrdinalIgnoreCase) > 0;
@@ -568,13 +603,13 @@ public sealed class SageVirtualFileSystem
             foreach (var file in files)
             {
                 var name = Path.GetFileName(file).ToLowerInvariant();
-                if (!_modLooseFiles.TryGetValue(name, out var incName) || tier >= incName.Tier)
+                if (!_modLooseFiles.TryGetValue(name, out var incName) || tier > incName.Tier)
                 {
                     _modLooseFiles[name] = (file, tier);
                 }
 
                 var rel = Path.GetRelativePath(directory, file).Replace('/', '\\').ToLowerInvariant();
-                if (!_modLooseFiles.TryGetValue(rel, out var incRel) || tier >= incRel.Tier)
+                if (!_modLooseFiles.TryGetValue(rel, out var incRel) || tier > incRel.Tier)
                 {
                     _modLooseFiles[rel] = (file, tier);
                 }
@@ -742,10 +777,11 @@ public sealed class SageVirtualFileSystem
             }
             else if (tier == incumbent.Tier && overwriteSameTier)
             {
-                // Same-tier mounts resolve in mount order: every call site mounts
-                // archives in ascending-sorted order, so the later-sorted archive wins.
-                // This mirrors the engine, where expansion archives (INIZH.big,
-                // EnglishZH.big, ...) override same-path base archives (INI.big, ...).
+                // Deliberate GenHub preview design: same-tier mounts resolve with later-mounted-wins.
+                // Call sites mount archives in ascending-sorted order, allowing expansion archives
+                // (e.g., INIZH.big, EnglishZH.big) to override colliding paths from base archives
+                // (e.g., INI.big, English.big) in unified installs. This is a conscious GenHub preview
+                // deviation from the retail engine's init path (which uses overwrite=FALSE/first-registered-wins).
                 _archiveEntries[key] = (entry, tier);
             }
         }

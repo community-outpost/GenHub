@@ -70,6 +70,7 @@ public sealed partial class WndEditorViewModel(
     private readonly Stack<WndEditAction> _undoStack = new();
     private readonly Stack<WndEditAction> _redoStack = new();
     private readonly Dictionary<string, Bitmap> _composedBitmaps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<Guid, WndWindow> _windowParents = new();
     private readonly object _previewSync = new();
     private readonly object _linkedAssetsSync = new();
     private WndDocument? _document;
@@ -1228,26 +1229,36 @@ public sealed partial class WndEditorViewModel(
         }
 
         var imported = 0;
-        foreach (var file in files)
+        try
         {
-            var localPath = file.TryGetLocalPath();
-            if (string.IsNullOrEmpty(localPath))
+            foreach (var file in files)
             {
-                continue;
-            }
+                var localPath = file.TryGetLocalPath();
+                if (string.IsNullOrEmpty(localPath))
+                {
+                    continue;
+                }
 
-            var result = await textureImportService.ImportTextureAsync(localPath, projectDirectory, null, cancellationToken);
-            if (result.Success && result.Data != null)
-            {
-                imported++;
-                MissingImageNames.Remove(result.Data.MappedName);
+                var result = await textureImportService.ImportTextureAsync(localPath, projectDirectory, null, cancellationToken);
+                if (result.Success && result.Data != null)
+                {
+                    imported++;
+                    MissingImageNames.Remove(result.Data.MappedName);
+                }
+                else
+                {
+                    notificationService.ShowError(
+                        localizationService.GetString("Tools.WndEditor.Import.FailureTitle"),
+                        localizationService.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
+                        NotificationDurations.Long);
+                }
             }
-            else
+        }
+        finally
+        {
+            foreach (var file in files)
             {
-                notificationService.ShowError(
-                    localizationService.GetString("Tools.WndEditor.Import.FailureTitle"),
-                    localizationService.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
-                    NotificationDurations.Long);
+                file.Dispose();
             }
         }
 
@@ -1309,29 +1320,39 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var localPath = files[0].TryGetLocalPath();
-        if (string.IsNullOrEmpty(localPath))
+        try
         {
-            return;
-        }
+            var localPath = files[0].TryGetLocalPath();
+            if (string.IsNullOrEmpty(localPath))
+            {
+                return;
+            }
 
-        var result = await textureImportService.ImportTextureAsync(localPath, projectDirectory, mappedName, cancellationToken);
-        if (result.Success && result.Data != null)
-        {
-            notificationService.ShowSuccess(
-                localizationService.GetString("Tools.WndEditor.Import.SuccessTitle"),
-                localizationService.GetString("Tools.WndEditor.Import.SuccessMessage", 1, projectDirectory),
-                NotificationDurations.Medium);
-            MissingImageNames.Remove(result.Data.MappedName);
-            assetService.InvalidateCache();
-            RefreshAssetPreviews();
+            var result = await textureImportService.ImportTextureAsync(localPath, projectDirectory, mappedName, cancellationToken);
+            if (result.Success && result.Data != null)
+            {
+                notificationService.ShowSuccess(
+                    localizationService.GetString("Tools.WndEditor.Import.SuccessTitle"),
+                    localizationService.GetString("Tools.WndEditor.Import.SuccessMessage", 1, projectDirectory),
+                    NotificationDurations.Medium);
+                MissingImageNames.Remove(result.Data.MappedName);
+                assetService.InvalidateCache();
+                RefreshAssetPreviews();
+            }
+            else
+            {
+                notificationService.ShowError(
+                    localizationService.GetString("Tools.WndEditor.Import.FailureTitle"),
+                    localizationService.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
+                    NotificationDurations.Long);
+            }
         }
-        else
+        finally
         {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WndEditor.Import.FailureTitle"),
-                localizationService.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
-                NotificationDurations.Long);
+            foreach (var file in files)
+            {
+                file.Dispose();
+            }
         }
     }
 
@@ -2150,9 +2171,24 @@ public sealed partial class WndEditorViewModel(
         }
 
         RootNodes.Clear();
+        _windowParents.Clear();
         if (_document == null)
         {
             return;
+        }
+
+        void IndexParents(WndWindow parent)
+        {
+            foreach (var child in parent.Children)
+            {
+                _windowParents[child.Id] = parent;
+                IndexParents(child);
+            }
+        }
+
+        foreach (var window in _document.Windows)
+        {
+            IndexParents(window);
         }
 
         var filter = WindowsFilter.Trim();
@@ -2571,15 +2607,15 @@ public sealed partial class WndEditorViewModel(
 
     private bool HasHiddenAncestor(WndWindow window)
     {
-        var node = FindNode(window.Id)?.Parent;
-        while (node != null)
+        var current = window;
+        while (_windowParents.TryGetValue(current.Id, out var parent))
         {
-            if (WndPreviewPlanner.Plan(node.Window, _schemeOverrides, _runtimeArt).IsHidden)
+            if (WndPreviewPlanner.Plan(parent, _schemeOverrides, _runtimeArt).IsHidden)
             {
                 return true;
             }
 
-            node = node.Parent;
+            current = parent;
         }
 
         return false;
@@ -2597,6 +2633,10 @@ public sealed partial class WndEditorViewModel(
         item.ContentFontWeight = plan.FontBold ? FontWeight.Bold : FontWeight.Normal;
         item.ContentTextAlignment = plan.TextCentered ? TextAlignment.Center : TextAlignment.Left;
         item.ContentFontFamily = ResolveFontFamily(plan.FontName);
+
+        // Hidden windows are filtered out of the canvas entirely unless selected in the
+        // window tree. When a hidden window is selected, IsPreviewHidden remains true but
+        // CanvasOpacity renders it at a dimmed opacity so the author can inspect its layout.
         item.CanvasOpacity = hidden ? WndConstants.Preview.HiddenOpacity : 1.0;
         item.IsPreviewHidden = hidden;
         item.Image = ResolvePlanImage(plan, item);
@@ -2764,7 +2804,8 @@ public sealed partial class WndEditorViewModel(
         // Labels carrying a category prefix (GUI:, TOOLTIP:, ...) that miss the string table
         // are runtime-populated slots (challenge biographies, player names). The game never
         // shows the raw label, so the preview leaves them blank instead of leaking internals.
-        if (plan.Text.Contains(WndConstants.Syntax.CoordinateSeparator, StringComparison.Ordinal))
+        if (plan.Text.StartsWith("GUI:", StringComparison.OrdinalIgnoreCase) ||
+            plan.Text.StartsWith("TOOLTIP:", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -3131,7 +3172,7 @@ public sealed partial class WndEditorViewModel(
             : localizationService.GetString("Tools.WndEditor.Assets.MissingTooltip", FormatMissingNames(missing));
         if (logMissing && missing.Count > 0)
         {
-            logger.LogWarning(
+            logger.LogDebug(
                 "WND preview for {File} is missing {Missing} of {Total} images: {Names}",
                 FilePath ?? FilesDirectory ?? "unsaved document",
                 missing.Count,

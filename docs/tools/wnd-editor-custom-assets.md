@@ -37,7 +37,7 @@ Preview images: 16/16 (Expansion=14, BaseGame=2; ...)
 
 The fastest path is the editor's **Assets** tab (left sidebar): it lists every
 image the open `.wnd` references but cannot resolve, with an **Import**
-button per name. Picking a texture (`.png`, `.tga`, `.dds`, `.jpg`, `.bmp`)
+button per name. Picking a texture (`.png`, `.tga`, `.dds`, `.jpg`, `.jpeg`, `.bmp`)
 copies it into the mod project and registers a full-page mapped image under
 that name, then refreshes the preview. **Import Textures** imports several
 files at once, registering each under its file stem. Importing needs a project
@@ -66,10 +66,11 @@ End
    autocompletes over every mapped image the current asset roots know about;
    or edit the raw property text directly.
 
-When ModBuilder bundles the project, `Data/INI/**/*.ini` ships verbatim and
-`Art/Textures/**/*.tga` is converted to DXT5 `.dds`; both land in the release
-archive at game-relative paths, so the game resolves exactly what the editor
-previewed. Hand-authored definitions in the same folders keep working: the
+When ModBuilder bundles the project, `Data/INI/**/*.ini` is optimized
+(comments stripped and line endings normalized via `OptimizeIniFileAsync`)
+while preserving semantics, and `Art/Textures/**/*.tga` is converted to DXT5
+`.dds`; both land in the release archive at game-relative paths, so the game
+resolves exactly what the editor previewed. Hand-authored definitions in the same folders keep working: the
 editor merges them at mod priority with no import step required.
 
 ## Notes and limits

@@ -44,10 +44,17 @@ public static class WndGameFileSystem
 
         if (!string.IsNullOrWhiteSpace(projectDirectory))
         {
-            var directories = projectDirectory.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var dir in directories.Where(Directory.Exists))
+            var directories = SplitProjectDirectories(projectDirectory);
+            foreach (var dir in directories)
             {
-                LayerProjectDirectory(fileSystem, dir, logger);
+                if (Directory.Exists(dir))
+                {
+                    LayerProjectDirectory(fileSystem, dir, logger);
+                }
+                else
+                {
+                    logger.LogWarning("Project directory '{Path}' does not exist and was skipped", dir);
+                }
             }
         }
 
@@ -79,7 +86,7 @@ public static class WndGameFileSystem
 
         if (!string.IsNullOrWhiteSpace(projectDirectory))
         {
-            var directories = projectDirectory.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var directories = SplitProjectDirectories(projectDirectory);
             foreach (var dir in directories)
             {
                 sb.Append(dir).Append('|');
@@ -103,6 +110,20 @@ public static class WndGameFileSystem
                         var info = new FileInfo(file);
                         sb.Append(':').Append(info.Length).Append(':').Append(info.LastWriteTimeUtc.Ticks);
                     }
+                    else if (Directory.Exists(file))
+                    {
+                        var dirInfo = new DirectoryInfo(file);
+                        long latestTicks = dirInfo.LastWriteTimeUtc.Ticks;
+                        foreach (var f in dirInfo.EnumerateFiles("*", SearchOption.AllDirectories))
+                        {
+                            if (f.LastWriteTimeUtc.Ticks > latestTicks)
+                            {
+                                latestTicks = f.LastWriteTimeUtc.Ticks;
+                            }
+                        }
+
+                        sb.Append(":DIR:").Append(latestTicks);
+                    }
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                 {
@@ -114,6 +135,21 @@ public static class WndGameFileSystem
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Splits a semicolon-delimited list of project directories into distinct paths.
+    /// </summary>
+    /// <param name="projectDirectory">Semicolon-delimited directory string or null.</param>
+    /// <returns>Array of normalized directory strings.</returns>
+    public static string[] SplitProjectDirectories(string? projectDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(projectDirectory))
+        {
+            return Array.Empty<string>();
+        }
+
+        return projectDirectory.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     private static SageVirtualFileSystem CreateBaseFileSystem(

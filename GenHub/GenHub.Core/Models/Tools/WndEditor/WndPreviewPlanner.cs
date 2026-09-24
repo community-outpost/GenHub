@@ -363,7 +363,8 @@ public static class WndPreviewPlanner
     private static bool IsTinyMarker(WndWindow window)
     {
         return window.TryGetScreenRect(out var srect) && srect != null &&
-            (srect.BottomRightX - srect.UpperLeftX <= 30 || srect.BottomRightY - srect.UpperLeftY <= 30);
+            (srect.BottomRightX - srect.UpperLeftX <= WndConstants.Preview.TinyMarkerMaxDimension ||
+             srect.BottomRightY - srect.UpperLeftY <= WndConstants.Preview.TinyMarkerMaxDimension);
     }
 
     private static string? ResolveContextSingleImage(
@@ -382,7 +383,7 @@ public static class WndPreviewPlanner
         }
 
         var single = ResolveControlBarSingle(name, currentSingle, isTinyMarker, overrides);
-        if (string.IsNullOrWhiteSpace(single) && !isTinyMarker)
+        if (string.IsNullOrWhiteSpace(single) && !(isTinyMarker && IsBackgroundMarker(name)))
         {
             return ResolveSingleImageFallback(name, drawCallback, overrides);
         }
@@ -425,10 +426,10 @@ public static class WndPreviewPlanner
 
     private static bool IsControlBarParent(string name)
     {
-        return name.EndsWith(":Munkee", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "Munkee", StringComparison.OrdinalIgnoreCase) ||
-            name.EndsWith(":ControlBarParent", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "ControlBarParent", StringComparison.OrdinalIgnoreCase);
+        return name.EndsWith(WndConstants.ControlBarScheme.MunkeeToken, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, WndConstants.ControlBarScheme.MunkeeToken.TrimStart(':'), StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith(":" + WndConstants.ControlBarScheme.ControlBarParentName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, WndConstants.ControlBarScheme.ControlBarParentName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ResolveTextCentered(WndPreviewPlan plan, string drawCallback)

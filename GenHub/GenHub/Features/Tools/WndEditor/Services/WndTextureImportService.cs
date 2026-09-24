@@ -20,6 +20,8 @@ namespace GenHub.Features.Tools.WndEditor.Services;
 /// </summary>
 public sealed class WndTextureImportService(ILogger<WndTextureImportService> logger) : IWndTextureImportService
 {
+    private readonly SemaphoreSlim _upsertLock = new(1, 1);
+
     /// <inheritdoc />
     public async Task<OperationResult<WndTextureImportResult>> ImportTextureAsync(
         string sourceFilePath,
@@ -58,15 +60,42 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 WndConstants.AssetImport.MappedImagesRelativeDirectory,
                 WndConstants.AssetImport.ImportsFileName);
 
-            var (width, height) = await Task.Run(
-                () => WriteTexture(sourceFilePath, textureDirectory, texturePath, targetExtension, cancellationToken),
-                cancellationToken).ConfigureAwait(false);
-            UpsertDefinition(definitionsPath, name, textureFileName, width, height);
+            await _upsertLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var textureWritten = false;
+            try
+            {
+                var (width, height) = await Task.Run(
+                    () => WriteTexture(sourceFilePath, textureDirectory, texturePath, targetExtension, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+                textureWritten = true;
 
-            logger.LogInformation("Imported texture {Name} ({Width}x{Height}) to {Path}", name, width, height, texturePath);
-            return OperationResult<WndTextureImportResult>.CreateSuccess(
-                new WndTextureImportResult(name, textureFileName, width, height, texturePath, definitionsPath),
-                stopwatch.Elapsed);
+                UpsertDefinition(definitionsPath, name, textureFileName, width, height);
+
+                logger.LogInformation("Imported texture {Name} ({Width}x{Height}) to {Path}", name, width, height, texturePath);
+                return OperationResult<WndTextureImportResult>.CreateSuccess(
+                    new WndTextureImportResult(name, textureFileName, width, height, texturePath, definitionsPath),
+                    stopwatch.Elapsed);
+            }
+            catch
+            {
+                if (textureWritten && File.Exists(texturePath) && !string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(texturePath), StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        File.Delete(texturePath);
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        logger.LogDebug(cleanupEx, "Failed to clean up texture file {Path} after failed import", texturePath);
+                    }
+                }
+
+                throw;
+            }
+            finally
+            {
+                _upsertLock.Release();
+            }
         }
         catch (IOException ex)
         {
@@ -80,6 +109,13 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
             logger.LogWarning(ex, "Access denied importing texture {Source}", sourceFilePath);
             return OperationResult<WndTextureImportResult>.CreateFailure(
                 $"Access denied importing texture: {ex.Message}",
+                stopwatch.Elapsed);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Invalid texture format or dimensions for {Source}", sourceFilePath);
+            return OperationResult<WndTextureImportResult>.CreateFailure(
+                ex.Message,
                 stopwatch.Elapsed);
         }
         catch (MagickException ex)
@@ -212,6 +248,13 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
     {
         Directory.CreateDirectory(textureDirectory);
         cancellationToken.ThrowIfCancellationRequested();
+
+        var ping = new MagickImageInfo(sourceFilePath);
+        if (ping.Width > WndConstants.Preview.MaxImportedTextureDimension || ping.Height > WndConstants.Preview.MaxImportedTextureDimension)
+        {
+            throw new InvalidOperationException(
+                $"Texture dimensions ({ping.Width}x{ping.Height}) exceed maximum permitted dimension of {WndConstants.Preview.MaxImportedTextureDimension}px.");
+        }
 
         if (string.Equals(Path.GetExtension(sourceFilePath), targetExtension, StringComparison.OrdinalIgnoreCase)
             && !string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(texturePath), StringComparison.OrdinalIgnoreCase))

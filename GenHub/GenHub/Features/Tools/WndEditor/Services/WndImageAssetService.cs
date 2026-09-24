@@ -25,9 +25,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 {
     private const int MaxCachedIndexes = 8;
     private const int MaxCachedImages = 500;
-    private const int ArchiveRankWeight = 1000;
-    private const int MaxArchiveRankSteps = 89;
-    private const int LooseFileRank = 90000;
+    private const int ArchiveRankWeight = 5000;
+    private const int MaxArchiveRankSteps = 15;
+    private const int LooseFileRank = 80000;
     private const string DataPrefix = "Data\\";
     private const string ArtTexturesPrefix = @"Art\Textures\";
     private const string TexturesPrefix = @"Textures\";
@@ -88,13 +88,14 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         try
         {
             var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour, cancellationToken).ConfigureAwait(false);
-            var requests = CollectRequests(mappedImageNames, index);
-            var resolved = await Task.Run(() => DecodeRequests(mappedImageNames, requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (_imageCache.Count > MaxCachedImages)
             {
                 _imageCache.Clear();
                 _provenanceCache.Clear();
             }
+
+            var requests = CollectRequests(mappedImageNames, index);
+            var resolved = await Task.Run(() => DecodeRequests(mappedImageNames, requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
 
             foreach (var (name, png) in resolved)
             {
@@ -195,13 +196,12 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             handCreatedBonus = 10_000;
         }
 
-        var sizeBonus = size < 0 ? 0 : Math.Clamp(size, 0, 4096);
+        var sizeBonus = size < 0 ? 0 : Math.Clamp(size, 0, WndConstants.Preview.MaxTextureSizeScoreBonus);
 
-        // Later-mounted archives override earlier ones at the same tier (expansion
-        // archives sort after base archives), so definitions from later mounts win
-        // same-name ties. Loose files outrank every archive, matching the engine.
-        // The rank stays below the HandCreated bonus to preserve the established
-        // authoritative-definition preference.
+        // Deliberate GenHub preview ranking: higher archive mount order (e.g. INIZH.big mounted after INI.big)
+        // earns a higher rank so expansion definitions supersede base definitions within the same tier.
+        // ArchiveRankWeight (5,000) exceeds MaxTextureSizeScoreBonus (4,096), ensuring that archive mount order
+        // cannot be inverted by texture size hints. Loose file overrides (LooseFileRank) outrank archive definitions.
         var archiveRank = sourceOrder < 0 ? LooseFileRank : Math.Min(sourceOrder, MaxArchiveRankSteps) * ArchiveRankWeight;
 
         return tierBase + handCreatedBonus + archiveRank + sizeBonus;

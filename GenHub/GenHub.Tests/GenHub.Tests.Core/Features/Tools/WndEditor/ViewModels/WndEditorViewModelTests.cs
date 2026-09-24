@@ -1491,6 +1491,9 @@ public sealed class WndEditorViewModelTests : IDisposable
     public async Task ContentText_MapPreviewWithoutArt_ShowsPlaceholder()
     {
         // Arrange
+        const string sentinel = "Select Map";
+        _mockLocalizationService.Setup(l => l.GetString("Tools.WndEditor.Canvas.MapPreviewPlaceholder")).Returns(sentinel);
+
         var doc =
             "FILE_VERSION = 2;\n" +
             "WINDOW\n" +
@@ -1505,7 +1508,7 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Assert
         _viewModel.CanvasItems.Should().HaveCount(1);
-        _viewModel.CanvasItems[0].ContentText.Should().Be("Tools.WndEditor.Canvas.MapPreviewPlaceholder");
+        _viewModel.CanvasItems[0].ContentText.Should().Be(sentinel);
         _viewModel.CanvasItems[0].ContentTextAlignment.Should().Be(Avalonia.Media.TextAlignment.Center);
     }
 

@@ -25,7 +25,7 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
     private readonly ConcurrentDictionary<string, ChallengeMedals> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
-    public Task<OperationResult<ChallengeMedals>> GetMedalsAsync(
+    public async Task<OperationResult<ChallengeMedals>> GetMedalsAsync(
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
@@ -36,45 +36,59 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
         ArgumentNullException.ThrowIfNull(baseRoot);
 
         var stopwatch = Stopwatch.StartNew();
+        if (!isZeroHour)
+        {
+            return OperationResult<ChallengeMedals>.CreateSuccess(ChallengeMedals.Empty, stopwatch.Elapsed);
+        }
+
+        var key = WndGameFileSystem.BuildAssetCacheKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour);
+        if (_cache.TryGetValue(key, out var cached))
+        {
+            return OperationResult<ChallengeMedals>.CreateSuccess(cached, stopwatch.Elapsed);
+        }
+
         try
         {
-            if (!isZeroHour)
-            {
-                return Task.FromResult(OperationResult<ChallengeMedals>.CreateSuccess(ChallengeMedals.Empty, stopwatch.Elapsed));
-            }
+            var medals = await Task.Run(
+                () =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var fileSystem = WndGameFileSystem.Open(
+                        baseRoot,
+                        overrideRoot,
+                        projectDirectory,
+                        logger,
+                        additionalBigFiles,
+                        isZeroHour,
+                        cancellationToken);
+                    var challengeMode = ReadFirst(
+                        fileSystem,
+                        WndConstants.Challenge.ChallengeModeIniPath,
+                        WndConstants.Challenge.ChallengeModeEnglishIniPath);
+                    var templates = ReadFirst(
+                        fileSystem,
+                        WndConstants.Challenge.PlayerTemplateIniPath,
+                        WndConstants.Challenge.PlayerTemplateEnglishIniPath);
+                    return ResolveMedals(challengeMode, templates);
+                },
+                cancellationToken).ConfigureAwait(false);
 
-            var key = WndGameFileSystem.BuildAssetCacheKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour);
-            if (_cache.TryGetValue(key, out var cached))
-            {
-                return Task.FromResult(OperationResult<ChallengeMedals>.CreateSuccess(cached, stopwatch.Elapsed));
-            }
-
-            var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, additionalBigFiles, isZeroHour, cancellationToken);
-            var challengeMode = ReadFirst(
-                fileSystem,
-                WndConstants.Challenge.ChallengeModeIniPath,
-                WndConstants.Challenge.ChallengeModeEnglishIniPath);
-            var templates = ReadFirst(
-                fileSystem,
-                WndConstants.Challenge.PlayerTemplateIniPath,
-                WndConstants.Challenge.PlayerTemplateEnglishIniPath);
-            var medals = ResolveMedals(challengeMode, templates);
             _cache[key] = medals;
-            return Task.FromResult(OperationResult<ChallengeMedals>.CreateSuccess(medals, stopwatch.Elapsed));
+            return OperationResult<ChallengeMedals>.CreateSuccess(medals, stopwatch.Elapsed);
         }
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to load challenge medals from {Root}", baseRoot);
-            return Task.FromResult(OperationResult<ChallengeMedals>.CreateFailure(
+            return OperationResult<ChallengeMedals>.CreateFailure(
                 $"Failed to load challenge medals: {ex.Message}",
-                stopwatch.Elapsed));
+                stopwatch.Elapsed);
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Access denied loading challenge medals from {Root}", baseRoot);
-            return Task.FromResult(OperationResult<ChallengeMedals>.CreateFailure(
+            return OperationResult<ChallengeMedals>.CreateFailure(
                 $"Access denied loading challenge medals: {ex.Message}",
-                stopwatch.Elapsed));
+                stopwatch.Elapsed);
         }
     }
 
@@ -110,8 +124,8 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
                 continue;
             }
 
-            // An enabled persona without a known medallion shows an empty token,
-            // matching the engine (null image, still enabled and visible).
+            // For personas without a resolved medallion, GenHub leaves the .wnd static
+            // draw data in place without generating a runtime medallion override.
             if (persona.PlayerTemplate != null && medallions.TryGetValue(persona.PlayerTemplate, out var medal))
             {
                 medals[index] = medal;

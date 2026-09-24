@@ -393,7 +393,7 @@
     <!-- ==================================================================== -->
     <Color x:Key="OverlayScrimColor">#99000000</Color>
     <SolidColorBrush x:Key="OverlayScrimBrush" Color="{StaticResource OverlayScrimColor}" />
-    <Color x:Key="OverlayTranslucentColor">#0AFFFFFF</Color>
+    <Color x:Key="OverlayTranslucentColor">#08000000</Color>
     <SolidColorBrush x:Key="OverlayTranslucentBrush" Color="{StaticResource OverlayTranslucentColor}" />
     <BoxShadows x:Key="CardBoxShadow">0 4 12 0 #20000000</BoxShadows>
     <BoxShadows x:Key="DialogBoxShadow">0 8 24 0 #40000000</BoxShadows>

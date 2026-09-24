@@ -196,6 +196,7 @@
                       Background="Transparent" BorderThickness="0"
                       Padding="2,0"
                       Cursor="Hand"
+                      AutomationProperties.Name="{localization:Localize Tools.WndEditor.Assets.Clear}"
                       ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.Clear}">
                 <material:MaterialIcon Kind="Close" Width="10" Height="10"
                                        Foreground="{DynamicResource AccentBrush}"/>

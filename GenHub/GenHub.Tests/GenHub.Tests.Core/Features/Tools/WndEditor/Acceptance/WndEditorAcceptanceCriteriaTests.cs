@@ -256,7 +256,9 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
 
     /// <summary>
     /// Acceptance Criterion 1C:
-    /// Inside one Zero Hour installation, expansion archives override same-path base archives.
+    /// Inside one Zero Hour installation, expansion archives override same-path base archives
+    /// per GenHub deliberate preview precedence policy (later-mounted-wins within the same tier,
+    /// a conscious GenHub preview deviation from the retail engine init path).
     /// A mapped image and texture shared by INI.big (red) and INIZH.big (blue) must resolve
     /// to the expansion (blue) pixels end to end through the image asset service.
     /// </summary>
@@ -296,8 +298,8 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
     /// <summary>
     /// Acceptance Criterion 1D:
     /// When base and expansion archives define the same mapped image name in different INI files,
-    /// the expansion (later-mounted) definition wins even when its INI path sorts alphabetically
-    /// earlier than the base definition path.
+    /// the expansion (later-mounted) definition wins per GenHub deliberate preview precedence policy
+    /// even when its INI path sorts alphabetically earlier than the base definition path.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -365,5 +367,44 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
         // Assert
         resolvedBytes.Should().NotBeNull();
         resolvedBytes.Should().Equal(zhCsf);
+    }
+
+    /// <summary>
+    /// Acceptance Criterion 1F:
+    /// ArchiveRankWeight exceeds MaxTextureSizeScoreBonus so that a larger texture size hint in an earlier-mounted
+    /// archive cannot invert archive precedence. The later-mounted archive definition wins even when the earlier
+    /// archive provides a large texture (e.g. 2048x2048) and the later archive provides a small texture (e.g. 32x32).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Criterion1F_LaterMountedArchiveWins_EvenWhenEarlierArchiveHasLargerTexture()
+    {
+        // Arrange
+        var zhRoot = Path.Combine(_tempRoot, "ZeroHourSizeWeight");
+        Directory.CreateDirectory(zhRoot);
+        var largeRedPng = WndTestAssets.CreateSolidPng(MagickColors.Red, 2048, 2048);
+        var smallBluePng = WndTestAssets.CreateSolidPng(MagickColors.Blue, 32, 32);
+        const string baseIniText = "MappedImage TiedImage\n  Texture = tiedbase.tga\n  Coords = Left:0 Top:0 Right:2048 Bottom:2048\nEnd\n";
+        const string zhIniText = "MappedImage TiedImage\n  Texture = tiedzh.tga\n  Coords = Left:0 Top:0 Right:32 Bottom:32\nEnd\n";
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "A_Base.big"),
+            ("Data\\INI\\MappedImages\\HandCreated\\Base.ini", Encoding.UTF8.GetBytes(baseIniText)),
+            ("tiedbase.tga", largeRedPng));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(zhRoot, "Z_Expansion.big"),
+            ("Data\\INI\\MappedImages\\HandCreated\\Zh.ini", Encoding.UTF8.GetBytes(zhIniText)),
+            ("tiedzh.tga", smallBluePng));
+
+        var service = new WndImageAssetService(Mock.Of<ILogger<WndImageAssetService>>());
+
+        // Act
+        var result = await service.GetImagesAsync(["TiedImage"], zhRoot, null, null, null, true, CancellationToken.None);
+
+        // Assert: the expansion definition (small blue texture) wins over the base definition (large red texture)
+        result.Success.Should().BeTrue();
+        var tiedImages = result.Data;
+        tiedImages.Should().NotBeNull().And.ContainKey("TiedImage");
+        WndTestAssets.ComparePngs(tiedImages!["TiedImage"], smallBluePng).Should().Be(0);
+        WndTestAssets.ComparePngs(tiedImages!["TiedImage"], largeRedPng).Should().BeGreaterThan(0);
     }
 }
