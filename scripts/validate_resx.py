@@ -26,6 +26,7 @@ import xml.etree.ElementTree as element_tree
 
 DATA_CLOSE = '</data>'
 _MAX_LISTED = 10
+RE_ESCAPED_BRACES = re.compile(r'\{\{|\}\}')
 RE_COMPOSITE_ITEM = re.compile(r'^\{\d+(?:,-?\d+)?(?::[^{}]*)?\}$')
 
 
@@ -33,7 +34,7 @@ def extract_placeholders(text):
     """Extract argument indices from .NET composite format string, ignoring escaped braces."""
     if not text:
         return []
-    unescaped = re.sub(r'\{\{|\}\}', '', text)
+    unescaped = RE_ESCAPED_BRACES.sub('', text)
     return re.findall(r'\{\d+(?:,-?\d+)?(?::[^{}]*)?\}', unescaped)
 
 
@@ -41,7 +42,7 @@ def check_unbalanced_braces(text):
     """Return True if single braces in composite format strings are properly balanced."""
     if not text:
         return True
-    unescaped = re.sub(r'\{\{|\}\}', '', text)
+    unescaped = RE_ESCAPED_BRACES.sub('', text)
     depth = 0
     for char in unescaped:
         if char == '{':
@@ -59,7 +60,7 @@ def find_invalid_format_items(text):
     """Return list of invalid single-braced items that violate .NET composite format syntax."""
     if not text:
         return []
-    unescaped = re.sub(r'\{\{|\}\}', '', text)
+    unescaped = RE_ESCAPED_BRACES.sub('', text)
     tokens = re.findall(r'\{[^{}]*\}', unescaped)
     return [t for t in tokens if not RE_COMPOSITE_ITEM.match(t)]
 

@@ -110,6 +110,14 @@ def _find_root_close(lines, path):
     raise ResxError(f'{path}: missing </root> element')
 
 
+def _active_delimiter(in_comment, in_cdata):
+    if in_comment:
+        return '-->'
+    if in_cdata:
+        return ']]>'
+    return None
+
+
 def _consume_enclosed_block(line, i, delim):
     end = line.find(delim, i)
     if end == -1:
@@ -129,7 +137,7 @@ def _find_next_block_start(line, i):
 
 def _strip_comments_and_cdata(line, in_comment, in_cdata):
     """Strip XML comments and CDATA sections from a line to expose structural XML tags."""
-    active_delim = '-->' if in_comment else (']]>' if in_cdata else None)
+    active_delim = _active_delimiter(in_comment, in_cdata)
     if active_delim:
         i, still_active = _consume_enclosed_block(line, 0, active_delim)
         if still_active:
