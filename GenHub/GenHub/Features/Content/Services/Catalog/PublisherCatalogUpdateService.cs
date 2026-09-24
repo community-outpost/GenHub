@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
@@ -13,7 +8,11 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using PublisherSubscription = GenHub.Core.Models.Providers.PublisherSubscription;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -138,7 +137,7 @@ public sealed class PublisherCatalogUpdateService : ContentUpdateServiceBase, IP
     }
 
     private async Task<bool> ProcessSubscriptionUpdatesAsync(
-        PublisherSubscription subscription,
+        GenHub.Core.Models.Providers.PublisherSubscription subscription,
         GenericCatalogDiscoverer discoverer,
         IContentStateService stateService,
         CancellationToken cancellationToken)
@@ -177,7 +176,7 @@ public sealed class PublisherCatalogUpdateService : ContentUpdateServiceBase, IP
         }
     }
 
-    private void NotifyUpdateAvailable(PublisherSubscription subscription, ContentSearchResult contentItem)
+    private void NotifyUpdateAvailable(GenHub.Core.Models.Providers.PublisherSubscription subscription, ContentSearchResult contentItem)
     {
         var version = contentItem.Version ?? "latest";
 
