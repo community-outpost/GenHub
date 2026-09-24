@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
@@ -8,11 +13,7 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using PublisherSubscription = GenHub.Core.Models.Providers.PublisherSubscription;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
