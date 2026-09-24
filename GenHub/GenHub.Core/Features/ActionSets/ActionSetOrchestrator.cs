@@ -18,6 +18,7 @@ namespace GenHub.Core.Features.ActionSets;
 /// <param name="actionSets">The initial collection of action sets.</param>
 /// <param name="providers">The collection of action set providers.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="telemetryService">The optional telemetry service.</param>
 public class ActionSetOrchestrator(
     IEnumerable<IActionSet> actionSets,
     IEnumerable<IActionSetProvider> providers,

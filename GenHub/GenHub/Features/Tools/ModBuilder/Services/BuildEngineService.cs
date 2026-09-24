@@ -36,6 +36,7 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <param name="archiveService">The archive service.</param>
 /// <param name="serviceScopeFactory">The service scope factory for resolving scoped dependencies.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="telemetryService">The optional telemetry service.</param>
 public sealed class BuildEngineService(
     IBuildCacheService cacheService,
     IFileConversionService fileConversionService,

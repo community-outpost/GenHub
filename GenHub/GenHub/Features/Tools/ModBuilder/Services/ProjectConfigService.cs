@@ -27,6 +27,7 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <param name="logger">The logger.</param>
 /// <param name="configurationProvider">The configuration provider service.</param>
 /// <param name="localizationService">The optional localization service for user-facing error messages.</param>
+/// <param name="telemetryService">The optional telemetry service.</param>
 public sealed class ProjectConfigService(
     ILogger<ProjectConfigService> logger,
     IConfigurationProviderService? configurationProvider = null,
