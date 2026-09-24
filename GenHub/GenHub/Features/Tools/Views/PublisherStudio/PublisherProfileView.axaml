@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
              mc:Ignorable="d"
              d:DesignWidth="900" d:DesignHeight="600"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherProfileView"
@@ -75,13 +76,20 @@
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                         <Border Width="36" Height="36"
                                 CornerRadius="10"
+                                ClipToBounds="True"
                                 Background="{DynamicResource PrimaryGradientBrush}"
                                 VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource PersonIcon}"
-                                      Width="18" Height="18"
-                                      Foreground="{DynamicResource TextPrimary}"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"/>
+                            <Panel>
+                                <PathIcon Data="{StaticResource PersonIcon}"
+                                          Width="18" Height="18"
+                                          Foreground="{DynamicResource TextPrimary}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding AvatarUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                                <Image controls:ImageLoader.Source="{Binding AvatarUrl}"
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding AvatarUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            </Panel>
                         </Border>
                         <StackPanel Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Title}"
@@ -155,7 +163,7 @@
                                      Grid.Column="0"
                                      DragDrop.AllowDrop="True"
                                      Text="{Binding AvatarUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     Watermark="https://example.com/logo.png"/>
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"/>
                             <Border Name="AvatarDropTarget"
                                     Grid.Column="1"
                                     Margin="8,0,0,0"
@@ -168,8 +176,17 @@
                                     Cursor="Hand"
                                     ClipToBounds="True"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}">
-                                <Image Source="{Binding AvatarUrl, Converter={StaticResource StringToImageConverter}}"
-                                       Stretch="UniformToFill"/>
+                                <Panel>
+                                    <PathIcon Data="{StaticResource PersonIcon}"
+                                              Width="16" Height="16"
+                                              Foreground="{DynamicResource TextSecondary}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              IsVisible="{Binding AvatarUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                                    <Image controls:ImageLoader.Source="{Binding AvatarUrl}"
+                                           Stretch="UniformToFill"
+                                           IsVisible="{Binding AvatarUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                </Panel>
                             </Border>
                         </Grid>
                     </StackPanel>

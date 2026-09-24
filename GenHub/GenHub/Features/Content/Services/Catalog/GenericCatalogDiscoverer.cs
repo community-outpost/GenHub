@@ -1267,15 +1267,9 @@ public class GenericCatalogDiscoverer(
 
         var itemIcon = contentItem.EffectiveIconUrl ?? contentItem.Metadata?.IconUrl;
 
-        string? iconUrl;
-        if (!string.IsNullOrWhiteSpace(itemIcon) && !itemIcon.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase))
-        {
-            iconUrl = itemIcon;
-        }
-        else
-        {
-            iconUrl = !string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : itemIcon;
-        }
+        var iconUrl = !string.IsNullOrWhiteSpace(itemIcon)
+            ? itemIcon
+            : (!string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : null);
 
         return (effectiveProviderName, authorName, iconUrl);
     }

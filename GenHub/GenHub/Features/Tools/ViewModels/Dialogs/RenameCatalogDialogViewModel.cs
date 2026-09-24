@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -16,13 +17,15 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// <param name="canDelete">Whether the catalog can be deleted.</param>
 /// <param name="onDelete">Optional delete callback.</param>
 /// <param name="currentIconUrl">Optional current icon URL.</param>
+/// <param name="onUploadImage">Optional upload callback for local image files.</param>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class RenameCatalogDialogViewModel(
     string currentName,
     Action<RenameCatalogResult?> onComplete,
     bool canDelete = false,
     Func<Task<bool>>? onDelete = null,
-    string? currentIconUrl = null) : ObservableValidator
+    string? currentIconUrl = null,
+    Func<string, Task<string?>>? onUploadImage = null) : ObservableValidator
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -41,6 +44,43 @@ public partial class RenameCatalogDialogViewModel(
 
     [ObservableProperty]
     private bool _isValid;
+
+    /// <summary>
+    /// Handles drag and drop of an image file or URL for the catalog icon.
+    /// </summary>
+    /// <param name="fileOrUrl">The dropped file path or URL string.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task HandleIconDropAsync(string fileOrUrl)
+    {
+        if (string.IsNullOrWhiteSpace(fileOrUrl))
+        {
+            return;
+        }
+
+        var trimmed = fileOrUrl.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            IconUrl = trimmed;
+            return;
+        }
+
+        if (File.Exists(trimmed))
+        {
+            if (onUploadImage != null)
+            {
+                var uploadedUrl = await onUploadImage(trimmed);
+                if (!string.IsNullOrWhiteSpace(uploadedUrl))
+                {
+                    IconUrl = uploadedUrl;
+                }
+            }
+            else
+            {
+                IconUrl = trimmed;
+            }
+        }
+    }
 
     [RelayCommand]
     private async Task DeleteAsync()

@@ -185,6 +185,12 @@ public interface IPublisherStudioDialogService
     /// <param name="canDelete">Whether the catalog can be deleted.</param>
     /// <param name="onDelete">Optional callback to delete the catalog.</param>
     /// <param name="currentIconUrl">Optional current icon URL for the catalog.</param>
+    /// <param name="onUploadImage">Optional upload callback for local image files.</param>
     /// <returns>The updated catalog result, or null if cancelled.</returns>
-    Task<ViewModels.Dialogs.RenameCatalogResult?> ShowRenameCatalogDialogAsync(string currentName, bool canDelete = false, Func<Task<bool>>? onDelete = null, string? currentIconUrl = null);
+    Task<ViewModels.Dialogs.RenameCatalogResult?> ShowRenameCatalogDialogAsync(
+        string currentName,
+        bool canDelete = false,
+        Func<Task<bool>>? onDelete = null,
+        string? currentIconUrl = null,
+        Func<string, Task<string?>>? onUploadImage = null);
 }

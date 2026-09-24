@@ -1,17 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:localization="clr-namespace:GenHub.Common.Markup"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
         x:Class="GenHub.Features.Tools.Views.Dialogs.ToolDialogWindow"
-        Title="{localization:Localize Tools.PublisherStudio.Dialogs.WindowTitle}"
-        SizeToContent="WidthAndHeight"
+        Title="ToolDialogWindow"
         WindowStartupLocation="CenterOwner"
-        MaxWidth="760"
-        MaxHeight="880"
         CanResize="False"
-        SystemDecorations="Full"
+        SizeToContent="WidthAndHeight"
+        SystemDecorations="None"
         Background="Transparent"
         TransparencyLevelHint="AcrylicBlur, Blur, Transparent"
         ExtendClientAreaToDecorationsHint="True"
@@ -22,6 +16,6 @@
         <ContentControl Name="MainContent"/>
 
         <!-- Window Drag Region (excludes top-right corner so close button clicks are never intercepted) -->
-        <Panel Height="30" VerticalAlignment="Top" Margin="0,0,60,0" Background="Transparent" PointerPressed="OnDragRegionPointerPressed"/>
+        <Panel Height="30" VerticalAlignment="Top" Margin="0,0,120,0" Background="Transparent" PointerPressed="OnDragRegionPointerPressed"/>
     </Panel>
 </Window>

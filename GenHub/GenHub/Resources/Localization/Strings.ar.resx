@@ -13335,6 +13335,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
     <value>لم يتم العثور على ملفات صور أو فيديو مدعومة.</value>
   </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarPlaceholder" xml:space="preserve">
+    <value>اسحب وأفلت للتحميل أو أدخل عنوان URL للصورة</value>
+  </data>
   <data name="Tools.PublisherStudio.Profile.AvatarDropTooltip" xml:space="preserve">
     <value>أسقط ملف صورة أو عنوان URL هنا لتحديث الصورة الرمزية</value>
   </data>

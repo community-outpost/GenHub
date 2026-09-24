@@ -8,7 +8,9 @@ namespace GenHub.Features.Content.Services.Reconciliation;
 /// <summary>
 /// Default implementation of the publisher reconciler registry.
 /// </summary>
-public class PublisherReconcilerRegistry(IEnumerable<IPublisherReconciler> reconcilers) : IPublisherReconcilerRegistry
+public class PublisherReconcilerRegistry(
+    IEnumerable<IPublisherReconciler> reconcilers,
+    IGenericCatalogProfileReconciler? genericReconciler = null) : IPublisherReconcilerRegistry
 {
     /// <inheritdoc/>
     public IPublisherReconciler? GetReconciler(string publisherType)
@@ -18,6 +20,12 @@ public class PublisherReconcilerRegistry(IEnumerable<IPublisherReconciler> recon
             return null;
         }
 
-        return reconcilers.FirstOrDefault(r => string.Equals(r.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase));
+        var specific = reconcilers.FirstOrDefault(r => string.Equals(r.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase));
+        if (specific != null)
+        {
+            return specific;
+        }
+
+        return genericReconciler;
     }
 }

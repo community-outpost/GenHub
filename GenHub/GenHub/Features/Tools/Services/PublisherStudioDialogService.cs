@@ -322,10 +322,11 @@ public class PublisherStudioDialogService(
         string currentName,
         bool canDelete = false,
         Func<Task<bool>>? onDelete = null,
-        string? currentIconUrl = null)
+        string? currentIconUrl = null,
+        Func<string, Task<string?>>? onUploadImage = null)
     {
         return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, RenameCatalogResult?>(
-            callback => new RenameCatalogDialogViewModel(currentName, callback, canDelete, onDelete, currentIconUrl));
+            callback => new RenameCatalogDialogViewModel(currentName, callback, canDelete, onDelete, currentIconUrl, onUploadImage));
     }
 
     /// <summary>

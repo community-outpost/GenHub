@@ -43,7 +43,8 @@ public partial class PublisherProfileView : UserControl
 
     private static void OnDragOver(object? sender, DragEventArgs e)
     {
-        if (IsInSubtree(e.Source as Visual, "AvatarDropTarget") &&
+        var visual = e.Source as Visual;
+        if ((IsInSubtree(visual, "AvatarDropTarget") || IsInSubtree(visual, "AvatarTextBox")) &&
             (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text)))
         {
             e.DragEffects = DragDropEffects.Copy;
@@ -65,7 +66,7 @@ public partial class PublisherProfileView : UserControl
             }
 
             var sourceVisual = e.Source as Visual;
-            if (!IsInSubtree(sourceVisual, "AvatarDropTarget"))
+            if (!IsInSubtree(sourceVisual, "AvatarDropTarget") && !IsInSubtree(sourceVisual, "AvatarTextBox"))
             {
                 return;
             }

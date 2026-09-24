@@ -13335,6 +13335,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
     <value>Поддерживаемые файлы изображений или видео не найдены.</value>
   </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarPlaceholder" xml:space="preserve">
+    <value>Перетащите для загрузки или введите URL изображения</value>
+  </data>
   <data name="Tools.PublisherStudio.Profile.AvatarDropTooltip" xml:space="preserve">
     <value>Перетащите файл изображения или URL сюда, чтобы обновить аватар</value>
   </data>

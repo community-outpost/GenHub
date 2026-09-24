@@ -6,6 +6,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels.Dialogs"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
              mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="260"
+             DragDrop.AllowDrop="True"
              x:Class="GenHub.Features.Tools.Views.Dialogs.RenameCatalogDialogView"
              x:DataType="vm:RenameCatalogDialogViewModel">
 
@@ -65,12 +66,15 @@
                        FontSize="13"
                        Margin="0,4,0,0"/>
             <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0"
+                <TextBox Name="IconTextBox"
+                         Grid.Column="0"
+                         DragDrop.AllowDrop="True"
                          Text="{Binding IconUrl, Mode=TwoWay}"
-                         Watermark="{localization:Localize Tools.PublisherStudio.RenameCatalog.IconPlaceholder}"
+                         Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"
                          FontSize="13"
                          Padding="10,8"/>
-                <Border Grid.Column="1"
+                <Border Name="IconDropTarget"
+                        Grid.Column="1"
                         Width="36" Height="36"
                         Margin="8,0,0,0"
                         CornerRadius="6"
@@ -78,6 +82,9 @@
                         Background="{DynamicResource GlassFillBrush}"
                         BorderBrush="{DynamicResource GlassBorderBrush}"
                         BorderThickness="1"
+                        DragDrop.AllowDrop="True"
+                        Cursor="Hand"
+                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}"
                         VerticalAlignment="Center">
                     <Panel>
                         <Image controls:ImageLoader.Source="{Binding IconUrl}"

@@ -667,10 +667,6 @@ public partial class ContentDetailViewModel(
         {
             var logo = ContentCardBadgeHelper.GetPublisherLogoUrl(searchResult);
             var candidate = ParsedPage?.Context.IconUrl ?? searchResult.IconUrl;
-            if (!string.IsNullOrWhiteSpace(candidate) && candidate.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(logo))
-            {
-                return logo;
-            }
 
             return ContentCardBadgeHelper.OrDefaultImage(
                 !string.IsNullOrWhiteSpace(candidate)
@@ -1841,6 +1837,13 @@ public partial class ContentDetailViewModel(
         if (releases.Count == 0)
         {
             return null;
+        }
+
+        // Prefer downloaded release so user does not lose access to installed version when a newer one is released
+        var downloaded = releases.FirstOrDefault(r => r.IsDownloaded);
+        if (downloaded != null)
+        {
+            return downloaded;
         }
 
         return releases.OrderByDescending(GetReleasePriority).First();
@@ -3712,6 +3715,12 @@ public partial class ContentDetailViewModel(
                 var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : DefaultAddonName;
                 var description = !string.IsNullOrWhiteSpace(addonRel.Changelog) ? addonRel.Changelog : $"Addon for {catalogItem.Name}";
 
+                var addonThumb = addonRel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+                    ?? catalogItem.Metadata?.BannerUrl
+                    ?? catalogItem.Metadata?.IconUrl
+                    ?? searchResult.IconUrl
+                    ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{addonRel.Version}-addon-thumb", 256, 256);
+
                 var file = new DownloadableFile(
                     Name: name,
                     DownloadUrl: url,
@@ -3721,6 +3730,7 @@ public partial class ContentDetailViewModel(
                     Category: category,
                     Uploader: searchResult.AuthorName,
                     Filename: primary?.Filename ?? $"{name}.zip",
+                    ThumbnailUrl: addonThumb,
                     Description: description,
                     FileSectionType: FileSectionType.Addons);
 
@@ -3733,6 +3743,11 @@ public partial class ContentDetailViewModel(
         {
             foreach (var addonDep in catalogItem.Addons)
             {
+                var legacyAddonThumb = catalogItem.Metadata?.BannerUrl
+                    ?? catalogItem.Metadata?.IconUrl
+                    ?? searchResult.IconUrl
+                    ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{addonDep.ContentId}-thumb", 256, 256);
+
                 var file = new DownloadableFile(
                     Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : DefaultAddonName,
                     DownloadUrl: addonDep.DefinitionUrl ?? addonDep.CatalogUrl ?? string.Empty,
@@ -3742,6 +3757,7 @@ public partial class ContentDetailViewModel(
                     Category: Enum.TryParse<ContentType>(addonDep.ContentType, true, out var parsedType) ? parsedType.GetDisplayName() : addonDep.ContentType,
                     Uploader: addonDep.PublisherId ?? searchResult.AuthorName,
                     Filename: addonDep.ContentId,
+                    ThumbnailUrl: legacyAddonThumb,
                     Description: $"Addon dependency for {catalogItem.Name}",
                     FileSectionType: FileSectionType.Addons);
 
@@ -4152,6 +4168,12 @@ public partial class ContentDetailViewModel(
         var category = searchResult.ContentType.GetDisplayName();
         var uploader = searchResult.AuthorName;
 
+        var releaseThumb = rel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+            ?? catalogItem.Metadata?.BannerUrl
+            ?? catalogItem.Metadata?.IconUrl
+            ?? searchResult.IconUrl
+            ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{rel.Version}-thumb", 256, 256);
+
         var file = new DownloadableFile(
             Name: filename,
             DownloadUrl: downloadUrl,
@@ -4161,6 +4183,7 @@ public partial class ContentDetailViewModel(
             Category: category,
             Uploader: uploader,
             Filename: filename,
+            ThumbnailUrl: releaseThumb,
             Description: description,
             FileSectionType: FileSectionType.Downloads);
 
@@ -4175,6 +4198,7 @@ public partial class ContentDetailViewModel(
             FileSize = fileSize,
             DownloadUrl = downloadUrl,
             DetailsUrl = downloadUrl,
+            ThumbnailUrl = releaseThumb,
             File = file,
             ContentType = searchResult.ContentType,
             Category = category,
@@ -5430,6 +5454,16 @@ public partial class ContentDetailViewModel(
             }
         }
 
+        if (searchResult.GetData<CatalogContentItem>() is { } catalogContent)
+        {
+            var matchingRelease = catalogContent.Releases.FirstOrDefault(r => string.Equals(r.Version, file.Version, StringComparison.OrdinalIgnoreCase))
+                ?? catalogContent.AddonReleases?.FirstOrDefault(a => string.Equals(a.Version, file.Version, StringComparison.OrdinalIgnoreCase));
+            if (matchingRelease != null)
+            {
+                rowSearchResult.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = System.Text.Json.JsonSerializer.Serialize(matchingRelease);
+            }
+        }
+
         StampGitHubAssetPin(rowSearchResult, file, baseResult);
 
         return rowSearchResult;
@@ -5679,6 +5713,15 @@ public partial class ContentDetailViewModel(
                 row.IsDownloaded = state is ContentState.Downloaded or ContentState.UpdateAvailable;
                 row.IsUpdateAvailable = state == ContentState.UpdateAvailable;
                 ReconcileReleases();
+                if (!_userManuallySelectedDownloadableItem && (SelectedDownloadableItem == null || !SelectedDownloadableItem.IsDownloaded))
+                {
+                    var preferred = FindPreferredRelease(Releases);
+                    if (preferred != null && !ReferenceEquals(SelectedDownloadableItem, preferred))
+                    {
+                        SelectDownloadableItem(preferred, isUserInitiated: false);
+                    }
+                }
+
                 if (ReferenceEquals(SelectedDownloadableItem, row))
                 {
                     RefreshSelectedTargetProperties();

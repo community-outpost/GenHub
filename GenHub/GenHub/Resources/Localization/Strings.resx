@@ -13433,6 +13433,9 @@ Would you like to add this catalog to your provider project?</value>
   <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
     <value>No supported image or video files found.</value>
   </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarPlaceholder" xml:space="preserve">
+    <value>Drag &amp; drop to upload or enter image URL</value>
+  </data>
   <data name="Tools.PublisherStudio.Profile.AvatarDropTooltip" xml:space="preserve">
     <value>Drop an image file or URL here to update avatar</value>
   </data>

@@ -242,6 +242,11 @@ public static class ContentPipelineModule
         services.AddTransient<GenericCatalogContentProvider>();
         services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<GenericCatalogContentProvider>());
 
+        // Generic catalog profile reconciler
+        services.AddScoped<GenericCatalogProfileReconciler>();
+        services.AddScoped<IGenericCatalogProfileReconciler>(sp => sp.GetRequiredService<GenericCatalogProfileReconciler>());
+        services.AddScoped<IPublisherReconciler>(sp => sp.GetRequiredService<GenericCatalogProfileReconciler>());
+
         // Generic catalog background update service: polls subscribed catalogs and alerts user to updates for downloaded content
         services.AddSingleton<PublisherCatalogUpdateService>();
         services.AddSingleton<IPublisherCatalogUpdateService>(sp => sp.GetRequiredService<PublisherCatalogUpdateService>());

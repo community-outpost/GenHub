@@ -1245,7 +1245,51 @@ public partial class PublisherStudioViewModel(
         var canDelete = CanRemoveCatalog;
         Func<Task<bool>>? onDelete = canDelete ? () => DeleteCatalogConfirmedAsync(target) : null;
 
-        var result = await dialogService.ShowRenameCatalogDialogAsync(target.Name, canDelete, onDelete, target.IconUrl);
+        Func<string, Task<string?>> onUpload = async filePath =>
+        {
+            var provider = PublishShareViewModel?.SelectedHostingProvider;
+            if (provider == null || !provider.IsAuthenticated)
+            {
+                notificationService?.ShowWarning(
+                    localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningTitle") ?? "Local Image Set",
+                    localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningMessage") ?? "Please connect a hosting provider to upload images, or enter a remote image URL.");
+                return null;
+            }
+
+            try
+            {
+                var infoTitle = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingTitle") ?? "Uploading Icon";
+                var msgFormat = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingMessage") ?? "Uploading icon to {0}...";
+                notificationService?.ShowInfo(infoTitle, string.Format(msgFormat, provider.DisplayName));
+
+                await using var stream = File.OpenRead(filePath);
+                var fileName = Path.GetFileName(filePath);
+                var uploadResult = await provider.UploadFileAsync(stream, fileName, folderPath: "catalogs/icons");
+                if (uploadResult.Success && uploadResult.Data != null)
+                {
+                    var directUrl = uploadResult.Data.DirectDownloadUrl ?? uploadResult.Data.PublicUrl;
+                    if (!string.IsNullOrWhiteSpace(directUrl))
+                    {
+                        notificationService?.ShowSuccess(
+                            localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle") ?? "Upload Complete",
+                            localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage") ?? "Icon uploaded successfully.");
+                        return directUrl;
+                    }
+                }
+
+                notificationService?.ShowError(
+                    localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Upload Failed",
+                    uploadResult.FirstError ?? "Failed to upload image.");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error uploading catalog icon");
+                return null;
+            }
+        };
+
+        var result = await dialogService.ShowRenameCatalogDialogAsync(target.Name, canDelete, onDelete, target.IconUrl, onUpload);
         if (result == null)
         {
             return;
