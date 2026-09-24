@@ -60,7 +60,7 @@ public sealed class WndPreviewImageComposerTests
     }
 
     /// <summary>
-    /// Tests that a narrow window falls back to stretched halves like the engine.
+    /// Tests that a narrow window falls back to cropped halves like the engine.
     /// </summary>
     [Fact]
     public void ComposeThreePiece_NarrowBar_DrawsHalves()
