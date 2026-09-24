@@ -1530,7 +1530,7 @@ public partial class PublishShareViewModel(
         }
     }
 
-    private static async Task<long?> ProbeHeadSizeAsync(HttpClient client, string url, ILogger logger, CancellationToken cancellationToken)
+    private async Task<long?> ProbeHeadSizeAsync(HttpClient client, string url, CancellationToken cancellationToken)
     {
         try
         {
@@ -1549,7 +1549,7 @@ public partial class PublishShareViewModel(
         return null;
     }
 
-    private static async Task<long?> ProbeRangedGetSizeAsync(HttpClient client, string url, ILogger logger, CancellationToken cancellationToken)
+    private async Task<long?> ProbeRangedGetSizeAsync(HttpClient client, string url, CancellationToken cancellationToken)
     {
         try
         {
@@ -1583,11 +1583,11 @@ public partial class PublishShareViewModel(
         try
         {
             var client = HttpClientOverrideForTesting ?? SharedHttpClient;
-            var detectedSize = await ProbeHeadSizeAsync(client, url, logger, CancellationToken.None).ConfigureAwait(false);
+            var detectedSize = await ProbeHeadSizeAsync(client, url, CancellationToken.None).ConfigureAwait(false);
 
             if (detectedSize is null or <= 0)
             {
-                detectedSize = await ProbeRangedGetSizeAsync(client, url, logger, CancellationToken.None).ConfigureAwait(false);
+                detectedSize = await ProbeRangedGetSizeAsync(client, url, CancellationToken.None).ConfigureAwait(false);
             }
 
             if (detectedSize is > 0)
