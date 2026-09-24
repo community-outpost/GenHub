@@ -82,9 +82,11 @@
             <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.exe" />
             <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.pdb" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.pdb')" />
             <OverlayFiles Include="$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json')" />
+            <WintunFiles Include="$(MSBuildProjectDirectory)\..\GenHub.Core\Resources\Wintun\x64\wintun.dll" />
         </ItemGroup>
         <Message Importance="High" Text="[CopyOverlay] Copying SingleFile from $(OverlaySourceDir) to $(TargetDir)" />
         <Copy SourceFiles="@(OverlayFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(WintunFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
     </Target>
 
     <!-- Ensure Overlay is included in Publish output for Velopack -->
@@ -99,6 +101,10 @@
             </ResolvedFileToPublish>
             <ResolvedFileToPublish Include="$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json" Condition="Exists('$(OverlaySourceDir)\genhub-overlay.runtimeconfig.json')">
                 <RelativePath>genhub-overlay.runtimeconfig.json</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+            <ResolvedFileToPublish Include="$(MSBuildProjectDirectory)\..\GenHub.Core\Resources\Wintun\x64\wintun.dll">
+                <RelativePath>wintun.dll</RelativePath>
                 <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
             </ResolvedFileToPublish>
         </ItemGroup>

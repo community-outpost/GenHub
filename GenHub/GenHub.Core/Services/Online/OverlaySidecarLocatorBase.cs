@@ -53,9 +53,15 @@ public abstract class OverlaySidecarLocatorBase : IOverlaySidecarLocator
     }
 
     /// <inheritdoc/>
-    public string BuildArguments(string configPath)
+    public string BuildArguments(string configPath) => BuildArguments(configPath, null);
+
+    /// <inheritdoc/>
+    public string BuildArguments(string configPath, string? overlayIp)
     {
-        return $"--config \"{EscapeArgument(configPath)}\"";
+        var baseArgs = $"--config \"{EscapeArgument(configPath)}\"";
+        return !string.IsNullOrWhiteSpace(overlayIp)
+            ? $"{baseArgs} --ip \"{EscapeArgument(overlayIp)}\""
+            : baseArgs;
     }
 
     /// <summary>

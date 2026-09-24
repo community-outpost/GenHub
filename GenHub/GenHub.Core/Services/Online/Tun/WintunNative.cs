@@ -175,7 +175,8 @@ internal static class WintunNative
         var targetDll = Path.Combine(targetDir, "wintun.dll");
 
         var resourceName = $"GenHub.Core.Resources.Wintun.{archFolder}.wintun.dll";
-        using var resourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+        using var resourceStream = typeof(WintunNative).Assembly.GetManifestResourceStream(resourceName)
+            ?? Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
         if (resourceStream != null && ShouldExtractResource(targetDll, resourceStream.Length))
         {
             try
@@ -215,6 +216,16 @@ internal static class WintunNative
         if (File.Exists(targetDll) && NativeLibrary.TryLoad(targetDll, out var handle))
         {
             return handle;
+        }
+
+        var appBase = AppContext.BaseDirectory;
+        if (!string.IsNullOrEmpty(appBase))
+        {
+            var nextToExe = Path.Combine(appBase, "wintun.dll");
+            if (File.Exists(nextToExe) && NativeLibrary.TryLoad(nextToExe, out handle))
+            {
+                return handle;
+            }
         }
 
         if (NativeLibrary.TryLoad("wintun.dll", out handle))
