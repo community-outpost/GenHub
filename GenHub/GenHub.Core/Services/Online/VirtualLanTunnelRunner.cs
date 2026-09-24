@@ -266,6 +266,38 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         }
     }
 
+    /// <summary>
+    /// Builds a 24-byte registration or keepalive frame adhering to the relay contract:
+    /// bytes 0..15: Network ID,
+    /// bytes 16..19: Target IP (0.0.0.0 indicating registration or keepalive ping),
+    /// bytes 20..23: Source IP (our overlay IP so relay keys membership by overlay IP).
+    /// </summary>
+    /// <param name="networkIdBytes">The 16-byte network identifier.</param>
+    /// <param name="overlayIpBytes">The 4-byte overlay IPv4 address.</param>
+    /// <returns>A 24-byte packet formatted for the relay keepalive/registration protocol.</returns>
+    internal static byte[] BuildRegistrationPing(byte[] networkIdBytes, byte[] overlayIpBytes)
+    {
+        var ping = new byte[24];
+        Buffer.BlockCopy(networkIdBytes, 0, ping, 0, 16);
+
+        // Bytes 16..19 remain 0 (0.0.0.0 target)
+        Buffer.BlockCopy(overlayIpBytes, 0, ping, 20, 4);
+        return ping;
+    }
+
+    /// <summary>
+    /// Evaluates whether a received discovery broadcast should be forwarded to the relay.
+    /// Excludes loopback frames (runner self-echo from local re-injections) and own overlay IP frames.
+    /// Passes game-originated discovery broadcasts sourced from local physical interfaces.
+    /// </summary>
+    /// <param name="sourceAddress">The source IP address of the received packet.</param>
+    /// <param name="overlayIp">The local overlay IP address.</param>
+    /// <returns><c>true</c> if the broadcast originated outside loopback/overlay and should be relayed; otherwise, <c>false</c>.</returns>
+    internal static bool ShouldRelayBroadcast(IPAddress sourceAddress, IPAddress overlayIp)
+    {
+        return !sourceAddress.Equals(IPAddress.Loopback) && !sourceAddress.Equals(overlayIp);
+    }
+
     private static async Task<(bool Success, ParsedTunnelConfig Config)> TryParseConfigAsync(
         string adapterConfig,
         string overlayIp,
@@ -625,9 +657,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private void SendRegistrationPing(ParsedTunnelConfig config)
     {
-        var ping = new byte[24];
-        Buffer.BlockCopy(config.NetworkIdBytes, 0, ping, 0, 16);
-        Buffer.BlockCopy(config.OverlayIpBytes, 0, ping, 16, 4);
+        var ping = BuildRegistrationPing(config.NetworkIdBytes, config.OverlayIpBytes);
 
         try
         {
@@ -641,9 +671,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private async Task KeepAliveLoopAsync(ParsedTunnelConfig config, CancellationToken ct)
     {
-        var ping = new byte[24];
-        Buffer.BlockCopy(config.NetworkIdBytes, 0, ping, 0, 16);
-        Buffer.BlockCopy(config.OverlayIpBytes, 0, ping, 16, 4);
+        var ping = BuildRegistrationPing(config.NetworkIdBytes, config.OverlayIpBytes);
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(OnlineConstants.KeepAliveIntervalSeconds));
         try
@@ -718,26 +746,27 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 var result = await listener.ReceiveAsync(ct).ConfigureAwait(false);
                 var data = result.Buffer;
 
-                if (result.RemoteEndPoint.Address.Equals(IPAddress.Loopback) ||
-                    result.RemoteEndPoint.Address.Equals(config.OverlayIp))
+                if (!ShouldRelayBroadcast(result.RemoteEndPoint.Address, config.OverlayIp))
                 {
-                    var packet = new byte[24 + data.Length];
-                    Buffer.BlockCopy(config.NetworkIdBytes, 0, packet, 0, 16);
-                    Buffer.BlockCopy(config.DirectedBroadcastBytes, 0, packet, 16, 4);
-                    Buffer.BlockCopy(config.OverlayIpBytes, 0, packet, 20, 4);
-                    Buffer.BlockCopy(data, 0, packet, 24, data.Length);
+                    continue;
+                }
 
-                    try
+                var packet = new byte[24 + data.Length];
+                Buffer.BlockCopy(config.NetworkIdBytes, 0, packet, 0, 16);
+                Buffer.BlockCopy(config.DirectedBroadcastBytes, 0, packet, 16, 4);
+                Buffer.BlockCopy(config.OverlayIpBytes, 0, packet, 20, 4);
+                Buffer.BlockCopy(data, 0, packet, 24, data.Length);
+
+                try
+                {
+                    if (_relayClient != null)
                     {
-                        if (_relayClient != null)
-                        {
-                            await _relayClient.SendAsync(packet, packet.Length).ConfigureAwait(false);
-                        }
+                        await _relayClient.SendAsync(packet, packet.Length).ConfigureAwait(false);
                     }
-                    catch (SocketException ex)
-                    {
-                        logger.LogDebug(ex, "Failed to relay broadcast packet: {Message}", ex.Message);
-                    }
+                }
+                catch (SocketException ex)
+                {
+                    logger.LogDebug(ex, "Failed to relay broadcast packet: {Message}", ex.Message);
                 }
             }
         }

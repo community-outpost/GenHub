@@ -235,6 +235,58 @@ public class VirtualLanTunnelRunnerTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that the registration ping frame sets target IP to 0.0.0.0 and source IP to the overlay IP.
+    /// </summary>
+    [Fact]
+    public void BuildRegistrationPing_ShouldFormatTargetAsZeroAndSourceAsOverlayIp()
+    {
+        // Arrange
+        var networkIdBytes = new byte[16] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        var overlayIpBytes = new byte[4] { 10, 42, 0, 2 };
+
+        // Act
+        var ping = VirtualLanTunnelRunner.BuildRegistrationPing(networkIdBytes, overlayIpBytes);
+
+        // Assert
+        Assert.Equal(24, ping.Length);
+        Assert.Equal(networkIdBytes, ping[..16]);
+        Assert.Equal(new byte[] { 0, 0, 0, 0 }, ping[16..20]);
+        Assert.Equal(overlayIpBytes, ping[20..24]);
+    }
+
+    /// <summary>
+    /// Tests that broadcast filtering rejects self-echo from loopback and the local overlay IP.
+    /// </summary>
+    [Fact]
+    public void ShouldRelayBroadcast_WhenSourceIsLoopbackOrOverlayIp_ShouldReturnFalse()
+    {
+        // Arrange
+        var overlayIp = IPAddress.Parse("10.42.0.2");
+
+        // Act & Assert: loopback (local proxy re-injection) must not be re-relayed
+        Assert.False(VirtualLanTunnelRunner.ShouldRelayBroadcast(IPAddress.Loopback, overlayIp));
+
+        // Act & Assert: overlay IP (self) must not be re-relayed
+        Assert.False(VirtualLanTunnelRunner.ShouldRelayBroadcast(overlayIp, overlayIp));
+    }
+
+    /// <summary>
+    /// Tests that broadcast filtering accepts game discovery broadcasts sourced from physical LAN interfaces.
+    /// </summary>
+    [Fact]
+    public void ShouldRelayBroadcast_WhenSourceIsPhysicalInterface_ShouldReturnTrue()
+    {
+        // Arrange
+        var overlayIp = IPAddress.Parse("10.42.0.2");
+        var physicalLanIp = IPAddress.Parse("192.168.1.100");
+        var alternateLanIp = IPAddress.Parse("10.0.0.15");
+
+        // Act & Assert: local physical network interfaces used by the game socket must be relayed
+        Assert.True(VirtualLanTunnelRunner.ShouldRelayBroadcast(physicalLanIp, overlayIp));
+        Assert.True(VirtualLanTunnelRunner.ShouldRelayBroadcast(alternateLanIp, overlayIp));
+    }
+
+    /// <summary>
     /// Tests that calling Dispose multiple times is safe and idempotent.
     /// </summary>
     [Fact]
