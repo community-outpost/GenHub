@@ -1549,11 +1549,11 @@ public partial class ContentDetailViewModel(
         // fields so rows that populate-time deduplication keeps distinct stay distinct.
         var discriminator = string.Join(
             '|',
-            file.Name?.Trim().ToLowerInvariant(),
-            file.DetailsUrl?.Trim().TrimEnd('/').ToLowerInvariant(),
-            file.Filename?.Trim().ToLowerInvariant(),
-            file.Version?.Trim().ToLowerInvariant(),
-            file.FileSectionType.ToString());
+            file.Name?.Trim().ToLowerInvariant().Replace("|", "||", StringComparison.Ordinal),
+            file.DetailsUrl?.Trim().TrimEnd('/').ToLowerInvariant().Replace("|", "||", StringComparison.Ordinal),
+            file.Filename?.Trim().ToLowerInvariant().Replace("|", "||", StringComparison.Ordinal),
+            file.Version?.Trim().ToLowerInvariant().Replace("|", "||", StringComparison.Ordinal),
+            file.FileSectionType.ToString().Replace("|", "||", StringComparison.Ordinal));
         return $"{ContentConstants.FileContentIdPrefix}{discriminator}";
     }
 
@@ -2725,9 +2725,11 @@ public partial class ContentDetailViewModel(
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            var anyVariantMatches = variantSearchResults != null && variantSearchResults.Values.Any(v =>
-                string.Equals(v.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
-                (!string.IsNullOrEmpty(manifestId) && string.Equals(v.Id, manifestId, StringComparison.OrdinalIgnoreCase)));
+            var anyVariantMatches = variantSearchResults != null && variantSearchResults.Any(pair =>
+                string.Equals(pair.Key, contentId, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(manifestId) && string.Equals(pair.Key, manifestId, StringComparison.OrdinalIgnoreCase)) ||
+                string.Equals(pair.Value.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(manifestId) && string.Equals(pair.Value.Id, manifestId, StringComparison.OrdinalIgnoreCase)));
 
             foreach (var row in EnumerateRows())
             {
@@ -4803,14 +4805,15 @@ public partial class ContentDetailViewModel(
 
                 var fileId = CreateFileContentId(file);
                 var row = EnumerateRows().FirstOrDefault(r =>
-                    (r is DownloadableItemViewModel vm && vm.File == file) ||
-                    RowContentId(r) == fileId);
+                    r is DownloadableItemViewModel vm && ReferenceEquals(vm.File, file))
+                    ?? EnumerateRows().FirstOrDefault(r => RowContentId(r) == fileId);
 
                 if (row != null)
                 {
                     row.DownloadedManifestId = manifest.Id.Value;
                     row.IsDownloaded = true;
                     row.IsUpdateAvailable = false;
+                    RefreshSelectedTargetProperties();
                 }
             },
             cancellationToken);
@@ -5015,7 +5018,7 @@ public partial class ContentDetailViewModel(
             ParsedPageData = ParsedPage ?? baseResult.ParsedPageData ?? searchResult.ParsedPageData,
             ResolverId = baseResult.ResolverId ?? searchResult.ResolverId,
             RequiresResolution = true,
-            Data = !string.IsNullOrWhiteSpace(file.DownloadUrl) && (baseResult.Data is GenLauncherVersionManifest || searchResult.Data is GenLauncherVersionManifest)
+            Data = (baseResult.Data is GenLauncherVersionManifest || searchResult.Data is GenLauncherVersionManifest)
                 ? null
                 : (baseResult.Data ?? searchResult.Data),
             IconUrl = baseResult.IconUrl ?? searchResult.IconUrl,
@@ -5065,7 +5068,7 @@ public partial class ContentDetailViewModel(
             }
         }
 
-        StampGitHubAssetPin(rowSearchResult, file);
+        StampGitHubAssetPin(rowSearchResult, file, baseResult);
 
         return rowSearchResult;
     }
@@ -5078,9 +5081,10 @@ public partial class ContentDetailViewModel(
     /// </summary>
     /// <param name="rowSearchResult">The per-row search result being built.</param>
     /// <param name="file">The row file carrying the release asset filename.</param>
-    private void StampGitHubAssetPin(ContentSearchResult rowSearchResult, DownloadableFile file)
+    /// <param name="baseResult">The base or parent search result containing source release data and metadata.</param>
+    private void StampGitHubAssetPin(ContentSearchResult rowSearchResult, DownloadableFile file, ContentSearchResult baseResult)
     {
-        var release = searchResult.GetData<GitHubRelease>();
+        var release = baseResult.GetData<GitHubRelease>() ?? searchResult.GetData<GitHubRelease>();
         if (string.IsNullOrWhiteSpace(file.Filename) || release?.Assets is not { Count: > 0 })
         {
             return;
@@ -5091,7 +5095,11 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        if (!searchResult.ResolverMetadata.TryGetValue(GitHubConstants.TagMetadataKey, out var tag) ||
+        var sourceMetadata = baseResult.ResolverMetadata.ContainsKey(GitHubConstants.TagMetadataKey)
+            ? baseResult.ResolverMetadata
+            : searchResult.ResolverMetadata;
+
+        if (!sourceMetadata.TryGetValue(GitHubConstants.TagMetadataKey, out var tag) ||
             string.IsNullOrWhiteSpace(tag))
         {
             return;

@@ -210,11 +210,40 @@ public sealed class GenLauncherDelivererTests
     [Fact]
     public async Task DeliverContentAsync_WithMultipleFiles_DownloadsConcurrentlyAndSucceedsAsync()
     {
+        var firstFileStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondFileStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var inFlight = 0;
+        var maxInFlight = 0;
+        var lockObj = new object();
+
         _downloadServiceMock.Setup(d => d.DownloadFileAsync(
             It.IsAny<DownloadConfiguration>(),
             It.IsAny<IProgress<DownloadProgress>?>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DownloadResult.CreateSuccess("path", 100, TimeSpan.FromMilliseconds(10)));
+            .Returns(async () =>
+            {
+                var current = Interlocked.Increment(ref inFlight);
+                lock (lockObj)
+                {
+                    if (current > maxInFlight)
+                    {
+                        maxInFlight = current;
+                    }
+                }
+
+                if (current == 1)
+                {
+                    firstFileStarted.TrySetResult(true);
+                    await Task.WhenAny(secondFileStarted.Task, Task.Delay(2000));
+                }
+                else
+                {
+                    secondFileStarted.TrySetResult(true);
+                }
+
+                Interlocked.Decrement(ref inFlight);
+                return DownloadResult.CreateSuccess("path", 100, TimeSpan.FromMilliseconds(10));
+            });
 
         _manifestPoolMock.Setup(m => m.AddManifestAsync(
             It.IsAny<ContentManifest>(),
@@ -249,6 +278,7 @@ public sealed class GenLauncherDelivererTests
             var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
 
             result.Success.Should().BeTrue();
+            maxInFlight.Should().BeGreaterThan(1);
             _downloadServiceMock.Verify(
                 d => d.DownloadFileAsync(
                     It.IsAny<DownloadConfiguration>(),

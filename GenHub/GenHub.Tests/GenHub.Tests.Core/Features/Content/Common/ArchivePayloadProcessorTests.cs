@@ -1203,6 +1203,58 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies that EnsureValidArchivePayload accepts a valid ZIP archive even when an entry contains HTML.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_ValidZipWithHtmlEntry_Succeeds()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = ZipFile.Open(tempZip, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("index.html", CompressionLevel.NoCompression);
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("<!DOCTYPE html><html><head><title>Test</title></head><body><h1>Content</h1></body></html>");
+            }
+
+            // Act & Assert
+            ArchivePayloadProcessor.EnsureValidArchivePayload(tempZip);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that EnsureValidArchivePayload rejects an HTML error page masquerading as a ZIP file.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_HtmlErrorDocument_ThrowsInvalidDataException()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+        try
+        {
+            File.WriteAllText(tempFile, "<!DOCTYPE html><html><head><title>Error</title></head><body>Access Denied</body></html>");
+
+            // Act & Assert
+            var ex = Assert.Throws<InvalidDataException>(() => ArchivePayloadProcessor.EnsureValidArchivePayload(tempFile));
+            Assert.Contains("HTML or web error text", ex.Message);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

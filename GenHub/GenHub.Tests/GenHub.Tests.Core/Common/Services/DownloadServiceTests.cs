@@ -323,6 +323,7 @@ public class DownloadServiceTests
         var remainingContent = new byte[] { 4, 5 };
         var tempFile = Path.GetTempFileName();
         File.WriteAllBytes(tempFile, existingContent);
+        File.WriteAllText($"{tempFile}.etag", "\"sample-etag\"");
 
         HttpRequestMessage? capturedRequest = null;
         var handler = new Mock<HttpMessageHandler>();
@@ -436,6 +437,7 @@ public class DownloadServiceTests
         // Arrange: existing file is larger than server resource
         var tempFile = Path.GetTempFileName();
         File.WriteAllBytes(tempFile, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+        File.WriteAllText($"{tempFile}.etag", "\"sample-etag\"");
         var fullContent = new byte[] { 1, 2, 3 };
 
         int requestCount = 0;
@@ -601,6 +603,7 @@ public class DownloadServiceTests
     {
         var tempFile = Path.GetTempFileName();
         File.WriteAllBytes(tempFile, new byte[] { 1, 2, 3 });
+        File.WriteAllText($"{tempFile}.etag", "\"etag-1\"");
         var fullContent = new byte[] { 1, 2, 3, 4, 5 };
 
         int requestCount = 0;
@@ -717,6 +720,7 @@ public class DownloadServiceTests
         var truncatedContent = new byte[] { 4 }; // missing byte 5
         var tempFile = Path.GetTempFileName();
         File.WriteAllBytes(tempFile, existingContent);
+        File.WriteAllText($"{tempFile}.etag", "\"sample-etag\"");
 
         var handler = new Mock<HttpMessageHandler>();
         handler.Protected()
@@ -728,7 +732,7 @@ public class DownloadServiceTests
             {
                 var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
                 {
-                    Content = new ByteArrayContent(truncatedContent),
+                    Content = new CustomStreamingContent(truncatedContent, 2),
                 };
                 response.Content.Headers.ContentRange = new ContentRangeHeaderValue(3, 4, 5);
                 return response;
@@ -752,7 +756,7 @@ public class DownloadServiceTests
 
             // Assert
             Assert.False(result.Success);
-            Assert.Contains("Resumed download ended early", result.FirstError);
+            Assert.Contains("Resumed response body does not match its declared range", result.FirstError);
         }
         finally
         {
@@ -774,6 +778,7 @@ public class DownloadServiceTests
         var remainingContent = new byte[] { 4, 5 };
         var tempFile = Path.GetTempFileName();
         File.WriteAllBytes(tempFile, existingContent);
+        File.WriteAllText($"{tempFile}.etag", "\"raw-hex-etag-value\"");
 
         HttpRequestMessage? capturedRequest = null;
         var handler = new Mock<HttpMessageHandler>();
@@ -876,6 +881,199 @@ public class DownloadServiceTests
             {
                 File.Delete(tempZip);
             }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when an existing partial file exists with ETag config but without matching sidecar, resumption is skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WithExistingPartialFile_WithoutSidecarEtag_OverwritesFromBeginningAsync()
+    {
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, new byte[] { 99, 99, 99 });
+        var fullContent = new byte[] { 1, 2, 3, 4, 5 };
+
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(fullContent),
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/no-sidecar.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+                Headers = { { "ETag", "\"sample-etag\"" } },
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.NotNull(capturedRequest);
+            Assert.Null(capturedRequest.Headers.Range);
+            Assert.Equal(fullContent, File.ReadAllBytes(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a resumed 206 response yields more bytes than declared by Content-Range, the operation fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_ResumedContentExceedsDeclaredRange_FailsAsync()
+    {
+        var existingContent = new byte[] { 1, 2, 3 };
+        var overflowingContent = new byte[] { 4, 5, 6, 7 }; // 4 bytes instead of declared 2 bytes (3..4)
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, existingContent);
+        File.WriteAllText($"{tempFile}.etag", "\"sample-etag\"");
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new CustomStreamingContent(overflowingContent, 2),
+                };
+                response.Content.Headers.ContentRange = new ContentRangeHeaderValue(3, 4, 5);
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/overflow-resume.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+                MaxRetryAttempts = 1,
+                Headers = { { "ETag", "\"sample-etag\"" } },
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.False(result.Success);
+            Assert.Contains("Resumed response body exceeds its declared range", result.FirstError);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+
+            if (File.Exists($"{tempFile}.etag"))
+            {
+                File.Delete($"{tempFile}.etag");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a resumed partial download response provides a Content-Length header
+    /// that does not match the byte range declared in Content-Range, the download fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_ResumedContentLengthMismatch_FailsAsync()
+    {
+        var existingContent = new byte[] { 1, 2, 3 };
+        var payload = new byte[] { 4 };
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, existingContent);
+        File.WriteAllText($"{tempFile}.etag", "\"sample-etag\"");
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(payload),
+                };
+                response.Content.Headers.ContentRange = new ContentRangeHeaderValue(3, 4, 5);
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/mismatch-resume.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+                MaxRetryAttempts = 1,
+                Headers = { { "ETag", "\"sample-etag\"" } },
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.False(result.Success);
+            Assert.Contains("Resumed response Content-Length does not match Content-Range", result.FirstError);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+
+            if (File.Exists($"{tempFile}.etag"))
+            {
+                File.Delete($"{tempFile}.etag");
+            }
+        }
+    }
+
+    private sealed class CustomStreamingContent(byte[] data, long? declaredContentLength) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            stream.WriteAsync(data, 0, data.Length);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            if (declaredContentLength.HasValue)
+            {
+                length = declaredContentLength.Value;
+                return true;
+            }
+
+            length = 0;
+            return false;
         }
     }
 }

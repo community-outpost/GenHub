@@ -28,7 +28,8 @@ public class DownloadService(
         HttpResponseMessage Response,
         bool IsResumed,
         long ExistingBytes,
-        long TotalBytes);
+        long TotalBytes,
+        long? ExpectedContentBytes = null);
 
     /// <inheritdoc/>
     public async Task<DownloadResult> DownloadFileAsync(
@@ -101,16 +102,21 @@ public class DownloadService(
 
     private static bool TryGetETagHeader(DownloadConfiguration configuration, [NotNullWhen(true)] out string? etag)
     {
-        if (configuration.Headers.TryGetValue("ETag", out etag) && !string.IsNullOrWhiteSpace(etag))
+        foreach (var header in configuration.Headers)
         {
-            return true;
+            if (string.Equals(header.Key, "ETag", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(header.Value))
+            {
+                etag = header.Value;
+                return true;
+            }
         }
 
         etag = null;
         return false;
     }
 
-    private static bool TryParseEntityTag(string? raw, [NotNullWhen(true)] out EntityTagHeaderValue? entityTag)
+    private static bool TryParseEntityTag(string raw, [NotNullWhen(true)] out EntityTagHeaderValue? entityTag)
     {
         if (string.IsNullOrWhiteSpace(raw))
         {
@@ -118,13 +124,13 @@ public class DownloadService(
             return false;
         }
 
-        if (EntityTagHeaderValue.TryParse(raw, out entityTag))
+        if (EntityTagHeaderValue.TryParse(raw, out entityTag) && !entityTag.IsWeak)
         {
             return true;
         }
 
         var trimmed = raw.Trim();
-        if (EntityTagHeaderValue.TryParse($"\"{trimmed.Trim('\"')}\"", out entityTag))
+        if (EntityTagHeaderValue.TryParse($"\"{trimmed.Trim('\"')}\"", out entityTag) && !entityTag.IsWeak)
         {
             return true;
         }
@@ -136,13 +142,14 @@ public class DownloadService(
     private static void ReportDownloadProgress(
         IProgress<DownloadProgress> progress,
         long downloadedBytes,
+        long sessionBytes,
         long totalBytes,
         string fileName,
         Uri url,
         TimeSpan elapsed)
     {
         var elapsedSeconds = elapsed.TotalSeconds;
-        var bytesPerSecond = elapsedSeconds > 0 ? (long)(downloadedBytes / elapsedSeconds) : 0L;
+        var bytesPerSecond = elapsedSeconds > 0 ? (long)(sessionBytes / elapsedSeconds) : 0L;
 
         var downloadProgress = new DownloadProgress(
             downloadedBytes,
@@ -171,19 +178,53 @@ public class DownloadService(
         await using var contentStream = await connection.Response.Content.ReadAsStreamAsync(cts.Token);
         await using var fileStream = new FileStream(configuration.DestinationPath, fileMode, FileAccess.Write, FileShare.None, configuration.BufferSize, useAsync: true);
 
+        if (configuration.EnableResumption && TryGetETagHeader(configuration, out var etag))
+        {
+            try
+            {
+                await File.WriteAllTextAsync($"{configuration.DestinationPath}.etag", etag.Trim(), cts.Token);
+            }
+            catch (Exception)
+            {
+                // Non-fatal if sidecar cannot be written
+            }
+        }
+
+        var receivedContentBytes = 0L;
         int bytesRead;
         while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token)) > 0)
         {
+            if (connection.ExpectedContentBytes is long expectedContentBytes &&
+                bytesRead > expectedContentBytes - receivedContentBytes)
+            {
+                throw new InvalidDataException("Resumed response body exceeds its declared range.");
+            }
+
             cts.CancelAfter(configuration.Timeout);
             await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cts.Token);
             downloadedBytes += bytesRead;
+            receivedContentBytes += bytesRead;
 
             var now = DateTime.UtcNow;
             if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || downloadedBytes == connection.TotalBytes))
             {
-                ReportDownloadProgress(progress, downloadedBytes, connection.TotalBytes, fileName, configuration.Url, stopwatch.Elapsed);
+                ReportDownloadProgress(
+                    progress,
+                    downloadedBytes,
+                    downloadedBytes - connection.ExistingBytes,
+                    connection.TotalBytes,
+                    fileName,
+                    configuration.Url,
+                    stopwatch.Elapsed);
                 lastProgressReport = now;
             }
+        }
+
+        if (connection.IsResumed &&
+            connection.ExpectedContentBytes is long expectedBytes &&
+            receivedContentBytes != expectedBytes)
+        {
+            throw new InvalidDataException("Resumed response body does not match its declared range.");
         }
 
         if (connection.IsResumed && connection.TotalBytes > 0 && downloadedBytes < connection.TotalBytes)
@@ -273,12 +314,24 @@ public class DownloadService(
             return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
         }
 
+        var etagSidecarPath = $"{configuration.DestinationPath}.etag";
+        var hasMatchingSidecar = TryGetETagHeader(configuration, out var configEtag)
+            && TryParseEntityTag(configEtag, out var parsedConfigEtag)
+            && TryReadSidecarEtag(etagSidecarPath, out var parsedSidecarEtag)
+            && parsedConfigEtag != null
+            && parsedSidecarEtag != null
+            && string.Equals(parsedConfigEtag.Tag, parsedSidecarEtag.Tag, StringComparison.Ordinal);
+
         var existingBytes = (configuration.EnableResumption
             && destFileInfo.Exists
-            && TryGetETagHeader(configuration, out var etag)
-            && TryParseEntityTag(etag, out _))
+            && hasMatchingSidecar)
             ? destFileInfo.Length
             : 0L;
+
+        if (existingBytes == 0)
+        {
+            TryDeleteFile(etagSidecarPath);
+        }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(configuration.Timeout);
@@ -319,6 +372,7 @@ public class DownloadService(
             }
 
             TryDeleteFile(configuration.DestinationPath);
+            TryDeleteFile($"{configuration.DestinationPath}.etag");
         }
 
         var response = await SendRequestAsync(configuration, validator, 0, cts.Token);
@@ -348,23 +402,44 @@ public class DownloadService(
             if (response.StatusCode == HttpStatusCode.PartialContent)
             {
                 var contentRange = response.Content.Headers.ContentRange;
-                if (contentRange?.From == existingBytes)
+                if (contentRange?.From == existingBytes &&
+                    string.Equals(contentRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase))
                 {
                     ValidateResponseContentType(response, configuration.DestinationPath);
                     var totalBytes = contentRange.Length
                         ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
-                    return new DownloadConnection(response, true, existingBytes, totalBytes);
+
+                    long? expectedContentBytes = null;
+                    if (contentRange.To.HasValue)
+                    {
+                        var calculatedExpected = contentRange.To.Value - existingBytes + 1;
+                        if (calculatedExpected <= 0 || (contentRange.Length.HasValue && contentRange.To.Value >= contentRange.Length.Value))
+                        {
+                            throw new InvalidDataException("Resumed response content range is invalid.");
+                        }
+
+                        if (response.Content.Headers.ContentLength is long contentLength && contentLength != calculatedExpected)
+                        {
+                            throw new InvalidDataException("Resumed response Content-Length does not match Content-Range.");
+                        }
+
+                        expectedContentBytes = calculatedExpected;
+                    }
+
+                    return new DownloadConnection(response, true, existingBytes, totalBytes, expectedContentBytes);
                 }
 
                 logger.LogWarning("Range {Range} mismatch on {Url}; expected {Expected}. Restarting download.", contentRange?.From, configuration.Url, existingBytes);
             }
             else if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
             {
+                TryDeleteFile($"{configuration.DestinationPath}.etag");
                 logger.LogWarning("Range {Range} not satisfiable for {Url}. Restarting download from scratch.", existingBytes, configuration.Url);
             }
             else if (response.IsSuccessStatusCode)
             {
                 // Server responded 200 OK: ignored Range header and sent full content
+                TryDeleteFile($"{configuration.DestinationPath}.etag");
                 ValidateResponseContentType(response, configuration.DestinationPath);
                 var totalBytes = response.Content.Headers.ContentLength ?? 0;
                 return new DownloadConnection(response, false, 0, totalBytes);
@@ -390,6 +465,8 @@ public class DownloadService(
         TimeSpan elapsed,
         CancellationToken cancellationToken)
     {
+        TryDeleteFile($"{configuration.DestinationPath}.etag");
+
         if (string.IsNullOrWhiteSpace(configuration.ExpectedHash))
         {
             return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, false);
@@ -437,16 +514,7 @@ public class DownloadService(
             return;
         }
 
-        var ext = Path.GetExtension(destinationPath);
-        var isBinaryTarget = ext.Equals(".zip", StringComparison.OrdinalIgnoreCase) ||
-                             ext.Equals(".7z", StringComparison.OrdinalIgnoreCase) ||
-                             ext.Equals(".rar", StringComparison.OrdinalIgnoreCase) ||
-                             ext.Equals(".tar", StringComparison.OrdinalIgnoreCase) ||
-                             ext.Equals(".gz", StringComparison.OrdinalIgnoreCase) ||
-                             ext.Equals(".big", StringComparison.OrdinalIgnoreCase) ||
-                             ext.Equals(".gib", StringComparison.OrdinalIgnoreCase) ||
-                             ext.Equals(".ctr", StringComparison.OrdinalIgnoreCase) ||
-                             ext.Equals(".exe", StringComparison.OrdinalIgnoreCase);
+        var isBinaryTarget = DownloadDefaults.IsBinaryTargetExtension(Path.GetExtension(destinationPath));
 
         if (isBinaryTarget && (mediaType.Equals("text/html", StringComparison.OrdinalIgnoreCase) ||
                                mediaType.Equals("application/xhtml+xml", StringComparison.OrdinalIgnoreCase)))
@@ -470,5 +538,25 @@ public class DownloadService(
         {
             logger.LogWarning(ex, "Failed to delete file {FilePath}", path);
         }
+    }
+
+    private bool TryReadSidecarEtag(string sidecarPath, out EntityTagHeaderValue? parsedEtag)
+    {
+        parsedEtag = null;
+        try
+        {
+            if (File.Exists(sidecarPath))
+            {
+                var content = File.ReadAllText(sidecarPath).Trim();
+                return TryParseEntityTag(content, out parsedEtag);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to read ETag sidecar file {FilePath}; treating as stale.", sidecarPath);
+            TryDeleteFile(sidecarPath);
+        }
+
+        return false;
     }
 }

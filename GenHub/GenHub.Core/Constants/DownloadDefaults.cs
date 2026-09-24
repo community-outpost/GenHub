@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -79,4 +82,20 @@ public static class DownloadDefaults
     /// Default buffer size for file operations (4KB).
     /// </summary>
     public const int FileBufferSizeBytes = 4096;
+
+    /// <summary>
+    /// Binary archive and payload extensions that should never receive HTML error responses.
+    /// </summary>
+    public static readonly IReadOnlySet<string> BinaryTargetExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".zip", ".7z", ".rar", ".tar", ".gz", ".big", ".gib", ".ctr", ".exe", ".dat",
+    };
+
+    /// <summary>
+    /// Checks whether a file extension represents a binary target that should not receive an HTML response.
+    /// </summary>
+    /// <param name="extension">The file extension, including leading period.</param>
+    /// <returns><c>true</c> if the extension is a known binary payload format; otherwise, <c>false</c>.</returns>
+    public static bool IsBinaryTargetExtension(string? extension) =>
+        !string.IsNullOrEmpty(extension) && BinaryTargetExtensions.Contains(extension);
 }

@@ -4818,7 +4818,7 @@ public sealed class ContentDetailViewModelTests
             TargetGame = GameType.ZeroHour,
             ResolverId = testResolver,
             RequiresResolution = true,
-            SourceUrl = "https://example.com/shockwave/1.2/a",
+            SourceUrl = "https://example.com/shockwave/1.2/release.zip",
         };
         variant1.ResolverMetadata["variantKey"] = "fromVariant1";
 
@@ -4832,7 +4832,7 @@ public sealed class ContentDetailViewModelTests
             TargetGame = GameType.ZeroHour,
             ResolverId = testResolver,
             RequiresResolution = true,
-            SourceUrl = "https://example.com/shockwave/1.2/b",
+            SourceUrl = "https://example.com/shockwave/1.2/release.zip",
         };
         variant2.ResolverMetadata["variantKey"] = "fromVariant2";
 
