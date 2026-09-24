@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -262,24 +263,29 @@ public static class ReplayCrcMatchingHelper
     /// <returns>The hex-encoded SHA-256 hash, or null if the file does not exist or cannot be read.</returns>
     public static string? GetCachedExeSha256(string? exePath)
     {
-        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        if (string.IsNullOrEmpty(exePath))
+        {
+            return null;
+        }
+
+        if (!exePath.TryGetFileCaseInsensitive(out var actualPath))
         {
             return null;
         }
 
         try
         {
-            var lastWrite = File.GetLastWriteTimeUtc(exePath);
-            if (ExeShaCache.TryGetValue(exePath, out var cached) && cached.LastWriteTimeUtc == lastWrite)
+            var lastWrite = File.GetLastWriteTimeUtc(actualPath);
+            if (ExeShaCache.TryGetValue(actualPath, out var cached) && cached.LastWriteTimeUtc == lastWrite)
             {
                 return cached.Sha256;
             }
 
-            using var stream = File.OpenRead(exePath);
+            using var stream = File.OpenRead(actualPath);
             using var sha = SHA256.Create();
             var hashBytes = sha.ComputeHash(stream);
             var hash = Convert.ToHexString(hashBytes);
-            ExeShaCache[exePath] = (lastWrite, hash);
+            ExeShaCache[actualPath] = (lastWrite, hash);
             return hash;
         }
         catch
@@ -512,6 +518,7 @@ public static class ReplayCrcMatchingHelper
     /// <summary>
     /// Determines whether the specified executable path uses a non-retail executable format
     /// (such as Linux Flatpak, AppImage, macOS bundle, or non-PE binaries), which cannot match retail Windows PE executable CRCs or run inside Wine/Proton.
+    /// Note: Both .exe and .dat (e.g. game.dat, generals.dat) are standard Windows PE binaries for Generals and Zero Hour.
     /// </summary>
     /// <param name="executablePath">The executable path to evaluate.</param>
     /// <returns><c>true</c> if the executable format is non-retail/non-PE; otherwise, <c>false</c>.</returns>
@@ -528,7 +535,8 @@ public static class ReplayCrcMatchingHelper
             return true;
         }
 
-        return !string.Equals(ext, ".exe", StringComparison.OrdinalIgnoreCase);
+        return !string.Equals(ext, ".exe", StringComparison.OrdinalIgnoreCase) &&
+               !string.Equals(ext, ".dat", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -710,9 +718,15 @@ public static class ReplayCrcMatchingHelper
             {
                 var defaultExe = GetDefaultExecutableName(client.GameType, client.PublisherType);
                 var candidate = Path.Combine(client.WorkingDirectory, defaultExe);
-                if (File.Exists(candidate))
+                if (candidate.TryGetFileCaseInsensitive(out var matchedCandidate))
                 {
-                    return candidate;
+                    return matchedCandidate;
+                }
+
+                var datCandidate = Path.Combine(client.WorkingDirectory, GameClientConstants.SteamGameDatExecutable);
+                if (datCandidate.TryGetFileCaseInsensitive(out var matchedDat))
+                {
+                    return matchedDat;
                 }
             }
 
@@ -722,6 +736,11 @@ public static class ReplayCrcMatchingHelper
         if (!Path.IsPathRooted(exePath) && !string.IsNullOrWhiteSpace(client.WorkingDirectory))
         {
             exePath = Path.Combine(client.WorkingDirectory, exePath);
+        }
+
+        if (exePath.TryGetFileCaseInsensitive(out var resolvedExePath))
+        {
+            return resolvedExePath;
         }
 
         return exePath;
@@ -734,14 +753,19 @@ public static class ReplayCrcMatchingHelper
     /// <returns>The cached CRC string, or <c>null</c> if missing or stale.</returns>
     public static string? GetCachedExeCrc(string exePath)
     {
-        var fileInfo = new FileInfo(exePath);
+        if (string.IsNullOrEmpty(exePath) || !exePath.TryGetFileCaseInsensitive(out var actualPath))
+        {
+            return null;
+        }
+
+        var fileInfo = new FileInfo(actualPath);
         if (!fileInfo.Exists)
         {
             return null;
         }
 
         var lastWrite = fileInfo.LastWriteTimeUtc;
-        if (ExeCrcCache.TryGetValue(exePath, out var cached) && cached.LastWriteTimeUtc == lastWrite)
+        if (ExeCrcCache.TryGetValue(actualPath, out var cached) && cached.LastWriteTimeUtc == lastWrite)
         {
             return cached.Crc;
         }
@@ -766,22 +790,27 @@ public static class ReplayCrcMatchingHelper
         ArgumentNullException.ThrowIfNull(crcCalculator);
         try
         {
-            var fileInfo = new FileInfo(exePath);
+            if (string.IsNullOrEmpty(exePath) || !exePath.TryGetFileCaseInsensitive(out var actualPath))
+            {
+                return null;
+            }
+
+            var fileInfo = new FileInfo(actualPath);
             if (!fileInfo.Exists)
             {
                 return null;
             }
 
             var lastWrite = fileInfo.LastWriteTimeUtc;
-            if (ExeCrcCache.TryGetValue(exePath, out var cached) && cached.LastWriteTimeUtc == lastWrite)
+            if (ExeCrcCache.TryGetValue(actualPath, out var cached) && cached.LastWriteTimeUtc == lastWrite)
             {
                 return cached.Crc;
             }
 
-            var calcResult = await crcCalculator.CalculateExeCrcAsync(exePath, ct: ct);
+            var calcResult = await crcCalculator.CalculateExeCrcAsync(actualPath, ct: ct);
             if (calcResult.Success && !string.IsNullOrEmpty(calcResult.Data))
             {
-                ExeCrcCache[exePath] = (lastWrite, calcResult.Data);
+                ExeCrcCache[actualPath] = (lastWrite, calcResult.Data);
                 return calcResult.Data;
             }
         }
@@ -859,11 +888,11 @@ public static class ReplayCrcMatchingHelper
             }
 
             var exePath = ResolveProfileFullExePath(gameClient);
-            if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+            if (!string.IsNullOrEmpty(exePath) && exePath.TryGetFileCaseInsensitive(out var actualExePath))
             {
-                await GetOrCalculateProfileExeCrcAsync(exePath, crcCalculator, logger, ct);
+                await GetOrCalculateProfileExeCrcAsync(actualExePath, crcCalculator, logger, ct);
 
-                var gameRoot = Path.GetDirectoryName(exePath);
+                var gameRoot = Path.GetDirectoryName(actualExePath);
                 if (!string.IsNullOrEmpty(gameRoot) && Directory.Exists(gameRoot) && gameClient != null)
                 {
                     await GetOrCalculateProfileIniCrcAsync(gameRoot, gameClient.GameType, crcCalculator, logger, ct);
@@ -972,18 +1001,18 @@ public static class ReplayCrcMatchingHelper
         Func<string?, bool> isRetailExeCrc,
         Func<string?, bool> isRetailExeSha)
     {
-        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        if (string.IsNullOrEmpty(exePath) || !exePath.TryGetFileCaseInsensitive(out var actualPath))
         {
             return false;
         }
 
-        var sha = GetCachedExeSha256(exePath);
+        var sha = GetCachedExeSha256(actualPath);
         if (!string.IsNullOrEmpty(sha) && isRetailExeSha(sha))
         {
             return true;
         }
 
-        return MatchesGameDat(exePath, isRetailExeCrc, isRetailExeSha);
+        return MatchesGameDat(actualPath, isRetailExeCrc, isRetailExeSha);
     }
 
     /// <summary>
@@ -1000,8 +1029,8 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var gameDatPath = Path.Combine(dir, GameClientConstants.SteamGameDatExecutable);
-        if (!File.Exists(gameDatPath))
+        var candidate = Path.Combine(dir, GameClientConstants.SteamGameDatExecutable);
+        if (!candidate.TryGetFileCaseInsensitive(out var gameDatPath))
         {
             return false;
         }
@@ -1062,12 +1091,12 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (!File.Exists(fullExePath))
+        if (!fullExePath.TryGetFileCaseInsensitive(out var actualPath))
         {
             return false;
         }
 
-        cachedCrc = GetCachedExeCrc(fullExePath);
+        cachedCrc = GetCachedExeCrc(actualPath);
         return cachedCrc != null;
     }
 
