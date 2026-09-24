@@ -25,8 +25,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 {
     private const int MaxCachedIndexes = 8;
     private const int MaxCachedImages = 500;
-    private const int ArchiveRankWeight = 5000;
-    private const int MaxArchiveRankSteps = 15;
+    private const int ArchiveRankWeight = 2000;
+    private const int MaxArchiveRankSteps = 39;
     private const int LooseFileRank = 80000;
     private const string DataPrefix = "Data\\";
     private const string ArtTexturesPrefix = @"Art\Textures\";
@@ -198,11 +198,16 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         var sizeBonus = size < 0 ? 0 : Math.Clamp(size, 0, WndConstants.Preview.MaxTextureSizeScoreBonus);
 
-        // Deliberate GenHub preview ranking: higher archive mount order (e.g. INIZH.big mounted after INI.big)
-        // earns a higher rank so expansion definitions supersede base definitions within the same tier.
-        // ArchiveRankWeight (5,000) exceeds MaxTextureSizeScoreBonus (4,096), ensuring that archive mount order
-        // cannot be inverted by texture size hints. Loose file overrides (LooseFileRank) outrank archive definitions.
-        var archiveRank = sourceOrder < 0 ? LooseFileRank : Math.Min(sourceOrder, MaxArchiveRankSteps) * ArchiveRankWeight;
+        // Engine ranking: the earliest-mounted archive wins same-name ties, mirroring
+        // Win32BIGFileSystem mounting BIGs in sorted order with overwrite disabled.
+        // Root Zero Hour archives mount before ZH_Generals subdirectory base archives,
+        // so expansion definitions outrank base definitions within the same tier.
+        // The 39 steps cover full retail installs; steps beyond that tie at zero and
+        // fall back to discovery order. Loose files outrank every archive, matching
+        // the engine opening the local file system before archives.
+        var archiveRank = sourceOrder < 0
+            ? LooseFileRank
+            : (MaxArchiveRankSteps - Math.Min(sourceOrder, MaxArchiveRankSteps)) * ArchiveRankWeight;
 
         return tierBase + handCreatedBonus + archiveRank + sizeBonus;
     }
@@ -431,6 +436,14 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                     .GroupBy(image => image.Tier)
                     .OrderBy(group => group.Key)
                     .Select(group => $"{group.Key}={group.Count()}")));
+        logger.LogInformation(
+            "Mounted {Count} archives in engine order: {Archives}",
+            fileSystem.MountedArchivesInOrder.Count,
+            string.Join(", ", fileSystem.MountedArchivesInOrder));
+        logger.LogInformation(
+            "Winning definitions by source kind: HandCreated={HandCreated}, TextureSize={TextureSize}",
+            images.Values.Count(image => image.SourceIniPath.Contains(WndConstants.Preview.HandCreatedDirectory, StringComparison.OrdinalIgnoreCase)),
+            images.Values.Count(image => image.SourceIniPath.Contains(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase)));
         return new AssetIndex(key, fileSystem, images, alternates);
     }
 
@@ -737,7 +750,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             var png = CropMappedImage(page, image.Image);
             if (png.Length > 0)
             {
-                LogResolvedProvenance(image, altData.Value.Path, page.Width, page.Height);
+                LogResolvedProvenance(image, altData.Value.Path, page.Width, page.Height, index.FileSystem);
             }
 
             return (png, altData.Value.MatchClass);
@@ -786,7 +799,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 {
                     resolved[img.Image.Name] = png;
                     _provenanceCache[CacheKey(index.Key, img.Image.Name)] = new ImageProvenance(img.Tier, textureData.Value.MatchClass);
-                    LogResolvedProvenance(img, textureData.Value.Path, page.Width, page.Height);
+                    LogResolvedProvenance(img, textureData.Value.Path, page.Width, page.Height, index.FileSystem);
                 }
             }
         }
@@ -796,10 +809,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
     }
 
-    private void LogResolvedProvenance(TieredImage image, string texturePath, uint pageWidth, uint pageHeight)
+    private void LogResolvedProvenance(TieredImage image, string texturePath, uint pageWidth, uint pageHeight, SageVirtualFileSystem fileSystem)
     {
         logger.LogDebug(
-            "Resolved {Image} from {Texture} [{Left},{Top},{Right},{Bottom}] via {Ini} [{Tier}] -> {Path} ({PageWidth}x{PageHeight})",
+            "Resolved {Image} from {Texture} [{Left},{Top},{Right},{Bottom}] via {Ini} [{Tier}] ({IniArchive}) -> {Path} ({TextureArchive}, {PageWidth}x{PageHeight})",
             image.Image.Name,
             image.Image.Texture,
             image.Image.Left,
@@ -808,7 +821,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             image.Image.Bottom,
             image.SourceIniPath,
             image.Tier,
+            fileSystem.GetSourceArchiveName(image.SourceIniPath) ?? "loose",
             texturePath,
+            fileSystem.GetSourceArchiveName(texturePath) ?? "loose",
             pageWidth,
             pageHeight);
     }

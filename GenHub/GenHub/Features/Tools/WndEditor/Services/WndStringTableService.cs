@@ -270,7 +270,11 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
             {
                 using var stream = new MemoryStream(bytes);
                 var csf = CsfFile.Load(stream);
-                logger.LogInformation("Loaded {Count} strings from {Path}", csf.Count, path);
+                logger.LogInformation(
+                    "Loaded {Count} strings from {Path} (archive: {Archive})",
+                    csf.Count,
+                    path,
+                    fileSystem.GetSourceArchiveName(path) ?? "loose");
                 foreach (var (k, v) in csf.Strings)
                 {
                     table[k] = v;

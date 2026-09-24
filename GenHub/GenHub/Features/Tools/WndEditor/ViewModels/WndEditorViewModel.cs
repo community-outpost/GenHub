@@ -662,7 +662,7 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
-    /// Builds runtime presentation facts for challenge menu windows.
+    /// Builds runtime presentation facts for shell-managed windows.
     /// </summary>
     /// <param name="document">The layout document.</param>
     /// <param name="medals">The resolved medallions, if any.</param>
@@ -679,34 +679,82 @@ public sealed partial class WndEditorViewModel(
             }
 
             var decorated = WndDecoratedName.Parse(window.Name);
-            if (!string.Equals(decorated.FileName, WndConstants.Challenge.FileName, StringComparison.OrdinalIgnoreCase))
+            if (IsMapStartMarker(decorated.ShortName))
             {
-                continue;
-            }
-
-            // ChallengeMenuInit hides the biography panel and play button until a
-            // general is selected; locked personas start hidden the same way.
-            if (string.Equals(decorated.ShortName, WndConstants.Challenge.BioParentShortName, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(decorated.ShortName, WndConstants.Challenge.ButtonPlayShortName, StringComparison.OrdinalIgnoreCase))
-            {
+                // Map start markers are repositioned by the shell once a map loads
+                // (WOLGameSetupMenu positionStartSpots); at rest they sit at stacked
+                // file positions, so the editor hides them like other runtime windows.
                 hidden.Add(window.Name);
                 continue;
             }
 
-            if (medals != null && TryParseGeneralPosition(decorated.ShortName, out var position))
+            if (string.Equals(decorated.FileName, WndConstants.Challenge.FileName, StringComparison.OrdinalIgnoreCase))
             {
-                if (medals.HiddenPositions.Contains(position))
-                {
-                    hidden.Add(window.Name);
-                }
-                else if (medals.MedalsByPosition.TryGetValue(position, out var medal))
-                {
-                    medalImages[window.Name] = medal;
-                }
+                ApplyChallengeRuntimeArt(window.Name, decorated.ShortName, medals, medalImages, hidden);
+            }
+            else if (string.Equals(decorated.FileName, WndConstants.ShellRuntime.MainMenuFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                ApplyMainMenuRuntimeArt(window.Name, decorated.ShortName, hidden);
             }
         }
 
         return new WndRuntimeArt(medalImages, hidden);
+    }
+
+    private static bool IsMapStartMarker(string shortName)
+    {
+        return shortName.StartsWith(WndConstants.ShellRuntime.MapStartPositionPrefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void ApplyChallengeRuntimeArt(
+        string name,
+        string shortName,
+        ChallengeMedals? medals,
+        Dictionary<string, string> medalImages,
+        HashSet<string> hidden)
+    {
+        // ChallengeMenuInit hides the biography panel and play button until a
+        // general is selected; locked personas start hidden the same way.
+        if (string.Equals(shortName, WndConstants.Challenge.BioParentShortName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(shortName, WndConstants.Challenge.ButtonPlayShortName, StringComparison.OrdinalIgnoreCase))
+        {
+            hidden.Add(name);
+            return;
+        }
+
+        if (medals != null && TryParseGeneralPosition(shortName, out var position))
+        {
+            if (medals.HiddenPositions.Contains(position))
+            {
+                hidden.Add(name);
+            }
+            else if (medals.MedalsByPosition.TryGetValue(position, out var medal))
+            {
+                medalImages[name] = medal;
+            }
+        }
+    }
+
+    private static void ApplyMainMenuRuntimeArt(string name, string shortName, HashSet<string> hidden)
+    {
+        // MainMenu initialHide hides the faction flyouts, and
+        // showSelectiveButtons(SHOW_NONE) hides every faction quick-load button
+        // until a faction is picked.
+        if (shortName.StartsWith(WndConstants.ShellRuntime.WinFactionPrefix, StringComparison.OrdinalIgnoreCase)
+            || IsMainMenuFactionButton(shortName))
+        {
+            hidden.Add(name);
+        }
+    }
+
+    private static bool IsMainMenuFactionButton(string shortName)
+    {
+        return string.Equals(shortName, WndConstants.ShellRuntime.ButtonUsaRecentSave, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(shortName, WndConstants.ShellRuntime.ButtonUsaLoadGame, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(shortName, WndConstants.ShellRuntime.ButtonGlaRecentSave, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(shortName, WndConstants.ShellRuntime.ButtonGlaLoadGame, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(shortName, WndConstants.ShellRuntime.ButtonChinaRecentSave, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(shortName, WndConstants.ShellRuntime.ButtonChinaLoadGame, StringComparison.OrdinalIgnoreCase);
     }
 
     private static TopLevel? GetTopLevel()
@@ -3034,6 +3082,11 @@ public sealed partial class WndEditorViewModel(
             var medalsResult = await medalService.GetMedalsAsync(roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
             var medals = medalsResult.Success && medalsResult.Data != null ? medalsResult.Data : null;
             var runtimeArt = BuildRuntimeArt(document, medals);
+            logger.LogDebug(
+                "Runtime art for {File}: {Medals} medal images, {Hidden} shell-hidden windows",
+                document.SourcePath == null ? "untitled" : Path.GetFileName(document.SourcePath),
+                runtimeArt.MedalImages.Count,
+                runtimeArt.HiddenWindows.Count);
             var names = CollectPreviewImageNames(document, _schemeOverrides, runtimeArt);
             var labels = CollectPreviewLabels(document, _schemeOverrides, runtimeArt);
             var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, null, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);

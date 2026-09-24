@@ -26,8 +26,9 @@ namespace GenHub.Tests.Core.Features.Tools.WndEditor.Acceptance;
 /// <summary>
 /// Acceptance criteria tests for the 3 core WND Editor issues:
 /// 1. Asset loading resolves Zero Hour over Generals (Expansion tier beats BaseGame loose/archive fallback;
-///    expansion archives beat same-tier base archives for shared paths, names, and string tables),
-///    and MainMenuRuler does not inject Generals MainMenuBackdrop behind Zero Hour screens.
+///    root expansion archives mount before ZH_Generals subdirectory base archives for shared paths,
+///    names, and string tables), and MainMenuRuler does not inject Generals MainMenuBackdrop
+///    behind Zero Hour screens.
 /// 2. Border/window bounds expand virtual screen width/height so widescreen borders are full-screen, not corner-boxed.
 /// 3. ModBuilder sample project (ElTioRata / ImprovedMenus) loose assets in GameFilesEdited are discovered
 ///    and prioritized at Mod tier over base game assets.
@@ -256,25 +257,25 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
 
     /// <summary>
     /// Acceptance Criterion 1C:
-    /// Inside one Zero Hour installation, expansion archives override same-path base archives
-    /// per GenHub deliberate preview precedence policy (later-mounted-wins within the same tier,
-    /// a conscious GenHub preview deviation from the retail engine init path).
-    /// A mapped image and texture shared by INI.big (red) and INIZH.big (blue) must resolve
-    /// to the expansion (blue) pixels end to end through the image asset service.
+    /// Inside one Zero Hour installation, root expansion archives mount before
+    /// ZH_Generals subdirectory base archives, so a mapped image and texture shared
+    /// by INI.big (red) and INIZH.big (blue) resolve to the expansion (blue) pixels
+    /// end to end through the image asset service.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task Criterion1C_ZeroHourRoot_SamePathArtResolvesToZeroHourPixels()
     {
-        // Arrange: base and expansion archives share one MappedImages INI path and one texture path
+        // Arrange: Steam layout; base and expansion archives share one MappedImages INI path and one texture path
         var zhRoot = Path.Combine(_tempRoot, "ZeroHourPixels");
-        Directory.CreateDirectory(zhRoot);
+        var bundledGenerals = Path.Combine(zhRoot, "ZH_Generals");
+        Directory.CreateDirectory(bundledGenerals);
         var redPng = WndTestAssets.CreateSolidPng(MagickColors.Red);
         var bluePng = WndTestAssets.CreateSolidPng(MagickColors.Blue);
         const string iniPath = "Data\\INI\\MappedImages\\HandCreated\\Shared.ini";
         const string iniText = "MappedImage SharedImage\n  Texture = shared.tga\n  Coords = Left:0 Top:0 Right:1 Bottom:1\nEnd\n";
         WndTestAssets.CreateBigArchive(
-            Path.Combine(zhRoot, "INI.big"),
+            Path.Combine(bundledGenerals, "INI.big"),
             (iniPath, Encoding.UTF8.GetBytes(iniText)),
             ("shared.tga", redPng));
         WndTestAssets.CreateBigArchive(
@@ -297,28 +298,29 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
 
     /// <summary>
     /// Acceptance Criterion 1D:
-    /// When base and expansion archives define the same mapped image name in different INI files,
-    /// the expansion (later-mounted) definition wins per GenHub deliberate preview precedence policy
-    /// even when its INI path sorts alphabetically earlier than the base definition path.
+    /// When subdirectory base and root expansion archives define the same mapped image
+    /// name in different INI files, the expansion (earlier-mounted) definition wins even
+    /// when its INI path sorts alphabetically later than the base definition path.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task Criterion1D_SameNameMappedImage_LaterMountedArchiveWinsDespitePathOrder()
+    public async Task Criterion1D_SameNameMappedImage_EarlierMountedArchiveWinsDespitePathOrder()
     {
-        // Arrange: expansion definition in an alphabetically-early path, base definition in a late path
+        // Arrange: expansion definition in an alphabetically-late path, base definition in an early path
         var zhRoot = Path.Combine(_tempRoot, "ZeroHourNameOrder");
-        Directory.CreateDirectory(zhRoot);
+        var bundledGenerals = Path.Combine(zhRoot, "ZH_Generals");
+        Directory.CreateDirectory(bundledGenerals);
         var redPng = WndTestAssets.CreateSolidPng(MagickColors.Red);
         var bluePng = WndTestAssets.CreateSolidPng(MagickColors.Blue);
         const string baseIniText = "MappedImage OrderImage\n  Texture = orderbase.tga\n  Coords = Left:0 Top:0 Right:1 Bottom:1\nEnd\n";
         const string zhIniText = "MappedImage OrderImage\n  Texture = orderzh.tga\n  Coords = Left:0 Top:0 Right:1 Bottom:1\nEnd\n";
         WndTestAssets.CreateBigArchive(
-            Path.Combine(zhRoot, "A_Base.big"),
-            ("Data\\INI\\MappedImages\\HandCreated\\Z_Late.ini", Encoding.UTF8.GetBytes(baseIniText)),
+            Path.Combine(bundledGenerals, "Z_Base.big"),
+            ("Data\\INI\\MappedImages\\HandCreated\\A_Early.ini", Encoding.UTF8.GetBytes(baseIniText)),
             ("orderbase.tga", redPng));
         WndTestAssets.CreateBigArchive(
-            Path.Combine(zhRoot, "Z_Expansion.big"),
-            ("Data\\INI\\MappedImages\\HandCreated\\A_Early.ini", Encoding.UTF8.GetBytes(zhIniText)),
+            Path.Combine(zhRoot, "A_Expansion.big"),
+            ("Data\\INI\\MappedImages\\HandCreated\\Z_Late.ini", Encoding.UTF8.GetBytes(zhIniText)),
             ("orderzh.tga", bluePng));
 
         var service = new WndImageAssetService(Mock.Of<ILogger<WndImageAssetService>>());
@@ -336,20 +338,21 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
 
     /// <summary>
     /// Acceptance Criterion 1E:
-    /// The shared string table path (Data\English\Generals.csf) resolves to the expansion
-    /// archive content inside one Zero Hour installation, so Zero Hour labels load instead
-    /// of showing raw GUI: labels.
+    /// The shared string table path (Data\English\Generals.csf) resolves to the root
+    /// expansion archive inside one Zero Hour installation, so Zero Hour labels load
+    /// instead of showing raw GUI: labels.
     /// </summary>
     [Fact]
     public void Criterion1E_StringTable_SamePathResolvesToZeroHour()
     {
-        // Arrange: base and expansion archives share the string table path
+        // Arrange: Steam layout; subdirectory base and root expansion archives share the string table path
         var zhRoot = Path.Combine(_tempRoot, "ZeroHourStrings");
-        Directory.CreateDirectory(zhRoot);
+        var bundledGenerals = Path.Combine(zhRoot, "ZH_Generals");
+        Directory.CreateDirectory(bundledGenerals);
         var baseCsf = Encoding.UTF8.GetBytes("generals-base-strings");
         var zhCsf = Encoding.UTF8.GetBytes("zerohour-expansion-strings");
         WndTestAssets.CreateBigArchive(
-            Path.Combine(zhRoot, "English.big"),
+            Path.Combine(bundledGenerals, "English.big"),
             ("Data\\English\\Generals.csf", baseCsf));
         WndTestAssets.CreateBigArchive(
             Path.Combine(zhRoot, "EnglishZH.big"),
@@ -371,27 +374,28 @@ public sealed class WndEditorAcceptanceCriteriaTests : IDisposable
 
     /// <summary>
     /// Acceptance Criterion 1F:
-    /// ArchiveRankWeight exceeds MaxTextureSizeScoreBonus so that a larger texture size hint in an earlier-mounted
-    /// archive cannot invert archive precedence. The later-mounted archive definition wins even when the earlier
-    /// archive provides a large texture (e.g. 2048x2048) and the later archive provides a small texture (e.g. 32x32).
+    /// Mount-order rank beats texture size hints across the root/subdirectory gap: the
+    /// earlier-mounted root expansion definition wins even when the later-mounted
+    /// subdirectory base archive provides a much larger texture.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task Criterion1F_LaterMountedArchiveWins_EvenWhenEarlierArchiveHasLargerTexture()
+    public async Task Criterion1F_EarlierMountedArchiveWins_EvenWhenLaterArchiveHasLargerTexture()
     {
-        // Arrange
+        // Arrange: Steam layout; subdirectory base has a large texture, root expansion a small one
         var zhRoot = Path.Combine(_tempRoot, "ZeroHourSizeWeight");
-        Directory.CreateDirectory(zhRoot);
+        var bundledGenerals = Path.Combine(zhRoot, "ZH_Generals");
+        Directory.CreateDirectory(bundledGenerals);
         var largeRedPng = WndTestAssets.CreateSolidPng(MagickColors.Red, 2048, 2048);
         var smallBluePng = WndTestAssets.CreateSolidPng(MagickColors.Blue, 32, 32);
         const string baseIniText = "MappedImage TiedImage\n  Texture = tiedbase.tga\n  Coords = Left:0 Top:0 Right:2048 Bottom:2048\nEnd\n";
         const string zhIniText = "MappedImage TiedImage\n  Texture = tiedzh.tga\n  Coords = Left:0 Top:0 Right:32 Bottom:32\nEnd\n";
         WndTestAssets.CreateBigArchive(
-            Path.Combine(zhRoot, "A_Base.big"),
+            Path.Combine(bundledGenerals, "Z_Base.big"),
             ("Data\\INI\\MappedImages\\HandCreated\\Base.ini", Encoding.UTF8.GetBytes(baseIniText)),
             ("tiedbase.tga", largeRedPng));
         WndTestAssets.CreateBigArchive(
-            Path.Combine(zhRoot, "Z_Expansion.big"),
+            Path.Combine(zhRoot, "A_Expansion.big"),
             ("Data\\INI\\MappedImages\\HandCreated\\Zh.ini", Encoding.UTF8.GetBytes(zhIniText)),
             ("tiedzh.tga", smallBluePng));
 

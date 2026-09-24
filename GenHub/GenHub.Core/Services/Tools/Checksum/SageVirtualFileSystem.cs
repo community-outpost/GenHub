@@ -106,7 +106,7 @@ public sealed class SageVirtualFileSystem
         Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
         foreach (string bigFile in bigFiles)
         {
-            AddArchive(bigFile, SageFileTier.BaseGame, overwriteSameTier: false);
+            AddArchive(bigFile, SageFileTier.BaseGame);
         }
     }
 
@@ -194,12 +194,12 @@ public sealed class SageVirtualFileSystem
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
             foreach (string bigFile in bigFiles)
             {
-                AddArchive(bigFile, SageFileTier.LinkedAsset);
+                AddArchive(bigFile, SageFileTier.LinkedAsset, overwriteSameTier: true);
             }
         }
         else if (File.Exists(path) && path.EndsWith(SageChecksumConstants.BigFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            AddArchive(path, SageFileTier.LinkedAsset);
+            AddArchive(path, SageFileTier.LinkedAsset, overwriteSameTier: true);
         }
         else
         {
@@ -302,8 +302,8 @@ public sealed class SageVirtualFileSystem
 
     /// <summary>
     /// Gets the mount sequence of the archive currently providing a file, so callers
-    /// can prefer definitions from later-mounted (expansion) archives when the same
-    /// logical content is defined in multiple archives at the same tier.
+    /// can prefer definitions from earlier-mounted archives when the same logical
+    /// content is defined in multiple archives at the same tier.
     /// </summary>
     /// <param name="relativePath">The relative file path.</param>
     /// <param name="order">The zero-based mount sequence when the file comes from a mounted archive.</param>
@@ -343,6 +343,36 @@ public sealed class SageVirtualFileSystem
 
         return _archiveMountOrder.TryGetValue(pair.Entry.ArchivePath, out order);
     }
+
+    /// <summary>
+    /// Gets the file name of the archive currently providing a file, for diagnostics.
+    /// </summary>
+    /// <param name="relativePath">The relative file path.</param>
+    /// <returns>The archive file name, or null when the path is not archive-backed.</returns>
+    public string? GetSourceArchiveName(string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return null;
+        }
+
+        string lowerRel = relativePath.Replace('/', '\\').ToLowerInvariant();
+        if (!_archiveEntries.TryGetValue(lowerRel, out var pair))
+        {
+            return null;
+        }
+
+        return Path.GetFileName(pair.Entry.ArchivePath);
+    }
+
+    /// <summary>
+    /// Gets the mounted archive file names in mount order, for diagnostics.
+    /// </summary>
+    public IReadOnlyList<string> MountedArchivesInOrder =>
+        _archiveMountOrder
+            .OrderBy(pair => pair.Value)
+            .Select(pair => Path.GetFileName(pair.Key))
+            .ToList();
 
     /// <summary>
     /// Attempts to read a loose file from indexed mod directories by its filename alone.
@@ -513,7 +543,7 @@ public sealed class SageVirtualFileSystem
             && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\');
     }
 
-    private static bool IsBetterArchiveMatch(
+    private bool IsBetterArchiveMatch(
         (BigArchiveEntry Entry, SageFileTier Tier) candidate,
         (BigArchiveEntry Entry, SageFileTier Tier)? currentBest)
     {
@@ -524,17 +554,17 @@ public sealed class SageVirtualFileSystem
 
         if (candidate.Tier == currentBest.Value.Tier)
         {
-            // Deliberate GenHub preview design: later-sorted archives override earlier ones
-            // within the same tier so expansion archives (e.g. INIZH.big) override base archives
-            // (e.g. INI.big) when both are present in the same install directory. Note that this
-            // is a GenHub-specific preview precedence policy rather than the retail engine's
-            // init-time first-registered-wins BigFileSystem behavior.
-            string candidateBaseName = Path.GetFileName(candidate.Entry.ArchivePath);
-            string bestBaseName = Path.GetFileName(currentBest.Value.Entry.ArchivePath);
-            return string.Compare(candidateBaseName, bestBaseName, StringComparison.OrdinalIgnoreCase) > 0;
+            // Same rule as AddArchive: the engine mounts BIGs in sorted order with
+            // overwrite disabled, so the earliest-mounted archive wins filename ties.
+            return GetMountOrder(candidate.Entry.ArchivePath) < GetMountOrder(currentBest.Value.Entry.ArchivePath);
         }
 
         return false;
+    }
+
+    private int GetMountOrder(string archivePath)
+    {
+        return _archiveMountOrder.TryGetValue(archivePath, out var order) ? order : int.MaxValue;
     }
 
     private byte[]? TryReadLooseRootsAtTier(string fsRel, SageFileTier currentTier)
@@ -756,7 +786,7 @@ public sealed class SageVirtualFileSystem
         }
     }
 
-    private void AddArchive(string archivePath, SageFileTier tier, bool overwriteSameTier = true)
+    private void AddArchive(string archivePath, SageFileTier tier, bool overwriteSameTier = false)
     {
         if (!BigArchiveReader.TryReadIndex(archivePath, out var entries))
         {
@@ -777,13 +807,15 @@ public sealed class SageVirtualFileSystem
             }
             else if (tier == incumbent.Tier && overwriteSameTier)
             {
-                // Deliberate GenHub preview design: same-tier mounts resolve with later-mounted-wins.
-                // Call sites mount archives in ascending-sorted order, allowing expansion archives
-                // (e.g., INIZH.big, EnglishZH.big) to override colliding paths from base archives
-                // (e.g., INI.big, English.big) in unified installs. This is a conscious GenHub preview
-                // deviation from the retail engine's init path (which uses overwrite=FALSE/first-registered-wins).
+                // Explicit user-linked archives behave like the engine's mod BIG,
+                // which loads with overwrite enabled and wins over directory mounts.
                 _archiveEntries[key] = (entry, tier);
             }
+
+            // Otherwise the incumbent stands: the engine mounts BIGs in
+            // case-insensitive path-sorted order with overwrite disabled
+            // (Win32BIGFileSystem overwrite=FALSE over a nocase FilenameList set),
+            // so the first-mounted archive wins every same-path tie.
         }
     }
 }

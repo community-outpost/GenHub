@@ -179,25 +179,28 @@ public sealed class SageVirtualFileSystemTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that same-tier archives resolve same-path files in mount order: the later-sorted
-    /// archive wins, so Zero Hour expansion archives (INIZH.big) override same-path base
-    /// archives (INI.big) inside one installation, mirroring the engine.
+    /// Tests the engine mount rule: BIGs mount in case-insensitive path-sorted order with
+    /// overwrite disabled, so the first-mounted archive wins same-path ties. In Steam
+    /// layout the root Zero Hour archives mount before ZH_Generals subdirectory base
+    /// archives, so expansion content wins.
     /// </summary>
     [Fact]
-    public void Read_SamePathInBaseAndExpansionArchives_LaterSortedArchiveWins()
+    public void Read_SamePathInRootAndSubdirectoryArchives_RootArchiveWins()
     {
-        // Arrange: a Zero Hour root shipping both base and expansion archives
+        // Arrange: Steam layout with expansion archives at root and base archives below ZH_Generals
         var zhRoot = Path.Combine(_tempRoot, "ZeroHourRoot");
-        Directory.CreateDirectory(zhRoot);
+        var bundledGenerals = Path.Combine(zhRoot, "ZH_Generals");
+        Directory.CreateDirectory(bundledGenerals);
         var baseBytes = Encoding.UTF8.GetBytes("generals-base-gamedata");
         var zhBytes = Encoding.UTF8.GetBytes("zerohour-expansion-gamedata");
         WndTestAssets.CreateBigArchive(
-            Path.Combine(zhRoot, "INI.big"),
+            Path.Combine(bundledGenerals, "INI.big"),
             ("Data\\INI\\GameData.ini", baseBytes),
             ("Data\\INI\\BaseOnly.ini", baseBytes));
         WndTestAssets.CreateBigArchive(
             Path.Combine(zhRoot, "INIZH.big"),
-            ("Data\\INI\\GameData.ini", zhBytes));
+            ("Data\\INI\\GameData.ini", zhBytes),
+            ("Data\\INI\\RootOnly.ini", zhBytes));
 
         var vfs = new SageVirtualFileSystem(
             zhRoot,
@@ -209,31 +212,66 @@ public sealed class SageVirtualFileSystemTests : IDisposable
         var resolvedBytes = vfs.Read("Data\\INI\\GameData.ini");
         var resolvedTier = vfs.GetFileTier("Data\\INI\\GameData.ini");
         var baseOrderFound = vfs.TryGetSourceArchiveOrder("Data\\INI\\BaseOnly.ini", out var baseOrder);
-        var sharedOrderFound = vfs.TryGetSourceArchiveOrder("Data\\INI\\GameData.ini", out var sharedOrder);
+        var rootOrderFound = vfs.TryGetSourceArchiveOrder("Data\\INI\\RootOnly.ini", out var rootOrder);
 
-        // Assert: the expansion archive wins the shared path at the expansion tier
+        // Assert: the first-mounted (root expansion) archive wins at the expansion tier
         resolvedBytes.Should().NotBeNull();
         resolvedBytes.Should().Equal(zhBytes);
         resolvedTier.Should().Be(SageFileTier.Expansion);
         baseOrderFound.Should().BeTrue();
-        sharedOrderFound.Should().BeTrue();
-        sharedOrder.Should().BeGreaterThan(baseOrder);
+        rootOrderFound.Should().BeTrue();
+        rootOrder.Should().BeLessThan(baseOrder);
     }
 
     /// <summary>
-    /// Tests that filename-only archive lookups apply the same later-sorted-wins rule
-    /// within one tier, so expansion textures beat same-name base textures.
+    /// Tests that same-directory collisions resolve to the first-sorted archive, exactly
+    /// like the engine. Real installs avoid flat collisions through the ZH_Generals
+    /// subdirectory (base) and separate Generals installs, which mount after root
+    /// expansion archives.
     /// </summary>
     [Fact]
-    public void TryReadArchiveFileByName_SameTierDuplicates_LaterSortedArchiveWins()
+    public void Read_SameDirectoryCollision_FirstSortedArchiveWins()
     {
-        // Arrange: same texture filename stored under different paths in base and expansion archives
+        // Arrange: base and expansion archives colliding in one flat directory
+        var flatRoot = Path.Combine(_tempRoot, "FlatRoot");
+        Directory.CreateDirectory(flatRoot);
+        var baseBytes = Encoding.UTF8.GetBytes("base");
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(flatRoot, "INI.big"),
+            ("Data\\INI\\Shared.ini", baseBytes));
+        WndTestAssets.CreateBigArchive(
+            Path.Combine(flatRoot, "INIZH.big"),
+            ("Data\\INI\\Shared.ini", Encoding.UTF8.GetBytes("expansion")));
+
+        var vfs = new SageVirtualFileSystem(
+            flatRoot,
+            isZeroHour: true,
+            logger: Mock.Of<ILogger>(),
+            initialTier: SageFileTier.Expansion);
+
+        // Act
+        var resolvedBytes = vfs.Read("Data\\INI\\Shared.ini");
+
+        // Assert: first-sorted (base) wins, mirroring Win32BIGFileSystem overwrite=FALSE
+        resolvedBytes.Should().NotBeNull();
+        resolvedBytes.Should().Equal(baseBytes);
+    }
+
+    /// <summary>
+    /// Tests that filename-only archive lookups apply the same first-mounted-wins rule
+    /// within one tier, so root expansion textures beat same-name subdirectory textures.
+    /// </summary>
+    [Fact]
+    public void TryReadArchiveFileByName_SameTierDuplicates_EarliestMountedArchiveWins()
+    {
+        // Arrange: same texture filename stored under different paths in subdirectory and root archives
         var zhRoot = Path.Combine(_tempRoot, "ZeroHourTextures");
-        Directory.CreateDirectory(zhRoot);
+        var bundledGenerals = Path.Combine(zhRoot, "ZH_Generals");
+        Directory.CreateDirectory(bundledGenerals);
         byte[] baseTexture = [0x54, 0x47, 0x41, 0x00];
         byte[] zhTexture = [0x54, 0x47, 0x41, 0x01];
         WndTestAssets.CreateBigArchive(
-            Path.Combine(zhRoot, "Textures.big"),
+            Path.Combine(bundledGenerals, "Textures.big"),
             ("Art\\Textures\\Shared.tga", baseTexture));
         WndTestAssets.CreateBigArchive(
             Path.Combine(zhRoot, "TexturesZH.big"),

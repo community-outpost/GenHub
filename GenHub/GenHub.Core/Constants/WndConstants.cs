@@ -842,6 +842,41 @@ public static class WndConstants
     }
 
     /// <summary>
+    /// Shell runtime visibility facts mirroring menu init code (MainMenu.cpp,
+    /// WOLGameSetupMenu.cpp). The editor hides these windows at rest so previews
+    /// match the in-game menus; they stay editable through the window tree.
+    /// </summary>
+    public static class ShellRuntime
+    {
+        /// <summary>Main menu layout file name.</summary>
+        public const string MainMenuFileName = "MainMenu.wnd";
+
+        /// <summary>Faction flyout prefix hidden by MainMenu initialHide.</summary>
+        public const string WinFactionPrefix = "WinFaction";
+
+        /// <summary>Faction quick-load buttons hidden by showSelectiveButtons(SHOW_NONE).</summary>
+        public const string ButtonUsaRecentSave = "ButtonUSARecentSave";
+
+        /// <summary>Faction quick-load buttons hidden by showSelectiveButtons(SHOW_NONE).</summary>
+        public const string ButtonUsaLoadGame = "ButtonUSALoadGame";
+
+        /// <summary>Faction quick-load buttons hidden by showSelectiveButtons(SHOW_NONE).</summary>
+        public const string ButtonGlaRecentSave = "ButtonGLARecentSave";
+
+        /// <summary>Faction quick-load buttons hidden by showSelectiveButtons(SHOW_NONE).</summary>
+        public const string ButtonGlaLoadGame = "ButtonGLALoadGame";
+
+        /// <summary>Faction quick-load buttons hidden by showSelectiveButtons(SHOW_NONE).</summary>
+        public const string ButtonChinaRecentSave = "ButtonChinaRecentSave";
+
+        /// <summary>Faction quick-load buttons hidden by showSelectiveButtons(SHOW_NONE).</summary>
+        public const string ButtonChinaLoadGame = "ButtonChinaLoadGame";
+
+        /// <summary>Map start marker prefix repositioned by the shell once a map loads.</summary>
+        public const string MapStartPositionPrefix = "ButtonMapStartPosition";
+    }
+
+    /// <summary>
     /// Engine draw callback names that procedurally render window content.
     /// </summary>
     public static class DrawCallbacks

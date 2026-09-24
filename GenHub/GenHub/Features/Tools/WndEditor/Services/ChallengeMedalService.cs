@@ -69,7 +69,14 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
                         fileSystem,
                         WndConstants.Challenge.PlayerTemplateIniPath,
                         WndConstants.Challenge.PlayerTemplateEnglishIniPath);
-                    return ResolveMedals(challengeMode, templates);
+                    var resolved = ResolveMedals(challengeMode, templates);
+                    logger.LogInformation(
+                        "Challenge medals: ChallengeMode.ini {ChallengeMode}, PlayerTemplate.ini {Templates}, {Medals} medallions, {Hidden} hidden",
+                        challengeMode == null ? "missing" : $"found ({challengeMode.Length} chars)",
+                        templates == null ? "missing" : $"found ({templates.Length} chars)",
+                        resolved.MedalsByPosition.Count,
+                        resolved.HiddenPositions.Count);
+                    return resolved;
                 },
                 cancellationToken).ConfigureAwait(false);
 

@@ -852,6 +852,90 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that main menu runtime facts hide faction flyouts and quick-load buttons.
+    /// </summary>
+    [Fact]
+    public void BuildRuntimeArt_MainMenu_HidesFactionShell()
+    {
+        // Arrange
+        var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        var text =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600;\n" +
+            "  NAME = \"MainMenu.wnd:MainMenuParent\";\n" +
+            "  CHILD\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = USER;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 100, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"MainMenu.wnd:WinFactionUS\";\n" +
+            "  END\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = PUSHBUTTON;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 30, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"MainMenu.wnd:ButtonUSALoadGame\";\n" +
+            "  END\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = PUSHBUTTON;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 40, BOTTOMRIGHT: 100 70, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"MainMenu.wnd:ButtonSinglePlayer\";\n" +
+            "  END\n" +
+            "  ENDALLCHILDREN\n" +
+            "END\n";
+        var parsed = documentService.ParseText(text);
+        parsed.Success.Should().BeTrue();
+
+        // Act
+        var runtimeArt = WndEditorViewModel.BuildRuntimeArt(parsed.Data!, null);
+
+        // Assert
+        runtimeArt.HiddenWindows.Should().BeEquivalentTo(
+            "\"MainMenu.wnd:WinFactionUS\"",
+            "\"MainMenu.wnd:ButtonUSALoadGame\"");
+        runtimeArt.MedalImages.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Tests that map start markers hide at rest in any menu.
+    /// </summary>
+    [Fact]
+    public void BuildRuntimeArt_GameSpyMenu_HidesMapStartMarkers()
+    {
+        // Arrange
+        var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        var text =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600;\n" +
+            "  NAME = \"GameSpyGameOptionsMenu.wnd:GameSpyGameOptionsMenuParent\";\n" +
+            "  CHILD\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = PUSHBUTTON;\n" +
+            "    SCREENRECT = UPPERLEFT: 608 116, BOTTOMRIGHT: 620 128, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition0\";\n" +
+            "  END\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = PUSHBUTTON;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 30, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = \"GameSpyGameOptionsMenu.wnd:ButtonBack\";\n" +
+            "  END\n" +
+            "  ENDALLCHILDREN\n" +
+            "END\n";
+        var parsed = documentService.ParseText(text);
+        parsed.Success.Should().BeTrue();
+
+        // Act
+        var runtimeArt = WndEditorViewModel.BuildRuntimeArt(parsed.Data!, null);
+
+        // Assert
+        runtimeArt.HiddenWindows.Should().ContainSingle()
+            .Which.Should().Be("\"GameSpyGameOptionsMenu.wnd:ButtonMapStartPosition0\"");
+        runtimeArt.MedalImages.Should().BeEmpty();
+    }
+
+    /// <summary>
     /// Tests that other menus build no runtime facts.
     /// </summary>
     [Fact]
