@@ -506,6 +506,7 @@ public partial class ContentManifestBuilder(
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(sourceDirectory))
         {
             logger.LogWarning("Source directory does not exist: {Directory}", sourceDirectory);

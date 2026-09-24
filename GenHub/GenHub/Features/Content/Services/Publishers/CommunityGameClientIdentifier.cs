@@ -8,6 +8,8 @@ using GenHub.Core.Utilities;
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -77,6 +79,35 @@ public class CommunityGameClientIdentifier : IGameClientIdentifier
             variant: variant,
             displayName: displayName,
             gameType: gameType,
+            localVersion: null);
+    }
+
+    /// <summary>Identifies a native installation candidate with cancellable, game-specific inspection.</summary>
+    /// <param name="executablePath">The native binary to inspect.</param>
+    /// <param name="cancellationToken">Cancels the binary scan.</param>
+    /// <returns>A client only when the binary contains evidence of a supported game engine.</returns>
+    internal async Task<GameClientIdentification?> IdentifyNativeAsync(string executablePath, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (Path.GetFileName(executablePath).StartsWith("lib", StringComparison.OrdinalIgnoreCase)
+            || !ExecutableFileClassifier.HasNativeExecutableMagicBytes(executablePath))
+        {
+            return null;
+        }
+
+        var inspection = await GameBinaryInspector.InspectAsync(executablePath, cancellationToken);
+        if (!inspection.Success || inspection.Data.Role != GameBinaryRole.Engine
+            || inspection.Data.GameType is not (GameType.Generals or GameType.ZeroHour))
+        {
+            return null;
+        }
+
+        var platformName = ResolvePlatformDisplayName(ExecutableFileClassifier.DetectPlatform(executablePath));
+        return new GameClientIdentification(
+            PublisherId,
+            platformName.ToLowerInvariant(),
+            FormatDisplayName(inspection.Data.GameType, platformName),
+            inspection.Data.GameType,
             localVersion: null);
     }
 

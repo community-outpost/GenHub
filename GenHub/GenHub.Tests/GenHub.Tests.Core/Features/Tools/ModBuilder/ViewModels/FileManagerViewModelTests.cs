@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
@@ -67,7 +68,9 @@ public class FileManagerViewModelTests : IDisposable
         // Create sample files
         var gameIni = Path.Combine(_gameDir, "GameData.ini");
         await File.WriteAllTextAsync(gameIni, "Stock INI Content");
-        await File.WriteAllTextAsync(Path.Combine(_gameDir, "generals.exe"), "mock exe");
+
+        // Installation presence is determined by retail archives, not executables.
+        await File.WriteAllTextAsync(Path.Combine(_gameDir, GameClientConstants.GeneralsIniBig), "mock archive");
 
         var modIni = Path.Combine(_projectDir, "GameFilesEdited", "GameData.ini");
         await File.WriteAllTextAsync(modIni, "Modified INI Content");

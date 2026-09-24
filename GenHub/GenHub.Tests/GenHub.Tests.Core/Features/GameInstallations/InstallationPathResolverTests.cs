@@ -3,7 +3,9 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.GameInstallations;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -64,7 +66,7 @@ public sealed class InstallationPathResolverTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ValidateInstallationPathAsync returns true for Steam Zero Hour installations containing game.dat.
+    /// Verifies that ValidateInstallationPathAsync returns true for Steam Zero Hour installations containing retail archives alongside game.dat.
     /// </summary>
     /// <param name="exeName">The executable name to test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -77,6 +79,7 @@ public sealed class InstallationPathResolverTests : IDisposable
         var zhPath = Path.Combine(_tempDirectory, "ZeroHour");
         Directory.CreateDirectory(zhPath);
         File.WriteAllText(Path.Combine(zhPath, exeName), "mock executable content");
+        File.WriteAllText(Path.Combine(zhPath, GameClientConstants.ZeroHourIniBig), "retail archive");
 
         var installation = new GameInstallation(_tempDirectory, GameInstallationType.Steam);
         installation.SetPaths(null, zhPath);
@@ -88,7 +91,7 @@ public sealed class InstallationPathResolverTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ValidateInstallationPathAsync returns true for installations containing generals.exe.
+    /// Verifies that ValidateInstallationPathAsync returns true for installations containing retail archives alongside generals.exe.
     /// </summary>
     /// <param name="exeName">The executable name to test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -101,6 +104,7 @@ public sealed class InstallationPathResolverTests : IDisposable
         var generalsPath = Path.Combine(_tempDirectory, "Generals");
         Directory.CreateDirectory(generalsPath);
         File.WriteAllText(Path.Combine(generalsPath, exeName), "mock executable content");
+        File.WriteAllText(Path.Combine(generalsPath, GameClientConstants.GeneralsIniBig), "retail archive");
 
         var installation = new GameInstallation(_tempDirectory, GameInstallationType.Retail);
         installation.SetPaths(generalsPath, null);
@@ -141,6 +145,7 @@ public sealed class InstallationPathResolverTests : IDisposable
         var zhPath = Path.Combine(_tempDirectory, "ZeroHour");
         Directory.CreateDirectory(zhPath);
         File.WriteAllText(Path.Combine(zhPath, GameClientConstants.SteamGameDatExecutable), "binary");
+        File.WriteAllText(Path.Combine(zhPath, GameClientConstants.ZeroHourIniBig), string.Empty);
 
         var installation = new GameInstallation(_tempDirectory, GameInstallationType.Steam);
         installation.SetPaths(null, zhPath);
@@ -149,6 +154,66 @@ public sealed class InstallationPathResolverTests : IDisposable
 
         Assert.True(result.Success);
         Assert.Same(installation, result.Data);
+    }
+
+    /// <summary>A directory becoming unreadable after discovery returns a failure, not an exception or false success.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task ResolveInstallationPathAsync_ArchivesBecomeUnreadable_ReturnsFailureAsync()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var searchRoot = Directory.CreateDirectory(Path.Combine(_tempDirectory, "search")).FullName;
+        var gameRoot = Directory.CreateDirectory(Path.Combine(searchRoot, "game")).FullName;
+        var generals = Directory.CreateDirectory(Path.Combine(gameRoot, GameClientConstants.GeneralsSubdirectoryName)).FullName;
+        File.WriteAllText(Path.Combine(generals, GameClientConstants.GeneralsIniBig), "archive");
+        var originalMode = File.GetUnixFileMode(generals);
+        var logger = new Mock<ILogger<InstallationPathResolver>>();
+        var denied = false;
+        logger.Setup(m => m.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.StartsWith("Successfully resolved installation path to:", StringComparison.Ordinal)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(_ =>
+            {
+                // Reproduce the permission race after search succeeds, before resolved paths are constructed.
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(generals, UnixFileMode.None);
+                    denied = true;
+                }
+            }));
+        var resolver = new InstallationPathResolver(logger.Object, new TestSearchPathProvider(searchRoot));
+        var stale = new GameInstallation(Path.Combine(_tempDirectory, "missing"), GameInstallationType.Retail)
+        {
+            HasGenerals = true,
+        };
+
+        try
+        {
+            var result = await resolver.ResolveInstallationPathAsync(stale);
+            Assert.True(denied, "The resolution log callback did not run; the permission race was not injected.");
+            Assert.False(result.Success);
+            Assert.Null(result.Data);
+            Assert.False(string.IsNullOrWhiteSpace(result.FirstError));
+            logger.Verify(
+                m => m.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<UnauthorizedAccessException>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+        finally
+        {
+            File.SetUnixFileMode(generals, originalMode);
+        }
     }
 
     /// <summary>
@@ -162,6 +227,8 @@ public sealed class InstallationPathResolverTests : IDisposable
         var resolvedGameDir = Path.Combine(targetSearchDir, "DiscoveredGame");
         Directory.CreateDirectory(resolvedGameDir);
         File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsIniBig), "retail archive");
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.ZeroHourIniBig), "retail archive");
 
         var pathProvider = new TestSearchPathProvider(targetSearchDir);
         var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
@@ -203,8 +270,12 @@ public sealed class InstallationPathResolverTests : IDisposable
         Directory.CreateDirectory(generalsDir);
         Directory.CreateDirectory(zhDir);
         File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsIniBig), "retail archive");
         File.WriteAllText(Path.Combine(zhDir, GameClientConstants.ZeroHourExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(zhDir, GameClientConstants.ZeroHourIniBig), "retail archive");
         File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsIniBig), "retail archive");
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.ZeroHourIniBig), "retail archive");
 
         var pathProvider = new TestSearchPathProvider(targetSearchDir);
         var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
@@ -248,7 +319,7 @@ public sealed class InstallationPathResolverTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ValidateInstallationPathAsync accepts Zero Hour edition-specific executables in game subdirectories.
+    /// Verifies that ValidateInstallationPathAsync accepts Zero Hour archives with edition-specific executables in game subdirectories.
     /// </summary>
     /// <param name="exeName">The executable name to test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -260,6 +331,7 @@ public sealed class InstallationPathResolverTests : IDisposable
         var zhPath = Path.Combine(_tempDirectory, "ZeroHourEdition_" + Path.GetFileNameWithoutExtension(exeName));
         Directory.CreateDirectory(zhPath);
         File.WriteAllText(Path.Combine(zhPath, exeName), "mock executable content");
+        File.WriteAllText(Path.Combine(zhPath, GameClientConstants.ZeroHourIniBig), "retail archive");
 
         var installation = new GameInstallation(_tempDirectory, GameInstallationType.Retail);
         installation.SetPaths(null, zhPath);
@@ -271,7 +343,7 @@ public sealed class InstallationPathResolverTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ValidateInstallationPathAsync accepts Generals edition-specific executables in game subdirectories.
+    /// Verifies that ValidateInstallationPathAsync accepts Generals archives with edition-specific executables in game subdirectories.
     /// </summary>
     /// <param name="exeName">The executable name to test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -283,6 +355,7 @@ public sealed class InstallationPathResolverTests : IDisposable
         var generalsPath = Path.Combine(_tempDirectory, "GeneralsEdition_" + Path.GetFileNameWithoutExtension(exeName));
         Directory.CreateDirectory(generalsPath);
         File.WriteAllText(Path.Combine(generalsPath, exeName), "mock executable content");
+        File.WriteAllText(Path.Combine(generalsPath, GameClientConstants.GeneralsIniBig), "retail archive");
 
         var installation = new GameInstallation(_tempDirectory, GameInstallationType.Retail);
         installation.SetPaths(generalsPath, null);
@@ -345,8 +418,12 @@ public sealed class InstallationPathResolverTests : IDisposable
         Directory.CreateDirectory(generalsDir);
         Directory.CreateDirectory(zhDir);
         File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsIniBig), "retail archive");
         File.WriteAllText(Path.Combine(zhDir, GameClientConstants.ZeroHourExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(zhDir, GameClientConstants.ZeroHourIniBig), "retail archive");
         File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsIniBig), "retail archive");
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.ZeroHourIniBig), "retail archive");
 
         var pathProvider = new TestSearchPathProvider(targetSearchDir);
         var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
@@ -371,7 +448,7 @@ public sealed class InstallationPathResolverTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ResolveInstallationPathAsync falls back to resolvedPath when subdirectories exist but lack game executables.
+    /// Verifies that ResolveInstallationPathAsync falls back to resolvedPath when subdirectories exist but lack game archives.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -384,6 +461,8 @@ public sealed class InstallationPathResolverTests : IDisposable
         Directory.CreateDirectory(generalsDir);
         Directory.CreateDirectory(zhDir);
         File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsIniBig), "retail archive");
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.ZeroHourIniBig), "retail archive");
 
         var pathProvider = new TestSearchPathProvider(targetSearchDir);
         var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
