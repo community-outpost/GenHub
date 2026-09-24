@@ -308,6 +308,48 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an HTML document with leading comment headers (e.g. OneDrive login page) throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_HtmlCommentHeaderFile_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var fakeZip = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllTextAsync(
+            fakeZip,
+            "<!-- Copyright (C) Microsoft Corporation. All rights reserved. -->\n<!DOCTYPE html><html><head><title>Sign in to your account</title></head><body>login.live.com</body></html>");
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(
+            () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+        Assert.Contains("HTML", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that a file named as a ZIP archive without PK magic bytes throws an InvalidDataException before extraction.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_InvalidZipMagicBytes_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var fakeZip = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllBytesAsync(fakeZip, [0x00, 0x01, 0x02, 0x03, 0x04]);
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(
+            () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+        Assert.Contains("not a valid ZIP archive", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Verifies that a self-extracting .exe archive for a Mod is extracted safely and the source .exe is removed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

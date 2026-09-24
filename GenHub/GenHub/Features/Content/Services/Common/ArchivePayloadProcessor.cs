@@ -380,7 +380,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     }
 
     /// <summary>
-    /// Validates that an archive payload file exists, is non-empty, and does not contain HTML error text.
+    /// Validates that an archive payload file exists, is non-empty, and does not contain HTML/web error text or non-archive headers.
     /// </summary>
     /// <param name="archivePath">Path to the archive file.</param>
     internal static void EnsureValidArchivePayload(string archivePath)
@@ -391,10 +391,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
         }
 
-        Span<byte> header = stackalloc byte[16];
+        Span<byte> header = stackalloc byte[1024];
+        int read;
         using (var stream = File.OpenRead(archivePath))
         {
-            var read = stream.Read(header);
+            read = stream.Read(header);
             if (read == 0)
             {
                 throw new InvalidDataException($"Archive file is empty: {archivePath}");
@@ -403,12 +404,15 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             header = header[..read];
         }
 
-        if (LooksLikeHtml(header))
+        if (LooksLikeHtmlOrWebDocument(header))
         {
             var preview = ReadTextPreview(archivePath, maxChars: 120);
             throw new InvalidDataException(
-                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
+                $"Downloaded file is HTML or web error text, not an archive: {Path.GetFileName(archivePath)}. " +
+                $"This usually indicates the download link has expired, requires authentication, or was blocked by the host. Preview: {preview}");
         }
+
+        ValidateArchiveMagicBytes(archivePath, header);
     }
 
     private static bool TryDereferenceLink(string entry, LinkDereferenceContext context, out bool changed)
@@ -1080,7 +1084,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             .ToList();
     }
 
-    private static bool LooksLikeHtml(ReadOnlySpan<byte> header)
+    private static bool LooksLikeHtmlOrWebDocument(ReadOnlySpan<byte> header)
     {
         if (header.Length >= 3 && header[0] == 0xEF && header[1] == 0xBB && header[2] == 0xBF)
         {
@@ -1092,21 +1096,81 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             header = header[1..];
         }
 
-        if (header.Length < 5)
+        if (header.Length < 4)
         {
             return false;
         }
 
-        Span<char> ascii = stackalloc char[Math.Min(header.Length, 9)];
-        for (var i = 0; i < ascii.Length; i++)
+        Span<char> ascii = stackalloc char[header.Length];
+        for (var i = 0; i < header.Length; i++)
         {
-            ascii[i] = (char)header[i];
+            var b = header[i];
+            ascii[i] = b < 128 ? (char)b : ' ';
         }
 
-        ReadOnlySpan<char> prefix = ascii;
-        return prefix.StartsWith("<!doctype", StringComparison.OrdinalIgnoreCase)
-            || prefix.StartsWith("<html", StringComparison.OrdinalIgnoreCase)
-            || prefix.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase);
+        ReadOnlySpan<char> text = ascii;
+        var trimmed = text.TrimStart();
+
+        if (trimmed.StartsWith("<!doctype", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<html", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<!--", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<head", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<body", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<title", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<script", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<div", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("<Error", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("{\"error\"", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("{\"message\"", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return text.Contains("<html", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("<title>", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("<Error><Code>", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("The request is blocked", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains("login.live.com", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void ValidateArchiveMagicBytes(string archivePath, ReadOnlySpan<byte> header)
+    {
+        var ext = Path.GetExtension(archivePath);
+
+        if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            // ZIP files start with 'PK' (0x50, 0x4B)
+            if (header.Length < 2 || header[0] != 0x50 || header[1] != 0x4B)
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid ZIP archive (missing PK signature). The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
+        }
+        else if (ext.Equals(".7z", StringComparison.OrdinalIgnoreCase))
+        {
+            // 7z files start with '7', 'z', 0xBC, 0xAF, 0x27, 0x1C
+            ReadOnlySpan<byte> sevenZipMagic = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+            if (header.Length < sevenZipMagic.Length || !header[..sevenZipMagic.Length].SequenceEqual(sevenZipMagic))
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid 7Z archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
+        }
+        else if (ext.Equals(".rar", StringComparison.OrdinalIgnoreCase))
+        {
+            // RAR files start with 'Rar!' (0x52, 0x61, 0x72, 0x21)
+            ReadOnlySpan<byte> rarMagic = [0x52, 0x61, 0x72, 0x21];
+            if (header.Length < rarMagic.Length || !header[..rarMagic.Length].SequenceEqual(rarMagic))
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid RAR archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
+        }
     }
 
     private static string ReadTextPreview(string path, int maxChars)

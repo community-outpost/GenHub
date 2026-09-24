@@ -238,6 +238,11 @@ public class DownloadService(
             {
                 throw;
             }
+            catch (InvalidDataException ex)
+            {
+                logger.LogError(ex, "Download failed with unrecoverable content error for {Url}", configuration.Url);
+                return DownloadResult.CreateFailure(ex.Message);
+            }
             catch (Exception ex)
             {
                 lastException = ex;
@@ -320,6 +325,7 @@ public class DownloadService(
         try
         {
             response.EnsureSuccessStatusCode();
+            ValidateResponseContentType(response, configuration.DestinationPath);
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
             return new DownloadConnection(response, false, 0, totalBytes);
         }
@@ -344,6 +350,7 @@ public class DownloadService(
                 var contentRange = response.Content.Headers.ContentRange;
                 if (contentRange?.From == existingBytes)
                 {
+                    ValidateResponseContentType(response, configuration.DestinationPath);
                     var totalBytes = contentRange.Length
                         ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
                     return new DownloadConnection(response, true, existingBytes, totalBytes);
@@ -358,6 +365,7 @@ public class DownloadService(
             else if (response.IsSuccessStatusCode)
             {
                 // Server responded 200 OK: ignored Range header and sent full content
+                ValidateResponseContentType(response, configuration.DestinationPath);
                 var totalBytes = response.Content.Headers.ContentLength ?? 0;
                 return new DownloadConnection(response, false, 0, totalBytes);
             }
@@ -419,6 +427,34 @@ public class DownloadService(
         }
 
         return false;
+    }
+
+    private void ValidateResponseContentType(HttpResponseMessage response, string destinationPath)
+    {
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (string.IsNullOrWhiteSpace(mediaType))
+        {
+            return;
+        }
+
+        var ext = Path.GetExtension(destinationPath);
+        var isBinaryTarget = ext.Equals(".zip", StringComparison.OrdinalIgnoreCase) ||
+                             ext.Equals(".7z", StringComparison.OrdinalIgnoreCase) ||
+                             ext.Equals(".rar", StringComparison.OrdinalIgnoreCase) ||
+                             ext.Equals(".tar", StringComparison.OrdinalIgnoreCase) ||
+                             ext.Equals(".gz", StringComparison.OrdinalIgnoreCase) ||
+                             ext.Equals(".big", StringComparison.OrdinalIgnoreCase) ||
+                             ext.Equals(".gib", StringComparison.OrdinalIgnoreCase) ||
+                             ext.Equals(".ctr", StringComparison.OrdinalIgnoreCase) ||
+                             ext.Equals(".exe", StringComparison.OrdinalIgnoreCase);
+
+        if (isBinaryTarget && (mediaType.Equals("text/html", StringComparison.OrdinalIgnoreCase) ||
+                               mediaType.Equals("application/xhtml+xml", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidDataException(
+                $"Download server returned HTML ({mediaType}) instead of the expected binary content for '{Path.GetFileName(destinationPath)}'. " +
+                "The link may have expired, requires interactive browser authentication, or was blocked.");
+        }
     }
 
     private void TryDeleteFile(string path)

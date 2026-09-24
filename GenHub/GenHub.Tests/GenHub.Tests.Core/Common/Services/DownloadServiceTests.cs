@@ -822,4 +822,60 @@ public class DownloadServiceTests
             }
         }
     }
+
+    /// <summary>
+    /// Verifies that when the server returns HTML Content-Type for a binary file (such as .zip),
+    /// the download fails immediately with an InvalidDataException error message without unnecessary retries.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_ServerReturnsHtmlForZipTarget_FailsImmediatelyAsync()
+    {
+        var htmlContent = "<!DOCTYPE html><html><body>Sign In</body></html>"u8.ToArray();
+        int requestCount = 0;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() =>
+            {
+                requestCount++;
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(htmlContent),
+                };
+                response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/html");
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+        var tempZip = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.zip");
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/archive.zip"),
+                DestinationPath = tempZip,
+                MaxRetryAttempts = 3,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert: Failed immediately on 1st attempt, rejected HTML, did not write corrupt zip
+            Assert.False(result.Success);
+            Assert.Equal(1, requestCount);
+            Assert.Contains("Download server returned HTML (text/html)", result.FirstError);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
 }

@@ -120,6 +120,7 @@ public class GenLauncherResolver(
                 // Fallback: direct download link
                 if (!s3Resolved)
                 {
+                    logger.LogWarning("S3 storage resolution failed for {Name}; attempting fallback to direct download link.", discoveredItem.Name);
                     ResolveDirectDownloadPayload(manifest, versionManifest, discoveredItem, slug);
                 }
             }
@@ -307,15 +308,6 @@ public class GenLauncherResolver(
             return null;
         }
 
-        // Apply GenLauncher default public MinIO credentials when the item is hosted on InSave and explicit keys are absent
-        if (string.IsNullOrWhiteSpace(s3PublicKey) &&
-            string.IsNullOrWhiteSpace(s3SecretKey) &&
-            s3Host.Contains(GenLauncherConstants.DefaultGenInsaveHost, StringComparison.OrdinalIgnoreCase))
-        {
-            s3PublicKey = GenLauncherConstants.DefaultGenInsavePublicKey;
-            s3SecretKey = GenLauncherConstants.DefaultGenInsaveSecretKey;
-        }
-
         return new S3BucketQuery(s3Host, s3Bucket, s3Folder, s3PublicKey, s3SecretKey);
     }
 
@@ -400,6 +392,11 @@ public class GenLauncherResolver(
         {
             logger.LogWarning("Direct download URL {Url} rejected as unsafe for {Name}", RedactUrl(directUrl), discoveredItem.Name);
             return;
+        }
+
+        if (directUrl.Contains("onedrive.live.com", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("Resolved fallback OneDrive download link for {Name}. Note: unauthenticated OneDrive links may require interactive browser login.", discoveredItem.Name);
         }
 
         var fileName = GetFileNameFromUrl(directUrl, slug, discoveredItem.Name);
@@ -557,6 +554,12 @@ public class GenLauncherResolver(
         }
 
         var xml = await ReadResponseStringWithLimitAsync(resp, queryUrl, cancellationToken);
+        if (IsS3ErrorXml(xml))
+        {
+            logger.LogWarning("S3 signed query returned error XML for host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
+            return (null, true);
+        }
+
         return (xml, true);
     }
 
