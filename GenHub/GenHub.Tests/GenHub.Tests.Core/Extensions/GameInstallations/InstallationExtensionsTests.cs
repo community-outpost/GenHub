@@ -49,6 +49,58 @@ public sealed class InstallationExtensionsTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies a known file remains accessible when its parent permits traversal but not listing.
+    /// </summary>
+    [Fact]
+    public void TryGetFileCaseInsensitive_WithoutDirectoryListingPermission_ReturnsKnownPath()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var path = Path.Combine(_directory, "game.dat");
+        File.WriteAllText(path, "game");
+        var originalMode = File.GetUnixFileMode(_directory);
+        try
+        {
+            File.SetUnixFileMode(_directory, UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Assert.True(File.Exists(path));
+            Assert.Throws<UnauthorizedAccessException>(() => Directory.GetFiles(_directory));
+
+            Assert.True(path.TryGetFileCaseInsensitive(out var matchedPath));
+            Assert.Equal(path, matchedPath, StringComparer.Ordinal);
+        }
+        finally
+        {
+            File.SetUnixFileMode(_directory, originalMode);
+        }
+    }
+
+    /// <summary>
+    /// Verifies exact casing wins when the filesystem stores both case variants.
+    /// </summary>
+    [Fact]
+    public void TryGetFileCaseInsensitive_WithDistinctCaseVariants_PrefersExactMatch()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        var upperPath = Path.Combine(_directory, "GAME.DAT");
+        var lowerPath = Path.Combine(_directory, "game.dat");
+        File.WriteAllText(upperPath, "upper");
+        File.WriteAllText(lowerPath, "lower");
+        Assert.Equal(2, Directory.GetFiles(_directory).Length);
+
+        Assert.True(upperPath.TryGetFileCaseInsensitive(out var upperMatch));
+        Assert.Equal(upperPath, upperMatch, StringComparer.Ordinal);
+        Assert.True(lowerPath.TryGetFileCaseInsensitive(out var lowerMatch));
+        Assert.Equal(lowerPath, lowerMatch, StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// Verifies hidden files are found, matching <see cref="File.Exists(string)"/>.
     /// </summary>
     [Fact]

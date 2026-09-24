@@ -35,7 +35,7 @@ public static class InstallationExtensions
     /// Attempts to find a file in a case-insensitive manner, returning a path to the file if found.
     /// </summary>
     /// <param name="filePath">The full file path to check.</param>
-    /// <param name="matchedPath">The actual on-disk path if found; otherwise null.</param>
+    /// <param name="matchedPath">The on-disk spelling when enumeration succeeds; otherwise the accessible input path, or null if missing.</param>
     /// <returns>True if the file was found; otherwise false.</returns>
     public static bool TryGetFileCaseInsensitive(this string filePath, [NotNullWhen(true)] out string? matchedPath)
     {
@@ -51,7 +51,7 @@ public static class InstallationExtensions
             var fileName = Path.GetFileName(filePath);
             var searchDirectory = directory.Length == 0 ? "." : directory;
 
-            if (string.IsNullOrEmpty(fileName) || !Directory.Exists(searchDirectory))
+            if (string.IsNullOrEmpty(fileName))
             {
                 return false;
             }
@@ -83,7 +83,13 @@ public static class InstallationExtensions
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            return false;
+            // A known file can be accessible even when its directory cannot be listed.
+        }
+
+        if (File.Exists(filePath))
+        {
+            matchedPath = filePath;
+            return true;
         }
 
         return false;
