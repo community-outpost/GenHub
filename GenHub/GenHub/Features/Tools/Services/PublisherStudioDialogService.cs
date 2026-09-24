@@ -491,24 +491,6 @@ public class PublisherStudioDialogService(
         }
     }
 
-    private async Task StageInitialArtifactsAsync(AddReleaseDialogViewModel vm, IEnumerable<string>? initialPaths)
-    {
-        var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
-        if (pathsList is { Count: > 0 })
-        {
-            try
-            {
-                await vm.AddArtifactsFromPathsAsync(pathsList);
-            }
-            catch (Exception ex)
-            {
-                logger?.LogWarning(ex, "Failed to stage initial artifacts for dialog.");
-                var title = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle") ?? "Could Not Stage Files";
-                var message = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage") ?? "Some dropped files could not be staged and were skipped. See logs for details.";
-                notificationService?.ShowWarning(title, message);
-            }
-        }
-    }
 
     private static async Task<string?> ShowOpenPickerAsync(
         string title,
@@ -526,5 +508,24 @@ public class PublisherStudioDialogService(
 
         var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
         return files.Count > 0 ? files[0].Path.LocalPath : null;
+    }
+
+    private async Task StageInitialArtifactsAsync(AddReleaseDialogViewModel vm, IEnumerable<string>? initialPaths)
+    {
+        var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+        if (pathsList is { Count: > 0 })
+        {
+            try
+            {
+                await vm.AddArtifactsFromPathsAsync(pathsList);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to stage initial artifacts for dialog.");
+                var title = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle") ?? "Could Not Stage Files";
+                var message = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage") ?? "Some dropped files could not be staged and were skipped. See logs for details.";
+                notificationService?.ShowWarning(title, message);
+            }
+        }
     }
 }
