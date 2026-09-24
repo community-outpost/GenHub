@@ -747,19 +747,7 @@ public class GameProcessManager(
             TerminationRequested = terminationRequested,
         };
 
-        // This is a process-event boundary: one subscriber must not prevent the
-        // remaining subscribers (including termination completion) from observing exit.
-        foreach (var subscriber in (ProcessExited?.GetInvocationList() ?? []).Cast<EventHandler<GameProcessExitedEventArgs>>())
-        {
-            try
-            {
-                subscriber(this, args);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Process-exit subscriber failed for process {ProcessId}", processId);
-            }
-        }
+        NotifyProcessExited(args);
 
         // Explicit termination owns disposal until its wait and notification cleanup finish.
         // Natural exits have no remaining owner after removal from _managedProcesses.
@@ -1184,6 +1172,23 @@ public class GameProcessManager(
         }
 
         return capturedErrors;
+    }
+
+    private void NotifyProcessExited(GameProcessExitedEventArgs args)
+    {
+        // This is a process-event boundary: one subscriber must not prevent the
+        // remaining subscribers (including termination completion) from observing exit.
+        foreach (var subscriber in (ProcessExited?.GetInvocationList() ?? []).Cast<EventHandler<GameProcessExitedEventArgs>>())
+        {
+            try
+            {
+                subscriber(this, args);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Process-exit subscriber failed for process {ProcessId}", args.ProcessId);
+            }
+        }
     }
 
     private void RegisterProcessEventHandlers(Process process)
