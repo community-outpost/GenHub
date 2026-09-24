@@ -54,15 +54,15 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     private const int SearchDebounceMs = 350;
     private const string CreateErrorTitleKey = "Online.Error.CreateTitle";
 
-    private readonly IOnlineNetworkService networkService;
-    private readonly IOnlineLaunchService launchService;
-    private readonly IGameProfileManager profileManager;
-    private readonly INotificationService notificationService;
-    private readonly IDialogService dialogService;
-    private readonly ILogger<OnlineViewModel> logger;
-    private readonly OnlineViewModelDependencies? dependencies;
-    private readonly IGameCrcCalculatorService? crcCalculator;
-    private readonly IGameInstallationService? installationService;
+    private readonly IOnlineNetworkService _networkService;
+    private readonly IOnlineLaunchService _launchService;
+    private readonly IGameProfileManager _profileManager;
+    private readonly INotificationService _notificationService;
+    private readonly IDialogService _dialogService;
+    private readonly ILogger<OnlineViewModel> _logger;
+    private readonly OnlineViewModelDependencies? _dependencies;
+    private readonly IGameCrcCalculatorService? _crcCalculator;
+    private readonly IGameInstallationService? _installationService;
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly SemaphoreSlim _profileLock = new(1, 1);
@@ -101,15 +101,15 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         ILogger<OnlineViewModel> logger,
         OnlineViewModelDependencies? dependencies = null)
     {
-        this.networkService = networkService ?? throw new ArgumentNullException(nameof(networkService));
-        this.launchService = launchService ?? throw new ArgumentNullException(nameof(launchService));
-        this.profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
-        this.notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
-        this.dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.dependencies = dependencies;
-        this.crcCalculator = dependencies?.CrcCalculator;
-        this.installationService = dependencies?.GameInstallationService;
+        _networkService = networkService ?? throw new ArgumentNullException(nameof(networkService));
+        _launchService = launchService ?? throw new ArgumentNullException(nameof(launchService));
+        _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
+        _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _dependencies = dependencies;
+        _crcCalculator = dependencies?.CrcCalculator;
+        _installationService = dependencies?.GameInstallationService;
 
         WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
     }
@@ -262,15 +262,15 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     /// </summary>
     public void Initialize()
     {
-        networkService.RosterChanged += OnRosterChanged;
-        networkService.ConnectionLost += OnConnectionLost;
-        networkService.ExpectedProfileChanged += OnExpectedProfileChanged;
+        _networkService.RosterChanged += OnRosterChanged;
+        _networkService.ConnectionLost += OnConnectionLost;
+        _networkService.ExpectedProfileChanged += OnExpectedProfileChanged;
         if (!WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(this))
         {
             WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
         }
 
-        Nickname = LanNicknameCodec.Normalize(dependencies?.UserSettingsService?.Get().OnlineNickname ?? string.Empty);
+        Nickname = LanNicknameCodec.Normalize(_dependencies?.UserSettingsService?.Get().OnlineNickname ?? string.Empty);
     }
 
     /// <summary>
@@ -292,7 +292,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             IsLoading = true;
             IsRefreshingDirectory = true;
             DirectoryFailed = false;
-            var result = await networkService.GetNetworksAsync(SearchText, cancellationToken);
+            var result = await _networkService.GetNetworksAsync(SearchText, cancellationToken);
             if (!result.Success)
             {
                 DirectoryFailed = true;
@@ -309,7 +309,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to refresh online directory.");
+            _logger.LogError(ex, "Failed to refresh online directory.");
             DirectoryFailed = true;
             ShowErrorToast("Online.Error.DirectoryTitle", null);
         }
@@ -358,7 +358,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             IsLoading = true;
             var advertisement = await ResolveAdvertisementAsync(cancellationToken);
 
-            var result = await networkService.JoinNetworkAsync(
+            var result = await _networkService.JoinNetworkAsync(
                 target.Id, JoinPassword.Trim(), true, advertisement.Fingerprint, advertisement.Name, Nickname, cancellationToken);
             if (!result.Success)
             {
@@ -368,7 +368,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
             JoinPassword = string.Empty;
             await ApplyJoinAsync(result.Data, target.Name, cancellationToken);
-            notificationService.ShowSuccess(
+            _notificationService.ShowSuccess(
                 GetString("Online.Join.SuccessTitle"),
                 GetString("Online.Join.SuccessMessage", result.Data.OverlayIp),
                 NotificationDurations.Long);
@@ -380,7 +380,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to join online network.");
+            _logger.LogError(ex, "Failed to join online network.");
             ShowErrorToast("Online.Error.JoinTitle", null);
         }
         finally
@@ -401,7 +401,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         try
         {
             IsLoading = true;
-            var result = await networkService.LeaveNetworkAsync(cancellationToken);
+            var result = await _networkService.LeaveNetworkAsync(cancellationToken);
             if (!result.Success)
             {
                 ShowErrorToast("Online.Error.LeaveTitle", result.Errors.FirstOrDefault());
@@ -409,7 +409,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             }
 
             ClearJoin();
-            notificationService.ShowInfo(
+            _notificationService.ShowInfo(
                 GetString("Online.Leave.SuccessTitle"),
                 GetString("Online.Leave.SuccessMessage"),
                 NotificationDurations.Medium);
@@ -420,7 +420,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to leave online network.");
+            _logger.LogError(ex, "Failed to leave online network.");
             ShowErrorToast("Online.Error.LeaveTitle", null);
         }
         finally
@@ -506,7 +506,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
                 DisplayName = Nickname,
             };
 
-            var result = await networkService.CreateNetworkAsync(request, cancellationToken);
+            var result = await _networkService.CreateNetworkAsync(request, cancellationToken);
             if (!result.Success)
             {
                 ShowCreateErrorToast(result.Errors.FirstOrDefault());
@@ -519,7 +519,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             CreateDescription = string.Empty;
             CreatePassword = string.Empty;
             IsCreatePanelOpen = false;
-            notificationService.ShowSuccess(
+            _notificationService.ShowSuccess(
                 GetString("Online.Create.SuccessTitle"),
                 GetString("Online.Create.SuccessMessage", result.Data.OverlayIp),
                 NotificationDurations.Long);
@@ -531,7 +531,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create online network.");
+            _logger.LogError(ex, "Failed to create online network.");
             ShowErrorToast(CreateErrorTitleKey, null);
         }
         finally
@@ -566,7 +566,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
             if (string.IsNullOrEmpty(profileId))
             {
-                notificationService.ShowWarning(
+                _notificationService.ShowWarning(
                     GetString("Online.Play.NoProfileTitle"),
                     GetString("Online.Play.NoProfileMessage"),
                     NotificationDurations.Long);
@@ -575,17 +575,17 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
             await WarnOnUnreachableMeshAsync(cancellationToken);
 
-            notificationService.ShowInfo(
+            _notificationService.ShowInfo(
                 GetString("Online.Play.LaunchingTitle"),
                 GetString("Online.Play.LaunchingMessage", CurrentNetworkName),
                 NotificationDurations.Medium);
 
-            var result = await launchService.PlayAsync(profileId, CurrentNetworkName, OverlayIp, Nickname, cancellationToken);
+            var result = await _launchService.PlayAsync(profileId, CurrentNetworkName, OverlayIp, Nickname, cancellationToken);
             if (!result.Success)
             {
                 if (result.Errors.Any(e => e == OnlineConstants.ErrorProfileMissing))
                 {
-                    notificationService.ShowWarning(
+                    _notificationService.ShowWarning(
                         GetString("Online.Play.NoProfileTitle"),
                         GetString("Online.Play.NoProfileMessage"),
                         NotificationDurations.Long);
@@ -598,7 +598,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
             _launchedProfileId = profileId;
             IsGameRunning = true;
-            notificationService.ShowSuccess(
+            _notificationService.ShowSuccess(
                 GetString("Online.Play.SuccessTitle"),
                 GetString("Online.Play.SuccessMessage", CurrentNetworkName),
                 NotificationDurations.Long);
@@ -610,7 +610,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to launch from the Online tab.");
+            _logger.LogError(ex, "Failed to launch from the Online tab.");
             ShowErrorToast("Online.Error.LaunchTitle", null);
         }
         finally
@@ -630,7 +630,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         var profileId = _launchedProfileId ?? SelectedPlayProfile?.Id;
         if (string.IsNullOrEmpty(profileId))
         {
-            notificationService.ShowWarning(
+            _notificationService.ShowWarning(
                 GetString("Online.Play.NoProfileTitle"),
                 GetString("Online.Play.NoProfileMessage"),
                 NotificationDurations.Long);
@@ -640,7 +640,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         try
         {
             IsLoading = true;
-            var result = await launchService.StopAsync(profileId, cancellationToken);
+            var result = await _launchService.StopAsync(profileId, cancellationToken);
             if (!result.Success)
             {
                 ShowErrorToast("Online.Error.StopTitle", GetString("Online.Error.StopFailed"));
@@ -649,7 +649,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
             _launchedProfileId = null;
             IsGameRunning = false;
-            notificationService.ShowSuccess(
+            _notificationService.ShowSuccess(
                 GetString("Online.Stop.SuccessTitle"),
                 GetString("Online.Stop.SuccessMessage", CurrentNetworkName),
                 NotificationDurations.Medium);
@@ -660,7 +660,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to stop the game from the Online tab.");
+            _logger.LogError(ex, "Failed to stop the game from the Online tab.");
             ShowErrorToast("Online.Error.StopTitle", null);
         }
         finally
@@ -682,14 +682,14 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             if (topLevel?.Clipboard is { } clipboard)
             {
                 await clipboard.SetTextAsync(OverlayIp);
-                notificationService.ShowSuccess(
+                _notificationService.ShowSuccess(
                     GetString("Online.Copy.SuccessTitle"),
                     GetString("Online.Copy.SuccessMessage", OverlayIp),
                     NotificationDurations.Short);
             }
             else
             {
-                notificationService.ShowError(
+                _notificationService.ShowError(
                     GetString("Online.Error.CopyTitle"),
                     GetString("Online.Error.CopyUnavailable"),
                     NotificationDurations.Medium);
@@ -697,8 +697,8 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to copy overlay IP.");
-            notificationService.ShowError(
+            _logger.LogError(ex, "Failed to copy overlay IP.");
+            _notificationService.ShowError(
                 GetString("Online.Error.CopyTitle"),
                 GetString("Online.Error.CopyUnavailable"),
                 NotificationDurations.Medium);
@@ -727,14 +727,14 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         try
         {
             IsLoading = true;
-            var result = await networkService.ReportMemberAsync(SelectedMember.OverlayIp, reason, cancellationToken);
+            var result = await _networkService.ReportMemberAsync(SelectedMember.OverlayIp, reason, cancellationToken);
             if (!result.Success)
             {
                 ShowErrorToast("Online.Error.ReportTitle", GetString("Online.Error.ReportFailed"));
                 return;
             }
 
-            notificationService.ShowSuccess(
+            _notificationService.ShowSuccess(
                 GetString("Online.Report.SuccessTitle"),
                 GetString("Online.Report.SuccessMessage", SelectedMember.DisplayName),
                 NotificationDurations.Medium);
@@ -745,7 +745,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to report online member.");
+            _logger.LogError(ex, "Failed to report online member.");
             ShowErrorToast("Online.Error.ReportTitle", null);
         }
         finally
@@ -767,7 +767,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             return;
         }
 
-        var confirmed = await dialogService.ShowConfirmationAsync(
+        var confirmed = await _dialogService.ShowConfirmationAsync(
             GetString("Online.Ban.ConfirmTitle"),
             GetString("Online.Ban.ConfirmMessage", SelectedMember.DisplayName),
             GetString("Online.Action.Ban"),
@@ -780,7 +780,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         try
         {
             IsLoading = true;
-            var result = await networkService.BanMemberAsync(SelectedMember.OverlayIp, cancellationToken);
+            var result = await _networkService.BanMemberAsync(SelectedMember.OverlayIp, cancellationToken);
             if (!result.Success)
             {
                 ShowErrorToast("Online.Error.BanTitle", GetString("Online.Error.BanFailed"));
@@ -788,7 +788,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             }
 
             SelectedMember = null;
-            notificationService.ShowSuccess(
+            _notificationService.ShowSuccess(
                 GetString("Online.Ban.SuccessTitle"),
                 GetString("Online.Ban.SuccessMessage"),
                 NotificationDurations.Medium);
@@ -799,7 +799,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to ban online member.");
+            _logger.LogError(ex, "Failed to ban online member.");
             ShowErrorToast("Online.Error.BanTitle", null);
         }
         finally
@@ -839,7 +839,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
                 ExpectedGameClientId = setup.ClientKey,
                 ExpectedContentIds = setup.GameplayContentIds,
             };
-            var result = await networkService.UpdateNetworkAsync(HostDescription, expected, cancellationToken);
+            var result = await _networkService.UpdateNetworkAsync(HostDescription, expected, cancellationToken);
             if (!result.Success)
             {
                 ShowErrorToast("Online.Error.UpdateTitle", GetString("Online.Error.UpdateFailed"));
@@ -850,7 +850,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             SetPlayProfile(SelectedHostProfile);
             await AdvertiseSelectedProfileAsync(cancellationToken);
             IsHostPanelOpen = false;
-            notificationService.ShowSuccess(
+            _notificationService.ShowSuccess(
                 GetString("Online.Host.SuccessTitle"),
                 GetString("Online.Host.SuccessMessage"),
                 NotificationDurations.Medium);
@@ -861,7 +861,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to update online network.");
+            _logger.LogError(ex, "Failed to update online network.");
             ShowErrorToast("Online.Error.UpdateTitle", null);
         }
         finally
@@ -938,9 +938,9 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
         _disposed = true;
         WeakReferenceMessenger.Default.Unregister<ProfileUpdatedMessage>(this);
-        networkService.RosterChanged -= OnRosterChanged;
-        networkService.ConnectionLost -= OnConnectionLost;
-        networkService.ExpectedProfileChanged -= OnExpectedProfileChanged;
+        _networkService.RosterChanged -= OnRosterChanged;
+        _networkService.ConnectionLost -= OnConnectionLost;
+        _networkService.ExpectedProfileChanged -= OnExpectedProfileChanged;
         _searchCts?.Cancel();
         _searchCts?.Dispose();
         _nicknameCts?.Cancel();
@@ -987,7 +987,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     private void HandleConnectionLost()
     {
         ClearJoin();
-        notificationService.ShowWarning(
+        _notificationService.ShowWarning(
             GetString("Online.Connection.LostTitle"),
             GetString("Online.Connection.LostMessage"),
             NotificationDurations.Long);
@@ -1028,7 +1028,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         var message = string.IsNullOrWhiteSpace(expected.ExpectedProfileName)
             ? GetString("Online.Profile.SwitchedClearedMessage")
             : GetString("Online.Profile.SwitchedMessage", expected.ExpectedProfileName);
-        notificationService.ShowInfo(
+        _notificationService.ShowInfo(
             GetString("Online.Profile.SwitchedTitle"),
             message,
             NotificationDurations.Long);
@@ -1111,7 +1111,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         Members = [];
         SelectedMember = null;
         JoinPassword = string.Empty;
-        networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty, Nickname);
+        _networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty, Nickname);
         JoinNetworkCommand.NotifyCanExecuteChanged();
         LeaveNetworkCommand.NotifyCanExecuteChanged();
         PlayCommand.NotifyCanExecuteChanged();
@@ -1167,18 +1167,18 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         var detailText = string.IsNullOrWhiteSpace(detail) || detail.StartsWith(OnlineConstants.ErrorCodePrefix, StringComparison.Ordinal)
             ? GetString("Online.Error.GenericDetail")
             : OnlineLogScrubber.Scrub(detail);
-        notificationService.ShowError(GetString(titleKey), detailText, NotificationDurations.Long);
+        _notificationService.ShowError(GetString(titleKey), detailText, NotificationDurations.Long);
     }
 
     private bool IsOverlayPending()
     {
-        var config = networkService.CurrentJoin?.AdapterConfig ?? string.Empty;
+        var config = _networkService.CurrentJoin?.AdapterConfig ?? string.Empty;
         return OverlayConfigInspector.TryGetOverlayName(config) == OnlineConstants.OverlayPendingSelection;
     }
 
     private void NotifyAdapterState()
     {
-        IsLobbyOnly = networkService.AdapterState != OnlineAdapterState.Up;
+        IsLobbyOnly = _networkService.AdapterState != OnlineAdapterState.Up;
         if (!IsLobbyOnly)
         {
             return;
@@ -1187,14 +1187,14 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         if (IsOverlayPending())
         {
             // Expected pre-overlay state: lobby works, tunneling waits.
-            notificationService.ShowInfo(
+            _notificationService.ShowInfo(
                 GetString("Online.Adapter.PendingTitle"),
                 GetString("Online.Adapter.PendingMessage"),
                 NotificationDurations.Long);
             return;
         }
 
-        notificationService.ShowWarning(
+        _notificationService.ShowWarning(
             GetString("Online.Adapter.UnavailableTitle"),
             GetString("Online.Adapter.UnavailableMessage"),
             NotificationDurations.Long);
@@ -1204,7 +1204,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     {
         // Advisory preflight: any mesh failure skips the warning and the
         // launch proceeds. Mixed-version peers cannot answer probes yet.
-        var meshTask = networkService.RunMeshCheckAsync(cancellationToken);
+        var meshTask = _networkService.RunMeshCheckAsync(cancellationToken);
         if (meshTask is null)
         {
             return;
@@ -1221,7 +1221,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex) when (ex is HttpRequestException or SocketException or TimeoutException or JsonException)
         {
-            logger.LogWarning(ex, "Mesh check skipped.");
+            _logger.LogWarning(ex, "Mesh check skipped.");
             return;
         }
 
@@ -1230,7 +1230,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             return;
         }
 
-        notificationService.ShowWarning(
+        _notificationService.ShowWarning(
             GetString("Online.Play.ConnectivityTitle"),
             GetString("Online.Play.ConnectivityMessage", mesh.Data.UnreachableCount, mesh.Data.Peers.Count),
             NotificationDurations.Long);
@@ -1273,19 +1273,19 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             }
             catch (Exception ex)
             {
-                logger.LogDebug(ex, "Failed to debounce nickname change.");
+                _logger.LogDebug(ex, "Failed to debounce nickname change.");
             }
         }, token);
     }
 
     private async Task PersistNicknameAsync(string nickname)
     {
-        if (dependencies?.UserSettingsService is null)
+        if (_dependencies?.UserSettingsService is null)
         {
             return;
         }
 
-        await dependencies.UserSettingsService.TryUpdateAndSaveAsync(settings =>
+        await _dependencies.UserSettingsService.TryUpdateAndSaveAsync(settings =>
         {
             if (string.Equals(settings.OnlineNickname ?? string.Empty, nickname, StringComparison.Ordinal))
             {
@@ -1297,13 +1297,13 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         });
     }
 
-    private string GetString(string key) => dependencies?.LocalizationService?.GetString(key) ?? key;
+    private string GetString(string key) => _dependencies?.LocalizationService?.GetString(key) ?? key;
 
     private string GetString(string key, string arg) =>
-        dependencies?.LocalizationService?.GetString(key, arg) ?? $"{key} ({arg})";
+        _dependencies?.LocalizationService?.GetString(key, arg) ?? $"{key} ({arg})";
 
     private string GetString(string key, int first, int second) =>
-        dependencies?.LocalizationService?.GetString(key, first, second) ?? $"{key} ({first}, {second})";
+        _dependencies?.LocalizationService?.GetString(key, first, second) ?? $"{key} ({first}, {second})";
 
     private async Task<string?> PickReportReasonAsync(string displayName)
     {
@@ -1327,7 +1327,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             Style = NotificationActionStyle.Secondary,
         });
 
-        await dialogService.ShowMessageAsync(
+        await _dialogService.ShowMessageAsync(
             GetString("Online.Report.DialogTitle"),
             GetString("Online.Report.DialogMessage", displayName),
             actions);
@@ -1345,7 +1345,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             ProfileMatchDetail = null;
             SetPlayProfile(null);
 
-            var result = await networkService.GetNetworkDetailAsync(network.Id, cancellationToken);
+            var result = await _networkService.GetNetworkDetailAsync(network.Id, cancellationToken);
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
@@ -1353,7 +1353,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
             if (!result.Success)
             {
-                logger.LogWarning("Failed to load details for network {NetworkId}.", network.Id);
+                _logger.LogWarning("Failed to load details for network {NetworkId}.", network.Id);
                 return;
             }
 
@@ -1374,7 +1374,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to load network detail.");
+            _logger.LogWarning(ex, "Failed to load network detail.");
         }
         finally
         {
@@ -1460,7 +1460,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to re-match the selected launch profile.");
+            _logger.LogWarning(ex, "Failed to re-match the selected launch profile.");
         }
     }
 
@@ -1474,7 +1474,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to re-advertise the player nickname.");
+            _logger.LogWarning(ex, "Failed to re-advertise the player nickname.");
         }
     }
 
@@ -1492,7 +1492,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to refresh the lobby match after a profile update.");
+            _logger.LogWarning(ex, "Failed to refresh the lobby match after a profile update.");
         }
     }
 
@@ -1513,10 +1513,10 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             ExpectedGameClientId = setup.ClientKey,
             ExpectedContentIds = setup.GameplayContentIds,
         };
-        var result = await networkService.UpdateNetworkAsync(HostDescription, expected, cancellationToken);
+        var result = await _networkService.UpdateNetworkAsync(HostDescription, expected, cancellationToken);
         if (!result.Success)
         {
-            logger.LogWarning("Online host setup refresh was not applied by the network service.");
+            _logger.LogWarning("Online host setup refresh was not applied by the network service.");
             return;
         }
 
@@ -1562,7 +1562,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to auto-match a local profile.");
+            _logger.LogWarning(ex, "Failed to auto-match a local profile.");
         }
     }
 
@@ -1591,7 +1591,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to match profile by name or id.");
+            _logger.LogWarning(ex, "Failed to match profile by name or id.");
         }
 
         return false;
@@ -1672,14 +1672,14 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     {
         if (SelectedPlayProfile is null)
         {
-            networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty, Nickname);
+            _networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty, Nickname);
             return;
         }
 
         // Same map-aware fingerprint the join body carries, so heartbeats
         // never flap between two advertisements for one profile.
         var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
-        networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname);
+        _networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname);
     }
 
     private async Task<(string Fingerprint, string Name)> ResolveAdvertisementAsync(CancellationToken cancellationToken)
@@ -1697,7 +1697,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             }
 
             var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
-            networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname);
+            _networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname);
             return (setup.Fingerprint, SelectedPlayProfile.Name);
         }
         catch (OperationCanceledException)
@@ -1706,7 +1706,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to resolve the join advertisement; joining unadvertised.");
+            _logger.LogWarning(ex, "Failed to resolve the join advertisement; joining unadvertised.");
             return (string.Empty, string.Empty);
         }
     }
@@ -1719,7 +1719,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
 
         // Profile ids are machine-local, so only the host can resolve the id.
-        var profile = await profileManager.GetProfileAsync(ExpectedProfileId, cancellationToken);
+        var profile = await _profileManager.GetProfileAsync(ExpectedProfileId, cancellationToken);
         return profile.Success && profile.Data is not null ? profile.Data.Id : null;
     }
 
@@ -1738,7 +1738,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
                 return;
             }
 
-            var profiles = await profileManager.GetAllProfilesAsync(cancellationToken);
+            var profiles = await _profileManager.GetAllProfilesAsync(cancellationToken);
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
@@ -1754,7 +1754,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             {
                 // Stay unloaded so the next panel open or join retries; the
                 // lock already prevents concurrent hammering.
-                logger.LogWarning("Failed to load game profiles for the Online tab.");
+                _logger.LogWarning("Failed to load game profiles for the Online tab.");
             }
         }
         catch (OperationCanceledException)
@@ -1763,7 +1763,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to load game profiles for the Online tab.");
+            _logger.LogWarning(ex, "Failed to load game profiles for the Online tab.");
         }
         finally
         {
@@ -1858,14 +1858,14 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
     private async Task<string?> ResolveInstallationRootAsync(GameProfile profile, CancellationToken cancellationToken)
     {
-        if (installationService is null || string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        if (_installationService is null || string.IsNullOrWhiteSpace(profile.GameInstallationId))
         {
             return null;
         }
 
         try
         {
-            var installResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+            var installResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
             if (!installResult.Success || installResult.Data is null)
             {
                 return null;
@@ -1892,7 +1892,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Failed to resolve installation path for profile {ProfileId}", profile.Id);
+            _logger.LogDebug(ex, "Failed to resolve installation path for profile {ProfileId}", profile.Id);
         }
 
         return null;
@@ -1937,7 +1937,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     {
         try
         {
-            if (crcCalculator is null || profile.GameClient is null)
+            if (_crcCalculator is null || profile.GameClient is null)
             {
                 return (string.Empty, string.Empty);
             }
@@ -1951,7 +1951,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             var exeCrc = string.Empty;
             if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
             {
-                var exeResult = await crcCalculator.CalculateExeCrcAsync(exePath, gameRoot, ct: cancellationToken);
+                var exeResult = await _crcCalculator.CalculateExeCrcAsync(exePath, gameRoot, ct: cancellationToken);
                 if (exeResult.Success && !string.IsNullOrEmpty(exeResult.Data))
                 {
                     exeCrc = exeResult.Data;
@@ -1959,7 +1959,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             }
 
             var sideloads = await ResolveGameplaySideloadsAsync(profile, gameplayIds, cancellationToken);
-            var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, profile.GameClient.GameType, sideloads, null, cancellationToken);
+            var iniResult = await _crcCalculator.CalculateIniCrcAsync(gameRoot, profile.GameClient.GameType, sideloads, null, cancellationToken);
             var iniCrc = iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) ? iniResult.Data : string.Empty;
             return (iniCrc, exeCrc);
         }
@@ -1969,7 +1969,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            logger.LogDebug(ex, "Falling back to the id-only fingerprint; engine CRCs unavailable.");
+            _logger.LogDebug(ex, "Falling back to the id-only fingerprint; engine CRCs unavailable.");
             return (string.Empty, string.Empty);
         }
     }
@@ -1985,7 +1985,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             return [];
         }
 
-        var available = await profileManager.GetAvailableContentAsync(client, cancellationToken);
+        var available = await _profileManager.GetAvailableContentAsync(client, cancellationToken);
         if (!available.Success || available.Data is null)
         {
             return [];
@@ -2018,7 +2018,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             return cached;
         }
 
-        var available = await profileManager.GetAvailableContentAsync(client, cancellationToken);
+        var available = await _profileManager.GetAvailableContentAsync(client, cancellationToken);
         if (!available.Success || available.Data is null)
         {
             return null;
