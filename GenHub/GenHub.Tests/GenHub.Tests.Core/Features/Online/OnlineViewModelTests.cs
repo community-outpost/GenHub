@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -737,6 +738,7 @@ public class OnlineViewModelTests
     /// <summary>
     /// Tests that an overlong nickname is clamped to the game's limit and persisted clamped.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
     public async Task Nickname_SetOverlong_ShouldClampToGameLimitAsync()
     {

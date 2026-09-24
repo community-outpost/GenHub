@@ -158,19 +158,19 @@ public class VirtualLanTunnelRunnerTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that a game-side socket can share the discovery port while the runner is active.
+    /// Tests that a cooperative socket can share the discovery port while the runner is active.
     /// </summary>
     /// <remarks>
-    /// The game holds its own discovery listener on the same port: on Windows the
-    /// shares succeed through SO_REUSEADDR alone, while Linux and macOS require
-    /// SO_REUSEPORT on the tunnel listener. Without it, whichever side binds first
-    /// starves the other with a sharing violation. Kernels that permit duplicate
-    /// UDP binds make this pass vacuously; the option round-trip test below carries
-    /// the signal there.
+    /// Both sockets opt into sharing here: reuse-address plus the native reuse-port
+    /// option on Unix, reuse-address alone on Windows. The real game engine sets no
+    /// reuse options before bind, so this test proves the tunnel side cooperates with
+    /// diagnostic tooling, not that the game can share the port. Kernels that permit
+    /// duplicate UDP binds make this pass vacuously; the option round-trip test below
+    /// carries the signal there.
     /// </remarks>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task StartAsync_ShouldAllowDiscoveryPortSharingWithGameSocketAsync()
+    public async Task StartAsync_ShouldAllowDiscoveryPortSharingWithCooperativeSocketAsync()
     {
         // Arrange
         var configJson = """
@@ -186,17 +186,17 @@ public class VirtualLanTunnelRunnerTests : IDisposable
         await _runner.StartAsync(base64, "10.42.0.2");
         Assert.True(_runner.IsRunning);
 
-        using var gameSocket = new UdpClient();
-        gameSocket.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        using var probeSocket = new UdpClient();
+        probeSocket.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
         if (!OperatingSystem.IsWindows())
         {
             var (level, name) = OnlineConstants.GetReusePortOption();
-            gameSocket.Client.SetRawSocketOption(level, name, BitConverter.GetBytes(1));
+            probeSocket.Client.SetRawSocketOption(level, name, BitConverter.GetBytes(1));
         }
 
-        // Act: a game-side discovery socket binds the same port.
+        // Act: a cooperative discovery socket binds the same port.
         var bindException = Record.Exception(() =>
-            gameSocket.Client.Bind(new IPEndPoint(IPAddress.Any, OnlineConstants.ZeroHourDiscoveryPort)));
+            probeSocket.Client.Bind(new IPEndPoint(IPAddress.Any, OnlineConstants.ZeroHourDiscoveryPort)));
 
         // Assert
         Assert.Null(bindException);

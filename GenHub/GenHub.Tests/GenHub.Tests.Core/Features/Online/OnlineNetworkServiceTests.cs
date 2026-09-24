@@ -904,10 +904,10 @@ public sealed class OnlineNetworkServiceTests
             var service = CreateService(CreateFactory(handler, responder: handler.Responder));
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var result = await service.GetNetworksAsync(cts.Token);
+            var result = await service.GetNetworksAsync(cancellationToken: cts.Token);
 
             Assert.False(result.Success);
-            Assert.Equal(primaryUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
+            Assert.Equal(fallbackUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
         }
         finally
         {
