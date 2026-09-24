@@ -243,8 +243,6 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
         return result;
     }
 
-
-
     private static string? ReadFirst(SageVirtualFileSystem fileSystem, string first, string second)
     {
         var bytes = fileSystem.Read(first) ?? fileSystem.Read(second);
@@ -351,10 +349,3 @@ public sealed class ChallengeMedalService(ILogger<ChallengeMedalService> logger)
         }
     }
 }
-
-/// <summary>
-/// A parsed challenge persona entry.
-/// </summary>
-/// <param name="PlayerTemplate">The player template name, if any.</param>
-/// <param name="StartsEnabled">Whether the persona starts enabled.</param>
-internal sealed record PersonaEntry(string? PlayerTemplate, bool StartsEnabled);

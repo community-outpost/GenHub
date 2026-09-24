@@ -49,8 +49,6 @@ public sealed partial class WndEditorViewModel(
     IChallengeMedalService medalService,
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
-
-
     private const int MaxUndoHistory = 200;
 
     private static readonly EnumerationOptions SafeDirectoryEnumerationOptions = new()
@@ -670,7 +668,8 @@ public sealed partial class WndEditorViewModel(
         var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var windowName in EnumerateWindows(document.Windows)
                      .Select(w => w.Name)
-                     .Where(name => !string.IsNullOrWhiteSpace(name)))
+                     .Where(name => !string.IsNullOrWhiteSpace(name))
+                     .Cast<string>())
         {
             var decorated = WndDecoratedName.Parse(windowName);
             if (IsMapStartMarker(decorated.ShortName))
@@ -3446,17 +3445,4 @@ public sealed partial class WndEditorViewModel(
 
         return $"{linkedDir};{autoDetectedDir}";
     }
-}
-
-/// <summary>
-/// Root directories for game asset discovery.
-/// </summary>
-/// <param name="TargetGameRoot">The target game root directory.</param>
-/// <param name="IsZeroHour">Whether the installation is Zero Hour.</param>
-internal sealed record AssetRoots(string TargetGameRoot, bool IsZeroHour)
-{
-    /// <summary>
-    /// Gets the base root path.
-    /// </summary>
-    public string BaseRoot => TargetGameRoot;
 }
