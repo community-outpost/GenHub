@@ -12980,6 +12980,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.FilterArtifacts" xml:space="preserve">
     <value>الملفات والمخرجات</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterExternalCdn" xml:space="preserve">
+    <value>شبكة CDN خارجية</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.SearchAssetsWatermark" xml:space="preserve">
     <value>بحث في الأصول...</value>
   </data>

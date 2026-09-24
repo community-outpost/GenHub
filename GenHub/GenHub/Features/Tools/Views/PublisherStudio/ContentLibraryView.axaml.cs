@@ -73,13 +73,7 @@ public partial class ContentLibraryView : UserControl
         }
 
         e.Handled = true;
-        if (await vm.TryImportCatalogFileAsync(paths[0]))
-        {
-            return true;
-        }
-
-        e.Handled = false;
-        return false;
+        return await vm.TryImportCatalogFileAsync(paths[0], announceFailures: true);
     }
 
     private static async Task RouteDroppedPathsAsync(ContentLibraryViewModel vm, List<string> paths, Visual? sourceVisual)

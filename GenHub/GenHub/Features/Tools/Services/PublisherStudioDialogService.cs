@@ -276,23 +276,6 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<string?> ShowVideoPickerAsync(string title)
-    {
-        return await ShowOpenPickerAsync(
-            title,
-            [
-                new Avalonia.Platform.Storage.FilePickerFileType("Video Files (*.mp4, *.webm, *.mkv, *.avi)")
-                {
-                    Patterns = ["*.mp4", "*.webm", "*.mkv", "*.avi"],
-                },
-                new Avalonia.Platform.Storage.FilePickerFileType(AllFilesFilterName)
-                {
-                    Patterns = ["*.*"],
-                },
-            ]);
-    }
-
-    /// <inheritdoc/>
     public async Task<string?> ShowFolderPickerAsync(string title)
     {
         var mainWindow = GetMainWindow();

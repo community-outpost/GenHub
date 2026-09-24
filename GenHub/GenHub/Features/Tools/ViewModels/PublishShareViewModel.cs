@@ -178,8 +178,10 @@ public partial class PublishShareViewModel(
     /// </summary>
     internal static HttpClient? HttpClientOverrideForTesting { get; set; }
 
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _probingUrls = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _publishGate = new(1, 1);
     private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? _probeCts = new();
     private HostingState? _currentHostingState;
 
     /// <summary>
@@ -1093,6 +1095,9 @@ public partial class PublishShareViewModel(
             _activeUploadCts?.Cancel();
             _activeUploadCts?.Dispose();
             _activeUploadCts = null;
+            _probeCts?.Cancel();
+            _probeCts?.Dispose();
+            _probeCts = null;
             _publishGate.Dispose();
             _uploadCts?.Cancel();
             _uploadCts?.Dispose();
@@ -1517,7 +1522,6 @@ public partial class PublishShareViewModel(
             Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat", "{0} v{1}", contentName, releaseVersion),
             Location = location,
             FileSize = artSize,
-            FileSizeFormatted = artSize > 0 ? FileSizeFormatter.Format(artSize) : "0 B",
             Url = artifact.DownloadUrl ?? string.Empty,
             Status = status,
             IsOnline = isCloud,
@@ -1530,27 +1534,12 @@ public partial class PublishShareViewModel(
 
         if (artSize <= 0 && isExternal && !string.IsNullOrWhiteSpace(artifact.DownloadUrl))
         {
-            _ = ProbeExternalAssetSizeAsync(item, artifact);
-        }
-    }
-
-    private async Task<long?> ProbeHeadSizeAsync(HttpClient client, string url, CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var headRequest = new HttpRequestMessage(HttpMethod.Head, url);
-            using var headResponse = await client.SendAsync(headRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            if (headResponse.IsSuccessStatusCode)
+            if (_probingUrls.TryAdd(artifact.DownloadUrl, 0))
             {
-                return headResponse.Content.Headers.ContentLength;
+                var ct = _probeCts?.Token ?? CancellationToken.None;
+                _ = ProbeExternalAssetSizeAsync(item, artifact, ct);
             }
         }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "HEAD probe failed for {Url}", url);
-        }
-
-        return null;
     }
 
     private async Task<long?> ProbeRangedGetSizeAsync(HttpClient client, string url, CancellationToken cancellationToken)
@@ -1574,7 +1563,7 @@ public partial class PublishShareViewModel(
         return null;
     }
 
-    private async Task ProbeExternalAssetSizeAsync(HostedAssetItemViewModel item, ReleaseArtifact artifact)
+    private async Task ProbeExternalAssetSizeAsync(HostedAssetItemViewModel item, ReleaseArtifact artifact, CancellationToken cancellationToken)
     {
         var url = artifact.DownloadUrl;
         if (string.IsNullOrWhiteSpace(url) ||
@@ -1587,14 +1576,14 @@ public partial class PublishShareViewModel(
         try
         {
             var client = HttpClientOverrideForTesting ?? SharedHttpClient;
-            var detectedSize = await ProbeHeadSizeAsync(client, url, CancellationToken.None).ConfigureAwait(false);
+            var detectedSize = await RemoteFileSizeProbe.TryProbeSizeAsync(client, url, TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
 
-            if (detectedSize is null or <= 0)
+            if ((detectedSize is null or <= 0) && !cancellationToken.IsCancellationRequested)
             {
-                detectedSize = await ProbeRangedGetSizeAsync(client, url, CancellationToken.None).ConfigureAwait(false);
+                detectedSize = await ProbeRangedGetSizeAsync(client, url, cancellationToken).ConfigureAwait(false);
             }
 
-            if (detectedSize is > 0)
+            if (detectedSize is > 0 && !cancellationToken.IsCancellationRequested)
             {
                 var size = detectedSize.Value;
                 artifact.Size = size;
@@ -1602,7 +1591,6 @@ public partial class PublishShareViewModel(
                 void UpdateItem()
                 {
                     item.FileSize = size;
-                    item.FileSizeFormatted = FileSizeFormatter.Format(size);
                 }
 
                 if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
@@ -1617,9 +1605,17 @@ public partial class PublishShareViewModel(
                 logger.LogInformation("Probed external artifact size for {FileName}: {Size} bytes", artifact.Filename, size);
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Expected on cancellation
+        }
         catch (Exception ex)
         {
             logger.LogDebug(ex, "Could not probe size for external artifact {Url}", url);
+        }
+        finally
+        {
+            _probingUrls.TryRemove(url, out _);
         }
     }
 

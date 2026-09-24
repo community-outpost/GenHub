@@ -28,6 +28,8 @@ public partial class PublisherProfileViewModel(
     ILocalizationService? localizationService = null,
     IPublisherSubscriptionStore? subscriptionStore = null) : ObservableValidator
 {
+    private bool _isSyncing;
+
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [LocalizedRequired("Tools.PublisherStudio.Validation.PublisherIdRequired", "Publisher ID is required")]
@@ -115,16 +117,24 @@ public partial class PublisherProfileViewModel(
     /// </summary>
     public void LoadFromProject()
     {
-        var pub = project?.Catalog?.Publisher;
-        PublisherId = pub?.Id ?? string.Empty;
-        PublisherName = pub?.Name ?? string.Empty;
-        AvatarUrl = pub?.AvatarUrl ?? string.Empty;
-        WebsiteUrl = pub?.WebsiteUrl ?? string.Empty;
-        SupportUrl = pub?.SupportUrl ?? string.Empty;
-        ContactEmail = pub?.ContactEmail ?? string.Empty;
-        Description = pub?.Description ?? string.Empty;
-        TagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
-        ClearErrors();
+        _isSyncing = true;
+        try
+        {
+            var pub = project?.Catalog?.Publisher;
+            PublisherId = pub?.Id ?? string.Empty;
+            PublisherName = pub?.Name ?? string.Empty;
+            AvatarUrl = pub?.AvatarUrl ?? string.Empty;
+            WebsiteUrl = pub?.WebsiteUrl ?? string.Empty;
+            SupportUrl = pub?.SupportUrl ?? string.Empty;
+            ContactEmail = pub?.ContactEmail ?? string.Empty;
+            Description = pub?.Description ?? string.Empty;
+            TagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
+            ClearErrors();
+        }
+        finally
+        {
+            _isSyncing = false;
+        }
     }
 
     /// <summary>
@@ -140,7 +150,11 @@ public partial class PublisherProfileViewModel(
         project.Catalog.Publisher ??= new();
         if (!string.IsNullOrWhiteSpace(PublisherId))
         {
-            project.Catalog.Publisher.Id = PublisherId.ToLowerInvariant().Trim();
+            var trimmedId = PublisherId.ToLowerInvariant().Trim();
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmedId, RegexConstants.PublisherIdPattern))
+            {
+                project.Catalog.Publisher.Id = trimmedId;
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(PublisherName))
@@ -163,6 +177,11 @@ public partial class PublisherProfileViewModel(
 
     private void OnProfileFieldChanged()
     {
+        if (_isSyncing)
+        {
+            return;
+        }
+
         ApplyToProject();
         MarkDirty();
     }

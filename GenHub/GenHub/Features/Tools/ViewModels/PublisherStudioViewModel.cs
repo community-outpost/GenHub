@@ -340,7 +340,7 @@ public partial class PublisherStudioViewModel(
 
             var successTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.CatalogImportedFormat") ??
                 "Added catalog '{0}' with {1} content items.";
-            var successMessage = string.Format(successTemplate, catalogName, itemCount);
+            var successMessage = SafeFormat(successTemplate, "Added catalog '{0}' with {1} content items.", catalogName, itemCount);
 
             StatusMessage = successMessage;
             notificationService?.ShowSuccess(StudioNotificationTitle, successMessage, NotificationDurations.Medium);
@@ -350,26 +350,7 @@ public partial class PublisherStudioViewModel(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to import catalog from {FilePath}", filePath);
-            if (announceFailures)
-            {
-                var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
-                    "Failed to import catalog: {0}";
-                string errMessage;
-                try
-                {
-                    errMessage = string.Format(errTemplate, ex.Message);
-                }
-                catch (FormatException)
-                {
-                    errMessage = errTemplate.Contains("{0}")
-                        ? errTemplate.Replace("{0}", ex.Message)
-                        : $"{errTemplate}: {ex.Message}";
-                }
-
-                notificationService?.ShowError(StudioNotificationTitle, errMessage, NotificationDurations.Long);
-            }
-
+            HandleImportFailure(filePath, ex, announceFailures);
             return false;
         }
     }
@@ -521,6 +502,25 @@ public partial class PublisherStudioViewModel(
         return string.IsNullOrEmpty(slug) ? "catalog" : slug;
     }
 
+    private static string SafeFormat(string template, string fallbackFormat, params object[] args)
+    {
+        try
+        {
+            return string.Format(template, args);
+        }
+        catch (FormatException)
+        {
+            try
+            {
+                return string.Format(fallbackFormat, args);
+            }
+            catch (FormatException)
+            {
+                return fallbackFormat;
+            }
+        }
+    }
+
     private PublisherCatalog? ParseImportCatalog(string content, string filePath, bool announceFailures)
     {
         if (string.IsNullOrWhiteSpace(content))
@@ -590,6 +590,20 @@ public partial class PublisherStudioViewModel(
         }
     }
 
+    private void HandleImportFailure(string filePath, Exception ex, bool announceFailures)
+    {
+        logger.LogError(ex, "Failed to import catalog from {FilePath}", filePath);
+        if (!announceFailures)
+        {
+            return;
+        }
+
+        var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
+            "Failed to import catalog: {0}";
+        var errMessage = SafeFormat(errTemplate, "Failed to import catalog: {0}", ex.Message);
+        notificationService?.ShowError(StudioNotificationTitle, errMessage, NotificationDurations.Long);
+    }
+
     private void ReportImportFailure(string filePath, string reason, bool announceFailures)
     {
         logger.LogWarning("Catalog import skipped for {FilePath}: {Reason}", filePath, reason);
@@ -600,18 +614,7 @@ public partial class PublisherStudioViewModel(
 
         var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
             "Failed to import catalog: {0}";
-        string formattedReason;
-        try
-        {
-            formattedReason = string.Format(errTemplate, reason);
-        }
-        catch (FormatException)
-        {
-            formattedReason = errTemplate.Contains("{0}")
-                ? errTemplate.Replace("{0}", reason)
-                : $"{errTemplate}: {reason}";
-        }
-
+        var formattedReason = SafeFormat(errTemplate, "Failed to import catalog: {0}", reason);
         notificationService?.ShowError(StudioNotificationTitle, formattedReason, NotificationDurations.Long);
     }
 
@@ -650,7 +653,7 @@ public partial class PublisherStudioViewModel(
         var promptTitle = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogPromptTitle") ?? "Add Catalog to Provider?";
         var promptTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogPromptMessage") ??
             "A catalog file '{0}' was detected containing {1} content items by '{2}'.\n\nWould you like to add this catalog to your provider project?";
-        var promptMessage = string.Format(promptTemplate, fileName, itemCount, publisherName);
+        var promptMessage = SafeFormat(promptTemplate, "A catalog file '{0}' was detected containing {1} content items by '{2}'.\n\nWould you like to add this catalog to your provider project?", fileName, itemCount, publisherName);
 
         var confirmText = localizationService?.GetString("Tools.PublisherStudio.Studio.AddCatalogConfirm") ?? "Add Catalog";
         var cancelText = localizationService?.GetString("Common.Cancel") ?? "Cancel";
@@ -742,8 +745,6 @@ public partial class PublisherStudioViewModel(
     {
         try
         {
-            PublisherProfileViewModel?.ApplyToProject();
-
             // Auto-assign default project path if empty to guarantee persistence
             if (string.IsNullOrEmpty(project.ProjectPath))
             {

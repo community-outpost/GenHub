@@ -12980,6 +12980,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.FilterArtifacts" xml:space="preserve">
     <value>Релизы и артефакты</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterExternalCdn" xml:space="preserve">
+    <value>Внешний CDN</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.SearchAssetsWatermark" xml:space="preserve">
     <value>Поиск файлов...</value>
   </data>

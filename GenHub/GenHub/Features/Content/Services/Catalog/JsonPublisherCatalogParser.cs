@@ -50,7 +50,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 return OperationResult<PublisherCatalog>.CreateFailure("Failed to deserialize catalog JSON");
             }
 
-            NormalizeCatalogCollections(catalog);
+            NormalizeCatalogCollections(catalog, logger);
 
             // Validate after parsing
             var validationResult = ValidateCatalog(catalog);
@@ -92,7 +92,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
-        NormalizeCatalogCollections(catalog);
+        NormalizeCatalogCollections(catalog, logger);
 
         var errors = new List<string>();
 
@@ -233,9 +233,11 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
-    private static void NormalizeCatalogCollections(PublisherCatalog catalog)
+    private static void NormalizeCatalogCollections(PublisherCatalog catalog, ILogger logger)
     {
         catalog.Content ??= [];
+        var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var content in catalog.Content)
         {
             if (content == null)
@@ -246,6 +248,14 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             if (!string.IsNullOrWhiteSpace(content.Name))
             {
                 content.Name = ContentFormatPolicy.StripArchiveExtensions(content.Name);
+                if (seenNames.TryGetValue(content.Name, out var existingId) && !string.Equals(existingId, content.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning("Catalog content item '{ContentId}' normalized to display name '{ContentName}', which duplicates item '{ExistingId}'", content.Id, content.Name, existingId);
+                }
+                else
+                {
+                    seenNames[content.Name] = content.Id;
+                }
             }
 
             content.Description ??= string.Empty;

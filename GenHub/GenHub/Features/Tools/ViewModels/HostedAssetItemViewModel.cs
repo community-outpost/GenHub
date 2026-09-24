@@ -87,7 +87,7 @@ public partial class HostedAssetItemViewModel : ObservableObject
     private long _fileSize;
 
     [ObservableProperty]
-    private string _fileSizeFormatted = "0 B";
+    private string _fileSizeFormatted = "0.0 B";
 
     [ObservableProperty]
     private string _url = string.Empty;

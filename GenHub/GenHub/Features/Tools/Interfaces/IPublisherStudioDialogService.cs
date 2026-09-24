@@ -170,13 +170,6 @@ public interface IPublisherStudioDialogService
     Task<string?> ShowImagePickerAsync(string title);
 
     /// <summary>
-    /// Shows a file picker dialog filtered to video files.
-    /// </summary>
-    /// <param name="title">Title of the dialog.</param>
-    /// <returns>The selected file path, or null if cancelled.</returns>
-    Task<string?> ShowVideoPickerAsync(string title);
-
-    /// <summary>
     /// Shows a folder picker dialog.
     /// </summary>
     /// <param name="title">Title of the dialog.</param>

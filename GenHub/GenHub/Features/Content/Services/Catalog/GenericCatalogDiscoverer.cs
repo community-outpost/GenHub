@@ -1027,17 +1027,7 @@ public class GenericCatalogDiscoverer(
             catalogItemsById);
         var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(contentItem);
 
-        var effectiveProviderName = !string.IsNullOrWhiteSpace(_subscription?.PublisherName)
-            ? _subscription.PublisherName
-            : catalog.Publisher.Name;
-
-        var authorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
-            ? contentItem.Metadata.Author
-            : effectiveProviderName;
-
-        var iconUrl = contentItem.Metadata?.IconUrl
-            ?? _subscription?.AvatarUrl
-            ?? catalog.Publisher.AvatarUrl;
+        var (effectiveProviderName, authorName, iconUrl) = ResolvePresentationIdentity(catalog, contentItem);
 
         var searchResult = new ContentSearchResult
         {
@@ -1150,17 +1140,7 @@ public class GenericCatalogDiscoverer(
 
         var siblingTargetGame = ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
 
-        var effectiveProviderName = !string.IsNullOrWhiteSpace(_subscription?.PublisherName)
-            ? _subscription.PublisherName
-            : catalog.Publisher.Name;
-
-        var authorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
-            ? contentItem.Metadata.Author
-            : effectiveProviderName;
-
-        var iconUrl = contentItem.Metadata?.IconUrl
-            ?? _subscription?.AvatarUrl
-            ?? catalog.Publisher.AvatarUrl;
+        var (effectiveProviderName, authorName, iconUrl) = ResolvePresentationIdentity(catalog, contentItem);
 
         var cleanContentName = ContentFormatPolicy.StripArchiveExtensions(contentItem.Name);
 
@@ -1259,5 +1239,24 @@ public class GenericCatalogDiscoverer(
         };
 
         return (sibling, info, artifact);
+    }
+
+    private (string? EffectiveProviderName, string? AuthorName, string? IconUrl) ResolvePresentationIdentity(
+        PublisherCatalog catalog,
+        CatalogContentItem contentItem)
+    {
+        var effectiveProviderName = !string.IsNullOrWhiteSpace(_subscription?.PublisherName)
+            ? _subscription.PublisherName
+            : catalog.Publisher?.Name;
+
+        var authorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
+            ? contentItem.Metadata.Author
+            : effectiveProviderName;
+
+        var iconUrl = contentItem.Metadata?.IconUrl
+            ?? _subscription?.AvatarUrl
+            ?? catalog.Publisher?.AvatarUrl;
+
+        return (effectiveProviderName, authorName, iconUrl);
     }
 }

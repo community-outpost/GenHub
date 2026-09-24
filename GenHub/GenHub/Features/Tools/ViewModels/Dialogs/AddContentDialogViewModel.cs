@@ -1371,13 +1371,15 @@ public partial class AddContentDialogViewModel(
             _existingItem.Name,
             _existingItem.Id);
 
-        if (dialogService != null)
+        if (dialogService == null)
         {
-            var confirmed = await dialogService.ShowConfirmationAsync(title, message);
-            if (!confirmed)
-            {
-                return;
-            }
+            return;
+        }
+
+        var confirmed = await dialogService.ShowConfirmationAsync(title, message);
+        if (!confirmed)
+        {
+            return;
         }
 
         if (_onContentDeleted != null)
@@ -1914,6 +1916,7 @@ public partial class AddContentDialogViewModel(
                 };
                 ReleaseArtifacts.Add(art);
                 IncludeInitialRelease = true;
+                OnPropertyChanged(nameof(HasInitialReleaseFiles));
                 return;
             }
         }

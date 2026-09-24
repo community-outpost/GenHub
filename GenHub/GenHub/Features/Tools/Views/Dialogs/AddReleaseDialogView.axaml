@@ -91,7 +91,7 @@
 
         <!-- Form -->
         <ScrollViewer Grid.Row="1">
-            <StackPanel Spacing="14" Margin="0,0,0,48">
+            <StackPanel Spacing="14" Margin="0,0,0,80">
                 <!-- Info -->
                 <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="{DynamicResource TextPrimary}"/>
 
@@ -314,7 +314,7 @@
                 CornerRadius="8"
                 MaxWidth="320"
                 IsVisible="{Binding ValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                BoxShadow="0 4 12 0 #40000000">
+                BoxShadow="{DynamicResource FlyoutElevationShadow}">
             <TextBlock Text="{Binding ValidationError}"
                        Foreground="{DynamicResource StatusErrorBrush}"
                        VerticalAlignment="Center"
@@ -332,11 +332,11 @@
                 BorderBrush="{DynamicResource GlassBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="10"
-                BoxShadow="0 4 16 0 #50000000">
+                BoxShadow="{DynamicResource FlyoutElevationShadow}">
             <Button Content="{Binding SubmitButtonText}"
                     Command="{Binding CreateReleaseCommand}"
                     Background="{DynamicResource PrimaryGradientBrush}"
-                    Foreground="White"
+                    Foreground="{DynamicResource PrimaryButtonForeground}"
                     CornerRadius="7"
                     Padding="20,7"
                     FontWeight="SemiBold"

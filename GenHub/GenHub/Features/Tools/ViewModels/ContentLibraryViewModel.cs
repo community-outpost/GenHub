@@ -199,9 +199,10 @@ public partial class ContentLibraryViewModel(
     /// Attempts to import a catalog from a dropped file path.
     /// </summary>
     /// <param name="filePath">The path of the dropped file.</param>
+    /// <param name="announceFailures">True to announce parse failures; false otherwise.</param>
     /// <returns>True if the file was recognized as a catalog and processed; false otherwise.</returns>
-    public Task<bool> TryImportCatalogFileAsync(string filePath) =>
-        parentViewModel != null ? parentViewModel.ImportCatalogFromFileAsync(filePath) : Task.FromResult(false);
+    public Task<bool> TryImportCatalogFileAsync(string filePath, bool announceFailures = false) =>
+        parentViewModel != null ? parentViewModel.ImportCatalogFromFileAsync(filePath, announceFailures) : Task.FromResult(false);
 
     /// <summary>
     /// Shows an error notification when drag-and-drop import fails unexpectedly.
@@ -443,7 +444,7 @@ public partial class ContentLibraryViewModel(
         {
             try
             {
-                var escapedPath = path.Replace("#", "%23", StringComparison.Ordinal);
+                var escapedPath = path.Replace("%", "%25", StringComparison.Ordinal).Replace("#", "%23", StringComparison.Ordinal);
                 return new Uri(escapedPath).AbsoluteUri;
             }
             catch (UriFormatException)
