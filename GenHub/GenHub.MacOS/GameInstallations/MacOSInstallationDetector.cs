@@ -338,30 +338,42 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     {
         string? generalsPath = null;
         string? zeroHourPath = null;
+        string? fallbackGeneralsPath = null;
+        string? fallbackZeroHourPath = null;
 
         foreach (var directory in Directory.EnumerateDirectories(root))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var directoryName = Path.GetFileName(directory);
-            if (generalsPath is null &&
-                GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)
-                && RetailArchiveClassifier.ClassifyArchives(directory).HasGeneralsArchives)
+            var generalsName = GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase);
+            var zeroHourName = ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase);
+            if (!generalsName && !zeroHourName)
             {
-                generalsPath = directory;
+                continue;
             }
 
-            if (zeroHourPath is null &&
-                ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)
-                && RetailArchiveClassifier.ClassifyArchives(directory).HasZeroHourArchives)
+            var archives = RetailArchiveClassifier.ClassifyArchives(directory);
+            if (archives.HasGeneralsArchives)
             {
-                zeroHourPath = directory;
+                fallbackGeneralsPath ??= directory;
+                if (generalsName)
+                {
+                    generalsPath ??= directory;
+                }
             }
 
-            if (generalsPath is not null && zeroHourPath is not null)
+            if (archives.HasZeroHourArchives)
             {
-                break;
+                fallbackZeroHourPath ??= directory;
+                if (zeroHourName)
+                {
+                    zeroHourPath ??= directory;
+                }
             }
         }
+
+        generalsPath ??= fallbackGeneralsPath;
+        zeroHourPath ??= fallbackZeroHourPath;
 
         return (generalsPath, zeroHourPath);
     }

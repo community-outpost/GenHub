@@ -10,6 +10,45 @@ namespace GenHub.Tests.MacOS.GameInstallations;
 /// </summary>
 public class MacOSInstallationDetectorTests
 {
+    /// <summary>Combined named children supply both games while dedicated paths retain precedence.</summary>
+    /// <param name="generalsNamed">Whether the combined child uses the Generals name.</param>
+    /// <param name="separateSibling">Whether the other game has its own named directory.</param>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void InspectRoot_CombinedNamedChild_PreservesBothGames(bool generalsNamed, bool separateSibling)
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.CombinedChild.").FullName;
+        try
+        {
+            var combinedName = generalsNamed ? GameClientConstants.GeneralsDirectoryName : GameClientConstants.ZeroHourDirectoryName;
+            var combined = Directory.CreateDirectory(Path.Combine(root, combinedName)).FullName;
+            File.WriteAllText(Path.Combine(combined, "INI.big"), "archive");
+            File.WriteAllText(Path.Combine(combined, "INIZH.big"), "archive");
+            var sibling = combined;
+            if (separateSibling)
+            {
+                var siblingName = generalsNamed ? GameClientConstants.ZeroHourDirectoryName : GameClientConstants.GeneralsDirectoryName;
+                sibling = Directory.CreateDirectory(Path.Combine(root, siblingName)).FullName;
+                File.WriteAllText(Path.Combine(sibling, generalsNamed ? "INIZH.big" : "INI.big"), "archive");
+            }
+
+            var (installation, denied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.False(denied);
+            Assert.NotNull(installation);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(generalsNamed ? combined : sibling, installation.GeneralsPath);
+            Assert.Equal(generalsNamed ? sibling : combined, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     /// <summary>An unreadable named child makes the scan incomplete even with a readable sibling.</summary>
     [Fact]
     public void InspectRoot_UnreadableChild_ReportsAccessDenied()

@@ -197,6 +197,7 @@ public class GameInstallation(
             }
 
             FetchSubdirectoryInstallations(ref foundGenerals, ref foundZeroHour);
+            CompleteCombinedSubdirectory(ref foundGenerals, ref foundZeroHour);
             FetchRootInstallation(ref foundGenerals, ref foundZeroHour);
 
             // Log warnings only if absolutely nothing found
@@ -303,6 +304,23 @@ public class GameInstallation(
 
         foundPath = null;
         return false;
+    }
+
+    private void CompleteCombinedSubdirectory(ref bool foundGenerals, ref bool foundZeroHour)
+    {
+        if (!foundGenerals && foundZeroHour && RetailArchiveClassifier.ClassifyArchivesSafely(ZeroHourPath, logger).HasGeneralsArchives)
+        {
+            GeneralsPath = ZeroHourPath;
+            HasGenerals = true;
+            foundGenerals = true;
+        }
+
+        if (!foundZeroHour && foundGenerals && RetailArchiveClassifier.ClassifyArchivesSafely(GeneralsPath, logger).HasZeroHourArchives)
+        {
+            ZeroHourPath = GeneralsPath;
+            HasZeroHour = true;
+            foundZeroHour = true;
+        }
     }
 
     private void FetchRootInstallation(ref bool foundGenerals, ref bool foundZeroHour)
