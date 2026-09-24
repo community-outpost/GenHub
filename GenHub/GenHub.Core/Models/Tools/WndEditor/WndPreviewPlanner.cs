@@ -35,6 +35,7 @@ public static class WndPreviewPlanner
         {
             WndControlType.PushButton => PlanButton(drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.CommandButton => PlanCommandButton(drawData, style, isHidden, isSeeThru, isImageWindow),
+            WndControlType.RadioButton => PlanRadioButton(drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.EntryField => PlanTextEntry(drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.ScrollListBox => PlanListbox(window, drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.ComboBox => PlanComboBox(window, drawData, style, isHidden, isSeeThru, isImageWindow),
@@ -97,6 +98,28 @@ public static class WndPreviewPlanner
 
         var single = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
         return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden, FontName: style.FontName);
+    }
+
+    private static WndPreviewPlan PlanRadioButton(
+        WndDrawDataSet? drawData,
+        WndTextStyle style,
+        bool isHidden,
+        bool isSeeThru,
+        bool isImageWindow)
+    {
+        // Retail radios draw a three-piece bar (Left 0, Middle 1, Right 2); older single-glyph
+        // layouts fall back to the index-one box glyph.
+        var left = ImageAt(drawData, WndConstants.Preview.RadioLeftImageIndex);
+        var middle = ImageAt(drawData, WndConstants.Preview.RadioMiddleImageIndex);
+        var right = ImageAt(drawData, WndConstants.Preview.RadioRightImageIndex);
+        var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
+        if (left != null && middle != null && right != null)
+        {
+            return new WndPreviewPlan(null, left, middle, right, null, null, false, ResolveFillColor(entry, isSeeThru, isImageWindow), ResolveBorderColor(entry, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden, FontName: style.FontName);
+        }
+
+        var glyph = ImageAt(drawData, WndConstants.Preview.BoxGlyphImageIndex);
+        return new WndPreviewPlan(left, null, null, null, glyph, null, false, ResolveFillColor(entry, isSeeThru, isImageWindow), ResolveBorderColor(entry, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden, FontName: style.FontName);
     }
 
     private static WndPreviewPlan PlanGeneric(
@@ -311,9 +334,13 @@ public static class WndPreviewPlanner
 
         underlay = ResolveShellMenuUnderlay(single, overrides, underlay);
 
-        if (single != plan.SingleImage || underlay != plan.UnderlayImage)
+        // Procedurally drawn map previews show a centered placeholder caption in the editor.
+        var textCentered = plan.TextCentered
+            || (plan.Text == null && drawCallback.Contains(WndConstants.DrawCallbacks.MapPreview, StringComparison.OrdinalIgnoreCase));
+
+        if (single != plan.SingleImage || underlay != plan.UnderlayImage || textCentered != plan.TextCentered)
         {
-            return plan with { SingleImage = single, UnderlayImage = underlay };
+            return plan with { SingleImage = single, UnderlayImage = underlay, TextCentered = textCentered };
         }
 
         return plan;

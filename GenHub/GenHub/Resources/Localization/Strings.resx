@@ -7311,6 +7311,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
     <value>Reset zoom to 100% (Ctrl + 0)</value>
   </data>
+  <data name="Tools.WndEditor.Canvas.MapPreviewPlaceholder" xml:space="preserve">
+    <value>Map Preview</value>
+  </data>
   <data name="Tools.WndEditor.Assets.Label" xml:space="preserve">
     <value>Game assets</value>
   </data>

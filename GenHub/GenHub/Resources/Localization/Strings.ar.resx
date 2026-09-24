@@ -7213,6 +7213,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.WndEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
     <value>إعادة التكبير إلى 100% (Ctrl + 0)</value>
   </data>
+  <data name="Tools.WndEditor.Canvas.MapPreviewPlaceholder" xml:space="preserve">
+    <value>معاينة الخريطة</value>
+  </data>
   <data name="Tools.WndEditor.Assets.Label" xml:space="preserve">
     <value>أصول اللعبة</value>
   </data>

@@ -7213,6 +7213,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
     <value>Сбросить масштаб до 100% (Ctrl + 0)</value>
   </data>
+  <data name="Tools.WndEditor.Canvas.MapPreviewPlaceholder" xml:space="preserve">
+    <value>Предпросмотр карты</value>
+  </data>
   <data name="Tools.WndEditor.Assets.Label" xml:space="preserve">
     <value>Игровые ресурсы</value>
   </data>

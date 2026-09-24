@@ -201,11 +201,11 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
 
     /// <summary>
     /// Gets a value indicating whether the item shows on the canvas.
-    /// Engine-hidden windows stay visible but dimmed so the editor matches the
-    /// runtime layout where scripts reveal them (for example lobby combo boxes).
+    /// Engine-hidden windows (popups, alternate option pages) stay invisible unless
+    /// selected for editing, so the canvas matches the game's at-rest layout.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public bool CanvasVisible => true;
+    public bool CanvasVisible => !IsPreviewHidden || IsSelected;
 
     /// <summary>
     /// Gets or sets the control text font family.

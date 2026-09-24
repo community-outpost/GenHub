@@ -2346,7 +2346,7 @@ public sealed partial class WndEditorViewModel(
         var thumb = FindBitmap(sub.ScrollThumb);
         var upHeight = up == null ? 0 : Math.Min(up.PixelSize.Height * Zoom, item.Height);
         var downHeight = down == null ? 0 : Math.Min(down.PixelSize.Height * Zoom, Math.Max(0, item.Height - upHeight));
-        var gutter = GutterWidth([up, down, thumb], item.Width);
+        var gutter = GutterWidth([up, down, thumb], item.Width, Zoom);
         if (up != null)
         {
             var width = Math.Min(up.PixelSize.Width * Zoom, item.Width);
@@ -2388,15 +2388,12 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
-    private double GutterWidth(IReadOnlyList<Bitmap?> bitmaps, double maxWidth)
+    private static double GutterWidth(IReadOnlyList<Bitmap?> bitmaps, double maxWidth, double zoom)
     {
         var gutter = 0.0;
-        foreach (var bitmap in bitmaps)
+        foreach (var bitmap in bitmaps.Where(b => b != null))
         {
-            if (bitmap != null)
-            {
-                gutter = Math.Max(gutter, bitmap.PixelSize.Width * Zoom);
-            }
+            gutter = Math.Max(gutter, bitmap!.PixelSize.Width * zoom);
         }
 
         return Math.Min(gutter, maxWidth);
@@ -2465,6 +2462,11 @@ public sealed partial class WndEditorViewModel(
 
     private string? ResolveDisplayText(WndPreviewPlan plan, WndWindow window)
     {
+        if (plan.Text == null && IsMapPreviewPlaceholder(window, plan))
+        {
+            return localizationService.GetString("Tools.WndEditor.Canvas.MapPreviewPlaceholder");
+        }
+
         if (plan.Text == null || window.ControlType == WndControlType.EntryField)
         {
             return plan.Text;
@@ -2486,6 +2488,18 @@ public sealed partial class WndEditorViewModel(
         return plan.Text;
     }
 
+    private static bool IsMapPreviewPlaceholder(WndWindow window, WndPreviewPlan plan)
+    {
+        if (plan.SingleImage != null || plan.IsThreePiece)
+        {
+            return false;
+        }
+
+        var drawCallback = window.GetProperty(WndConstants.PropertyKeys.DrawCallback);
+        return drawCallback != null
+            && drawCallback.Contains(WndConstants.DrawCallbacks.MapPreview, StringComparison.OrdinalIgnoreCase);
+    }
+
     private Bitmap? ResolvePlanImage(WndPreviewPlan plan, WndCanvasItemViewModel item)
     {
         if (TryResolveThreePiece(plan, item, out var composed))
@@ -2495,36 +2509,30 @@ public sealed partial class WndEditorViewModel(
 
         if (plan.SingleImage != null)
         {
-            if (plan.UnderlayImage != null && TryResolveUnderlay(plan.UnderlayImage, plan.SingleImage, item, out var underlayComposed))
-            {
-                return underlayComposed;
-            }
-
-            if (_previewBitmaps.TryGetValue(plan.SingleImage, out var single))
-            {
-                return single;
-            }
+            return ResolveSinglePlanImage(plan, item);
         }
 
         if (plan.IsThreePiece)
         {
-            if (plan.LeftImage != null && _previewBitmaps.TryGetValue(plan.LeftImage, out var left))
-            {
-                return left;
-            }
-
-            if (plan.CenterImage != null && _previewBitmaps.TryGetValue(plan.CenterImage, out var center))
-            {
-                return center;
-            }
-
-            if (plan.RightImage != null && _previewBitmaps.TryGetValue(plan.RightImage, out var right))
-            {
-                return right;
-            }
+            return ResolveThreePieceFallbackImage(plan);
         }
 
         return null;
+    }
+
+    private Bitmap? ResolveSinglePlanImage(WndPreviewPlan plan, WndCanvasItemViewModel item)
+    {
+        if (plan.UnderlayImage != null && TryResolveUnderlay(plan.UnderlayImage, plan.SingleImage!, item, out var underlayComposed))
+        {
+            return underlayComposed;
+        }
+
+        return FindBitmap(plan.SingleImage);
+    }
+
+    private Bitmap? ResolveThreePieceFallbackImage(WndPreviewPlan plan)
+    {
+        return FindBitmap(plan.LeftImage) ?? FindBitmap(plan.CenterImage) ?? FindBitmap(plan.RightImage);
     }
 
     private bool TryResolveUnderlay(string underlay, string overlay, WndCanvasItemViewModel item, out Bitmap? bitmap)

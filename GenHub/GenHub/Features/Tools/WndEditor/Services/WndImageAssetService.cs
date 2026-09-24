@@ -33,12 +33,23 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private readonly ConcurrentDictionary<string, AssetIndex> _indexes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte[]> _imageCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ImageProvenance> _provenanceCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _indexLock = new(1, 1);
+
+    private enum TextureMatchClass
+    {
+        SameTier,
+        HigherTier,
+        LowerTier,
+    }
+
+    private sealed record ImageProvenance(SageFileTier? DefinitionTier, TextureMatchClass? TextureClass);
 
     /// <inheritdoc />
     public void InvalidateCache()
     {
         _imageCache.Clear();
+        _provenanceCache.Clear();
         _indexes.Clear();
         logger.LogDebug("Invalidated asset image caches");
     }
@@ -79,6 +90,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             if (_imageCache.Count > MaxCachedImages)
             {
                 _imageCache.Clear();
+                _provenanceCache.Clear();
             }
 
             foreach (var (name, png) in resolved)
@@ -497,7 +509,65 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
 
         LogMissingReasons(names, requests, resolved);
+        LogProvenanceSummary(names, requests, index, resolved);
         return resolved;
+    }
+
+    private void LogProvenanceSummary(
+        IReadOnlyCollection<string> names,
+        Dictionary<string, TieredImage> requests,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved)
+    {
+        if (resolved.Count == 0)
+        {
+            return;
+        }
+
+        var defMix = new Dictionary<string, int>(StringComparer.Ordinal);
+        var lowerTextures = new List<string>();
+        var tierFallbacks = new List<string>();
+        foreach (var pair in resolved)
+        {
+            if (!_provenanceCache.TryGetValue(CacheKey(index.Key, pair.Key), out var provenance))
+            {
+                continue;
+            }
+
+            var defLabel = provenance.DefinitionTier?.ToString() ?? "DirectFile";
+            defMix[defLabel] = defMix.TryGetValue(defLabel, out var count) ? count + 1 : 1;
+            if (provenance.TextureClass == TextureMatchClass.LowerTier)
+            {
+                lowerTextures.Add(pair.Key);
+            }
+
+            if (provenance.DefinitionTier != null
+                && requests.TryGetValue(pair.Key, out var best)
+                && provenance.DefinitionTier.Value < best.Tier)
+            {
+                tierFallbacks.Add(pair.Key);
+            }
+        }
+
+        logger.LogInformation(
+            "Preview images: {Resolved}/{Requested} ({DefMix}; textures below definition tier: {LowerTextures}; definition tier fallbacks: {TierFallbacks})",
+            resolved.Count,
+            names.Count,
+            string.Join(", ", defMix.OrderBy(p => p.Key).Select(p => $"{p.Key}={p.Value}")),
+            lowerTextures.Count == 0 ? "none" : SummarizeNames(lowerTextures),
+            tierFallbacks.Count == 0 ? "none" : SummarizeNames(tierFallbacks));
+    }
+
+    private static string SummarizeNames(List<string> names)
+    {
+        const int maxShown = 8;
+        if (names.Count <= maxShown)
+        {
+            return string.Join(", ", names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
+        }
+
+        var shown = names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).Take(maxShown);
+        return string.Join(", ", shown) + $" (+{names.Count - maxShown} more)";
     }
 
     private void LogMissingReasons(
@@ -590,11 +660,12 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         foreach (var alt in alts)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var png = DecodeAlternateImage(index, alt, trimmedName);
+            var (png, matchClass) = DecodeAlternateImage(index, alt, trimmedName);
             if (png is { Length: > 0 })
             {
                 resolved[trimmedName] = png;
                 _imageCache[CacheKey(index.Key, trimmedName)] = png;
+                _provenanceCache[CacheKey(index.Key, trimmedName)] = new ImageProvenance(alt.Tier, matchClass);
                 return true;
             }
         }
@@ -602,12 +673,12 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return false;
     }
 
-    private byte[]? DecodeAlternateImage(AssetIndex index, TieredImage image, string imageName)
+    private (byte[]? Png, TextureMatchClass? MatchClass) DecodeAlternateImage(AssetIndex index, TieredImage image, string imageName)
     {
         var altData = ReadTexture(index.FileSystem, image.Image.Texture, image.Tier);
         if (altData == null)
         {
-            return null;
+            return (null, null);
         }
 
         try
@@ -620,12 +691,12 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 LogResolvedProvenance(image, altData.Value.Path, page.Width, page.Height);
             }
 
-            return png;
+            return (png, altData.Value.MatchClass);
         }
         catch (Exception ex) when (ex is MagickException or IOException)
         {
             logger.LogDebug(ex, "Failed to decode alternate texture {Texture} for {Image}", image.Image.Texture, imageName);
-            return null;
+            return (null, null);
         }
     }
 
@@ -665,6 +736,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 if (png.Length > 0)
                 {
                     resolved[img.Image.Name] = png;
+                    _provenanceCache[CacheKey(index.Key, img.Image.Name)] = new ImageProvenance(img.Tier, textureData.Value.MatchClass);
                     LogResolvedProvenance(img, textureData.Value.Path, page.Width, page.Height);
                 }
             }
@@ -710,6 +782,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             var png = image.ToByteArray(MagickFormat.Png);
             resolved[trimmedName] = png;
             _imageCache[CacheKey(index.Key, trimmedName)] = png;
+            _provenanceCache[CacheKey(index.Key, trimmedName)] = new ImageProvenance(null, texture.Value.MatchClass);
         }
         catch (Exception ex) when (ex is MagickException or IOException)
         {
@@ -717,7 +790,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
     }
 
-    private (string Path, byte[] Bytes, MagickFormat Format)? ReadTexture(
+    private (string Path, byte[] Bytes, MagickFormat Format, TextureMatchClass MatchClass)? ReadTexture(
         SageVirtualFileSystem fileSystem,
         string texture,
         SageFileTier definitionTier)
@@ -726,7 +799,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var match = SearchCandidatesInBand(fileSystem, trimmed, definitionTier, definitionTier);
         if (match != null)
         {
-            return match;
+            return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.SameTier);
         }
 
         if (definitionTier < SageFileTier.LinkedAsset)
@@ -734,7 +807,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             match = SearchCandidatesInBand(fileSystem, trimmed, (SageFileTier)((int)definitionTier + 1), SageFileTier.LinkedAsset);
             if (match != null)
             {
-                return match;
+                return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.HigherTier);
             }
         }
 
@@ -743,7 +816,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             match = SearchCandidatesInBand(fileSystem, trimmed, SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1));
             if (match != null)
             {
-                return match;
+                return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.LowerTier);
             }
         }
 
@@ -775,7 +848,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return null;
     }
 
-    private static (string Path, byte[] Bytes, MagickFormat Format)? TryReadTextureByFileName(
+    private static (string Path, byte[] Bytes, MagickFormat Format, TextureMatchClass MatchClass)? TryReadTextureByFileName(
         SageVirtualFileSystem fileSystem,
         string trimmed,
         SageFileTier definitionTier)
@@ -798,7 +871,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var match = SearchFileNameInBand(fileSystem, candidates, definitionTier, definitionTier);
         if (match != null)
         {
-            return match;
+            return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.SameTier);
         }
 
         if (definitionTier < SageFileTier.LinkedAsset)
@@ -806,13 +879,17 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             match = SearchFileNameInBand(fileSystem, candidates, (SageFileTier)((int)definitionTier + 1), SageFileTier.LinkedAsset);
             if (match != null)
             {
-                return match;
+                return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.HigherTier);
             }
         }
 
         if (definitionTier > SageFileTier.BaseGame)
         {
-            return SearchFileNameInBand(fileSystem, candidates, SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1));
+            match = SearchFileNameInBand(fileSystem, candidates, SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1));
+            if (match != null)
+            {
+                return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.LowerTier);
+            }
         }
 
         return null;

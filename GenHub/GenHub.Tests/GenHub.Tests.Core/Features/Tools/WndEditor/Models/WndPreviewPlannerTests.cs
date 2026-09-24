@@ -147,6 +147,29 @@ public sealed class WndPreviewPlannerTests
     }
 
     /// <summary>
+    /// Tests that radio buttons with left, middle, and right art plan a three-piece bar.
+    /// </summary>
+    [Fact]
+    public void Plan_RadioButtonWithBarArt_PlansThreePiece()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.RadioButton };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("RadioLeft", 0), ("RadioMiddle", 1), ("RadioRight", 2)));
+        window.SetProperty(WndConstants.PropertyKeys.Text, "\"Official Maps\"");
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.IsThreePiece.Should().BeTrue();
+        plan.LeftImage.Should().Be("RadioLeft");
+        plan.CenterImage.Should().Be("RadioMiddle");
+        plan.RightImage.Should().Be("RadioRight");
+        plan.GlyphImage.Should().BeNull();
+        plan.Text.Should().Be("Official Maps");
+    }
+
+    /// <summary>
     /// Tests that check boxes and radio buttons plan their box glyph from index one.
     /// </summary>
     /// <param name="controlType">The control type under test.</param>

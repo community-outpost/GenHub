@@ -1352,6 +1352,32 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that map preview windows without art show a centered placeholder caption.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentText_MapPreviewWithoutArt_ShowsPlaceholder()
+    {
+        // Arrange
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 100, CREATIONRESOLUTION: 800 600;\n" +
+            "  NAME = Menu.wnd:WinMapPreview;\n" +
+            "  DRAWCALLBACK = \"W3DDrawMapPreview\";\n" +
+            "END\n";
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+
+        // Assert
+        _viewModel.CanvasItems.Should().HaveCount(1);
+        _viewModel.CanvasItems[0].ContentText.Should().Be("Tools.WndEditor.Canvas.MapPreviewPlaceholder");
+        _viewModel.CanvasItems[0].ContentTextAlignment.Should().Be(Avalonia.Media.TextAlignment.Center);
+    }
+
+    /// <summary>
     /// Tests that list box scrollbar overlays attach at the right edge: arrow buttons, a composed
     /// track between them, and a centered thumb from the slider-thumb draw data.
     /// </summary>

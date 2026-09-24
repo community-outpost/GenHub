@@ -763,6 +763,15 @@ public static class WndConstants
     }
 
     /// <summary>
+    /// Engine draw callback names that procedurally render window content.
+    /// </summary>
+    public static class DrawCallbacks
+    {
+        /// <summary>Minimap preview renderer for map select and load screens.</summary>
+        public const string MapPreview = "W3DDrawMapPreview";
+    }
+
+    /// <summary>
     /// Editor canvas and default content constants.
     /// </summary>
     public static class Editor
@@ -845,6 +854,15 @@ public static class WndConstants
 
         /// <summary>Slider trough tiled middle-bar index.</summary>
         public const int SliderCenterImageIndex = 2;
+
+        /// <summary>Radio button left-cap index.</summary>
+        public const int RadioLeftImageIndex = 0;
+
+        /// <summary>Radio button tiled middle-bar index.</summary>
+        public const int RadioMiddleImageIndex = 1;
+
+        /// <summary>Radio button right-cap index.</summary>
+        public const int RadioRightImageIndex = 2;
 
         /// <summary>Glyph left margin in device-independent pixels.</summary>
         public const double GlyphMargin = 4.0;

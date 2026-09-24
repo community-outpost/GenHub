@@ -106,8 +106,7 @@ public sealed class WndCanvasItemViewModelTests
     }
 
     /// <summary>
-    /// Acceptance Criteria: Engine-hidden windows stay visible but dimmed on the canvas
-    /// so the editor matches the runtime layout where scripts reveal them.
+    /// Acceptance Criteria: Engine-hidden windows stay invisible on the canvas unless selected.
     /// </summary>
     /// <param name="isPreviewHidden">Whether the engine would hide the window.</param>
     /// <param name="isSelected">Whether the item is selected for editing.</param>
@@ -115,7 +114,7 @@ public sealed class WndCanvasItemViewModelTests
     [Theory]
     [InlineData(false, false, true)]
     [InlineData(false, true, true)]
-    [InlineData(true, false, true)]
+    [InlineData(true, false, false)]
     [InlineData(true, true, true)]
     public void CanvasVisible_MatchesHiddenAndSelectedState(bool isPreviewHidden, bool isSelected, bool expectedVisible)
     {
