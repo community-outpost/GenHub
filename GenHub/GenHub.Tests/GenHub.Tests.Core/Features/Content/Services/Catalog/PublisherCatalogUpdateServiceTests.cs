@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
@@ -19,10 +13,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.Services.Catalog;
 
+/// <summary>
+/// Contains unit tests for the <see cref="PublisherCatalogUpdateService"/> class.
+/// </summary>
 public sealed class PublisherCatalogUpdateServiceTests
 {
     private readonly Mock<IServiceScopeFactory> _scopeFactoryMock = new();
@@ -34,6 +36,9 @@ public sealed class PublisherCatalogUpdateServiceTests
     private readonly Mock<IContentStateService> _stateServiceMock = new();
     private readonly Mock<GenericCatalogDiscoverer> _discovererMock;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PublisherCatalogUpdateServiceTests"/> class.
+    /// </summary>
     public PublisherCatalogUpdateServiceTests()
     {
         _discovererMock = new Mock<GenericCatalogDiscoverer>(
@@ -50,9 +55,15 @@ public sealed class PublisherCatalogUpdateServiceTests
         _serviceProviderMock.Setup(p => p.GetService(typeof(IContentStateService))).Returns(_stateServiceMock.Object);
         _serviceProviderMock.Setup(p => p.GetService(typeof(GenericCatalogDiscoverer))).Returns(_discovererMock.Object);
 
-        _localizationServiceMock.Setup(l => l.GetString(It.IsAny<string>())).Returns<string>(k => k);
+        _localizationServiceMock
+            .Setup(l => l.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((k, _) => k);
     }
 
+    /// <summary>
+    /// Verifies that CheckForUpdatesAsync returns no update when there are no active subscriptions.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckForUpdatesAsync_NoSubscriptions_ReturnsNoUpdate()
     {
@@ -72,6 +83,10 @@ public sealed class PublisherCatalogUpdateServiceTests
         _notificationServiceMock.Verify(n => n.Show(It.IsAny<NotificationMessage>()), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that CheckForUpdatesAsync shows a persistent notification when an update is available.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckForUpdatesAsync_WhenUpdateAvailable_ShowsPersistentNotification()
     {
@@ -79,7 +94,7 @@ public sealed class PublisherCatalogUpdateServiceTests
         {
             PublisherId = "test-pub",
             PublisherName = "Test Publisher",
-            CatalogUrl = "https://example.com/catalog.json"
+            CatalogUrl = "https://example.com/catalog.json",
         };
 
         _subscriptionStoreMock
@@ -90,15 +105,15 @@ public sealed class PublisherCatalogUpdateServiceTests
         {
             Id = "map-pack",
             Name = "Super Map Pack",
-            Version = "2.0.0"
+            Version = "2.0.0",
         };
 
         _discovererMock
-            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(d => d.DiscoverAsync(It.IsAny<GenHub.Core.Models.Content.ContentSearchQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
                 Items = new List<ContentSearchResult> { contentItem },
-                TotalItems = 1
+                TotalItems = 1,
             }));
 
         _stateServiceMock
@@ -125,6 +140,10 @@ public sealed class PublisherCatalogUpdateServiceTests
         Assert.Single(shownNotification.Actions);
     }
 
+    /// <summary>
+    /// Verifies that CheckForUpdatesAsync does not show a notification again when the update was dismissed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckForUpdatesAsync_WhenUpdateDismissed_DoesNotShowNotificationAgain()
     {
@@ -132,7 +151,7 @@ public sealed class PublisherCatalogUpdateServiceTests
         {
             PublisherId = "test-pub",
             PublisherName = "Test Publisher",
-            CatalogUrl = "https://example.com/catalog.json"
+            CatalogUrl = "https://example.com/catalog.json",
         };
 
         _subscriptionStoreMock
@@ -143,15 +162,15 @@ public sealed class PublisherCatalogUpdateServiceTests
         {
             Id = "map-pack",
             Name = "Super Map Pack",
-            Version = "2.0.0"
+            Version = "2.0.0",
         };
 
         _discovererMock
-            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(d => d.DiscoverAsync(It.IsAny<GenHub.Core.Models.Content.ContentSearchQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
                 Items = new List<ContentSearchResult> { contentItem },
-                TotalItems = 1
+                TotalItems = 1,
             }));
 
         _stateServiceMock
