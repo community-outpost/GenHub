@@ -1,14 +1,16 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Online;
 using GenHub.Core.Services.Online.Tun;
 using System;
 using System.IO;
+using System.Net;
 using System.Threading;
 
 namespace GenHub.Overlay;
 
 /// <summary>
-/// Entry point for the Linux overlay sidecar: attaches the persistent TUN interface and idles until stopped.
+/// Entry point for the overlay sidecar: sets up the TUN interface, pumps packets, and idles until stopped.
 /// </summary>
 public class Program
 {
@@ -43,14 +45,57 @@ public class Program
             return OnlineConstants.SidecarExitConfigError;
         }
 
-        var attached = LinuxTunDevice.Attach(parsed.Data.InterfaceName);
-        if (!attached.Success || attached.Data is null)
+        var overlayIp = IPAddress.Parse(parsed.Data.OverlayIp);
+        ITunDevice? tunDevice = null;
+
+        if (OperatingSystem.IsWindows())
         {
-            Console.Error.WriteLine($"TUN attach failed: {attached.AllErrors}");
+            var winResult = WindowsTunDevice.CreateOrOpen(
+                parsed.Data.InterfaceName,
+                overlayIp,
+                parsed.Data.PrefixLength,
+                parsed.Data.Mtu);
+
+            if (!winResult.Success || winResult.Data is null)
+            {
+                Console.Error.WriteLine($"Wintun device creation failed: {winResult.AllErrors}");
+                return OnlineConstants.SidecarExitAttachFailed;
+            }
+
+            tunDevice = winResult.Data;
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            var linuxResult = LinuxTunDevice.Attach(parsed.Data.InterfaceName, overlayIp);
+            if (!linuxResult.Success || linuxResult.Data is null)
+            {
+                Console.Error.WriteLine($"Linux TUN attach failed: {linuxResult.AllErrors}");
+                return OnlineConstants.SidecarExitAttachFailed;
+            }
+
+            tunDevice = linuxResult.Data;
+        }
+        else
+        {
+            Console.Error.WriteLine("Unsupported operating system for TUN overlay.");
             return OnlineConstants.SidecarExitAttachFailed;
         }
 
-        using var device = attached.Data;
+        using var device = tunDevice;
+
+        var relayIp = IPAddress.TryParse(parsed.Data.RelayHost, out var parsedRelayIp)
+            ? parsedRelayIp
+            : Dns.GetHostAddresses(parsed.Data.RelayHost)[0];
+        var relayEndpoint = new IPEndPoint(relayIp, parsed.Data.RelayPort);
+
+        using var pump = new TunPacketPump(
+            device,
+            relayEndpoint,
+            parsed.Data.NetworkId,
+            overlayIp);
+
+        pump.Start();
+
         Console.WriteLine($"ready interface={device.InterfaceName} ip={parsed.Data.OverlayIp}");
 
         using var cancelled = new CancellationTokenSource();
@@ -59,8 +104,10 @@ public class Program
             eventArgs.Cancel = true;
             cancelled.Cancel();
         };
+
         cancelled.Token.WaitHandle.WaitOne();
 
+        pump.StopAsync().GetAwaiter().GetResult();
         return OnlineConstants.SidecarExitSuccess;
     }
 }

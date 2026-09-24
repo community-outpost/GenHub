@@ -242,6 +242,16 @@ public static class OnlineConstants
     public const string TunDefaultInterfaceName = "genhub0";
 
     /// <summary>
+    /// Default TUN interface name for the overlay on Linux.
+    /// </summary>
+    public const string TunDefaultLinuxInterfaceName = "genhub0";
+
+    /// <summary>
+    /// Default TUN interface name for the overlay on Windows.
+    /// </summary>
+    public const string TunDefaultWindowsInterfaceName = "GenHub";
+
+    /// <summary>
     /// Default MTU for the overlay TUN interface.
     /// </summary>
     public const int TunDefaultMtu = 1400;
