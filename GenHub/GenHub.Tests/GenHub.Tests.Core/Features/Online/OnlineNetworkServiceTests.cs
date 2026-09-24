@@ -859,6 +859,64 @@ public sealed class OnlineNetworkServiceTests
         }
     }
 
+    /// <summary>
+    /// Tests that when an authenticated send fails on the primary edge and failover is attempted
+    /// but the fallback edge is also down, no self-deadlock occurs on the failover lock.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SendWithAuthAsync_WhenSendFailsAndFallbackEdgeIsDown_ShouldNotDeadlockAsync()
+    {
+        // Arrange
+        const string primaryUrl = "https://primary-edge-send-fail.test.invalid";
+        const string fallbackUrl = "https://backup-edge-send-fail.test.invalid";
+        Environment.SetEnvironmentVariable(ApiConstants.OnlinePrimaryUrlEnvVar, primaryUrl);
+        Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, fallbackUrl);
+        ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+
+        var handler = new CountingHandler();
+        handler.Responder = request =>
+        {
+            var host = request.RequestUri?.Authority ?? string.Empty;
+            if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
+            {
+                // Primary session succeeds
+                if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
+                {
+                    return JsonResponse(SessionJson);
+                }
+
+                // Primary request fails with network error, triggering TryFallbackSendAsync
+                throw new HttpRequestException("Primary edge network dropped during send");
+            }
+
+            if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
+            {
+                // Fallback edge is down (dual outage)
+                throw new HttpRequestException("Fallback edge completely down");
+            }
+
+            return Route(request, HttpStatusCode.OK);
+        };
+
+        try
+        {
+            var service = CreateService(CreateFactory(handler, responder: handler.Responder));
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var result = await service.GetNetworksAsync(cts.Token);
+
+            Assert.False(result.Success);
+            Assert.Equal(primaryUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ApiConstants.OnlinePrimaryUrlEnvVar, null);
+            Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, null);
+            ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+        }
+    }
+
     private static OnlineNetworkService CreateService(
         IHttpClientFactory factory,
         IVirtualLanAdapter? adapter = null,

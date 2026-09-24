@@ -36,6 +36,7 @@ public sealed class OnlineNetworkService(
 {
     private readonly SemaphoreSlim _sessionLock = new(1, 1);
     private readonly SemaphoreSlim _failoverLock = new(1, 1);
+    private readonly AsyncLocal<bool> _isFailingOver = new();
     private readonly object _joinLock = new();
     private string? _sessionToken;
     private bool _presenceSubscribed;
@@ -782,9 +783,30 @@ public sealed class OnlineNetworkService(
             return null;
         }
 
+        if (_isFailingOver.Value)
+        {
+            // Already inside a failover attempt on this async context (e.g. EnsureSessionAsync
+            // failing over while AttemptSendAsync is executing under _failoverLock).
+            // Avoid self-deadlock on _failoverLock and execute directly against the active fallback URL.
+            try
+            {
+                return await attempt(ApiConstants.FallbackOnlineEdgeBaseUrl, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Nested fallback edge attempt failed: {Message}", ex.Message);
+                return null;
+            }
+        }
+
         await _failoverLock.WaitAsync(cancellationToken);
         try
         {
+            _isFailingOver.Value = true;
             ApiConstants.ActiveOnlineEdgeBaseUrl = ApiConstants.FallbackOnlineEdgeBaseUrl;
             try
             {
@@ -804,6 +826,7 @@ public sealed class OnlineNetworkService(
         }
         finally
         {
+            _isFailingOver.Value = false;
             _failoverLock.Release();
         }
     }

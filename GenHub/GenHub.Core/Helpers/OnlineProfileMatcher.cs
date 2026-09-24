@@ -37,8 +37,8 @@ public static class OnlineProfileMatcher
     /// <returns>True for gameplay-affecting content.</returns>
     public static bool IsGameplayContent(ContentType type) => type switch
     {
-        ContentType.GameClient => true,
-        ContentType.GameInstallation => true,
+        ContentType.GameClient => false,
+        ContentType.GameInstallation => false,
         ContentType.Mod => true,
         ContentType.Patch => true,
         ContentType.ContentBundle => true,
@@ -193,8 +193,8 @@ public static class OnlineProfileMatcher
             return false;
         }
 
-        iniCrc = segments[segments.Length - 2];
-        exeCrc = segments[segments.Length - 1];
+        iniCrc = NormalizeCrc(segments[segments.Length - 2]);
+        exeCrc = NormalizeCrc(segments[segments.Length - 1]);
         return true;
     }
 
@@ -215,14 +215,14 @@ public static class OnlineProfileMatcher
             return false;
         }
 
-        if (string.IsNullOrEmpty(firstIni) || !string.Equals(firstIni, secondIni, StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(firstIni) || !string.Equals(firstIni, secondIni, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
         return string.IsNullOrEmpty(firstExe) ||
             string.IsNullOrEmpty(secondExe) ||
-            string.Equals(firstExe, secondExe, StringComparison.Ordinal);
+            string.Equals(firstExe, secondExe, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -263,16 +263,17 @@ public static class OnlineProfileMatcher
             return OnlineProfileMatch.Exact;
         }
 
+        // Equal engine CRCs overrule id-level or client-level packaging noise:
+        // the setups produce identical game data, so they are fully network-compatible.
+        if (CrcConfirmsCompatible(expectedFingerprint, localFingerprint) &&
+            AreGameTypesCompatible(expectedGameClientId, localGameClientId, expectedFingerprint, localFingerprint))
+        {
+            return OnlineProfileMatch.Exact;
+        }
+
         if (!string.IsNullOrEmpty(expectedGameClientId) &&
             string.Equals(expectedGameClientId, localGameClientId, StringComparison.Ordinal))
         {
-            // Equal engine CRCs overrule id-level noise: the setups produce
-            // the same game data, so they can play together.
-            if (CrcConfirmsCompatible(expectedFingerprint, localFingerprint))
-            {
-                return OnlineProfileMatch.Exact;
-            }
-
             return OnlineProfileMatch.SameClient;
         }
 
@@ -301,17 +302,17 @@ public static class OnlineProfileMatcher
             return OnlineProfileMatch.Exact;
         }
 
+        // Equal engine CRCs overrule id-level or client-level packaging noise.
+        if (CrcConfirmsCompatible(memberFingerprint, expectedFingerprint) &&
+            AreGameTypesCompatible(expectedGameClientId, null, expectedFingerprint, memberFingerprint))
+        {
+            return OnlineProfileMatch.Exact;
+        }
+
         if (!string.IsNullOrEmpty(expectedGameClientId) &&
             TryGetGameClientKey(memberFingerprint, out var memberClient) &&
             string.Equals(memberClient, expectedGameClientId, StringComparison.Ordinal))
         {
-            // Equal engine CRCs overrule id-level noise: the setups produce
-            // the same game data, so they can play together.
-            if (CrcConfirmsCompatible(memberFingerprint, expectedFingerprint))
-            {
-                return OnlineProfileMatch.Exact;
-            }
-
             return OnlineProfileMatch.SameClient;
         }
 
@@ -377,6 +378,62 @@ public static class OnlineProfileMatcher
 
         var local = new HashSet<string>(localContentIds, StringComparer.Ordinal);
         return expectedContentIds.Count(id => local.Contains(id));
+    }
+
+    private static string NormalizeCrc(string? crc)
+    {
+        if (string.IsNullOrWhiteSpace(crc))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = crc.Trim();
+        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed[2..];
+        }
+
+        return trimmed.ToUpperInvariant();
+    }
+
+    private static bool AreGameTypesCompatible(
+        string? clientKeyA,
+        string? clientKeyB,
+        string? fingerprintA,
+        string? fingerprintB)
+    {
+        var gameTypeA = ExtractGameType(clientKeyA, fingerprintA);
+        var gameTypeB = ExtractGameType(clientKeyB, fingerprintB);
+
+        if (string.IsNullOrEmpty(gameTypeA) || string.IsNullOrEmpty(gameTypeB))
+        {
+            return true;
+        }
+
+        return string.Equals(gameTypeA, gameTypeB, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ExtractGameType(string? clientKey, string? fingerprint)
+    {
+        if (!string.IsNullOrEmpty(clientKey))
+        {
+            var parts = clientKey.Split(OnlineConstants.FingerprintSeparator);
+            if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0]))
+            {
+                return parts[0];
+            }
+        }
+
+        if (!string.IsNullOrEmpty(fingerprint) && TryGetGameClientKey(fingerprint, out var extracted))
+        {
+            var parts = extracted.Split(OnlineConstants.FingerprintSeparator);
+            if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0]))
+            {
+                return parts[0];
+            }
+        }
+
+        return string.Empty;
     }
 
     private static bool IsKnownPrefix(string prefix) =>

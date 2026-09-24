@@ -9,6 +9,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
@@ -46,15 +47,7 @@ namespace GenHub.Features.Online.ViewModels;
 /// <param name="logger">The logger.</param>
 /// <param name="dependencies">The optional localization and settings services.</param>
 /// <param name="crcCalculator">The optional engine CRC calculator for lobby compatibility fingerprints.</param>
-public sealed partial class OnlineViewModel(
-    IOnlineNetworkService networkService,
-    IOnlineLaunchService launchService,
-    IGameProfileManager profileManager,
-    INotificationService notificationService,
-    IDialogService dialogService,
-    ILogger<OnlineViewModel> logger,
-    OnlineViewModelDependencies? dependencies = null,
-    IGameCrcCalculatorService? crcCalculator = null) : ViewModelBase, IDisposable, IRecipient<ProfileUpdatedMessage>
+public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecipient<ProfileUpdatedMessage>
 {
     private sealed record OnlineProfileSetup(
         string Fingerprint,
@@ -69,10 +62,30 @@ public sealed partial class OnlineViewModel(
     private const int SearchDebounceMs = 350;
     private const string CreateErrorTitleKey = "Online.Error.CreateTitle";
 
+    private readonly IOnlineNetworkService _networkService;
+    private readonly IOnlineLaunchService _launchService;
+    private readonly IGameProfileManager _profileManager;
+    private readonly INotificationService _notificationService;
+    private readonly IDialogService _dialogService;
+    private readonly ILogger<OnlineViewModel> _logger;
+    private readonly OnlineViewModelDependencies? _dependencies;
+    private readonly IGameCrcCalculatorService? _crcCalculator;
+    private readonly IGameInstallationService? _installationService;
+
+    private IOnlineNetworkService networkService => _networkService;
+    private IOnlineLaunchService launchService => _launchService;
+    private IGameProfileManager profileManager => _profileManager;
+    private INotificationService notificationService => _notificationService;
+    private IDialogService dialogService => _dialogService;
+    private ILogger<OnlineViewModel> logger => _logger;
+    private OnlineViewModelDependencies? dependencies => _dependencies;
+    private IGameCrcCalculatorService? crcCalculator => _crcCalculator;
+
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly SemaphoreSlim _profileLock = new(1, 1);
     private readonly Dictionary<string, IReadOnlyDictionary<string, ContentType>> _contentTypeCache = new(StringComparer.Ordinal);
     private CancellationTokenSource? _searchCts;
+    private CancellationTokenSource? _nicknameCts;
     private CancellationTokenSource? _detailCts;
     private bool _disposed;
     private bool _joinInFlight;
@@ -80,6 +93,45 @@ public sealed partial class OnlineViewModel(
     private bool _syncingPlayProfile;
     private string? _launchedProfileId;
     private IReadOnlyList<string> _expectedContentIds = [];
+
+    /// <summary>
+    /// Gets or sets the debounce delay in milliseconds for nickname edits.
+    /// </summary>
+    internal int NicknameDebounceMs { get; set; } = 350;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OnlineViewModel"/> class.
+    /// </summary>
+    /// <param name="networkService">The online network service.</param>
+    /// <param name="launchService">The online launch service.</param>
+    /// <param name="profileManager">The game profile manager.</param>
+    /// <param name="notificationService">The notification service.</param>
+    /// <param name="dialogService">The dialog service.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="dependencies">Optional view model dependencies.</param>
+    /// <param name="crcCalculator">Optional game CRC calculator service.</param>
+    public OnlineViewModel(
+        IOnlineNetworkService networkService,
+        IOnlineLaunchService launchService,
+        IGameProfileManager profileManager,
+        INotificationService notificationService,
+        IDialogService dialogService,
+        ILogger<OnlineViewModel> logger,
+        OnlineViewModelDependencies? dependencies = null,
+        IGameCrcCalculatorService? crcCalculator = null)
+    {
+        _networkService = networkService ?? throw new ArgumentNullException(nameof(networkService));
+        _launchService = launchService ?? throw new ArgumentNullException(nameof(launchService));
+        _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
+        _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _dependencies = dependencies;
+        _crcCalculator = crcCalculator;
+        _installationService = dependencies?.GameInstallationService;
+
+        WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
+    }
 
     [ObservableProperty]
     private ObservableCollection<OnlineNetworkSummary> _networks = [];
@@ -232,6 +284,11 @@ public sealed partial class OnlineViewModel(
         networkService.RosterChanged += OnRosterChanged;
         networkService.ConnectionLost += OnConnectionLost;
         networkService.ExpectedProfileChanged += OnExpectedProfileChanged;
+        if (!WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(this))
+        {
+            WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
+        }
+
         Nickname = LanNicknameCodec.Normalize(dependencies?.UserSettingsService?.Get().OnlineNickname ?? string.Empty);
     }
 
@@ -899,11 +956,14 @@ public sealed partial class OnlineViewModel(
         }
 
         _disposed = true;
+        WeakReferenceMessenger.Default.Unregister<ProfileUpdatedMessage>(this);
         networkService.RosterChanged -= OnRosterChanged;
         networkService.ConnectionLost -= OnConnectionLost;
         networkService.ExpectedProfileChanged -= OnExpectedProfileChanged;
         _searchCts?.Cancel();
         _searchCts?.Dispose();
+        _nicknameCts?.Cancel();
+        _nicknameCts?.Dispose();
         _detailCts?.Cancel();
         _detailCts?.Dispose();
         _refreshLock.Dispose();
@@ -1196,7 +1256,7 @@ public sealed partial class OnlineViewModel(
     }
 
     /// <summary>
-    /// Clamps the nickname to the game's length limit and persists it.
+    /// Clamps the nickname to the game's length limit and persists it with debouncing.
     /// </summary>
     /// <param name="value">The edited nickname.</param>
     partial void OnNicknameChanged(string value)
@@ -1208,16 +1268,33 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
-        // Safe to detach: the settings service swallows persistence failures
-        // into a false return, and an unchanged value is a no-op save.
-        _ = PersistNicknameAsync(normalized);
+        _nicknameCts?.Cancel();
+        _nicknameCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _nicknameCts = cts;
+        var token = cts.Token;
 
-        // The roster name follows the same heartbeat advertisement as the
-        // profile fingerprint, so a rename while joined propagates live.
-        if (IsJoined)
+        _ = Task.Run(async () =>
         {
-            _ = RefreshAdvertisementAsync();
-        }
+            try
+            {
+                await Task.Delay(NicknameDebounceMs, token).ConfigureAwait(false);
+                await PersistNicknameAsync(normalized).ConfigureAwait(false);
+
+                if (IsJoined && !token.IsCancellationRequested)
+                {
+                    await RefreshAdvertisementAsync().ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Superseded by newer keystrokes.
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to debounce nickname change.");
+            }
+        }, token);
     }
 
     private async Task PersistNicknameAsync(string nickname)
@@ -1561,8 +1638,9 @@ public sealed partial class OnlineViewModel(
         foreach (var profile in AvailableProfiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var setup = await DescribeProfileAsync(profile, cancellationToken);
-            if (string.Equals(setup.Fingerprint, ExpectedProfileFingerprint, StringComparison.Ordinal))
+            var setup = await DescribeProfileAsync(profile, cancellationToken, includeCompatibilityCrcs: true);
+            if (string.Equals(setup.Fingerprint, ExpectedProfileFingerprint, StringComparison.Ordinal) ||
+                OnlineProfileMatcher.CrcConfirmsCompatible(ExpectedProfileFingerprint, setup.Fingerprint))
             {
                 return new ProfileCandidate(profile, setup, true);
             }
@@ -1715,7 +1793,7 @@ public sealed partial class OnlineViewModel(
     private async Task<OnlineProfileSetup> DescribeProfileAsync(
         GameProfile? profile,
         CancellationToken cancellationToken,
-        bool includeCompatibilityCrcs = false)
+        bool includeCompatibilityCrcs = true)
     {
         if (profile is null)
         {
@@ -1749,6 +1827,103 @@ public sealed partial class OnlineViewModel(
         return OnlineProfileMatcher.CreateFingerprint(clientKey, gameplayIds, iniCrc, exeCrc);
     }
 
+    private async Task<(string? GameRoot, string? ExePath)> ResolveGamePathsAsync(
+        GameProfile profile,
+        CancellationToken cancellationToken)
+    {
+        string? gameRoot = null;
+        string? exePath = null;
+
+        var fullExe = ReplayCrcMatchingHelper.ResolveProfileFullExePath(profile.GameClient);
+        if (!string.IsNullOrEmpty(fullExe) && Path.IsPathRooted(fullExe))
+        {
+            exePath = fullExe;
+            gameRoot = Path.GetDirectoryName(fullExe);
+        }
+
+        if ((string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot)) &&
+            !string.IsNullOrWhiteSpace(profile.WorkingDirectory) &&
+            Directory.Exists(profile.WorkingDirectory))
+        {
+            gameRoot = profile.WorkingDirectory;
+        }
+
+        if ((string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot)) &&
+            !string.IsNullOrWhiteSpace(profile.GameClient?.WorkingDirectory) &&
+            Directory.Exists(profile.GameClient.WorkingDirectory))
+        {
+            gameRoot = profile.GameClient.WorkingDirectory;
+        }
+
+        if ((string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot)) &&
+            _installationService is not null &&
+            !string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        {
+            try
+            {
+                var installResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+                if (installResult.Success && installResult.Data is not null)
+                {
+                    var installation = installResult.Data;
+                    var targetPath = profile.GameClient?.GameType == GameType.Generals
+                        ? installation.GeneralsPath
+                        : installation.ZeroHourPath;
+
+                    if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
+                    {
+                        gameRoot = targetPath;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath))
+                    {
+                        gameRoot = installation.InstallationPath;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to resolve installation path for profile {ProfileId}", profile.Id);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(gameRoot) && (string.IsNullOrEmpty(exePath) || !File.Exists(exePath)))
+        {
+            var candidates = new List<string?>();
+            if (!string.IsNullOrWhiteSpace(profile.CustomExecutablePath))
+            {
+                candidates.Add(Path.IsPathRooted(profile.CustomExecutablePath) ? profile.CustomExecutablePath : Path.Combine(gameRoot, profile.CustomExecutablePath));
+            }
+
+            if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
+            {
+                candidates.Add(Path.IsPathRooted(profile.ExecutablePath) ? profile.ExecutablePath : Path.Combine(gameRoot, profile.ExecutablePath));
+            }
+
+            if (profile.GameClient != null)
+            {
+                if (!string.IsNullOrWhiteSpace(profile.GameClient.ExecutablePath))
+                {
+                    candidates.Add(Path.IsPathRooted(profile.GameClient.ExecutablePath) ? profile.GameClient.ExecutablePath : Path.Combine(gameRoot, profile.GameClient.ExecutablePath));
+                }
+
+                var defaultName = ReplayCrcMatchingHelper.GetDefaultExecutableName(profile.GameClient.GameType, profile.GameClient.PublisherType);
+                candidates.Add(Path.Combine(gameRoot, defaultName));
+            }
+
+            candidates.Add(Path.Combine(gameRoot, GameClientConstants.SuperHackersZeroHourExecutable));
+            candidates.Add(Path.Combine(gameRoot, GameClientConstants.ZeroHourExecutable));
+            candidates.Add(Path.Combine(gameRoot, GameClientConstants.GeneralsExecutable));
+            candidates.Add(Path.Combine(gameRoot, GameClientConstants.SteamGameDatExecutable));
+
+            exePath = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c) && File.Exists(c));
+        }
+
+        return (gameRoot, exePath);
+    }
+
     private async Task<(string IniCrc, string ExeCrc)> ResolveCompatibilityCrcsAsync(
         GameProfile profile,
         IReadOnlyList<string> gameplayIds,
@@ -1761,15 +1936,21 @@ public sealed partial class OnlineViewModel(
                 return (string.Empty, string.Empty);
             }
 
-            var exePath = ReplayCrcMatchingHelper.ResolveProfileFullExePath(profile.GameClient);
-            var gameRoot = string.IsNullOrEmpty(exePath) ? null : Path.GetDirectoryName(exePath);
-            if (string.IsNullOrEmpty(exePath) || string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot))
+            var (gameRoot, exePath) = await ResolveGamePathsAsync(profile, cancellationToken);
+            if (string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot))
             {
                 return (string.Empty, string.Empty);
             }
 
-            var exeResult = await crcCalculator.CalculateExeCrcAsync(exePath, gameRoot, ct: cancellationToken);
-            var exeCrc = exeResult.Success && !string.IsNullOrEmpty(exeResult.Data) ? exeResult.Data : string.Empty;
+            var exeCrc = string.Empty;
+            if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+            {
+                var exeResult = await crcCalculator.CalculateExeCrcAsync(exePath, gameRoot, ct: cancellationToken);
+                if (exeResult.Success && !string.IsNullOrEmpty(exeResult.Data))
+                {
+                    exeCrc = exeResult.Data;
+                }
+            }
 
             var sideloads = await ResolveGameplaySideloadsAsync(profile, gameplayIds, cancellationToken);
             var iniResult = await crcCalculator.CalculateIniCrcAsync(gameRoot, profile.GameClient.GameType, sideloads, null, cancellationToken);

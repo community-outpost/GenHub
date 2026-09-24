@@ -615,6 +615,24 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 ParseNetworkSection(options.Network, values);
                 break;
             default:
+                // If network settings were inadvertently written under a custom section (e.g. legacy serialization bug),
+                // extract and restore them to root-level Network options.
+                if (values.Remove("IPAddress", out var ipVal))
+                {
+                    if (string.IsNullOrEmpty(options.Network.IPAddress))
+                    {
+                        options.Network.IPAddress = ipVal;
+                    }
+                }
+
+                if (values.Remove("GameSpyIPAddress", out var gsVal))
+                {
+                    if (string.IsNullOrEmpty(options.Network.GameSpyIPAddress))
+                    {
+                        options.Network.GameSpyIPAddress = gsVal;
+                    }
+                }
+
                 options.AdditionalSections[sectionName] = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
                 break;
         }
@@ -800,19 +818,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             lines.Add($"{kvp.Key}={kvp.Value}");
         }
 
-        // TheSuperHackers settings
-        var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
-        if (tshKvp.Value is { Count: > 0 })
-        {
-            lines.Add(string.Empty);
-            lines.Add($"[{GameSettingsTheSuperHackersConstants.SectionName}]");
-            foreach (var kvp in tshKvp.Value)
-            {
-                lines.Add($"{kvp.Key} = {kvp.Value}");
-            }
-        }
-
-        // Network settings
+        // Network settings (MUST be written in root flat section before any [Section] headers)
         if (!string.IsNullOrEmpty(options.Network.GameSpyIPAddress))
         {
             lines.Add($"GameSpyIPAddress={options.Network.GameSpyIPAddress}");
@@ -827,6 +833,19 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         foreach (var kvp in options.Network.AdditionalProperties)
         {
             lines.Add($"{kvp.Key}={kvp.Value}");
+        }
+
+        // Section-based settings (MUST come after all root flat settings)
+        // TheSuperHackers settings
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
+        if (tshKvp.Value is { Count: > 0 })
+        {
+            lines.Add(string.Empty);
+            lines.Add($"[{GameSettingsTheSuperHackersConstants.SectionName}]");
+            foreach (var kvp in tshKvp.Value)
+            {
+                lines.Add($"{kvp.Key} = {kvp.Value}");
+            }
         }
 
         // Add any other additional sections with section headers (for future extensibility)

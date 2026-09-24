@@ -433,6 +433,75 @@ public class OnlineProfileMatcherTests
         Assert.Equal(string.Empty, exeCrc);
     }
 
+    /// <summary>
+    /// Tests that profiles with different client keys (e.g. Steam vs EA App) upgrade to Exact
+    /// when their engine iniCRC matches.
+    /// </summary>
+    [Fact]
+    public void Compare_DifferentClientsWithMatchingIniCrc_ShouldUpgradeToExact()
+    {
+        // Arrange
+        var steamFingerprint = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|steam-client", ["mod-a"], "0xFEAAE3F3", "0xDA2B4B18");
+        var eaFingerprint = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|ea-client", ["mod-b"], "0xFEAAE3F3", "0xDA2B4B18");
+
+        // Act
+        var match = OnlineProfileMatcher.Compare(steamFingerprint, "ZeroHour|1.04|steam-client", eaFingerprint, "ZeroHour|1.04|ea-client");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.Exact, match);
+    }
+
+    /// <summary>
+    /// Tests that hex casing and 0x prefix differences are normalized when matching CRCs.
+    /// </summary>
+    [Fact]
+    public void Compare_WithDifferentCrcCasingAndPrefixes_ShouldMatchExact()
+    {
+        // Arrange
+        var first = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "feaaE3f3", "0xDA2B4B18");
+        var second = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-2", ["mod-b"], "0xFEAAE3F3", "da2b4b18");
+
+        // Act
+        var match = OnlineProfileMatcher.Compare(first, "ZeroHour|1.04|client-1", second, "ZeroHour|1.04|client-2");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.Exact, match);
+    }
+
+    /// <summary>
+    /// Tests that different game types (e.g. Generals vs Zero Hour) do not match even with identical CRC.
+    /// </summary>
+    [Fact]
+    public void Compare_DifferentGamesWithMatchingIniCrc_ShouldMismatch()
+    {
+        // Arrange
+        var generals = OnlineProfileMatcher.CreateFingerprint("Generals|1.08|client-1", ["mod-a"], "0xFEAAE3F3", "0xDA2B4B18");
+        var zh = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-2", ["mod-a"], "0xFEAAE3F3", "0xDA2B4B18");
+
+        // Act
+        var match = OnlineProfileMatcher.Compare(generals, "Generals|1.08|client-1", zh, "ZeroHour|1.04|client-2");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.Mismatch, match);
+    }
+
+    /// <summary>
+    /// Tests that roster member comparison also upgrades to Exact across different clients with matching iniCRC.
+    /// </summary>
+    [Fact]
+    public void CompareMember_DifferentClientsWithMatchingIniCrc_ShouldUpgradeToExact()
+    {
+        // Arrange
+        var member = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|member-client", ["mod-a"], "FEAAE3F3", "DA2B4B18");
+        var expected = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|host-client", ["mod-b"], "0xFEAAE3F3", "0xDA2B4B18");
+
+        // Act
+        var match = OnlineProfileMatcher.CompareMember(member, expected, "ZeroHour|1.04|host-client");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.Exact, match);
+    }
+
     private static GameProfile ProfileWith(params string[] contentIds)
     {
         return new GameProfile
