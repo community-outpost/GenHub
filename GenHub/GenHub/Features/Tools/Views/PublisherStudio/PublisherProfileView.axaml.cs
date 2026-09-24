@@ -1,7 +1,10 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using GenHub.Features.Tools.ViewModels;
+using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
@@ -23,9 +26,25 @@ public partial class PublisherProfileView : UserControl
         AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
     }
 
+    private static bool IsInSubtree(Visual? visual, string name)
+    {
+        while (visual != null)
+        {
+            if (visual is Control control && control.Name == name)
+            {
+                return true;
+            }
+
+            visual = visual.GetVisualParent();
+        }
+
+        return false;
+    }
+
     private static void OnDragOver(object? sender, DragEventArgs e)
     {
-        if (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text))
+        if (IsInSubtree(e.Source as Visual, "AvatarDropTarget") &&
+            (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text)))
         {
             e.DragEffects = DragDropEffects.Copy;
             e.Handled = true;
@@ -38,30 +57,43 @@ public partial class PublisherProfileView : UserControl
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        if (DataContext is not PublisherProfileViewModel vm)
+        try
         {
-            return;
-        }
-
-        if (e.Data.Contains(DataFormats.Files))
-        {
-            var files = e.Data.GetFiles()?.Select(f => f.Path?.LocalPath).Where(p => !string.IsNullOrEmpty(p)).ToList();
-            if (files != null && files.Count > 0)
+            if (DataContext is not PublisherProfileViewModel vm)
             {
-                e.Handled = true;
-                await vm.HandleAvatarDropAsync(files[0]!);
                 return;
             }
-        }
 
-        if (e.Data.Contains(DataFormats.Text))
-        {
-            var text = e.Data.GetText();
-            if (!string.IsNullOrWhiteSpace(text))
+            var sourceVisual = e.Source as Visual;
+            if (!IsInSubtree(sourceVisual, "AvatarDropTarget"))
             {
-                e.Handled = true;
-                await vm.HandleAvatarDropAsync(text.Trim());
+                return;
             }
+
+            if (e.Data.Contains(DataFormats.Files))
+            {
+                var files = e.Data.GetFiles()?.Select(f => f.Path?.LocalPath).Where(p => !string.IsNullOrEmpty(p)).ToList();
+                if (files != null && files.Count > 0 && files[0] is { } filePath)
+                {
+                    e.Handled = true;
+                    await vm.HandleAvatarDropAsync(filePath);
+                    return;
+                }
+            }
+
+            if (e.Data.Contains(DataFormats.Text))
+            {
+                var text = e.Data.GetText();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    e.Handled = true;
+                    await vm.HandleAvatarDropAsync(text.Trim());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"PublisherProfileView: drop handling failed: {ex.Message}");
         }
     }
 }

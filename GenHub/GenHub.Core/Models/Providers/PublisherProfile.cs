@@ -65,9 +65,23 @@ public class PublisherProfile
     /// Gets the effective avatar URL for this publisher, falling back to recognized logo or deterministic placeholder.
     /// </summary>
     [JsonIgnore]
-    public string EffectiveAvatarUrl =>
-        !string.IsNullOrWhiteSpace(AvatarUrl)
-            ? AvatarUrl
-            : PublisherInfoConstants.GetPublisherLogo(Name, Id)
-              ?? ImageCacheConstants.GetPicsumUrl(Id ?? Name, 128, 128);
+    public string EffectiveAvatarUrl
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(AvatarUrl))
+            {
+                return AvatarUrl;
+            }
+
+            var recognizedLogo = PublisherInfoConstants.GetPublisherLogo(Name, Id);
+            if (!string.IsNullOrWhiteSpace(recognizedLogo))
+            {
+                return recognizedLogo;
+            }
+
+            var identifier = !string.IsNullOrWhiteSpace(Id) ? Id : Name;
+            return ImageCacheConstants.GetPicsumUrl(identifier, 128, 128);
+        }
+    }
 }

@@ -121,11 +121,17 @@
     <Color x:Key="WarningColor">#FFA500</Color>
     <Color x:Key="WarningHighlightColor">#F59E0B</Color>
     <Color x:Key="WarningFillColor">#25FFA500</Color>
+    <Color x:Key="PendingActionColor">#F59E0B</Color>
+    <Color x:Key="PendingActionHoverColor">#FBBF24</Color>
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
     <SolidColorBrush x:Key="WarningHighlightBrush" Color="{StaticResource WarningHighlightColor}" />
     <SolidColorBrush x:Key="WarningForegroundBrush" Color="{StaticResource SurfaceBackgroundDark}" />
     <SolidColorBrush x:Key="WarningFillBrush" Color="{StaticResource WarningFillColor}" />
     <SolidColorBrush x:Key="StatusWarningBadgeBackgroundBrush" Color="#20FFA500" />
+    <SolidColorBrush x:Key="PendingActionBrush" Color="{StaticResource PendingActionColor}" />
+    <SolidColorBrush x:Key="PendingActionHoverBrush" Color="{StaticResource PendingActionHoverColor}" />
+    <SolidColorBrush x:Key="PendingActionBackgroundBrush" Color="#33F59E0B" />
+    <SolidColorBrush x:Key="PendingActionBackgroundHoverBrush" Color="#55F59E0B" />
 
     <!-- Status Tokens: Error -->
     <Color x:Key="ErrorColor">#EF4444</Color>

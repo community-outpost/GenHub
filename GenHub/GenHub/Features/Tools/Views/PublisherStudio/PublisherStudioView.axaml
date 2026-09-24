@@ -73,13 +73,13 @@
         </Style>
 
         <Style Selector="Button.glass-btn-icon.upload-pending">
-            <Setter Property="Background" Value="#33F59E0B"/>
-            <Setter Property="BorderBrush" Value="#F59E0B"/>
+            <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionBrush}"/>
             <Setter Property="BorderThickness" Value="1.5"/>
         </Style>
         <Style Selector="Button.glass-btn-icon.upload-pending:pointerover">
-            <Setter Property="Background" Value="#55F59E0B"/>
-            <Setter Property="BorderBrush" Value="#FBBF24"/>
+            <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}"/>
         </Style>
 
         <!-- Primary Gradient Button -->

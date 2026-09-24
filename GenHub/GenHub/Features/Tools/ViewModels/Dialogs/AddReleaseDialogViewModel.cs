@@ -679,9 +679,6 @@ public partial class AddReleaseDialogViewModel(
     }
 
     /// <summary>
-    /// Cancels the dialog without saving.
-    /// </summary>
-    /// <summary>
     /// Deletes the current release or addon if in edit mode after user confirmation.
     /// </summary>
     [RelayCommand]
@@ -692,18 +689,22 @@ public partial class AddReleaseDialogViewModel(
             return;
         }
 
-        var isAddon = IsAddonMode;
-        var title = isAddon
-            ? (localizationService?.GetString("Tools.PublisherStudio.Library.DeleteAddonTitle") ?? "Delete Addon")
-            : (localizationService?.GetString("Tools.PublisherStudio.Library.DeleteReleaseTitle") ?? "Delete Release");
+        string title;
+        string messageFormat;
+        string targetName;
 
-        var messageFormat = isAddon
-            ? (localizationService?.GetString("Tools.PublisherStudio.Library.DeleteAddonMessageFormat") ?? "Are you sure you want to delete addon '{0}'? This cannot be undone.")
-            : (localizationService?.GetString("Tools.PublisherStudio.Library.DeleteReleaseMessageFormat") ?? "Are you sure you want to delete release v{0}? This will also remove its artifacts and cannot be undone.");
-
-        var targetName = isAddon
-            ? (!string.IsNullOrWhiteSpace(_existingRelease.Title) ? _existingRelease.Title : _existingRelease.Version)
-            : _existingRelease.Version;
+        if (IsAddonMode)
+        {
+            title = localizationService?.GetString("Tools.PublisherStudio.Library.DeleteAddonTitle") ?? "Delete Addon";
+            messageFormat = localizationService?.GetString("Tools.PublisherStudio.Library.DeleteAddonMessageFormat") ?? "Are you sure you want to delete addon '{0}'? This cannot be undone.";
+            targetName = !string.IsNullOrWhiteSpace(_existingRelease.Title) ? _existingRelease.Title : _existingRelease.Version;
+        }
+        else
+        {
+            title = localizationService?.GetString("Tools.PublisherStudio.Library.DeleteReleaseTitle") ?? "Delete Release";
+            messageFormat = localizationService?.GetString("Tools.PublisherStudio.Library.DeleteReleaseMessageFormat") ?? "Are you sure you want to delete release v{0}? This will also remove its artifacts and cannot be undone.";
+            targetName = _existingRelease.Version;
+        }
 
         var message = string.Format(messageFormat, targetName);
 
@@ -721,6 +722,9 @@ public partial class AddReleaseDialogViewModel(
         Close();
     }
 
+    /// <summary>
+    /// Cancels the dialog without saving.
+    /// </summary>
     [RelayCommand]
     private void Cancel() => Close();
 

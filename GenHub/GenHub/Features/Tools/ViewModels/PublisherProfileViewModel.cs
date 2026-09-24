@@ -190,71 +190,84 @@ public partial class PublisherProfileViewModel(
 
         var trimmed = fileOrUrl.Trim();
 
-        // Check if it is a remote web URL
-        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
-            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        if (IsRemoteUrl(trimmed))
         {
-            AvatarUrl = trimmed;
-            MarkDirty();
-            notificationService?.ShowSuccess(
-                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUpdatedTitle") ?? "Avatar Updated",
-                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUpdatedMessage") ?? "Avatar URL updated successfully.");
+            ApplyRemoteAvatarUrl(trimmed);
             return;
         }
 
-        // Check if it is a local file
         if (File.Exists(trimmed))
         {
-            var provider = parentViewModel?.PublishShareViewModel?.SelectedHostingProvider;
-            if (provider != null && provider.IsAuthenticated)
+            await HandleLocalAvatarFileAsync(trimmed);
+        }
+    }
+
+    private static bool IsRemoteUrl(string text) =>
+        Uri.TryCreate(text, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private void ApplyRemoteAvatarUrl(string url)
+    {
+        AvatarUrl = url;
+        MarkDirty();
+        notificationService?.ShowSuccess(
+            localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUpdatedTitle") ?? "Avatar Updated",
+            localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUpdatedMessage") ?? "Avatar URL updated successfully.");
+    }
+
+    private async Task HandleLocalAvatarFileAsync(string filePath)
+    {
+        var provider = parentViewModel?.PublishShareViewModel?.SelectedHostingProvider;
+        if (provider == null || !provider.IsAuthenticated)
+        {
+            notificationService?.ShowWarning(
+                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningTitle") ?? "Local Avatar Set",
+                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningMessage")
+                    ?? "Local avatar image cannot be saved directly. Please connect a hosting provider to upload avatars, or enter a remote image URL.");
+            return;
+        }
+
+        await UploadAvatarFileAsync(provider, filePath);
+    }
+
+    private async Task UploadAvatarFileAsync(IHostingProvider provider, string filePath)
+    {
+        try
+        {
+            notificationService?.ShowInfo(
+                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingTitle") ?? "Uploading Avatar",
+                string.Format(
+                    localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingMessage") ?? "Uploading avatar to {0}...",
+                    provider.DisplayName));
+
+            await using var stream = File.OpenRead(filePath);
+            var fileName = Path.GetFileName(filePath);
+            var result = await provider.UploadFileAsync(stream, fileName, folderPath: null);
+
+            if (result.Success && result.Data != null)
             {
-                try
+                var directUrl = result.Data.DirectDownloadUrl ?? result.Data.PublicUrl;
+                if (!string.IsNullOrEmpty(directUrl))
                 {
-                    notificationService?.ShowInfo(
-                        localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingTitle") ?? "Uploading Avatar",
-                        string.Format(
-                            localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingMessage") ?? "Uploading avatar to {0}...",
-                            provider.DisplayName));
-
-                    await using var stream = File.OpenRead(trimmed);
-                    var fileName = Path.GetFileName(trimmed);
-                    var result = await provider.UploadFileAsync(stream, fileName, "PublisherAssets");
-
-                    if (result.Success && result.Data != null)
-                    {
-                        var directUrl = result.Data.DirectDownloadUrl ?? result.Data.PublicUrl;
-                        if (!string.IsNullOrEmpty(directUrl))
-                        {
-                            AvatarUrl = directUrl;
-                            MarkDirty();
-                            notificationService?.ShowSuccess(
-                                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle") ?? "Avatar Uploaded",
-                                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage") ?? "Avatar uploaded and updated successfully.");
-                            return;
-                        }
-                    }
-
-                    notificationService?.ShowError(
-                        localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Avatar Upload Failed",
-                        result.FirstError ?? "Failed to upload avatar to hosting provider.");
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogError(ex, "Failed to upload dropped avatar {Path}", trimmed);
-                    notificationService?.ShowError(
-                        localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Avatar Upload Failed",
-                        ex.Message);
+                    AvatarUrl = directUrl;
+                    MarkDirty();
+                    notificationService?.ShowSuccess(
+                        localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle") ?? "Avatar Uploaded",
+                        localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage") ?? "Avatar uploaded and updated successfully.");
+                    return;
                 }
             }
-            else
-            {
-                // Not authenticated with a hosting provider
-                AvatarUrl = trimmed;
-                MarkDirty();
-                notificationService?.ShowWarning(
-                    localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningTitle") ?? "Local Avatar Set",
-                    localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningMessage") ?? "Avatar set to local path. Connect a hosting provider to automatically upload to cloud storage.");
-            }
+
+            notificationService?.ShowError(
+                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Avatar Upload Failed",
+                result.FirstError ?? "Failed to upload avatar to hosting provider.");
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to upload dropped avatar {Path}", filePath);
+            notificationService?.ShowError(
+                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Avatar Upload Failed",
+                ex.Message);
         }
     }
 

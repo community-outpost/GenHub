@@ -1330,13 +1330,16 @@ public sealed partial class DownloadsBrowserViewModel(
                         NotificationType.Info,
                         title,
                         message,
-                        autoDismissMilliseconds: 10000,
+                        autoDismissMilliseconds: NotificationDurations.VeryLong,
                         actionText: actionText,
                         action: () =>
                         {
                             RunOnUi(() =>
                             {
-                                SelectedCatalog = cat;
+                                if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    SelectedCatalog = cat;
+                                }
                             });
                         }));
                 }
@@ -1352,13 +1355,16 @@ public sealed partial class DownloadsBrowserViewModel(
                         NotificationType.Info,
                         title,
                         message,
-                        autoDismissMilliseconds: 10000,
+                        autoDismissMilliseconds: NotificationDurations.VeryLong,
                         actionText: actionText,
                         action: () =>
                         {
                             RunOnUi(() =>
                             {
-                                SelectedCatalog = firstCat;
+                                if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    SelectedCatalog = firstCat;
+                                }
                             });
                         }));
                 }
@@ -1656,7 +1662,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private void OnPublisherSubscriptionsChanged()
     {
-        _ = RefreshSubscribedPublishersAsync();
+        RunOnUi(() => _ = RefreshSubscribedPublishersAsync());
     }
 
     private void OnContentLibraryCleared()
@@ -1986,7 +1992,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     .Where(item => !query.ContentType.HasValue || item.ContentType == query.ContentType.Value)
                     .ToList();
 
-                var cacheKey = $"{publisherId}:{SelectedCatalog?.Id ?? "default"}";
+                var cacheKey = $"{publisherId}:{SelectedCatalog?.Id ?? CatalogConstants.DefaultCatalogId}";
                 if (_knownContentItemIds.TryGetValue(cacheKey, out var prevItemIds) && !append && !isCustomQuery)
                 {
                     var newDiscoveredItems = items.Where(i => !prevItemIds.Contains(i.Id)).ToList();
@@ -2910,7 +2916,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
             foreach (var item in removed)
             {
-                Publishers.Remove(item);
+                RunOnUi(() => Publishers.Remove(item));
                 _subscribedDiscoverers.Remove(item.PublisherId);
 
                 lock (_cacheLock)
@@ -2946,13 +2952,16 @@ public sealed partial class DownloadsBrowserViewModel(
                         searchCts.Dispose();
                     }
 
-                    foreach (var contentItem in ContentItems)
+                    RunOnUi(() =>
                     {
-                        contentItem.Dispose();
-                    }
+                        foreach (var contentItem in ContentItems)
+                        {
+                            contentItem.Dispose();
+                        }
 
-                    ContentItems.Clear();
-                    SelectedPublisher = Publishers.FirstOrDefault();
+                        ContentItems.Clear();
+                        SelectedPublisher = Publishers.FirstOrDefault();
+                    });
                 }
             }
 
@@ -2964,22 +2973,25 @@ public sealed partial class DownloadsBrowserViewModel(
                     continue;
                 }
 
-                var existing = Publishers.FirstOrDefault(p =>
-                    p.PublisherId.Equals(subscription.PublisherId, StringComparison.OrdinalIgnoreCase));
+                RunOnUi(() =>
+                {
+                    var existing = Publishers.FirstOrDefault(p =>
+                        p.PublisherId.Equals(subscription.PublisherId, StringComparison.OrdinalIgnoreCase));
 
-                if (existing == null)
-                {
-                    Publishers.Add(new PublisherItemViewModel(
-                        subscription.PublisherId,
-                        subscription.PublisherName,
-                        subscription.AvatarUrl,
-                        CatalogConstants.SubscribedPublisherCategory));
-                }
-                else
-                {
-                    existing.DisplayName = subscription.PublisherName;
-                    existing.LogoSource = subscription.AvatarUrl;
-                }
+                    if (existing == null)
+                    {
+                        Publishers.Add(new PublisherItemViewModel(
+                            subscription.PublisherId,
+                            subscription.PublisherName,
+                            subscription.AvatarUrl,
+                            CatalogConstants.SubscribedPublisherCategory));
+                    }
+                    else
+                    {
+                        existing.DisplayName = subscription.PublisherName;
+                        existing.LogoSource = subscription.AvatarUrl;
+                    }
+                });
 
                 // Transient discoverer configured for this catalog URL (generic GenHub schema)
                 var discoverer = serviceProvider.GetRequiredService<GenericCatalogDiscoverer>();

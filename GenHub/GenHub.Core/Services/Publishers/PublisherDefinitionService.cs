@@ -216,8 +216,15 @@ public class PublisherDefinitionService(
 
             // Check if publisher avatar changed
             if (remoteDef.Publisher != null &&
+                !string.IsNullOrWhiteSpace(remoteDef.Publisher.AvatarUrl) &&
                 !string.Equals(subscription.AvatarUrl, remoteDef.Publisher.AvatarUrl, StringComparison.Ordinal))
             {
+                logger.LogInformation(
+                    "Updating publisher avatar for subscription {PublisherId} from {OldAvatar} to {NewAvatar}",
+                    subscription.PublisherId,
+                    subscription.AvatarUrl,
+                    remoteDef.Publisher.AvatarUrl);
+
                 subscription.AvatarUrl = remoteDef.Publisher.AvatarUrl;
                 hasUpdate = true;
             }

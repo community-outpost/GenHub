@@ -178,7 +178,7 @@ public partial class PublishShareViewModel(
     /// </summary>
     internal static HttpClient? HttpClientOverrideForTesting { get; set; }
 
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _probingUrls = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Generic.List<HostedAssetItemViewModel>> _probingUrls = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _publishGate = new(1, 1);
     private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _probeCts = new();
@@ -1532,15 +1532,33 @@ public partial class PublishShareViewModel(
 
         HostedAssets.Add(item);
 
-        if (artSize <= 0 && isExternal && !string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+        if (artSize <= 0 && isExternal && IsValidHttpUrl(artifact.DownloadUrl))
         {
-            if (_probingUrls.TryAdd(artifact.DownloadUrl, 0))
+            var url = artifact.DownloadUrl!;
+            var isNewProbe = false;
+            var list = _probingUrls.GetOrAdd(url, _ =>
+            {
+                isNewProbe = true;
+                return [];
+            });
+
+            lock (list)
+            {
+                list.Add(item);
+            }
+
+            if (isNewProbe)
             {
                 var ct = _probeCts?.Token ?? CancellationToken.None;
-                _ = ProbeExternalAssetSizeAsync(item, artifact, ct);
+                _ = ProbeExternalAssetSizeAsync(url, artifact, ct);
             }
         }
     }
+
+    private static bool IsValidHttpUrl(string? url) =>
+        !string.IsNullOrWhiteSpace(url) &&
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     private async Task<long?> ProbeRangedGetSizeAsync(HttpClient client, string url, CancellationToken cancellationToken)
     {
@@ -1563,16 +1581,8 @@ public partial class PublishShareViewModel(
         return null;
     }
 
-    private async Task ProbeExternalAssetSizeAsync(HostedAssetItemViewModel item, ReleaseArtifact artifact, CancellationToken cancellationToken)
+    private async Task ProbeExternalAssetSizeAsync(string url, ReleaseArtifact artifact, CancellationToken cancellationToken)
     {
-        var url = artifact.DownloadUrl;
-        if (string.IsNullOrWhiteSpace(url) ||
-            !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-        {
-            return;
-        }
-
         try
         {
             var client = HttpClientOverrideForTesting ?? SharedHttpClient;
@@ -1588,18 +1598,27 @@ public partial class PublishShareViewModel(
                 var size = detectedSize.Value;
                 artifact.Size = size;
 
-                void UpdateItem()
+                void UpdateItems()
                 {
-                    item.FileSize = size;
+                    if (_probingUrls.TryGetValue(url, out var list))
+                    {
+                        lock (list)
+                        {
+                            foreach (var target in list)
+                            {
+                                target.FileSize = size;
+                            }
+                        }
+                    }
                 }
 
                 if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
                 {
-                    UpdateItem();
+                    UpdateItems();
                 }
                 else
                 {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(UpdateItem);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(UpdateItems);
                 }
 
                 logger.LogInformation("Probed external artifact size for {FileName}: {Size} bytes", artifact.Filename, size);
@@ -2469,7 +2488,7 @@ public partial class PublishShareViewModel(
         await ValidateCatalogAsync();
         if (!IsValid)
         {
-            var catName = ActiveCatalog?.Name ?? "Catalog";
+            var catName = !string.IsNullOrWhiteSpace(ActiveCatalog?.Name) ? ActiveCatalog.Name : GetLocalizedString("Tools.PublisherStudio.Common.Catalog", "Catalog");
             var detail = string.IsNullOrWhiteSpace(ValidationMessage)
                 ? GetLocalizedString("Tools.PublisherStudio.Publish.FixValidationBeforeUpload", "Please fix catalog validation errors before uploading.")
                 : ValidationMessage;
@@ -4428,20 +4447,25 @@ public partial class PublishShareViewModel(
         if (failedCatalogs.Count > 0)
         {
             var failedDetails = string.Join("; ", failedCatalogs.Select(f => $"{f.Name}: {f.Error}"));
-            var baseMsg = FormatLocalizedString(
-                "Tools.PublisherStudio.Publish.PublishAllPartialFormat",
-                "Published {0} of {1} catalog(s). Failed: {2}",
-                succeededCount,
-                totalCatalogs,
-                failedDetails);
-
-            UploadStatusMessage = definitionProblem && !string.IsNullOrWhiteSpace(defError)
-                ? $"{baseMsg} | Definition: {defError}"
-                : baseMsg;
-
-            if (definitionProblem)
+            if (definitionProblem && !string.IsNullOrWhiteSpace(defError))
             {
+                UploadStatusMessage = FormatLocalizedString(
+                    "Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat",
+                    "Published {0} of {1} catalog(s). Failed: {2}. Provider definition failed: {3}",
+                    succeededCount,
+                    totalCatalogs,
+                    failedDetails,
+                    defError);
                 NotifyDefinitionStale();
+            }
+            else
+            {
+                UploadStatusMessage = FormatLocalizedString(
+                    "Tools.PublisherStudio.Publish.PublishAllPartialFormat",
+                    "Published {0} of {1} catalog(s). Failed: {2}",
+                    succeededCount,
+                    totalCatalogs,
+                    failedDetails);
             }
 
             notificationService?.ShowWarning(

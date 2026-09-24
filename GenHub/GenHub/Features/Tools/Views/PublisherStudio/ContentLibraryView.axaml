@@ -23,15 +23,6 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <Style Selector="Button.upload-pending">
-            <Setter Property="Background" Value="#33F59E0B"/>
-            <Setter Property="BorderBrush" Value="#F59E0B"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
-        </Style>
-        <Style Selector="Button.upload-pending:pointerover">
-            <Setter Property="Background" Value="#55F59E0B"/>
-            <Setter Property="BorderBrush" Value="#FBBF24"/>
-        </Style>
         <Style Selector="ListBoxItem">
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0,0,0,6"/>
@@ -63,6 +54,16 @@
         </Style>
         <Style Selector="Button.glass-icon-btn:pointerover">
             <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
+        </Style>
+
+        <Style Selector="Button.glass-icon-btn.upload-pending">
+            <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionBrush}"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+        </Style>
+        <Style Selector="Button.glass-icon-btn.upload-pending:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}"/>
         </Style>
 
         <Style Selector="Button.card-action">
@@ -213,10 +214,10 @@
                                     <Grid IsVisible="{Binding ActiveCatalogNeedsPublish}">
                                         <PathIcon Data="{StaticResource PublishIcon}"
                                                   Width="11" Height="11"
-                                                  Foreground="#F59E0B"/>
+                                                  Foreground="{DynamicResource PendingActionBrush}"/>
                                         <Ellipse Width="6" Height="6"
-                                                 Fill="#F59E0B"
-                                                 Stroke="#1E1E2E"
+                                                 Fill="{DynamicResource PendingActionBrush}"
+                                                 Stroke="{DynamicResource SurfaceBackgroundDark}"
                                                  StrokeThickness="1"
                                                  HorizontalAlignment="Right"
                                                  VerticalAlignment="Top"

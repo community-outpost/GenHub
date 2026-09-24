@@ -22,6 +22,11 @@ public static class PublisherInfoConstants
     /// </summary>
     public const string LocalInstallationPublisherName = "Local";
 
+    /// <summary>
+    /// Placeholder blank URL for publishers without an explicit website or support link.
+    /// </summary>
+    public const string BlankUrl = "about:blank";
+
     private static readonly (string[] Keywords, string LogoSource)[] LogoRules =
     [
         (["dominator", "dominatormappacks", "dominator-mappacks", "dominator map packs"], Dominator.LogoSource),
@@ -275,10 +280,10 @@ public static class PublisherInfoConstants
         public const string Name = "Dominator Map Packs";
 
         /// <summary>Website URL for Dominator Map Packs.</summary>
-        public const string Website = "about:blank";
+        public const string Website = BlankUrl;
 
         /// <summary>Support URL for Dominator Map Packs.</summary>
-        public const string SupportUrl = "about:blank";
+        public const string SupportUrl = BlankUrl;
 
         /// <summary>Logo source for Dominator Map Packs.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/dominator-logo.png";
@@ -389,10 +394,10 @@ public static class PublisherInfoConstants
         public const string Name = "Unknown";
 
         /// <summary>Website URL for Unknown.</summary>
-        public const string Website = "about:blank";
+        public const string Website = BlankUrl;
 
         /// <summary>Support URL for Unknown.</summary>
-        public const string SupportUrl = "about:blank";
+        public const string SupportUrl = BlankUrl;
 
         /// <summary>Logo source for Unknown.</summary>
         public const string LogoSource = DefaultGenHubIconSource;

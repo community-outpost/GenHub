@@ -50,8 +50,6 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 return OperationResult<PublisherCatalog>.CreateFailure("Failed to deserialize catalog JSON");
             }
 
-            NormalizeCatalogCollections(catalog, logger);
-
             // Validate after parsing
             var validationResult = ValidateCatalog(catalog);
             if (!validationResult.Success)
@@ -240,41 +238,51 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 
         foreach (var content in catalog.Content)
         {
-            if (content == null)
+            if (content != null)
             {
-                continue;
+                NormalizeContentItem(content, seenNames, logger);
             }
+        }
+    }
 
-            if (!string.IsNullOrWhiteSpace(content.Name))
+    private static void NormalizeContentItem(CatalogContentItem content, Dictionary<string, string> seenNames, ILogger logger)
+    {
+        if (!string.IsNullOrWhiteSpace(content.Name))
+        {
+            content.Name = ContentFormatPolicy.StripArchiveExtensions(content.Name);
+            if (seenNames.TryGetValue(content.Name, out var existingId) && !string.Equals(existingId, content.Id, StringComparison.OrdinalIgnoreCase))
             {
-                content.Name = ContentFormatPolicy.StripArchiveExtensions(content.Name);
-                if (seenNames.TryGetValue(content.Name, out var existingId) && !string.Equals(existingId, content.Id, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogWarning("Catalog content item '{ContentId}' normalized to display name '{ContentName}', which duplicates item '{ExistingId}'", content.Id, content.Name, existingId);
-                }
-                else
-                {
-                    seenNames[content.Name] = content.Id;
-                }
+                logger.LogWarning("Catalog content item '{ContentId}' normalized to display name '{ContentName}', which duplicates item '{ExistingId}'", content.Id, content.Name, existingId);
             }
-
-            content.Description ??= string.Empty;
-            content.Tags = content.Tags != null
-                ? content.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
-                : [];
-            if (content.Metadata != null)
+            else
             {
-                content.Metadata.ScreenshotUrls ??= [];
+                seenNames[content.Name] = content.Id;
             }
+        }
 
-            content.Releases ??= [];
-            foreach (var release in content.Releases)
+        content.Description ??= string.Empty;
+        content.Tags = content.Tags != null
+            ? content.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
+            : [];
+        if (content.Metadata != null)
+        {
+            content.Metadata.ScreenshotUrls ??= [];
+        }
+
+        NormalizeReleases(content.Releases);
+    }
+
+    private static void NormalizeReleases(IList<CatalogRelease>? releases)
+    {
+        if (releases == null)
+        {
+            return;
+        }
+
+        foreach (var release in releases)
+        {
+            if (release != null)
             {
-                if (release == null)
-                {
-                    continue;
-                }
-
                 release.Artifacts ??= [];
                 release.Dependencies ??= [];
             }

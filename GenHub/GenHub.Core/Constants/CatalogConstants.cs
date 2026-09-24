@@ -61,6 +61,11 @@ public static class CatalogConstants
     public const string CurrentCatalogEntryId = "current";
 
     /// <summary>
+    /// Default catalog identifier used when no specific catalog ID is selected.
+    /// </summary>
+    public const string DefaultCatalogId = "default";
+
+    /// <summary>
     /// Resolver / pipeline ID for the generic catalog pipeline (any GenHub-schema catalog).
     /// </summary>
     public const string GenericCatalogResolverId = "generic-catalog";

@@ -12515,7 +12515,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Error creating project: {0}</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.CatalogRenamedFormat" xml:space="preserve">
-    <value>Renamed catalog to '{0}'</value>
+    <value>Updated catalog '{0}'</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.HostingRecoveryNeeded" xml:space="preserve">
     <value>Hosting state missing - recovery may be needed. Use Publish &amp; Share tab to reconnect.</value>
@@ -12668,10 +12668,10 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Successfully published all {0} catalogs!</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
-    <value>Published {0} of {1} catalogs.</value>
+    <value>Published {0} of {1} catalog(s). Failed: {2}</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat" xml:space="preserve">
-    <value>Published {0} of {1} catalogs. Provider definition failed: {2}</value>
+    <value>Published {0} of {1} catalog(s). Failed: {2}. Provider definition failed: {3}</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.UploadAlreadyInProgress" xml:space="preserve">
     <value>An upload is already in progress.</value>
@@ -13468,6 +13468,45 @@ Would you like to add this catalog to your provider project?</value>
   </data>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
     <value>{0} new content items released in catalog '{1}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
+    <value>Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonDeletedTitle" xml:space="preserve">
+    <value>Addon Deleted</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonDeletedMessageFormat" xml:space="preserve">
+    <value>Addon '{0}' was deleted.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonTitle" xml:space="preserve">
+    <value>Delete Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonMessageFormat" xml:space="preserve">
+    <value>Are you sure you want to delete addon '{0}'? This cannot be undone.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUpdatedTitle" xml:space="preserve">
+    <value>Avatar Updated</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUpdatedMessage" xml:space="preserve">
+    <value>Avatar URL updated successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadingTitle" xml:space="preserve">
+    <value>Uploading Avatar</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadingMessage" xml:space="preserve">
+    <value>Uploading avatar to {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarLocalWarningTitle" xml:space="preserve">
+    <value>Local Avatar Set</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarLocalWarningMessage" xml:space="preserve">
+    <value>Local avatar image cannot be saved directly. Please connect a hosting provider to upload avatars, or enter a remote image URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogConfirmFormat" xml:space="preserve">
+    <value>Are you sure you want to delete catalog '{0}'? All content items in this catalog will be removed.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.IconPlaceholder" xml:space="preserve">
+    <value>https://... or avares://...</value>
   </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>

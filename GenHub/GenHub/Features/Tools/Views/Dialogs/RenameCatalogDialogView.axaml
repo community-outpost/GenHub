@@ -67,7 +67,7 @@
             <Grid ColumnDefinitions="*,Auto">
                 <TextBox Grid.Column="0"
                          Text="{Binding IconUrl, Mode=TwoWay}"
-                         Watermark="https://... or avares://..."
+                         Watermark="{localization:Localize Tools.PublisherStudio.RenameCatalog.IconPlaceholder}"
                          FontSize="13"
                          Padding="10,8"/>
                 <Border Grid.Column="1"

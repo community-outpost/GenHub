@@ -59,5 +59,5 @@ public class CatalogEntry
     public string EffectiveIconUrl =>
         !string.IsNullOrWhiteSpace(IconUrl)
             ? IconUrl
-            : ImageCacheConstants.GetPicsumUrl(Id ?? Name, 128, 128);
+            : ImageCacheConstants.GetPicsumUrl(!string.IsNullOrWhiteSpace(Id) ? Id : Name, 128, 128);
 }

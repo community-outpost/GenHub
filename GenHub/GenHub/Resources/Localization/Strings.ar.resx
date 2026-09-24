@@ -12417,7 +12417,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>خطأ في إنشاء المشروع: {0}</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.CatalogRenamedFormat" xml:space="preserve">
-    <value>تمت إعادة تسمية الفهرس إلى '{0}'</value>
+    <value>تم تحديث الكتالوج '{0}'</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.HostingRecoveryNeeded" xml:space="preserve">
     <value>حالة الاستضافة مفقودة - قد يلزم الاسترداد. استخدم علامة تبويب النشر والمشاركة لإعادة الاتصال.</value>
@@ -12570,10 +12570,10 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>تم نشر جميع الكتالوجات ({0}) بنجاح!</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
-    <value>تم نشر {0} من {1} من الكتالوجات.</value>
+    <value>تم نشر {0} من أصل {1} كتالوج. فشل: {2}</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat" xml:space="preserve">
-    <value>تم نشر {0} من {1} من الكتالوجات. فشل رفع تعريف المزود: {2}</value>
+    <value>تم نشر {0} من أصل {1} كتالوج. فشل: {2}. فشل تعريف المزود: {3}</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.UploadAlreadyInProgress" xml:space="preserve">
     <value>هناك رفع جارٍ بالفعل.</value>
@@ -13370,6 +13370,45 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
     <value>تم إصدار {0} عناصر محتوى جديدة في الكتالوج '{1}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
+    <value>الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonDeletedTitle" xml:space="preserve">
+    <value>تم حذف الإضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonDeletedMessageFormat" xml:space="preserve">
+    <value>تم حذف الإضافة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonTitle" xml:space="preserve">
+    <value>حذف الإضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonMessageFormat" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد حذف الإضافة '{0}'؟ لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUpdatedTitle" xml:space="preserve">
+    <value>تم تحديث الصورة الرمزية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUpdatedMessage" xml:space="preserve">
+    <value>تم تحديث عنوان URL للصورة الرمزية بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadingTitle" xml:space="preserve">
+    <value>جاري رفع الصورة الرمزية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadingMessage" xml:space="preserve">
+    <value>جاري رفع الصورة الرمزية إلى {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarLocalWarningTitle" xml:space="preserve">
+    <value>تم تعيين صورة رمزية محلية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarLocalWarningMessage" xml:space="preserve">
+    <value>لا يمكن حفظ مسار الصورة الرمزية المحلية مباشرة. يرجى ربط موفر استضافة لرفع الصور الرمزية، أو إدخال عنوان URL لصورة على الإنترنت.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogConfirmFormat" xml:space="preserve">
+    <value>هل أنت متأكد من أنك تريد حذف الكتالوج '{0}'؟ ستتم إزالة جميع عناصر المحتوى في هذا الكتالوج.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.IconPlaceholder" xml:space="preserve">
+    <value>https://... أو avares://...</value>
   </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>

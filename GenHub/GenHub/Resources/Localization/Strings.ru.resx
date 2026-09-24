@@ -12417,7 +12417,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Ошибка создания проекта: {0}</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.CatalogRenamedFormat" xml:space="preserve">
-    <value>Каталог переименован в '{0}'</value>
+    <value>Обновлен каталог «{0}»</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.HostingRecoveryNeeded" xml:space="preserve">
     <value>Состояние хостинга отсутствует — возможно, требуется восстановление. Используйте вкладку «Публикация» для переподключения.</value>
@@ -12570,10 +12570,10 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Все каталоги ({0}) успешно опубликованы!</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
-    <value>Опубликовано {0} из {1} каталогов.</value>
+    <value>Опубликовано {0} из {1} каталога(ов). Не удалось: {2}</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat" xml:space="preserve">
-    <value>Опубликовано {0} из {1} каталогов. Не удалось загрузить определение поставщика: {2}</value>
+    <value>Опубликовано {0} из {1} каталога(ов). Не удалось: {2}. Сбой определения поставщика: {3}</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.UploadAlreadyInProgress" xml:space="preserve">
     <value>Загрузка уже выполняется.</value>
@@ -13370,6 +13370,45 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
     <value>В каталоге «{1}» опубликовано новых материалов: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
+    <value>Каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonDeletedTitle" xml:space="preserve">
+    <value>Аддон удален</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonDeletedMessageFormat" xml:space="preserve">
+    <value>Аддон «{0}» был удален.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonTitle" xml:space="preserve">
+    <value>Удалить аддон</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonMessageFormat" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить аддон «{0}»? Это действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUpdatedTitle" xml:space="preserve">
+    <value>Аватар обновлен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUpdatedMessage" xml:space="preserve">
+    <value>URL аватара успешно обновлен.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadingTitle" xml:space="preserve">
+    <value>Загрузка аватара</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadingMessage" xml:space="preserve">
+    <value>Загрузка аватара в {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarLocalWarningTitle" xml:space="preserve">
+    <value>Установлен локальный аватар</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarLocalWarningMessage" xml:space="preserve">
+    <value>Локальный файл аватара не может быть сохранен напрямую. Пожалуйста, подключите хостинг-провайдера для загрузки аватаров или введите удаленный URL изображения.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogConfirmFormat" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить каталог «{0}»? Все элементы контента в этом каталоге будут удалены.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.IconPlaceholder" xml:space="preserve">
+    <value>https://... или avares://...</value>
   </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>

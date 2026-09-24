@@ -1256,8 +1256,7 @@ public class GenericCatalogDiscoverer(
         var iconUrl = contentItem.Metadata?.IconUrl
             ?? _subscription?.AvatarUrl
             ?? catalog.Publisher?.AvatarUrl
-            ?? PublisherInfoConstants.GetPublisherLogo(effectiveProviderName, catalog.Publisher?.Id ?? string.Empty)
-            ?? ImageCacheConstants.GetPicsumUrl($"{contentItem.Id}-icon", 128, 128);
+            ?? PublisherInfoConstants.GetPublisherLogo(effectiveProviderName, catalog.Publisher?.Id ?? string.Empty);
 
         return (effectiveProviderName, authorName, iconUrl);
     }

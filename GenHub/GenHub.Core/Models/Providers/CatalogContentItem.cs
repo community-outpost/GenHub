@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -107,29 +108,31 @@ public class CatalogContentItem
     public bool IsStandalone { get; set; } = true;
 
     /// <summary>
-    /// Gets the effective icon URL for this content item, falling back to a deterministic placeholder.
+    /// Gets the effective icon URL for this content item, falling back to publisher logo or deterministic placeholder.
     /// </summary>
     [JsonIgnore]
-    public string EffectiveIconUrl =>
-        !string.IsNullOrWhiteSpace(Metadata?.IconUrl)
-            ? Metadata.IconUrl
-            : ImageCacheConstants.GetPicsumUrl($"{Id}-icon", 128, 128);
+    public string EffectiveIconUrl
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Metadata?.IconUrl) &&
+                !Metadata.IconUrl.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase))
+            {
+                return Metadata.IconUrl;
+            }
 
-    /// <summary>
-    /// Gets the effective banner URL for this content item, falling back to a deterministic placeholder.
-    /// </summary>
-    [JsonIgnore]
-    public string EffectiveBannerUrl =>
-        !string.IsNullOrWhiteSpace(Metadata?.BannerUrl)
-            ? Metadata.BannerUrl
-            : ImageCacheConstants.GetPicsumUrl($"{Id}-banner", 800, 300);
+            if ((Id != null && Id.Contains("dominator", StringComparison.OrdinalIgnoreCase)) ||
+                (Name != null && Name.Contains("dominator", StringComparison.OrdinalIgnoreCase)))
+            {
+                return PublisherInfoConstants.Dominator.LogoSource;
+            }
 
-    /// <summary>
-    /// Gets the effective backdrop URL for this content item, falling back to a deterministic placeholder.
-    /// </summary>
-    [JsonIgnore]
-    public string EffectiveBackdropUrl =>
-        !string.IsNullOrWhiteSpace(Metadata?.BackdropUrl)
-            ? Metadata.BackdropUrl
-            : ImageCacheConstants.GetPicsumUrl($"{Id}-backdrop", 1200, 600);
+            if (!string.IsNullOrWhiteSpace(Metadata?.IconUrl))
+            {
+                return Metadata.IconUrl;
+            }
+
+            return ImageCacheConstants.GetPicsumUrl($"{Id}-icon", 128, 128);
+        }
+    }
 }

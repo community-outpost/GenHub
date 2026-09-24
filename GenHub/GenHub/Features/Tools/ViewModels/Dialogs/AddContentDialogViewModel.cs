@@ -1454,14 +1454,6 @@ public partial class AddContentDialogViewModel(
         else
         {
             CopyFromExistingItem(contentItem);
-            if (contentItem.Releases.Count == 0 || contentItem.Releases.All(r => r.Artifacts.Count == 0))
-            {
-                ValidationError = GetLocalizedString(
-                    "Tools.PublisherStudio.Validation.ReleaseItemRequired",
-                    "A release item is required. Please provide a local file, folder, or download URL.");
-                IsValid = false;
-                return;
-            }
         }
 
         onContentCreated(contentItem);

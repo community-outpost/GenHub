@@ -63,6 +63,7 @@ public partial class PublisherStudioViewModel(
     public const int TabPublishShare = 4;
 
     private const string NewPublisherName = "New Publisher";
+    private const string DefaultCatalogImportFailedFormat = "Failed to import catalog: {0}";
 
     private static readonly JsonSerializerOptions CatalogImportOptions = PublisherJsonOptions.CatalogImport;
 
@@ -599,8 +600,8 @@ public partial class PublisherStudioViewModel(
         }
 
         var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
-            "Failed to import catalog: {0}";
-        var errMessage = SafeFormat(errTemplate, "Failed to import catalog: {0}", ex.Message);
+            DefaultCatalogImportFailedFormat;
+        var errMessage = SafeFormat(errTemplate, DefaultCatalogImportFailedFormat, ex.Message);
         notificationService?.ShowError(StudioNotificationTitle, errMessage, NotificationDurations.Long);
     }
 
@@ -613,8 +614,8 @@ public partial class PublisherStudioViewModel(
         }
 
         var errTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.ImportCatalogErrorFormat") ??
-            "Failed to import catalog: {0}";
-        var formattedReason = SafeFormat(errTemplate, "Failed to import catalog: {0}", reason);
+            DefaultCatalogImportFailedFormat;
+        var formattedReason = SafeFormat(errTemplate, DefaultCatalogImportFailedFormat, reason);
         notificationService?.ShowError(StudioNotificationTitle, formattedReason, NotificationDurations.Long);
     }
 
@@ -1262,29 +1263,10 @@ public partial class PublisherStudioViewModel(
 
         if (nameChanged)
         {
-            var newId = Slugify(newName);
-            if (CurrentProject?.Catalogs != null && CurrentProject.Catalogs.Any(c => c != target && string.Equals(c.Id, newId, StringComparison.OrdinalIgnoreCase)))
+            var renamed = await TryApplyCatalogNameChangeAsync(target, newName);
+            if (!renamed)
             {
-                StatusMessage = string.Format(
-                    localizationService?.GetString("Tools.PublisherStudio.Studio.CatalogAlreadyExists") ?? "A catalog with ID '{0}' already exists.",
-                    newId);
-                var dupTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle") ?? "Duplicate Catalog ID";
-                notificationService?.ShowWarning(dupTitle, StatusMessage);
                 return;
-            }
-
-            var oldId = target.Id;
-            target.Name = newName;
-            target.Id = newId;
-            target.FileName = target.Id.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase)
-                ? $"{target.Id}.json"
-                : $"catalog-{target.Id}.json";
-
-            if (PublishShareViewModel != null)
-            {
-                await PublishShareViewModel.RenameCatalogInHostingStateAsync(oldId, target.Id, target.Name, target.FileName);
-                PublishShareViewModel.SyncAvailableCatalogs();
-                PublishShareViewModel.MarkCatalogChanged(target.Id);
             }
         }
 
@@ -1293,18 +1275,53 @@ public partial class PublisherStudioViewModel(
             target.IconUrl = newIcon;
         }
 
-        var idx = Catalogs.IndexOf(target);
-        if (idx >= 0)
-        {
-            Catalogs[idx] = target;
-            SelectedCatalog = target;
-        }
+        UpdateCatalogInCollection(target);
 
         MarkDirty();
         await SaveProjectAsync();
         StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.CatalogRenamedFormat", "Updated catalog '{0}'", target.Name);
         notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
         logger.LogInformation("Updated catalog {CatalogName} ({CatalogId})", target.Name, target.Id);
+    }
+
+    private async Task<bool> TryApplyCatalogNameChangeAsync(NamedCatalog target, string newName)
+    {
+        var newId = Slugify(newName);
+        if (CurrentProject?.Catalogs != null && CurrentProject.Catalogs.Any(c => c != target && string.Equals(c.Id, newId, StringComparison.OrdinalIgnoreCase)))
+        {
+            StatusMessage = string.Format(
+                localizationService?.GetString("Tools.PublisherStudio.Studio.CatalogAlreadyExists") ?? "A catalog with ID '{0}' already exists.",
+                newId);
+            var dupTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle") ?? "Duplicate Catalog ID";
+            notificationService?.ShowWarning(dupTitle, StatusMessage);
+            return false;
+        }
+
+        var oldId = target.Id;
+        target.Name = newName;
+        target.Id = newId;
+        target.FileName = target.Id.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase)
+            ? $"{target.Id}.json"
+            : $"catalog-{target.Id}.json";
+
+        if (PublishShareViewModel != null)
+        {
+            await PublishShareViewModel.RenameCatalogInHostingStateAsync(oldId, target.Id, target.Name, target.FileName);
+            PublishShareViewModel.SyncAvailableCatalogs();
+            PublishShareViewModel.MarkCatalogChanged(target.Id);
+        }
+
+        return true;
+    }
+
+    private void UpdateCatalogInCollection(NamedCatalog target)
+    {
+        var idx = Catalogs.IndexOf(target);
+        if (idx >= 0)
+        {
+            Catalogs[idx] = target;
+            SelectedCatalog = target;
+        }
     }
 
     private void SyncReloadCatalogsCollection()

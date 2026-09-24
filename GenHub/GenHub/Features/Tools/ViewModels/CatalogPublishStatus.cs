@@ -21,9 +21,6 @@ public partial class CatalogPublishStatus : ObservableObject, IDisposable
     private NamedCatalog _catalog;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NeedsPublish))]
-    [NotifyPropertyChangedFor(nameof(StatusText))]
-    [NotifyPropertyChangedFor(nameof(StatusColor))]
     private bool _isPublished;
 
     [ObservableProperty]
@@ -33,9 +30,6 @@ public partial class CatalogPublishStatus : ObservableObject, IDisposable
     private DateTime? _lastPublished;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NeedsPublish))]
-    [NotifyPropertyChangedFor(nameof(StatusText))]
-    [NotifyPropertyChangedFor(nameof(StatusColor))]
     private bool _hasChanges;
 
     /// <summary>

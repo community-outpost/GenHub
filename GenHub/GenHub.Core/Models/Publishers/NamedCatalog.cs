@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Providers;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Publishers;
 
@@ -39,13 +40,25 @@ public class NamedCatalog
     public string FileName { get; set; } = HostingConstants.DefaultCatalogFileName;
 
     /// <summary>
-    /// Gets the effective icon URL for this catalog, falling back to publisher avatar, recognized publisher logo, or a deterministic placeholder.
+    /// Gets the effective icon URL for this catalog, falling back to publisher avatar or recognized publisher logo.
+    /// Returns null when no icon or recognized logo is configured.
     /// </summary>
-    public string EffectiveIconUrl =>
-        !string.IsNullOrWhiteSpace(IconUrl)
-            ? IconUrl
-            : !string.IsNullOrWhiteSpace(Catalog?.Publisher?.AvatarUrl)
-                ? Catalog.Publisher.AvatarUrl
-                : PublisherInfoConstants.GetPublisherLogo(Name, Id)
-                  ?? ImageCacheConstants.GetPicsumUrl(Id ?? Name, 128, 128);
+    [JsonIgnore]
+    public string? EffectiveIconUrl
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(IconUrl))
+            {
+                return IconUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Catalog?.Publisher?.AvatarUrl))
+            {
+                return Catalog.Publisher.AvatarUrl;
+            }
+
+            return PublisherInfoConstants.GetPublisherLogo(Name, Id);
+        }
+    }
 }

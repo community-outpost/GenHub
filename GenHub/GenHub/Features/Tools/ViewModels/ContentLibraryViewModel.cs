@@ -943,11 +943,13 @@ public partial class ContentLibraryViewModel(
             async add =>
             {
                 SelectedContent.AddonReleases.Remove(add);
+                parentViewModel?.PublishShareViewModel?.RefreshUploadHierarchy();
+                parentViewModel?.PublishShareViewModel?.RefreshArtifactStatuses();
                 RefreshSelectedContent();
                 MarkProjectAndCatalogDirty();
                 if (parentViewModel != null)
                 {
-                    await parentViewModel.SaveProjectAsync();
+                    await parentViewModel.SaveProjectSilentAsync();
                 }
 
                 var deletedTitle = GetLocalizedString("Tools.PublisherStudio.Library.AddonDeletedTitle", "Addon Deleted");
@@ -1093,11 +1095,13 @@ public partial class ContentLibraryViewModel(
             async rel =>
             {
                 SelectedContent.Releases.Remove(rel);
+                parentViewModel?.PublishShareViewModel?.RefreshUploadHierarchy();
+                parentViewModel?.PublishShareViewModel?.RefreshArtifactStatuses();
                 RefreshSelectedContent();
                 MarkProjectAndCatalogDirty();
                 if (parentViewModel != null)
                 {
-                    await parentViewModel.SaveProjectAsync();
+                    await parentViewModel.SaveProjectSilentAsync();
                 }
 
                 var deletedTitle = GetLocalizedString("Tools.PublisherStudio.Library.ReleaseDeletedTitle", "Release Deleted");
