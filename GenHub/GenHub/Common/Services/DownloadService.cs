@@ -87,12 +87,11 @@ public class DownloadService(
         if (rangeStart > 0 && request.Headers.Range == null)
         {
             request.Headers.Range = new RangeHeaderValue(rangeStart, null);
-            if (request.Headers.IfRange == null && configuration.Headers.TryGetValue("ETag", out var etag))
+            if (request.Headers.IfRange == null
+                && configuration.Headers.TryGetValue("ETag", out var etag)
+                && EntityTagHeaderValue.TryParse(etag, out var parsedEtag))
             {
-                if (EntityTagHeaderValue.TryParse(etag, out var parsedEtag))
-                {
-                    request.Headers.IfRange = new RangeConditionHeaderValue(parsedEtag);
-                }
+                request.Headers.IfRange = new RangeConditionHeaderValue(parsedEtag);
             }
         }
 
@@ -119,6 +118,40 @@ public class DownloadService(
             url,
             speed,
             elapsed));
+    }
+
+    private static async Task<long> StreamContentToFileAsync(
+        DownloadConnection connection,
+        DownloadConfiguration configuration,
+        IProgress<DownloadProgress>? progress,
+        Stopwatch stopwatch,
+        CancellationTokenSource cts)
+    {
+        var fileName = Path.GetFileName(configuration.DestinationPath);
+        var fileMode = connection.IsResumed ? FileMode.Append : FileMode.Create;
+        var buffer = new byte[configuration.BufferSize];
+        var downloadedBytes = connection.ExistingBytes;
+        var lastProgressReport = DateTime.UtcNow;
+
+        await using var contentStream = await connection.Response.Content.ReadAsStreamAsync(cts.Token);
+        await using var fileStream = new FileStream(configuration.DestinationPath, fileMode, FileAccess.Write, FileShare.None, configuration.BufferSize, useAsync: true);
+
+        int bytesRead;
+        while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token)) > 0)
+        {
+            cts.CancelAfter(configuration.Timeout);
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cts.Token);
+            downloadedBytes += bytesRead;
+
+            var now = DateTime.UtcNow;
+            if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || downloadedBytes == connection.TotalBytes))
+            {
+                ReportDownloadProgress(progress, downloadedBytes, connection.ExistingBytes, connection.TotalBytes, fileName, configuration.Url, stopwatch.Elapsed);
+                lastProgressReport = now;
+            }
+        }
+
+        return downloadedBytes;
     }
 
     private async Task<HttpResponseMessage> SendRequestAsync(
@@ -206,11 +239,8 @@ public class DownloadService(
         {
             var stopwatch = Stopwatch.StartNew();
             var downloadedBytes = await StreamContentToFileAsync(
-                connection.Response,
+                connection,
                 configuration,
-                connection.IsResumed,
-                connection.ExistingBytes,
-                connection.TotalBytes,
                 progress,
                 stopwatch,
                 cts);
@@ -264,7 +294,7 @@ public class DownloadService(
                 var contentRange = response.Content.Headers.ContentRange;
                 if (contentRange?.From == existingBytes)
                 {
-                    var totalBytes = contentRange?.Length
+                    var totalBytes = contentRange.Length
                         ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
                     return new DownloadConnection(response, true, existingBytes, totalBytes);
                 }
@@ -294,43 +324,6 @@ public class DownloadService(
 
         response.Dispose();
         return null;
-    }
-
-    private async Task<long> StreamContentToFileAsync(
-        HttpResponseMessage response,
-        DownloadConfiguration configuration,
-        bool isResumed,
-        long existingBytes,
-        long totalBytes,
-        IProgress<DownloadProgress>? progress,
-        Stopwatch stopwatch,
-        CancellationTokenSource cts)
-    {
-        var fileName = Path.GetFileName(configuration.DestinationPath);
-        var fileMode = isResumed ? FileMode.Append : FileMode.Create;
-        var buffer = new byte[configuration.BufferSize];
-        var downloadedBytes = existingBytes;
-        var lastProgressReport = DateTime.UtcNow;
-
-        await using var contentStream = await response.Content.ReadAsStreamAsync(cts.Token);
-        await using var fileStream = new FileStream(configuration.DestinationPath, fileMode, FileAccess.Write, FileShare.None, configuration.BufferSize, useAsync: true);
-
-        int bytesRead;
-        while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token)) > 0)
-        {
-            cts.CancelAfter(configuration.Timeout);
-            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cts.Token);
-            downloadedBytes += bytesRead;
-
-            var now = DateTime.UtcNow;
-            if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || downloadedBytes == totalBytes))
-            {
-                ReportDownloadProgress(progress, downloadedBytes, existingBytes, totalBytes, fileName, configuration.Url, stopwatch.Elapsed);
-                lastProgressReport = now;
-            }
-        }
-
-        return downloadedBytes;
     }
 
     private async Task<DownloadResult> FinalizeDownloadAsync(
