@@ -50,6 +50,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     private static readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, long FileLength, long SkirmishTicks, long SkirmishLength, long MpTicks, long MpLength, string Crc)> ExeCrcCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, (long MaxTicks, long TotalLength, int FileCount, string Crc)> IniCrcCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Task<OperationResult<string>>> InFlightCalculations = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly object _inFlightLock = new();
 
     private readonly ILogger<GameCrcCalculatorService>? _logger;
 
@@ -204,6 +205,8 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         string? modPath = null,
         CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(gameRootPath) || !Directory.Exists(gameRootPath))
         {
             return OperationResult<string>.CreateFailure($"Game root directory not found at '{gameRootPath}'.");
@@ -223,8 +226,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             cacheKey,
             freshness,
             context,
-            _logger,
-            ct);
+            _logger);
 
         try
         {
@@ -497,10 +499,9 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         string cacheKey,
         (long MaxTicks, long TotalLength, int FileCount) freshness,
         IniCalculationContext context,
-        ILogger? logger,
-        CancellationToken ct)
+        ILogger? logger)
     {
-        lock (InFlightCalculations)
+        lock (_inFlightLock)
         {
             if (InFlightCalculations.TryGetValue(cacheKey, out var existingTask) && existingTask != null)
             {
@@ -510,11 +511,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             var task = Task.Run(
                 () =>
                 {
-                    var calculated = ComputeIniCrc(context, logger, ct);
+                    var calculated = ComputeIniCrc(context, logger, CancellationToken.None);
                     IniCrcCache[cacheKey] = (freshness.MaxTicks, freshness.TotalLength, freshness.FileCount, calculated);
                     return OperationResult<string>.CreateSuccess(calculated);
                 },
-                ct);
+                CancellationToken.None);
 
             _ = task.ContinueWith(
                 _ => InFlightCalculations.TryRemove(cacheKey, out Task<OperationResult<string>>? _),

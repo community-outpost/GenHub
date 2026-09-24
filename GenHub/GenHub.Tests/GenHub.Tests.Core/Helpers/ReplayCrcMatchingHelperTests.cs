@@ -455,6 +455,25 @@ public class ReplayCrcMatchingHelperTests
         Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(elfClient));
         Assert.True(ReplayCrcMatchingHelper.HasNonRetailExecutableFormat(elfClient));
         Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(elfClient));
+
+        // Null guards
+        Assert.False(ReplayCrcMatchingHelper.IsNonRetailEngineClient(null));
+        Assert.False(ReplayCrcMatchingHelper.IsGeneralsOnlineClient(null));
+        Assert.False(ReplayCrcMatchingHelper.IsGeneralsXClient(null));
+        Assert.False(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(null));
+
+        // Mixed: non-retail binary format or engine fork combined with CO name
+        var coElfClient = new GameClient
+        {
+            Id = "community-outpost-linux-zh",
+            Name = "Community Patch 1.06 (Linux)",
+            PublisherType = PublisherTypeConstants.CommunityOutpost,
+            ExecutablePath = "/usr/bin/generalszh",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(coElfClient));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(coElfClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(coElfClient));
     }
 
     /// <summary>
