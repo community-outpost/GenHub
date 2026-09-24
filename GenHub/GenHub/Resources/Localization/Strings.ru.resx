@@ -2050,6 +2050,12 @@
   <data name="Online.Error.WrongPassword" xml:space="preserve">
     <value>Неверный пароль сети.</value>
   </data>
+<data name="Online.Error.NetworkNotFound" xml:space="preserve">
+    <value>Запрошенная сеть не найдена или была закрыта.</value>
+  </data>
+  <data name="Online.Error.ServiceUnavailable" xml:space="preserve">
+    <value>Сетевая служба временно недоступна. Пожалуйста, проверьте соединение и попробуйте снова.</value>
+  </data>
   <data name="Online.Join.PasswordWatermark" xml:space="preserve">
     <value>Пароль сети</value>
   </data>

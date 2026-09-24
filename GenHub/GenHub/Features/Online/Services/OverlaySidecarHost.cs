@@ -72,20 +72,29 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             var configPath = await StageConfigAsync(configContents, cancellationToken);
             var process = CreateProcess(binary, locator.BuildArguments(configPath));
             var started = false;
+            string? startError = null;
             try
             {
                 started = process.Start();
             }
-            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            catch (System.ComponentModel.Win32Exception winEx)
+            {
+                logger.LogWarning(winEx, "Overlay sidecar elevation or start failed.");
+                startError = winEx.NativeErrorCode == 1223
+                    ? "Administrator privileges are required to create the network adapter on Windows."
+                    : $"Failed to start overlay sidecar: {winEx.Message}";
+            }
+            catch (Exception ex) when (ex is InvalidOperationException)
             {
                 logger.LogWarning(ex, "Overlay sidecar spawn failed.");
+                startError = $"Failed to start overlay sidecar: {ex.Message}";
             }
 
             if (!started)
             {
                 process.Dispose();
                 DeleteConfig(configPath);
-                return OperationResult<SidecarInfo>.CreateFailure("Overlay sidecar failed to start.");
+                return OperationResult<SidecarInfo>.CreateFailure(startError ?? "Overlay sidecar failed to start.");
             }
 
             lock (_syncLock)
@@ -99,8 +108,26 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             if (!survived)
             {
                 var exit = ReadExitCode(process);
+                var errPath = configPath + ".err";
+                string? specificError = null;
+                if (File.Exists(errPath))
+                {
+                    try
+                    {
+                        specificError = File.ReadAllText(errPath).Trim();
+                        File.Delete(errPath);
+                    }
+                    catch
+                    {
+                        // Best effort
+                    }
+                }
+
                 await StopInternalAsync();
-                return OperationResult<SidecarInfo>.CreateFailure($"Overlay sidecar exited during startup (code {exit}).");
+                var errorMessage = !string.IsNullOrWhiteSpace(specificError)
+                    ? specificError
+                    : $"Overlay sidecar exited during startup (code {exit}).";
+                return OperationResult<SidecarInfo>.CreateFailure(errorMessage);
             }
 
             return OperationResult<SidecarInfo>.CreateSuccess(new SidecarInfo(process.Id, configPath));
@@ -460,6 +487,12 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             {
                 File.Delete(readyPath);
             }
+
+            var errPath = configPath + ".err";
+            if (File.Exists(errPath))
+            {
+                File.Delete(errPath);
+            }
         }
         catch (IOException ex)
         {
@@ -489,6 +522,12 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             if (File.Exists(readyPath))
             {
                 File.Delete(readyPath);
+            }
+
+            var errPath = configPath + ".err";
+            if (File.Exists(errPath))
+            {
+                File.Delete(errPath);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)

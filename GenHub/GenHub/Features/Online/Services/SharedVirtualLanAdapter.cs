@@ -1,5 +1,4 @@
 using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
@@ -11,11 +10,11 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Online.Services;
 
 /// <summary>
-/// Shared virtual LAN adapter orchestration backed by the overlay sidecar host with in-process tunnel fallback.
-/// Platform modules compose this class with their own sidecar locator.
+/// Cross-platform virtual LAN adapter: spawns the platform sidecar if available,
+/// otherwise falls back to the in-process tunnel runner.
 /// </summary>
-/// <param name="host">The overlay sidecar host.</param>
-/// <param name="locator">The platform sidecar locator.</param>
+/// <param name="host">The sidecar host manager.</param>
+/// <param name="locator">The sidecar binary locator.</param>
 /// <param name="logger">The logger.</param>
 /// <param name="tunnelRunner">Optional in-process tunnel runner fallback.</param>
 public sealed class SharedVirtualLanAdapter(
@@ -34,6 +33,9 @@ public sealed class SharedVirtualLanAdapter(
     public string? OverlayIp { get; private set; }
 
     /// <inheritdoc/>
+    public string? LastError { get; private set; }
+
+    /// <inheritdoc/>
     public event EventHandler<OnlineAdapterState>? StateChanged;
 
     /// <inheritdoc/>
@@ -49,33 +51,48 @@ public sealed class SharedVirtualLanAdapter(
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
 
+            LastError = null;
             SetState(OnlineAdapterState.Starting);
+
+            var effectiveConfig = adapterConfig;
+            var parsedConfig = OverlaySidecarConfig.Parse(adapterConfig, overlayIp);
+            if (parsedConfig.Success && parsedConfig.Data is not null)
+            {
+                effectiveConfig = parsedConfig.Data.ToJson();
+            }
+
             var hasSidecar = locator.LocateBinary() != null;
             var isPending = OverlayConfigInspector.TryGetOverlayName(adapterConfig) == OnlineConstants.OverlayPendingSelection;
             var start = isPending && !hasSidecar
                 ? OperationResult<SidecarInfo>.CreateFailure("Overlay selection is pending.")
-                : await host.StartAsync(adapterConfig, locator, cancellationToken);
+                : await host.StartAsync(effectiveConfig, locator, cancellationToken);
 
             if (!start.Success)
             {
+                var startError = start.Errors.Count > 0 ? start.Errors[0] : "Sidecar start failed.";
+                LastError = startError;
+
                 if (tunnelRunner != null)
                 {
                     logger.LogInformation(
                         "Sidecar not active ({Reason}); activating in-process virtual LAN tunnel runner.",
-                        start.Errors.Count > 0 ? start.Errors[0] : "not found");
+                        startError);
 
-                    var runnerStart = await tunnelRunner.StartAsync(adapterConfig, overlayIp, cancellationToken);
+                    var runnerStart = await tunnelRunner.StartAsync(effectiveConfig, overlayIp, cancellationToken);
                     if (runnerStart.Success)
                     {
                         OverlayIp = overlayIp;
+                        LastError = null;
                         SetState(OnlineAdapterState.Up);
                         return OperationResult<bool>.CreateSuccess(true);
                     }
 
-                    logger.LogWarning("In-process tunnel runner start failed: {Error}", string.Join(", ", runnerStart.Errors));
+                    var runnerError = runnerStart.Errors.Count > 0 ? runnerStart.Errors[0] : "In-process tunnel runner failed.";
+                    logger.LogWarning("In-process tunnel runner start failed: {Error}", runnerError);
+                    LastError = runnerError;
                 }
 
-                if (isPending)
+                if (isPending && !hasSidecar)
                 {
                     logger.LogInformation("Overlay selection is pending; joined without tunneling.");
                     SetState(OnlineAdapterState.Down);
@@ -83,10 +100,11 @@ public sealed class SharedVirtualLanAdapter(
                 }
 
                 logger.LogWarning("Sidecar start failed.");
-                return Fail(start.Errors.Count > 0 ? start.Errors[0] : "Sidecar start failed.");
+                return Fail(LastError ?? "Sidecar start failed.");
             }
 
             OverlayIp = overlayIp;
+            LastError = null;
             SetState(OnlineAdapterState.Up);
             return OperationResult<bool>.CreateSuccess(true);
         }
@@ -120,6 +138,7 @@ public sealed class SharedVirtualLanAdapter(
                 await tunnelRunner.StopAsync(cancellationToken);
             }
 
+            LastError = null;
             OverlayIp = null;
             SetState(OnlineAdapterState.Down);
             return stop;
@@ -211,6 +230,7 @@ public sealed class SharedVirtualLanAdapter(
         SetState(OnlineAdapterState.Stopping);
         StopHostSilently();
         StopTunnelRunnerSilently();
+        LastError = null;
         OverlayIp = null;
         SetState(OnlineAdapterState.Down);
     }
@@ -266,6 +286,7 @@ public sealed class SharedVirtualLanAdapter(
 
     private OperationResult<bool> Fail(string error)
     {
+        LastError = error;
         SetState(OnlineAdapterState.Down);
         return OperationResult<bool>.CreateFailure(error);
     }

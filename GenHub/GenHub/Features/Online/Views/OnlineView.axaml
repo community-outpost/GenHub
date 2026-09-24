@@ -129,26 +129,41 @@
         </Style>
     </UserControl.Styles>
 
-    <ScrollViewer Padding="24" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer Padding="24" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
-            <TextBlock Classes="page-title" Text="{localization:Localize Online.Title}" />
+            <!-- Header row: Title + Subtitle on Left, Player Nickname on Right -->
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="page-title" Text="{localization:Localize Online.Title}" />
 
-            <TextBlock Text="{localization:Localize Online.Subtitle}"
-                       Foreground="{DynamicResource TextSecondary}"
-                       TextWrapping="Wrap" />
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="{localization:Localize Online.Subtitle}"
+                           Foreground="{DynamicResource TextSecondary}"
+                           TextWrapping="Wrap"
+                           Margin="0,4,16,0" />
 
-            <!-- Player nickname: one name synced into the launched game -->
-            <Border Classes="card">
-                <StackPanel Spacing="8">
-                    <TextBlock Classes="section-title" Text="{localization:Localize Online.Nickname.Title}" />
-                    <TextBlock Classes="field-label" Text="{localization:Localize Online.Nickname.Label}" />
-                    <TextBox Classes="field"
-                             Text="{Binding Nickname, Mode=TwoWay}"
-                             Watermark="{localization:Localize Online.Nickname.Placeholder}"
-                             MaxLength="12" />
-                    <TextBlock Classes="helper-text" Text="{localization:Localize Online.Nickname.Hint}" />
-                </StackPanel>
-            </Border>
+                <!-- Player nickname: compact profile badge in the header -->
+                <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                        Classes="card"
+                        Padding="12,8"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <material:MaterialIcon Kind="AccountOutline" Width="20" Height="20"
+                                              Foreground="{DynamicResource AccentBrush}"
+                                              VerticalAlignment="Center" />
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Nickname.Label}" FontSize="11" />
+                            <TextBox Classes="field"
+                                     Text="{Binding Nickname, Mode=TwoWay}"
+                                     Watermark="{localization:Localize Online.Nickname.Placeholder}"
+                                     MaxLength="12"
+                                     Width="140"
+                                     Height="32"
+                                     Padding="8,4"
+                                     ToolTip.Tip="{localization:Localize Online.Nickname.Hint}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
             <!-- Joined banner -->
             <Border Classes="card" IsVisible="{Binding IsJoined}">
@@ -169,7 +184,7 @@
                         </Border>
                         <Border Classes="badge" VerticalAlignment="Center"
                                 IsVisible="{Binding IsLobbyOnly}"
-                                ToolTip.Tip="{localization:Localize Online.Adapter.PendingMessage}">
+                                ToolTip.Tip="{Binding AdapterStatusTooltip}">
                             <TextBlock Text="{localization:Localize Online.Adapter.PendingTitle}"
                                        FontSize="11"
                                        Foreground="{DynamicResource TextSecondary}" />

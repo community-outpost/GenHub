@@ -70,6 +70,9 @@ public sealed class OnlineNetworkService(
     public OnlineAdapterState AdapterState => adapter.State;
 
     /// <inheritdoc/>
+    public string? AdapterError => adapter.LastError;
+
+    /// <inheritdoc/>
     public event EventHandler<IReadOnlyList<OnlineMember>>? RosterChanged;
 
     /// <inheritdoc/>

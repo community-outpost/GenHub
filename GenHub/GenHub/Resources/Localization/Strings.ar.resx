@@ -2050,6 +2050,12 @@
   <data name="Online.Error.WrongPassword" xml:space="preserve">
     <value>كلمة مرور خاطئة لهذه الشبكة.</value>
   </data>
+<data name="Online.Error.NetworkNotFound" xml:space="preserve">
+    <value>لم يتم العثور على الشبكة المطلوبة أو قد تم إغلاقها.</value>
+  </data>
+  <data name="Online.Error.ServiceUnavailable" xml:space="preserve">
+    <value>خدمة الاتصال عبر الإنترنت غير متوفرة حالياً. يرجى التحقق من اتصالك والمحاولة مرة أخرى.</value>
+  </data>
   <data name="Online.Join.PasswordWatermark" xml:space="preserve">
     <value>كلمة مرور الشبكة</value>
   </data>

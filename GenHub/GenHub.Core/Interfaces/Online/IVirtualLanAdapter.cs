@@ -23,6 +23,11 @@ public interface IVirtualLanAdapter
     string? OverlayIp { get; }
 
     /// <summary>
+    /// Gets the last error that occurred during adapter operations, or null if healthy.
+    /// </summary>
+    string? LastError { get; }
+
+    /// <summary>
     /// Occurs when the adapter state changes.
     /// </summary>
     event EventHandler<OnlineAdapterState>? StateChanged;

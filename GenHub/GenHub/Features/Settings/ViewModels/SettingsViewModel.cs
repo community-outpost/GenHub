@@ -1097,7 +1097,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.DownloadBufferSize = (int)(DownloadBufferSizeKB * ConversionConstants.BytesPerKilobyte); // Convert KB to bytes
                 settings.DownloadTimeoutSeconds = DownloadTimeoutSeconds;
                 settings.DownloadUserAgent = DownloadUserAgent;
-                settings.SettingsFilePath = SettingsFilePath;
+                settings.SettingsFilePath = string.IsNullOrWhiteSpace(SettingsFilePath) ? null : SettingsFilePath;
                 settings.CachePath = CachePath;
                 settings.ContentDirectories = [.. (ContentDirectoriesText ?? string.Empty).Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries)];
                 settings.GitHubDiscoveryRepositories = [.. (GitHubDiscoveryRepositoriesText ?? string.Empty)

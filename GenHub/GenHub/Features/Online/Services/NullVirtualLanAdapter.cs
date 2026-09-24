@@ -20,6 +20,9 @@ public sealed class NullVirtualLanAdapter : IVirtualLanAdapter
     public string? OverlayIp => null;
 
     /// <inheritdoc/>
+    public string? LastError { get; private set; }
+
+    /// <inheritdoc/>
     public event EventHandler<OnlineAdapterState>? StateChanged;
 
     /// <inheritdoc/>
@@ -28,14 +31,16 @@ public sealed class NullVirtualLanAdapter : IVirtualLanAdapter
         string overlayIp,
         CancellationToken cancellationToken = default)
     {
+        LastError = "Virtual LAN adapter is not available on this platform.";
         SetState(OnlineAdapterState.Error);
         SetState(OnlineAdapterState.Down);
-        return Task.FromResult(OperationResult<bool>.CreateFailure("Virtual LAN adapter is not available on this platform."));
+        return Task.FromResult(OperationResult<bool>.CreateFailure(LastError));
     }
 
     /// <inheritdoc/>
     public Task<OperationResult<bool>> TearDownAsync(CancellationToken cancellationToken = default)
     {
+        LastError = null;
         SetState(OnlineAdapterState.Down);
         return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
     }

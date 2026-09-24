@@ -2054,6 +2054,12 @@
   <data name="Online.Error.WrongPassword" xml:space="preserve">
     <value>Wrong password for this network.</value>
   </data>
+<data name="Online.Error.NetworkNotFound" xml:space="preserve">
+    <value>The requested online network was not found or has been closed.</value>
+  </data>
+  <data name="Online.Error.ServiceUnavailable" xml:space="preserve">
+    <value>The online matchmaking service is temporarily unavailable. Please check your connection and try again.</value>
+  </data>
   <data name="Online.Join.PasswordWatermark" xml:space="preserve">
     <value>Network password</value>
   </data>
