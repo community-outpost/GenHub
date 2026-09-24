@@ -1241,13 +1241,13 @@ public class GenericCatalogDiscoverer(
         return (sibling, info, artifact);
     }
 
-    private (string? EffectiveProviderName, string? AuthorName, string? IconUrl) ResolvePresentationIdentity(
+    private (string EffectiveProviderName, string? AuthorName, string? IconUrl) ResolvePresentationIdentity(
         PublisherCatalog catalog,
         CatalogContentItem contentItem)
     {
         var effectiveProviderName = !string.IsNullOrWhiteSpace(_subscription?.PublisherName)
             ? _subscription.PublisherName
-            : catalog.Publisher?.Name;
+            : catalog.Publisher.Name;
 
         var authorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
             ? contentItem.Metadata.Author
