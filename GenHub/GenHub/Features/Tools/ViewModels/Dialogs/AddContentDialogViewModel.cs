@@ -226,6 +226,7 @@ public partial class AddContentDialogViewModel(
     /// <param name="localizationService">Optional localization service.</param>
     /// <param name="catalog">Optional parent catalog.</param>
     /// <param name="notificationService">Optional notification service for user feedback.</param>
+    /// <param name="onContentDeleted">Optional callback invoked when the content item is deleted.</param>
     public AddContentDialogViewModel(
         CatalogContentItem existing,
         Action<CatalogContentItem?> onContentSaved,

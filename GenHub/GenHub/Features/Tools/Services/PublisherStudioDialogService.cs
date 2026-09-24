@@ -392,7 +392,7 @@ public class PublisherStudioDialogService(
     }
 
     private static async Task<bool> ShowWizardAsync<TViewModel, TView>(
-        Func<Action, TViewModel> viewModelFactory,
+        Func<Action<bool>, TViewModel> viewModelFactory,
         string title)
         where TViewModel : class
         where TView : Control, new()
@@ -408,9 +408,9 @@ public class PublisherStudioDialogService(
         var mainWindow = GetMainWindow();
         ConstrainDialogToWorkingArea(toolWindow, mainWindow);
 
-        var vm = viewModelFactory(() =>
+        var vm = viewModelFactory(result =>
         {
-            tcs.TrySetResult(true);
+            tcs.TrySetResult(result);
             toolWindow.Close();
         });
         view.DataContext = vm;
@@ -491,12 +491,22 @@ public class PublisherStudioDialogService(
         }
     }
 
-    private static async Task StageInitialArtifactsAsync(AddReleaseDialogViewModel vm, IEnumerable<string>? initialPaths)
+    private async Task StageInitialArtifactsAsync(AddReleaseDialogViewModel vm, IEnumerable<string>? initialPaths)
     {
         var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
         if (pathsList is { Count: > 0 })
         {
-            await vm.AddArtifactsFromPathsAsync(pathsList);
+            try
+            {
+                await vm.AddArtifactsFromPathsAsync(pathsList);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to stage initial artifacts for dialog.");
+                var title = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle") ?? "Could Not Stage Files";
+                var message = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage") ?? "Some dropped files could not be staged and were skipped. See logs for details.";
+                notificationService?.ShowWarning(title, message);
+            }
         }
     }
 

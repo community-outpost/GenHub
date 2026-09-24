@@ -182,4 +182,11 @@ public interface IPublisherStudioDialogService
     /// <param name="title">Title of the dialog.</param>
     /// <returns>The selected directory path, or null if cancelled.</returns>
     Task<string?> ShowFolderPickerAsync(string title);
+
+    /// <summary>
+    /// Shows the rename catalog dialog.
+    /// </summary>
+    /// <param name="currentName">The current name of the catalog.</param>
+    /// <returns>The new catalog name, or null if cancelled.</returns>
+    Task<string?> ShowRenameCatalogDialogAsync(string currentName);
 }
