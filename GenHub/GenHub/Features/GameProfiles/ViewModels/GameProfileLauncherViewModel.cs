@@ -2002,7 +2002,7 @@ public partial class GameProfileLauncherViewModel(
         notificationService.ShowError(localizationService["GameProfiles.Notification.UnexpectedExit.Title"], text);
 
         // A relaunch that is already running owns the status line; a stale exit must not overwrite it.
-        if (profile?.IsProcessRunning != true)
+        if (profile is null || !profile.IsProcessRunning)
         {
             StatusMessage = text;
         }
