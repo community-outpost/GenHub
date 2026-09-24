@@ -33,6 +33,12 @@ public static class GameClientConstants
     /// <summary>Unix Zero Hour client executable filename (extensionless Mach-O or ELF binary).</summary>
     public const string GeneralsOnlineUnixExecutable = "GeneralsOnlineZH";
 
+    /// <summary>Standard executable extension for Windows binaries.</summary>
+    public const string ExeExtension = ".exe";
+
+    /// <summary>Executable extension used by C&amp;C Generals and Zero Hour engine binaries (e.g., game.dat, generals.dat).</summary>
+    public const string DatExtension = ".dat";
+
     // ===== Engine Launch Arguments =====
 
     /// <summary>SAGE engine command-line argument overriding the horizontal resolution.</summary>

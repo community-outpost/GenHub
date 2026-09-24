@@ -513,6 +513,7 @@ public class ReplayCrcMatchingHelperTests
 
         // Executable path overload
         Assert.True(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, "generals.exe"));
+        Assert.True(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, "Game.dat"));
         Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, "generals.flatpakref"));
         Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, "/usr/bin/generalszh"));
         Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.EaApp, "generals.exe"));
@@ -559,6 +560,23 @@ public class ReplayCrcMatchingHelperTests
         };
         Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(zh105));
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(zh105));
+
+        // Steam Zero Hour 1.05 with Game.dat
+        var steamZh105 = new GameClient
+        {
+            Id = "1.105.steam.gameclient.zerohour",
+            Name = "Command & Conquer Generals Zero Hour (Steam)",
+            PublisherType = "Steam",
+            ExecutablePath = "Game.dat",
+            GameType = GameType.ZeroHour,
+            Version = "1.05",
+        };
+        Assert.False(ReplayCrcMatchingHelper.HasNonRetailExecutableFormat(steamZh105));
+        Assert.False(ReplayCrcMatchingHelper.IsNonRetailEngineClient(steamZh105));
+        Assert.True(ReplayCrcMatchingHelper.IsOfficialBaseClient(steamZh105));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(steamZh105));
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(steamZh105));
+        Assert.True(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, steamZh105));
 
         // Generals Online (must be non-retail)
         var goClient = new GameClient
@@ -641,6 +659,48 @@ public class ReplayCrcMatchingHelperTests
             "Steam",
             "0xAC76387F",
             isRetail => Assert.True(isRetail));
+    }
+
+    /// <summary>
+    /// Verifies that IsRetailCompatibleAsync recognizes Steam Zero Hour 1.05 with Game.dat as retail compatible.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_SteamZeroHour105WithGameDat_ReturnsTrue()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_AsyncTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var datPath = Path.Combine(tempDir, "Game.dat");
+        await File.WriteAllTextAsync(datPath, "dummy steam binary");
+
+        try
+        {
+            var profile = new GameProfile
+            {
+                Id = "test-profile-steam-105",
+                Name = "Command & Conquer Generals Zero Hour (Steam)",
+                GameClient = new GameClient
+                {
+                    Id = "1.105.steam.gameclient.zerohour",
+                    Name = "Command & Conquer Generals Zero Hour (Steam)",
+                    PublisherType = "Steam",
+                    GameType = GameType.ZeroHour,
+                    Version = "1.05",
+                    ExecutablePath = datPath,
+                },
+            };
+
+            var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+            Assert.True(isRetail);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 
     /// <summary>
