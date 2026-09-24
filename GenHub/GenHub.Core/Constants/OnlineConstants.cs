@@ -227,6 +227,51 @@ public static class OnlineConstants
     public const string OverlayUnixBinary = "genhub-overlay";
 
     /// <summary>
+    /// Linux TUN control device path.
+    /// </summary>
+    public const string TunDevicePath = "/dev/net/tun";
+
+    /// <summary>
+    /// Sysfs directory listing network interfaces, used to probe TUN existence.
+    /// </summary>
+    public const string TunSysClassNetDirectory = "/sys/class/net";
+
+    /// <summary>
+    /// Default TUN interface name for the overlay.
+    /// </summary>
+    public const string TunDefaultInterfaceName = "genhub0";
+
+    /// <summary>
+    /// Default MTU for the overlay TUN interface.
+    /// </summary>
+    public const int TunDefaultMtu = 1400;
+
+    /// <summary>
+    /// Default overlay subnet prefix length (10.42.0.0/20).
+    /// </summary>
+    public const int TunOverlayPrefixLength = 20;
+
+    /// <summary>
+    /// Sidecar exit code for clean shutdown.
+    /// </summary>
+    public const int SidecarExitSuccess = 0;
+
+    /// <summary>
+    /// Sidecar exit code for command line usage errors.
+    /// </summary>
+    public const int SidecarExitUsage = 1;
+
+    /// <summary>
+    /// Sidecar exit code for configuration errors.
+    /// </summary>
+    public const int SidecarExitConfigError = 2;
+
+    /// <summary>
+    /// Sidecar exit code for TUN attach failures.
+    /// </summary>
+    public const int SidecarExitAttachFailed = 3;
+
+    /// <summary>
     /// Version prefix for online profile fingerprints (length-prefixed hash).
     /// </summary>
     public const string ProfileFingerprintPrefix = "opf3";
@@ -438,8 +483,10 @@ public static class OnlineConstants
     /// <remarks>
     /// The SocketOptionName enumeration exposes no ReusePort member, so callers pass
     /// these native values through the raw socket option API. Linux and macOS disagree
-    /// on both numbers. Windows shares UDP ports through SO_REUSEADDR alone and never
-    /// needs this option.
+    /// on both numbers. Note that SO_REUSEPORT enables port sharing only among cooperative
+    /// sockets that all specify the option; uncooperative processes (such as the legacy game engine)
+    /// binding without reuse options will still encounter EADDRINUSE if another socket holds the port.
+    /// Windows shares UDP ports through SO_REUSEADDR alone and does not use this option.
     /// </remarks>
     /// <returns>The native level and option name for the current Unix platform.</returns>
     public static (int Level, int Name) GetReusePortOption() =>

@@ -720,6 +720,96 @@ MoneyTransactionVolume = 70
     }
 
     /// <summary>
+    /// Verifies that network IP settings are serialized before any [TheSuperHackers] or custom section
+    /// headers so the engine does not treat IPAddress as a section-scoped setting and drop it.
+    /// </summary>
+    [Fact]
+    public async Task SaveOptionsAsync_WithTheSuperHackersSection_ShouldSerializeNetworkBeforeSectionAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        var options = new IniOptions
+        {
+            Network = new NetworkSettings
+            {
+                IPAddress = "10.42.0.77",
+                GameSpyIPAddress = "10.42.0.77",
+            },
+        };
+        options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>
+        {
+            ["GameWindowTransitionSpeedMultiplier"] = "3.5",
+        };
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.SaveOptionsAsync(GameType.ZeroHour, options);
+
+            // Assert
+            Assert.True(result.Success, result.FirstError);
+            var content = await File.ReadAllTextAsync(tempFile);
+            var ipIdx = content.IndexOf("IPAddress=10.42.0.77", StringComparison.Ordinal);
+            var tshIdx = content.IndexOf("[" + GameSettingsTheSuperHackersConstants.SectionName + "]", StringComparison.Ordinal);
+
+            Assert.True(ipIdx >= 0, "IPAddress not found in file");
+            Assert.True(tshIdx >= 0, "[TheSuperHackers] section not found in file");
+            Assert.True(ipIdx < tshIdx, "IPAddress must be serialized before [TheSuperHackers] section header");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that if an existing Options.ini file has IPAddress trapped inside [TheSuperHackers],
+    /// it is extracted into Network.IPAddress and not left in AdditionalSections.
+    /// </summary>
+    [Fact]
+    public async Task LoadOptionsAsync_WithLeakedNetworkInAdditionalSection_ShouldRestoreToNetworkSettingsAsync()
+    {
+        // Arrange
+        var content = @"[TheSuperHackers]
+GameWindowTransitionSpeedMultiplier=3.5
+IPAddress=10.42.0.88
+GameSpyIPAddress=10.42.0.88
+";
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, content);
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.LoadOptionsAsync(GameType.ZeroHour);
+
+            // Assert
+            Assert.True(result.Success, result.FirstError);
+            var options = result.Data!;
+            Assert.Equal("10.42.0.88", options.Network.IPAddress);
+            Assert.Equal("10.42.0.88", options.Network.GameSpyIPAddress);
+            Assert.False(options.AdditionalSections["TheSuperHackers"].ContainsKey("IPAddress"));
+            Assert.False(options.AdditionalSections["TheSuperHackers"].ContainsKey("GameSpyIPAddress"));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
     /// The GeneralsOnline settings.json resolves under the platform Zero Hour user-data directory,
     /// not under the Documents folder.
     /// </summary>

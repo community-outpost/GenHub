@@ -738,7 +738,7 @@ public class OnlineViewModelTests
     /// Tests that an overlong nickname is clamped to the game's limit and persisted clamped.
     /// </summary>
     [Fact]
-    public void Nickname_SetOverlong_ShouldClampToGameLimit()
+    public async Task Nickname_SetOverlong_ShouldClampToGameLimitAsync()
     {
         // Arrange
         string? saved = null;
@@ -755,6 +755,7 @@ public class OnlineViewModelTests
             })
             .ReturnsAsync(true);
         var vm = CreateViewModel(userSettings: settings.Object);
+        vm.NicknameDebounceMs = 10;
         vm.Initialize();
 
         // Act
@@ -762,7 +763,44 @@ public class OnlineViewModelTests
 
         // Assert
         Assert.Equal(new string('C', OnlineConstants.MaxNicknameLength), vm.Nickname);
+        await WaitForAsync(() => saved is not null);
         Assert.Equal(new string('C', OnlineConstants.MaxNicknameLength), saved);
+    }
+
+    /// <summary>
+    /// Tests that rapid keystrokes to Nickname are debounced so only the final value is saved.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Nickname_RapidKeystrokes_ShouldDebouncePersistenceAsync()
+    {
+        // Arrange
+        var savedList = new List<string?>();
+        var settings = new Mock<IUserSettingsService>();
+        settings.Setup(s => s.Get()).Returns(new UserSettings());
+        settings.Setup(s => s.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Callback<Func<UserSettings, bool>>(apply =>
+            {
+                var copy = new UserSettings();
+                if (apply(copy))
+                {
+                    savedList.Add(copy.OnlineNickname);
+                }
+            })
+            .ReturnsAsync(true);
+        var vm = CreateViewModel(userSettings: settings.Object);
+        vm.NicknameDebounceMs = 50;
+        vm.Initialize();
+
+        // Act - simulate typing "A", "Ac", "Ace" rapidly
+        vm.Nickname = "A";
+        vm.Nickname = "Ac";
+        vm.Nickname = "Ace";
+
+        // Assert
+        await WaitForAsync(() => savedList.Count > 0);
+        Assert.Single(savedList);
+        Assert.Equal("Ace", savedList[0]);
     }
 
     /// <summary>
@@ -854,8 +892,8 @@ public class OnlineViewModelTests
         await WaitForAsync(() => advertised.Count > 0);
         advertised.Clear();
 
-        // Act: the user edits the play profile content in Game Profiles.
-        vm.Receive(new ProfileUpdatedMessage(profile));
+        // Act: the user edits the play profile content in Game Profiles (sent via messenger).
+        WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
         await WaitForAsync(() => advertised.Count > 0);
 
         // Assert
@@ -952,6 +990,28 @@ public class OnlineViewModelTests
         {
             Directory.Delete(gameDir, true);
         }
+    }
+
+    /// <summary>
+    /// Tests that the view model registers with WeakReferenceMessenger on construction.
+    /// </summary>
+    [Fact]
+    public void OnlineViewModel_ShouldRegisterWithWeakReferenceMessengerOnConstruction()
+    {
+        using var vm = CreateViewModel();
+        Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(vm));
+    }
+
+    /// <summary>
+    /// Tests that the view model unregisters from WeakReferenceMessenger when disposed.
+    /// </summary>
+    [Fact]
+    public void OnlineViewModel_Dispose_ShouldUnregisterFromWeakReferenceMessenger()
+    {
+        var vm = CreateViewModel();
+        Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(vm));
+        vm.Dispose();
+        Assert.False(WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(vm));
     }
 
     private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AssemblyName>genhub-overlay</AssemblyName>
+        <RootNamespace>GenHub.Overlay</RootNamespace>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="StyleCop.Analyzers" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
+    </ItemGroup>
+</Project>

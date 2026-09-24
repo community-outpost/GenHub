@@ -176,13 +176,16 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
     }
 
     /// <summary>
-    /// Enables UDP port sharing on the discovery listener so the game and the tunnel can both hold the discovery port.
+    /// Enables best-effort UDP port sharing on the discovery listener so cooperative tooling or test harnesses
+    /// can bind the discovery port concurrently.
     /// </summary>
     /// <remarks>
-    /// Windows shares UDP ports through SO_REUSEADDR alone, while Linux and macOS require SO_REUSEPORT for the same
-    /// sharing. Without it, whichever side binds the discovery port first starves the other with a sharing violation.
-    /// The framework exposes no managed ReusePort member, so the native values pass through the raw socket option API.
-    /// Failures are non-fatal and keep the previous single-owner behavior.
+    /// Windows allows cooperative UDP port sharing through SO_REUSEADDR alone, while Unix systems require SO_REUSEPORT.
+    /// Because the native Zero Hour game binary does not set reuse flags before calling bind(), the game engine's
+    /// socket does not cooperate; whichever socket binds wildcard 8086 first will still cause the other to receive
+    /// a sharing violation (EADDRINUSE / WSAEADDRINUSE). Setting this option is best-effort to facilitate coexistence
+    /// with cooperative diagnostic tools, secondary tunnel listeners, or test fixtures. Sockets without reuse options
+    /// fall back gracefully without fatal startup errors.
     /// </remarks>
     /// <param name="socket">The discovery listener socket, not yet bound.</param>
     /// <param name="logger">The logger for the non-fatal fallback notice.</param>
