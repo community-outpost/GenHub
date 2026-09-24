@@ -401,7 +401,7 @@
 
                             <TabControl SelectedIndex="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectedDetailTabIndex, Mode=TwoWay}">
                                 <TabControl.Styles>
-                                <Style Selector="^ /template/ ItemsPresenter#PART_ItemsPresenter">
+                                <Style Selector="TabControl /template/ ItemsPresenter#PART_ItemsPresenter">
                                     <Setter Property="IsVisible" Value="True"/>
                                 </Style>
                                 <Style Selector="TabItem">
