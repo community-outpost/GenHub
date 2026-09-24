@@ -68,9 +68,8 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 new WndTextureImportResult(name, textureFileName, width, height, texturePath, definitionsPath),
                 stopwatch.Elapsed);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogDebug(ex, "Texture import was canceled for {Source}", sourceFilePath);
             throw;
         }
         catch (IOException ex)

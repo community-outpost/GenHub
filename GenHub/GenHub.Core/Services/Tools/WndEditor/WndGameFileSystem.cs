@@ -21,7 +21,7 @@ public static class WndGameFileSystem
     /// Opens a virtual file system with override and mod layers applied.
     /// </summary>
     /// <param name="baseRoot">The primary game root directory (Zero Hour if isZeroHour is true, otherwise Generals).</param>
-    /// <param name="overrideRoot">Optional fallback base root. Ignored for Zero Hour targets, which mount only the Zero Hour install.</param>
+    /// <param name="overrideRoot">Optional fallback base root. Ignored for Zero Hour targets, which enforce strict per-game isolation to keep previews self-contained to the active installation and workspace.</param>
     /// <param name="projectDirectory">Optional mod project directory layered above game files (multiple paths can be semicolon-delimited).</param>
     /// <param name="logger">The logger sink.</param>
     /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
@@ -125,10 +125,12 @@ public static class WndGameFileSystem
     {
         if (isZeroHour)
         {
-            // Zero Hour targets mount only the Zero Hour install. The Zero Hour game
-            // never reads the Generals install folder, so the override root is ignored
-            // here: strict per-game isolation keeps Generals art, strings, and schemes
-            // out of Zero Hour previews instead of leaking them in as fallback.
+            // Zero Hour targets enforce strict per-game isolation: previews mount only
+            // the target Zero Hour install (plus mod project and linked assets).
+            // While the retail Windows game binary mounts Generals BIG archives via
+            // registry lookup as a fallback in Win32BIGFileSystem::init, GenHub isolates
+            // installations so previews truthfully reflect self-contained assets in the
+            // target install or mod without hidden cross-install dependencies.
             return new SageVirtualFileSystem(
                 baseRoot,
                 isZeroHour: true,

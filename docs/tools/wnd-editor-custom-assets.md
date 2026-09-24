@@ -17,17 +17,20 @@ For every mapped image the editor resolves, in order:
 
 Resolution is strictly per-game: a Zero Hour target loads only Zero Hour art
 (plus mod and linked layers), and a Generals target loads only Generals art.
-The games never read each other's install folders, so neither does the
-editor. A Generals-era `.wnd` opened under Zero Hour shows honestly missing
-art for names Zero Hour does not ship; import replacements from the Assets
-tab to fix them.
+Although the retail Windows Zero Hour binary includes a registry-driven fallback
+for Generals `.big` archives (`Win32BIGFileSystem::init`), the editor deliberately
+enforces strict per-game isolation so previews truthfully represent self-contained
+assets in the target install or mod workspace. Under a dual install, any Generals-era
+`.wnd` opened under Zero Hour will report missing art for names that Zero Hour itself
+does not ship, making asset gaps visible so you can import replacements from the Assets
+tab.
 
 The preview status line reports how many referenced images resolved
 (`16 of 16 images`). Anything missing is listed in the tooltip and in the
 Assets tab, and the log records per-image provenance plus a tier summary line:
 
 ```text
-Preview images: 16/16 (definitions: Expansion=14, BaseGame=2; ...)
+Preview images: 16/16 (Expansion=14, BaseGame=2; ...)
 ```
 
 ## Overriding art for a mod

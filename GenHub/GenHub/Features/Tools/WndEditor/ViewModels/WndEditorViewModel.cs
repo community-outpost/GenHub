@@ -36,6 +36,8 @@ namespace GenHub.Features.Tools.WndEditor.ViewModels;
 /// <summary>
 /// ViewModel for the WND editor tool. Edits window definition documents with undo support.
 /// </summary>
+[method: SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required services for WND editor tool orchestrator.")]
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required services for WND editor tool orchestrator.")]
 public sealed partial class WndEditorViewModel(
     IWndDocumentService wndDocumentService,
     INotificationService notificationService,
@@ -1121,7 +1123,8 @@ public sealed partial class WndEditorViewModel(
     [RelayCommand]
     private async Task ImportTexturesWithDialogAsync(CancellationToken cancellationToken = default)
     {
-        var projectDirectory = ResolveImportProjectDirectory();
+        var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
         if (string.IsNullOrEmpty(projectDirectory))
         {
             notificationService.ShowWarning(
@@ -1202,7 +1205,8 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var projectDirectory = ResolveImportProjectDirectory();
+        var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
         if (string.IsNullOrEmpty(projectDirectory))
         {
             notificationService.ShowWarning(
@@ -1310,21 +1314,24 @@ public sealed partial class WndEditorViewModel(
             NotificationDurations.Medium);
     }
 
-    private string? ResolveImportProjectDirectory()
+    private static string? ResolveImportProjectDirectory(
+        string? linkedModFolder,
+        GameInstallationOption? selection,
+        AssetRoots? roots,
+        string? filePath,
+        string? filesDirectory)
     {
-        if (!string.IsNullOrWhiteSpace(LinkedModFolder))
+        if (!string.IsNullOrWhiteSpace(linkedModFolder))
         {
-            return LinkedModFolder;
+            return linkedModFolder;
         }
 
-        var selection = SelectedAssetInstallation;
-        if (selection == null)
+        if (selection == null || roots == null)
         {
             return null;
         }
 
-        var roots = ResolveAssetRoots(selection);
-        return ResolveProjectDirectory(FilePath, roots) ?? ResolveProjectDirectory(FilesDirectory, roots);
+        return ResolveProjectDirectory(filePath, roots) ?? ResolveProjectDirectory(filesDirectory, roots);
     }
 
     private void UpdateLinkedAssetsSummary()
@@ -2460,8 +2467,9 @@ public sealed partial class WndEditorViewModel(
     private static AssetRoots ResolveZeroHourAssetRoots(GameInstallation installation)
     {
         // Strict per-game isolation: a Zero Hour target resolves only the Zero Hour
-        // install (plus mod project and linked assets). Zero Hour never reads the
-        // Generals install folder, so no Generals fallback is attached.
+        // install (plus mod project and linked assets). Although retail Zero Hour mounts
+        // Generals BIG archives via registry fallback, GenHub isolates previews to
+        // ensure mods and installations are self-contained without cross-install dependencies.
         return new AssetRoots(installation.ZeroHourPath, true);
     }
 

@@ -869,20 +869,19 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
             FontBold = false;
         }
 
-        RefreshFontNameOptions();
+        FontNameOptions = RefreshFontNameOptions(FontName);
     }
 
-    private void RefreshFontNameOptions()
+    private static IReadOnlyList<string> RefreshFontNameOptions(string? fontName)
     {
         var systemFonts = SystemFontNames.Value;
-        if (string.IsNullOrWhiteSpace(FontName)
-            || systemFonts.Contains(FontName, StringComparer.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(fontName)
+            || systemFonts.Contains(fontName, StringComparer.OrdinalIgnoreCase))
         {
-            FontNameOptions = systemFonts;
-            return;
+            return systemFonts;
         }
 
-        FontNameOptions = new[] { FontName }.Concat(systemFonts).ToList();
+        return new[] { fontName }.Concat(systemFonts).ToList();
     }
 
     private static IReadOnlyList<string> CollectSystemFontNames()

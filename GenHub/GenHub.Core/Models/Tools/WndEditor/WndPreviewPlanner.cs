@@ -133,8 +133,8 @@ public static class WndPreviewPlanner
     {
         var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
         var single = ImageAt(drawData, WndConstants.Preview.DefaultImageIndex);
-        var drawsText = controlType is WndControlType.CheckBox or WndControlType.RadioButton or WndControlType.StaticText;
-        var glyph = controlType is WndControlType.CheckBox or WndControlType.RadioButton
+        var drawsText = controlType is WndControlType.CheckBox or WndControlType.StaticText;
+        var glyph = controlType is WndControlType.CheckBox
             ? ImageAt(drawData, WndConstants.Preview.BoxGlyphImageIndex)
             : null;
         return new WndPreviewPlan(
