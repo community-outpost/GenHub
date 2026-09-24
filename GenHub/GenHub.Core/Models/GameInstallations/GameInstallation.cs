@@ -180,6 +180,8 @@ public class GameInstallation(
             logger?.LogDebug("Initializing installation scan - Current state: HasGenerals={HasGenerals}, HasZeroHour={HasZeroHour}", HasGenerals, HasZeroHour);
             logger?.LogDebug("Fetching game installations for {InstallationPath}", InstallationPath);
 
+            HasGenerals = false;
+            HasZeroHour = false;
             bool foundGenerals = false;
             bool foundZeroHour = false;
 

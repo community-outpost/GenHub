@@ -13,6 +13,51 @@ namespace GenHub.Tests.Core.Models.GameInstallations;
 /// </summary>
 public class GameInstallationTests
 {
+    /// <summary>Rescanning removes stale game flags and can rediscover restored archives.</summary>
+    /// <param name="removeGenerals">Whether the Generals archive is removed.</param>
+    /// <param name="removeZeroHour">Whether the Zero Hour archive is removed.</param>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void Fetch_AfterArchivesRemoved_RefreshesPresence(bool removeGenerals, bool removeZeroHour)
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.Rescan.").FullName;
+        try
+        {
+            var generalsArchive = Path.Combine(root, "INI.big");
+            var zeroHourArchive = Path.Combine(root, "INIZH.big");
+            File.WriteAllText(generalsArchive, "archive");
+            File.WriteAllText(zeroHourArchive, "archive");
+            var installation = new GameInstallation(root, GameInstallationType.Retail);
+            installation.Fetch();
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+            if (removeGenerals)
+            {
+                File.Delete(generalsArchive);
+            }
+
+            if (removeZeroHour)
+            {
+                File.Delete(zeroHourArchive);
+            }
+
+            installation.Fetch();
+            Assert.Equal(!removeGenerals, installation.HasGenerals);
+            Assert.Equal(!removeZeroHour, installation.HasZeroHour);
+            Assert.False(installation.IsCombinedDirectory);
+            File.WriteAllText(generalsArchive, "archive");
+            File.WriteAllText(zeroHourArchive, "archive");
+            installation.Fetch();
+            Assert.True(installation.IsCombinedDirectory);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     /// <summary>Combined named children supply both games while dedicated paths retain precedence.</summary>
     /// <param name="generalsNamed">Whether the combined child uses the Generals name.</param>
     /// <param name="separateSibling">Whether the other game has its own named directory.</param>
