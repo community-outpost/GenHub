@@ -34,7 +34,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: resx-auto-merge-${{ github.ref }}
+  group: resx-auto-merge
   cancel-in-progress: false
 
 jobs:
@@ -52,13 +52,13 @@ jobs:
           persist-credentials: false
 
       - name: Detect Changed Paths
-        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           filters: |
             resx:
               - '.gitattributes'
-              - 'GenHub/GenHub/Resources/Localization/*.resx'
+              - '**/*.resx'
               - 'scripts/git_merge_resx.py'
               - 'scripts/validate_resx.py'
               - 'scripts/auto_merge_development.py'
@@ -69,6 +69,9 @@ jobs:
     needs: detect-changes
     if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.resx == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     timeout-minutes: 30
 
     steps:

@@ -1,177 +1,209 @@
 #!/usr/bin/env python3
 """Key-level 3-way merge driver for .NET .resx localization files.
 
-Selected by the ``merge=resx`` attribute in .gitattributes and run
-automatically by the Resx Auto Merge workflow
-(.github/workflows/resx-auto-merge.yml), which configures the driver
-before merging development into open pull requests. Nobody needs to
-configure or invoke it by hand.
+Standard line-based merge tools (and git's built-in merge=union) frequently
+break XML structure in .resx files when both branches add new resources:
+adjacent insertions align on shared anchor lines and can silently drop a
+</data> closing tag, producing invalid XML that still reports a clean merge.
 
-Git invokes the driver as ``script <ancestor> <current> <other>``. The merged
-result is written back to ``<current>``. Exit codes: 0 means cleanly merged,
-1 means conflicting blocks remain (written with familiar ``<<<<<<<`` markers
-for manual resolution), 2 means an input file could not be read or parsed.
+This driver parses each file into:
+- header lines (XML declaration, root open, resheader elements, comments);
+- <data name="...">...</data> blocks keyed by resource name;
+- footer lines (root close).
 
-Why blocks instead of lines: git's built-in ``merge=union`` aligns insertions
-from both sides at the same anchor line and can silently drop a ``</data>``
-closing tag, producing malformed XML while reporting success. Merging whole
-``<data name="...">...</data>`` blocks by key makes that impossible:
-insertions on both sides are independent keys and both survive. Only a genuine
-same-key disagreement stops the merge.
+Merge rules:
+- additions on one side only are kept;
+- additions on both sides are both kept, with deterministic placement;
+- identical edits on both sides merge cleanly (single copy);
+- edits on one side only win;
+- delete vs modify is a conflict;
+- different edits to the same key produce standard <<<<<<< / ======= / >>>>>>>
+  conflict markers wrapped around the conflicting <data> blocks;
+- case-only collisions (e.g. key "foo" added on one side and "Foo" on the other)
+  are flagged as conflicts because MSBuild resource generation is
+  case-insensitive on Windows;
+- non-<data> content (resheaders, comments, schema) is compared: if both sides
+  touched it differently, standard conflict markers are emitted.
 
-Only the Python standard library is used so the driver runs on every
-developer machine and CI runner without extra dependencies.
+Fallback behavior:
+- if any input cannot be parsed or validation of the merged output fails, the
+  driver falls back to standard line-based 3-way merging (git merge-file --diff3).
+  Review the result manually in that case.
+
+Configured in .gitattributes via:
+    *.resx merge=resx
+
+And registered in git config via:
+    git config merge.resx.driver "python scripts/git_merge_resx.py %O %A %B"
+(use "python3" on Linux/macOS).
+
+Exit codes (standard git merge driver contract):
+    0: merge completed cleanly;
+    1: conflicts left in current file;
+    2: fatal error (abort the merge).
+
+Only the Python standard library is used.
 """
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as element_tree
 
-DATA_OPEN_RE = re.compile(r'<data\b[^>]*?\bname="([^"]+)"')
-DATA_CLOSE = '</data>'
-DATA_SELF_CLOSE_RE = re.compile(r'<data\b[^>]*?/>')
+EXIT_OK = 0
+EXIT_CONFLICT = 1
+EXIT_ERROR = 2
 
 MARKER_CURRENT = '<<<<<<< current'
 MARKER_ANCESTOR = '||||||| ancestor'
 MARKER_SEPARATOR = '======='
 MARKER_OTHER = '>>>>>>> other'
 
-EXIT_OK = 0
-EXIT_CONFLICT = 1
-EXIT_ERROR = 2
-
-_UTF8_BOM = b'\xef\xbb\xbf'
-
+KEY_RENAMED = 'K.B-renamed'
 TEST_XML_DECL = '<?xml version="1.0" encoding="utf-8"?>'
 TEST_ROOT_OPEN = '<root>'
-TEST_ROOT_CLOSE = '</root>'
-TEST_RESHEADER_OPEN = '  <resheader name="version">'
-TEST_RESHEADER_VALUE = '    <value>2.0</value>'
+TEST_RESHEADER_OPEN = '  <resheader name="resmimetype">'
+TEST_RESHEADER_VALUE = '    <value>text/microsoft-resx</value>'
 TEST_RESHEADER_CLOSE = '  </resheader>'
-KEY_RENAMED = 'K.Renamed'
+TEST_ROOT_CLOSE = '</root>'
+
+RE_DATA_OPEN = re.compile(r'^\s*<data\s+name=(["\'])(.*?)\1', re.IGNORECASE)
+RE_DATA_CLOSE = re.compile(r'</data>', re.IGNORECASE)
 
 
 class ResxError(Exception):
-    """Raised when an input file is not a readable .resx document."""
+    """Raised when a resx file cannot be parsed or validated."""
 
 
-def read_input(path):
-    """Read a resx file, returning (lines, newline, has_bom, has_trailing_nl)."""
+def detect_line_ending(raw_bytes):
+    """Return the dominant line ending (CRLF or LF) as a string."""
+    crlf_count = raw_bytes.count(b'\r\n')
+    lf_only_count = raw_bytes.count(b'\n') - crlf_count
+    return '\r\n' if crlf_count >= lf_only_count else '\n'
+
+
+def load_raw_text(path):
+    with open(path, 'rb') as handle:
+        raw = handle.read()
+    has_bom = raw.startswith(b'\xef\xbb\xbf')
+    if has_bom:
+        raw = raw[3:]
+    newline = detect_line_ending(raw)
     try:
-        with open(path, 'rb') as handle:
-            raw = handle.read()
-    except OSError as exc:
-        raise ResxError(f'cannot read {path}: {exc}') from exc
-    has_bom = raw.startswith(_UTF8_BOM)
-    body = raw[len(_UTF8_BOM):] if has_bom else raw
-    try:
-        text = body.decode('utf-8')
+        text = raw.decode('utf-8')
     except UnicodeDecodeError as exc:
-        raise ResxError(f'cannot decode {path} as UTF-8: {exc}') from exc
-    newline = '\r\n' if '\r\n' in text else '\n'
-    normalized = text.replace('\r\n', '\n')
-    has_trailing_nl = normalized.endswith('\n')
-    lines = normalized.split('\n')
-    if has_trailing_nl:
-        lines = lines[:-1]
-    return lines, newline, has_bom, has_trailing_nl
+        raise ResxError(f'{path}: not valid UTF-8: {exc}') from exc
+    return text, newline, has_bom
 
 
-def _find_block_end(lines, i, total, key):
-    line = lines[i]
-    if DATA_SELF_CLOSE_RE.search(line) is not None or DATA_CLOSE in line:
-        return i
-    for j in range(i + 1, total):
-        if DATA_CLOSE in lines[j]:
-            return j
-        if DATA_OPEN_RE.search(lines[j]) is not None:
-            raise ResxError(
-                f'unclosed <data name="{key}"> block '
-                f'(next block starts before {DATA_CLOSE})'
-            )
-    raise ResxError(f'unclosed <data name="{key}"> block at end of file')
+def extract_header_and_body(lines, path):
+    first_data_idx = None
+    for idx, line in enumerate(lines):
+        if RE_DATA_OPEN.search(line):
+            first_data_idx = idx
+            break
+
+    if first_data_idx is None:
+        close_idx = None
+        for idx in range(len(lines) - 1, -1, -1):
+            if '</root>' in lines[idx]:
+                close_idx = idx
+                break
+        if close_idx is None:
+            raise ResxError(f'{path}: missing </root> element')
+        return list(lines[:close_idx]), list(lines[close_idx:]), []
+
+    last_data_close = None
+    for idx in range(len(lines) - 1, first_data_idx - 1, -1):
+        if RE_DATA_CLOSE.search(lines[idx]):
+            last_data_close = idx
+            break
+
+    if last_data_close is None:
+        raise ResxError(f'{path}: unclosed <data> element')
+
+    footer_start = last_data_close + 1
+    return list(lines[:first_data_idx]), list(lines[footer_start:]), list(lines[first_data_idx:footer_start])
 
 
-def split_blocks(lines):
-    """Split lines into (header, [(key, block_lines)], footer).
+def parse_data_blocks(body_lines, path):
+    by_key = {}
+    order = []
+    current_key = None
+    current_block = []
 
-    A block runs from after the previous block through the line containing
-    </data>. Preserves blank lines or comments between data blocks.
-    """
-    blocks = []
-    first_start = None
-    last_end = None
-    i = 0
-    total = len(lines)
-    while i < total:
-        match = DATA_OPEN_RE.search(lines[i])
-        if match is None:
-            i += 1
+    for line in body_lines:
+        match = RE_DATA_OPEN.search(line)
+        if match:
+            if current_key is not None:
+                raise ResxError(f'{path}: nested <data> tag at line: {line.strip()}')
+            current_key = match.group(2)
+            current_block = [line]
+            if RE_DATA_CLOSE.search(line):
+                _record_block(path, current_key, current_block, by_key, order)
+                current_key = None
+                current_block = []
             continue
-        key = match.group(1)
-        if not key:
-            raise ResxError('found a <data> block with an empty name')
-        if first_start is None:
-            first_start = i
-            start = i
+
+        if current_key is not None:
+            current_block.append(line)
+            if RE_DATA_CLOSE.search(line):
+                _record_block(path, current_key, current_block, by_key, order)
+                current_key = None
+                current_block = []
         else:
-            start = last_end + 1
-        end = _find_block_end(lines, i, total, key)
-        blocks.append((key, lines[start:end + 1]))
-        last_end = end
-        i = end + 1
-    if first_start is None:
-        return list(lines), [], []
-    return lines[:first_start], blocks, lines[last_end + 1:]
+            if line.strip() and not line.strip().startswith('<!--'):
+                raise ResxError(f'{path}: unexpected non-data content: {line.strip()}')
+
+    if current_key is not None:
+        raise ResxError(f'{path}: unclosed <data name="{current_key}"> block at end of file')
+
+    return by_key, order
+
+
+def _record_block(path, key, block, by_key, order):
+    if key in by_key:
+        raise ResxError(f'{path}: duplicate resource key "{key}"')
+    by_key[key] = block
+    order.append(key)
 
 
 def load_document(path):
-    """Load a resx file into (header, {key: block_lines}, [keys], footer)."""
-    lines, newline, has_bom, has_trailing_nl = read_input(path)
-    header, blocks, footer = split_blocks(lines)
-    by_key = {}
-    order = []
-    for key, block in blocks:
-        if key in by_key:
-            raise ResxError(f'{path} contains the key "{key}" more than once')
-        by_key[key] = block
-        order.append(key)
+    text, newline, has_bom = load_raw_text(path)
+    has_trailing_nl = text.endswith('\r\n') or (not text.endswith('\r\n') and text.endswith('\n'))
+    lines = text.splitlines()
+
+    header, footer, body = extract_header_and_body(lines, path)
+    by_key, order = parse_data_blocks(body, path)
+
     return {
-        'header': header,
-        'by_key': by_key,
-        'order': order,
-        'footer': footer,
+        'path': path,
         'newline': newline,
         'has_bom': has_bom,
         'has_trailing_nl': has_trailing_nl,
+        'header': header,
+        'footer': footer,
+        'by_key': by_key,
+        'order': order,
     }
 
 
-def merge_snippet(base, current, other):
-    """Three-way merge of an unordered line run; None when unresolvable."""
-    if current == other or base == other:
-        return current
-    if base == current:
-        return other
-    return None
-
-
-def merge_sections(base_sec, current_sec, other_sec, label):
-    """Three-way merge of header or footer lines with conflict markers on disagreement."""
-    merged = merge_snippet(base_sec, current_sec, other_sec)
-    if merged is not None:
-        return merged, False
+def merge_sections(base, current, other, label):
+    if current == other or current == base:
+        return other, False
+    if other == base:
+        return current, False
     conflict = [
         f'{MARKER_CURRENT} ({label})',
-        *current_sec,
+        *current,
         f'{MARKER_ANCESTOR} ({label})',
-        *base_sec,
+        *base,
         MARKER_SEPARATOR,
-        *other_sec,
-        f'{MARKER_OTHER} ({label})',
+        *other,
+        MARKER_OTHER,
     ]
     return conflict, True
 
@@ -189,43 +221,6 @@ def _group_keys_by_fold(base, current, other):
     return groups
 
 
-def _resolve_single_key(name, base, current, other):
-    """Three-way merge for a single key that appears with identical casing on all sides."""
-    in_base = name in base['by_key']
-    in_cur = name in current['by_key']
-    in_oth = name in other['by_key']
-
-    if in_cur and in_oth:
-        cur_block = current['by_key'][name]
-        oth_block = other['by_key'][name]
-        if cur_block == oth_block:
-            return cur_block, False
-        if in_base:
-            base_block = base['by_key'][name]
-            if cur_block == base_block:
-                return oth_block, False
-            if oth_block == base_block:
-                return cur_block, False
-            return _format_conflict(base_block, cur_block, oth_block), True
-        return _format_conflict([], cur_block, oth_block), True
-
-    if in_cur and not in_oth:
-        if in_base and current['by_key'][name] == base['by_key'][name]:
-            return [], False
-        if not in_base:
-            return current['by_key'][name], False
-        return _format_conflict(base['by_key'][name], current['by_key'][name], []), True
-
-    if in_oth and not in_cur:
-        if in_base and other['by_key'][name] == base['by_key'][name]:
-            return [], False
-        if not in_base:
-            return other['by_key'][name], False
-        return _format_conflict(base['by_key'][name], [], other['by_key'][name]), True
-
-    return [], False
-
-
 def _format_conflict(base_lines, cur_lines, oth_lines):
     return [
         MARKER_CURRENT,
@@ -236,6 +231,45 @@ def _format_conflict(base_lines, cur_lines, oth_lines):
         *oth_lines,
         MARKER_OTHER,
     ]
+
+
+def _resolve_both_present(base_block, cur_block, oth_block):
+    """Resolve a key present in both current and other."""
+    if cur_block == oth_block:
+        return cur_block, False
+    if base_block is not None:
+        if cur_block == base_block:
+            return oth_block, False
+        if oth_block == base_block:
+            return cur_block, False
+        return _format_conflict(base_block, cur_block, oth_block), True
+    return _format_conflict([], cur_block, oth_block), True
+
+
+def _resolve_one_sided(present_block, base_block, is_current):
+    """Resolve a key present on only one side (added or other deleted)."""
+    if base_block is not None:
+        if present_block == base_block:
+            return [], False
+        cur_lines = present_block if is_current else []
+        oth_lines = [] if is_current else present_block
+        return _format_conflict(base_block, cur_lines, oth_lines), True
+    return present_block, False
+
+
+def _resolve_single_key(name, base, current, other):
+    """Three-way merge for a single key that appears with identical casing on all sides."""
+    base_block = base['by_key'].get(name)
+    cur_block = current['by_key'].get(name)
+    oth_block = other['by_key'].get(name)
+
+    if cur_block is not None and oth_block is not None:
+        return _resolve_both_present(base_block, cur_block, oth_block)
+    if cur_block is not None:
+        return _resolve_one_sided(cur_block, base_block, is_current=True)
+    if oth_block is not None:
+        return _resolve_one_sided(oth_block, base_block, is_current=False)
+    return [], False
 
 
 def _resolve_fold_group(names, base, current, other):
@@ -258,15 +292,15 @@ def _resolve_fold_group(names, base, current, other):
 
 def _anchor_index(target_index, resolved, target_order):
     """Return the output index of the latest target key that has already been placed."""
-    for key in reversed(target_order[:target_index]):
-        fold = key.casefold()
-        if fold in resolved:
-            return resolved[fold]
+    for i in range(target_index - 1, -1, -1):
+        prev = target_order[i]
+        if prev in resolved:
+            return resolved[prev]
     return -1
 
 
 def _place_surviving_keys(ordered_folds, fold_to_chunks, current_order, other_order):
-    """Insert surviving keys into a deterministic order with adjacent insertions paired."""
+    """Preserve ancestor order for surviving base keys, then insert side-specific additions."""
     current_folds = [k.casefold() for k in current_order if k.casefold() in fold_to_chunks]
     other_folds = [k.casefold() for k in other_order if k.casefold() in fold_to_chunks]
     output = []
@@ -339,21 +373,24 @@ def write_output(path, lines, newline, has_bom, has_trailing_nl):
         text += newline
     raw = text.encode('utf-8')
     if has_bom:
-        raw = _UTF8_BOM + raw
+        raw = b'\xef\xbb\xbf' + raw
+
     dir_name = os.path.dirname(os.path.abspath(path))
-    temp_file = tempfile.NamedTemporaryFile(mode='wb', dir=dir_name, delete=False)
-    temp_path = temp_file.name
+    temp_handle = tempfile.NamedTemporaryFile(
+        mode='wb', dir=dir_name, delete=False, prefix='resx_merge_', suffix='.tmp'
+    )
+    temp_path = temp_handle.name
     try:
-        temp_file.write(raw)
-        temp_file.flush()
-        temp_file.close()
+        temp_handle.write(raw)
+        temp_handle.flush()
+        temp_handle.close()
         os.replace(temp_path, path)
     except Exception:
-        try:
-            if os.path.exists(temp_path):
+        if os.path.exists(temp_path):
+            try:
                 os.remove(temp_path)
-        except OSError:
-            pass
+            except OSError:
+                pass
         raise
 
 
@@ -409,26 +446,30 @@ def merge_files(ancestor_path, current_path, other_path):
             sys.stderr.write(f'git_merge_resx: merged XML validation failed for {current_path}: {exc}\n')
             return fallback_line_merge(ancestor_path, current_path, other_path)
     try:
-        write_output(current_path, output, current['newline'],
-                     current['has_bom'], current['has_trailing_nl'])
+        write_output(
+            current_path,
+            output,
+            current['newline'],
+            current['has_bom'],
+            current['has_trailing_nl'],
+        )
     except OSError as exc:
-        sys.stderr.write(f'git_merge_resx: cannot write {current_path}: {exc}\n')
+        sys.stderr.write(f'git_merge_resx: cannot write output: {exc}\n')
         return EXIT_ERROR
+
     if had_conflict:
         sys.stderr.write(f'git_merge_resx: conflicting blocks remain in {current_path}\n')
         return EXIT_CONFLICT
+
     return EXIT_OK
 
 
 def main(argv):
-    if len(argv) == 2 and argv[1] == '--self-test':
-        failures = run_self_test()
-        return EXIT_ERROR if failures else EXIT_OK
+    if len(argv) == 2 and argv[1] in ('--self-test', '--test'):
+        return run_self_test()
     if len(argv) != 4:
-        sys.stderr.write(
-            'usage: git_merge_resx.py <ancestor> <current> <other>\n'
-            '   or: git_merge_resx.py --self-test\n'
-        )
+        sys.stderr.write('usage: git_merge_resx.py <ancestor> <current> <other>\n')
+        sys.stderr.write('       git_merge_resx.py --self-test\n')
         return EXIT_ERROR
     return merge_files(argv[1], argv[2], argv[3])
 
@@ -444,7 +485,7 @@ _TEST_FOOTER = [TEST_ROOT_CLOSE]
 
 
 def _block(key, value, comment=None):
-    lines = [f'  <data name="{key}" xml:space=\"preserve\">',
+    lines = [f'  <data name="{key}" xml:space="preserve">',
              f'    <value>{value}</value>']
     if comment is not None:
         lines.append(f'    <comment>{comment}</comment>')
@@ -465,78 +506,33 @@ def _doc_keys(text):
     return [node.get('name') for node in root.iter('data')]
 
 
-def _run_merge_test(name, base, current, other, expect_exit, verify):
-    paths = []
-    try:
-        for text in (base, current, other):
-            handle = tempfile.NamedTemporaryFile(
-                'w', suffix='.resx', delete=False, encoding='utf-8')
-            handle.write(text)
-            handle.close()
-            paths.append(handle.name)
-        code = merge_files(paths[0], paths[1], paths[2])
-        with open(paths[1], 'r', encoding='utf-8') as handle:
-            result = handle.read()
-    finally:
-        for path in paths:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
-    problems = []
-    if code != expect_exit:
-        problems.append(f'exit {code}, expected {expect_exit}')
-    else:
-        try:
-            problems.extend(verify(result) or [])
-        except element_tree.ParseError as exc:
-            problems.append(f'result is not well-formed XML: {exc}')
-    if problems:
-        sys.stderr.write(f"FAIL {name}: {'; '.join(problems)}\n")
-        return False
-    sys.stdout.write(f'ok {name}\n')
-    return True
+def _write_temp(directory, name, content):
+    path = os.path.join(directory, name)
+    mode = 'wb' if isinstance(content, bytes) else 'w'
+    encoding = None if isinstance(content, bytes) else 'utf-8'
+    with open(path, mode, encoding=encoding) as handle:
+        handle.write(content)
+    return path
 
 
-def _run_bom_crlf_test(a):
-    name = 'bom-crlf-preserved'
-    current_raw = (_UTF8_BOM
-                   + _doc(a).replace('\n', '\r\n').encode('utf-8'))
-    base_raw = _doc(a).encode('utf-8')
-    other_raw = _doc(a + [('K.E', 'e', None)]).encode('utf-8')
-    paths = []
+def _run_merge_test(name, base_text, cur_text, oth_text, exp_code, verifier):
+    tmp = tempfile.mkdtemp(prefix='resx_test_')
     try:
-        for raw in (base_raw, current_raw, other_raw):
-            handle = tempfile.NamedTemporaryFile(
-                'wb', suffix='.resx', delete=False)
-            handle.write(raw)
-            handle.close()
-            paths.append(handle.name)
-        code = merge_files(paths[0], paths[1], paths[2])
-        with open(paths[1], 'rb') as handle:
+        base_path = _write_temp(tmp, 'base.resx', base_text)
+        cur_path = _write_temp(tmp, 'cur.resx', cur_text)
+        oth_path = _write_temp(tmp, 'oth.resx', oth_text)
+        code = merge_files(base_path, cur_path, oth_path)
+        if code != exp_code:
+            sys.stdout.write(f'FAIL {name}: exit code {code}, expected {exp_code}\n')
+            return False
+        with open(cur_path, 'r', encoding='utf-8') as handle:
             result = handle.read()
+        errors = verifier(result)
+        if errors:
+            sys.stdout.write(f'FAIL {name}: {", ".join(errors)}\n')
+            return False
     finally:
-        for path in paths:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
-    problems = []
-    if code != EXIT_OK:
-        problems.append(f'exit {code}, expected {EXIT_OK}')
-    if not result.startswith(_UTF8_BOM):
-        problems.append('BOM was dropped')
-    if b'\r\n' not in result or result.replace(b'\r\n', b'').find(b'\n') != -1:
-        problems.append('CRLF line endings were not preserved')
-    try:
-        keys = _doc_keys(result.decode('utf-8-sig'))
-        if 'K.E' not in keys:
-            problems.append('other-side key K.E missing')
-    except element_tree.ParseError as exc:
-        problems.append(f'result is not well-formed XML: {exc}')
-    if problems:
-        sys.stderr.write(f"FAIL {name}: {'; '.join(problems)}\n")
-        return False
+        shutil.rmtree(tmp, ignore_errors=True)
     sys.stdout.write(f'ok {name}\n')
     return True
 
@@ -618,6 +614,11 @@ def _get_self_test_cases(a):
          EXIT_OK, _expect_keys('K.A', 'K.B', 'K.E')),
         ('no-op-byte-identical', _doc(a), _doc(a), _doc(a), EXIT_OK,
          lambda res: [] if res == _doc(a) else ['no-op merge changed bytes']),
+        ('corrupt-input-fallback',
+         _doc(a).replace('</data>', ''),
+         _doc([('K.A', 'a-cur', None), ('K.B', 'b', None)]).replace('</data>', ''),
+         _doc([('K.A', 'a-oth', None), ('K.B', 'b', None)]).replace('</data>', ''),
+         EXIT_CONFLICT, _verify_conflict_markers),
     ]
 
 
@@ -647,6 +648,34 @@ def _run_header_merge_test():
         EXIT_CONFLICT,
         _verify_conflict_markers,
     )
+
+
+def _run_bom_crlf_test(a):
+    bom_raw = b'\xef\xbb\xbf' + _doc(a).replace('\n', '\r\n').encode('utf-8')
+    cur_raw = b'\xef\xbb\xbf' + _doc(a + [('K.C', 'c', None)]).replace('\n', '\r\n').encode('utf-8')
+    oth_raw = b'\xef\xbb\xbf' + _doc([('K.D', 'd', None)] + a).replace('\n', '\r\n').encode('utf-8')
+    tmp = tempfile.mkdtemp(prefix='resx_test_')
+    try:
+        base_path = _write_temp(tmp, 'base.resx', bom_raw)
+        cur_path = _write_temp(tmp, 'cur.resx', cur_raw)
+        oth_path = _write_temp(tmp, 'oth.resx', oth_raw)
+        code = merge_files(base_path, cur_path, oth_path)
+        if code != EXIT_OK:
+            sys.stdout.write(f'FAIL bom-crlf-preserved: exit code {code}\n')
+            return False
+        with open(cur_path, 'rb') as handle:
+            res_bytes = handle.read()
+        if not res_bytes.startswith(b'\xef\xbb\xbf'):
+            sys.stdout.write('FAIL bom-crlf-preserved: BOM lost\n')
+            return False
+        body_no_bom = res_bytes[3:]
+        if b'\r\n' not in body_no_bom or (body_no_bom.count(b'\n') != body_no_bom.count(b'\r\n')):
+            sys.stdout.write('FAIL bom-crlf-preserved: CRLF not preserved\n')
+            return False
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    sys.stdout.write('ok bom-crlf-preserved\n')
+    return True
 
 
 def run_self_test():
