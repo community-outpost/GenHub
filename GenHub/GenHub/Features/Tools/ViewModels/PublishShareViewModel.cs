@@ -1233,6 +1233,11 @@ public partial class PublishShareViewModel(
         return url;
     }
 
+    private static bool IsValidHttpUrl(string? url) =>
+        !string.IsNullOrWhiteSpace(url) &&
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
     private static (string Name, string Url, long Size)? FindInArtifacts(IEnumerable<ReleaseArtifact>? artifacts, string sha256)
     {
         if (artifacts == null)
@@ -1555,10 +1560,6 @@ public partial class PublishShareViewModel(
         }
     }
 
-    private static bool IsValidHttpUrl(string? url) =>
-        !string.IsNullOrWhiteSpace(url) &&
-        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     private async Task<long?> ProbeRangedGetSizeAsync(HttpClient client, string url, CancellationToken cancellationToken)
     {

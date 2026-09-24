@@ -221,10 +221,10 @@ public partial class PublisherProfileViewModel(
         var provider = parentViewModel?.PublishShareViewModel?.SelectedHostingProvider;
         if (provider == null || !provider.IsAuthenticated)
         {
-            notificationService?.ShowWarning(
-                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningTitle") ?? "Local Avatar Set",
-                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningMessage")
-                    ?? "Local avatar image cannot be saved directly. Please connect a hosting provider to upload avatars, or enter a remote image URL.");
+            var warningTitle = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningTitle") ?? "Local Avatar Set";
+            var warningMessage = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarLocalWarningMessage")
+                ?? "Local avatar image cannot be saved directly. Please connect a hosting provider to upload avatars, or enter a remote image URL.";
+            notificationService?.ShowWarning(warningTitle, warningMessage);
             return;
         }
 
@@ -235,11 +235,10 @@ public partial class PublisherProfileViewModel(
     {
         try
         {
-            notificationService?.ShowInfo(
-                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingTitle") ?? "Uploading Avatar",
-                string.Format(
-                    localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingMessage") ?? "Uploading avatar to {0}...",
-                    provider.DisplayName));
+            var infoTitle = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingTitle") ?? "Uploading Avatar";
+            var msgFormat = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingMessage") ?? "Uploading avatar to {0}...";
+            var infoMessage = string.Format(msgFormat, provider.DisplayName);
+            notificationService?.ShowInfo(infoTitle, infoMessage);
 
             await using var stream = File.OpenRead(filePath);
             var fileName = Path.GetFileName(filePath);
@@ -252,16 +251,16 @@ public partial class PublisherProfileViewModel(
                 {
                     AvatarUrl = directUrl;
                     MarkDirty();
-                    notificationService?.ShowSuccess(
-                        localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle") ?? "Avatar Uploaded",
-                        localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage") ?? "Avatar uploaded and updated successfully.");
+                    var successTitle = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle") ?? "Avatar Uploaded";
+                    var successMessage = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage") ?? "Avatar uploaded and updated successfully.";
+                    notificationService?.ShowSuccess(successTitle, successMessage);
                     return;
                 }
             }
 
-            notificationService?.ShowError(
-                localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Avatar Upload Failed",
-                result.FirstError ?? "Failed to upload avatar to hosting provider.");
+            var errorTitle = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Avatar Upload Failed";
+            var errorMessage = result.FirstError ?? "Failed to upload avatar to hosting provider.";
+            notificationService?.ShowError(errorTitle, errorMessage);
         }
         catch (Exception ex)
         {
