@@ -527,9 +527,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var defMix = new Dictionary<string, int>(StringComparer.Ordinal);
         var lowerTextures = new List<string>();
         var tierFallbacks = new List<string>();
-        foreach (var pair in resolved)
+        foreach (var key in resolved.Keys)
         {
-            if (!_provenanceCache.TryGetValue(CacheKey(index.Key, pair.Key), out var provenance))
+            if (!_provenanceCache.TryGetValue(CacheKey(index.Key, key), out var provenance))
             {
                 continue;
             }
@@ -538,14 +538,14 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             defMix[defLabel] = defMix.TryGetValue(defLabel, out var count) ? count + 1 : 1;
             if (provenance.TextureClass == TextureMatchClass.LowerTier)
             {
-                lowerTextures.Add(pair.Key);
+                lowerTextures.Add(key);
             }
 
             if (provenance.DefinitionTier != null
-                && requests.TryGetValue(pair.Key, out var best)
+                && requests.TryGetValue(key, out var best)
                 && provenance.DefinitionTier.Value < best.Tier)
             {
-                tierFallbacks.Add(pair.Key);
+                tierFallbacks.Add(key);
             }
         }
 

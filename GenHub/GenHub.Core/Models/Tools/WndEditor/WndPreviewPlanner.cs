@@ -298,45 +298,13 @@ public static class WndPreviewPlanner
         WndPreviewPlan plan,
         IReadOnlyDictionary<string, string>? overrides)
     {
-        var single = plan.SingleImage;
-        var underlay = plan.UnderlayImage;
-
         var name = window.Name ?? string.Empty;
         var drawCallback = window.GetProperty(WndConstants.PropertyKeys.DrawCallback) ?? string.Empty;
+        var isTinyMarker = IsTinyMarker(window);
 
-        var isTinyMarker = window.TryGetScreenRect(out var srect) && srect != null &&
-            (srect.BottomRightX - srect.UpperLeftX <= 30 || srect.BottomRightY - srect.UpperLeftY <= 30);
-
-        if ((name.EndsWith(":" + WndConstants.ControlBarScheme.BackgroundMarkerKey, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(name, WndConstants.ControlBarScheme.BackgroundMarkerKey, StringComparison.OrdinalIgnoreCase)) && isTinyMarker)
-        {
-            single = null;
-        }
-        else if (name.EndsWith(":Munkee", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "Munkee", StringComparison.OrdinalIgnoreCase) ||
-                 name.EndsWith(":ControlBarParent", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(name, "ControlBarParent", StringComparison.OrdinalIgnoreCase))
-        {
-            if (overrides != null && overrides.TryGetValue(WndConstants.ControlBarScheme.BackgroundMarkerKey, out var schemeBg) && !string.IsNullOrWhiteSpace(schemeBg))
-            {
-                single = schemeBg;
-            }
-            else if (string.IsNullOrWhiteSpace(single))
-            {
-                single = WndConstants.ControlBarScheme.DefaultAmericaBaseGenerals;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(single) && !isTinyMarker)
-        {
-            single = ResolveSingleImageFallback(name, drawCallback, overrides);
-        }
-
-        underlay = ResolveShellMenuUnderlay(single, overrides, underlay);
-
-        // Procedurally drawn map previews show a centered placeholder caption in the editor.
-        var textCentered = plan.TextCentered
-            || (plan.Text == null && drawCallback.Contains(WndConstants.DrawCallbacks.MapPreview, StringComparison.OrdinalIgnoreCase));
+        var single = ResolveContextSingleImage(name, plan.SingleImage, drawCallback, isTinyMarker, overrides);
+        var underlay = ResolveShellMenuUnderlay(single, overrides, plan.UnderlayImage);
+        var textCentered = ResolveTextCentered(plan, drawCallback);
 
         if (single != plan.SingleImage || underlay != plan.UnderlayImage || textCentered != plan.TextCentered)
         {
@@ -344,6 +312,75 @@ public static class WndPreviewPlanner
         }
 
         return plan;
+    }
+
+    private static bool IsTinyMarker(WndWindow window)
+    {
+        return window.TryGetScreenRect(out var srect) && srect != null &&
+            (srect.BottomRightX - srect.UpperLeftX <= 30 || srect.BottomRightY - srect.UpperLeftY <= 30);
+    }
+
+    private static string? ResolveContextSingleImage(
+        string name,
+        string? currentSingle,
+        string drawCallback,
+        bool isTinyMarker,
+        IReadOnlyDictionary<string, string>? overrides)
+    {
+        var single = ResolveControlBarSingle(name, currentSingle, isTinyMarker, overrides);
+        if (string.IsNullOrWhiteSpace(single) && !isTinyMarker)
+        {
+            return ResolveSingleImageFallback(name, drawCallback, overrides);
+        }
+
+        return single;
+    }
+
+    private static string? ResolveControlBarSingle(
+        string name,
+        string? currentSingle,
+        bool isTinyMarker,
+        IReadOnlyDictionary<string, string>? overrides)
+    {
+        if (isTinyMarker && IsBackgroundMarker(name))
+        {
+            return null;
+        }
+
+        if (IsControlBarParent(name))
+        {
+            if (overrides != null && overrides.TryGetValue(WndConstants.ControlBarScheme.BackgroundMarkerKey, out var schemeBg) && !string.IsNullOrWhiteSpace(schemeBg))
+            {
+                return schemeBg;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentSingle))
+            {
+                return WndConstants.ControlBarScheme.DefaultAmericaBaseGenerals;
+            }
+        }
+
+        return currentSingle;
+    }
+
+    private static bool IsBackgroundMarker(string name)
+    {
+        return name.EndsWith(":" + WndConstants.ControlBarScheme.BackgroundMarkerKey, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, WndConstants.ControlBarScheme.BackgroundMarkerKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsControlBarParent(string name)
+    {
+        return name.EndsWith(":Munkee", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "Munkee", StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith(":ControlBarParent", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "ControlBarParent", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ResolveTextCentered(WndPreviewPlan plan, string drawCallback)
+    {
+        return plan.TextCentered
+            || (plan.Text == null && drawCallback.Contains(WndConstants.DrawCallbacks.MapPreview, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string? ResolveShellMenuUnderlay(
