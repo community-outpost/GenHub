@@ -66,7 +66,17 @@ public sealed class InstallationExtensionsTests : IDisposable
         {
             File.SetUnixFileMode(_directory, UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             Assert.True(File.Exists(path));
-            Assert.Throws<UnauthorizedAccessException>(() => Directory.GetFiles(_directory));
+            try
+            {
+                Directory.GetFiles(_directory);
+
+                // Elevated users and some filesystems do not enforce the requested restriction.
+                return;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // The permission restriction is effective; exercise the fallback below.
+            }
 
             Assert.True(path.TryGetFileCaseInsensitive(out var matchedPath));
             Assert.Equal(path, matchedPath, StringComparer.Ordinal);
@@ -83,16 +93,15 @@ public sealed class InstallationExtensionsTests : IDisposable
     [Fact]
     public void TryGetFileCaseInsensitive_WithDistinctCaseVariants_PrefersExactMatch()
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            return;
-        }
-
         var upperPath = Path.Combine(_directory, "GAME.DAT");
         var lowerPath = Path.Combine(_directory, "game.dat");
         File.WriteAllText(upperPath, "upper");
         File.WriteAllText(lowerPath, "lower");
-        Assert.Equal(2, Directory.GetFiles(_directory).Length);
+        if (Directory.GetFiles(_directory).Length != 2)
+        {
+            // The volume is case-insensitive, regardless of the operating system.
+            return;
+        }
 
         Assert.True(upperPath.TryGetFileCaseInsensitive(out var upperMatch));
         Assert.Equal(upperPath, upperMatch, StringComparer.Ordinal);
@@ -155,6 +164,66 @@ public sealed class InstallationExtensionsTests : IDisposable
 
         Assert.False(found);
         Assert.Null(matchedPath);
+    }
+
+    /// <summary>
+    /// Verifies existence-only lookup accepts exact and differently cased names.
+    /// </summary>
+    /// <param name="fileName">The queried file name.</param>
+    [Theory]
+    [InlineData("BINKW32.DLL")]
+    [InlineData("binkw32.dll")]
+    public void FileExistsCaseInsensitive_ExistingFile_ReturnsTrue(string fileName)
+    {
+        File.WriteAllText(Path.Combine(_directory, "BINKW32.DLL"), "dependency");
+
+        Assert.True(Path.Combine(_directory, fileName).FileExistsCaseInsensitive());
+        Assert.False(Path.Combine(_directory, "missing.dll").FileExistsCaseInsensitive());
+    }
+
+    /// <summary>
+    /// Verifies Unix filenames containing wildcard characters are found literally.
+    /// </summary>
+    /// <param name="fileName">The stored file name.</param>
+    [Theory]
+    [InlineData("*.DLL")]
+    [InlineData("binkw3?.DLL")]
+    public void TryGetFileCaseInsensitive_LiteralWildcardFile_ReturnsOnDiskName(string fileName)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var path = Path.Combine(_directory, fileName);
+        File.WriteAllText(path, "dependency");
+
+        Assert.True(Path.Combine(_directory, fileName.ToLowerInvariant()).TryGetFileCaseInsensitive(out var matchedPath));
+        Assert.Equal(path, matchedPath, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies bare filenames retain direct filesystem lookup semantics without changing the process directory.
+    /// </summary>
+    [Fact]
+    public void TryGetFileCaseInsensitive_BareFileName_PreservesDirectLookup()
+    {
+        var fileName = $"GenHub.Lookup.{Guid.NewGuid():N}.DLL";
+        try
+        {
+            File.WriteAllText(fileName, "dependency");
+            Assert.True(fileName.TryGetFileCaseInsensitive(out var exactMatch));
+            Assert.Equal(fileName, exactMatch, StringComparer.Ordinal);
+
+            var differentCase = fileName.ToLowerInvariant();
+            var directlyAccessible = File.Exists(differentCase);
+            Assert.Equal(directlyAccessible, differentCase.TryGetFileCaseInsensitive(out var differentMatch));
+            Assert.Equal(directlyAccessible ? differentCase : null, differentMatch, StringComparer.Ordinal);
+        }
+        finally
+        {
+            File.Delete(fileName);
+        }
     }
 
     /// <inheritdoc/>

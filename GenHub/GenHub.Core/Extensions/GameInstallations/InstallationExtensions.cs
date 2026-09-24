@@ -49,7 +49,12 @@ public static class InstallationExtensions
         {
             var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
             var fileName = Path.GetFileName(filePath);
-            var searchDirectory = directory.Length == 0 ? "." : directory;
+            if (directory.Length == 0)
+            {
+                // Preserve direct access without adding a current-directory case-insensitive search.
+                matchedPath = File.Exists(filePath) ? filePath : null;
+                return matchedPath is not null;
+            }
 
             if (string.IsNullOrEmpty(fileName))
             {
@@ -57,8 +62,8 @@ public static class InstallationExtensions
             }
 
             var candidates = fileName.IndexOfAny(FileNameWildcards) >= 0
-                ? Directory.EnumerateFiles(searchDirectory, "*", CaseInsensitiveFileSearch)
-                : Directory.EnumerateFiles(searchDirectory, fileName, CaseInsensitiveFileSearch);
+                ? Directory.EnumerateFiles(directory, "*", CaseInsensitiveFileSearch)
+                : Directory.EnumerateFiles(directory, fileName, CaseInsensitiveFileSearch);
             string? actualName = null;
             foreach (var candidate in candidates)
             {
