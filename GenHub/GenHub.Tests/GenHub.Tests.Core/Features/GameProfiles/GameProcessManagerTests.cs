@@ -75,6 +75,92 @@ public class GameProcessManagerTests
         }
     }
 
+    /// <summary>A failed cancellation stop retains diagnostics and the live handle for a later stop.</summary>
+    /// <param name="adoptChild">Whether cancellation occurs during child discovery.</param>
+    /// <param name="killFails">Whether cleanup is denied permission to stop the process.</param>
+    /// <returns>The asynchronous operation.</returns>
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    public async Task StartProcessAsync_Cancelled_PreservesOwnershipUntilExitAsync(bool adoptChild, bool killFails)
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+        using var cancellation = new CancellationTokenSource();
+        System.Diagnostics.Process? retained = null;
+        _processManager.FailedStartKill = process =>
+        {
+            retained = process;
+            if (killFails)
+            {
+                throw new System.ComponentModel.Win32Exception("Injected stop denial");
+            }
+
+            process.Kill(entireProcessTree: true);
+        };
+        _loggerMock.Setup(x => x.Log(
+                It.IsAny<LogLevel>(),
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(invocation =>
+            {
+                if (invocation.Arguments[2].ToString()!.Contains(adoptChild ? "[Process] Waiting up to" : "started successfully"))
+                {
+                    cancellation.Cancel();
+                }
+            }));
+        try
+        {
+            var configuration = new GameLaunchConfiguration
+            {
+                ExecutablePath = harness.LauncherPath,
+                WorkingDirectory = harness.WorkingDirectory,
+                ExpectedChildProcessName = adoptChild ? LauncherHarness.ChildProcessName : null,
+            };
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                _processManager.StartProcessAsync(configuration, cancellation.Token));
+            Assert.NotNull(retained);
+            if (!killFails)
+            {
+                Assert.Empty((await _processManager.GetActiveProcessesAsync()).Data!);
+                bool IsReleased()
+                {
+                    try
+                    {
+                        _ = retained.Id;
+                        return false;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return true;
+                    }
+                }
+
+                Assert.True(SpinWait.SpinUntil(IsReleased, TimeSpan.FromSeconds(5)));
+                return;
+            }
+
+            Assert.False(retained.HasExited);
+            var active = await _processManager.GetActiveProcessesAsync();
+            Assert.True(active.Success);
+            Assert.Contains(active.Data!, item => item.ProcessId == retained.Id && item.IsRunning);
+            var buffers = typeof(GameProcessManager).GetField("_stderrBuffers", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            var dictionary = (System.Collections.IDictionary)buffers.GetValue(_processManager)!;
+            Assert.True(dictionary.Contains(retained));
+            Assert.True((await _processManager.TerminateProcessAsync(retained.Id)).Success);
+        }
+        finally
+        {
+            foreach (var item in (await _processManager.GetActiveProcessesAsync()).Data ?? [])
+            {
+                await _processManager.TerminateProcessAsync(item.ProcessId);
+            }
+        }
+    }
+
     /// <summary>A positive PID that no longer exists is an idempotent successful stop.</summary>
     /// <returns>The asynchronous operation.</returns>
     [Fact]

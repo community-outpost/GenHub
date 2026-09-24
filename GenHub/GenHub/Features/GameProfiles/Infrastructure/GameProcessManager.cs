@@ -68,12 +68,19 @@ public class GameProcessManager(
     /// died", and downstream consumers suppress the failure classification.
     /// </remarks>
     private readonly ConcurrentDictionary<Process, byte> _requestedTerminations = new();
+
+    // Failed-start cleanup has no caller holding a handle after it returns. Its eventual
+    // exit callback owns disposal, unless an explicit stop takes that ownership over.
+    private readonly ConcurrentDictionary<Process, byte> _failedStartCleanups = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
     private bool _disposed;
 
     /// <summary>Gets or sets the process lookup used by termination; tests can supply a lookup that never accesses the OS.</summary>
     internal Func<int, Process> TerminationProcessLookup { get; set; } = Process.GetProcessById;
+
+    /// <summary>Gets or sets the stop operation used to clean up failed starts.</summary>
+    internal Action<Process> FailedStartKill { get; set; } = process => process.Kill(entireProcessTree: true);
 
     /// <summary>
     /// Occurs when a managed game process has exited.
@@ -174,6 +181,7 @@ public class GameProcessManager(
                 return await HandleImmediateProcessExitAsync(process, configuration, launcherStartTime, capturedErrors, cancellationToken);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             _managedProcesses[process.Id] = process;
 
             if (configuration.WaitForExit)
@@ -195,33 +203,13 @@ public class GameProcessManager(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            TryRemoveProcessErrors(process);
-
             await HandleProcessCancellationAsync(process, configuration?.ExecutablePath ?? "unknown");
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to start process for executable {ExecutablePath}", configuration?.ExecutablePath);
-            if (process != null)
-            {
-                TryRemoveProcessErrors(process);
-                try
-                {
-                    if (!process.HasExited)
-                    {
-                        process.Kill(entireProcessTree: true);
-                    }
-                }
-                catch (Exception killEx)
-                {
-                    logger.LogDebug(killEx, "[Process] Ignored exception while terminating untracked process for {ExecutablePath}", configuration?.ExecutablePath);
-                }
-                finally
-                {
-                    process.Dispose();
-                }
-            }
+            await CleanupFailedStartAsync(process);
 
             return OperationResult<GameProcessInfo>.CreateFailure($"Failed to start process: {ex.Message}");
         }
@@ -274,6 +262,7 @@ public class GameProcessManager(
             cancellationToken.ThrowIfCancellationRequested();
             if (!ownsProcess)
             {
+                _failedStartCleanups.TryRemove(process, out _);
                 _requestedTerminations[process] = 1;
             }
 
@@ -565,6 +554,7 @@ public class GameProcessManager(
         _managedProcesses.Clear();
         _stderrBuffers.Clear();
         _requestedTerminations.Clear();
+        _failedStartCleanups.Clear();
         _terminationSemaphore.Dispose();
         _disposed = true;
 
@@ -773,7 +763,7 @@ public class GameProcessManager(
 
         // Explicit termination owns disposal until its wait and notification cleanup finish.
         // Natural exits have no remaining owner after removal from _managedProcesses.
-        if (!terminationRequested)
+        if (_failedStartCleanups.TryRemove(process, out _) || !terminationRequested)
         {
             SafeDisposeProcess(process, processId);
         }
@@ -1201,6 +1191,7 @@ public class GameProcessManager(
         var processId = process.Id;
         try
         {
+            process.Exited -= OnProcessExited;
             process.Exited += OnProcessExited;
             process.EnableRaisingEvents = true;
         }
@@ -1213,45 +1204,64 @@ public class GameProcessManager(
     private async Task HandleProcessCancellationAsync(Process? process, string executablePath)
     {
         logger.LogInformation("Start of {ExecutablePath} was cancelled", executablePath);
-        if (process != null)
+        await CleanupFailedStartAsync(process);
+    }
+
+    private async Task CleanupFailedStartAsync(Process? process)
+    {
+        if (process is null)
         {
-            try
+            return;
+        }
+
+        int processId;
+        try
+        {
+            processId = process.Id;
+        }
+        catch (InvalidOperationException)
+        {
+            // An adoption path may already have finalized this handle.
+            return;
+        }
+
+        // Establish ownership before stopping: failed cleanup must leave the process
+        // observable and available for a later explicit stop, with its stderr intact.
+        _managedProcesses.TryAdd(processId, process);
+        _failedStartCleanups[process] = 1;
+        _requestedTerminations[process] = 1;
+        RegisterProcessEventHandlers(process);
+
+        var killIssued = false;
+        try
+        {
+            await Task.Run(() =>
             {
-                await Task.Run(
-                    () =>
-                    {
-                        try
-                        {
-                            if (!process.HasExited)
-                            {
-                                process.Kill(entireProcessTree: true);
-                            }
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            // Process already exited or was disposed
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "Failed to terminate process on cancellation");
-                        }
-                        finally
-                        {
-                            try
-                            {
-                                process.Dispose();
-                            }
-                            catch
-                            {
-                                // Ignore disposal errors
-                            }
-                        }
-                    },
-                    CancellationToken.None);
+                if (!process.HasExited)
+                {
+                    FailedStartKill(process);
+                    killIssued = true;
+                    process.WaitForExit(ProcessConstants.AbandonedLauncherKillWaitMs);
+                }
+
+                if (process.HasExited)
+                {
+                    FinalizeProcessExit(process, processId);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            if (_managedProcesses.TryGetValue(processId, out var tracked) && ReferenceEquals(tracked, process))
+            {
+                logger.LogWarning(ex, "Could not confirm termination of failed start {ProcessId}; retaining monitoring", processId);
             }
-            catch (Exception ex)
+        }
+        finally
+        {
+            if (!killIssued)
             {
-                logger.LogWarning(ex, "Failed to complete process cancellation task");
+                _requestedTerminations.TryRemove(process, out _);
             }
         }
     }
@@ -1418,24 +1428,7 @@ public class GameProcessManager(
 
     private void CleanupSpawnedProcessUponCancellation(Process spawnedProcess)
     {
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                if (!spawnedProcess.HasExited)
-                {
-                    spawnedProcess.Kill(entireProcessTree: true);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "[Process] Ignored exception while terminating adopted process upon cancellation");
-            }
-            finally
-            {
-                spawnedProcess.Dispose();
-            }
-        });
+        _ = CleanupFailedStartAsync(spawnedProcess);
     }
 
     private GameProcessInfo AdoptSpawnedProcess(
@@ -1681,10 +1674,12 @@ public class GameProcessManager(
         }
         finally
         {
-            TryRemoveProcessErrors(launcher);
-
-            // Releases our handle only; the launcher keeps running and owns its own lifetime.
-            launcher.Dispose();
+            // A failed cleanup transfers ownership to the manager for monitoring and retry.
+            if (!_managedProcesses.Values.Any(candidate => ReferenceEquals(candidate, launcher)))
+            {
+                TryRemoveProcessErrors(launcher);
+                launcher.Dispose();
+            }
         }
     }
 
@@ -1693,41 +1688,9 @@ public class GameProcessManager(
     /// bootstrapper running with no tracked process and no handle for the caller to reach it.
     /// </summary>
     /// <param name="launcher">The launcher to terminate.</param>
-    private async Task TerminateAbandonedLauncherAsync(Process launcher)
+    private Task TerminateAbandonedLauncherAsync(Process launcher)
     {
-        try
-        {
-            if (launcher.HasExited)
-            {
-                return;
-            }
-
-            await Task.Run(
-                () =>
-                {
-                    try
-                    {
-                        if (!launcher.HasExited)
-                        {
-                            launcher.Kill(entireProcessTree: true);
-                            launcher.WaitForExit(ProcessConstants.AbandonedLauncherKillWaitMs);
-                        }
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // Process already exited or disposed
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "[Process] Failed to terminate abandoned launcher {LauncherId}", launcher.Id);
-                    }
-                },
-                CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "[Process] Failed to dispatch termination for abandoned launcher {LauncherId}", launcher.Id);
-        }
+        return CleanupFailedStartAsync(launcher);
     }
 
     /// <summary>
