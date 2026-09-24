@@ -213,6 +213,17 @@ public sealed class CommunityGameClientIdentifierTests : IDisposable
         Assert.Equal(ExecutablePlatform.MacOS, ExecutableFileClassifier.DetectPlatform(machO64));
     }
 
+    /// <summary>Native installation probing propagates cancellation before inspecting a binary.</summary>
+    /// <returns>The asynchronous test operation.</returns>
+    [Fact]
+    public async Task IdentifyNativeAsync_Cancelled_ThrowsAsync()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _identifier.IdentifyNativeAsync(Path.Combine(_scratch, "missing"), cancellation.Token));
+    }
+
     private string WriteBinary(string fileName, byte[] header)
     {
         var path = Path.Combine(_scratch, fileName);

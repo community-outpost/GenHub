@@ -345,14 +345,14 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             var directoryName = Path.GetFileName(directory);
             if (generalsPath is null &&
                 GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)
-                && RetailArchiveClassifier.ClassifyArchivesSafely(directory).HasGeneralsArchives)
+                && RetailArchiveClassifier.ClassifyArchives(directory).HasGeneralsArchives)
             {
                 generalsPath = directory;
             }
 
             if (zeroHourPath is null &&
                 ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase)
-                && RetailArchiveClassifier.ClassifyArchivesSafely(directory).HasZeroHourArchives)
+                && RetailArchiveClassifier.ClassifyArchives(directory).HasZeroHourArchives)
             {
                 zeroHourPath = directory;
             }

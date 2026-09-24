@@ -39,7 +39,7 @@ public static class RetailArchiveClassifier
     /// </remarks>
     public static RetailArchiveClassification ClassifyArchives(string? directory)
     {
-        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        if (string.IsNullOrWhiteSpace(directory))
         {
             return default;
         }
@@ -47,28 +47,35 @@ public static class RetailArchiveClassifier
         var hasGenerals = false;
         var hasZeroHour = false;
 
-        foreach (var archivePath in Directory.EnumerateFiles(
-            directory,
-            RetailArchiveConstants.ArchiveSearchPattern,
-            RetailArchiveConstants.ArchiveSearch))
+        try
         {
-            var archiveName = Path.GetFileName(archivePath);
-
-            if (!hasZeroHour &&
-                archiveName.EndsWith(RetailArchiveConstants.ZeroHourArchiveSuffix, StringComparison.OrdinalIgnoreCase))
+            foreach (var archivePath in Directory.EnumerateFiles(
+                directory,
+                RetailArchiveConstants.ArchiveSearchPattern,
+                RetailArchiveConstants.ArchiveSearch))
             {
-                hasZeroHour = true;
-            }
+                var archiveName = Path.GetFileName(archivePath);
 
-            if (!hasGenerals && RetailArchiveConstants.GeneralsArchiveNames.Contains(archiveName))
-            {
-                hasGenerals = true;
-            }
+                if (!hasZeroHour &&
+                    archiveName.EndsWith(RetailArchiveConstants.ZeroHourArchiveSuffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    hasZeroHour = true;
+                }
 
-            if (hasGenerals && hasZeroHour)
-            {
-                break;
+                if (!hasGenerals && RetailArchiveConstants.GeneralsArchiveNames.Contains(archiveName))
+                {
+                    hasGenerals = true;
+                }
+
+                if (hasGenerals && hasZeroHour)
+                {
+                    break;
+                }
             }
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return default;
         }
 
         return new RetailArchiveClassification(hasGenerals, hasZeroHour);

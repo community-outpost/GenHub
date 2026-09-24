@@ -1138,6 +1138,50 @@ public class GameClientDetectorTests : IDisposable
         // Verify CreateGeneralsOnlineClientManifestAsync was NOT called (no GeneralsOnline files)
     }
 
+    /// <summary>Native helpers are excluded even inside a game-named directory; engine evidence is preserved.</summary>
+    /// <param name="hasGameMarkers">Whether the native file has engine-specific markers.</param>
+    /// <returns>The asynchronous test operation.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DetectGameClientsFromInstallationsAsync_NativeCommunityCandidate_RequiresGameEvidence(bool hasGameMarkers)
+    {
+        var path = Directory.CreateDirectory(Path.Combine(_tempDirectory, "Generals Zero Hour")).FullName;
+        var payload = new byte[256];
+        new byte[] { 0x7F, 0x45, 0x4C, 0x46 }.CopyTo(payload, 0);
+        if (hasGameMarkers)
+        {
+            System.Text.Encoding.ASCII.GetBytes(GameBinaryConstants.ZeroHourTitle).CopyTo(payload, 32);
+            System.Text.Encoding.ASCII.GetBytes(GameBinaryConstants.ChallengeMenuMarker).CopyTo(payload, 128);
+        }
+
+        await File.WriteAllBytesAsync(Path.Combine(path, "custom-binary"), payload);
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [new CommunityGameClientIdentifier()],
+            NullLogger<GameClientDetector>.Instance);
+        var installation = new GameInstallation(path, GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = path,
+        };
+        var result = await detector.DetectGameClientsFromInstallationsAsync([installation]);
+        Assert.True(result.Success);
+        if (hasGameMarkers)
+        {
+            var client = Assert.Single(result.Items);
+            Assert.Equal(GameType.ZeroHour, client.GameType);
+            Assert.Equal(PublisherTypeConstants.Community, client.PublisherType);
+        }
+        else
+        {
+            Assert.Empty(result.Items);
+        }
+    }
+
     /// <summary>
     /// Combined archives yield standard clients when a retail executable is present, and extensionless
     /// native binaries still reach publisher identification.

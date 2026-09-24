@@ -10,9 +10,9 @@ namespace GenHub.Tests.MacOS.GameInstallations;
 /// </summary>
 public class MacOSInstallationDetectorTests
 {
-    /// <summary>An unreadable child does not hide a readable sibling or report root denial.</summary>
+    /// <summary>An unreadable named child makes the scan incomplete even with a readable sibling.</summary>
     [Fact]
-    public void InspectRoot_UnreadableChild_PreservesReadableSibling()
+    public void InspectRoot_UnreadableChild_ReportsAccessDenied()
     {
         if (OperatingSystem.IsWindows() || Environment.UserName == "root")
         {
@@ -28,10 +28,8 @@ public class MacOSInstallationDetectorTests
             File.WriteAllText(Path.Combine(readable, "INIZH.big"), "archive");
             File.SetUnixFileMode(denied, UnixFileMode.None);
             var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
-            Assert.False(accessDenied);
-            Assert.NotNull(installation);
-            Assert.True(installation.HasZeroHour);
-            Assert.False(installation.HasGenerals);
+            Assert.True(accessDenied);
+            Assert.Null(installation);
         }
         finally
         {

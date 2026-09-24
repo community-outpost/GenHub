@@ -73,6 +73,40 @@ public class WindowsInstallationDetectorTests
         }
     }
 
+    /// <summary>Either EA child can carry both games, including swapped directory names.</summary>
+    /// <param name="generalsInGenerals">Whether Generals archives use their usual directory.</param>
+    /// <param name="zeroHourInGenerals">Whether Zero Hour archives share that directory.</param>
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public void DetectRetailInstallations_WithMixedEaLayout_AssignsArchivePaths(bool generalsInGenerals, bool zeroHourInGenerals)
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MixedRetail.").FullName;
+        try
+        {
+            var parent = Path.Combine(root, GameClientConstants.EaGamesParentDirectoryName);
+            var generals = Directory.CreateDirectory(Path.Combine(parent, GameClientConstants.GeneralsRetailDirectoryName)).FullName;
+            var zeroHour = Directory.CreateDirectory(Path.Combine(parent, GameClientConstants.ZeroHourRetailDirectoryName)).FullName;
+            var generalsArchivePath = generalsInGenerals ? generals : zeroHour;
+            var zeroHourArchivePath = zeroHourInGenerals ? generals : zeroHour;
+            File.WriteAllText(Path.Combine(generalsArchivePath, "INI.big"), "archive");
+            File.WriteAllText(Path.Combine(zeroHourArchivePath, "INIZH.big"), "archive");
+            var detector = new WindowsInstallationDetector(NullLogger<WindowsInstallationDetector>.Instance);
+            var method = typeof(WindowsInstallationDetector).GetMethod("DetectRetailInstallations", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var result = (List<GameInstallation>)method.Invoke(detector, [root, Path.Combine(root, "unused")])!;
+            var installation = Assert.Single(result);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(generalsArchivePath, installation.GeneralsPath);
+            Assert.Equal(zeroHourArchivePath, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     /// <summary>A partial higher-priority detection cannot hide the other game in a combined root.</summary>
     /// <param name="generalsClaimed">Whether the earlier detection claimed Generals rather than Zero Hour.</param>
     /// <param name="trailingSeparator">Whether the combined source includes a trailing separator.</param>

@@ -163,13 +163,19 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             var generalsPath = Path.Combine(parentFolder, GameClientConstants.GeneralsRetailDirectoryName);
             var zeroHourPath = Path.Combine(parentFolder, GameClientConstants.ZeroHourRetailDirectoryName);
 
-            var hasGenerals = RetailArchiveClassifier.ClassifyArchivesSafely(generalsPath, logger).HasGeneralsArchives;
-            var hasZeroHour = RetailArchiveClassifier.ClassifyArchivesSafely(zeroHourPath, logger).HasZeroHourArchives;
+            var generalsArchives = RetailArchiveClassifier.ClassifyArchivesSafely(generalsPath, logger);
+            var zeroHourArchives = RetailArchiveClassifier.ClassifyArchivesSafely(zeroHourPath, logger);
+            var detectedGeneralsPath = generalsArchives.HasGeneralsArchives ? generalsPath
+                : zeroHourArchives.HasGeneralsArchives ? zeroHourPath : null;
+            var detectedZeroHourPath = zeroHourArchives.HasZeroHourArchives ? zeroHourPath
+                : generalsArchives.HasZeroHourArchives ? generalsPath : null;
+            var hasGenerals = detectedGeneralsPath is not null;
+            var hasZeroHour = detectedZeroHourPath is not null;
 
             if (hasGenerals || hasZeroHour)
             {
                 var installation = new GameInstallation(parentFolder, GameInstallationType.Retail, null);
-                installation.SetPaths(hasGenerals ? generalsPath : null, hasZeroHour ? zeroHourPath : null);
+                installation.SetPaths(detectedGeneralsPath, detectedZeroHourPath);
                 retailInstalls.Add(installation);
                 logger.LogInformation(
                     "Detected Retail installation at {ParentFolder} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",

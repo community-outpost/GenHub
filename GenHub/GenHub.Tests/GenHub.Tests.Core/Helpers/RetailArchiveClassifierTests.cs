@@ -41,12 +41,13 @@ public class RetailArchiveClassifierTests : IDisposable
             return;
         }
 
-        var directory = CreateDirectoryWithArchives("denied", "INI.big");
-        var originalMode = File.GetUnixFileMode(directory);
+        var parent = Directory.CreateDirectory(Path.Combine(_tempDir, "denied")).FullName;
+        var directory = CreateDirectoryWithArchives("denied/child", "INI.big");
+        var originalMode = File.GetUnixFileMode(parent);
         var logger = new Mock<ILogger>();
         try
         {
-            File.SetUnixFileMode(directory, UnixFileMode.None);
+            File.SetUnixFileMode(parent, UnixFileMode.None);
             Assert.Throws<UnauthorizedAccessException>(() => RetailArchiveClassifier.ClassifyArchives(directory));
             var result = RetailArchiveClassifier.ClassifyArchivesSafely(directory, logger.Object);
             Assert.False(result.HasGeneralsArchives);
@@ -62,7 +63,7 @@ public class RetailArchiveClassifierTests : IDisposable
         }
         finally
         {
-            File.SetUnixFileMode(directory, originalMode);
+            File.SetUnixFileMode(parent, originalMode);
         }
     }
 
