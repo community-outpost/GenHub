@@ -1581,46 +1581,56 @@ public partial class PublishShareViewModel(
         return null;
     }
 
+    private async Task<long?> DetectExternalAssetSizeAsync(HttpClient client, string url, CancellationToken cancellationToken)
+    {
+        var detectedSize = await RemoteFileSizeProbe.TryProbeSizeAsync(client, url, TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
+
+        if ((detectedSize is null or <= 0) && !cancellationToken.IsCancellationRequested)
+        {
+            detectedSize = await ProbeRangedGetSizeAsync(client, url, cancellationToken).ConfigureAwait(false);
+        }
+
+        return detectedSize;
+    }
+
+    private void DispatchArtifactSizeUpdate(string url, long size)
+    {
+        void UpdateItems()
+        {
+            if (_probingUrls.TryGetValue(url, out var list))
+            {
+                lock (list)
+                {
+                    foreach (var target in list)
+                    {
+                        target.FileSize = size;
+                    }
+                }
+            }
+        }
+
+        if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            UpdateItems();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(UpdateItems);
+        }
+    }
+
     private async Task ProbeExternalAssetSizeAsync(string url, ReleaseArtifact artifact, CancellationToken cancellationToken)
     {
         try
         {
             var client = HttpClientOverrideForTesting ?? SharedHttpClient;
-            var detectedSize = await RemoteFileSizeProbe.TryProbeSizeAsync(client, url, TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
-
-            if ((detectedSize is null or <= 0) && !cancellationToken.IsCancellationRequested)
-            {
-                detectedSize = await ProbeRangedGetSizeAsync(client, url, cancellationToken).ConfigureAwait(false);
-            }
+            var detectedSize = await DetectExternalAssetSizeAsync(client, url, cancellationToken).ConfigureAwait(false);
 
             if (detectedSize is > 0 && !cancellationToken.IsCancellationRequested)
             {
                 var size = detectedSize.Value;
                 artifact.Size = size;
-
-                void UpdateItems()
-                {
-                    if (_probingUrls.TryGetValue(url, out var list))
-                    {
-                        lock (list)
-                        {
-                            foreach (var target in list)
-                            {
-                                target.FileSize = size;
-                            }
-                        }
-                    }
-                }
-
-                if (Avalonia.Application.Current == null || Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-                {
-                    UpdateItems();
-                }
-                else
-                {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(UpdateItems);
-                }
-
+                DispatchArtifactSizeUpdate(url, size);
                 logger.LogInformation("Probed external artifact size for {FileName}: {Size} bytes", artifact.Filename, size);
             }
         }

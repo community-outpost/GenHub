@@ -56,8 +56,17 @@ public class CatalogEntry
     /// Gets the effective icon URL for this catalog, falling back to a deterministic placeholder.
     /// </summary>
     [JsonIgnore]
-    public string EffectiveIconUrl =>
-        !string.IsNullOrWhiteSpace(IconUrl)
-            ? IconUrl
-            : ImageCacheConstants.GetPicsumUrl(!string.IsNullOrWhiteSpace(Id) ? Id : Name, 128, 128);
+    public string EffectiveIconUrl
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(IconUrl))
+            {
+                return IconUrl;
+            }
+
+            var seed = !string.IsNullOrWhiteSpace(Id) ? Id : Name;
+            return ImageCacheConstants.GetPicsumUrl(seed, 128, 128);
+        }
+    }
 }

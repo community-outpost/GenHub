@@ -110,7 +110,7 @@ public sealed class PublisherCatalogUpdateService : ContentUpdateServiceBase, IP
                 return ContentUpdateCheckResult.CreateNoUpdateAvailable();
             }
 
-            bool anyUpdateFound = false;
+            var anyUpdateFound = false;
 
             foreach (var subscription in subResult.Data)
             {
@@ -119,71 +119,9 @@ public sealed class PublisherCatalogUpdateService : ContentUpdateServiceBase, IP
                     break;
                 }
 
-                try
+                if (await ProcessSubscriptionUpdatesAsync(subscription, discoverer, stateService, cancellationToken))
                 {
-                    discoverer.Configure(subscription);
-                    var discoveryResult = await discoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
-                    if (!discoveryResult.Success || discoveryResult.Data?.Items == null)
-                    {
-                        continue;
-                    }
-
-                    foreach (var contentItem in discoveryResult.Data.Items)
-                    {
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            break;
-                        }
-
-                        var state = await stateService.GetStateAsync(contentItem, cancellationToken);
-                        if (state == ContentState.UpdateAvailable)
-                        {
-                            anyUpdateFound = true;
-                            var version = contentItem.Version ?? "latest";
-
-                            if (IsUpdateDismissed(subscription.PublisherId, contentItem.Id, version))
-                            {
-                                continue;
-                            }
-
-                            var dismissalKey = $"{subscription.PublisherId}:{contentItem.Id}:{version}";
-                            if (_activeNotifications.ContainsKey(dismissalKey))
-                            {
-                                continue;
-                            }
-
-                            _activeNotifications.TryAdd(dismissalKey, 0);
-
-                            var title = _localizationService.GetString("Downloads.ContentUpdateNotificationTitle", contentItem.Name);
-                            if (string.IsNullOrWhiteSpace(title))
-                            {
-                                title = $"Update Available: {contentItem.Name}";
-                            }
-
-                            var message = _localizationService.GetString("Downloads.ContentUpdateNotificationMessage", contentItem.Name, version);
-                            if (string.IsNullOrWhiteSpace(message))
-                            {
-                                message = $"Version {version} of {contentItem.Name} is available for download.";
-                            }
-
-                            var dismissText = _localizationService.GetString("Common.Dismiss") ?? "Dismiss";
-
-                            var notification = new NotificationMessage(
-                                NotificationType.Info,
-                                title,
-                                message,
-                                autoDismissMilliseconds: null,
-                                actionText: dismissText,
-                                action: () => DismissUpdate(subscription.PublisherId, contentItem.Id, version),
-                                isPersistent: true);
-
-                            _notificationService.Show(notification);
-                        }
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    _logger.LogWarning(ex, "Failed to check update state for subscription {PublisherId}", subscription.PublisherId);
+                    anyUpdateFound = true;
                 }
             }
 
@@ -196,5 +134,88 @@ public sealed class PublisherCatalogUpdateService : ContentUpdateServiceBase, IP
             _logger.LogError(ex, "Error occurred while polling publisher catalog updates");
             return ContentUpdateCheckResult.CreateFailure(ex.Message);
         }
+    }
+
+    private async Task<bool> ProcessSubscriptionUpdatesAsync(
+        PublisherSubscription subscription,
+        GenericCatalogDiscoverer discoverer,
+        IContentStateService stateService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            discoverer.Configure(subscription);
+            var discoveryResult = await discoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
+            if (!discoveryResult.Success || discoveryResult.Data?.Items == null)
+            {
+                return false;
+            }
+
+            var anyUpdate = false;
+            foreach (var contentItem in discoveryResult.Data.Items)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var state = await stateService.GetStateAsync(contentItem, cancellationToken);
+                if (state == ContentState.UpdateAvailable)
+                {
+                    anyUpdate = true;
+                    NotifyUpdateAvailable(subscription, contentItem);
+                }
+            }
+
+            return anyUpdate;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to check update state for subscription {PublisherId}", subscription.PublisherId);
+            return false;
+        }
+    }
+
+    private void NotifyUpdateAvailable(PublisherSubscription subscription, ContentSearchResult contentItem)
+    {
+        var version = contentItem.Version ?? "latest";
+
+        if (IsUpdateDismissed(subscription.PublisherId, contentItem.Id, version))
+        {
+            return;
+        }
+
+        var dismissalKey = $"{subscription.PublisherId}:{contentItem.Id}:{version}";
+        if (_activeNotifications.ContainsKey(dismissalKey))
+        {
+            return;
+        }
+
+        _activeNotifications.TryAdd(dismissalKey, 0);
+
+        var title = _localizationService.GetString("Downloads.ContentUpdateNotificationTitle", contentItem.Name);
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            title = $"Update Available: {contentItem.Name}";
+        }
+
+        var message = _localizationService.GetString("Downloads.ContentUpdateNotificationMessage", contentItem.Name, version);
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = $"Version {version} of {contentItem.Name} is available for download.";
+        }
+
+        var dismissText = _localizationService.GetString("Common.Dismiss") ?? "Dismiss";
+
+        var notification = new NotificationMessage(
+            NotificationType.Info,
+            title,
+            message,
+            autoDismissMilliseconds: null,
+            actionText: dismissText,
+            action: () => DismissUpdate(subscription.PublisherId, contentItem.Id, version),
+            isPersistent: true);
+
+        _notificationService.Show(notification);
     }
 }

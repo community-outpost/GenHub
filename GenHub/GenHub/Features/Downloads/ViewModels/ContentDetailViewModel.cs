@@ -3617,13 +3617,9 @@ public partial class ContentDetailViewModel(
 
         if (catalogItem.Releases != null)
         {
-            foreach (var release in catalogItem.Releases)
-            {
-                if (release.ImageUrls != null)
-                {
-                    screenshots.AddRange(release.ImageUrls);
-                }
-            }
+            screenshots.AddRange(catalogItem.Releases
+                .Where(release => release.ImageUrls != null)
+                .SelectMany(release => release.ImageUrls!));
         }
 
         if (screenshots.Count == 0)

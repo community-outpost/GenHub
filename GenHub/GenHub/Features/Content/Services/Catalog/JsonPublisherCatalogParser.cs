@@ -236,12 +236,9 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         catalog.Content ??= [];
         var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var content in catalog.Content)
+        foreach (var content in catalog.Content.Where(content => content != null))
         {
-            if (content != null)
-            {
-                NormalizeContentItem(content, seenNames, logger);
-            }
+            NormalizeContentItem(content, seenNames, logger);
         }
     }
 
@@ -279,13 +276,10 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             return;
         }
 
-        foreach (var release in releases)
+        foreach (var release in releases.Where(release => release != null))
         {
-            if (release != null)
-            {
-                release.Artifacts ??= [];
-                release.Dependencies ??= [];
-            }
+            release.Artifacts ??= [];
+            release.Dependencies ??= [];
         }
     }
 

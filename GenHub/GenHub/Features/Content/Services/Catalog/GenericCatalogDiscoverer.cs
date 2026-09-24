@@ -566,12 +566,9 @@ public class GenericCatalogDiscoverer(
 
         if (release.ImageUrls != null)
         {
-            foreach (var url in release.ImageUrls)
+            foreach (var url in release.ImageUrls.Where(url => !string.IsNullOrWhiteSpace(url) && !searchResult.ScreenshotUrls.Contains(url)))
             {
-                if (!string.IsNullOrWhiteSpace(url) && !searchResult.ScreenshotUrls.Contains(url))
-                {
-                    searchResult.ScreenshotUrls.Add(url);
-                }
+                searchResult.ScreenshotUrls.Add(url);
             }
         }
 
@@ -1270,9 +1267,15 @@ public class GenericCatalogDiscoverer(
 
         var itemIcon = contentItem.EffectiveIconUrl ?? contentItem.Metadata?.IconUrl;
 
-        var iconUrl = !string.IsNullOrWhiteSpace(itemIcon) && !itemIcon.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase)
-            ? itemIcon
-            : (!string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : itemIcon);
+        string? iconUrl;
+        if (!string.IsNullOrWhiteSpace(itemIcon) && !itemIcon.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase))
+        {
+            iconUrl = itemIcon;
+        }
+        else
+        {
+            iconUrl = !string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : itemIcon;
+        }
 
         return (effectiveProviderName, authorName, iconUrl);
     }
