@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Services.Online.Tun;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -16,11 +17,14 @@ namespace GenHub.Core.Services.Online;
 
 /// <summary>
 /// In-process virtual LAN tunnel runner that bridges Zero Hour LAN traffic
-/// across a UDP relay server, masking client IP addresses.
+/// across a UDP relay server, using a real TUN virtual adapter when available,
+/// or fallback UDP proxying.
 /// </summary>
 public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logger) : ITunnelRunner
 {
     private readonly SemaphoreSlim _lock = new(1, 1);
+    private ITunDevice? _tunDevice;
+    private TunPacketPump? _tunPump;
     private UdpClient? _relayClient;
     private UdpClient? _broadcastListener;
     private UdpClient? _localSender;
@@ -55,6 +59,66 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 return OperationResult<bool>.CreateSuccess(true);
             }
 
+            // Attempt to bring up a real layer-3 TUN adapter first
+            if (OperatingSystem.IsWindows())
+            {
+                var winResult = WindowsTunDevice.CreateOrOpen(
+                    OnlineConstants.TunDefaultWindowsInterfaceName,
+                    parsed.OverlayIp,
+                    parsed.PrefixLength,
+                    OnlineConstants.TunDefaultMtu);
+
+                if (winResult.Success && winResult.Data != null)
+                {
+                    _tunDevice = winResult.Data;
+                    _tunPump = new TunPacketPump(
+                        _tunDevice,
+                        parsed.RelayEndpoint,
+                        parsed.NetworkId,
+                        parsed.OverlayIp,
+                        logger);
+                    _tunPump.Start();
+
+                    IsRunning = true;
+                    logger.LogInformation(
+                        "Virtual LAN Wintun adapter {Interface} active with IP {Ip} via relay {Relay}.",
+                        _tunDevice.InterfaceName,
+                        parsed.OverlayIp,
+                        parsed.RelayEndpoint);
+
+                    return OperationResult<bool>.CreateSuccess(true);
+                }
+
+                logger.LogWarning(
+                    "Wintun adapter unavailable: {Error}. Falling back to UDP proxy.",
+                    winResult.AllErrors);
+            }
+            else if (OperatingSystem.IsLinux() && LinuxTunInterface.Exists(OnlineConstants.TunDefaultInterfaceName))
+            {
+                var linuxResult = LinuxTunDevice.Attach(OnlineConstants.TunDefaultInterfaceName, parsed.OverlayIp);
+                if (linuxResult.Success && linuxResult.Data != null)
+                {
+                    _tunDevice = linuxResult.Data;
+                    _tunPump = new TunPacketPump(
+                        _tunDevice,
+                        parsed.RelayEndpoint,
+                        parsed.NetworkId,
+                        parsed.OverlayIp,
+                        logger);
+                    _tunPump.Start();
+
+                    IsRunning = true;
+                    logger.LogInformation(
+                        "Virtual LAN Linux TUN adapter {Interface} active with IP {Ip} via relay {Relay}.",
+                        _tunDevice.InterfaceName,
+                        parsed.OverlayIp,
+                        parsed.RelayEndpoint);
+
+                    return OperationResult<bool>.CreateSuccess(true);
+                }
+            }
+
+            // Fallback: in-process UDP socket proxy
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var ct = _cts.Token;
 
@@ -83,7 +147,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
             IsRunning = true;
             logger.LogInformation(
-                "Virtual LAN tunnel runner started for network {NetworkId} (Overlay IP: {OverlayIp}, Relay: {RelayEndpoint}).",
+                "Virtual LAN socket proxy started for network {NetworkId} (Overlay IP: {OverlayIp}, Relay: {RelayEndpoint}).",
                 parsed.NetworkId,
                 parsed.OverlayIp,
                 parsed.RelayEndpoint);
@@ -159,8 +223,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             }
             else
             {
-                // The lock holder keeps running with live sockets; cancel the
-                // loops without the lock so nothing is orphaned silently.
                 logger.LogWarning("Virtual LAN tunnel runner disposal timed out waiting for the lock; stopping without it.");
                 StopWithoutLock();
             }
@@ -179,14 +241,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
     /// Enables best-effort UDP port sharing on the discovery listener so cooperative tooling or test harnesses
     /// can bind the discovery port concurrently.
     /// </summary>
-    /// <remarks>
-    /// Windows allows cooperative UDP port sharing through SO_REUSEADDR alone, while Unix systems require SO_REUSEPORT.
-    /// Because the native Zero Hour game binary does not set reuse flags before calling bind(), the game engine's
-    /// socket does not cooperate; whichever socket binds wildcard 8086 first will still cause the other to receive
-    /// a sharing violation (EADDRINUSE / WSAEADDRINUSE). Setting this option is best-effort to facilitate coexistence
-    /// with cooperative diagnostic tools, secondary tunnel listeners, or test fixtures. Sockets without reuse options
-    /// fall back gracefully without fatal startup errors.
-    /// </remarks>
     /// <param name="socket">The discovery listener socket, not yet bound.</param>
     /// <param name="logger">The logger for the non-fatal fallback notice.</param>
     internal static void EnableReusePort(Socket socket, ILogger logger)
@@ -238,8 +292,26 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 return (false, default!);
             }
 
+            var prefixLength = OnlineConstants.TunOverlayPrefixLength;
+            if (root.TryGetProperty("prefixLength", out var plProp) && plProp.TryGetInt32(out var pl))
+            {
+                prefixLength = pl;
+            }
+            else if (root.TryGetProperty("subnet", out var subnetProp) && subnetProp.ValueKind == JsonValueKind.String)
+            {
+                var subnet = subnetProp.GetString();
+                if (!string.IsNullOrEmpty(subnet) && subnet.Contains('/'))
+                {
+                    var slashIdx = subnet.IndexOf('/');
+                    if (int.TryParse(subnet[(slashIdx + 1)..], out var parsedPrefix))
+                    {
+                        prefixLength = parsedPrefix;
+                    }
+                }
+            }
+
             var ep = await ParseRelayEndpointAsync(root, cancellationToken).ConfigureAwait(false);
-            return (true, new ParsedTunnelConfig(networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep));
+            return (true, new ParsedTunnelConfig(networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep, prefixLength));
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException or FormatException or InvalidOperationException)
         {
@@ -299,6 +371,22 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 relayPort = p;
             }
         }
+        else
+        {
+            if (root.TryGetProperty("relayHost", out var rhProp) && rhProp.ValueKind == JsonValueKind.String)
+            {
+                var hostStr = rhProp.GetString();
+                if (!string.IsNullOrWhiteSpace(hostStr))
+                {
+                    relayHost = hostStr;
+                }
+            }
+
+            if (root.TryGetProperty("relayPort", out var rpProp) && rpProp.TryGetInt32(out var p))
+            {
+                relayPort = p;
+            }
+        }
 
         if (!IPAddress.TryParse(relayHost, out var ip))
         {
@@ -336,14 +424,16 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             }
         }
 
-        var sameSubnet = data[16] == config.OverlayIpBytes[0] && data[17] == config.OverlayIpBytes[1];
-        isBroadcast = data[16] == 255 || (sameSubnet && (data[18] == 255 || data[19] == 255));
-        var isUnicastToMe = data[16] == config.OverlayIpBytes[0] &&
-                            data[17] == config.OverlayIpBytes[1] &&
-                            data[18] == config.OverlayIpBytes[2] &&
-                            data[19] == config.OverlayIpBytes[3];
+        var isBroadcastTarget = data[16] == 255 && data[17] == 255 && data[18] == 255 && data[19] == 255;
+        var isOverlaySubnetBroadcast = data[16] == 10 && data[17] == 42 && (data[18] == 15 || data[18] == 255 || data[19] == 255);
+        isBroadcast = isBroadcastTarget || isOverlaySubnetBroadcast;
 
-        if (!isBroadcast && !isUnicastToMe)
+        var isTargetMe = data[16] == config.OverlayIpBytes[0] &&
+                         data[17] == config.OverlayIpBytes[1] &&
+                         data[18] == config.OverlayIpBytes[2] &&
+                         data[19] == config.OverlayIpBytes[3];
+
+        if (!isBroadcast && !isTargetMe)
         {
             return false;
         }
@@ -388,6 +478,18 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private void StopWithoutLock()
     {
+        if (_tunPump != null)
+        {
+            _tunPump.Dispose();
+            _tunPump = null;
+        }
+
+        if (_tunDevice != null)
+        {
+            _tunDevice.Dispose();
+            _tunDevice = null;
+        }
+
         try
         {
             _cts?.Cancel();
@@ -414,6 +516,19 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private async Task StopInternalAsync()
     {
+        if (_tunPump != null)
+        {
+            await _tunPump.StopAsync().ConfigureAwait(false);
+            _tunPump.Dispose();
+            _tunPump = null;
+        }
+
+        if (_tunDevice != null)
+        {
+            _tunDevice.Dispose();
+            _tunDevice = null;
+        }
+
         if (!IsRunning && _cts == null)
         {
             return;
@@ -519,10 +634,17 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
     private async Task DispatchLocalPacketAsync(byte[] data, int payloadLength, bool isBroadcast)
     {
         var targetPort = isBroadcast ? OnlineConstants.ZeroHourDiscoveryPort : OnlineConstants.ZeroHourGamePort;
+        if (!isBroadcast && payloadLength >= 20 && (data[24] >> 4) == 4 && data[24 + 9] == 17)
+        {
+            var destPort = (data[24 + 22] << 8) | data[24 + 23];
+            if (destPort > 0)
+            {
+                targetPort = destPort;
+            }
+        }
+
         try
         {
-            // One reusable sender keeps the loopback source endpoint stable
-            // across packets instead of churning a socket per datagram.
             _localSender ??= new UdpClient();
             _localSender.EnableBroadcast = isBroadcast;
             var localTarget = new IPEndPoint(IPAddress.Loopback, targetPort);
@@ -550,7 +672,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                     continue;
                 }
 
-                // Packet header: 16 bytes netId + 4 bytes destIp (255.255.255.255) + 4 bytes srcIp + payload
                 var packet = new byte[24 + data.Length];
                 Buffer.BlockCopy(config.NetworkIdBytes, 0, packet, 0, 16);
                 packet[16] = 255;
@@ -582,5 +703,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         byte[] NetworkIdBytes,
         IPAddress OverlayIp,
         byte[] OverlayIpBytes,
-        IPEndPoint RelayEndpoint);
+        IPEndPoint RelayEndpoint,
+        int PrefixLength = 20);
 }

@@ -40,6 +40,7 @@ build.lock
 [Dd]ebug/
 [Rr]elease/
 x64/
+!**/Resources/Wintun/**
 [Bb]in/
 [Oo]bj/
 

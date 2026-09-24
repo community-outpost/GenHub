@@ -4,6 +4,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="StyleCop.Analyzers" />
@@ -23,6 +24,7 @@
         <EmbeddedResource Include="Assets\Manifests\*.csv" />
         <EmbeddedResource Include="Assets\Registries\*.csv" />
         <EmbeddedResource Include="Assets\Registries\*.json" />
+        <EmbeddedResource Include="Resources\Wintun\**\*.dll" />
     </ItemGroup>
 
     <ItemGroup>
