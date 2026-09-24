@@ -1163,15 +1163,15 @@
 
                     <!-- Media Tab -->
                     <TabItem Header="{localization:Localize Downloads.ContentDetail.Media}" IsVisible="{Binding HasMedia}">
-                        <ScrollViewer>
-                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                        <ScrollViewer ClipToBounds="False">
+                            <StackPanel Spacing="24" Margin="12,24,12,16" ClipToBounds="False">
                                 <!-- Videos -->
-                                <StackPanel Spacing="12" IsVisible="{Binding HasVideos}">
+                                <StackPanel Spacing="12" IsVisible="{Binding HasVideos}" ClipToBounds="False">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.Videos}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <ItemsControl ItemsSource="{Binding Videos}">
+                                    <ItemsControl ItemsSource="{Binding Videos}" ClipToBounds="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <WrapPanel Orientation="Horizontal" />
+                                                <WrapPanel Orientation="Horizontal" ClipToBounds="False" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -1213,12 +1213,12 @@
                                 </StackPanel>
 
                                 <!-- Images -->
-                                <StackPanel Spacing="12" IsVisible="{Binding HasImages}">
+                                <StackPanel Spacing="12" IsVisible="{Binding HasImages}" ClipToBounds="False">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.Images}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <ItemsControl ItemsSource="{Binding Images}">
+                                    <ItemsControl ItemsSource="{Binding Images}" ClipToBounds="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <WrapPanel Orientation="Horizontal" />
+                                                <WrapPanel Orientation="Horizontal" ClipToBounds="False" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>

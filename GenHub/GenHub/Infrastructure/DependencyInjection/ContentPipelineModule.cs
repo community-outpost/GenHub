@@ -241,6 +241,11 @@ public static class ContentPipelineModule
         // routes them here via the generic-catalog resolver ID fallback.
         services.AddTransient<GenericCatalogContentProvider>();
         services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<GenericCatalogContentProvider>());
+
+        // Generic catalog background update service: polls subscribed catalogs and alerts user to updates for downloaded content
+        services.AddSingleton<PublisherCatalogUpdateService>();
+        services.AddSingleton<IPublisherCatalogUpdateService>(sp => sp.GetRequiredService<PublisherCatalogUpdateService>());
+        services.AddHostedService(sp => sp.GetRequiredService<PublisherCatalogUpdateService>());
     }
 
     /// <summary>

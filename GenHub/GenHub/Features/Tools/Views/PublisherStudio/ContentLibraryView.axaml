@@ -417,10 +417,16 @@
                                             ClipToBounds="True"
                                             Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                             Margin="0,0,16,0"
-                                            VerticalAlignment="Center"
-                                            IsVisible="{Binding Metadata.IconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <Image controls:ImageLoader.Source="{Binding Metadata.IconUrl}"
-                                               Stretch="UniformToFill"/>
+                                            VerticalAlignment="Center">
+                                        <Panel>
+                                            <Image controls:ImageLoader.Source="{Binding EffectiveIconUrl}"
+                                                   Stretch="UniformToFill"
+                                                   IsVisible="{Binding EffectiveIconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                            <PathIcon Data="{StaticResource ContentIcon}"
+                                                      Width="24" Height="24"
+                                                      Foreground="{DynamicResource AccentBrush}"
+                                                      IsVisible="{Binding EffectiveIconUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                                        </Panel>
                                     </Border>
 
                                     <!-- Content Info -->
@@ -892,6 +898,44 @@
                                                                 </ItemsControl.ItemTemplate>
                                                             </ItemsControl>
                                                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.NoDependencies}" FontSize="12" Foreground="{DynamicResource TextMuted}" IsVisible="{Binding !Dependencies.Count}"/>
+                                                        </StackPanel>
+
+                                                        <!-- Release Images / Media -->
+                                                        <StackPanel Spacing="8" Margin="0,12,0,0" IsVisible="{Binding ImageUrls.Count}">
+                                                            <TextBlock Text="Images" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                                                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                                                <ItemsControl ItemsSource="{Binding ImageUrls}">
+                                                                    <ItemsControl.ItemsPanel>
+                                                                        <ItemsPanelTemplate>
+                                                                            <StackPanel Orientation="Horizontal" Spacing="8"/>
+                                                                        </ItemsPanelTemplate>
+                                                                    </ItemsControl.ItemsPanel>
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <Border Width="120" Height="68" CornerRadius="6" ClipToBounds="True" Background="{DynamicResource GlassFillBrush}">
+                                                                                <Image controls:ImageLoader.Source="{Binding}" Stretch="UniformToFill"/>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </ScrollViewer>
+                                                        </StackPanel>
+
+                                                        <!-- Release Videos -->
+                                                        <StackPanel Spacing="8" Margin="0,12,0,0" IsVisible="{Binding VideoUrls.Count}">
+                                                            <TextBlock Text="Videos" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                                                            <ItemsControl ItemsSource="{Binding VideoUrls}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <Border Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="6" Padding="12,8" Margin="0,0,0,4">
+                                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                                <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentBrush}"/>
+                                                                                <TextBlock Text="{Binding}" Foreground="{DynamicResource TextSecondary}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Expander>

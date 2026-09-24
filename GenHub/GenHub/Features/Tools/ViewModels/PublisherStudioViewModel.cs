@@ -1515,9 +1515,13 @@ public partial class PublisherStudioViewModel(
         PublishShareViewModel.NavigateToTabCallback = tabIndex => SelectedTabIndex = tabIndex;
         PublishShareViewModel.AuthenticationChangedCallback = RefreshSetupState;
         dialogService.DuplicateAssetLookup = sha => PublishShareViewModel?.FindHostedAssetBySha256(sha);
-        await PublishShareViewModel.InitializeAsync();
-        HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
-        PublishShareViewModel.HasDefinitionChanges = HasDefinitionChanges;
+        if (PublishShareViewModel != null)
+        {
+            await PublishShareViewModel.InitializeAsync();
+            HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
+            PublishShareViewModel.HasDefinitionChanges = HasDefinitionChanges;
+        }
+
         ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService, notificationService, localizationService);
 
         // Check for hosting state recovery

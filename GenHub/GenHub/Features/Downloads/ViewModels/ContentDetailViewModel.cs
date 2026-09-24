@@ -661,11 +661,23 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets the icon URL - prefers parsed page context icon, falling back to a placeholder when missing.
     /// </summary>
-    public string IconUrl => ContentCardBadgeHelper.OrDefaultImage(
-        ParsedPage?.Context.IconUrl ??
-        (!string.IsNullOrWhiteSpace(searchResult.IconUrl)
-            ? searchResult.IconUrl
-            : (ContentCardBadgeHelper.GetPublisherLogoUrl(searchResult) ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult))));
+    public string IconUrl
+    {
+        get
+        {
+            var logo = ContentCardBadgeHelper.GetPublisherLogoUrl(searchResult);
+            var candidate = ParsedPage?.Context.IconUrl ?? searchResult.IconUrl;
+            if (!string.IsNullOrWhiteSpace(candidate) && candidate.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(logo))
+            {
+                return logo;
+            }
+
+            return ContentCardBadgeHelper.OrDefaultImage(
+                !string.IsNullOrWhiteSpace(candidate)
+                    ? candidate
+                    : (logo ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)));
+        }
+    }
 
     /// <summary>
     /// Gets the preferred header thumbnail URL (banner / screenshot / icon).
@@ -3597,12 +3609,29 @@ public partial class ContentDetailViewModel(
 
     private void PopulateCatalogScreenshots(CatalogContentItem catalogItem)
     {
-        if (catalogItem.Metadata?.ScreenshotUrls == null || catalogItem.Metadata.ScreenshotUrls.Count == 0)
+        var screenshots = new List<string>();
+        if (catalogItem.Metadata?.ScreenshotUrls != null)
+        {
+            screenshots.AddRange(catalogItem.Metadata.ScreenshotUrls);
+        }
+
+        if (catalogItem.Releases != null)
+        {
+            foreach (var release in catalogItem.Releases)
+            {
+                if (release.ImageUrls != null)
+                {
+                    screenshots.AddRange(release.ImageUrls);
+                }
+            }
+        }
+
+        if (screenshots.Count == 0)
         {
             return;
         }
 
-        foreach (var screenshot in catalogItem.Metadata.ScreenshotUrls.Where(screenshot => !Screenshots.Contains(screenshot)))
+        foreach (var screenshot in screenshots.Where(screenshot => !string.IsNullOrWhiteSpace(screenshot) && !Screenshots.Contains(screenshot)))
         {
             Screenshots.Add(screenshot);
         }

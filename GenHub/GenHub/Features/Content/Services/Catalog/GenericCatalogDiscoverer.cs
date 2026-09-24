@@ -564,6 +564,17 @@ public class GenericCatalogDiscoverer(
             }
         }
 
+        if (release.ImageUrls != null)
+        {
+            foreach (var url in release.ImageUrls)
+            {
+                if (!string.IsNullOrWhiteSpace(url) && !searchResult.ScreenshotUrls.Contains(url))
+                {
+                    searchResult.ScreenshotUrls.Add(url);
+                }
+            }
+        }
+
         if (contentItem.Tags != null)
         {
             foreach (var tag in contentItem.Tags.Where(t => !string.IsNullOrWhiteSpace(t)))
@@ -1253,10 +1264,15 @@ public class GenericCatalogDiscoverer(
             ? contentItem.Metadata.Author
             : effectiveProviderName;
 
-        var iconUrl = contentItem.Metadata?.IconUrl
-            ?? _subscription?.AvatarUrl
+        var publisherLogo = _subscription?.AvatarUrl
             ?? catalog.Publisher?.AvatarUrl
             ?? PublisherInfoConstants.GetPublisherLogo(effectiveProviderName, catalog.Publisher?.Id ?? string.Empty);
+
+        var itemIcon = contentItem.EffectiveIconUrl ?? contentItem.Metadata?.IconUrl;
+
+        var iconUrl = !string.IsNullOrWhiteSpace(itemIcon) && !itemIcon.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase)
+            ? itemIcon
+            : (!string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : itemIcon);
 
         return (effectiveProviderName, authorName, iconUrl);
     }

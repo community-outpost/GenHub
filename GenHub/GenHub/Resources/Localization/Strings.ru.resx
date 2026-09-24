@@ -13410,6 +13410,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.RenameCatalog.IconPlaceholder" xml:space="preserve">
     <value>https://... или avares://...</value>
   </data>
+  <data name="Downloads.ContentUpdateNotificationTitle" xml:space="preserve">
+    <value>Доступно обновление: {0}</value>
+  </data>
+  <data name="Downloads.ContentUpdateNotificationMessage" xml:space="preserve">
+    <value>Версия {0} доступна для {1}.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

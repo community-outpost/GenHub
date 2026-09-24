@@ -13508,6 +13508,12 @@ Would you like to add this catalog to your provider project?</value>
   <data name="Tools.PublisherStudio.RenameCatalog.IconPlaceholder" xml:space="preserve">
     <value>https://... or avares://...</value>
   </data>
+  <data name="Downloads.ContentUpdateNotificationTitle" xml:space="preserve">
+    <value>Update Available: {0}</value>
+  </data>
+  <data name="Downloads.ContentUpdateNotificationMessage" xml:space="preserve">
+    <value>Version {0} is available for {1}.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>
