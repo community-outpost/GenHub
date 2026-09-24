@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -42,7 +43,8 @@ public sealed class BuildEngineService(
     IConfigurationLoaderService configurationLoaderService,
     IArchiveService archiveService,
     IServiceScopeFactory serviceScopeFactory,
-    ILogger<BuildEngineService> logger) : IBuildEngineService
+    ILogger<BuildEngineService> logger,
+    ITelemetryService? telemetryService = null) : IBuildEngineService
 {
     private sealed class StageProgressTracker(int totalFiles)
     {
@@ -150,6 +152,16 @@ public sealed class BuildEngineService(
 
             sw.Stop();
 
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProjectName] = project.Name,
+                [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                [TelemetryConstants.Properties.Success] = success,
+                [TelemetryConstants.Properties.FileCount] = _filesProcessed,
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.ErrorMessage] = success ? null : _lastErrorMessage ?? "Build failed",
+            });
+
             return success
                 ? BuildOperationResult.CreateSuccess(_filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed)
                 : BuildOperationResult.CreateFailure(_lastErrorMessage ?? "Build failed", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
@@ -163,6 +175,14 @@ public sealed class BuildEngineService(
         {
             logger.LogError(ex, "ExecuteBuildAsync failed");
             sw.Stop();
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProjectName] = project.Name,
+                [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+            });
             return BuildOperationResult.CreateFailure($"Build failed: {ex.Message}", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
         }
         finally

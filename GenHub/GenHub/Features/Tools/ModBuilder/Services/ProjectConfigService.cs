@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
@@ -29,7 +30,8 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 public sealed class ProjectConfigService(
     ILogger<ProjectConfigService> logger,
     IConfigurationProviderService? configurationProvider = null,
-    ILocalizationService? localizationService = null) : IProjectConfigService
+    ILocalizationService? localizationService = null,
+    ITelemetryService? telemetryService = null) : IProjectConfigService
 {
     private sealed record SampleBundleManifest(string Name, string Description, string[] Packs);
 
@@ -166,6 +168,12 @@ public sealed class ProjectConfigService(
                 "Created ModBuilder project '{ProjectName}' at {ProjectPath}",
                 projectName,
                 projectPath);
+
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModProjectCreated, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProjectName] = projectName,
+                [TelemetryConstants.Properties.ContentType] = contentType.ToString(),
+            });
 
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateSuccess(project, sw.Elapsed);

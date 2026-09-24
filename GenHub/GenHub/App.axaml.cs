@@ -725,6 +725,16 @@ public partial class App : Application
                     profileId,
                     launchResult.Data.ProcessInfo.ProcessId);
 
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profileId,
+                    [TelemetryConstants.Properties.LaunchSource] = "shortcut",
+                });
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchedFromShortcut, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profileId,
+                });
+
                 UpdateViewModelAfterLaunch(mainWindow, profileId, launchResult.Data.ProcessInfo.ProcessId);
             }
             else

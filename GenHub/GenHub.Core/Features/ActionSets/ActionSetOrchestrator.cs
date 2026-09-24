@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -19,7 +21,8 @@ namespace GenHub.Core.Features.ActionSets;
 public class ActionSetOrchestrator(
     IEnumerable<IActionSet> actionSets,
     IEnumerable<IActionSetProvider> providers,
-    ILogger<ActionSetOrchestrator> logger) : IActionSetOrchestrator
+    ILogger<ActionSetOrchestrator> logger,
+    ITelemetryService? telemetryService = null) : IActionSetOrchestrator
 {
     private enum ExecutionOutcome
     {
@@ -250,12 +253,29 @@ public class ActionSetOrchestrator(
             if (result.Success)
             {
                 logger.LogInformation("Successfully applied {Title}", actionSet.Title);
+                telemetryService?.TrackEvent(TelemetryConstants.Events.GenPatcherFixApplied, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.FixId] = actionSet.Id,
+                    [TelemetryConstants.Properties.FixName] = actionSet.Title,
+                    [TelemetryConstants.Properties.GameType] = installation.GameType.ToString(),
+                    [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
+                    [TelemetryConstants.Properties.Success] = true,
+                });
                 return ExecutionOutcome.Success;
             }
 
             var errorMessage = result.ErrorMessage ?? "Unknown error";
             logger.LogWarning("Failed to apply {Title}: {Error}", actionSet.Title, errorMessage);
             errors.Add($"{actionSet.Title}: {errorMessage}");
+            telemetryService?.TrackEvent(TelemetryConstants.Events.GenPatcherFixApplied, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FixId] = actionSet.Id,
+                [TelemetryConstants.Properties.FixName] = actionSet.Title,
+                [TelemetryConstants.Properties.GameType] = installation.GameType.ToString(),
+                [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
+            });
 
             if (actionSet.IsCrucialFix)
             {
@@ -274,6 +294,15 @@ public class ActionSetOrchestrator(
         {
             logger.LogError(ex, "Unexpected error applying {Title}", actionSet.Title);
             errors.Add($"{actionSet.Title}: {ex.Message}");
+            telemetryService?.TrackEvent(TelemetryConstants.Events.GenPatcherFixApplied, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FixId] = actionSet.Id,
+                [TelemetryConstants.Properties.FixName] = actionSet.Title,
+                [TelemetryConstants.Properties.GameType] = installation.GameType.ToString(),
+                [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+            });
 
             if (actionSet.IsCrucialFix)
             {

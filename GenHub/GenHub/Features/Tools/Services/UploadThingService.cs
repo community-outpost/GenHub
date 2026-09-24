@@ -1,10 +1,13 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Services;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.UploadThing;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -21,7 +24,8 @@ namespace GenHub.Features.Tools.Services;
 /// </summary>
 public sealed class UploadThingService(
     HttpClient httpClient,
-    ILogger<UploadThingService> logger) : IUploadThingService
+    ILogger<UploadThingService> logger,
+    ITelemetryService? telemetryService = null) : IUploadThingService
 {
     /// <inheritdoc />
     public async Task<OperationResult<UploadResult>> UploadFileAsync(
@@ -35,16 +39,19 @@ public sealed class UploadThingService(
             return OperationResult<UploadResult>.CreateFailure($"File not found: {filePath}");
         }
 
+        var rawFileName = Path.GetFileName(filePath);
+        var stopwatch = Stopwatch.StartNew();
+        long fileLength = 0;
+
         try
         {
-            var rawFileName = Path.GetFileName(filePath);
             var fileName = PathHelper.SanitizeFileName(rawFileName);
             if (string.IsNullOrWhiteSpace(fileName))
             {
                 fileName = ApiConstants.DefaultUploadFileName;
             }
 
-            var fileLength = new FileInfo(filePath).Length;
+            fileLength = new FileInfo(filePath).Length;
             var streamProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.85)) : null;
             await using var fileStream = File.OpenRead(filePath);
             using var fileContent = new ProgressableStreamContent(fileStream, fileLength, streamProgress);
@@ -73,6 +80,13 @@ public sealed class UploadThingService(
                 var message = !string.IsNullOrWhiteSpace(errorBody)
                     ? $"Upload rejected ({response.StatusCode}): {errorBody}"
                     : $"Upload failed with status {response.StatusCode}";
+                telemetryService?.TrackEvent(TelemetryConstants.Events.UploadThingUploadFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.FileName] = rawFileName,
+                    [TelemetryConstants.Properties.SizeMb] = Math.Round(fileLength / (1024.0 * 1024.0), 2),
+                    [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.ErrorMessage] = message,
+                });
                 return OperationResult<UploadResult>.CreateFailure(message);
             }
 
@@ -86,11 +100,25 @@ public sealed class UploadThingService(
             progress?.Report(1.0);
             logger.LogInformation("File uploaded successfully to {Url}", result.PublicUrl);
 
+            telemetryService?.TrackEvent(TelemetryConstants.Events.UploadThingUploadCompleted, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FileName] = rawFileName,
+                [TelemetryConstants.Properties.SizeMb] = Math.Round(fileLength / (1024.0 * 1024.0), 2),
+                [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.FileSizeBytes] = fileLength,
+            });
+
             return OperationResult<UploadResult>.CreateSuccess(new UploadResult(result.PublicUrl, result.FileKey, result.DeleteToken));
         }
         catch (Exception ex) when ((ex is HttpRequestException or IOException or UnauthorizedAccessException or JsonException or FormatException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Exception occurred during file upload");
+            telemetryService?.TrackEvent(TelemetryConstants.Events.UploadThingUploadFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FileName] = rawFileName,
+                [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+            });
             return OperationResult<UploadResult>.CreateFailure($"Upload error: {ex.Message}");
         }
     }

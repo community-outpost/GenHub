@@ -344,6 +344,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             });
 
             _logger.LogInformation("Update downloaded successfully");
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+                [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
+            });
         }
         catch (Exception ex)
         {

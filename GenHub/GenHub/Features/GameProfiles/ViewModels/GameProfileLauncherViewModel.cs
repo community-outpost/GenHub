@@ -18,6 +18,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -65,7 +66,8 @@ public partial class GameProfileLauncherViewModel(
     ILaunchRegistry? launchRegistry = null,
     ILoggerFactory? loggerFactory = null,
     IUploadHistoryService? uploadHistoryService = null,
-    Func<IProfileSharingService>? profileSharingServiceFactory = null) : ViewModelBase,
+    Func<IProfileSharingService>? profileSharingServiceFactory = null,
+    ITelemetryService? telemetryService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
@@ -1519,6 +1521,14 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
 
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
+                [TelemetryConstants.Properties.ProfileName] = liveProfile.Name,
+                [TelemetryConstants.Properties.GameType] = liveProfile.GameType.ToString(),
+                [TelemetryConstants.Properties.LaunchSource] = "launcher",
+            });
+
             // Advisory by design: receipt drift never blocks or fails a launch, so it is
             // surfaced as information beside the success, never through the error channel.
             if (launchResult.Data.ReceiptDriftWarnings.Count > 0)
@@ -1872,6 +1882,14 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.ShortcutCreatedSuccess", profile.Name);
                 logger.LogInformation("Created desktop shortcut for profile {ProfileName} at {Path}", profile.Name, result.Data);
                 notificationService.ShowSuccess(localizationService["GameProfiles.Notification.ShortcutCreated.Title"], localizationService.GetString("GameProfiles.Notification.ShortcutCreated.Message", profile.Name));
+
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ProfilePinned, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                    [TelemetryConstants.Properties.ProfileName] = profile.Name,
+                    [TelemetryConstants.Properties.GameType] = profile.GameType.ToString(),
+                    [TelemetryConstants.Properties.ShortcutType] = "desktop",
+                });
             }
             else
             {

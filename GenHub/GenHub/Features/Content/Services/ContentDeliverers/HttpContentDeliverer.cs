@@ -108,7 +108,7 @@ public class HttpContentDeliverer(
                 });
 
                 // Download the file
-                var downloadResult = await DownloadFileAsync(file, localPath, cancellationToken);
+                var downloadResult = await DownloadFileAsync(file, localPath, packageManifest, cancellationToken);
 
                 if (!downloadResult.Success)
                 {
@@ -182,8 +182,20 @@ public class HttpContentDeliverer(
     private async Task<DownloadResult> DownloadFileAsync(
         ManifestFile file,
         string localPath,
+        ContentManifest packageManifest,
         CancellationToken cancellationToken)
     {
+        var downloadConfig = new DownloadConfiguration
+        {
+            DestinationPath = localPath,
+            OverwriteExisting = true,
+            ExpectedHash = file.Hash,
+            ContentId = packageManifest.Id,
+            ContentName = packageManifest.Name,
+            PublisherId = packageManifest.Publisher,
+            ContentType = packageManifest.ContentType.ToString(),
+        };
+
         if (Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var fileUri) &&
             ModDBConstants.IsModDbOrDbolicalUri(fileUri))
         {
@@ -192,24 +204,17 @@ public class HttpContentDeliverer(
                 return DownloadResult.CreateFailure("ModDB and DBolical downloads must use HTTPS.");
             }
 
+            downloadConfig.Url = fileUri;
             if (playwrightService != null)
             {
                 logger.LogInformation("Routing ModDB download through Playwright for {Url}", file.DownloadUrl);
-                var downloadConfig = new DownloadConfiguration
-                {
-                    Url = fileUri,
-                    DestinationPath = localPath,
-                    OverwriteExisting = true,
-                    ExpectedHash = file.Hash,
-                };
                 return await playwrightService.DownloadFileAsync(downloadConfig, cancellationToken);
             }
 
-            return await downloadService.DownloadFileAsync(
-                fileUri, localPath, file.Hash, null, cancellationToken);
+            return await downloadService.DownloadFileAsync(downloadConfig, null, cancellationToken);
         }
 
-        return await downloadService.DownloadFileAsync(
-            new Uri(file.DownloadUrl!), localPath, file.Hash, null, cancellationToken);
+        downloadConfig.Url = new Uri(file.DownloadUrl!);
+        return await downloadService.DownloadFileAsync(downloadConfig, null, cancellationToken);
     }
 }
