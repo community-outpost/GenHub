@@ -156,7 +156,7 @@ public sealed class GenericCatalogProfileReconcilerTests
 
         _discovererMock
             .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentSearchResultPage>.CreateSuccess(new ContentSearchResultPage()));
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult()));
 
         var result = await _reconciler.CheckAndReconcileIfNeededAsync("prof1");
 
@@ -181,14 +181,14 @@ public sealed class GenericCatalogProfileReconcilerTests
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([subscription]));
 
         var item = new ContentSearchResult { Id = "item1", Name = "Test Item", Version = "2.0" };
-        var page = new ContentSearchResultPage { Items = [item] };
+        var page = new ContentDiscoveryResult { Items = [item] };
         _discovererMock
             .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentSearchResultPage>.CreateSuccess(page));
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(page));
 
         _contentStateServiceMock
             .Setup(s => s.GetStateAsync(item, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentState.Installed);
+            .ReturnsAsync(ContentState.Downloaded);
 
         var result = await _reconciler.CheckAndReconcileIfNeededAsync("prof1");
 
@@ -220,10 +220,10 @@ public sealed class GenericCatalogProfileReconcilerTests
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([subscription]));
 
         var item = new ContentSearchResult { Id = "item1", Name = "Test Item", Version = "2.0" };
-        var page = new ContentSearchResultPage { Items = [item] };
+        var page = new ContentDiscoveryResult { Items = [item] };
         _discovererMock
             .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentSearchResultPage>.CreateSuccess(page));
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(page));
 
         _contentStateServiceMock
             .Setup(s => s.GetStateAsync(item, It.IsAny<CancellationToken>()))
@@ -264,10 +264,10 @@ public sealed class GenericCatalogProfileReconcilerTests
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([subscription]));
 
         var item = new ContentSearchResult { Id = "item1", Name = "Test Item", Version = "2.0" };
-        var page = new ContentSearchResultPage { Items = [item] };
+        var page = new ContentDiscoveryResult { Items = [item] };
         _discovererMock
             .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentSearchResultPage>.CreateSuccess(page));
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(page));
 
         _contentStateServiceMock
             .Setup(s => s.GetStateAsync(item, It.IsAny<CancellationToken>()))
