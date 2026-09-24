@@ -69,6 +69,7 @@ TEST_RESHEADER_OPEN = '  <resheader name="resmimetype">'
 TEST_RESHEADER_VALUE = '    <value>text/microsoft-resx</value>'
 TEST_RESHEADER_CLOSE = '  </resheader>'
 TEST_ROOT_CLOSE = '</root>'
+TEST_DATA_CLOSE = '</data>'
 
 RE_DATA_OPEN = re.compile(r'^\s*<data\s+name=(["\'])(.*?)\1', re.IGNORECASE)
 RE_DATA_CLOSE = re.compile(r'</data>', re.IGNORECASE)
@@ -99,34 +100,58 @@ def load_raw_text(path):
     return text, newline, has_bom
 
 
-def extract_header_and_body(lines, path):
-    first_data_idx = None
+def _find_first_data_open(lines):
     for idx, line in enumerate(lines):
         if RE_DATA_OPEN.search(line):
-            first_data_idx = idx
-            break
+            return idx
+    return None
 
-    if first_data_idx is None:
-        close_idx = None
-        for idx in range(len(lines) - 1, -1, -1):
-            if '</root>' in lines[idx]:
-                close_idx = idx
-                break
-        if close_idx is None:
-            raise ResxError(f'{path}: missing </root> element')
-        return list(lines[:close_idx]), list(lines[close_idx:]), []
 
-    last_data_close = None
+def _find_root_close(lines, path):
+    for idx in range(len(lines) - 1, -1, -1):
+        if '</root>' in lines[idx]:
+            return idx
+    raise ResxError(f'{path}: missing </root> element')
+
+
+def _find_last_data_close(lines, first_data_idx, path):
     for idx in range(len(lines) - 1, first_data_idx - 1, -1):
         if RE_DATA_CLOSE.search(lines[idx]):
-            last_data_close = idx
-            break
+            return idx
+    raise ResxError(f'{path}: unclosed <data> element')
 
-    if last_data_close is None:
-        raise ResxError(f'{path}: unclosed <data> element')
 
+def extract_header_and_body(lines, path):
+    first_data_idx = _find_first_data_open(lines)
+    if first_data_idx is None:
+        close_idx = _find_root_close(lines, path)
+        return list(lines[:close_idx]), list(lines[close_idx:]), []
+
+    last_data_close = _find_last_data_close(lines, first_data_idx, path)
     footer_start = last_data_close + 1
     return list(lines[:first_data_idx]), list(lines[footer_start:]), list(lines[first_data_idx:footer_start])
+
+
+def _handle_body_line(line, path, current_key, current_block, by_key, order):
+    match = RE_DATA_OPEN.search(line)
+    if match:
+        if current_key is not None:
+            raise ResxError(f'{path}: nested <data> tag at line: {line.strip()}')
+        current_key = match.group(2)
+        current_block = [line]
+    elif current_key is not None:
+        current_block.append(line)
+    else:
+        stripped = line.strip()
+        if stripped and not stripped.startswith('<!--'):
+            raise ResxError(f'{path}: unexpected non-data content: {stripped}')
+        return None, []
+
+    if RE_DATA_CLOSE.search(line):
+        _record_block(path, current_key, current_block, by_key, order)
+        return None, []
+
+    return current_key, current_block
 
 
 def parse_data_blocks(body_lines, path):
@@ -136,27 +161,9 @@ def parse_data_blocks(body_lines, path):
     current_block = []
 
     for line in body_lines:
-        match = RE_DATA_OPEN.search(line)
-        if match:
-            if current_key is not None:
-                raise ResxError(f'{path}: nested <data> tag at line: {line.strip()}')
-            current_key = match.group(2)
-            current_block = [line]
-            if RE_DATA_CLOSE.search(line):
-                _record_block(path, current_key, current_block, by_key, order)
-                current_key = None
-                current_block = []
-            continue
-
-        if current_key is not None:
-            current_block.append(line)
-            if RE_DATA_CLOSE.search(line):
-                _record_block(path, current_key, current_block, by_key, order)
-                current_key = None
-                current_block = []
-        else:
-            if line.strip() and not line.strip().startswith('<!--'):
-                raise ResxError(f'{path}: unexpected non-data content: {line.strip()}')
+        current_key, current_block = _handle_body_line(
+            line, path, current_key, current_block, by_key, order
+        )
 
     if current_key is not None:
         raise ResxError(f'{path}: unclosed <data name="{current_key}"> block at end of file')
@@ -615,9 +622,9 @@ def _get_self_test_cases(a):
         ('no-op-byte-identical', _doc(a), _doc(a), _doc(a), EXIT_OK,
          lambda res: [] if res == _doc(a) else ['no-op merge changed bytes']),
         ('corrupt-input-fallback',
-         _doc(a).replace('</data>', ''),
-         _doc([('K.A', 'a-cur', None), ('K.B', 'b', None)]).replace('</data>', ''),
-         _doc([('K.A', 'a-oth', None), ('K.B', 'b', None)]).replace('</data>', ''),
+         _doc(a).replace(TEST_DATA_CLOSE, ''),
+         _doc([('K.A', 'a-cur', None), ('K.B', 'b', None)]).replace(TEST_DATA_CLOSE, ''),
+         _doc([('K.A', 'a-oth', None), ('K.B', 'b', None)]).replace(TEST_DATA_CLOSE, ''),
          EXIT_CONFLICT, _verify_conflict_markers),
     ]
 
