@@ -1139,7 +1139,7 @@ public class GameClientDetectorTests : IDisposable
     }
 
     /// <summary>
-    /// Combined archives retain a standard client for each game, and extensionless
+    /// Combined archives yield standard clients when a retail executable is present, and extensionless
     /// native binaries still reach publisher identification.
     /// </summary>
     /// <param name="includeStandardExecutable">Whether the installation also includes a retail executable.</param>
