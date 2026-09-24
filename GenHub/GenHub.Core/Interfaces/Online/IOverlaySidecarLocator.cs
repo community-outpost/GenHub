@@ -18,4 +18,12 @@ public interface IOverlaySidecarLocator
     /// <param name="configPath">The staged configuration file path.</param>
     /// <returns>The process arguments.</returns>
     string BuildArguments(string configPath);
+
+    /// <summary>
+    /// Builds sidecar arguments for the given staged configuration path and optional overlay IP.
+    /// </summary>
+    /// <param name="configPath">The staged configuration file path.</param>
+    /// <param name="overlayIp">Optional overlay IP address override.</param>
+    /// <returns>The process arguments.</returns>
+    string BuildArguments(string configPath, string? overlayIp) => BuildArguments(configPath);
 }

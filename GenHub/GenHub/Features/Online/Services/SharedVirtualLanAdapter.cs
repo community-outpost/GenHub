@@ -92,15 +92,15 @@ public sealed class SharedVirtualLanAdapter(
                     LastError = runnerError;
                 }
 
-                if (isPending && !hasSidecar)
+                if (isPending && !hasSidecar && tunnelRunner == null)
                 {
-                    logger.LogInformation("Overlay selection is pending; joined without tunneling.");
+                    logger.LogInformation("Overlay selection is pending and no sidecar binary or tunnel runner available; joined without tunneling.");
                     SetState(OnlineAdapterState.Down);
                     return OperationResult<bool>.CreateSuccess(true);
                 }
 
-                logger.LogWarning("Sidecar start failed.");
-                return Fail(LastError ?? "Sidecar start failed.");
+                logger.LogWarning("Virtual LAN adapter start failed: {Error}", LastError);
+                return Fail(LastError ?? "Virtual LAN adapter start failed.");
             }
 
             OverlayIp = overlayIp;

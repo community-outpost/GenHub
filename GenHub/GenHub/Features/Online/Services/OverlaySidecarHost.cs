@@ -69,8 +69,15 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
                 return OperationResult<SidecarInfo>.CreateFailure("Overlay sidecar is not installed.");
             }
 
+            string? overlayIp = null;
+            var parsed = OverlaySidecarConfig.Parse(configContents);
+            if (parsed.Success && parsed.Data is not null)
+            {
+                overlayIp = parsed.Data.OverlayIp;
+            }
+
             var configPath = await StageConfigAsync(configContents, cancellationToken);
-            var process = CreateProcess(binary, locator.BuildArguments(configPath));
+            var process = CreateProcess(binary, locator.BuildArguments(configPath, overlayIp));
             var started = false;
             string? startError = null;
             try
@@ -292,6 +299,7 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         {
             FileName = binary,
             Arguments = arguments,
+            WorkingDirectory = Path.GetDirectoryName(binary) ?? string.Empty,
         };
 
         if (OperatingSystem.IsWindows() && !IsAdministrator())

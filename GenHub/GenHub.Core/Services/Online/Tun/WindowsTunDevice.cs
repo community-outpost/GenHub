@@ -79,6 +79,11 @@ public sealed class WindowsTunDevice : ITunDevice
             {
                 var guid = AdapterGuid;
                 adapter = WintunNative.CreateAdapter!(interfaceName, "GenHub", in guid);
+                if (adapter == IntPtr.Zero)
+                {
+                    var freshGuid = Guid.NewGuid();
+                    adapter = WintunNative.CreateAdapter!(interfaceName, "GenHub", in freshGuid);
+                }
             }
         }
         catch (Win32Exception ex)
@@ -213,24 +218,34 @@ public sealed class WindowsTunDevice : ITunDevice
     [SuppressMessage("Security", "S4036:ProcessStartInfo.FileName should not be relative", Justification = "netsh.exe path is resolved via SpecialFolder.System")]
     private static void ConfigureInterfaceViaNetsh(string interfaceName, string ipAddress, string mask, int mtu)
     {
-        try
+        var netshPath = ResolveNetshPath();
+        for (var attempt = 1; attempt <= 3; attempt++)
         {
-            using var proc = new Process
+            try
             {
-                StartInfo = new ProcessStartInfo
+                using var proc = new Process
                 {
-                    FileName = ResolveNetshPath(),
-                    Arguments = $"interface ipv4 set address name=\"{interfaceName}\" source=static addr={ipAddress} mask={mask}",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
-            };
-            proc.Start();
-            proc.WaitForExit(3000);
-        }
-        catch
-        {
-            // Fallback: Continue even if netsh invocation fails
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = netshPath,
+                        Arguments = $"interface ipv4 set address name=\"{interfaceName}\" source=static addr={ipAddress} mask={mask}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                    },
+                };
+                proc.Start();
+                proc.WaitForExit(3000);
+                if (proc.ExitCode == 0)
+                {
+                    break;
+                }
+            }
+            catch
+            {
+                // Fallback: Retry
+            }
+
+            Thread.Sleep(250);
         }
 
         try

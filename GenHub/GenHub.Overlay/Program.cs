@@ -21,13 +21,12 @@ public static class Program
     /// <returns>The process exit code.</returns>
     public static int Main(string[] args)
     {
-        if (!TryReadConfig(args, out var parsedConfig, out var configExitCode))
+        if (!TryReadConfig(args, out var parsedConfig, out var configExitCode, out var configPath))
         {
             return configExitCode;
         }
 
         var config = parsedConfig!;
-        var configPath = args.Length >= 2 ? args[1] : null;
         var overlayIp = IPAddress.Parse(config.OverlayIp);
 
         if (!TryCreateDevice(config, overlayIp, configPath, out var tunDevice, out var attachExitCode))
@@ -84,17 +83,33 @@ public static class Program
         return OnlineConstants.SidecarExitSuccess;
     }
 
-    private static bool TryReadConfig(string[] args, out OverlaySidecarConfig? config, out int exitCode)
+    private static bool TryReadConfig(string[] args, out OverlaySidecarConfig? config, out int exitCode, out string? configPath)
     {
         config = null;
-        if (args.Length != 2 || !string.Equals(args[0], "--config", StringComparison.Ordinal))
+        configPath = null;
+        string? candidateConfigPath = null;
+        string? defaultOverlayIp = null;
+
+        for (var i = 0; i < args.Length; i++)
         {
-            Console.Error.WriteLine("Usage: genhub-overlay --config <path>");
+            if (string.Equals(args[i], "--config", StringComparison.Ordinal) && i + 1 < args.Length)
+            {
+                candidateConfigPath = args[++i];
+            }
+            else if (string.Equals(args[i], "--ip", StringComparison.Ordinal) && i + 1 < args.Length)
+            {
+                defaultOverlayIp = args[++i];
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(candidateConfigPath))
+        {
+            Console.Error.WriteLine("Usage: genhub-overlay --config <path> [--ip <overlayIp>]");
             exitCode = OnlineConstants.SidecarExitUsage;
             return false;
         }
 
-        var configPath = args[1];
+        configPath = candidateConfigPath;
         string configContents;
         try
         {
@@ -109,7 +124,7 @@ public static class Program
             return false;
         }
 
-        var parsed = OverlaySidecarConfig.Parse(configContents);
+        var parsed = OverlaySidecarConfig.Parse(configContents, defaultOverlayIp);
         if (!parsed.Success || parsed.Data is null)
         {
             var err = $"Invalid config: {parsed.AllErrors}";
