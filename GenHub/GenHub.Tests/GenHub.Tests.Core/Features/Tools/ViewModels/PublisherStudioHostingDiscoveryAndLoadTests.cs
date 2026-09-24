@@ -278,6 +278,12 @@ public sealed class PublisherStudioHostingDiscoveryAndLoadTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Tests that HostedAssetItemViewModel IsPending correctly reflects online and CDN status.
+    /// </summary>
+    /// <param name="isOnline">Whether the asset is online.</param>
+    /// <param name="isExternalCdn">Whether the asset is hosted on an external CDN.</param>
+    /// <param name="expectedIsPending">The expected value of IsPending.</param>
     [Theory]
     [InlineData(false, false, true)]
     [InlineData(true, false, false)]
@@ -294,6 +300,9 @@ public sealed class PublisherStudioHostingDiscoveryAndLoadTests : IDisposable
         Assert.Equal(expectedIsPending, vm.IsPending);
     }
 
+    /// <summary>
+    /// Tests that HostedAssetItemViewModel FileSize updates the formatted file size string.
+    /// </summary>
     [Fact]
     public void HostedAssetItemViewModel_FileSize_UpdatesFormattedString()
     {
@@ -305,6 +314,9 @@ public sealed class PublisherStudioHostingDiscoveryAndLoadTests : IDisposable
         Assert.Equal("1 MB", vm.FileSizeFormatted);
     }
 
+    /// <summary>
+    /// Tests that PublisherProfileViewModel ApplyToProject properly synchronizes publisher metadata into the project catalog.
+    /// </summary>
     [Fact]
     public void PublisherProfileViewModel_ApplyToProject_SynchronizesPublisherData()
     {

@@ -1,14 +1,14 @@
-using GenHub.Core.Models.Content;
-using GenHub.Features.Tools.ViewModels.Dialogs;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services;
 using GenHub.Features.Tools.Services.Hosting;
 using GenHub.Features.Tools.ViewModels;
+using GenHub.Features.Tools.ViewModels.Dialogs;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Threading.Tasks;

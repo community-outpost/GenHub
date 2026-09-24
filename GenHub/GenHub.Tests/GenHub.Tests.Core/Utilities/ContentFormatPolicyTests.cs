@@ -140,6 +140,8 @@ public class ContentFormatPolicyTests
     /// <summary>
     /// Strips known archive and package extensions from content and asset names.
     /// </summary>
+    /// <param name="input">The input file name or path.</param>
+    /// <param name="expected">The expected stripped name.</param>
     [Theory]
     [InlineData("GLA Campaign by TKlyo.rar", "GLA Campaign by TKlyo")]
     [InlineData("GLA Campaign by TKlyo.RAR", "GLA Campaign by TKlyo")]
