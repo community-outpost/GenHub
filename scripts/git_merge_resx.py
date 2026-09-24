@@ -72,7 +72,7 @@ TEST_ROOT_CLOSE = '</root>'
 TEST_DATA_CLOSE = '</data>'
 
 RE_DATA_OPEN = re.compile(
-    r'''^\s*<data\b(?:\s+[^"'>\s]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*\s+name\s*=\s*(["'])(.*?)\1''',
+    r'''^\s*<data\b[^>]*?\bname\s*=\s*(["'])([^"']*)\1''',
     re.IGNORECASE,
 )
 RE_DATA_CLOSE = re.compile(r'</data>', re.IGNORECASE)
