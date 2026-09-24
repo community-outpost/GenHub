@@ -84,13 +84,7 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
                 var (installation, accessDenied) = InspectRoot(
                     root,
                     cancellationToken,
-                    allowFlatRoot: string.Equals(
-                    root,
-                    Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                        GameClientConstants.NativeDeployParentDirectoryName,
-                        GameClientConstants.NativeDeployZeroHourDirectoryName),
-                    StringComparison.Ordinal));
+                    allowFlatRoot: string.Equals(root, GetNativeDeployRootPath(), StringComparison.Ordinal));
 
                 if (accessDenied)
                 {
@@ -228,6 +222,11 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
         return (installation, false);
     }
 
+    private static string GetNativeDeployRootPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        GameClientConstants.NativeDeployParentDirectoryName,
+        GameClientConstants.NativeDeployZeroHourDirectoryName);
+
     /// <summary>
     /// Builds the list of directories worth scanning for a copied retail tree.
     /// </summary>
@@ -244,10 +243,7 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
         // binary, bundled dylibs, source-controlled data directories, and the user's own
         // retail archives merged into one directory. It is not a name-matched child of
         // anything, so it must be a candidate root in its own right.
-        yield return Path.Combine(
-            home,
-            GameClientConstants.NativeDeployParentDirectoryName,
-            GameClientConstants.NativeDeployZeroHourDirectoryName);
+        yield return GetNativeDeployRootPath();
 
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         if (!string.IsNullOrEmpty(documents))
