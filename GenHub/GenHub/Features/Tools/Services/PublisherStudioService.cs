@@ -307,6 +307,7 @@ public class PublisherStudioService(
                         Id = catalog.Id,
                         Name = catalog.Name,
                         Description = catalog.Description,
+                        IconUrl = catalog.EffectiveIconUrl ?? catalog.IconUrl,
                         Url = catalogUrl,
                         Mirrors = [],
                     });
@@ -327,7 +328,7 @@ public class PublisherStudioService(
                     Name = project.Catalog.Publisher.Name,
                     Description = project.Catalog.Publisher.Description,
                     WebsiteUrl = project.Catalog.Publisher.WebsiteUrl,
-                    AvatarUrl = project.Catalog.Publisher.AvatarUrl,
+                    AvatarUrl = project.Catalog.Publisher.EffectiveAvatarUrl ?? project.Catalog.Publisher.AvatarUrl,
                     SupportUrl = project.Catalog.Publisher.SupportUrl,
                     ContactEmail = project.Catalog.Publisher.ContactEmail,
                 },

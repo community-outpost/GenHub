@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -59,4 +60,14 @@ public class PublisherProfile
     /// </summary>
     [JsonPropertyName("contactEmail")]
     public string? ContactEmail { get; set; }
+
+    /// <summary>
+    /// Gets the effective avatar URL for this publisher, falling back to recognized logo or deterministic placeholder.
+    /// </summary>
+    [JsonIgnore]
+    public string EffectiveAvatarUrl =>
+        !string.IsNullOrWhiteSpace(AvatarUrl)
+            ? AvatarUrl
+            : PublisherInfoConstants.GetPublisherLogo(Name, Id)
+              ?? ImageCacheConstants.GetPicsumUrl(Id ?? Name, 128, 128);
 }

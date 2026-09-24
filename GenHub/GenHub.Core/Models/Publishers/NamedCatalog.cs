@@ -39,12 +39,13 @@ public class NamedCatalog
     public string FileName { get; set; } = HostingConstants.DefaultCatalogFileName;
 
     /// <summary>
-    /// Gets the effective icon URL for this catalog, falling back to publisher avatar or recognized publisher logo.
+    /// Gets the effective icon URL for this catalog, falling back to publisher avatar, recognized publisher logo, or a deterministic placeholder.
     /// </summary>
-    public string? EffectiveIconUrl =>
+    public string EffectiveIconUrl =>
         !string.IsNullOrWhiteSpace(IconUrl)
             ? IconUrl
             : !string.IsNullOrWhiteSpace(Catalog?.Publisher?.AvatarUrl)
                 ? Catalog.Publisher.AvatarUrl
-                : PublisherInfoConstants.GetPublisherLogo(Name, Id);
+                : PublisherInfoConstants.GetPublisherLogo(Name, Id)
+                  ?? ImageCacheConstants.GetPicsumUrl(Id ?? Name, 128, 128);
 }

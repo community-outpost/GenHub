@@ -21,6 +21,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
@@ -146,6 +147,8 @@ public sealed partial class DownloadsBrowserViewModel(
     private readonly Dictionary<string, GenericCatalogDiscoverer> _subscribedDiscoverers =
         new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly ConcurrentDictionary<string, HashSet<string>> _knownCatalogIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, HashSet<string>> _knownContentItemIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _vmCts = new();
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _catalogsCts;
@@ -1307,6 +1310,63 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        if (_knownCatalogIds.TryGetValue(publisherId, out var prevCatalogIds))
+        {
+            var newCatalogs = catalogs.Where(c => !prevCatalogIds.Contains(c.Id)).ToList();
+            if (newCatalogs.Count > 0 && subscription.NotifyNewReleases)
+            {
+                var title = _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationTitle") ?? "New Catalog Available";
+                var actionText = _localizationService?.GetString("Downloads.Browser.ViewCatalogAction") ?? "View Catalog";
+
+                if (newCatalogs.Count == 1)
+                {
+                    var cat = newCatalogs[0];
+                    var message = string.Format(
+                        _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationFormat") ?? "Publisher '{0}' released a new catalog: '{1}'",
+                        subscription.PublisherName ?? publisherId,
+                        cat.Name);
+
+                    notificationService.Show(new NotificationMessage(
+                        NotificationType.Info,
+                        title,
+                        message,
+                        autoDismissMilliseconds: 10000,
+                        actionText: actionText,
+                        action: () =>
+                        {
+                            RunOnUi(() =>
+                            {
+                                SelectedCatalog = cat;
+                            });
+                        }));
+                }
+                else
+                {
+                    var message = string.Format(
+                        _localizationService?.GetString("Downloads.Browser.NewCatalogsNotificationFormat") ?? "Publisher '{0}' released {1} new catalogs.",
+                        subscription.PublisherName ?? publisherId,
+                        newCatalogs.Count);
+
+                    var firstCat = newCatalogs[0];
+                    notificationService.Show(new NotificationMessage(
+                        NotificationType.Info,
+                        title,
+                        message,
+                        autoDismissMilliseconds: 10000,
+                        actionText: actionText,
+                        action: () =>
+                        {
+                            RunOnUi(() =>
+                            {
+                                SelectedCatalog = firstCat;
+                            });
+                        }));
+                }
+            }
+        }
+
+        _knownCatalogIds[publisherId] = new HashSet<string>(catalogs.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+
         _suppressCatalogChanged = true;
         try
         {
@@ -1925,6 +1985,79 @@ public sealed partial class DownloadsBrowserViewModel(
                 var items = result.Data.Items
                     .Where(item => !query.ContentType.HasValue || item.ContentType == query.ContentType.Value)
                     .ToList();
+
+                var cacheKey = $"{publisherId}:{SelectedCatalog?.Id ?? "default"}";
+                if (_knownContentItemIds.TryGetValue(cacheKey, out var prevItemIds) && !append && !isCustomQuery)
+                {
+                    var newDiscoveredItems = items.Where(i => !prevItemIds.Contains(i.Id)).ToList();
+                    if (newDiscoveredItems.Count > 0)
+                    {
+                        var subResult = await subscriptionStore.GetSubscriptionAsync(publisherId, opCts.Token);
+                        var sub = subResult.Success ? subResult.Data : null;
+                        if (sub?.NotifyNewReleases != false)
+                        {
+                            var title = _localizationService?.GetString("Downloads.Browser.NewContentNotificationTitle") ?? "New Content Available";
+                            var actionText = _localizationService?.GetString("Downloads.Browser.ViewContentAction") ?? "View";
+
+                            if (newDiscoveredItems.Count == 1)
+                            {
+                                var item = newDiscoveredItems[0];
+                                var message = string.Format(
+                                    _localizationService?.GetString("Downloads.Browser.NewContentNotificationFormat") ?? "New content '{0}' released in catalog '{1}'",
+                                    item.Name,
+                                    SelectedCatalog?.Name ?? "Catalog");
+
+                                notificationService.Show(new NotificationMessage(
+                                    NotificationType.Info,
+                                    title,
+                                    message,
+                                    autoDismissMilliseconds: 10000,
+                                    actionText: actionText,
+                                    action: () =>
+                                    {
+                                        RunOnUi(() =>
+                                        {
+                                            var targetVm = ContentItems.FirstOrDefault(ci => string.Equals(ci.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+                                            if (targetVm != null)
+                                            {
+                                                ViewContent(targetVm);
+                                            }
+                                        });
+                                    }));
+                            }
+                            else
+                            {
+                                var message = string.Format(
+                                    _localizationService?.GetString("Downloads.Browser.NewContentsNotificationFormat") ?? "{0} new content items released in catalog '{1}'",
+                                    newDiscoveredItems.Count,
+                                    SelectedCatalog?.Name ?? "Catalog");
+
+                                notificationService.Show(new NotificationMessage(
+                                    NotificationType.Info,
+                                    title,
+                                    message,
+                                    autoDismissMilliseconds: 10000,
+                                    actionText: actionText,
+                                    action: () =>
+                                    {
+                                        RunOnUi(() =>
+                                        {
+                                            var firstVm = ContentItems.FirstOrDefault(ci => newDiscoveredItems.Any(ni => string.Equals(ni.Id, ci.Id, StringComparison.OrdinalIgnoreCase)));
+                                            if (firstVm != null)
+                                            {
+                                                ViewContent(firstVm);
+                                            }
+                                        });
+                                    }));
+                            }
+                        }
+                    }
+                }
+
+                if (!append && !isCustomQuery)
+                {
+                    _knownContentItemIds[cacheKey] = new HashSet<string>(items.Select(i => i.Id), StringComparer.OrdinalIgnoreCase);
+                }
 
                 var existingIds = append ? CollectExistingContentIds() : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var groups = GroupContentItemsByVariant(items);

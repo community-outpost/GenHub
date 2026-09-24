@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -30,6 +31,12 @@ public class CatalogEntry
     public string? Description { get; set; }
 
     /// <summary>
+    /// Gets or sets an optional icon or avatar URL for this catalog.
+    /// </summary>
+    [JsonPropertyName("iconUrl")]
+    public string? IconUrl { get; set; }
+
+    /// <summary>
     /// Gets or sets the primary URL where this catalog JSON is hosted.
     /// </summary>
     [JsonPropertyName("url")]
@@ -44,4 +51,13 @@ public class CatalogEntry
         get => _mirrors ??= [];
         set => _mirrors = value ?? [];
     }
+
+    /// <summary>
+    /// Gets the effective icon URL for this catalog, falling back to a deterministic placeholder.
+    /// </summary>
+    [JsonIgnore]
+    public string EffectiveIconUrl =>
+        !string.IsNullOrWhiteSpace(IconUrl)
+            ? IconUrl
+            : ImageCacheConstants.GetPicsumUrl(Id ?? Name, 128, 128);
 }

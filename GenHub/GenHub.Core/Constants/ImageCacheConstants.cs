@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
@@ -59,4 +60,18 @@ public static class ImageCacheConstants
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Stable placeholder image endpoint for content without artwork.")]
     public const string DefaultContentImageUrl = "https://picsum.photos/seed/genhub/640/360";
+
+    /// <summary>
+    /// Generates a deterministic placeholder image URL with a given seed and dimensions.
+    /// </summary>
+    /// <param name="seed">The unique seed string.</param>
+    /// <param name="width">The image width in pixels.</param>
+    /// <param name="height">The image height in pixels.</param>
+    /// <returns>A formatted Picsum photo URL.</returns>
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Stable placeholder image endpoint for artwork fallbacks.")]
+    public static string GetPicsumUrl(string? seed, int width, int height)
+    {
+        var safeSeed = string.IsNullOrWhiteSpace(seed) ? "genhub" : Uri.EscapeDataString(seed.Trim().ToLowerInvariant());
+        return $"https://picsum.photos/seed/{safeSeed}/{width}/{height}";
+    }
 }

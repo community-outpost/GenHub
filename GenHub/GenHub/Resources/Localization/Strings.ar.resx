@@ -13335,6 +13335,42 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
     <value>لم يتم العثور على ملفات صور أو فيديو مدعومة.</value>
   </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarDropTooltip" xml:space="preserve">
+    <value>أسقط ملف صورة أو عنوان URL هنا لتحديث الصورة الرمزية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadFailedTitle" xml:space="preserve">
+    <value>فشل تحميل الصورة الرمزية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle" xml:space="preserve">
+    <value>تم تحميل الصورة الرمزية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage" xml:space="preserve">
+    <value>تم تحميل صورة الأفاتار إلى مزود الاستضافة بنجاح.</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogNotificationTitle" xml:space="preserve">
+    <value>كتالوج جديد متاح</value>
+  </data>
+  <data name="Downloads.Browser.ViewCatalogAction" xml:space="preserve">
+    <value>عرض الكتالوج</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogNotificationFormat" xml:space="preserve">
+    <value>أصدر الناشر '{0}' كتالوجًا جديدًا: '{1}'</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogsNotificationFormat" xml:space="preserve">
+    <value>أصدر الناشر '{0}' {1} كتالوجات جديدة.</value>
+  </data>
+  <data name="Downloads.Browser.NewContentNotificationTitle" xml:space="preserve">
+    <value>محتوى جديد متاح</value>
+  </data>
+  <data name="Downloads.Browser.ViewContentAction" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="Downloads.Browser.NewContentNotificationFormat" xml:space="preserve">
+    <value>تم إصدار محتوى جديد '{0}' في الكتالوج '{1}'</value>
+  </data>
+  <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
+    <value>تم إصدار {0} عناصر محتوى جديدة في الكتالوج '{1}'</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

@@ -158,12 +158,20 @@ public class ContentCardBadgeHelperTests
         Assert.Equal("https://avatars.githubusercontent.com/u/12345?v=4", ContentCardBadgeHelper.GetPublisherLogoUrl(gitHubWithAvatarResult));
         Assert.Equal("https://github.com/customdev.png", ContentCardBadgeHelper.GetPublisherLogoUrl(gitHubWithoutAvatarResult));
 
-        var customCatalogResult = new ContentSearchResult
+        var dominatorResult = new ContentSearchResult
         {
             Id = "dominator.mappack.01",
             Name = "GLA Campaign by TKlyo",
             ProviderName = "Dominator",
             IconUrl = "https://picsum.photos/seed/dominator-1-icon/256/256",
+        };
+
+        var customCatalogResult = new ContentSearchResult
+        {
+            Id = "custom.pack.01",
+            Name = "Custom Map by Author",
+            ProviderName = "UnknownCustomPublisher",
+            IconUrl = "https://picsum.photos/seed/custom-1-icon/256/256",
         };
 
         var customCatalogWithoutIcon = new ContentSearchResult
@@ -173,7 +181,8 @@ public class ContentCardBadgeHelperTests
             ProviderName = "CustomPublisher",
         };
 
-        Assert.Equal("https://picsum.photos/seed/dominator-1-icon/256/256", ContentCardBadgeHelper.GetPublisherLogoUrl(customCatalogResult));
+        Assert.Equal(PublisherInfoConstants.Dominator.LogoSource, ContentCardBadgeHelper.GetPublisherLogoUrl(dominatorResult));
+        Assert.Equal("https://picsum.photos/seed/custom-1-icon/256/256", ContentCardBadgeHelper.GetPublisherLogoUrl(customCatalogResult));
         Assert.Null(ContentCardBadgeHelper.GetPublisherLogoUrl(customCatalogWithoutIcon));
     }
 

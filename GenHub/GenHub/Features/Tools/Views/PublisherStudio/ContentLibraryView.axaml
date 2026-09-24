@@ -27,12 +27,10 @@
             <Setter Property="Background" Value="#33F59E0B"/>
             <Setter Property="BorderBrush" Value="#F59E0B"/>
             <Setter Property="BorderThickness" Value="1.5"/>
-            <Setter Property="BoxShadow" Value="0 0 12 2 #55F59E0B"/>
         </Style>
         <Style Selector="Button.upload-pending:pointerover">
             <Setter Property="Background" Value="#55F59E0B"/>
             <Setter Property="BorderBrush" Value="#FBBF24"/>
-            <Setter Property="BoxShadow" Value="0 0 16 4 #88F59E0B"/>
         </Style>
         <Style Selector="ListBoxItem">
             <Setter Property="Padding" Value="0"/>
@@ -140,6 +138,26 @@
                                     </StackPanel>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
+                            <ComboBox.SelectionBoxItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <Border Width="16" Height="16" CornerRadius="3" ClipToBounds="True" VerticalAlignment="Center">
+                                            <Panel>
+                                                <Image controls:ImageLoader.Source="{Binding EffectiveIconUrl}"
+                                                       Stretch="UniformToFill"
+                                                       IsVisible="{Binding EffectiveIconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                <PathIcon Data="{StaticResource ContentIcon}"
+                                                          Width="12" Height="12"
+                                                          Foreground="{DynamicResource AccentColorBrush}"
+                                                          VerticalAlignment="Center"
+                                                          HorizontalAlignment="Center"
+                                                          IsVisible="{Binding EffectiveIconUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                                            </Panel>
+                                        </Border>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.SelectionBoxItemTemplate>
                         </ComboBox>
 
                         <!-- Action Buttons: Rename, Add, Delete -->
@@ -276,17 +294,17 @@
                                                 VerticalAlignment="Center"
                                                 ClipToBounds="True">
                                             <Panel>
-                                                <Image controls:ImageLoader.Source="{Binding Metadata.IconUrl}"
+                                                <Image controls:ImageLoader.Source="{Binding EffectiveIconUrl}"
                                                        Width="40" Height="40"
                                                        Stretch="UniformToFill"
                                                        RenderOptions.BitmapInterpolationMode="HighQuality"
-                                                       IsVisible="{Binding Metadata.IconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                       IsVisible="{Binding EffectiveIconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                 <PathIcon Data="{StaticResource ContentIcon}"
                                                           Width="18" Height="18"
                                                           Foreground="{DynamicResource AccentColorBrush}"
                                                           HorizontalAlignment="Center"
                                                           VerticalAlignment="Center"
-                                                          IsVisible="{Binding Metadata.IconUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                                                          IsVisible="{Binding EffectiveIconUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                                             </Panel>
                                         </Border>
 
@@ -1027,13 +1045,7 @@
                                                                        FontWeight="SemiBold"
                                                                        Foreground="{DynamicResource AccentColorBrush}"/>
                                                         </Border>
-                                                        <Button Grid.Column="3"
-                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveAddonCommand}"
-                                                                CommandParameter="{Binding}"
-                                                                Classes="glass-icon-btn"
-                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveAddonTooltip}">
-                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
-                                                        </Button>
+
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>

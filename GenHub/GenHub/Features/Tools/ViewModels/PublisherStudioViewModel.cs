@@ -1158,6 +1158,11 @@ public partial class PublisherStudioViewModel(
     [RelayCommand]
     private async Task RemoveCatalogAsync(NamedCatalog catalog)
     {
+        await RemoveCatalogInternalAsync(catalog, skipConfirmation: false);
+    }
+
+    private async Task RemoveCatalogInternalAsync(NamedCatalog catalog, bool skipConfirmation)
+    {
         if (CurrentProject == null || catalog == null) return;
         if (CurrentProject.Catalogs.Count <= 1)
         {
@@ -1166,19 +1171,22 @@ public partial class PublisherStudioViewModel(
             return;
         }
 
-        var deleteTitle = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteCatalogTitle") ?? "Delete Catalog";
-        var deleteMsgTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteCatalogMessage") ?? "Are you sure you want to delete catalog '{0}'? This cannot be undone.";
-        var deleteConfirm = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteConfirm") ?? "Delete";
-
-        var confirmed = await dialogService.ShowConfirmationAsync(
-            deleteTitle,
-            string.Format(deleteMsgTemplate, catalog.Name),
-            confirmText: deleteConfirm,
-            sessionKey: "DeleteCatalogConfirmation");
-
-        if (!confirmed)
+        if (!skipConfirmation)
         {
-            return;
+            var deleteTitle = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteCatalogTitle") ?? "Delete Catalog";
+            var deleteMsgTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteCatalogMessage") ?? "Are you sure you want to delete catalog '{0}'? This cannot be undone.";
+            var deleteConfirm = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteConfirm") ?? "Delete";
+
+            var confirmed = await dialogService.ShowConfirmationAsync(
+                deleteTitle,
+                string.Format(deleteMsgTemplate, catalog.Name),
+                confirmText: deleteConfirm,
+                sessionKey: "DeleteCatalogConfirmation");
+
+            if (!confirmed)
+            {
+                return;
+            }
         }
 
         CurrentProject.Catalogs.Remove(catalog);
@@ -1215,7 +1223,7 @@ public partial class PublisherStudioViewModel(
             return false;
         }
 
-        await RemoveCatalogAsync(target);
+        await RemoveCatalogInternalAsync(target, skipConfirmation: true);
         return true;
     }
 

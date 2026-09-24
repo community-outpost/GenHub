@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -104,4 +105,31 @@ public class CatalogContentItem
     /// </summary>
     [JsonPropertyName("isStandalone")]
     public bool IsStandalone { get; set; } = true;
+
+    /// <summary>
+    /// Gets the effective icon URL for this content item, falling back to a deterministic placeholder.
+    /// </summary>
+    [JsonIgnore]
+    public string EffectiveIconUrl =>
+        !string.IsNullOrWhiteSpace(Metadata?.IconUrl)
+            ? Metadata.IconUrl
+            : ImageCacheConstants.GetPicsumUrl($"{Id}-icon", 128, 128);
+
+    /// <summary>
+    /// Gets the effective banner URL for this content item, falling back to a deterministic placeholder.
+    /// </summary>
+    [JsonIgnore]
+    public string EffectiveBannerUrl =>
+        !string.IsNullOrWhiteSpace(Metadata?.BannerUrl)
+            ? Metadata.BannerUrl
+            : ImageCacheConstants.GetPicsumUrl($"{Id}-banner", 800, 300);
+
+    /// <summary>
+    /// Gets the effective backdrop URL for this content item, falling back to a deterministic placeholder.
+    /// </summary>
+    [JsonIgnore]
+    public string EffectiveBackdropUrl =>
+        !string.IsNullOrWhiteSpace(Metadata?.BackdropUrl)
+            ? Metadata.BackdropUrl
+            : ImageCacheConstants.GetPicsumUrl($"{Id}-backdrop", 1200, 600);
 }

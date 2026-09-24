@@ -13335,6 +13335,42 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
     <value>Поддерживаемые файлы изображений или видео не найдены.</value>
   </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarDropTooltip" xml:space="preserve">
+    <value>Перетащите файл изображения или URL сюда, чтобы обновить аватар</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadFailedTitle" xml:space="preserve">
+    <value>Сбой загрузки аватара</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle" xml:space="preserve">
+    <value>Аватар загружен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage" xml:space="preserve">
+    <value>Изображение аватара успешно загружено к поставщику хостинга.</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogNotificationTitle" xml:space="preserve">
+    <value>Доступен новый каталог</value>
+  </data>
+  <data name="Downloads.Browser.ViewCatalogAction" xml:space="preserve">
+    <value>Посмотреть каталог</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogNotificationFormat" xml:space="preserve">
+    <value>Издатель «{0}» выпустил новый каталог: «{1}»</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogsNotificationFormat" xml:space="preserve">
+    <value>Издатель «{0}» выпустил новых каталогов: {1}.</value>
+  </data>
+  <data name="Downloads.Browser.NewContentNotificationTitle" xml:space="preserve">
+    <value>Доступен новый контент</value>
+  </data>
+  <data name="Downloads.Browser.ViewContentAction" xml:space="preserve">
+    <value>Просмотр</value>
+  </data>
+  <data name="Downloads.Browser.NewContentNotificationFormat" xml:space="preserve">
+    <value>В каталоге «{1}» опубликован новый контент: «{0}»</value>
+  </data>
+  <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
+    <value>В каталоге «{1}» опубликовано новых материалов: {0}</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

@@ -1045,8 +1045,8 @@ public class GenericCatalogDiscoverer(
             AuthorName = authorName,
             ResolverId = ResolverId,
             IconUrl = iconUrl,
-            BannerUrl = contentItem.Metadata?.BannerUrl,
-            BackdropUrl = contentItem.Metadata?.BackdropUrl,
+            BannerUrl = contentItem.Metadata?.BannerUrl ?? ImageCacheConstants.GetPicsumUrl($"{contentItem.Id}-banner", 800, 300),
+            BackdropUrl = contentItem.Metadata?.BackdropUrl ?? ImageCacheConstants.GetPicsumUrl($"{contentItem.Id}-backdrop", 1200, 600),
             AccentColor = contentItem.Metadata?.AccentColor,
             LastUpdated = release.ReleaseDate,
             RequiresResolution = true,
@@ -1162,8 +1162,8 @@ public class GenericCatalogDiscoverer(
             AuthorName = authorName,
             ResolverId = ResolverId,
             IconUrl = iconUrl,
-            BannerUrl = contentItem.Metadata?.BannerUrl,
-            BackdropUrl = contentItem.Metadata?.BackdropUrl,
+            BannerUrl = contentItem.Metadata?.BannerUrl ?? ImageCacheConstants.GetPicsumUrl($"{contentItem.Id}-banner", 800, 300),
+            BackdropUrl = contentItem.Metadata?.BackdropUrl ?? ImageCacheConstants.GetPicsumUrl($"{contentItem.Id}-backdrop", 1200, 600),
             AccentColor = contentItem.Metadata?.AccentColor,
             LastUpdated = context.ResolvedRelease.ReleaseDate,
             RequiresResolution = true,
@@ -1256,7 +1256,8 @@ public class GenericCatalogDiscoverer(
         var iconUrl = contentItem.Metadata?.IconUrl
             ?? _subscription?.AvatarUrl
             ?? catalog.Publisher?.AvatarUrl
-            ?? PublisherInfoConstants.GetPublisherLogo(effectiveProviderName, catalog.Publisher?.Id ?? string.Empty);
+            ?? PublisherInfoConstants.GetPublisherLogo(effectiveProviderName, catalog.Publisher?.Id ?? string.Empty)
+            ?? ImageCacheConstants.GetPicsumUrl($"{contentItem.Id}-icon", 128, 128);
 
         return (effectiveProviderName, authorName, iconUrl);
     }

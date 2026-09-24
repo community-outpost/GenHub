@@ -76,12 +76,10 @@
             <Setter Property="Background" Value="#33F59E0B"/>
             <Setter Property="BorderBrush" Value="#F59E0B"/>
             <Setter Property="BorderThickness" Value="1.5"/>
-            <Setter Property="BoxShadow" Value="0 0 12 2 #55F59E0B"/>
         </Style>
         <Style Selector="Button.glass-btn-icon.upload-pending:pointerover">
             <Setter Property="Background" Value="#55F59E0B"/>
             <Setter Property="BorderBrush" Value="#FBBF24"/>
-            <Setter Property="BoxShadow" Value="0 0 16 4 #88F59E0B"/>
         </Style>
 
         <!-- Primary Gradient Button -->

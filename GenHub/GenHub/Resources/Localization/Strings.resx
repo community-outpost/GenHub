@@ -13433,6 +13433,42 @@ Would you like to add this catalog to your provider project?</value>
   <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
     <value>No supported image or video files found.</value>
   </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarDropTooltip" xml:space="preserve">
+    <value>Drop an image file or URL here to update avatar</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadFailedTitle" xml:space="preserve">
+    <value>Avatar Upload Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle" xml:space="preserve">
+    <value>Avatar Uploaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage" xml:space="preserve">
+    <value>Avatar image uploaded to hosting provider successfully.</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogNotificationTitle" xml:space="preserve">
+    <value>New Catalog Available</value>
+  </data>
+  <data name="Downloads.Browser.ViewCatalogAction" xml:space="preserve">
+    <value>View Catalog</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogNotificationFormat" xml:space="preserve">
+    <value>Publisher '{0}' released a new catalog: '{1}'</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogsNotificationFormat" xml:space="preserve">
+    <value>Publisher '{0}' released {1} new catalogs.</value>
+  </data>
+  <data name="Downloads.Browser.NewContentNotificationTitle" xml:space="preserve">
+    <value>New Content Available</value>
+  </data>
+  <data name="Downloads.Browser.ViewContentAction" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="Downloads.Browser.NewContentNotificationFormat" xml:space="preserve">
+    <value>New content '{0}' released in catalog '{1}'</value>
+  </data>
+  <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
+    <value>{0} new content items released in catalog '{1}'</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

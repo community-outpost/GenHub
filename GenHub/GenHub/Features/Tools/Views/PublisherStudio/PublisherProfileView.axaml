@@ -151,17 +151,23 @@
                     <StackPanel Grid.Row="4" Grid.Column="2" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.AvatarUrl}" Classes="field-label"/>
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Grid.Column="0"
+                            <TextBox Name="AvatarTextBox"
+                                     Grid.Column="0"
+                                     DragDrop.AllowDrop="True"
                                      Text="{Binding AvatarUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Watermark="https://example.com/logo.png"/>
-                            <Border Grid.Column="1"
+                            <Border Name="AvatarDropTarget"
+                                    Grid.Column="1"
                                     Margin="8,0,0,0"
                                     Width="34" Height="34"
                                     CornerRadius="17"
                                     Background="{DynamicResource GlassFillBrush}"
                                     BorderBrush="{DynamicResource GlassBorderBrush}"
                                     BorderThickness="1"
-                                    ClipToBounds="True">
+                                    DragDrop.AllowDrop="True"
+                                    Cursor="Hand"
+                                    ClipToBounds="True"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}">
                                 <Image Source="{Binding AvatarUrl, Converter={StaticResource StringToImageConverter}}"
                                        Stretch="UniformToFill"/>
                             </Border>

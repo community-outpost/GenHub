@@ -21,7 +21,7 @@
     <Panel Background="{DynamicResource PurpleNebulaBackground}">
         <ContentControl Name="MainContent"/>
 
-        <!-- Window Drag Region (since we are extending client area) -->
-        <Panel Height="30" VerticalAlignment="Top" Background="Transparent" PointerPressed="OnDragRegionPointerPressed"/>
+        <!-- Window Drag Region (excludes top-right corner so close button clicks are never intercepted) -->
+        <Panel Height="30" VerticalAlignment="Top" Margin="0,0,60,0" Background="Transparent" PointerPressed="OnDragRegionPointerPressed"/>
     </Panel>
 </Window>
