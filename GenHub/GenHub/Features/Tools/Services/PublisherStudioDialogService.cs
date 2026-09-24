@@ -491,7 +491,6 @@ public class PublisherStudioDialogService(
         }
     }
 
-
     private static async Task<string?> ShowOpenPickerAsync(
         string title,
         IReadOnlyList<Avalonia.Platform.Storage.FilePickerFileType> fileTypes)
