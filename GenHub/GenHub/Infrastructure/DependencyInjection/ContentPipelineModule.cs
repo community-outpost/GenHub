@@ -243,6 +243,7 @@ public static class ContentPipelineModule
         services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<GenericCatalogContentProvider>());
 
         // Generic catalog profile reconciler
+        services.AddScoped<GenericCatalogContentServices>();
         services.AddScoped<GenericCatalogProfileReconciler>();
         services.AddScoped<IGenericCatalogProfileReconciler>(sp => sp.GetRequiredService<GenericCatalogProfileReconciler>());
         services.AddScoped<IPublisherReconciler>(sp => sp.GetRequiredService<GenericCatalogProfileReconciler>());

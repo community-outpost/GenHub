@@ -1267,9 +1267,10 @@ public class GenericCatalogDiscoverer(
 
         var itemIcon = contentItem.EffectiveIconUrl ?? contentItem.Metadata?.IconUrl;
 
+        var fallbackLogo = !string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : null;
         var iconUrl = !string.IsNullOrWhiteSpace(itemIcon)
             ? itemIcon
-            : (!string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : null);
+            : fallbackLogo;
 
         return (effectiveProviderName, authorName, iconUrl);
     }
