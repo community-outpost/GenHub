@@ -309,10 +309,10 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<string?> ShowRenameCatalogDialogAsync(string currentName)
+    public async Task<string?> ShowRenameCatalogDialogAsync(string currentName, bool canDelete = false, Func<Task<bool>>? onDelete = null)
     {
         return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, string>(
-            callback => new RenameCatalogDialogViewModel(currentName, res => callback(res!)));
+            callback => new RenameCatalogDialogViewModel(currentName, res => callback(res!), canDelete, onDelete));
     }
 
     /// <summary>

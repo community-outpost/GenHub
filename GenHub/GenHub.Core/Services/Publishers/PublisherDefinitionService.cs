@@ -199,6 +199,29 @@ public class PublisherDefinitionService(
             var remoteDef = defResult.Data;
             var hasUpdate = false;
 
+            // Check if publisher name changed
+            if (remoteDef.Publisher != null &&
+                !string.IsNullOrWhiteSpace(remoteDef.Publisher.Name) &&
+                !string.Equals(subscription.PublisherName, remoteDef.Publisher.Name, StringComparison.Ordinal))
+            {
+                logger.LogInformation(
+                    "Updating publisher name for subscription {PublisherId} from {OldName} to {NewName}",
+                    subscription.PublisherId,
+                    subscription.PublisherName,
+                    remoteDef.Publisher.Name);
+
+                subscription.PublisherName = remoteDef.Publisher.Name;
+                hasUpdate = true;
+            }
+
+            // Check if publisher avatar changed
+            if (remoteDef.Publisher != null &&
+                !string.Equals(subscription.AvatarUrl, remoteDef.Publisher.AvatarUrl, StringComparison.Ordinal))
+            {
+                subscription.AvatarUrl = remoteDef.Publisher.AvatarUrl;
+                hasUpdate = true;
+            }
+
             // Check if catalog URL changed
             if (!string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
                 !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))

@@ -966,7 +966,7 @@ public partial class PublishShareViewModel(
         PopulateCloudScanAssets(providerName, ref totalBytes, ref catCount, ref artCount);
 
         TotalStorageUsedFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(totalBytes);
-        TotalHostedFilesCount = defCount + catCount + artCount;
+        TotalHostedFilesCount = HostedAssets.Count;
         HostedDefinitionCount = defCount;
         HostedCatalogsCount = catCount;
         HostedArtifactsCount = artCount;
@@ -1034,7 +1034,11 @@ public partial class PublishShareViewModel(
         }
         else if (string.Equals(filter, "Artifact", StringComparison.OrdinalIgnoreCase))
         {
-            items = items.Where(a => a.IsArtifact);
+            items = items.Where(a => a.IsArtifact && !a.IsExternalCdn);
+        }
+        else if (string.Equals(filter, "ExternalCdn", StringComparison.OrdinalIgnoreCase))
+        {
+            items = items.Where(a => a.IsExternalCdn);
         }
 
         if (!string.IsNullOrEmpty(search))
@@ -1510,7 +1514,7 @@ public partial class PublishShareViewModel(
             LocalFilePath = artifact.LocalFilePath,
             CanUpload = canUploadArtifact,
             Name = artifact.Filename,
-            Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat", "Release Binary ({0} v{1})", contentName, releaseVersion),
+            Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat", "{0} v{1}", contentName, releaseVersion),
             Location = location,
             FileSize = artSize,
             FileSizeFormatted = artSize > 0 ? FileSizeFormatter.Format(artSize) : "0 B",
@@ -2469,12 +2473,18 @@ public partial class PublishShareViewModel(
         await ValidateCatalogAsync();
         if (!IsValid)
         {
-            UploadStatusMessage = string.IsNullOrWhiteSpace(ValidationMessage)
+            var catName = ActiveCatalog?.Name ?? "Catalog";
+            var detail = string.IsNullOrWhiteSpace(ValidationMessage)
                 ? GetLocalizedString("Tools.PublisherStudio.Publish.FixValidationBeforeUpload", "Please fix catalog validation errors before uploading.")
                 : ValidationMessage;
-            notificationService?.ShowWarning(
-                GetLocalizedString("Tools.PublisherStudio.Publish.ValidationFailedTitle", "Validation Failed"),
-                UploadStatusMessage);
+            UploadStatusMessage = $"{catName}: {detail}";
+            if (!suppressNotification)
+            {
+                notificationService?.ShowWarning(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.ValidationFailedTitle", "Validation Failed"),
+                    UploadStatusMessage);
+            }
+
             return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
 
@@ -4421,18 +4431,17 @@ public partial class PublishShareViewModel(
 
         if (failedCatalogs.Count > 0)
         {
+            var failedDetails = string.Join("; ", failedCatalogs.Select(f => $"{f.Name}: {f.Error}"));
+            var baseMsg = FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.PublishAllPartialFormat",
+                "Published {0} of {1} catalog(s). Failed: {2}",
+                succeededCount,
+                totalCatalogs,
+                failedDetails);
+
             UploadStatusMessage = definitionProblem && !string.IsNullOrWhiteSpace(defError)
-                ? FormatLocalizedString(
-                    "Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat",
-                    "Published {0} of {1} catalog(s). Provider definition failed: {2}",
-                    succeededCount,
-                    totalCatalogs,
-                    defError)
-                : FormatLocalizedString(
-                    "Tools.PublisherStudio.Publish.PublishAllPartialFormat",
-                    "Published {0} of {1} catalog(s).",
-                    succeededCount,
-                    totalCatalogs);
+                ? $"{baseMsg} | Definition: {defError}"
+                : baseMsg;
 
             if (definitionProblem)
             {
@@ -4441,7 +4450,8 @@ public partial class PublishShareViewModel(
 
             notificationService?.ShowWarning(
                 GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
-                UploadStatusMessage);
+                UploadStatusMessage,
+                NotificationDurations.Long);
         }
         else if (definitionProblem)
         {

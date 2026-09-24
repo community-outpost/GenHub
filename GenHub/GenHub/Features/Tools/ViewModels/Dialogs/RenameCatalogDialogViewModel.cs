@@ -4,6 +4,7 @@ using GenHub.Common.Validation;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
 
@@ -13,7 +14,9 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class RenameCatalogDialogViewModel(
     string currentName,
-    Action<string?> onComplete) : ObservableValidator
+    Action<string?> onComplete,
+    bool canDelete = false,
+    Func<Task<bool>>? onDelete = null) : ObservableValidator
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -22,10 +25,26 @@ public partial class RenameCatalogDialogViewModel(
     private string _catalogName = currentName ?? string.Empty;
 
     [ObservableProperty]
+    private bool _canDelete = canDelete;
+
+    [ObservableProperty]
     private string? _validationError;
 
     [ObservableProperty]
     private bool _isValid;
+
+    [RelayCommand]
+    private async Task DeleteAsync()
+    {
+        if (onDelete != null)
+        {
+            var deleted = await onDelete();
+            if (deleted)
+            {
+                onComplete(null);
+            }
+        }
+    }
 
     partial void OnCatalogNameChanged(string value)
     {

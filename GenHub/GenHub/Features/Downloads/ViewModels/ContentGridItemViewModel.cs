@@ -94,10 +94,17 @@ public sealed partial class ContentGridItemViewModel(
     private bool _isSelected;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPublisherLogoBadge))]
     private Bitmap? _iconBitmap;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPublisherLogoBadge))]
     private Bitmap? _publisherLogoBitmap;
+
+    /// <summary>
+    /// Gets a value indicating whether the top-left publisher logo or icon overlay badge should be displayed.
+    /// </summary>
+    public bool ShowPublisherLogoBadge => IconBitmap != null && PublisherLogoBitmap != null;
 
     /// <summary>
     /// Performs initialization.
@@ -867,6 +874,11 @@ public sealed partial class ContentGridItemViewModel(
 
         // 1. Load publisher logo if available
         var publisherLogoUrl = ContentCardBadgeHelper.GetPublisherLogoUrl(SearchResult);
+        if (string.Equals(publisherLogoUrl, ThumbnailUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            publisherLogoUrl = null;
+        }
+
         if (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
         {
             try

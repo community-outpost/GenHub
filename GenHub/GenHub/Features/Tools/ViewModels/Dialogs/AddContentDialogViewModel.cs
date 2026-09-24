@@ -1440,7 +1440,7 @@ public partial class AddContentDialogViewModel(
             Metadata = MergeArtworkMetadata(),
         };
 
-        if (!IsEditMode && IncludeInitialRelease)
+        if (!IsEditMode)
         {
             if (!ValidateInitialRelease())
             {
@@ -1449,9 +1449,17 @@ public partial class AddContentDialogViewModel(
 
             AttachInitialRelease(contentItem);
         }
-        else if (IsEditMode)
+        else
         {
             CopyFromExistingItem(contentItem);
+            if (contentItem.Releases.Count == 0 || contentItem.Releases.All(r => r.Artifacts.Count == 0))
+            {
+                ValidationError = GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.ReleaseItemRequired",
+                    "A release item is required. Please provide a local file, folder, or download URL.");
+                IsValid = false;
+                return;
+            }
         }
 
         onContentCreated(contentItem);
@@ -1474,6 +1482,7 @@ public partial class AddContentDialogViewModel(
 
     private bool ValidateInitialRelease()
     {
+        var hasValidUrl = false;
         if (!string.IsNullOrWhiteSpace(DownloadUrl))
         {
             if (!Uri.TryCreate(DownloadUrl.Trim(), UriKind.Absolute, out var uri) ||
@@ -1485,8 +1494,12 @@ public partial class AddContentDialogViewModel(
                 IsValid = false;
                 return false;
             }
+
+            hasValidUrl = true;
         }
-        else if (StagedFiles.Count > 0)
+
+        var hasValidFile = false;
+        if (StagedFiles.Count > 0)
         {
             var missing = StagedFiles.FirstOrDefault(e => !File.Exists(e.LocalPath) && !Directory.Exists(e.LocalPath));
             if (missing != null)
@@ -1499,16 +1512,32 @@ public partial class AddContentDialogViewModel(
                 IsValid = false;
                 return false;
             }
+
+            hasValidFile = true;
         }
-        else if (!string.IsNullOrWhiteSpace(LocalFilePath) &&
-                 !System.IO.File.Exists(LocalFilePath) &&
-                 !System.IO.Directory.Exists(LocalFilePath))
+        else if (!string.IsNullOrWhiteSpace(LocalFilePath))
         {
-            ValidationError = string.Format(
-                GetLocalizedString(
-                    "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
-                    "Local path does not exist: {0}"),
-                LocalFilePath);
+            if (!System.IO.File.Exists(LocalFilePath) && !System.IO.Directory.Exists(LocalFilePath))
+            {
+                ValidationError = string.Format(
+                    GetLocalizedString(
+                        "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
+                        "Local path does not exist: {0}"),
+                    LocalFilePath);
+                IsValid = false;
+                return false;
+            }
+
+            hasValidFile = true;
+        }
+
+        var hasExistingArtifacts = ReleaseArtifacts.Count > 0;
+
+        if (!hasValidUrl && !hasValidFile && !hasExistingArtifacts)
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Validation.ReleaseItemRequired",
+                "A release item is required. Please provide a local file, folder, or download URL.");
             IsValid = false;
             return false;
         }

@@ -59,13 +59,16 @@
         <Style Selector="Button.media-card-btn">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Margin" Value="2,2,10,10" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ClipToBounds" Value="False" />
             <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="VerticalAlignment" Value="Top" />
         </Style>
         <Style Selector="Button.media-card-btn /template/ ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="ClipToBounds" Value="False" />
         </Style>
 
         <Style Selector="Border.media-item-card">
@@ -73,6 +76,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="ClipToBounds" Value="False" />
             <Setter Property="Transitions">
                 <Transitions>
                     <BrushTransition Property="Background" Duration="0:0:0.15" />
@@ -246,7 +250,7 @@
                     <!-- Summary Tab (Default) -->
                     <TabItem Header="{localization:Localize Downloads.ContentDetail.Summary}">
                         <ScrollViewer>
-                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                            <StackPanel Spacing="24" Margin="4,24,4,0" ClipToBounds="False">
                                 <!-- Screenshots Gallery -->
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="4"
                                         IsVisible="{Binding SelectedScreenshotUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
@@ -1176,7 +1180,7 @@
                                                         Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip.Tip="{localization:Localize Downloads.ContentDetail.WatchVideoTooltip}">
-                                                    <Border Classes="media-item-card" Padding="12" Margin="0,0,12,12" Width="300">
+                                                    <Border Classes="media-item-card" Padding="12" Width="300">
                                                         <StackPanel Spacing="8">
                                                             <Border CornerRadius="6" Height="170" Background="{DynamicResource CardBackground}" ClipToBounds="True">
                                                                 <Panel>
@@ -1223,7 +1227,7 @@
                                                         Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ExpandImageTooltip}">
-                                                    <Border Classes="media-item-card" Padding="8" Margin="0,0,8,8" Width="200">
+                                                    <Border Classes="media-item-card" Padding="8" Width="200">
                                                         <StackPanel Spacing="8">
                                                             <Border CornerRadius="6" Height="120" Background="{DynamicResource CardBackground}" ClipToBounds="True">
                                                                 <Panel>

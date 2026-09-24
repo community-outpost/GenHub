@@ -135,14 +135,7 @@
                                VerticalAlignment="Center"
                                RenderOptions.BitmapInterpolationMode="HighQuality"/>
                         <StackPanel VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Title}" FontWeight="Bold" FontSize="15" Foreground="White"/>
-                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
-                                        CornerRadius="4" Padding="5,1">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.BadgeCreator}" FontSize="9" FontWeight="Bold"
-                                               Foreground="{DynamicResource AccentLightBrush}"/>
-                                </Border>
-                            </StackPanel>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Title}" FontWeight="Bold" FontSize="15" Foreground="White"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Subtitle}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
                         </StackPanel>
                     </StackPanel>

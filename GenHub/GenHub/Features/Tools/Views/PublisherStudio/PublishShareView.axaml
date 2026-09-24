@@ -262,14 +262,9 @@
 
                         <!-- Publish Button -->
                         <Button Command="{Binding PublishAllCatalogsCommand}"
+                                IsEnabled="{Binding !IsUploading}"
                                 Classes="primary-btn"
                                 HorizontalAlignment="Stretch">
-                            <Button.IsEnabled>
-                                <MultiBinding Converter="{x:Static conv:MultiBooleanAndConverter.Instance}">
-                                    <Binding Path="AnyCatalogNeedsPublish"/>
-                                    <Binding Path="!IsUploading"/>
-                                </MultiBinding>
-                            </Button.IsEnabled>
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                 <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"/>
                                 <TextBlock Text="{Binding PublishButtonText}" FontSize="14" FontWeight="SemiBold"/>

@@ -295,6 +295,9 @@ public sealed partial class DownloadsBrowserViewModel(
             WeakReferenceMessenger.Default.Register<ContentLibraryClearedMessage>(
                 this,
                 static (recipient, _) => ((DownloadsBrowserViewModel)recipient).OnContentLibraryCleared());
+            WeakReferenceMessenger.Default.Register<DownloadsBrowserViewModel, PublisherSubscriptionsChangedMessage>(
+                this,
+                static (recipient, _) => recipient.OnPublisherSubscriptionsChanged());
             _builtInPublishersInitialized = true;
         }
 
@@ -308,6 +311,8 @@ public sealed partial class DownloadsBrowserViewModel(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task OnTabActivatedAsync()
     {
+        await RefreshSubscribedPublishersAsync();
+
         if (SelectedPublisher == null && Publishers.Count > 0)
         {
             // First activation: selecting the publisher triggers the initial refresh
@@ -381,6 +386,7 @@ public sealed partial class DownloadsBrowserViewModel(
             if (_builtInPublishersInitialized)
             {
                 WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(this);
+                WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionsChangedMessage>(this);
                 contentStateService.ContentStateChanged -= OnContentStateChanged;
                 if (_localizationService != null)
                 {
@@ -1586,6 +1592,11 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogDebug(ex, "Failed to refresh downloaded content count");
         }
+    }
+
+    private void OnPublisherSubscriptionsChanged()
+    {
+        _ = RefreshSubscribedPublishersAsync();
     }
 
     private void OnContentLibraryCleared()
@@ -2834,6 +2845,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 else
                 {
                     existing.DisplayName = subscription.PublisherName;
+                    existing.LogoSource = subscription.AvatarUrl;
                 }
 
                 // Transient discoverer configured for this catalog URL (generic GenHub schema)

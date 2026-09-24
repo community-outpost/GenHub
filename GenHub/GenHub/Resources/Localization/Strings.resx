@@ -6966,6 +6966,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>Updated {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Settings.Section.CloudUploads" xml:space="preserve">
+    <value>Cloud Storage &amp; Uploads</value>
+  </data>
   <data name="Settings.Section.CatalogSubscriptions" xml:space="preserve">
     <value>Publisher Subscriptions</value>
   </data>
@@ -10875,6 +10878,9 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   <data name="Tools.PublisherStudio.RenameCatalog.Subtitle" xml:space="preserve">
     <value>Change the display name of this catalog. The catalog ID will remain the same.</value>
   </data>
+  <data name="Tools.PublisherStudio.EditCatalog.Title" xml:space="preserve">
+    <value>Edit Catalog</value>
+  </data>
   <data name="Tools.PublisherStudio.RenameCatalog.Title" xml:space="preserve">
     <value>Rename Catalog</value>
   </data>
@@ -12746,7 +12752,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Catalog Manifest ({0})</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat" xml:space="preserve">
-    <value>Release Binary ({0} v{1})</value>
+    <value>{0} v{1}</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalFile" xml:space="preserve">
     <value>Local file</value>
@@ -13000,6 +13006,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
     <value>{0} package for {1}.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
+    <value>A release item is required. Please provide a valid download URL or local file.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>Download URL must be a valid HTTP or HTTPS link.</value>
   </data>
@@ -13068,6 +13077,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.FilterArtifacts" xml:space="preserve">
     <value>Artifacts</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterExternalCdn" xml:space="preserve">
+    <value>External CDN</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.SearchAssetsWatermark" xml:space="preserve">
     <value>Search inventory...</value>

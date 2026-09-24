@@ -23,17 +23,17 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto, *, Auto" Margin="24">
+    <Grid RowDefinitions="Auto, *, Auto" Margin="20,14,20,14">
         <!-- Header -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-            <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Title}"
-                       FontSize="18" FontWeight="Bold"
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.EditCatalog.Title}"
+                       FontSize="16" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimary}"/>
             <Button Grid.Column="1"
                     Command="{Binding CancelCommand}"
                     Background="Transparent"
-                    Padding="8"
-                    CornerRadius="8"
+                    Padding="6"
+                    CornerRadius="6"
                     BorderThickness="0"
                     VerticalAlignment="Top">
                 <PathIcon Data="{StaticResource CloseIcon}"
@@ -43,15 +43,15 @@
         </Grid>
 
         <!-- Form Body -->
-        <StackPanel Grid.Row="1" Spacing="12">
+        <StackPanel Grid.Row="1" Spacing="10">
             <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Name}"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimary}"
                        FontSize="13"/>
             <TextBox Text="{Binding CatalogName, Mode=TwoWay}"
                      Watermark="{localization:Localize Tools.PublisherStudio.RenameCatalog.NamePlaceholder}"
-                     FontSize="14"
-                     Padding="12,10"/>
+                     FontSize="13"
+                     Padding="10,8"/>
             <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Description}"
                        FontSize="11"
                        Foreground="{DynamicResource TextMuted}"
@@ -64,19 +64,40 @@
         </StackPanel>
 
         <!-- Actions -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.Cancel}"
-                    Command="{Binding CancelCommand}"
-                    Classes="glass-btn"
-                    Padding="20,10"/>
-            <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.RenameButton}"
-                    Command="{Binding SaveCommand}"
-                    Background="{DynamicResource PrimaryGradientBrush}"
-                    Foreground="{DynamicResource TextPrimary}"
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,14,0,0">
+            <!-- Delete Button (Only when CanDelete is true) -->
+            <Button Grid.Column="0"
+                    Command="{Binding DeleteCommand}"
+                    IsVisible="{Binding CanDelete}"
+                    Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
+                    BorderBrush="{DynamicResource StatusErrorBrush}"
+                    BorderThickness="1"
                     CornerRadius="8"
-                    Padding="24,10"
-                    FontWeight="Bold"
-                    BorderThickness="0"/>
-        </StackPanel>
+                    Padding="14,8"
+                    Cursor="Hand">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource DeleteIcon}" Width="12" Height="12" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.DeleteConfirm}"
+                               Foreground="{DynamicResource StatusErrorBrush}"
+                               FontWeight="SemiBold"
+                               FontSize="12"/>
+                </StackPanel>
+            </Button>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.Cancel}"
+                        Command="{Binding CancelCommand}"
+                        Classes="glass-btn"
+                        Padding="16,8"/>
+                <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.Save}"
+                        Command="{Binding SaveCommand}"
+                        Background="{DynamicResource PrimaryGradientBrush}"
+                        Foreground="{DynamicResource TextPrimary}"
+                        CornerRadius="8"
+                        Padding="20,8"
+                        FontWeight="Bold"
+                        BorderThickness="0"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>

@@ -6868,6 +6868,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>تم التحديث {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Settings.Section.CloudUploads" xml:space="preserve">
+    <value>التخزين السحابي والملفات المرفوعة</value>
+  </data>
   <data name="Settings.Section.CatalogSubscriptions" xml:space="preserve">
     <value>اشتراكات الناشرين</value>
   </data>
@@ -10777,6 +10780,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.PublisherStudio.RenameCatalog.Subtitle" xml:space="preserve">
     <value>تغيير اسم العرض لهذا الكتالوج. سيبقى معرف الكتالوج كما هو دون تغيير.</value>
   </data>
+  <data name="Tools.PublisherStudio.EditCatalog.Title" xml:space="preserve">
+    <value>تعديل الكتالوج</value>
+  </data>
   <data name="Tools.PublisherStudio.RenameCatalog.Title" xml:space="preserve">
     <value>إعادة تسمية الكتالوج</value>
   </data>
@@ -12648,7 +12654,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>بيان الكتالوج ({0})</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat" xml:space="preserve">
-    <value>الملف الثنائي للإصدار ({0} الإصدار {1})</value>
+    <value>{0} v{1}</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalFile" xml:space="preserve">
     <value>ملف محلي</value>
@@ -12901,6 +12907,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
     <value>{0} حزمة لـ {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
+    <value>عنصر الإصدار مطلوب. يرجى توفير عنوان URL صالح للتنزيل أو ملف محلي.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>يجب أن يكون رابط التنزيل رابط HTTP أو HTTPS صالحًا.</value>

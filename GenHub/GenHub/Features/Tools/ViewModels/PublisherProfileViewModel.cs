@@ -1,10 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Publishers;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -21,7 +25,8 @@ public partial class PublisherProfileViewModel(
     PublisherStudioViewModel parentViewModel,
     ILogger logger,
     INotificationService? notificationService = null,
-    ILocalizationService? localizationService = null) : ObservableValidator
+    ILocalizationService? localizationService = null,
+    IPublisherSubscriptionStore? subscriptionStore = null) : ObservableValidator
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -206,10 +211,32 @@ public partial class PublisherProfileViewModel(
         {
             ApplyToProject();
 
-            // Persist changes to disk through parent view model
+            // Persist changes to disk through parent view model silently (avoid duplicate toasts)
             if (parentViewModel != null)
             {
-                await parentViewModel.SaveProjectAsync();
+                await parentViewModel.SaveProjectSilentAsync();
+            }
+
+            if (subscriptionStore != null && !string.IsNullOrWhiteSpace(PublisherId))
+            {
+                try
+                {
+                    var subRes = await subscriptionStore.GetSubscriptionAsync(PublisherId);
+                    if (subRes.Success && subRes.Data != null)
+                    {
+                        var sub = subRes.Data;
+                        sub.PublisherName = PublisherName;
+                        sub.AvatarUrl = string.IsNullOrWhiteSpace(AvatarUrl)
+                            ? null
+                            : ImageCacheService.SanitizeRemoteImageUrl(AvatarUrl);
+                        await subscriptionStore.UpdateSubscriptionAsync(sub);
+                        WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(PublisherId));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to update local publisher subscription after saving profile");
+                }
             }
 
             notificationService?.ShowSuccess(

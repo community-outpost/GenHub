@@ -184,9 +184,11 @@ public interface IPublisherStudioDialogService
     Task<string?> ShowFolderPickerAsync(string title);
 
     /// <summary>
-    /// Shows the rename catalog dialog.
+    /// Shows the edit/rename catalog dialog.
     /// </summary>
     /// <param name="currentName">The current name of the catalog.</param>
+    /// <param name="canDelete">Whether the catalog can be deleted.</param>
+    /// <param name="onDelete">Optional callback to delete the catalog.</param>
     /// <returns>The new catalog name, or null if cancelled.</returns>
-    Task<string?> ShowRenameCatalogDialogAsync(string currentName);
+    Task<string?> ShowRenameCatalogDialogAsync(string currentName, bool canDelete = false, Func<Task<bool>>? onDelete = null);
 }

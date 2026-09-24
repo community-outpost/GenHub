@@ -2067,6 +2067,20 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that Sections contains both Publisher Subscriptions and Cloud Storage &amp; Uploads sections.
+    /// </summary>
+    [Fact]
+    public void Sections_IncludesSubscriptionsAndCloudUploadsSections()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Assert
+        Assert.Contains(viewModel.Sections, s => s.Id == SettingsConstants.SectionSubscriptions);
+        Assert.Contains(viewModel.Sections, s => s.Id == SettingsConstants.SectionCloudUploads);
+    }
+
+    /// <summary>
     /// Verifies that SaveSettingsCommand persists the selected language to UserSettings.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

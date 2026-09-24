@@ -44,7 +44,8 @@ public partial class PublisherStudioViewModel(
     IConfigurationProviderService? configurationProvider = null,
     ILocalizationService? localizationService = null,
     IHostingCredentialStore? credentialStore = null,
-    IPublisherCatalogParser? catalogParser = null) : ObservableObject, IDisposable
+    IPublisherCatalogParser? catalogParser = null,
+    IPublisherSubscriptionStore? subscriptionStore = null) : ObservableObject, IDisposable
 {
     /// <summary>Tab index for the Profile tab.</summary>
     public const int TabProfile = 0;
@@ -1200,6 +1201,23 @@ public partial class PublisherStudioViewModel(
         logger.LogInformation("Removed catalog: {CatalogId}", catalog.Id);
     }
 
+    private async Task<bool> DeleteCatalogConfirmedAsync(NamedCatalog target)
+    {
+        var confirmTitle = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteCatalogTitle") ?? "Delete Catalog";
+        var confirmMessage = string.Format(
+            localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteCatalogConfirmFormat")
+                ?? "Are you sure you want to delete catalog '{0}'? All content items in this catalog will be removed.",
+            target.Name);
+        var confirmed = await dialogService.ShowConfirmationAsync(confirmTitle, confirmMessage);
+        if (!confirmed)
+        {
+            return false;
+        }
+
+        await RemoveCatalogAsync(target);
+        return true;
+    }
+
     /// <summary>
     /// Renames a catalog in the project.
     /// </summary>
@@ -1209,10 +1227,19 @@ public partial class PublisherStudioViewModel(
     private async Task RenameCatalogAsync(NamedCatalog? catalog = null)
     {
         var target = catalog ?? SelectedCatalog;
-        if (target == null) return;
+        if (target == null)
+        {
+            return;
+        }
 
-        var newName = await dialogService.ShowRenameCatalogDialogAsync(target.Name);
-        if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == target.Name) return;
+        var canDelete = CanRemoveCatalog;
+        Func<Task<bool>>? onDelete = canDelete ? () => DeleteCatalogConfirmedAsync(target) : null;
+
+        var newName = await dialogService.ShowRenameCatalogDialogAsync(target.Name, canDelete, onDelete);
+        if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == target.Name)
+        {
+            return;
+        }
 
         var newId = Slugify(newName);
         if (CurrentProject?.Catalogs != null && CurrentProject.Catalogs.Any(c => c != target && string.Equals(c.Id, newId, StringComparison.OrdinalIgnoreCase)))
@@ -1418,7 +1445,7 @@ public partial class PublisherStudioViewModel(
 
         SelectedCatalog = selectedCatalog;
 
-        PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger, notificationService, localizationService);
+        PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger, notificationService, localizationService, subscriptionStore);
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService);
         PublishShareViewModel?.Dispose();
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore);

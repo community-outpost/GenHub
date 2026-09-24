@@ -364,7 +364,18 @@ public static partial class ContentCardBadgeHelper
             return PublisherInfoConstants.GitHub.LogoSource;
         }
 
-        return PublisherInfoConstants.GetPublisherLogo(result.ProviderName, $"{result.AuthorName} {result.Id} {result.Name}");
+        var knownLogo = PublisherInfoConstants.GetPublisherLogo(result.ProviderName, $"{result.AuthorName} {result.Id} {result.Name}");
+        if (!string.IsNullOrWhiteSpace(knownLogo))
+        {
+            return knownLogo;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.IconUrl))
+        {
+            return result.IconUrl;
+        }
+
+        return null;
     }
 
     /// <summary>
