@@ -453,6 +453,32 @@ public sealed class WndImageAssetServiceTests : IDisposable
         decoded.Height.Should().Be(3);
     }
 
+    /// <summary>
+    /// Tests that known mapped image names are listed in sorted order.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetKnownImageNamesAsync_WithDefinitions_ReturnsSortedNames()
+    {
+        // Arrange
+        WriteMappedImages(
+            "MappedImage Zebra\n" +
+            "  Texture = TestPage\n" +
+            "  Coords = Left:0 Top:0 Right:2 Bottom:2\n" +
+            "End\n" +
+            "MappedImage apple\n" +
+            "  Texture = TestPage\n" +
+            "  Coords = Left:0 Top:0 Right:2 Bottom:2\n" +
+            "End\n");
+
+        // Act
+        var result = await _service.GetKnownImageNamesAsync(_gameRoot, null, null);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().Equal("apple", "Zebra");
+    }
+
     private void WriteMappedImages(string content)
     {
         File.WriteAllText(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "TextureSize_512", "Test.ini"), content);

@@ -7189,6 +7189,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
     <value>التحقق</value>
   </data>
+  <data name="Tools.WndEditor.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>إجراءات الملف والتحرير</value>
+  </data>
   <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
     <value>معاينة</value>
   </data>
@@ -7608,6 +7611,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.WndEditor.Tabs.Windows" xml:space="preserve">
     <value>النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Assets" xml:space="preserve">
+    <value>الأصول</value>
   </data>
   <data name="Tools.WndEditor.Tree.CollapseAll" xml:space="preserve">
     <value>طي الكل</value>
@@ -12565,6 +12571,48 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.WndEditor.Assets.LinkedSummarySeparator" xml:space="preserve">
     <value> + </value>
+  </data>
+  <data name="Tools.WndEditor.Assets.KnownCount" xml:space="preserve">
+    <value>{0} صورة مخططة متاحة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportTextures" xml:space="preserve">
+    <value>استيراد القوام…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTitle" xml:space="preserve">
+    <value>فن مفقود</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingEmpty" xml:space="preserve">
+    <value>تم حل جميع الصور المرجعية.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportOne" xml:space="preserve">
+    <value>استيراد…</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectTitle" xml:space="preserve">
+    <value>لا يوجد مشروع تعديل</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectMessage" xml:space="preserve">
+    <value>اربط مجلد تعديل أو افتح ملفًا داخل مشروع تعديل قبل استيراد القوام.</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitle" xml:space="preserve">
+    <value>استيراد القوام</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitleFor" xml:space="preserve">
+    <value>استيراد فن لـ {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FilterName" xml:space="preserve">
+    <value>ملفات القوام</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureTitle" xml:space="preserve">
+    <value>فشل استيراد القوام</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureMessage" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessTitle" xml:space="preserve">
+    <value>تم استيراد القوام</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessMessage" xml:space="preserve">
+    <value>تم استيراد {0} من القوام إلى {1}.</value>
   </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>تغيير حجم النافذة</value>

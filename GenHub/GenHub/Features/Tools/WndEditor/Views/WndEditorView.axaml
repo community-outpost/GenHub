@@ -56,67 +56,152 @@
             CornerRadius="10" Padding="10,8" Margin="0,0,0,10">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Command="{Binding NewDocumentCommand}"
+          <Button Padding="8,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Toolbar.MenuTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Toolbar.MenuTooltip}">
+            <material:MaterialIcon Kind="Menu" Width="14" Height="14"/>
+            <Button.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.New}"
+                          Command="{Binding NewDocumentCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Plus" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.OpenFolder}"
+                          Command="{Binding OpenFolderWithDialogCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="FolderOpen" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.OpenFile}"
+                          Command="{Binding OpenFileWithDialogCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="FileOutline" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Save}"
+                          Command="{Binding SaveFileCommand}"
+                          IsEnabled="{Binding HasDocument}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentSave" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.SaveAs}"
+                          Command="{Binding SaveFileAsWithDialogCommand}"
+                          IsEnabled="{Binding HasDocument}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentSaveAll" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Undo}"
+                          Command="{Binding UndoCommand}"
+                          IsEnabled="{Binding CanUndo}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Undo" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Redo}"
+                          Command="{Binding RedoCommand}"
+                          IsEnabled="{Binding CanRedo}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Redo" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Validate}"
+                          Command="{Binding ValidateDocumentCommand}"
+                          IsEnabled="{Binding HasDocument}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Check" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+          <TextBlock Text="{Binding AssetStatusText}"
+                     FontSize="11" Foreground="{DynamicResource TextMuted}"
+                     VerticalAlignment="Center"
+                     ToolTip.Tip="{Binding AssetStatusTooltip}"
+                     IsVisible="{Binding AssetStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.Assets.Label}"
+                     FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                     VerticalAlignment="Center"/>
+          <ComboBox ItemsSource="{Binding AvailableInstallations}"
+                    SelectedItem="{Binding SelectedAssetInstallation, Mode=TwoWay}"
+                    MinWidth="170" FontSize="11"
+                    PlaceholderText="{localization:Localize Tools.WndEditor.Assets.SelectorWatermark}"
+                    ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.SelectorTooltip}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="mbModels:GameInstallationOption">
+                <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button Content="{localization:Localize Tools.WndEditor.Assets.LinkMenu}"
                   Padding="8,4"
                   Background="{DynamicResource SurfaceElevatedBrush}"
                   BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.New}"
-                  FontSize="11" FontWeight="SemiBold"/>
-          <Button Command="{Binding OpenFolderWithDialogCommand}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
+                  FontSize="11" FontWeight="SemiBold"
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.LinkTooltip}">
+            <Button.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedRight">
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.LinkModFolder}"
+                          Command="{Binding LinkModFolderWithDialogCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="FolderOpen" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.LinkBigArchive}"
+                          Command="{Binding LinkBigArchiveWithDialogCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="PackageVariant" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.Reload}"
+                          Command="{Binding ReloadAssetsCommand}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="Refresh" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.Clear}"
+                          Command="{Binding ClearLinkedAssetsCommand}"
+                          IsEnabled="{Binding HasLinkedAssets}">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="CloseCircleOutline" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+          <Border Background="{DynamicResource AccentTintBackgroundBrush}"
+                  BorderBrush="{DynamicResource AccentBrush}"
                   BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.OpenFolder}"
-                  FontSize="11" FontWeight="SemiBold"/>
-          <Button Command="{Binding OpenFileWithDialogCommand}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.OpenFile}"
-                  FontSize="11" FontWeight="SemiBold"/>
-          <Button Command="{Binding SaveFileCommand}"
-                  IsEnabled="{Binding HasDocument}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.Save}"
-                  FontSize="11" FontWeight="SemiBold"/>
-          <Button Command="{Binding SaveFileAsWithDialogCommand}"
-                  IsEnabled="{Binding HasDocument}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.SaveAs}"
-                  FontSize="11" FontWeight="SemiBold"/>
-          <Button Command="{Binding UndoCommand}"
-                  IsEnabled="{Binding CanUndo}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.Undo}"
-                  FontSize="11" FontWeight="SemiBold"/>
-          <Button Command="{Binding RedoCommand}"
-                  IsEnabled="{Binding CanRedo}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.Redo}"
-                  FontSize="11" FontWeight="SemiBold"/>
-          <Button Command="{Binding ValidateDocumentCommand}"
-                  IsEnabled="{Binding HasDocument}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.Validate}"
-                  FontSize="11" FontWeight="SemiBold"/>
+                  Padding="6,3"
+                  IsVisible="{Binding HasLinkedAssets}"
+                  ToolTip.Tip="{Binding LinkedAssetsTooltip}">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="{Binding LinkedAssetsSummary}"
+                         FontSize="10" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentBrush}"
+                         VerticalAlignment="Center"/>
+              <Button Command="{Binding ClearLinkedAssetsCommand}"
+                      Background="Transparent" BorderThickness="0"
+                      Padding="2,0"
+                      Cursor="Hand"
+                      ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.Clear}">
+                <material:MaterialIcon Kind="Close" Width="10" Height="10"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+              </Button>
+            </StackPanel>
+          </Border>
         </StackPanel>
         <TextBlock Grid.Column="1"
                    Text="{Binding DocumentTitle}"
@@ -472,6 +557,74 @@
                 </Border>
               </Grid>
             </TabItem>
+            <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Assets}">
+              <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="0,4,0,0">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" Margin="0,0,0,4">
+                  <Button Grid.Column="0"
+                          Command="{Binding ImportTexturesWithDialogCommand}"
+                          Padding="8,4"
+                          Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1" CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Assets.ImportTextures}"
+                          FontSize="11" FontWeight="SemiBold"/>
+                  <Button Grid.Column="1"
+                          Command="{Binding ReloadAssetsCommand}"
+                          Padding="8,4" Margin="6,0,0,0"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Assets.Reload}"
+                          FontSize="11"/>
+                </Grid>
+                <TextBlock Grid.Row="1"
+                           Text="{Binding KnownImagesStatusText}"
+                           FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                           Margin="0,0,0,4"
+                           IsVisible="{Binding KnownImagesStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <TextBlock Grid.Row="2"
+                           Text="{localization:Localize Tools.WndEditor.Assets.MissingTitle}"
+                           FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
+                           Margin="0,2,0,4"/>
+                <Border Grid.Row="3"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="6" Padding="4" ClipToBounds="True">
+                  <Grid>
+                    <TextBlock Text="{localization:Localize Tools.WndEditor.Assets.MissingEmpty}"
+                               FontSize="11" Foreground="{DynamicResource TextMuted}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextWrapping="Wrap" TextAlignment="Center" Margin="12"
+                               IsVisible="{Binding !HasMissingImages}"/>
+                    <ListBox ItemsSource="{Binding MissingImageNames}"
+                             IsVisible="{Binding HasMissingImages}"
+                             Background="Transparent" BorderThickness="0" Padding="0">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                          <Grid ColumnDefinitions="*,Auto" Margin="0,1">
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding}"
+                                       FontSize="11" Foreground="{DynamicResource TextPrimary}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding}"/>
+                            <Button Grid.Column="1" x:CompileBindings="False"
+                                    Command="{Binding ElementName=Root, Path=DataContext.ImportTextureForMissingCommand}"
+                                    CommandParameter="{Binding}"
+                                    Padding="6,2" Margin="6,0,0,0"
+                                    Background="Transparent"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="6"
+                                    Content="{localization:Localize Tools.WndEditor.Assets.ImportOne}"
+                                    FontSize="10"/>
+                          </Grid>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                  </Grid>
+                </Border>
+              </Grid>
+            </TabItem>
           </TabControl>
         </Border>
 
@@ -481,97 +634,7 @@
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                 CornerRadius="10" Padding="14" ClipToBounds="True">
-          <Grid RowDefinitions="Auto,*">
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
-              <TextBlock Grid.Column="0"
-                         Text="{localization:Localize Tools.WndEditor.Pane.Preview}"
-                         FontWeight="Bold" FontSize="14"
-                         Foreground="{DynamicResource TextPrimary}"
-                         VerticalAlignment="Center"/>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
-                          HorizontalAlignment="Right" VerticalAlignment="Center">
-                <TextBlock Text="{Binding AssetStatusText}"
-                           FontSize="11" Foreground="{DynamicResource TextMuted}"
-                           VerticalAlignment="Center"
-                           ToolTip.Tip="{Binding AssetStatusTooltip}"
-                           IsVisible="{Binding AssetStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                <TextBlock Text="{localization:Localize Tools.WndEditor.Assets.Label}"
-                           FontSize="11" Foreground="{DynamicResource TextSecondary}"
-                           VerticalAlignment="Center"/>
-                <ComboBox ItemsSource="{Binding AvailableInstallations}"
-                          SelectedItem="{Binding SelectedAssetInstallation, Mode=TwoWay}"
-                          MinWidth="200" FontSize="11"
-                          PlaceholderText="{localization:Localize Tools.WndEditor.Assets.SelectorWatermark}"
-                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.SelectorTooltip}">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="mbModels:GameInstallationOption">
-                      <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center"/>
-                    </DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button Content="{localization:Localize Tools.WndEditor.Assets.LinkMenu}"
-                        Padding="8,4"
-                        Background="{DynamicResource SurfaceElevatedBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1" CornerRadius="6"
-                        FontSize="11" FontWeight="SemiBold"
-                        ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.LinkTooltip}">
-                  <Button.Flyout>
-                    <MenuFlyout Placement="BottomEdgeAlignedRight">
-                      <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.LinkModFolder}"
-                                Command="{Binding LinkModFolderWithDialogCommand}">
-                        <MenuItem.Icon>
-                          <material:MaterialIcon Kind="FolderOpen" Width="14" Height="14"/>
-                        </MenuItem.Icon>
-                      </MenuItem>
-                      <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.LinkBigArchive}"
-                                Command="{Binding LinkBigArchiveWithDialogCommand}">
-                        <MenuItem.Icon>
-                          <material:MaterialIcon Kind="PackageVariant" Width="14" Height="14"/>
-                        </MenuItem.Icon>
-                      </MenuItem>
-                      <Separator/>
-                      <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.Reload}"
-                                Command="{Binding ReloadAssetsCommand}">
-                        <MenuItem.Icon>
-                          <material:MaterialIcon Kind="Refresh" Width="14" Height="14"/>
-                        </MenuItem.Icon>
-                      </MenuItem>
-                      <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.Clear}"
-                                Command="{Binding ClearLinkedAssetsCommand}"
-                                IsEnabled="{Binding HasLinkedAssets}">
-                        <MenuItem.Icon>
-                          <material:MaterialIcon Kind="CloseCircleOutline" Width="14" Height="14"/>
-                        </MenuItem.Icon>
-                      </MenuItem>
-                    </MenuFlyout>
-                  </Button.Flyout>
-                </Button>
-                <Border Background="{DynamicResource AccentTintBackgroundBrush}"
-                        BorderBrush="{DynamicResource AccentBrush}"
-                        BorderThickness="1" CornerRadius="6"
-                        Padding="6,3"
-                        IsVisible="{Binding HasLinkedAssets}"
-                        ToolTip.Tip="{Binding LinkedAssetsTooltip}">
-                  <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="{Binding LinkedAssetsSummary}"
-                               FontSize="10" FontWeight="SemiBold"
-                               Foreground="{DynamicResource AccentBrush}"
-                               VerticalAlignment="Center"/>
-                    <Button Command="{Binding ClearLinkedAssetsCommand}"
-                            Background="Transparent" BorderThickness="0"
-                            Padding="2,0"
-                            Cursor="Hand"
-                            ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.Clear}">
-                      <material:MaterialIcon Kind="Close" Width="10" Height="10"
-                                             Foreground="{DynamicResource AccentBrush}"/>
-                    </Button>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-            </Grid>
-            <Border Grid.Row="1"
-                    BorderBrush="{DynamicResource BorderBrush}"
+          <Border BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1" CornerRadius="8"
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     ClipToBounds="True">
@@ -746,7 +809,6 @@
                 </Panel>
               </ScrollViewer>
             </Border>
-          </Grid>
         </Border>
 
         <GridSplitter Grid.Column="3" Background="Transparent" ResizeDirection="Columns"/>

@@ -7189,6 +7189,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
     <value>Проверить</value>
   </data>
+  <data name="Tools.WndEditor.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>Действия с файлом и правкой</value>
+  </data>
   <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
     <value>Предпросмотр</value>
   </data>
@@ -7608,6 +7611,9 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.WndEditor.Tabs.Windows" xml:space="preserve">
     <value>Окна</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Assets" xml:space="preserve">
+    <value>Ресурсы</value>
   </data>
   <data name="Tools.WndEditor.Tree.CollapseAll" xml:space="preserve">
     <value>Свернуть все</value>
@@ -12565,6 +12571,48 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.WndEditor.Assets.LinkedSummarySeparator" xml:space="preserve">
     <value> + </value>
+  </data>
+  <data name="Tools.WndEditor.Assets.KnownCount" xml:space="preserve">
+    <value>Доступно сопоставленных изображений: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportTextures" xml:space="preserve">
+    <value>Импорт текстур…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTitle" xml:space="preserve">
+    <value>Отсутствующая графика</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingEmpty" xml:space="preserve">
+    <value>Все используемые изображения найдены.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportOne" xml:space="preserve">
+    <value>Импорт…</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectTitle" xml:space="preserve">
+    <value>Нет проекта мода</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectMessage" xml:space="preserve">
+    <value>Привяжите папку мода или откройте файл внутри проекта мода перед импортом текстур.</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitle" xml:space="preserve">
+    <value>Импорт текстур</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitleFor" xml:space="preserve">
+    <value>Импорт графики для {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FilterName" xml:space="preserve">
+    <value>Файлы текстур</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureTitle" xml:space="preserve">
+    <value>Не удалось импортировать текстуру</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureMessage" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessTitle" xml:space="preserve">
+    <value>Текстуры импортированы</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessMessage" xml:space="preserve">
+    <value>Импортировано текстур: {0} в {1}.</value>
   </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Изменить размер окна</value>

@@ -111,6 +111,15 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)));
+        _mockImageAssetService
+            .Setup(s => s.GetKnownImageNamesAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyCollection<string>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<string>>.CreateSuccess([]));
         _mockStringTableService = new Mock<IWndStringTableService>();
         _mockStringTableService
             .Setup(s => s.GetStringsAsync(
@@ -132,6 +141,7 @@ public sealed class WndEditorViewModelTests : IDisposable
             _mockDialogService.Object,
             _mockGameInstallService.Object,
             assetService,
+            Mock.Of<IWndTextureImportService>(),
             Mock.Of<ILogger<WndEditorViewModel>>());
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);

@@ -12,7 +12,11 @@
         <StackPanel Spacing="2">
           <Grid ColumnDefinitions="Auto,*">
             <TextBlock Grid.Column="0" Text="{Binding DisplayNumber}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-            <TextBox Grid.Column="1" Text="{Binding Image, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Watermark="{localization:Localize Tools.WndEditor.General.Draw.Image}"/>
+            <AutoCompleteBox Grid.Column="1" x:CompileBindings="False"
+                             Text="{Binding Image, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                             ItemsSource="{Binding ElementName=GeneralRoot, Path=DataContext.ImageNameOptions}"
+                             FilterMode="Contains" MinimumPrefixLength="1" MaxDropDownHeight="220"
+                             FontSize="11" Watermark="{localization:Localize Tools.WndEditor.General.Draw.Image}"/>
           </Grid>
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Draw.Color}" FontSize="9" Foreground="{DynamicResource TextMuted}"/>
           <ContentControl Content="{Binding Color}" ContentTemplate="{StaticResource RgbaTemplate}"/>
@@ -59,7 +63,7 @@
   </UserControl.Resources>
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Spacing="1" Margin="0">
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Identity}" Classes="compact" IsExpanded="True">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.Identity}" Classes="compact" IsExpanded="True">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Name.Label}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -81,7 +85,7 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Position}" Classes="compact" IsExpanded="True">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.Position}" Classes="compact" IsExpanded="True">
         <StackPanel Spacing="3">
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.UpperLeft}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <Grid ColumnDefinitions="Auto,*,Auto,*">
@@ -115,7 +119,7 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Status}" Classes="compact" IsExpanded="True">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.Status}" Classes="compact" IsExpanded="True">
         <StackPanel Spacing="4">
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Status.Basic}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ItemsControl ItemsSource="{Binding BasicStatusFlags}" ItemTemplate="{StaticResource FlagTemplate}">
@@ -148,7 +152,7 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Text}" Classes="compact" IsExpanded="False">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.Text}" Classes="compact" IsExpanded="False">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Text.Label}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -165,11 +169,11 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Font}" Classes="compact" IsExpanded="False">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.Font}" Classes="compact" IsExpanded="False">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Font.Name}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding FontName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <ComboBox Grid.Column="1" ItemsSource="{Binding FontNameOptions}" SelectedItem="{Binding FontName, Mode=TwoWay}" FontSize="11" MaxDropDownHeight="220"/>
           </Grid>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Font.Size}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -179,7 +183,7 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.TextColors}" Classes="compact" IsExpanded="False">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.TextColors}" Classes="compact" IsExpanded="False">
         <StackPanel Spacing="3">
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.Enabled}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ContentControl Content="{Binding EnabledTextColor}" ContentTemplate="{StaticResource RgbaTemplate}"/>
@@ -196,7 +200,7 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Callbacks}" Classes="compact" IsExpanded="False">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.Callbacks}" Classes="compact" IsExpanded="False">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.System}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -228,21 +232,21 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.DrawData}" Classes="compact" IsExpanded="False">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.DrawData}" Classes="compact" IsExpanded="False">
         <StackPanel Spacing="4">
-          <Expander Header="{localization:Localize Tools.WndEditor.General.Draw.Enabled}" Classes="compact" IsExpanded="False">
+          <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Draw.Enabled}" Classes="compact" IsExpanded="False">
             <ItemsControl ItemsSource="{Binding EnabledDrawData}" ItemTemplate="{StaticResource DrawEntryTemplate}"/>
           </Expander>
-          <Expander Header="{localization:Localize Tools.WndEditor.General.Draw.Disabled}" Classes="compact" IsExpanded="False">
+          <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Draw.Disabled}" Classes="compact" IsExpanded="False">
             <ItemsControl ItemsSource="{Binding DisabledDrawData}" ItemTemplate="{StaticResource DrawEntryTemplate}"/>
           </Expander>
-          <Expander Header="{localization:Localize Tools.WndEditor.General.Draw.Hilite}" Classes="compact" IsExpanded="False">
+          <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Draw.Hilite}" Classes="compact" IsExpanded="False">
             <ItemsControl ItemsSource="{Binding HiliteDrawData}" ItemTemplate="{StaticResource DrawEntryTemplate}"/>
           </Expander>
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Other}" Classes="compact" IsExpanded="False">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.General.Section.Other}" Classes="compact" IsExpanded="False">
         <StackPanel Spacing="3">
           <ItemsControl ItemsSource="{Binding OtherRows}">
             <ItemsControl.ItemTemplate>

@@ -11,11 +11,11 @@
       </Border>
       <TextBlock Text="{localization:Localize Tools.WndEditor.Control.MissingHint}" IsVisible="{Binding ShowMissingControlDataHint}" FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"/>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.Control.Section.StaticText}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsStaticText}">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.StaticText}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsStaticText}">
         <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Static.Centered}" IsChecked="{Binding StaticCentered, Mode=TwoWay}" FontSize="11"/>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.Control.Section.TextEntry}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsEntryField}">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.TextEntry}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsEntryField}">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="120,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Entry.MaxLen}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -28,7 +28,7 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.Control.Section.Slider}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsSlider}">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.Slider}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsSlider}">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="120,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Slider.Min}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -41,7 +41,7 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.Control.Section.Listbox}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsListbox}">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.Listbox}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsListbox}">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="120,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.List.Length}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -65,7 +65,7 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.Control.Section.ComboBox}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsComboBox}">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.ComboBox}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsComboBox}">
         <StackPanel Spacing="3">
           <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Combo.Editable}" IsChecked="{Binding ComboIsEditable, Mode=TwoWay}" FontSize="11"/>
           <Grid ColumnDefinitions="120,*">
@@ -81,14 +81,14 @@
         </StackPanel>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.Control.Section.RadioButton}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsRadioButton}">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.RadioButton}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsRadioButton}">
         <Grid ColumnDefinitions="120,*">
           <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Radio.Group}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
           <NumericUpDown Grid.Column="1" Value="{Binding RadioGroup, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="999" Increment="1" FontSize="11"/>
         </Grid>
       </Expander>
 
-      <Expander Header="{localization:Localize Tools.WndEditor.Control.Section.TabControl}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsTabControl}">
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.TabControl}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsTabControl}">
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="120,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.Orientation}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>

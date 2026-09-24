@@ -763,6 +763,27 @@ public static class WndConstants
     }
 
     /// <summary>
+    /// Texture import locations inside a ModBuilder project (relative to the project root).
+    /// </summary>
+    public static class AssetImport
+    {
+        /// <summary>Loose texture pages picked up by previews and ModBuilder bundles.</summary>
+        public const string TexturesRelativeDirectory = "GameFilesEdited/Art/Textures";
+
+        /// <summary>Hand-authored mapped image definitions picked up by previews and bundles.</summary>
+        public const string MappedImagesRelativeDirectory = "GameFilesEdited/Data/INI/MappedImages/HandCreated";
+
+        /// <summary>Definition file the editor appends imported textures to.</summary>
+        public const string ImportsFileName = "WndEditorImports.ini";
+
+        /// <summary>Sanitized name fallback when the source stem has no usable characters.</summary>
+        public const string FallbackMappedName = "ImportedTexture";
+
+        /// <summary>Source extensions accepted by the texture importer.</summary>
+        public static readonly IReadOnlyList<string> SourceExtensions = new[] { ".png", ".tga", ".dds", ".jpg", ".jpeg", ".bmp" };
+    }
+
+    /// <summary>
     /// Engine draw callback names that procedurally render window content.
     /// </summary>
     public static class DrawCallbacks

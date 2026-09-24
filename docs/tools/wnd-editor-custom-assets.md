@@ -17,8 +17,8 @@ For every mapped image the editor resolves, in order:
 4. **The fallback installation** (Generals when Zero Hour is selected).
 
 The preview status line reports how many referenced images resolved
-(`16 of 16 images`). Anything missing is listed in the tooltip, and the log
-records per-image provenance plus a tier summary line:
+(`16 of 16 images`). Anything missing is listed in the tooltip and in the
+Assets tab, and the log records per-image provenance plus a tier summary line:
 
 ```text
 Preview images: 16/16 (definitions: Expansion=14, BaseGame=2; ...)
@@ -26,32 +26,40 @@ Preview images: 16/16 (definitions: Expansion=14, BaseGame=2; ...)
 
 ## Overriding art for a mod
 
-No import step is needed. Place files in the ModBuilder project and the editor
-picks them up at mod priority, both in previews and in ModBuilder builds:
+The fastest path is the editor's **Assets** tab (left sidebar): it lists every
+image the open `.wnd` references but cannot resolve, with an **Import**
+button per name. Picking a texture (`.png`, `.tga`, `.dds`, `.jpg`, `.bmp`)
+copies it into the mod project and registers a full-page mapped image under
+that name, then refreshes the preview. **Import Textures** imports several
+files at once, registering each under its file stem. Importing needs a project
+context: link the mod folder first, or open a `.wnd` that lives inside one.
 
-1. Drop the texture page (`.tga`) into
-   `GameFilesEdited/Art/Textures/`.
-2. Declare each crop in a MappedImages `.ini` under
-   `GameFilesEdited/Data/INI/MappedImages/` (any `TextureSize_*` or
-   `HandCreated` subfolder works):
+The importer writes the same layout you could author by hand, so previews,
+ModBuilder builds, and the game all agree:
+
+1. The texture page lands in `GameFilesEdited/Art/Textures/`. Sources other
+   than `.dds`/`.tga` are normalized to `.tga`, the loose format the engine
+   reads, preserving transparency.
+2. A full-page crop is declared in
+   `GameFilesEdited/Data/INI/MappedImages/HandCreated/WndEditorImports.ini`:
 
 ```ini
 MappedImage MyMenuBackdrop
-  Texture = MyMenuPage
+  Texture = MyMenuBackdrop.tga
   Coords = Left:0 Top:0 Right:800 Bottom:600
-  Status = NONE
 End
 ```
 
 3. Reference the mapped image name from the window's draw data
-   (for example `ENABLEDDRAWDATA = IMAGE: MyMenuBackdrop, ...`).
-4. Keep the `.wnd` file inside the same project (or link the project folder),
-   then press Reload Assets to refresh the preview.
+   (for example `ENABLEDDRAWDATA = IMAGE: MyMenuBackdrop, ...`). Draw data
+   image fields offer an autocomplete picker listing every mapped image the
+   current asset roots know about.
 
 When ModBuilder bundles the project, `Data/INI/**/*.ini` ships verbatim and
 `Art/Textures/**/*.tga` is converted to DXT5 `.dds`; both land in the release
 archive at game-relative paths, so the game resolves exactly what the editor
-previewed.
+previewed. Hand-authored definitions in the same folders keep working: the
+editor merges them at mod priority with no import step required.
 
 ## Notes and limits
 

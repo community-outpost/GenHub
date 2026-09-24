@@ -43,6 +43,7 @@ public sealed partial class WndEditorViewModel(
     IDialogService dialogService,
     IGameInstallationService gameInstallationService,
     IWndEditorAssetService assetService,
+    IWndTextureImportService textureImportService,
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
     private sealed record AssetRoots(string TargetGameRoot, string? FallbackBaseRoot, bool IsZeroHour)
@@ -280,7 +281,7 @@ public sealed partial class WndEditorViewModel(
     private string _windowsFilter = string.Empty;
 
     /// <summary>
-    /// Gets or sets the active tab in the left sidebar (0 = Windows, 1 = Files).
+    /// Gets or sets the active tab in the left sidebar (0 = Windows, 1 = Files, 2 = Assets).
     /// </summary>
     [ObservableProperty]
     private int _leftSidebarTabIndex;
@@ -337,6 +338,29 @@ public sealed partial class WndEditorViewModel(
     /// </summary>
     [ObservableProperty]
     private bool _hasLinkedAssets;
+
+    /// <summary>
+    /// Gets the mapped image names referenced by the document that resolved to no art.
+    /// </summary>
+    public ObservableCollection<string> MissingImageNames { get; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether any referenced image is missing art.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasMissingImages;
+
+    /// <summary>
+    /// Gets or sets the known mapped image names offered by the art picker.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _knownImageNames = [];
+
+    /// <summary>
+    /// Gets or sets the known art library status text.
+    /// </summary>
+    [ObservableProperty]
+    private string _knownImagesStatusText = string.Empty;
 
     /// <summary>
     /// Gets a value indicating whether undo is available.
@@ -1073,6 +1097,169 @@ public sealed partial class WndEditorViewModel(
     {
         assetService.InvalidateCache();
         RefreshAssetPreviews();
+    }
+
+    /// <summary>
+    /// Imports texture files into the mod project, registering each under its file stem.
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportTexturesWithDialogAsync(CancellationToken cancellationToken = default)
+    {
+        var projectDirectory = ResolveImportProjectDirectory();
+        if (string.IsNullOrEmpty(projectDirectory))
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Import.NoProjectTitle"),
+                localizationService.GetString("Tools.WndEditor.Import.NoProjectMessage"),
+                NotificationDurations.Medium);
+            return;
+        }
+
+        var topLevel = GetTopLevel();
+        if (topLevel == null)
+        {
+            return;
+        }
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = localizationService.GetString("Tools.WndEditor.Import.DialogTitle"),
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(localizationService.GetString("Tools.WndEditor.Import.FilterName"))
+                {
+                    Patterns = WndConstants.AssetImport.SourceExtensions.Select(extension => string.Concat("*", extension)).ToArray(),
+                },
+            ],
+        });
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        var imported = 0;
+        foreach (var file in files)
+        {
+            var localPath = file.TryGetLocalPath();
+            if (string.IsNullOrEmpty(localPath))
+            {
+                continue;
+            }
+
+            var result = await textureImportService.ImportTextureAsync(localPath, projectDirectory, null, cancellationToken);
+            if (result.Success && result.Data != null)
+            {
+                imported++;
+                MissingImageNames.Remove(result.Data.MappedName);
+            }
+            else
+            {
+                notificationService.ShowError(
+                    localizationService.GetString("Tools.WndEditor.Import.FailureTitle"),
+                    localizationService.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
+                    NotificationDurations.Long);
+            }
+        }
+
+        if (imported > 0)
+        {
+            notificationService.ShowSuccess(
+                localizationService.GetString("Tools.WndEditor.Import.SuccessTitle"),
+                localizationService.GetString("Tools.WndEditor.Import.SuccessMessage", imported, projectDirectory),
+                NotificationDurations.Medium);
+            assetService.InvalidateCache();
+            RefreshAssetPreviews();
+        }
+    }
+
+    /// <summary>
+    /// Imports a texture file registered under a specific missing mapped image name.
+    /// </summary>
+    /// <param name="mappedName">The missing mapped image name to provide art for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    [RelayCommand]
+    private async Task ImportTextureForMissingAsync(string? mappedName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(mappedName))
+        {
+            return;
+        }
+
+        var projectDirectory = ResolveImportProjectDirectory();
+        if (string.IsNullOrEmpty(projectDirectory))
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Import.NoProjectTitle"),
+                localizationService.GetString("Tools.WndEditor.Import.NoProjectMessage"),
+                NotificationDurations.Medium);
+            return;
+        }
+
+        var topLevel = GetTopLevel();
+        if (topLevel == null)
+        {
+            return;
+        }
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = localizationService.GetString("Tools.WndEditor.Import.DialogTitleFor", mappedName),
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(localizationService.GetString("Tools.WndEditor.Import.FilterName"))
+                {
+                    Patterns = WndConstants.AssetImport.SourceExtensions.Select(extension => string.Concat("*", extension)).ToArray(),
+                },
+            ],
+        });
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        var localPath = files[0].TryGetLocalPath();
+        if (string.IsNullOrEmpty(localPath))
+        {
+            return;
+        }
+
+        var result = await textureImportService.ImportTextureAsync(localPath, projectDirectory, mappedName, cancellationToken);
+        if (result.Success && result.Data != null)
+        {
+            notificationService.ShowSuccess(
+                localizationService.GetString("Tools.WndEditor.Import.SuccessTitle"),
+                localizationService.GetString("Tools.WndEditor.Import.SuccessMessage", 1, projectDirectory),
+                NotificationDurations.Medium);
+            MissingImageNames.Remove(result.Data.MappedName);
+            assetService.InvalidateCache();
+            RefreshAssetPreviews();
+        }
+        else
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.WndEditor.Import.FailureTitle"),
+                localizationService.GetString("Tools.WndEditor.Import.FailureMessage", Path.GetFileName(localPath), result.FirstError ?? string.Empty),
+                NotificationDurations.Long);
+        }
+    }
+
+    private string? ResolveImportProjectDirectory()
+    {
+        if (!string.IsNullOrWhiteSpace(LinkedModFolder))
+        {
+            return LinkedModFolder;
+        }
+
+        var selection = SelectedAssetInstallation;
+        if (selection == null)
+        {
+            return null;
+        }
+
+        var roots = ResolveAssetRoots(selection);
+        return ResolveProjectDirectory(FilePath, roots) ?? ResolveProjectDirectory(FilesDirectory, roots);
     }
 
     private void UpdateLinkedAssetsSummary()
@@ -1892,26 +2079,35 @@ public sealed partial class WndEditorViewModel(
 
     private void RebuildProperties()
     {
-        SelectedProperties = SelectedNode == null
+        // Flush in-flight color picker edits before discarding the panel: an open flyout
+        // does not reliably raise Closed when its owner is rebuilt, which silently dropped
+        // the edit on selection change.
+        SelectedProperties?.FlushPendingEdits();
+
+        var node = SelectedNode;
+        SelectedProperties = node == null
             ? null
             : new WndWindowPropertiesViewModel(
-                SelectedNode.Window,
+                node.Window,
                 wndDocumentService,
                 notificationService,
                 localizationService,
-                CommitPropertyEdit,
-                RemovePropertyByKey,
-                ReplaceSelectedProperties);
+                (key, value) => CommitPropertyEdit(node.Window, key, value),
+                key => RemovePropertyByKey(node.Window, key),
+                properties => ReplaceSelectedProperties(node.Window, properties));
+        if (SelectedProperties != null)
+        {
+            SelectedProperties.ImageNameOptions = KnownImageNames;
+        }
     }
 
-    private void CommitPropertyEdit(string key, string value)
+    private void CommitPropertyEdit(WndWindow window, string key, string value)
     {
-        if (_document == null || SelectedNode == null)
+        if (_document == null)
         {
             return;
         }
 
-        var window = SelectedNode.Window;
         var oldValue = window.GetProperty(key);
         if (string.Equals(oldValue, value, StringComparison.Ordinal))
         {
@@ -1945,14 +2141,13 @@ public sealed partial class WndEditorViewModel(
         SyncAfterEdit(window);
     }
 
-    private void RemovePropertyByKey(string key)
+    private void RemovePropertyByKey(WndWindow window, string key)
     {
-        if (_document == null || SelectedNode == null)
+        if (_document == null)
         {
             return;
         }
 
-        var window = SelectedNode.Window;
         var index = window.Properties.FindIndex(p => string.Equals(p.Key, key, StringComparison.Ordinal));
         if (index < 0)
         {
@@ -1979,14 +2174,13 @@ public sealed partial class WndEditorViewModel(
         SyncAfterEdit(window);
     }
 
-    private void ReplaceSelectedProperties(IReadOnlyList<WndProperty> properties)
+    private void ReplaceSelectedProperties(WndWindow window, IReadOnlyList<WndProperty> properties)
     {
-        if (_document == null || SelectedNode == null)
+        if (_document == null)
         {
             return;
         }
 
-        var window = SelectedNode.Window;
         var previous = window.Properties.ToList();
         ApplyProperties(window, properties);
         PushUndo(new WndEditAction(
@@ -2715,9 +2909,17 @@ public sealed partial class WndEditorViewModel(
                 return;
             }
 
+            // The asset index is already built above, so listing known names is cheap.
+            var known = await assetService.Images.GetKnownImageNamesAsync(roots.BaseRoot, roots.OverrideRoot, projectDirectory, linkedBigs, roots.IsZeroHour, cancellationToken).ConfigureAwait(false);
+            if (generation != _previewGeneration)
+            {
+                return;
+            }
+
             var bitmaps = images.Success ? images.Data : null;
             var values = strings.Success ? strings.Data : null;
-            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation, labels)).ConfigureAwait(false);
+            var knownNames = known.Success && known.Data != null ? known.Data : null;
+            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation, labels, knownNames)).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex)
         {
@@ -2733,11 +2935,17 @@ public sealed partial class WndEditorViewModel(
         IReadOnlyDictionary<string, byte[]>? images,
         IReadOnlyDictionary<string, string>? strings,
         int generation,
-        IReadOnlyCollection<string>? attemptedLabels = null)
+        IReadOnlyCollection<string>? attemptedLabels = null,
+        IReadOnlyList<string>? knownNames = null)
     {
         if (generation != _previewGeneration)
         {
             return;
+        }
+
+        if (knownNames != null)
+        {
+            SyncKnownImageNames(knownNames);
         }
 
         if (images != null)
@@ -2795,6 +3003,7 @@ public sealed partial class WndEditorViewModel(
         {
             AssetStatusText = string.Empty;
             AssetStatusTooltip = null;
+            SyncMissingImageNames([]);
             return;
         }
 
@@ -2802,6 +3011,7 @@ public sealed partial class WndEditorViewModel(
         {
             AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.SelectorWatermark");
             AssetStatusTooltip = null;
+            SyncMissingImageNames([]);
             return;
         }
 
@@ -2810,10 +3020,12 @@ public sealed partial class WndEditorViewModel(
         {
             AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.EmptyStatus");
             AssetStatusTooltip = null;
+            SyncMissingImageNames([]);
             return;
         }
 
         var missing = names.Where(name => !_previewBitmaps.ContainsKey(name)).OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
+        SyncMissingImageNames(missing);
         AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.ResolvedStatus", names.Count - missing.Count, names.Count);
         AssetStatusTooltip = missing.Count == 0
             ? null
@@ -2826,6 +3038,27 @@ public sealed partial class WndEditorViewModel(
                 missing.Count,
                 names.Count,
                 string.Join(", ", missing));
+        }
+    }
+
+    private void SyncMissingImageNames(IReadOnlyList<string> missing)
+    {
+        MissingImageNames.Clear();
+        foreach (var name in missing)
+        {
+            MissingImageNames.Add(name);
+        }
+
+        HasMissingImages = MissingImageNames.Count > 0;
+    }
+
+    private void SyncKnownImageNames(IReadOnlyList<string> known)
+    {
+        KnownImageNames = known;
+        KnownImagesStatusText = localizationService.GetString("Tools.WndEditor.Assets.KnownCount", known.Count);
+        if (SelectedProperties != null)
+        {
+            SelectedProperties.ImageNameOptions = known;
         }
     }
 

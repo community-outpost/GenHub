@@ -7287,6 +7287,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
     <value>Validate</value>
   </data>
+  <data name="Tools.WndEditor.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>File and edit actions</value>
+  </data>
   <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
     <value>Preview</value>
   </data>
@@ -7706,6 +7709,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Tools.WndEditor.Tabs.Windows" xml:space="preserve">
     <value>Windows</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Assets" xml:space="preserve">
+    <value>Assets</value>
   </data>
   <data name="Tools.WndEditor.Tree.CollapseAll" xml:space="preserve">
     <value>Collapse all</value>
@@ -12663,6 +12669,48 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.WndEditor.Assets.LinkedSummarySeparator" xml:space="preserve">
     <value> + </value>
+  </data>
+  <data name="Tools.WndEditor.Assets.KnownCount" xml:space="preserve">
+    <value>{0} mapped images available</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportTextures" xml:space="preserve">
+    <value>Import Textures…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTitle" xml:space="preserve">
+    <value>Missing art</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingEmpty" xml:space="preserve">
+    <value>All referenced images resolved.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportOne" xml:space="preserve">
+    <value>Import…</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectTitle" xml:space="preserve">
+    <value>No mod project</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectMessage" xml:space="preserve">
+    <value>Link a mod folder or open a file inside a mod project before importing textures.</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitle" xml:space="preserve">
+    <value>Import textures</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitleFor" xml:space="preserve">
+    <value>Import art for {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FilterName" xml:space="preserve">
+    <value>Texture files</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureTitle" xml:space="preserve">
+    <value>Texture import failed</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureMessage" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessTitle" xml:space="preserve">
+    <value>Textures imported</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessMessage" xml:space="preserve">
+    <value>Imported {0} texture(s) into {1}.</value>
   </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Resize window</value>

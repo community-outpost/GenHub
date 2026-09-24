@@ -118,6 +118,44 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
     }
 
+    /// <inheritdoc />
+    public async Task<OperationResult<IReadOnlyList<string>>> GetKnownImageNamesAsync(
+        string baseRoot,
+        string? overrideRoot,
+        string? projectDirectory,
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(baseRoot);
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<string> names = index.Images.Keys
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return OperationResult<IReadOnlyList<string>>.CreateSuccess(names, stopwatch.Elapsed);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to list mapped images from {Root}", baseRoot);
+            return OperationResult<IReadOnlyList<string>>.CreateFailure(
+                $"Failed to list mapped images: {ex.Message}",
+                Array.Empty<string>(),
+                stopwatch.Elapsed);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied listing mapped images from {Root}", baseRoot);
+            return OperationResult<IReadOnlyList<string>>.CreateFailure(
+                $"Access denied listing mapped images: {ex.Message}",
+                Array.Empty<string>(),
+                stopwatch.Elapsed);
+        }
+    }
+
     private static string IndexKey(
         string baseRoot,
         string? overrideRoot,

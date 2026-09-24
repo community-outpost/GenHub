@@ -20,6 +20,7 @@ namespace GenHub.Features.Tools.WndEditor.ViewModels;
 [SuppressMessage("Major Code Smell", "S4144:Methods should not have identical implementations", Justification = "Generated property change partial methods dispatch UI edits.")]
 public sealed partial class WndWindowPropertiesViewModel : ObservableObject
 {
+    private static readonly Lazy<IReadOnlyList<string>> SystemFontNames = new(CollectSystemFontNames);
     private readonly IWndDocumentService _documentService;
     private readonly INotificationService _notificationService;
     private readonly ILocalizationService _localizationService;
@@ -240,6 +241,18 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private string _fontName = string.Empty;
+
+    /// <summary>
+    /// Gets the selectable font names (installed system fonts plus the current value).
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _fontNameOptions = [];
+
+    /// <summary>
+    /// Gets or sets the known mapped image names offered by the art picker.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _imageNameOptions = [];
 
     /// <summary>
     /// Gets or sets the font size.
@@ -611,6 +624,28 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
     private string _rawText = string.Empty;
 
     /// <summary>
+    /// Commits any in-flight color picker edits. Called before the panel is discarded
+    /// (selection change) because an open flyout does not reliably raise Closed then.
+    /// </summary>
+    public void FlushPendingEdits()
+    {
+        EnabledTextColor?.EndColorEdit();
+        EnabledTextBorderColor?.EndColorEdit();
+        DisabledTextColor?.EndColorEdit();
+        DisabledTextBorderColor?.EndColorEdit();
+        HiliteTextColor?.EndColorEdit();
+        HiliteTextBorderColor?.EndColorEdit();
+        foreach (var collection in new[] { EnabledDrawData, DisabledDrawData, HiliteDrawData })
+        {
+            foreach (var entry in collection)
+            {
+                entry.Color.EndColorEdit();
+                entry.BorderColor.EndColorEdit();
+            }
+        }
+    }
+
+    /// <summary>
     /// Reloads every editor from the window without committing edits.
     /// </summary>
     public void RefreshFromWindow()
@@ -833,6 +868,50 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
             FontSize = WndConstants.Editor.DefaultFontSize;
             FontBold = false;
         }
+
+        RefreshFontNameOptions();
+    }
+
+    private void RefreshFontNameOptions()
+    {
+        var systemFonts = SystemFontNames.Value;
+        if (string.IsNullOrWhiteSpace(FontName)
+            || systemFonts.Contains(FontName, StringComparer.OrdinalIgnoreCase))
+        {
+            FontNameOptions = systemFonts;
+            return;
+        }
+
+        FontNameOptions = new[] { FontName }.Concat(systemFonts).ToList();
+    }
+
+    private static IReadOnlyList<string> CollectSystemFontNames()
+    {
+        try
+        {
+            var names = Avalonia.Media.FontManager.Current.SystemFonts
+                .Select(key => key.ToString())
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (names.Count > 0)
+            {
+                return names;
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or NullReferenceException or NotSupportedException)
+        {
+            _ = ex;
+            return FallbackFontNames();
+        }
+
+        return FallbackFontNames();
+    }
+
+    private static IReadOnlyList<string> FallbackFontNames()
+    {
+        return new List<string> { "Arial", "Courier New", "Tahoma", "Times New Roman", "Verdana" };
     }
 
     private void RefreshTextColor()
