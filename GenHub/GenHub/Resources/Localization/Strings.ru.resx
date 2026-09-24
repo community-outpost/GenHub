@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -596,11 +596,11 @@
     <comment>Badge indicating admin privileges required</comment>
   </data>
   <data name="GameProfiles.Badge.RetailCompatible" xml:space="preserve">
-    <value>Совместимо с 1.04</value>
+    <value>Совместимо с 1.04 / 1.05</value>
     <comment>Badge indicating the profile game client rules/INIs and executable match retail</comment>
   </data>
   <data name="GameProfiles.Badge.NonRetailCompatible" xml:space="preserve">
-    <value>Несовместимо с 1.04</value>
+    <value>Несовместимо с 1.04 / 1.05</value>
     <comment>Badge indicating the profile uses non-retail rules/INIs or custom executables</comment>
   </data>
   <data name="GameProfiles.Tooltip.RetailCompatible" xml:space="preserve">
@@ -9117,6 +9117,7 @@ GenHub передает официальный идентификатор AppID 
 
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
     <value>Пропуск очистки для небезопасного или внешнего каталога сборки: {0}</value>
+  </data>
   <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
     <value>Файл проекта уже существует: {0}</value>
   </data>
@@ -9164,7 +9165,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ModBuilder.Notification.Busy.NewProject" xml:space="preserve">
     <value>Невозможно создать новый проект, пока выполняется другая операция.</value>
-  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>Очистка пропущена</value>

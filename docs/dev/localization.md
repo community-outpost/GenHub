@@ -104,6 +104,74 @@ Every localization change should test the behavior it introduces. At minimum:
 - a successful culture change refreshes live bindings;
 - an invalid satellite assembly is ignored without aborting discovery of other languages.
 
+Run tests before pushing localized changes:
+
+```bash
+dotnet build
+dotnet test
+```
+
+## Merging concurrent changes
+
+Every feature branch touches `.resx` localization files, so plain
+line-based merging conflicts constantly, and git's built-in `merge=union`
+is unsafe here: it aligns insertions at shared anchor lines and can
+silently drop a `</data>` closing tag while reporting success. The
+repository instead merges whole `<data name="...">` blocks by resource key
+(`scripts/git_merge_resx.py`, selected by the `merge=resx` attribute in
+`.gitattributes`): independent additions from both sides are both kept,
+deletions are honored, and only a genuine same-key disagreement stops the
+merge. Nobody needs to configure or invoke anything for pull requests; the
+automation described below runs the driver server-side. (Local `git merge`
+or `git rebase` operations on developer machines will still use standard
+line-based merging unless the custom driver is configured locally.)
+
+To configure the driver locally, run this once per clone:
+
+```sh
+git config merge.resx.driver "python3 scripts/git_merge_resx.py %O %A %B"
+```
+
+On Windows, use `python` instead of `python3`:
+
+```sh
+git config merge.resx.driver "python scripts/git_merge_resx.py %O %A %B"
+```
+
+CI validates `.resx` localization files on each run (`scripts/validate_resx.py`):
+well-formed XML with flat `<data>` blocks, no duplicate keys, exact key-set
+parity across cultures, and preserved `{0}`-style placeholders across each resource
+group (run locally with `python scripts/validate_resx.py` on Windows or `python3 scripts/validate_resx.py`
+on Linux/macOS).
+
+### Automatic merges
+
+GitHub never runs custom merge drivers, so the driver above cannot resolve
+pull request conflicts server-side: without further help, one merged
+localization pull request would leave every other open one showing
+conflicts for a human to rebase. The `Resx Auto Merge` workflow
+(`.github/workflows/resx-auto-merge.yml`) closes that gap. It runs
+`scripts/auto_merge_development.py`, which merges `development` into each
+open pull request with the driver configured and pushes only fully clean
+results. Anything needing judgment is left for the author: history is
+never rewritten (merge commits only, never force-pushes), and draft pull
+requests, forks, and pull requests labeled `no-automerge` are skipped.
+
+The workflow stays cheap with two gates. The job itself runs only when
+the push touched `.resx` files or the merge tooling, and the
+script then compares each pull request in memory first: pull requests
+GitHub already shows as mergeable are never touched, pull requests conflicting outside
+managed resx files are skipped for their author, and only
+resx-only conflicts reach a real merge. Trigger it by hand from the
+Actions tab (`workflow_dispatch`) if ever needed outside a push to
+`development`.
+
+> [!NOTE]
+> Pushes to `.github/workflows/*` require an `AUTO_MERGE_PAT` secret with
+> `contents: write` and `workflows: write` permissions. When that secret is
+> absent, PRs touching workflow files will fail to merge with a clear
+> log message and will be skipped cleanly.
+
 ## Language Selection & Persistence
 
 User language preference is saved in `UserSettings` and persisted automatically by `IUserSettingsService`:

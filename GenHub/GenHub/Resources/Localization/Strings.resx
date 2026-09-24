@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -9226,6 +9226,7 @@ Install location:
 
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
     <value>Skipping clean for unsafe or external build directory: {0}</value>
+  </data>
   <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
     <value>Project file already exists at: {0}</value>
   </data>
@@ -9273,7 +9274,6 @@ Install location:
   </data>
   <data name="Tools.ModBuilder.Notification.Busy.NewProject" xml:space="preserve">
     <value>Cannot create a new project while another operation is running.</value>
-  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>Clean Skipped</value>

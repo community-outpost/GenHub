@@ -317,11 +317,11 @@ public static class GenLauncherConstants
     /// Public read-only key distributed in the open-source GenLauncher client for community mod downloads.
     /// May be overridden via the GENLAUNCHER_INSAVE_SECRET_KEY environment variable.
     /// </summary>
+    [SuppressMessage("Security", "S2077:Make sure using a dynamically formatted SQL query is safe here", Justification = "Public read-only GenInsave S3 key, not a SQL query")]
     [SuppressMessage("Security", "S6418:Strings should not contain all capital secret keys or credentials", Justification = "Public read-only GenInsave S3 key distributed in the open-source GenLauncher client for community mod downloads")]
     public static readonly string DefaultGenInsaveSecretKey =
         Environment.GetEnvironmentVariable("GENLAUNCHER_INSAVE_SECRET_KEY")
-        ?? Encoding.UTF8.GetString(
-            Convert.FromBase64String("YjJSVTFvcVZVNXRvSlJuYjRnT0RyWFg4c0JTZ29MY0hSWDZxUFd4ag==")); // NOSONAR
+        ?? "b2RU1oqVU5toJRnb4gODrXX8sBSgoLcHRX6qPWxj"; // NOSONAR
 
     /// <summary>
     /// Probe timeout TimeSpan for GenLauncher size and availability probes.
