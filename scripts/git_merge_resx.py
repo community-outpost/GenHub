@@ -71,7 +71,10 @@ TEST_RESHEADER_CLOSE = '  </resheader>'
 TEST_ROOT_CLOSE = '</root>'
 TEST_DATA_CLOSE = '</data>'
 
-RE_DATA_OPEN = re.compile(r'^\s*<data\s+name=(["\'])(.*?)\1', re.IGNORECASE)
+RE_DATA_OPEN = re.compile(
+    r'''^\s*<data\b(?:\s+[^"'>\s]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*\s+name\s*=\s*(["'])(.*?)\1''',
+    re.IGNORECASE,
+)
 RE_DATA_CLOSE = re.compile(r'</data>', re.IGNORECASE)
 
 
@@ -621,6 +624,11 @@ def _get_self_test_cases(a):
          EXIT_OK, _expect_keys('K.A', 'K.B', 'K.E')),
         ('no-op-byte-identical', _doc(a), _doc(a), _doc(a), EXIT_OK,
          lambda res: [] if res == _doc(a) else ['no-op merge changed bytes']),
+        ('attribute-order-independent',
+         _doc(a),
+         _doc(a).replace('<data name="K.B" xml:space="preserve">', '<data xml:space="preserve" name="K.B">'),
+         _doc(a + [('K.C', 'c', None)]),
+         EXIT_OK, _expect_keys('K.A', 'K.B', 'K.C')),
         ('corrupt-input-fallback',
          _doc(a).replace(TEST_DATA_CLOSE, ''),
          _doc([('K.A', 'a-cur', None), ('K.B', 'b', None)]).replace(TEST_DATA_CLOSE, ''),
