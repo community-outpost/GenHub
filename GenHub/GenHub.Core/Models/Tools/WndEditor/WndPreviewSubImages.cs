@@ -12,13 +12,21 @@ public sealed record WndPreviewSubImages(
     string? ScrollDown,
     string? ScrollThumb,
     string? ComboButton,
-    string? SliderThumb)
+    string? SliderThumb,
+    string? ScrollTrackTop = null,
+    string? ScrollTrackCenter = null,
+    string? ScrollTrackBottom = null)
 {
+    /// <summary>
+    /// Gets a value indicating whether the scrollbar track has all three vertical pieces.
+    /// </summary>
+    public bool HasScrollTrack => ScrollTrackTop != null && ScrollTrackCenter != null && ScrollTrackBottom != null;
+
     /// <summary>
     /// Gets the distinct mapped image names referenced by these sub-images.
     /// </summary>
     public IReadOnlyCollection<string> ReferencedImages =>
-        new[] { ScrollUp, ScrollDown, ScrollThumb, ComboButton, SliderThumb }
+        new[] { ScrollUp, ScrollDown, ScrollThumb, ComboButton, SliderThumb, ScrollTrackTop, ScrollTrackCenter, ScrollTrackBottom }
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name!.Trim())
             .ToHashSet(StringComparer.OrdinalIgnoreCase);

@@ -183,9 +183,11 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     public bool HasContentText => !string.IsNullOrEmpty(ContentText);
 
     /// <summary>
-    /// Gets a value indicating whether the window-name tag shows (for text controls without content, or on selection).
+    /// Gets a value indicating whether the window-name tag shows. Tags show only on selection
+    /// so runtime-populated labels render as blank boxes like the game rather than leaking
+    /// internal window names across the canvas.
     /// </summary>
-    public bool ShowNameTag => (Window.ControlType == WndControlType.StaticText && !HasContentText && !HasImage) || IsSelected;
+    public bool ShowNameTag => IsSelected;
 
     /// <summary>
     /// Gets a value indicating whether the named tag shows in the primary style.
@@ -199,10 +201,11 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
 
     /// <summary>
     /// Gets a value indicating whether the item shows on the canvas.
-    /// Engine-hidden windows stay invisible unless selected for editing.
+    /// Engine-hidden windows stay visible but dimmed so the editor matches the
+    /// runtime layout where scripts reveal them (for example lobby combo boxes).
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public bool CanvasVisible => !IsPreviewHidden || IsSelected;
+    public bool CanvasVisible => true;
 
     /// <summary>
     /// Gets or sets the control text font family.

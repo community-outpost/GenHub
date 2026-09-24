@@ -2344,25 +2344,62 @@ public sealed partial class WndEditorViewModel(
         var up = FindBitmap(sub.ScrollUp);
         var down = FindBitmap(sub.ScrollDown);
         var thumb = FindBitmap(sub.ScrollThumb);
-        var upHeight = up == null ? 0 : up.PixelSize.Height * Zoom;
-        var downHeight = down == null ? 0 : down.PixelSize.Height * Zoom;
+        var upHeight = up == null ? 0 : Math.Min(up.PixelSize.Height * Zoom, item.Height);
+        var downHeight = down == null ? 0 : Math.Min(down.PixelSize.Height * Zoom, Math.Max(0, item.Height - upHeight));
+        var gutter = GutterWidth([up, down, thumb], item.Width);
         if (up != null)
         {
-            var width = up.PixelSize.Width * Zoom;
-            overlays.Add(new WndCanvasOverlayViewModel(up, item.Width - width, 0, width, upHeight));
+            var width = Math.Min(up.PixelSize.Width * Zoom, item.Width);
+            overlays.Add(new WndCanvasOverlayViewModel(up, Math.Max(0, item.Width - width), 0, width, upHeight));
         }
 
         if (down != null)
         {
-            var width = down.PixelSize.Width * Zoom;
-            overlays.Add(new WndCanvasOverlayViewModel(down, item.Width - width, item.Height - downHeight, width, downHeight));
+            var width = Math.Min(down.PixelSize.Width * Zoom, item.Width);
+            overlays.Add(new WndCanvasOverlayViewModel(down, Math.Max(0, item.Width - width), Math.Max(0, item.Height - downHeight), width, downHeight));
         }
 
-        if (thumb != null && item.Height - upHeight - downHeight > 0)
+        var trackHeight = item.Height - upHeight - downHeight;
+        if (trackHeight > 0 && gutter > 0)
         {
-            var width = thumb.PixelSize.Width * Zoom;
-            overlays.Add(new WndCanvasOverlayViewModel(thumb, item.Width - width, upHeight, width, item.Height - upHeight - downHeight));
+            AddScrollTrackOverlay(sub, item, overlays, gutter, upHeight, trackHeight);
         }
+
+        if (thumb != null && trackHeight > 0)
+        {
+            var width = Math.Min(thumb.PixelSize.Width * Zoom, item.Width);
+            var height = Math.Min(thumb.PixelSize.Height * Zoom, trackHeight);
+            overlays.Add(new WndCanvasOverlayViewModel(thumb, Math.Max(0, item.Width - width), upHeight + ((trackHeight - height) / 2), width, height));
+        }
+    }
+
+    private void AddScrollTrackOverlay(WndPreviewSubImages sub, WndCanvasItemViewModel item, List<WndCanvasOverlayViewModel> overlays, double gutter, double top, double height)
+    {
+        if (!sub.HasScrollTrack || sub.ScrollTrackTop == null || sub.ScrollTrackCenter == null || sub.ScrollTrackBottom == null)
+        {
+            return;
+        }
+
+        var width = Math.Max(1, (int)Math.Round(gutter));
+        var trackHeight = Math.Max(1, (int)Math.Round(height));
+        if (TryGetComposedBitmap(sub.ScrollTrackTop, sub.ScrollTrackCenter, sub.ScrollTrackBottom, width, trackHeight, true, out var track) && track != null)
+        {
+            overlays.Add(new WndCanvasOverlayViewModel(track, Math.Max(0, item.Width - gutter), top, gutter, height));
+        }
+    }
+
+    private double GutterWidth(IReadOnlyList<Bitmap?> bitmaps, double maxWidth)
+    {
+        var gutter = 0.0;
+        foreach (var bitmap in bitmaps)
+        {
+            if (bitmap != null)
+            {
+                gutter = Math.Max(gutter, bitmap.PixelSize.Width * Zoom);
+            }
+        }
+
+        return Math.Min(gutter, maxWidth);
     }
 
     private void AddComboButtonOverlay(WndPreviewSubImages sub, WndCanvasItemViewModel item, List<WndCanvasOverlayViewModel> overlays)
@@ -2372,8 +2409,8 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var width = button.PixelSize.Width * Zoom;
-        overlays.Add(new WndCanvasOverlayViewModel(button, item.Width - width, 0, width, item.Height));
+        var width = Math.Min(button.PixelSize.Width * Zoom, item.Width);
+        overlays.Add(new WndCanvasOverlayViewModel(button, Math.Max(0, item.Width - width), 0, width, item.Height));
     }
 
     private void AddSliderThumbOverlay(WndPreviewSubImages sub, WndCanvasItemViewModel item, List<WndCanvasOverlayViewModel> overlays)
@@ -2383,9 +2420,9 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var width = thumb.PixelSize.Width * Zoom;
-        var height = thumb.PixelSize.Height * Zoom;
-        overlays.Add(new WndCanvasOverlayViewModel(thumb, (item.Width - width) / 2, (item.Height - height) / 2, width, height));
+        var width = Math.Min(thumb.PixelSize.Width * Zoom, item.Width);
+        var height = Math.Min(thumb.PixelSize.Height * Zoom, item.Height);
+        overlays.Add(new WndCanvasOverlayViewModel(thumb, Math.Max(0, (item.Width - width) / 2), Math.Max(0, (item.Height - height) / 2), width, height));
     }
 
     private static FontFamily? ResolveFontFamily(string? fontName)
@@ -2438,6 +2475,14 @@ public sealed partial class WndEditorViewModel(
             return WndGameText.StripHotkeyMarkers(localized);
         }
 
+        // Labels carrying a category prefix (GUI:, TOOLTIP:, ...) that miss the string table
+        // are runtime-populated slots (challenge biographies, player names). The game never
+        // shows the raw label, so the preview leaves them blank instead of leaking internals.
+        if (plan.Text.Contains(WndConstants.Syntax.CoordinateSeparator, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
         return plan.Text;
     }
 
@@ -2448,7 +2493,7 @@ public sealed partial class WndEditorViewModel(
             return composed;
         }
 
-        if (!plan.IsThreePiece && plan.SingleImage != null)
+        if (plan.SingleImage != null)
         {
             if (plan.UnderlayImage != null && TryResolveUnderlay(plan.UnderlayImage, plan.SingleImage, item, out var underlayComposed))
             {
@@ -2458,6 +2503,24 @@ public sealed partial class WndEditorViewModel(
             if (_previewBitmaps.TryGetValue(plan.SingleImage, out var single))
             {
                 return single;
+            }
+        }
+
+        if (plan.IsThreePiece)
+        {
+            if (plan.LeftImage != null && _previewBitmaps.TryGetValue(plan.LeftImage, out var left))
+            {
+                return left;
+            }
+
+            if (plan.CenterImage != null && _previewBitmaps.TryGetValue(plan.CenterImage, out var center))
+            {
+                return center;
+            }
+
+            if (plan.RightImage != null && _previewBitmaps.TryGetValue(plan.RightImage, out var right))
+            {
+                return right;
             }
         }
 

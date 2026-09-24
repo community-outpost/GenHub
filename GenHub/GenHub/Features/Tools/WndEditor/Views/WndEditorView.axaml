@@ -629,6 +629,12 @@
                                Opacity="{Binding CanvasOpacity}" ToolTip.Tip="{Binding Label}"
                                IsVisible="{Binding CanvasVisible}">
                           <Border Width="{Binding Width}" Height="{Binding Height}"
+                                  BorderBrush="{DynamicResource BorderBrush}"
+                                  BorderThickness="1" CornerRadius="2"
+                                  Opacity="0.6"
+                                  IsVisible="{Binding !HasImage}"
+                                  IsHitTestVisible="False"/>
+                          <Border Width="{Binding Width}" Height="{Binding Height}"
                                   Background="{Binding FillOverlay}"
                                   IsVisible="{Binding ShowFill}"
                                   BorderThickness="0" CornerRadius="2"

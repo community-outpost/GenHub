@@ -178,7 +178,8 @@ public sealed class WndPreviewPlannerTests
         window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("ListBack", 0)));
         window.SetProperty(WndConstants.SubDrawDataKeys.ListboxEnabledUpButton, DrawDataWith(("ScrollUp", 0)));
         window.SetProperty(WndConstants.SubDrawDataKeys.ListboxEnabledDownButton, DrawDataWith(("ScrollDown", 0)));
-        window.SetProperty(WndConstants.SubDrawDataKeys.ListboxEnabledSlider, DrawDataWith(("ScrollThumb", 0)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.SliderThumbEnabled, DrawDataWith(("ScrollThumb", 0)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.ListboxEnabledSlider, DrawDataWith(("TrackTop", 0), ("TrackBottom", 1), ("TrackCenter", 2)));
 
         // Act
         var plan = WndPreviewPlanner.Plan(window);
@@ -189,7 +190,11 @@ public sealed class WndPreviewPlannerTests
         plan.SubImages!.ScrollUp.Should().Be("ScrollUp");
         plan.SubImages.ScrollDown.Should().Be("ScrollDown");
         plan.SubImages.ScrollThumb.Should().Be("ScrollThumb");
-        plan.ReferencedImages.Should().BeEquivalentTo("ListBack", "ScrollUp", "ScrollDown", "ScrollThumb");
+        plan.SubImages.HasScrollTrack.Should().BeTrue();
+        plan.SubImages.ScrollTrackTop.Should().Be("TrackTop");
+        plan.SubImages.ScrollTrackCenter.Should().Be("TrackCenter");
+        plan.SubImages.ScrollTrackBottom.Should().Be("TrackBottom");
+        plan.ReferencedImages.Should().BeEquivalentTo("ListBack", "ScrollUp", "ScrollDown", "ScrollThumb", "TrackTop", "TrackCenter", "TrackBottom");
     }
 
     /// <summary>
@@ -395,6 +400,145 @@ public sealed class WndPreviewPlannerTests
         plan.SingleImage.Should().Be("MainMenuRuler");
         plan.UnderlayImage.Should().Be("CustomBackdrop");
         plan.ReferencedImages.Should().Contain("CustomBackdrop");
+    }
+
+    /// <summary>
+    /// Tests that command buttons plan a single cameo image instead of a three-piece bar.
+    /// </summary>
+    [Fact]
+    public void Plan_CommandButton_PlansSingleImage()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.CommandButton };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Cameo", 0), ("Middle", 5), ("Right", 6)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.IsThreePiece.Should().BeFalse();
+        plan.SingleImage.Should().Be("Cameo");
+    }
+
+    /// <summary>
+    /// Tests that push buttons fall back to indices one and two when five and six are empty.
+    /// </summary>
+    [Fact]
+    public void Plan_ButtonWithAlternateIndices_PlansThreePiece()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.PushButton };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Left", 0), ("Middle", 1), ("Right", 2)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.IsThreePiece.Should().BeTrue();
+        plan.LeftImage.Should().Be("Left");
+        plan.CenterImage.Should().Be("Middle");
+        plan.RightImage.Should().Be("Right");
+    }
+
+    /// <summary>
+    /// Tests that combo boxes fall back to edit box art when enabled draw data is empty.
+    /// </summary>
+    [Fact]
+    public void Plan_ComboBoxWithEmptyEnabledDrawData_FallsBackToEditBox()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.ComboBox };
+        window.SetProperty(WndConstants.SubDrawDataKeys.ComboBoxEditBoxEnabled, DrawDataWith(("EditBack", 0)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.ComboBoxDropDownButtonEnabled, DrawDataWith(("ComboButton", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be("EditBack");
+        plan.SubImages.Should().NotBeNull();
+        plan.SubImages!.ComboButton.Should().Be("ComboButton");
+        plan.ReferencedImages.Should().BeEquivalentTo("EditBack", "ComboButton");
+    }
+
+    /// <summary>
+    /// Tests that combo boxes plan a three-piece bar from edit box sub-draw-data.
+    /// </summary>
+    [Fact]
+    public void Plan_ComboBoxWithFullEditBoxData_PlansThreePiece()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.ComboBox };
+        window.SetProperty(WndConstants.SubDrawDataKeys.ComboBoxEditBoxEnabled, DrawDataWith(("EditLeft", 0), ("EditRight", 1), ("EditCenter", 2)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.ComboBoxDropDownButtonEnabled, DrawDataWith(("ComboButton", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.IsThreePiece.Should().BeTrue();
+        plan.LeftImage.Should().Be("EditLeft");
+        plan.CenterImage.Should().Be("EditCenter");
+        plan.RightImage.Should().Be("EditRight");
+        plan.SubImages.Should().NotBeNull();
+        plan.SubImages!.ComboButton.Should().Be("ComboButton");
+    }
+
+    /// <summary>
+    /// Tests that entries without an image still fill and border with opaque colors.
+    /// </summary>
+    [Fact]
+    public void Plan_NoImageWithOpaqueColors_PlansFillAndBorder()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.User };
+        var entries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        entries[0] = new WndDrawDataEntry(
+            WndConstants.DrawData.NoImage,
+            new WndRgbaColor(0, 0, 0, 255),
+            new WndRgbaColor(255, 190, 0, 255));
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, new WndDrawDataSet(entries).ToString());
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().BeNull();
+        plan.FillColor.Should().Be(new WndRgbaColor(0, 0, 0, 255));
+        plan.BorderColor.Should().Be(new WndRgbaColor(255, 190, 0, 255));
+    }
+
+    /// <summary>
+    /// Tests that GUIEdit's unconfigured red entries suppress both fill and border.
+    /// </summary>
+    [Fact]
+    public void Plan_RedSentinelEntry_SuppressesFillAndBorder()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.User };
+        var entries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        entries[0] = new WndDrawDataEntry(
+            WndConstants.DrawData.NoImage,
+            new WndRgbaColor(255, 0, 0, 255),
+            new WndRgbaColor(255, 128, 128, 255));
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, new WndDrawDataSet(entries).ToString());
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.FillColor.Should().BeNull();
+        plan.BorderColor.Should().BeNull();
     }
 
     private static string DrawDataWith(params (string Name, int Index)[] images)

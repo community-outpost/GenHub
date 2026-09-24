@@ -33,7 +33,8 @@ public static class WndPreviewPlanner
 
         var plan = window.ControlType switch
         {
-            WndControlType.PushButton or WndControlType.CommandButton => PlanButton(drawData, style, isHidden, isSeeThru, isImageWindow),
+            WndControlType.PushButton => PlanButton(drawData, style, isHidden, isSeeThru, isImageWindow),
+            WndControlType.CommandButton => PlanCommandButton(drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.EntryField => PlanTextEntry(drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.ScrollListBox => PlanListbox(window, drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.ComboBox => PlanComboBox(window, drawData, style, isHidden, isSeeThru, isImageWindow),
@@ -52,8 +53,10 @@ public static class WndPreviewPlanner
         bool isImageWindow)
     {
         var left = ImageAt(drawData, WndConstants.Preview.ButtonImageIndex);
-        var middle = ImageAt(drawData, WndConstants.Preview.ButtonMiddleImageIndex);
-        var right = ImageAt(drawData, WndConstants.Preview.ButtonRightImageIndex);
+        var middle = ImageAt(drawData, WndConstants.Preview.ButtonMiddleImageIndex)
+            ?? ImageAt(drawData, WndConstants.Preview.TextEntryRightImageIndex);
+        var right = ImageAt(drawData, WndConstants.Preview.ButtonRightImageIndex)
+            ?? ImageAt(drawData, WndConstants.Preview.TextEntryCenterImageIndex);
         if (left != null && middle != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
@@ -62,6 +65,18 @@ public static class WndPreviewPlanner
 
         var single = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
         return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, true, isHidden, FontName: style.FontName);
+    }
+
+    private static WndPreviewPlan PlanCommandButton(
+        WndDrawDataSet? drawData,
+        WndTextStyle style,
+        bool isHidden,
+        bool isSeeThru,
+        bool isImageWindow)
+    {
+        var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
+        var single = ImageAt(drawData, WndConstants.Preview.DefaultImageIndex);
+        return new WndPreviewPlan(single, null, null, null, null, null, false, ResolveFillColor(entry, isSeeThru, isImageWindow), ResolveBorderColor(entry, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, true, isHidden, FontName: style.FontName);
     }
 
     private static WndPreviewPlan PlanTextEntry(
@@ -130,12 +145,15 @@ public static class WndPreviewPlanner
         var sub = new WndPreviewSubImages(
             SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledUpButton),
             SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledDownButton),
-            SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledSlider),
+            SubImageAt(window, WndConstants.SubDrawDataKeys.SliderThumbEnabled),
             null,
-            null);
+            null,
+            SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledSlider, WndConstants.Preview.SliderLeftImageIndex),
+            SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledSlider, WndConstants.Preview.SliderCenterImageIndex),
+            SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledSlider, WndConstants.Preview.SliderRightImageIndex));
         if (!ShowsScrollBar(window))
         {
-            sub = sub with { ScrollUp = null, ScrollDown = null, ScrollThumb = null };
+            sub = sub with { ScrollUp = null, ScrollDown = null, ScrollThumb = null, ScrollTrackTop = null, ScrollTrackCenter = null, ScrollTrackBottom = null };
         }
 
         var image = ImageAt(drawData, WndConstants.Preview.DefaultImageIndex);
@@ -166,7 +184,9 @@ public static class WndPreviewPlanner
         bool isSeeThru,
         bool isImageWindow)
     {
-        var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
+        var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex)
+            ?? SubEntryAt(window, WndConstants.SubDrawDataKeys.ComboBoxEditBoxEnabled)
+            ?? SubEntryAt(window, WndConstants.SubDrawDataKeys.ComboBoxListBoxEnabled);
         var sub = new WndPreviewSubImages(
             null,
             null,
@@ -174,6 +194,11 @@ public static class WndPreviewPlanner
             SubImageAt(window, WndConstants.SubDrawDataKeys.ComboBoxDropDownButtonEnabled),
             null);
         var image = ImageAt(drawData, WndConstants.Preview.DefaultImageIndex);
+        if (image == null)
+        {
+            return PlanComboBoxEditBoxBar(window, entry, sub, style, isHidden, isSeeThru, isImageWindow);
+        }
+
         return new WndPreviewPlan(
             image,
             null,
@@ -191,6 +216,30 @@ public static class WndPreviewPlanner
             false,
             isHidden,
             FontName: style.FontName);
+    }
+
+    private static WndPreviewPlan PlanComboBoxEditBoxBar(
+        WndWindow window,
+        WndDrawDataEntry? entry,
+        WndPreviewSubImages sub,
+        WndTextStyle style,
+        bool isHidden,
+        bool isSeeThru,
+        bool isImageWindow)
+    {
+        // Retail combo boxes leave ENABLEDDRAWDATA empty and draw the closed field from the
+        // edit-box sub-draw-data using the text-entry part order (left 0, right 1, center 2).
+        var left = SubImageAt(window, WndConstants.SubDrawDataKeys.ComboBoxEditBoxEnabled, WndConstants.Preview.TextEntryLeftImageIndex);
+        var right = SubImageAt(window, WndConstants.SubDrawDataKeys.ComboBoxEditBoxEnabled, WndConstants.Preview.TextEntryRightImageIndex);
+        var center = SubImageAt(window, WndConstants.SubDrawDataKeys.ComboBoxEditBoxEnabled, WndConstants.Preview.TextEntryCenterImageIndex);
+        if (left != null && center != null && right != null)
+        {
+            return new WndPreviewPlan(null, left, center, right, null, sub, false, ResolveFillColor(entry, isSeeThru, isImageWindow), ResolveBorderColor(entry, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden, FontName: style.FontName);
+        }
+
+        var single = left
+            ?? SubImageAt(window, WndConstants.SubDrawDataKeys.ComboBoxListBoxEnabled);
+        return new WndPreviewPlan(single, null, null, null, null, sub, false, ResolveFillColor(entry, isSeeThru, isImageWindow), ResolveBorderColor(entry, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden, FontName: style.FontName);
     }
 
     private static WndPreviewPlan PlanSlider(
@@ -370,16 +419,17 @@ public static class WndPreviewPlanner
     {
         // In SAGE engine (W3DGameWindow.cpp), windows with WIN_STATUS_IMAGE never call winFillRect.
         // Solid background fills only apply to windows without image status.
-        if (isSeeThru || isImageWindow || entry == null || entry.IsEmpty)
+        // Entries without an image still fill with COLOR (retail map previews and progress bars
+        // rely on NoImage plus an opaque color), so only fully transparent colors are skipped.
+        if (isSeeThru || isImageWindow || entry == null || entry.Color.Alpha == 0)
         {
             return null;
         }
 
-        // GUIEdit initializes newly created windows with an unconfigured sentinel red tint (255, 0, 0, 255).
-        // In SAGE layouts, unconfigured window templates frequently retain this default without an image.
-        // If the entry has no mapped image name, we treat pure opaque red (255, 0, 0, 255) as GUIEdit's dummy
-        // placeholder and suppress the fill so the window canvas remains transparent rather than drawing an opaque red box.
-        if (string.IsNullOrWhiteSpace(entry.Image) && entry.Color is { Red: 255, Green: 0, Blue: 0, Alpha: 255 })
+        // GUIEdit stamps unconfigured entries with a sentinel red tint (255, 0, 0, 255).
+        // Retail layouts frequently retain this default next to real art, so pure opaque red
+        // is treated as an unconfigured placeholder and suppressed with or without an image.
+        if (entry.Color is { Red: 255, Green: 0, Blue: 0, Alpha: 255 })
         {
             return null;
         }
@@ -389,12 +439,19 @@ public static class WndPreviewPlanner
 
     private static WndRgbaColor? ResolveBorderColor(WndDrawDataEntry? entry, bool isSeeThru)
     {
-        if (isSeeThru || entry == null || entry.IsEmpty)
+        if (isSeeThru || entry == null)
         {
             return null;
         }
 
-        if (entry.BorderColor != null && entry.BorderColor.Alpha == 0)
+        if (entry.BorderColor == null || entry.BorderColor.Alpha == 0)
+        {
+            return null;
+        }
+
+        // A pure opaque red COLOR marks the whole entry as GUIEdit's unconfigured default,
+        // in which case the accompanying border color (usually pink 255, 128, 128) is junk too.
+        if (entry.Color is { Red: 255, Green: 0, Blue: 0, Alpha: 255 })
         {
             return null;
         }
@@ -411,12 +468,27 @@ public static class WndPreviewPlanner
 
     private static string? SubImageAt(WndWindow window, string key)
     {
+        return SubImageAt(window, key, WndConstants.Preview.DefaultImageIndex);
+    }
+
+    private static string? SubImageAt(WndWindow window, string key, int index)
+    {
         if (!WndDrawDataSet.TryParse(window.GetProperty(key), out var set) || set == null)
         {
             return null;
         }
 
-        return ImageAt(set, WndConstants.Preview.DefaultImageIndex);
+        return ImageAt(set, index);
+    }
+
+    private static WndDrawDataEntry? SubEntryAt(WndWindow window, string key)
+    {
+        if (!WndDrawDataSet.TryParse(window.GetProperty(key), out var set) || set == null)
+        {
+            return null;
+        }
+
+        return EntryAt(set, WndConstants.Preview.DefaultImageIndex);
     }
 
     private static string? PlanText(WndWindow window)

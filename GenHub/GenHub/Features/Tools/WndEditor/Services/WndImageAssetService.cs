@@ -142,7 +142,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             handCreatedBonus = 10_000;
         }
 
-        var sizeBonus = size < 0 ? 0 : Math.Max(0, 1000 - Math.Abs(size - WndConstants.Preview.PreferredTextureSize));
+        var sizeBonus = size < 0 ? 0 : Math.Clamp(size, 0, 4096);
 
         return tierBase + handCreatedBonus + sizeBonus;
     }
@@ -723,10 +723,19 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         SageFileTier definitionTier)
     {
         var trimmed = texture.Trim();
-        var match = SearchCandidatesInBand(fileSystem, trimmed, definitionTier, SageFileTier.LinkedAsset);
+        var match = SearchCandidatesInBand(fileSystem, trimmed, definitionTier, definitionTier);
         if (match != null)
         {
             return match;
+        }
+
+        if (definitionTier < SageFileTier.LinkedAsset)
+        {
+            match = SearchCandidatesInBand(fileSystem, trimmed, (SageFileTier)((int)definitionTier + 1), SageFileTier.LinkedAsset);
+            if (match != null)
+            {
+                return match;
+            }
         }
 
         if (definitionTier > SageFileTier.BaseGame)
@@ -786,10 +795,19 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             }
         }
 
-        var match = SearchFileNameInBand(fileSystem, candidates, definitionTier, SageFileTier.LinkedAsset);
+        var match = SearchFileNameInBand(fileSystem, candidates, definitionTier, definitionTier);
         if (match != null)
         {
             return match;
+        }
+
+        if (definitionTier < SageFileTier.LinkedAsset)
+        {
+            match = SearchFileNameInBand(fileSystem, candidates, (SageFileTier)((int)definitionTier + 1), SageFileTier.LinkedAsset);
+            if (match != null)
+            {
+                return match;
+            }
         }
 
         if (definitionTier > SageFileTier.BaseGame)

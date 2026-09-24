@@ -1200,6 +1200,55 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that string-table labels missing from the table stay blank instead of leaking raw labels,
+    /// since the game populates those slots at runtime.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentText_UnresolvedLabel_StaysBlank()
+    {
+        // Arrange
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = STATICTEXT;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 40, CREATIONRESOLUTION: 800 600;\n" +
+            "  TEXT = \"GUI:BioNameEntry\";\n" +
+            "  CHILD\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = STATICTEXT;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 50 20, CREATIONRESOLUTION: 800 600;\n" +
+            "    TEXT = \"Literal\";\n" +
+            "  END\n" +
+            "  ENDALLCHILDREN\n" +
+            "END\n";
+        _mockStringTableService
+            .Setup(s => s.GetStringsAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<IReadOnlyCollection<string>?>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
+        SetupSingleInstallation();
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+        for (var attempt = 0; attempt < 200 && _viewModel.CanvasItems.Count < 2; attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+
+        // Assert
+        _viewModel.CanvasItems[0].ContentText.Should().BeNull();
+        _viewModel.CanvasItems[1].ContentText.Should().Be("Literal");
+    }
+
+    /// <summary>
     /// Tests that check box glyphs attach and shift the text right.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -1256,6 +1305,7 @@ public sealed class WndEditorViewModelTests : IDisposable
 
     /// <summary>
     /// Tests that unnamed windows get muted fallback tags while named ones stay primary.
+    /// Tags only show for the selected window so idle labels render blank like the game.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
@@ -1279,18 +1329,31 @@ public sealed class WndEditorViewModelTests : IDisposable
         // Act
         await _viewModel.LoadFromTextAsync(doc, null);
 
-        // Assert
+        // Assert: nothing selected, no tags leak internal names.
         _viewModel.CanvasItems.Should().HaveCount(2);
         _viewModel.CanvasItems[0].IsFallbackLabel.Should().BeTrue();
+        _viewModel.CanvasItems[0].ShowFallbackNameTag.Should().BeFalse();
+        _viewModel.CanvasItems[1].IsFallbackLabel.Should().BeFalse();
+        _viewModel.CanvasItems[1].ShowPrimaryNameTag.Should().BeFalse();
+
+        // Act: select the unnamed window, its muted tag shows.
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+
+        // Assert
         _viewModel.CanvasItems[0].ShowFallbackNameTag.Should().BeTrue();
         _viewModel.CanvasItems[0].ShowPrimaryNameTag.Should().BeFalse();
-        _viewModel.CanvasItems[1].IsFallbackLabel.Should().BeFalse();
+
+        // Act: select the named window, its primary tag shows.
+        _viewModel.SelectedNode = _viewModel.RootNodes[0].Children[0];
+
+        // Assert
         _viewModel.CanvasItems[1].ShowPrimaryNameTag.Should().BeTrue();
         _viewModel.CanvasItems[1].ShowFallbackNameTag.Should().BeFalse();
     }
 
     /// <summary>
-    /// Tests that list box scrollbar overlays attach at the right edge.
+    /// Tests that list box scrollbar overlays attach at the right edge: arrow buttons, a composed
+    /// track between them, and a centered thumb from the slider-thumb draw data.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [AvaloniaFact]
@@ -1301,6 +1364,16 @@ public sealed class WndEditorViewModelTests : IDisposable
         var up = DrawDataWith("ScrollUp", 0);
         var down = DrawDataWith("ScrollDown", 0);
         var thumb = DrawDataWith("ScrollThumb", 0);
+        var trackEntries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            trackEntries.Add(WndDrawDataEntry.Empty);
+        }
+
+        trackEntries[0] = new WndDrawDataEntry("TrackTop", WndRgbaColor.White, WndRgbaColor.White);
+        trackEntries[1] = new WndDrawDataEntry("TrackBottom", WndRgbaColor.White, WndRgbaColor.White);
+        trackEntries[2] = new WndDrawDataEntry("TrackCenter", WndRgbaColor.White, WndRgbaColor.White);
+        var track = new WndDrawDataSet(trackEntries).ToString();
         var doc =
             "FILE_VERSION = 2;\n" +
             "WINDOW\n" +
@@ -1308,8 +1381,10 @@ public sealed class WndEditorViewModelTests : IDisposable
             "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 60, CREATIONRESOLUTION: 800 600;\n" +
             $"  LISTBOXENABLEDUPBUTTONDRAWDATA = {up};\n" +
             $"  LISTBOXENABLEDDOWNBUTTONDRAWDATA = {down};\n" +
-            $"  LISTBOXENABLEDSLIDERDRAWDATA = {thumb};\n" +
+            $"  SLIDERTHUMBENABLEDDRAWDATA = {thumb};\n" +
+            $"  LISTBOXENABLEDSLIDERDRAWDATA = {track};\n" +
             "END\n";
+        var redPixel = Convert.FromBase64String(redPixelPng);
         _mockImageAssetService
             .Setup(s => s.GetImagesAsync(
                 It.IsAny<IReadOnlyCollection<string>>(),
@@ -1322,15 +1397,18 @@ public sealed class WndEditorViewModelTests : IDisposable
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["ScrollUp"] = Convert.FromBase64String(redPixelPng),
-                    ["ScrollDown"] = Convert.FromBase64String(redPixelPng),
-                    ["ScrollThumb"] = Convert.FromBase64String(redPixelPng),
+                    ["ScrollUp"] = redPixel,
+                    ["ScrollDown"] = redPixel,
+                    ["ScrollThumb"] = redPixel,
+                    ["TrackTop"] = redPixel,
+                    ["TrackBottom"] = redPixel,
+                    ["TrackCenter"] = redPixel,
                 }));
         SetupSingleInstallation();
 
         // Act
         await _viewModel.LoadFromTextAsync(doc, null);
-        for (var attempt = 0; attempt < 200 && _viewModel.CanvasItems[0].Overlays.Count != 3; attempt++)
+        for (var attempt = 0; attempt < 200 && _viewModel.CanvasItems[0].Overlays.Count != 4; attempt++)
         {
             Dispatcher.UIThread.RunJobs(null);
             await Task.Delay(20);
@@ -1338,11 +1416,13 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Assert
         var item = _viewModel.CanvasItems[0];
-        item.Overlays.Should().HaveCount(3);
+        item.Overlays.Should().HaveCount(4);
         item.Overlays[0].Y.Should().Be(0);
         item.Overlays[1].Y.Should().Be(item.Height - item.Overlays[1].Height);
         item.Overlays[2].Y.Should().Be(item.Overlays[0].Height);
         item.Overlays[2].Height.Should().Be(item.Height - item.Overlays[0].Height - item.Overlays[1].Height);
+        item.Overlays[3].Y.Should().BeGreaterThan(item.Overlays[0].Height);
+        item.Overlays[3].Y.Should().BeLessThan(item.Height - item.Overlays[1].Height);
         item.Overlays.Should().OnlyContain(overlay => overlay.X + overlay.Width == item.Width);
     }
 

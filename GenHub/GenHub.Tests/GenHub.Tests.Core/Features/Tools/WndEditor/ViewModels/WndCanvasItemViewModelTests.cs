@@ -31,6 +31,24 @@ public sealed class WndCanvasItemViewModelTests
     }
 
     /// <summary>
+    /// Acceptance Criteria: Static text without content stays untagged until selected,
+    /// so runtime-populated labels render blank like the game.
+    /// </summary>
+    [Fact]
+    public void ShowNameTag_StaticTextWithoutContentWhenNotSelected_IsFalse()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.StaticText };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "\"LanGameOptionsMenu.wnd:StaticTextPlayer0\"");
+        var item = new WndCanvasItemViewModel(window);
+
+        // Assert
+        item.HasContentText.Should().BeFalse();
+        item.HasImage.Should().BeFalse();
+        item.ShowNameTag.Should().BeFalse();
+    }
+
+    /// <summary>
     /// Acceptance Criteria: When a control is selected in the canvas editor, its name tag becomes visible.
     /// </summary>
     [Fact]
@@ -88,7 +106,8 @@ public sealed class WndCanvasItemViewModelTests
     }
 
     /// <summary>
-    /// Acceptance Criteria: Engine-hidden windows stay invisible on the canvas unless selected.
+    /// Acceptance Criteria: Engine-hidden windows stay visible but dimmed on the canvas
+    /// so the editor matches the runtime layout where scripts reveal them.
     /// </summary>
     /// <param name="isPreviewHidden">Whether the engine would hide the window.</param>
     /// <param name="isSelected">Whether the item is selected for editing.</param>
@@ -96,7 +115,7 @@ public sealed class WndCanvasItemViewModelTests
     [Theory]
     [InlineData(false, false, true)]
     [InlineData(false, true, true)]
-    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
     [InlineData(true, true, true)]
     public void CanvasVisible_MatchesHiddenAndSelectedState(bool isPreviewHidden, bool isSelected, bool expectedVisible)
     {

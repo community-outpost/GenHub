@@ -160,10 +160,10 @@ public static class WndPreviewImageComposer
         var half = width / 2;
         using var leftHalf = (MagickImage)left.Clone();
         using var rightHalf = (MagickImage)right.Clone();
-        leftHalf.Resize(new MagickGeometry((uint)half, (uint)height) { IgnoreAspectRatio = true });
-        rightHalf.Resize(new MagickGeometry((uint)(width - half), (uint)height) { IgnoreAspectRatio = true });
+        leftHalf.Crop(new MagickGeometry((uint)Math.Min(half, (int)leftHalf.Width), (uint)height));
+        rightHalf.Crop(new MagickGeometry((uint)Math.Min(width - half, (int)rightHalf.Width), (uint)height));
         canvas.Composite(leftHalf, 0, 0, CompositeOperator.Over);
-        canvas.Composite(rightHalf, half, 0, CompositeOperator.Over);
+        canvas.Composite(rightHalf, width - (int)rightHalf.Width, 0, CompositeOperator.Over);
     }
 
     private static MagickImage StretchToWidth(MagickImage image, int width)
@@ -181,10 +181,10 @@ public static class WndPreviewImageComposer
         var half = height / 2;
         using var topHalf = (MagickImage)top.Clone();
         using var bottomHalf = (MagickImage)bottom.Clone();
-        topHalf.Resize(new MagickGeometry((uint)width, (uint)half) { IgnoreAspectRatio = true });
-        bottomHalf.Resize(new MagickGeometry((uint)width, (uint)(height - half)) { IgnoreAspectRatio = true });
+        topHalf.Crop(new MagickGeometry((uint)width, (uint)Math.Min(half, (int)topHalf.Height)));
+        bottomHalf.Crop(new MagickGeometry((uint)width, (uint)Math.Min(height - half, (int)bottomHalf.Height)));
         canvas.Composite(topHalf, 0, 0, CompositeOperator.Over);
-        canvas.Composite(bottomHalf, 0, half, CompositeOperator.Over);
+        canvas.Composite(bottomHalf, 0, height - (int)bottomHalf.Height, CompositeOperator.Over);
     }
 
     private static void ComposeVerticalBar(MagickImage canvas, MagickImage top, MagickImage center, MagickImage bottom, int height)
