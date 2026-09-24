@@ -165,10 +165,10 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
             var generalsArchives = RetailArchiveClassifier.ClassifyArchivesSafely(generalsPath, logger);
             var zeroHourArchives = RetailArchiveClassifier.ClassifyArchivesSafely(zeroHourPath, logger);
-            var detectedGeneralsPath = generalsArchives.HasGeneralsArchives ? generalsPath
-                : zeroHourArchives.HasGeneralsArchives ? zeroHourPath : null;
-            var detectedZeroHourPath = zeroHourArchives.HasZeroHourArchives ? zeroHourPath
-                : generalsArchives.HasZeroHourArchives ? generalsPath : null;
+            var fallbackGeneralsPath = zeroHourArchives.HasGeneralsArchives ? zeroHourPath : null;
+            var fallbackZeroHourPath = generalsArchives.HasZeroHourArchives ? generalsPath : null;
+            var detectedGeneralsPath = generalsArchives.HasGeneralsArchives ? generalsPath : fallbackGeneralsPath;
+            var detectedZeroHourPath = zeroHourArchives.HasZeroHourArchives ? zeroHourPath : fallbackZeroHourPath;
             var hasGenerals = detectedGeneralsPath is not null;
             var hasZeroHour = detectedZeroHourPath is not null;
 
