@@ -22,7 +22,7 @@ namespace GenHub.Features.Manifest;
 /// Provides ContentManifest instances by retrieving them from CAS, embedded resources,
 /// or generating them dynamically.
 /// </summary>
-public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifestPool manifestPool, IManifestIdService? manifestIdService = null, IContentManifestBuilder? manifestBuilder = null, ManifestProviderOptions? options = null) : IManifestProvider
+public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifestPool manifestPool, IManifestIdService? manifestIdService = null, Func<IContentManifestBuilder>? manifestBuilderFactory = null, ManifestProviderOptions? options = null) : IManifestProvider
 {
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -32,7 +32,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     private readonly ILogger<ManifestProvider> logger = logger ?? NullLogger<ManifestProvider>.Instance;
     private readonly IContentManifestPool manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
     private readonly IManifestIdService manifestIdService = manifestIdService ?? throw new ArgumentNullException(nameof(manifestIdService));
-    private readonly IContentManifestBuilder manifestBuilder = manifestBuilder ?? throw new ArgumentNullException(nameof(manifestBuilder));
+    private readonly Func<IContentManifestBuilder> manifestBuilderFactory = manifestBuilderFactory ?? throw new ArgumentNullException(nameof(manifestBuilderFactory));
     private readonly ManifestProviderOptions options = options ?? new ManifestProviderOptions();
 
     /// <summary>
@@ -120,7 +120,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             logger.LogInformation("Generating fallback manifest for GameClient {Id}", gameClient.Id);
 
             var gameVersionInt = int.TryParse(gameClient.Version, out var parsedVersion) ? parsedVersion : 0;
-            var generated = manifestBuilder
+            var generated = manifestBuilderFactory()
                 .WithBasicInfo("EA Games", gameClient.Name ?? GameClientConstants.UnknownVersion, gameVersionInt)
                 .WithContentType(ContentType.GameClient, gameClient.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
@@ -286,7 +286,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
         var publisherName = gameInstallation.InstallationType.GetDisplayName();
 
-        var builder = manifestBuilder
+        var builder = manifestBuilderFactory()
             .WithBasicInfo(gameInstallation.InstallationType, gameType, manifestVersion)
             .WithContentType(ContentType.GameInstallation, gameType)
             .WithPublisher(publisherName, string.Empty)

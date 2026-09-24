@@ -9,6 +9,7 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.GeneralsOnline;
+using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameClients;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -1141,38 +1142,33 @@ public class GameClientDetectorTests : IDisposable
     /// Combined archives retain a standard client for each game, and extensionless
     /// native binaries still reach publisher identification.
     /// </summary>
+    /// <param name="includeStandardExecutable">Whether the installation also includes a retail executable.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
-    [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithCombinedDirectory_YieldsBothStandardClientsAndSeesNativeBinary()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DetectGameClientsFromInstallationsAsync_WithCombinedDirectory_DetectsNativeWithOrWithoutStandardClients(bool includeStandardExecutable)
     {
         // Arrange
         var combinedPath = Path.Combine(_tempDirectory, "Combined");
         Directory.CreateDirectory(combinedPath);
         var executablePath = Path.Combine(combinedPath, "generals.exe");
-        await File.WriteAllTextAsync(executablePath, "dummy content");
+        if (includeStandardExecutable)
+        {
+            await File.WriteAllTextAsync(executablePath, "dummy content");
+        }
 
         // An extensionless native client binary, the shape a Mach-O or ELF build has.
         // Real ELF magic, because selection classifies extensionless files by content.
         var nativeBinaryPath = Path.Combine(combinedPath, "GeneralsZH");
         await File.WriteAllBytesAsync(nativeBinaryPath, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
 
-        var nativeIdentifierMock = new Mock<IGameClientIdentifier>();
-        nativeIdentifierMock.Setup(x => x.PublisherId).Returns("TestNativePublisher");
-        nativeIdentifierMock.Setup(x => x.CanIdentify(It.Is<string>(p => p.EndsWith("GeneralsZH")))).Returns(true);
-        nativeIdentifierMock.Setup(x => x.CanIdentify(It.Is<string>(p => !p.EndsWith("GeneralsZH")))).Returns(false);
-        nativeIdentifierMock.Setup(x => x.Identify(It.IsAny<string>())).Returns(new GameClientIdentification(
-            "TestNativePublisher",
-            "Native",
-            "Native Zero Hour Client",
-            GameType.ZeroHour,
-            GameClientConstants.UnknownVersion));
-
         var detector = new GameClientDetector(
             _manifestGenerationServiceMock.Object,
             _contentManifestPoolMock.Object,
             _hashProviderMock.Object,
             _hashRegistryMock.Object,
-            [nativeIdentifierMock.Object],
+            [new SuperHackersClientIdentifier()],
             NullLogger<GameClientDetector>.Instance);
 
         var installation = new GameInstallation("C:\\TestInstall", GameInstallationType.Retail)
@@ -1209,16 +1205,19 @@ public class GameClientDetectorTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(3, result.Items.Count);
+        Assert.Equal(includeStandardExecutable ? 3 : 1, result.Items.Count);
 
-        var generalsClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType) && c.GameType == GameType.Generals);
-        Assert.Equal(executablePath, generalsClient.ExecutablePath);
-        Assert.Equal("1.08", generalsClient.Version);
-        var standardClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType) && c.GameType == GameType.ZeroHour);
-        Assert.Equal(GameType.ZeroHour, standardClient.GameType);
-        Assert.Equal(executablePath, standardClient.ExecutablePath);
+        if (includeStandardExecutable)
+        {
+            var generalsClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType) && c.GameType == GameType.Generals);
+            Assert.Equal(executablePath, generalsClient.ExecutablePath);
+            Assert.Equal("1.08", generalsClient.Version);
+            var standardClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType) && c.GameType == GameType.ZeroHour);
+            Assert.Equal(GameType.ZeroHour, standardClient.GameType);
+            Assert.Equal(executablePath, standardClient.ExecutablePath);
+        }
 
-        var nativeClient = Assert.Single(result.Items, c => c.PublisherType == "TestNativePublisher");
+        var nativeClient = Assert.Single(result.Items, c => c.PublisherType == PublisherTypeConstants.TheSuperHackers);
         Assert.Equal(GameType.ZeroHour, nativeClient.GameType);
         Assert.Equal(nativeBinaryPath, nativeClient.ExecutablePath);
     }
