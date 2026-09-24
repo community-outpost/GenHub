@@ -110,41 +110,48 @@ def _find_root_close(lines, path):
     raise ResxError(f'{path}: missing </root> element')
 
 
+def _consume_enclosed_block(line, i, delim):
+    end = line.find(delim, i)
+    if end == -1:
+        return len(line), True
+    return end + len(delim), False
+
+
+def _find_next_block_start(line, i):
+    comment_pos = line.find('<!--', i)
+    cdata_pos = line.find('<![CDATA[', i)
+    if comment_pos != -1 and (cdata_pos == -1 or comment_pos < cdata_pos):
+        return comment_pos, 4, '-->', True, False
+    if cdata_pos != -1:
+        return cdata_pos, 9, ']]>', False, True
+    return -1, 0, None, False, False
+
+
 def _strip_comments_and_cdata(line, in_comment, in_cdata):
     """Strip XML comments and CDATA sections from a line to expose structural XML tags."""
-    i = 0
+    active_delim = '-->' if in_comment else (']]>' if in_cdata else None)
+    if active_delim:
+        i, still_active = _consume_enclosed_block(line, 0, active_delim)
+        if still_active:
+            return '', in_comment, in_cdata
+        in_comment = False
+        in_cdata = False
+    else:
+        i = 0
+
     n = len(line)
     result = []
     while i < n:
-        if in_comment:
-            end = line.find('-->', i)
-            if end == -1:
-                return ''.join(result), True, False
-            i = end + 3
-            in_comment = False
-        elif in_cdata:
-            end = line.find(']]>', i)
-            if end == -1:
-                return ''.join(result), False, True
-            i = end + 3
-            in_cdata = False
-        else:
-            comment_start = line.find('<!--', i)
-            cdata_start = line.find('<![CDATA[', i)
-            if comment_start != -1 and (cdata_start == -1 or comment_start < cdata_start):
-                result.append(line[i:comment_start])
-                result.append(' ')
-                i = comment_start + 4
-                in_comment = True
-            elif cdata_start != -1:
-                result.append(line[i:cdata_start])
-                result.append(' ')
-                i = cdata_start + 9
-                in_cdata = True
-            else:
-                result.append(line[i:])
-                break
-    return ''.join(result), in_comment, in_cdata
+        start_pos, offset, close_delim, is_comm, is_cd = _find_next_block_start(line, i)
+        if start_pos == -1:
+            result.append(line[i:])
+            break
+        result.append(line[i:start_pos])
+        result.append(' ')
+        i, still_active = _consume_enclosed_block(line, start_pos + offset, close_delim)
+        if still_active:
+            return ''.join(result), is_comm, is_cd
+    return ''.join(result), False, False
 
 
 def extract_header_and_body(lines, path):

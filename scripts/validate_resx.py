@@ -26,6 +26,7 @@ import xml.etree.ElementTree as element_tree
 
 DATA_CLOSE = '</data>'
 _MAX_LISTED = 10
+RE_COMPOSITE_ITEM = re.compile(r'^\{\d+(?:,-?\d+)?(?::[^{}]*)?\}$')
 
 
 def extract_placeholders(text):
@@ -52,6 +53,15 @@ def check_unbalanced_braces(text):
             if depth < 0:
                 return False
     return depth == 0
+
+
+def find_invalid_format_items(text):
+    """Return list of invalid single-braced items that violate .NET composite format syntax."""
+    if not text:
+        return []
+    unescaped = re.sub(r'\{\{|\}\}', '', text)
+    tokens = re.findall(r'\{[^{}]*\}', unescaped)
+    return [t for t in tokens if not RE_COMPOSITE_ITEM.match(t)]
 
 
 def repo_default_dir():
@@ -107,6 +117,11 @@ def _validate_data_node(node, base_name, errors):
     value = val_elem.text or ''
     if not check_unbalanced_braces(value):
         errors.append(f'{base_name}: key "{name}" has unbalanced braces in value: {value!r}')
+        return None
+    invalid_format_items = find_invalid_format_items(value)
+    if invalid_format_items:
+        items_str = ', '.join(repr(it) for it in invalid_format_items)
+        errors.append(f'{base_name}: key "{name}" has invalid composite format item(s) {items_str} in value: {value!r}')
         return None
     return name, value
 
