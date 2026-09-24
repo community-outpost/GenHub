@@ -1174,32 +1174,11 @@ public static class ReplayCrcMatchingHelper
         var id = client.Id ?? string.Empty;
         var name = client.Name ?? string.Empty;
 
-        foreach (var prefix in versionPrefixes)
-        {
-            if (ver.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-                name.Contains(prefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        foreach (var exact in exactVersions)
-        {
-            if (string.Equals(ver, exact, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        foreach (var idToken in idTokens)
-        {
-            if (id.Contains(idToken, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return versionPrefixes.Any(prefix =>
+                   ver.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+                   name.Contains(prefix, StringComparison.OrdinalIgnoreCase)) ||
+               exactVersions.Any(exact => string.Equals(ver, exact, StringComparison.OrdinalIgnoreCase)) ||
+               idTokens.Any(idToken => id.Contains(idToken, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsGeneralsRetailVersion(GameClient? client) =>
