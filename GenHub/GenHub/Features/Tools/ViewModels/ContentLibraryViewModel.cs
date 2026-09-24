@@ -936,7 +936,29 @@ public partial class ContentLibraryViewModel(
     {
         if (SelectedContent == null || addon == null) return;
 
-        var edited = await dialogService.ShowEditAddonDialogAsync(addon, SelectedContent, activeCatalog.Catalog);
+        var edited = await dialogService.ShowEditAddonDialogAsync(
+            addon,
+            SelectedContent,
+            activeCatalog.Catalog,
+            async add =>
+            {
+                SelectedContent.AddonReleases.Remove(add);
+                RefreshSelectedContent();
+                MarkProjectAndCatalogDirty();
+                if (parentViewModel != null)
+                {
+                    await parentViewModel.SaveProjectAsync();
+                }
+
+                var deletedTitle = GetLocalizedString("Tools.PublisherStudio.Library.AddonDeletedTitle", "Addon Deleted");
+                var deletedMessage = string.Format(
+                    GetLocalizedString(
+                        "Tools.PublisherStudio.Library.AddonDeletedMessageFormat",
+                        "Addon '{0}' was deleted."),
+                    add.Title ?? add.Version);
+                notificationService?.ShowSuccess(deletedTitle, deletedMessage);
+                logger.LogInformation("Deleted addon {AddonTitle} from content: {ContentId}", add.Title, SelectedContent.Id);
+            });
         if (edited != null)
         {
             var index = SelectedContent.AddonReleases.IndexOf(addon);
@@ -1064,7 +1086,29 @@ public partial class ContentLibraryViewModel(
     {
         if (SelectedContent == null || release == null) return;
 
-        var edited = await dialogService.ShowEditReleaseDialogAsync(release, SelectedContent, activeCatalog.Catalog);
+        var edited = await dialogService.ShowEditReleaseDialogAsync(
+            release,
+            SelectedContent,
+            activeCatalog.Catalog,
+            async rel =>
+            {
+                SelectedContent.Releases.Remove(rel);
+                RefreshSelectedContent();
+                MarkProjectAndCatalogDirty();
+                if (parentViewModel != null)
+                {
+                    await parentViewModel.SaveProjectAsync();
+                }
+
+                var deletedTitle = GetLocalizedString("Tools.PublisherStudio.Library.ReleaseDeletedTitle", "Release Deleted");
+                var deletedMessage = string.Format(
+                    GetLocalizedString(
+                        "Tools.PublisherStudio.Library.ReleaseDeletedMessageFormat",
+                        "Release v{0} was deleted."),
+                    rel.Version);
+                notificationService?.ShowSuccess(deletedTitle, deletedMessage);
+                logger.LogInformation("Deleted release v{Version} from content: {ContentId}", rel.Version, SelectedContent.Id);
+            });
         if (edited != null)
         {
             // If marked as latest, unmark other releases

@@ -31,6 +31,8 @@ public partial class AddReleaseDialogViewModel(
     INotificationService? notificationService = null) : ObservableValidator
 {
     private readonly string? _originalVersion;
+    private readonly ContentRelease? _existingRelease;
+    private readonly Func<ContentRelease, Task>? _onReleaseDeleted;
 
     [ObservableProperty]
     private bool _isAddonMode = isAddon;
@@ -114,6 +116,7 @@ public partial class AddReleaseDialogViewModel(
     /// <param name="localizationService">Optional localization service.</param>
     /// <param name="isAddon">True if editing an addon; false if editing a release.</param>
     /// <param name="notificationService">Optional notification service for user feedback.</param>
+    /// <param name="onReleaseDeleted">Optional callback invoked when deleting the release.</param>
     public AddReleaseDialogViewModel(
         ContentRelease existing,
         CatalogContentItem contentItem,
@@ -122,11 +125,14 @@ public partial class AddReleaseDialogViewModel(
         IPublisherStudioDialogService dialogService,
         GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
         bool isAddon = false,
-        INotificationService? notificationService = null)
+        INotificationService? notificationService = null,
+        Func<ContentRelease, Task>? onReleaseDeleted = null)
         : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService, isAddon, notificationService)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
+        _existingRelease = existing;
+        _onReleaseDeleted = onReleaseDeleted;
         IsEditMode = true;
         _originalVersion = existing.Version;
         Version = existing.Version;
@@ -675,6 +681,46 @@ public partial class AddReleaseDialogViewModel(
     /// <summary>
     /// Cancels the dialog without saving.
     /// </summary>
+    /// <summary>
+    /// Deletes the current release or addon if in edit mode after user confirmation.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteReleaseAsync()
+    {
+        if (!IsEditMode || _existingRelease == null)
+        {
+            return;
+        }
+
+        var isAddon = IsAddonMode;
+        var title = isAddon
+            ? (localizationService?.GetString("Tools.PublisherStudio.Library.DeleteAddonTitle") ?? "Delete Addon")
+            : (localizationService?.GetString("Tools.PublisherStudio.Library.DeleteReleaseTitle") ?? "Delete Release");
+
+        var messageFormat = isAddon
+            ? (localizationService?.GetString("Tools.PublisherStudio.Library.DeleteAddonMessageFormat") ?? "Are you sure you want to delete addon '{0}'? This cannot be undone.")
+            : (localizationService?.GetString("Tools.PublisherStudio.Library.DeleteReleaseMessageFormat") ?? "Are you sure you want to delete release v{0}? This will also remove its artifacts and cannot be undone.");
+
+        var targetName = isAddon
+            ? (!string.IsNullOrWhiteSpace(_existingRelease.Title) ? _existingRelease.Title : _existingRelease.Version)
+            : _existingRelease.Version;
+
+        var message = string.Format(messageFormat, targetName);
+
+        var confirmed = await dialogService.ShowConfirmationAsync(title, message);
+        if (!confirmed)
+        {
+            return;
+        }
+
+        if (_onReleaseDeleted != null)
+        {
+            await _onReleaseDeleted(_existingRelease);
+        }
+
+        Close();
+    }
+
     [RelayCommand]
     private void Cancel() => Close();
 

@@ -646,7 +646,7 @@ public partial class SubscriptionConfirmationViewModel(
         var pubProfile = ResolveEffectivePublisher(catalog);
 
         PublisherName = pubProfile.Name;
-        PublisherAvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(pubProfile.AvatarUrl);
+        PublisherAvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(pubProfile.AvatarUrl) ?? PublisherInfoConstants.GetPublisherLogo(pubProfile.Name, pubProfile.Id);
         PublisherWebsite = pubProfile.Website;
         PublisherSupportUrl = pubProfile.SupportUrl ?? string.Empty;
         PublisherContactEmail = pubProfile.ContactEmail ?? string.Empty;

@@ -72,6 +72,18 @@
             <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
         </Style>
 
+        <Style Selector="Button.glass-btn-icon.upload-pending">
+            <Setter Property="Background" Value="#33F59E0B"/>
+            <Setter Property="BorderBrush" Value="#F59E0B"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="BoxShadow" Value="0 0 12 2 #55F59E0B"/>
+        </Style>
+        <Style Selector="Button.glass-btn-icon.upload-pending:pointerover">
+            <Setter Property="Background" Value="#55F59E0B"/>
+            <Setter Property="BorderBrush" Value="#FBBF24"/>
+            <Setter Property="BoxShadow" Value="0 0 16 4 #88F59E0B"/>
+        </Style>
+
         <!-- Primary Gradient Button -->
         <Style Selector="Button.primary-btn">
             <Setter Property="Background" Value="{DynamicResource PSPrimaryGradient}"/>
@@ -254,19 +266,28 @@
 
                         <!-- Upload Definition Button (saves silently, then uploads when changes are pending) -->
                         <Button Classes="glass-btn-icon"
+                                Classes.upload-pending="{Binding HasDefinitionChanges}"
                                 Command="{Binding UploadDefinitionCommand}"
                                 IsEnabled="{Binding HasDefinitionChanges}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.UploadDefinitionTooltip}">
-                            <Grid>
+                            <Panel>
                                 <PathIcon Data="{StaticResource PublishIcon}"
                                           Width="14" Height="14"
                                           Foreground="{DynamicResource TextMuted}"
                                           IsVisible="{Binding !HasDefinitionChanges}"/>
-                                <PathIcon Data="{StaticResource PublishIcon}"
-                                          Width="14" Height="14"
-                                          Foreground="{DynamicResource AccentColorBrush}"
-                                          IsVisible="{Binding HasDefinitionChanges}"/>
-                            </Grid>
+                                <Grid IsVisible="{Binding HasDefinitionChanges}">
+                                    <PathIcon Data="{StaticResource PublishIcon}"
+                                              Width="14" Height="14"
+                                              Foreground="#F59E0B"/>
+                                    <Ellipse Width="6" Height="6"
+                                             Fill="#F59E0B"
+                                             Stroke="#1E1E2E"
+                                             StrokeThickness="1"
+                                             HorizontalAlignment="Right"
+                                             VerticalAlignment="Top"
+                                             Margin="0,-2,-2,0"/>
+                                </Grid>
+                            </Panel>
                         </Button>
                     </StackPanel>
                 </Grid>

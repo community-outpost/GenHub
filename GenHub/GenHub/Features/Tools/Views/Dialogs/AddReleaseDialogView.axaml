@@ -333,23 +333,45 @@
                 BorderThickness="1"
                 CornerRadius="10"
                 BoxShadow="{DynamicResource FlyoutElevationShadow}">
-            <Button Content="{Binding SubmitButtonText}"
-                    Command="{Binding CreateReleaseCommand}"
-                    Background="{DynamicResource PrimaryGradientBrush}"
-                    Foreground="{DynamicResource PrimaryButtonForeground}"
-                    CornerRadius="7"
-                    Padding="20,7"
-                    FontWeight="SemiBold"
-                    FontSize="12"
-                    Cursor="Hand"
-                    BorderThickness="0">
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-                        <Setter Property="Opacity" Value="0.85"/>
-                    </Style>
-                </Button.Styles>
-            </Button>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <!-- Delete Button (Only in Edit Mode) -->
+                <Button Command="{Binding DeleteReleaseCommand}"
+                        IsVisible="{Binding IsEditMode}"
+                        Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
+                        BorderBrush="{DynamicResource StatusErrorBrush}"
+                        BorderThickness="1"
+                        CornerRadius="7"
+                        Padding="14,7"
+                        Cursor="Hand"
+                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteReleaseTooltip}">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <PathIcon Data="{StaticResource DeleteIcon}" Width="13" Height="13" Foreground="{DynamicResource StatusErrorBrush}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.DeleteConfirm}"
+                                   Foreground="{DynamicResource StatusErrorBrush}"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Save / Create Button -->
+                <Button Content="{Binding SubmitButtonText}"
+                        Command="{Binding CreateReleaseCommand}"
+                        Background="{DynamicResource PrimaryGradientBrush}"
+                        Foreground="{DynamicResource PrimaryButtonForeground}"
+                        CornerRadius="7"
+                        Padding="20,7"
+                        FontWeight="SemiBold"
+                        FontSize="12"
+                        Cursor="Hand"
+                        BorderThickness="0">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                            <Setter Property="Opacity" Value="0.85"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </StackPanel>
         </Border>
     </Grid>
 </UserControl>

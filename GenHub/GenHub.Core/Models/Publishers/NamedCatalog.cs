@@ -24,6 +24,11 @@ public class NamedCatalog
     public string? Description { get; set; }
 
     /// <summary>
+    /// Gets or sets an optional icon or avatar URL/path for this catalog.
+    /// </summary>
+    public string? IconUrl { get; set; }
+
+    /// <summary>
     /// Gets or sets the catalog data containing content items and releases.
     /// </summary>
     public PublisherCatalog Catalog { get; set; } = new();
@@ -32,4 +37,14 @@ public class NamedCatalog
     /// Gets or sets the filename for this catalog when exported (e.g., "catalog-zh-mods.json").
     /// </summary>
     public string FileName { get; set; } = HostingConstants.DefaultCatalogFileName;
+
+    /// <summary>
+    /// Gets the effective icon URL for this catalog, falling back to publisher avatar or recognized publisher logo.
+    /// </summary>
+    public string? EffectiveIconUrl =>
+        !string.IsNullOrWhiteSpace(IconUrl)
+            ? IconUrl
+            : !string.IsNullOrWhiteSpace(Catalog?.Publisher?.AvatarUrl)
+                ? Catalog.Publisher.AvatarUrl
+                : PublisherInfoConstants.GetPublisherLogo(Name, Id);
 }

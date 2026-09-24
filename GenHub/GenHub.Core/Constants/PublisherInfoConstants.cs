@@ -24,6 +24,7 @@ public static class PublisherInfoConstants
 
     private static readonly (string[] Keywords, string LogoSource)[] LogoRules =
     [
+        (["dominator", "dominatormappacks", "dominator-mappacks", "dominator map packs"], Dominator.LogoSource),
         (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpost.LogoSource),
         (["superhacker"], TheSuperHackers.LogoSource),
         (["generalsonline", "generals online", "generals-online"], GeneralsOnline.LogoSource),
@@ -263,6 +264,24 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for ModDB.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/moddb-logo.png";
+    }
+
+    /// <summary>
+    /// Publisher information for Dominator Map Packs.
+    /// </summary>
+    public static class Dominator
+    {
+        /// <summary>Display name for Dominator Map Packs publisher.</summary>
+        public const string Name = "Dominator Map Packs";
+
+        /// <summary>Website URL for Dominator Map Packs.</summary>
+        public const string Website = "about:blank";
+
+        /// <summary>Support URL for Dominator Map Packs.</summary>
+        public const string SupportUrl = "about:blank";
+
+        /// <summary>Logo source for Dominator Map Packs.</summary>
+        public const string LogoSource = "avares://GenHub/Assets/Logos/dominator-logo.png";
     }
 
     /// <summary>

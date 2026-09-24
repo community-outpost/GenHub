@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels.Dialogs"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
              mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="260"
              x:Class="GenHub.Features.Tools.Views.Dialogs.RenameCatalogDialogView"
              x:DataType="vm:RenameCatalogDialogViewModel">
@@ -56,6 +57,42 @@
                        FontSize="11"
                        Foreground="{DynamicResource TextMuted}"
                        TextWrapping="Wrap"/>
+
+            <!-- Catalog Icon / Logo URL -->
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.AvatarUrl}"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       FontSize="13"
+                       Margin="0,4,0,0"/>
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0"
+                         Text="{Binding IconUrl, Mode=TwoWay}"
+                         Watermark="https://... or avares://..."
+                         FontSize="13"
+                         Padding="10,8"/>
+                <Border Grid.Column="1"
+                        Width="36" Height="36"
+                        Margin="8,0,0,0"
+                        CornerRadius="6"
+                        ClipToBounds="True"
+                        Background="{DynamicResource GlassFillBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="1"
+                        VerticalAlignment="Center">
+                    <Panel>
+                        <Image controls:ImageLoader.Source="{Binding IconUrl}"
+                               Stretch="UniformToFill"
+                               IsVisible="{Binding IconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <PathIcon Data="{StaticResource ContentIcon}"
+                                  Width="16" Height="16"
+                                  Foreground="{DynamicResource TextMuted}"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  IsVisible="{Binding IconUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                    </Panel>
+                </Border>
+            </Grid>
+
             <TextBlock Text="{Binding ValidationError}"
                        Foreground="{DynamicResource StatusErrorBrush}"
                        FontSize="12"

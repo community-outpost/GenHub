@@ -1236,29 +1236,54 @@ public partial class PublisherStudioViewModel(
         var canDelete = CanRemoveCatalog;
         Func<Task<bool>>? onDelete = canDelete ? () => DeleteCatalogConfirmedAsync(target) : null;
 
-        var newName = await dialogService.ShowRenameCatalogDialogAsync(target.Name, canDelete, onDelete);
-        if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == target.Name)
+        var result = await dialogService.ShowRenameCatalogDialogAsync(target.Name, canDelete, onDelete, target.IconUrl);
+        if (result == null)
         {
             return;
         }
 
-        var newId = Slugify(newName);
-        if (CurrentProject?.Catalogs != null && CurrentProject.Catalogs.Any(c => c != target && string.Equals(c.Id, newId, StringComparison.OrdinalIgnoreCase)))
+        var newName = result.Name?.Trim() ?? string.Empty;
+        var newIcon = string.IsNullOrWhiteSpace(result.IconUrl) ? null : result.IconUrl.Trim();
+        var nameChanged = !string.IsNullOrWhiteSpace(newName) && newName != target.Name;
+        var iconChanged = newIcon != target.IconUrl;
+
+        if (!nameChanged && !iconChanged)
         {
-            StatusMessage = string.Format(
-                localizationService?.GetString("Tools.PublisherStudio.Studio.CatalogAlreadyExists") ?? "A catalog with ID '{0}' already exists.",
-                newId);
-            var dupTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle") ?? "Duplicate Catalog ID";
-            notificationService?.ShowWarning(dupTitle, StatusMessage);
             return;
         }
 
-        var oldId = target.Id;
-        target.Name = newName.Trim();
-        target.Id = newId;
-        target.FileName = target.Id.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase)
-            ? $"{target.Id}.json"
-            : $"catalog-{target.Id}.json";
+        if (nameChanged)
+        {
+            var newId = Slugify(newName);
+            if (CurrentProject?.Catalogs != null && CurrentProject.Catalogs.Any(c => c != target && string.Equals(c.Id, newId, StringComparison.OrdinalIgnoreCase)))
+            {
+                StatusMessage = string.Format(
+                    localizationService?.GetString("Tools.PublisherStudio.Studio.CatalogAlreadyExists") ?? "A catalog with ID '{0}' already exists.",
+                    newId);
+                var dupTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle") ?? "Duplicate Catalog ID";
+                notificationService?.ShowWarning(dupTitle, StatusMessage);
+                return;
+            }
+
+            var oldId = target.Id;
+            target.Name = newName;
+            target.Id = newId;
+            target.FileName = target.Id.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase)
+                ? $"{target.Id}.json"
+                : $"catalog-{target.Id}.json";
+
+            if (PublishShareViewModel != null)
+            {
+                await PublishShareViewModel.RenameCatalogInHostingStateAsync(oldId, target.Id, target.Name, target.FileName);
+                PublishShareViewModel.SyncAvailableCatalogs();
+                PublishShareViewModel.MarkCatalogChanged(target.Id);
+            }
+        }
+
+        if (iconChanged)
+        {
+            target.IconUrl = newIcon;
+        }
 
         var idx = Catalogs.IndexOf(target);
         if (idx >= 0)
@@ -1268,17 +1293,10 @@ public partial class PublisherStudioViewModel(
         }
 
         MarkDirty();
-        if (PublishShareViewModel != null)
-        {
-            await PublishShareViewModel.RenameCatalogInHostingStateAsync(oldId, target.Id, target.Name, target.FileName);
-            PublishShareViewModel.SyncAvailableCatalogs();
-            PublishShareViewModel.MarkCatalogChanged(target.Id);
-        }
-
         await SaveProjectAsync();
-        StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.CatalogRenamedFormat", "Renamed catalog to '{0}'", target.Name);
+        StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.CatalogRenamedFormat", "Updated catalog '{0}'", target.Name);
         notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
-        logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);
+        logger.LogInformation("Updated catalog {CatalogName} ({CatalogId})", target.Name, target.Id);
     }
 
     private void SyncReloadCatalogsCollection()

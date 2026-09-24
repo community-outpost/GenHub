@@ -107,10 +107,23 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<ContentRelease?> ShowEditReleaseDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog)
+    public async Task<ContentRelease?> ShowEditReleaseDialogAsync(
+        ContentRelease existing,
+        CatalogContentItem parent,
+        PublisherCatalog catalog,
+        Func<ContentRelease, Task>? onDelete = null)
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-            callback => new AddReleaseDialogViewModel(existing, parent, catalog, callback, this, localizationService, notificationService: notificationService));
+            callback => new AddReleaseDialogViewModel(
+                existing,
+                parent,
+                catalog,
+                callback,
+                this,
+                localizationService,
+                isAddon: false,
+                notificationService: notificationService,
+                onReleaseDeleted: onDelete));
     }
 
     /// <inheritdoc/>
@@ -126,10 +139,23 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<ContentRelease?> ShowEditAddonDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog)
+    public async Task<ContentRelease?> ShowEditAddonDialogAsync(
+        ContentRelease existing,
+        CatalogContentItem parent,
+        PublisherCatalog catalog,
+        Func<ContentRelease, Task>? onDelete = null)
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
-            callback => new AddReleaseDialogViewModel(existing, parent, catalog, callback, this, localizationService, isAddon: true, notificationService: notificationService));
+            callback => new AddReleaseDialogViewModel(
+                existing,
+                parent,
+                catalog,
+                callback,
+                this,
+                localizationService,
+                isAddon: true,
+                notificationService: notificationService,
+                onReleaseDeleted: onDelete));
     }
 
     /// <inheritdoc/>
@@ -292,10 +318,14 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<string?> ShowRenameCatalogDialogAsync(string currentName, bool canDelete = false, Func<Task<bool>>? onDelete = null)
+    public async Task<RenameCatalogResult?> ShowRenameCatalogDialogAsync(
+        string currentName,
+        bool canDelete = false,
+        Func<Task<bool>>? onDelete = null,
+        string? currentIconUrl = null)
     {
-        return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, string>(
-            callback => new RenameCatalogDialogViewModel(currentName, res => callback(res!), canDelete, onDelete));
+        return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, RenameCatalogResult?>(
+            callback => new RenameCatalogDialogViewModel(currentName, callback, canDelete, onDelete, currentIconUrl));
     }
 
     /// <summary>

@@ -86,8 +86,9 @@ public interface IPublisherStudioDialogService
     /// <param name="existing">The existing release.</param>
     /// <param name="parent">The parent content item.</param>
     /// <param name="catalog">The parent catalog.</param>
+    /// <param name="onDelete">Optional callback to delete the release.</param>
     /// <returns>The updated release, or null if cancelled.</returns>
-    Task<ContentRelease?> ShowEditReleaseDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog);
+    Task<ContentRelease?> ShowEditReleaseDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog, Func<ContentRelease, Task>? onDelete = null);
 
     /// <summary>
     /// Shows the add addon dialog for a content item.
@@ -104,8 +105,9 @@ public interface IPublisherStudioDialogService
     /// <param name="existing">The existing addon release.</param>
     /// <param name="parent">The parent content item.</param>
     /// <param name="catalog">The parent catalog.</param>
+    /// <param name="onDelete">Optional callback to delete the addon.</param>
     /// <returns>The updated addon release, or null if cancelled.</returns>
-    Task<ContentRelease?> ShowEditAddonDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog);
+    Task<ContentRelease?> ShowEditAddonDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog, Func<ContentRelease, Task>? onDelete = null);
 
     /// <summary>
     /// Shows the add artifact dialog to attach a file to a release.
@@ -182,6 +184,7 @@ public interface IPublisherStudioDialogService
     /// <param name="currentName">The current name of the catalog.</param>
     /// <param name="canDelete">Whether the catalog can be deleted.</param>
     /// <param name="onDelete">Optional callback to delete the catalog.</param>
-    /// <returns>The new catalog name, or null if cancelled.</returns>
-    Task<string?> ShowRenameCatalogDialogAsync(string currentName, bool canDelete = false, Func<Task<bool>>? onDelete = null);
+    /// <param name="currentIconUrl">Optional current icon URL for the catalog.</param>
+    /// <returns>The updated catalog result, or null if cancelled.</returns>
+    Task<ViewModels.Dialogs.RenameCatalogResult?> ShowRenameCatalogDialogAsync(string currentName, bool canDelete = false, Func<Task<bool>>? onDelete = null, string? currentIconUrl = null);
 }
