@@ -507,12 +507,23 @@ public class GenLauncherDeliverer(
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
             }
 
+            var expectedEtag = !string.IsNullOrWhiteSpace(file.ETag) ? file.ETag : file.Hash;
+            var downloadConfig = new DownloadConfiguration
+            {
+                Url = downloadUri,
+                DestinationPath = destinationPath,
+                EnableResumption = true,
+            };
+
+            if (!string.IsNullOrWhiteSpace(expectedEtag))
+            {
+                downloadConfig.Headers["ETag"] = expectedEtag;
+            }
+
             var downloadResult = await downloadService.DownloadFileAsync(
-                downloadUri,
-                destinationPath,
-                expectedHash: null,
+                downloadConfig,
                 progress: progress,
-                cancellationToken);
+                cancellationToken: cancellationToken);
 
             if (!downloadResult.Success)
             {
@@ -522,7 +533,6 @@ public class GenLauncherDeliverer(
             }
 
             // MD5 checksum validation against S3 ETag for engine extensions
-            var expectedEtag = !string.IsNullOrWhiteSpace(file.ETag) ? file.ETag : file.Hash;
             if (!string.IsNullOrWhiteSpace(expectedEtag) &&
                 GenLauncherChecksumValidator.RequiresValidation(file.RelativePath) &&
                 !await GenLauncherChecksumValidator.ValidateFileAsync(destinationPath, expectedEtag, cancellationToken))

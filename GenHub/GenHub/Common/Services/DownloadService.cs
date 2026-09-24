@@ -5,6 +5,7 @@ using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -88,8 +89,8 @@ public class DownloadService(
         {
             request.Headers.Range = new RangeHeaderValue(rangeStart, null);
             if (request.Headers.IfRange == null
-                && configuration.Headers.TryGetValue("ETag", out var etag)
-                && EntityTagHeaderValue.TryParse(etag, out var parsedEtag))
+                && TryGetETagHeader(configuration, out var etag)
+                && TryParseEntityTag(etag, out var parsedEtag))
             {
                 request.Headers.IfRange = new RangeConditionHeaderValue(parsedEtag);
             }
@@ -98,26 +99,60 @@ public class DownloadService(
         return request;
     }
 
+    private static bool TryGetETagHeader(DownloadConfiguration configuration, [NotNullWhen(true)] out string? etag)
+    {
+        if (configuration.Headers.TryGetValue("ETag", out etag) && !string.IsNullOrWhiteSpace(etag))
+        {
+            return true;
+        }
+
+        etag = null;
+        return false;
+    }
+
+    private static bool TryParseEntityTag(string? raw, [NotNullWhen(true)] out EntityTagHeaderValue? entityTag)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            entityTag = null;
+            return false;
+        }
+
+        if (EntityTagHeaderValue.TryParse(raw, out entityTag))
+        {
+            return true;
+        }
+
+        var trimmed = raw.Trim();
+        if (EntityTagHeaderValue.TryParse($"\"{trimmed.Trim('\"')}\"", out entityTag))
+        {
+            return true;
+        }
+
+        entityTag = null;
+        return false;
+    }
+
     private static void ReportDownloadProgress(
         IProgress<DownloadProgress> progress,
         long downloadedBytes,
-        long existingBytes,
         long totalBytes,
         string fileName,
         Uri url,
         TimeSpan elapsed)
     {
         var elapsedSeconds = elapsed.TotalSeconds;
-        var sessionBytes = downloadedBytes - existingBytes;
-        var speed = elapsedSeconds > 0 ? (long)(sessionBytes / elapsedSeconds) : 0;
+        var bytesPerSecond = elapsedSeconds > 0 ? (long)(downloadedBytes / elapsedSeconds) : 0L;
 
-        progress.Report(new DownloadProgress(
+        var downloadProgress = new DownloadProgress(
             downloadedBytes,
             totalBytes,
             fileName,
             url,
-            speed,
-            elapsed));
+            bytesPerSecond,
+            elapsed);
+
+        progress.Report(downloadProgress);
     }
 
     private static async Task<long> StreamContentToFileAsync(
@@ -146,9 +181,14 @@ public class DownloadService(
             var now = DateTime.UtcNow;
             if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || downloadedBytes == connection.TotalBytes))
             {
-                ReportDownloadProgress(progress, downloadedBytes, connection.ExistingBytes, connection.TotalBytes, fileName, configuration.Url, stopwatch.Elapsed);
+                ReportDownloadProgress(progress, downloadedBytes, connection.TotalBytes, fileName, configuration.Url, stopwatch.Elapsed);
                 lastProgressReport = now;
             }
+        }
+
+        if (connection.IsResumed && connection.TotalBytes > 0 && downloadedBytes < connection.TotalBytes)
+        {
+            throw new InvalidDataException($"Resumed download ended early: expected {connection.TotalBytes} bytes, got {downloadedBytes}.");
         }
 
         return downloadedBytes;
@@ -228,7 +268,12 @@ public class DownloadService(
             return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
         }
 
-        var existingBytes = (configuration.EnableResumption && destFileInfo.Exists && configuration.Headers.TryGetValue("ETag", out var etag) && EntityTagHeaderValue.TryParse(etag, out _)) ? destFileInfo.Length : 0L;
+        var existingBytes = (configuration.EnableResumption
+            && destFileInfo.Exists
+            && TryGetETagHeader(configuration, out var etag)
+            && TryParseEntityTag(etag, out _))
+            ? destFileInfo.Length
+            : 0L;
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(configuration.Timeout);
@@ -244,8 +289,13 @@ public class DownloadService(
                 progress,
                 stopwatch,
                 cts);
+            stopwatch.Stop();
 
-            return await FinalizeDownloadAsync(configuration, downloadedBytes, stopwatch.Elapsed, cancellationToken);
+            return await FinalizeDownloadAsync(
+                configuration,
+                downloadedBytes,
+                stopwatch.Elapsed,
+                cancellationToken);
         }
     }
 

@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Common;
 
@@ -25,7 +27,7 @@ public sealed class DownloadConfiguration
         OverwriteExisting = true;
         EnableResumption = true;
         ProgressReportingInterval = TimeSpan.FromMilliseconds(100);
-        Headers = [];
+        Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         VerifySslCertificate = true;
         MaxRetryAttempts = 3;
         RetryDelay = TimeSpan.FromSeconds(1);
@@ -71,6 +73,6 @@ public sealed class DownloadConfiguration
     /// <summary>Gets or sets the delay between retry attempts.</summary>
     public TimeSpan RetryDelay { get; set; }
 
-    /// <summary>Gets or sets a value indicating whether redirects are followed hop by hop with per-hop SSRF validation. Requires a client with automatic redirects disabled.</summary>
+    /// <summary>Gets or sets a value indicating whether to validate redirects manually for SSRF safety.</summary>
     public bool ValidateRedirectsManually { get; set; }
 }

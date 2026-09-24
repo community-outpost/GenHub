@@ -82,6 +82,12 @@ public sealed class GenLauncherDelivererTests
 
             result.Success.Should().BeFalse();
             result.FirstError.Should().Contain("Invalid download URL");
+            _downloadServiceMock.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<DownloadConfiguration>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
         finally
         {
@@ -133,9 +139,7 @@ public sealed class GenLauncherDelivererTests
             result.FirstError.Should().Contain("Invalid download URL");
             _downloadServiceMock.Verify(
                 d => d.DownloadFileAsync(
-                    It.IsAny<Uri>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string?>(),
+                    It.IsAny<DownloadConfiguration>(),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
@@ -157,9 +161,7 @@ public sealed class GenLauncherDelivererTests
     public async Task DeliverContentAsync_WhenDownloadFails_ReturnsFailureAsync()
     {
         _downloadServiceMock.Setup(d => d.DownloadFileAsync(
-            It.IsAny<Uri>(),
-            It.IsAny<string>(),
-            It.IsAny<string?>(),
+            It.IsAny<DownloadConfiguration>(),
             It.IsAny<IProgress<DownloadProgress>?>(),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(DownloadResult.CreateFailure("Network timeout"));
@@ -209,9 +211,7 @@ public sealed class GenLauncherDelivererTests
     public async Task DeliverContentAsync_WithMultipleFiles_DownloadsConcurrentlyAndSucceedsAsync()
     {
         _downloadServiceMock.Setup(d => d.DownloadFileAsync(
-            It.IsAny<Uri>(),
-            It.IsAny<string>(),
-            It.IsAny<string?>(),
+            It.IsAny<DownloadConfiguration>(),
             It.IsAny<IProgress<DownloadProgress>?>(),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(DownloadResult.CreateSuccess("path", 100, TimeSpan.FromMilliseconds(10)));
@@ -251,9 +251,7 @@ public sealed class GenLauncherDelivererTests
             result.Success.Should().BeTrue();
             _downloadServiceMock.Verify(
                 d => d.DownloadFileAsync(
-                    It.IsAny<Uri>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string?>(),
+                    It.IsAny<DownloadConfiguration>(),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Exactly(3));
@@ -299,12 +297,80 @@ public sealed class GenLauncherDelivererTests
             result.FirstError.Should().Contain("Manifest contains duplicate destination path");
             _downloadServiceMock.Verify(
                 d => d.DownloadFileAsync(
-                    It.IsAny<Uri>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string?>(),
+                    It.IsAny<DownloadConfiguration>(),
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync passes ETag in DownloadConfiguration headers when available on ManifestFile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithManifestFileETag_PassesETagInDownloadConfigurationAsync()
+    {
+        const string expectedMd5 = "5289df737df57326fcdd22597afb1fac";
+        var content = new byte[] { 1, 2, 3 };
+
+        DownloadConfiguration? capturedConfig = null;
+        _downloadServiceMock.Setup(d => d.DownloadFileAsync(
+            It.IsAny<DownloadConfiguration>(),
+            It.IsAny<IProgress<DownloadProgress>?>(),
+            It.IsAny<CancellationToken>()))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((cfg, _, _) =>
+            {
+                capturedConfig = cfg;
+                File.WriteAllBytes(cfg.DestinationPath, content);
+            })
+            .ReturnsAsync(DownloadResult.CreateSuccess("path", content.Length, TimeSpan.FromMilliseconds(10)));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(
+            It.IsAny<ContentManifest>(),
+            It.IsAny<string>(),
+            It.IsAny<IProgress<ContentStorageProgress>?>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.etag"),
+                Name = "ETag Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "test.big",
+                        DownloadUrl = "https://example.com/test.big",
+                        Size = 3,
+                        ETag = expectedMd5,
+                    },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            capturedConfig.Should().NotBeNull();
+            capturedConfig!.EnableResumption.Should().BeTrue();
+            capturedConfig.Headers.Should().ContainKey("ETag");
+            capturedConfig.Headers["ETag"].Should().Be(expectedMd5);
         }
         finally
         {

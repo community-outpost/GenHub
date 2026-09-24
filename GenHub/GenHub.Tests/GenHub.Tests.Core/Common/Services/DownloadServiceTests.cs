@@ -704,4 +704,122 @@ public class DownloadServiceTests
             }
         }
     }
+
+    /// <summary>
+    /// Verifies that when a resumed download ends early before total bytes are reached, the attempt fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_ResumedDownloadEndsEarly_FailsAsync()
+    {
+        // Arrange: partial file has 3 bytes, server announces range 3-4/5 (2 bytes) but stream only yields 1 byte
+        var existingContent = new byte[] { 1, 2, 3 };
+        var truncatedContent = new byte[] { 4 }; // missing byte 5
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, existingContent);
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(truncatedContent),
+                };
+                response.Content.Headers.ContentRange = new ContentRangeHeaderValue(3, 4, 5);
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/truncated-resume.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+                MaxRetryAttempts = 1,
+                Headers = { { "ETag", "\"sample-etag\"" } },
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("Resumed download ended early", result.FirstError);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an unquoted ETag header in configuration is parsed correctly and formatted into If-Range.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WithUnquotedETagHeader_SendsQuotedIfRangeAsync()
+    {
+        var existingContent = new byte[] { 1, 2, 3 };
+        var remainingContent = new byte[] { 4, 5 };
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllBytes(tempFile, existingContent);
+
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(() =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(remainingContent),
+                };
+                response.Content.Headers.ContentRange = new ContentRangeHeaderValue(3, 4, 5);
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/unquoted-etag.bin"),
+                DestinationPath = tempFile,
+                EnableResumption = true,
+                Headers = { { "etag", "raw-hex-etag-value" } }, // unquoted, lower-case key
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(capturedRequest);
+            Assert.NotNull(capturedRequest.Headers.IfRange);
+            Assert.Equal("\"raw-hex-etag-value\"", capturedRequest.Headers.IfRange.EntityTag?.Tag);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
 }
