@@ -138,7 +138,7 @@ jobs:
           }
 
           foreach ($testProject in $testProjects) {
-            dotnet test $testProject.FullName -c $env:BUILD_CONFIGURATION
+            dotnet test $testProject.FullName -c $env:BUILD_CONFIGURATION --filter "Category!=LiveNetwork"
             if ($LASTEXITCODE -ne 0) {
               throw "Tests failed for $($testProject.FullName)"
             }
@@ -314,7 +314,7 @@ jobs:
 
           for test_project in "${test_projects[@]}"; do
             [[ "$test_project" == *Windows* || "$test_project" == *MacOS* ]] && continue
-            dotnet test "$test_project" -c "${{ env.BUILD_CONFIGURATION }}"
+            dotnet test "$test_project" -c "${{ env.BUILD_CONFIGURATION }}" --filter "Category!=LiveNetwork"
           done
 
       - name: Publish Linux App

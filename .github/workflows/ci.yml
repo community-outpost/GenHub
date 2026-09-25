@@ -628,7 +628,7 @@ jobs:
           if ($testProjects) {
             foreach ($testProject in $testProjects) {
               Write-Host "Testing $($testProject.FullName)"
-              dotnet test $testProject.FullName -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+              dotnet test $testProject.FullName -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
               if ($LASTEXITCODE -ne 0) {
                 throw "Test failed for $($testProject.FullName)"
               }
@@ -671,7 +671,7 @@ jobs:
           for test_project in ${{ env.TEST_PROJECTS }}; do
             [[ "$test_project" == *Windows* || "$test_project" == *MacOS* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
-            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
           done
 
   test-macos:
