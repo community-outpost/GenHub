@@ -1537,6 +1537,8 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.True(File.Exists(desertTga));
         Assert.True(File.Exists(snowTga));
         Assert.False(File.Exists(rootTga));
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Desert", "map.tga")));
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Snow", "map.tga")));
     }
 
     /// <inheritdoc/>

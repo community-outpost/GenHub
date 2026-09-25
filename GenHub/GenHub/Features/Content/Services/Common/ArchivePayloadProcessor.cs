@@ -2691,15 +2691,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             Directory.CreateDirectory(targetFolder);
 
             var targetMapFile = Path.Combine(targetFolder, Path.GetFileName(mapFile));
-            if (!File.Exists(targetMapFile))
+            try
             {
-                File.Move(mapFile, targetMapFile);
-            }
-            else
-            {
-                var rootInfo = new FileInfo(mapFile);
-                var targetInfo = new FileInfo(targetMapFile);
-                if (rootInfo.Length == targetInfo.Length && File.ReadAllBytes(mapFile).AsSpan().SequenceEqual(File.ReadAllBytes(targetMapFile)))
+                if (!File.Exists(targetMapFile))
+                {
+                    File.Move(mapFile, targetMapFile);
+                }
+                else if (FilesAreEqual(mapFile, targetMapFile))
                 {
                     File.Delete(mapFile);
                     logger.LogInformation("Deduplicated identical loose map {Source} matching existing {Target}", mapFile, targetMapFile);
@@ -2710,31 +2708,44 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     File.Delete(mapFile);
                 }
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to organize or deduplicate loose map {MapFile}", mapFile);
+            }
 
-            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase);
+            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
         }
 
-        var rootThumbnail = Path.Combine(extractedDirectory, MapManagerConstants.DefaultThumbnailName);
-        if (File.Exists(rootThumbnail))
+        try
         {
-            File.Delete(rootThumbnail);
-        }
+            var rootThumbnail = Path.Combine(extractedDirectory, MapManagerConstants.DefaultThumbnailName);
+            if (File.Exists(rootThumbnail))
+            {
+                File.Delete(rootThumbnail);
+            }
 
-        var rootMapIni = Path.Combine(extractedDirectory, MapManagerConstants.MapIniFileName);
-        if (File.Exists(rootMapIni))
+            var rootMapIni = Path.Combine(extractedDirectory, MapManagerConstants.MapIniFileName);
+            if (File.Exists(rootMapIni))
+            {
+                File.Delete(rootMapIni);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            File.Delete(rootMapIni);
+            logger.LogWarning(ex, "Failed to clean up loose map companions in {Directory}", extractedDirectory);
         }
     }
 
     private void OrganizeLooseCompanionsForMap(
         string extractedDirectory,
         string targetFolder,
-        string mapBase)
+        string mapBase,
+        CancellationToken cancellationToken)
     {
         var looseFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
         foreach (var companion in looseFiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (companion.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -2750,22 +2761,81 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
-                var targetAssetFile = Path.Combine(targetFolder, fn);
+                var isDefaultThumbnail = fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+                var targetFileName = isDefaultThumbnail ? mapBase + ext : fn;
+                var targetAssetFile = Path.Combine(targetFolder, targetFileName);
+
                 if (!File.Exists(targetAssetFile))
                 {
-                    if (fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
-                        fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase))
+                    try
                     {
-                        File.Copy(companion, targetAssetFile);
-                    }
-                    else
-                    {
-                        File.Move(companion, targetAssetFile);
-                    }
+                        if (isDefaultThumbnail || fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            File.Copy(companion, targetAssetFile);
+                        }
+                        else
+                        {
+                            File.Move(companion, targetAssetFile);
+                        }
 
-                    logger.LogInformation("Organized loose companion {Source} into {Target}", companion, targetAssetFile);
+                        logger.LogInformation("Organized loose companion {Source} into {Target}", companion, targetAssetFile);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogWarning(ex, "Failed to organize loose companion {Source} into {Target}", companion, targetAssetFile);
+                    }
                 }
             }
+        }
+    }
+
+    private bool FilesAreEqual(string path1, string path2)
+    {
+        var file1 = new FileInfo(path1);
+        var file2 = new FileInfo(path2);
+        if (file1.Length != file2.Length)
+        {
+            return false;
+        }
+
+        if (string.Equals(file1.FullName, file2.FullName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        try
+        {
+            using var s1 = file1.OpenRead();
+            using var s2 = file2.OpenRead();
+
+            Span<byte> buffer1 = stackalloc byte[8192];
+            Span<byte> buffer2 = stackalloc byte[8192];
+
+            while (true)
+            {
+                var bytesRead1 = s1.Read(buffer1);
+                var bytesRead2 = s2.Read(buffer2);
+
+                if (bytesRead1 != bytesRead2)
+                {
+                    return false;
+                }
+
+                if (bytesRead1 == 0)
+                {
+                    return true;
+                }
+
+                if (!buffer1[..bytesRead1].SequenceEqual(buffer2[..bytesRead2]))
+                {
+                    return false;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to compare files {File1} and {File2}", path1, path2);
+            return false;
         }
     }
 
