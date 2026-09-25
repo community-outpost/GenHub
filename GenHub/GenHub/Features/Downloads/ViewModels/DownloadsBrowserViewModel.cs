@@ -303,6 +303,9 @@ public sealed partial class DownloadsBrowserViewModel(
             WeakReferenceMessenger.Default.Register<DownloadsBrowserViewModel, PublisherSubscriptionsChangedMessage>(
                 this,
                 static (recipient, _) => recipient.OnPublisherSubscriptionsChanged());
+            WeakReferenceMessenger.Default.Register<PublisherSubscriptionRemovedMessage>(
+                this,
+                static (recipient, _) => ((DownloadsBrowserViewModel)recipient).OnPublisherSubscriptionRemoved());
             _builtInPublishersInitialized = true;
         }
 
@@ -392,6 +395,7 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(this);
                 WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionsChangedMessage>(this);
+                WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionRemovedMessage>(this);
                 contentStateService.ContentStateChanged -= OnContentStateChanged;
                 if (_localizationService != null)
                 {
@@ -1753,6 +1757,11 @@ public sealed partial class DownloadsBrowserViewModel(
     private void OnPublisherSubscriptionsChanged()
     {
         RunOnUi(() => _ = RefreshSubscribedPublishersAsync());
+    }
+
+    private void OnPublisherSubscriptionRemoved()
+    {
+        _ = RefreshSubscribedPublishersAsync();
     }
 
     private void OnContentLibraryCleared()

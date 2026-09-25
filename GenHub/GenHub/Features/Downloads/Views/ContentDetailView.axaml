@@ -1462,8 +1462,8 @@
                                     IsEnabled="{Binding CanUpdate}"
                                     Command="{Binding UpdateCommand}"
                                     Cursor="Hand"
-                                    Padding="20,0">
-                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.UpdateAvailableTooltip}</ToolTip.Tip>
+                                    Padding="20,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.UpdateAvailableTooltip}">
                                 <Button.Styles>
                                     <Style Selector="Button:pointerover">
                                         <Setter Property="Opacity" Value="0.9" />
@@ -1497,8 +1497,8 @@
                                     IsVisible="{Binding ShowAddToProfileButton}"
                                     Command="{Binding AddToProfileCommand}"
                                     Cursor="Hand"
-                                    Padding="20,0">
-                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}</ToolTip.Tip>
+                                    Padding="20,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}">
                                 <Button.Styles>
                                     <Style Selector="Button:pointerover">
                                         <Setter Property="Opacity" Value="0.9" />
@@ -1527,8 +1527,8 @@
                                     IsVisible="{Binding ShowDeleteButton}"
                                     Command="{Binding DeleteDownloadCommand}"
                                     Cursor="Hand"
-                                    Padding="20,0">
-                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}</ToolTip.Tip>
+                                    Padding="20,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}">
                                 <Button.Styles>
                                     <Style Selector="Button:pointerover">
                                         <Setter Property="Opacity" Value="0.9" />
@@ -1558,8 +1558,8 @@
                                     IsVisible="{Binding HasSourceUrl}"
                                     Command="{Binding OpenInBrowserCommand}"
                                     Cursor="Hand"
-                                    Padding="16,0">
-                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.OpenWebsiteTooltip}</ToolTip.Tip>
+                                    Padding="16,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.OpenWebsiteTooltip}">
                                 <Button.Styles>
                                     <Style Selector="Button:pointerover">
                                         <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />

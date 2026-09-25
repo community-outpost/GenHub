@@ -599,8 +599,8 @@
                             Command="{Binding DownloadCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowDownloadButton}"
-                            IsEnabled="{Binding CanDownload}">
-                        <ToolTip.Tip>{localization:Localize Downloads.Card.DownloadTooltip}</ToolTip.Tip>
+                            IsEnabled="{Binding CanDownload}"
+                            ToolTip.Tip="{localization:Localize Downloads.Card.DownloadTooltip}">
                         <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Path Data="M12 3v9m0 0l-3-3m3 3l3-3M4 15v2a2 2 0 002 2h12a2 2 0 002-2v-2"
                                   Stroke="White" StrokeThickness="2" StrokeJoin="Round" StrokeLineCap="Round"
@@ -614,8 +614,8 @@
                             Command="{Binding UpdateCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowUpdateButton}"
-                            IsEnabled="{Binding CanUpdate}">
-                        <ToolTip.Tip>{localization:Localize Downloads.Card.UpdateTooltip}</ToolTip.Tip>
+                            IsEnabled="{Binding CanUpdate}"
+                            ToolTip.Tip="{localization:Localize Downloads.Card.UpdateTooltip}">
                         <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Path Data="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
                                   Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
@@ -627,8 +627,8 @@
                     <Button Classes="card-button add-profile-btn"
                             Command="{Binding AddToProfileCommand}"
                             CommandParameter="{Binding}"
-                            IsVisible="{Binding ShowAddToProfileButton}">
-                        <ToolTip.Tip>{localization:Localize Downloads.Card.AddToProfileTooltip}</ToolTip.Tip>
+                            IsVisible="{Binding ShowAddToProfileButton}"
+                            ToolTip.Tip="{localization:Localize Downloads.Card.AddToProfileTooltip}">
                         <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Path Data="M12 5v14M5 12h14"
                                   Stroke="White" StrokeThickness="2" StrokeJoin="Round" StrokeLineCap="Round"

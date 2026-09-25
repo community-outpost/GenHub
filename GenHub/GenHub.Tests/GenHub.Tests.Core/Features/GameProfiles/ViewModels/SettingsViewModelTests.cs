@@ -2172,6 +2172,43 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that RemoveSubscriptionCommand broadcasts the removed publisher so the Downloads sidebar can drop it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveSubscriptionCommand_BroadcastsRemovedPublisherAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" };
+        mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+        viewModel.Subscriptions.Add(sub);
+
+        var recipient = new object();
+        string? broadcastPublisherId = null;
+        WeakReferenceMessenger.Default.Register<PublisherSubscriptionRemovedMessage>(recipient, (_, message) => broadcastPublisherId = message.PublisherId);
+
+        try
+        {
+            // Act
+            await viewModel.RemoveSubscriptionCommand.ExecuteAsync(sub);
+
+            // Assert
+            Assert.Equal("pub1", broadcastPublisherId);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionRemovedMessage>(recipient);
+        }
+    }
+
+    /// <summary>
     /// Verifies that ShowNoSubscriptions accurately reflects subscription list and loading status.
     /// </summary>
     [Fact]

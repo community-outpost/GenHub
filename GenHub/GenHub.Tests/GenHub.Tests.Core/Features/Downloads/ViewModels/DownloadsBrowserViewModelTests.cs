@@ -327,6 +327,65 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies that removing a subscription drops its publisher from the sidebar without a restart.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PublisherSubscriptionRemovedMessage_RemovesUnsubscribedPublisherFromSidebarAsync()
+    {
+        // Arrange
+        var sub = new PublisherSubscription
+        {
+            PublisherId = "sub-removed",
+            PublisherName = "Removed Sub",
+            CatalogUrl = "https://example.com/removed/catalog.json",
+        };
+
+        var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        subscriptionStore
+            .SetupSequence(store => store.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([sub]))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
+
+        var mockDiscoverer = new Mock<GenericCatalogDiscoverer>(
+            new Mock<ILogger<GenericCatalogDiscoverer>>().Object,
+            new Mock<IHttpClientFactory>().Object,
+            new Mock<IPublisherCatalogParser>().Object,
+            new Mock<IVersionSelector>().Object,
+            new Mock<IGitHubApiClient>().Object);
+
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(GenericCatalogDiscoverer)))
+            .Returns(mockDiscoverer.Object);
+
+        var loggerFactoryMock = new Mock<ILoggerFactory>();
+        loggerFactoryMock.Setup(l => l.CreateLogger(It.IsAny<string>()))
+            .Returns(new Mock<ILogger>().Object);
+
+        using var viewModel = new DownloadsBrowserViewModel(
+            serviceProviderMock.Object,
+            new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
+            [],
+            new Mock<IContentStateService>().Object,
+            new Mock<IContentOrchestrator>().Object,
+            new Mock<IProfileContentService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<INotificationService>().Object,
+            loggerFactoryMock.Object,
+            subscriptionStore.Object);
+
+        await viewModel.InitializeAsync();
+        Assert.Contains(viewModel.Publishers, p => p.PublisherId == "sub-removed");
+
+        // Act
+        WeakReferenceMessenger.Default.Send(new PublisherSubscriptionRemovedMessage("sub-removed"));
+
+        // Assert
+        Assert.DoesNotContain(viewModel.Publishers, p => p.PublisherId == "sub-removed");
+    }
+
+    /// <summary>
     /// Verifies that rapidly clicking Publisher A -> Publisher B -> Publisher C leaves
     /// the UI showing strictly Publisher C's items with zero bleed from A or B.
     /// </summary>
