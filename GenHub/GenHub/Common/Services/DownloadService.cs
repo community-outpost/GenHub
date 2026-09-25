@@ -463,10 +463,11 @@ public class DownloadService(
                 if (chunkRange is null ||
                     !string.Equals(chunkRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) ||
                     chunkRange.From != start ||
-                    chunkRange.To != end)
+                    chunkRange.To != end ||
+                    chunkRange.Length != totalBytes)
                 {
                     throw new InvalidOperationException(
-                        $"Server returned invalid Content-Range ({chunkRange}) for requested range {start}-{end}.");
+                        $"Server returned invalid Content-Range ({chunkRange}) for requested range {start}-{end} (expected total bytes: {totalBytes}).");
                 }
 
                 ValidateResponseContentType(chunkResponse, configuration.DestinationPath);

@@ -1163,6 +1163,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             return header.Length >= 3 && header[0] == 0x42 && header[1] == 0x5A && header[2] == 0x68;
         }
 
+        if (ext.Equals(".xz", StringComparison.OrdinalIgnoreCase) || ext.Equals(".txz", StringComparison.OrdinalIgnoreCase))
+        {
+            // XZ files start with 0xFD, '7', 'z', 'X', 'Z', 0x00
+            ReadOnlySpan<byte> xzMagic = [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00];
+            return header.Length >= xzMagic.Length && header[..xzMagic.Length].SequenceEqual(xzMagic);
+        }
+
         return false;
     }
 
@@ -1219,6 +1226,17 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var preview = ReadTextPreview(archivePath, maxChars: 120);
             throw new InvalidDataException(
                 $"File '{Path.GetFileName(archivePath)}' is not a valid BZip2 archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+        }
+        else if (ext.Equals(".xz", StringComparison.OrdinalIgnoreCase) || ext.Equals(".txz", StringComparison.OrdinalIgnoreCase))
+        {
+            // XZ files start with 0xFD, '7', 'z', 'X', 'Z', 0x00
+            ReadOnlySpan<byte> xzMagic = [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00];
+            if (header.Length < xzMagic.Length || !header[..xzMagic.Length].SequenceEqual(xzMagic))
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid XZ archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
         }
     }
 

@@ -47,6 +47,26 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an invalid XZ file without proper magic bytes throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_InvalidXzArchive_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var xzPath = Path.Combine(_stagingDirectory, "corrupted.xz");
+        await File.WriteAllBytesAsync(xzPath, new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod));
+        Assert.Contains("is not a valid XZ archive", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that extracting a valid ZIP archive unpacks all entries and removes the archive file.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

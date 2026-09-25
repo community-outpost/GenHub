@@ -1337,6 +1337,83 @@ public class DownloadServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that if a parallel chunk returns a Content-Range length that mismatches totalBytes, fallback to sequential download occurs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WhenChunkContentRangeLengthMismatchesTotalBytes_FallsBackToSequentialAsync()
+    {
+        const int totalBytes = 16 * 1024 * 1024;
+        var fullPayload = new byte[totalBytes];
+        Array.Fill(fullPayload, (byte)7);
+
+        var tempFile = Path.Combine(Path.GetTempPath(), $"mismatch_{Guid.NewGuid():N}.bin");
+        var sequentialRequested = false;
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
+            {
+                if (request.Headers.Range == null)
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new ByteArrayContent(sequentialRequested ? fullPayload : Array.Empty<byte>()),
+                    };
+                    response.Content.Headers.ContentLength = totalBytes;
+                    response.Headers.AcceptRanges.Add("bytes");
+                    sequentialRequested = true;
+                    return response;
+                }
+
+                // Return a chunk where Content-Range total length disagrees with totalBytes
+                var range = request.Headers.Range.Ranges.First();
+                var from = range.From!.Value;
+                var to = range.To!.Value;
+                var chunkData = new byte[to - from + 1];
+
+                var chunkResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(chunkData),
+                };
+
+                // Disagreeing total length (totalBytes + 1000)
+                chunkResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes + 1000);
+                return chunkResponse;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/mismatchedfile.bin"),
+                DestinationPath = tempFile,
+                EnableParallelDownload = true,
+                ParallelConcurrency = 2,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.True(sequentialRequested);
+            Assert.Equal(totalBytes, result.BytesDownloaded);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
     private sealed class CustomStreamingContent(byte[] data, long? declaredContentLength) : HttpContent
     {
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
