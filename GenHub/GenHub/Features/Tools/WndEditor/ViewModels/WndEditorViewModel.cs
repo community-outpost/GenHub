@@ -51,6 +51,8 @@ public sealed partial class WndEditorViewModel(
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
     private const int MaxUndoHistory = 200;
+    private const string NoSelectionTitleKey = "Tools.WndEditor.Apply.NoSelectionTitle";
+    private const string NoSelectionMessageKey = "Tools.WndEditor.Apply.NoSelectionMessage";
 
     private static readonly EnumerationOptions SafeDirectoryEnumerationOptions = new()
     {
@@ -540,8 +542,8 @@ public sealed partial class WndEditorViewModel(
         if (targetWindow == null)
         {
             notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                localizationService.GetString(NoSelectionTitleKey),
+                localizationService.GetString(NoSelectionMessageKey),
                 NotificationDurations.Medium);
             return false;
         }
@@ -593,14 +595,24 @@ public sealed partial class WndEditorViewModel(
         if (targetWindow == null)
         {
             notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                localizationService.GetString(NoSelectionTitleKey),
+                localizationService.GetString(NoSelectionMessageKey),
                 NotificationDurations.Medium);
             return;
         }
 
         SelectWindow(targetWindow);
         ApplyImageToSelectedWindow(imageName.Trim());
+    }
+
+    /// <summary>
+    /// Displays an error notification.
+    /// </summary>
+    /// <param name="title">Notification title.</param>
+    /// <param name="message">Notification message.</param>
+    public void NotifyError(string title, string message)
+    {
+        notificationService.ShowError(title, message);
     }
 
     /// <summary>
@@ -618,8 +630,8 @@ public sealed partial class WndEditorViewModel(
         if (targetWindow == null)
         {
             notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                localizationService.GetString(NoSelectionTitleKey),
+                localizationService.GetString(NoSelectionMessageKey),
                 NotificationDurations.Medium);
             return false;
         }
@@ -664,7 +676,7 @@ public sealed partial class WndEditorViewModel(
                 return await ApplyDroppedFilesAsync([trimmedText], canvasPosition: null, cancellationToken).ConfigureAwait(false);
             }
 
-            if (KnownImageNames.Contains(trimmedText))
+            if (KnownImageNames.Contains(trimmedText, StringComparer.OrdinalIgnoreCase))
             {
                 await InvokeOnUIThreadAsync(() => ApplyDroppedImageName(trimmedText)).ConfigureAwait(false);
                 return true;
@@ -906,12 +918,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         var candidateSource = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, afterMarker);
-        if (File.Exists(candidateSource) || Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir)))
-        {
-            return candidateSource;
-        }
-
-        return null;
+        return File.Exists(candidateSource) ? candidateSource : null;
     }
 
     /// <summary>
@@ -1281,12 +1288,12 @@ public sealed partial class WndEditorViewModel(
     /// Pastes an asset from the clipboard into the currently selected window.
     /// </summary>
     [RelayCommand]
-    private async Task PasteAssetFromClipboard()
+    private async Task PasteAssetFromClipboardAsync(CancellationToken cancellationToken)
     {
-        await PasteAssetFromClipboardAsync().ConfigureAwait(false);
+        await PasteAssetFromClipboardAsync(clipboard: null, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<IReadOnlyList<string>> ExtractClipboardFilesAsync(IClipboard clipboard)
+    private async Task<IReadOnlyList<string>> ExtractClipboardFilesAsync(IClipboard clipboard)
     {
         try
         {
@@ -1335,13 +1342,14 @@ public sealed partial class WndEditorViewModel(
 
             return paths;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogDebug(ex, "Failed to extract clipboard files");
             return [];
         }
     }
 
-    private static async Task<byte[]?> ExtractClipboardImageBytesAsync(IClipboard clipboard)
+    private async Task<byte[]?> ExtractClipboardImageBytesAsync(IClipboard clipboard)
     {
         try
         {
@@ -1351,32 +1359,18 @@ public sealed partial class WndEditorViewModel(
                 return null;
             }
 
-            var preferredFormats = new[]
+            var preferredBytes = await TryExtractPreferredImageBytesAsync(clipboard, formats).ConfigureAwait(false);
+            if (preferredBytes != null)
             {
-                "image/png", "PNG", "image/jpeg", "image/bmp", "DeviceIndependentBitmap", "CF_DIB",
-            };
-
-            foreach (var pref in preferredFormats)
-            {
-                var matchingFormat = formats.FirstOrDefault(f => string.Equals(f, pref, StringComparison.OrdinalIgnoreCase));
-                if (matchingFormat != null)
-                {
-                    var data = await clipboard.GetDataAsync(matchingFormat).ConfigureAwait(false);
-                    var bytes = ExtractBytesFromData(data);
-                    if (bytes != null && bytes.Length > 0)
-                    {
-                        return bytes;
-                    }
-                }
+                return preferredBytes;
             }
 
             foreach (var fmt in formats)
             {
                 if (fmt.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
                 {
-                    var data = await clipboard.GetDataAsync(fmt).ConfigureAwait(false);
-                    var bytes = ExtractBytesFromData(data);
-                    if (bytes != null && bytes.Length > 0)
+                    var bytes = await TryExtractBytesForFormatAsync(clipboard, fmt).ConfigureAwait(false);
+                    if (bytes != null)
                     {
                         return bytes;
                     }
@@ -1385,10 +1379,41 @@ public sealed partial class WndEditorViewModel(
 
             return null;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogDebug(ex, "Failed to extract clipboard image bytes");
             return null;
         }
+    }
+
+    private static async Task<byte[]?> TryExtractPreferredImageBytesAsync(IClipboard clipboard, string[] formats)
+    {
+        var preferredFormats = new[]
+        {
+            "image/png", "PNG", "image/jpeg", "image/bmp", "DeviceIndependentBitmap", "CF_DIB",
+        };
+
+        foreach (var pref in preferredFormats)
+        {
+            var matchingFormat = formats.FirstOrDefault(f => string.Equals(f, pref, StringComparison.OrdinalIgnoreCase));
+            if (matchingFormat != null)
+            {
+                var bytes = await TryExtractBytesForFormatAsync(clipboard, matchingFormat).ConfigureAwait(false);
+                if (bytes != null)
+                {
+                    return bytes;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<byte[]?> TryExtractBytesForFormatAsync(IClipboard clipboard, string format)
+    {
+        var data = await clipboard.GetDataAsync(format).ConfigureAwait(false);
+        var bytes = ExtractBytesFromData(data);
+        return bytes is { Length: > 0 } ? bytes : null;
     }
 
     private static byte[]? ExtractBytesFromData(object? data)
@@ -1468,7 +1493,6 @@ public sealed partial class WndEditorViewModel(
 
         return true;
     }
-
 
     /// <summary>
     /// Creates a new untitled document.
@@ -1890,8 +1914,8 @@ public sealed partial class WndEditorViewModel(
         if (node == null)
         {
             notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                localizationService.GetString(NoSelectionTitleKey),
+                localizationService.GetString(NoSelectionMessageKey),
                 NotificationDurations.Medium);
             return;
         }
@@ -1948,12 +1972,30 @@ public sealed partial class WndEditorViewModel(
             return linkedModFolder;
         }
 
-        if (selection == null || roots == null)
+        if (roots != null)
         {
-            return null;
+            var detected = ResolveProjectDirectory(filePath, roots) ?? ResolveProjectDirectory(filesDirectory, roots);
+            if (!string.IsNullOrWhiteSpace(detected))
+            {
+                return detected;
+            }
         }
 
-        return ResolveProjectDirectory(filePath, roots) ?? ResolveProjectDirectory(filesDirectory, roots);
+        if (!string.IsNullOrWhiteSpace(filesDirectory) && Directory.Exists(filesDirectory))
+        {
+            return FindModRoot(filesDirectory) ?? filesDirectory;
+        }
+
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            var dir = Directory.Exists(filePath) ? filePath : Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+            {
+                return FindModRoot(dir) ?? dir;
+            }
+        }
+
+        return null;
     }
 
     private void UpdateLinkedAssetsSummary()
@@ -2026,7 +2068,7 @@ public sealed partial class WndEditorViewModel(
         {
             try
             {
-                await WriteDocumentToFileAsync(oldPath, cancellationToken);
+                await WriteDocumentToFileAsync(oldPath, cancellationToken, showFeedback: false);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -2581,7 +2623,7 @@ public sealed partial class WndEditorViewModel(
             localizationService.GetString("Tools.WndEditor.UnsavedChanges.Cancel"));
     }
 
-    private async Task<bool> WriteDocumentToFileAsync(string filePath, CancellationToken cancellationToken)
+    private async Task<bool> WriteDocumentToFileAsync(string filePath, CancellationToken cancellationToken, bool showFeedback = true)
     {
         if (_document == null)
         {
@@ -2597,31 +2639,43 @@ public sealed partial class WndEditorViewModel(
             await File.WriteAllTextAsync(tempPath, text, cancellationToken).ConfigureAwait(false);
             File.Move(tempPath, filePath, overwrite: true);
             tempPath = null;
-            _savedHistoryVersion = _historyVersion;
-            IsModified = false;
-            notificationService.ShowSuccess(
-                localizationService.GetString("Tools.WndEditor.Save.SuccessTitle"),
-                localizationService.GetString("Tools.WndEditor.Save.SuccessMessage", Path.GetFileName(filePath)),
-                NotificationDurations.Medium);
+            if (showFeedback)
+            {
+                _savedHistoryVersion = _historyVersion;
+                IsModified = false;
+                notificationService.ShowSuccess(
+                    localizationService.GetString("Tools.WndEditor.Save.SuccessTitle"),
+                    localizationService.GetString("Tools.WndEditor.Save.SuccessMessage", Path.GetFileName(filePath)),
+                    NotificationDurations.Medium);
+            }
+
             logger.LogInformation("Saved window definition file {Path}", filePath);
             return true;
         }
         catch (IOException ex)
         {
             logger.LogError(ex, "Failed to save window definition file {Path}", filePath);
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WndEditor.Save.FailureTitle"),
-                localizationService.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
-                NotificationDurations.Long);
+            if (showFeedback)
+            {
+                notificationService.ShowError(
+                    localizationService.GetString("Tools.WndEditor.Save.FailureTitle"),
+                    localizationService.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
+                    NotificationDurations.Long);
+            }
+
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogError(ex, "Access denied saving window definition file {Path}", filePath);
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WndEditor.Save.FailureTitle"),
-                localizationService.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
-                NotificationDurations.Long);
+            if (showFeedback)
+            {
+                notificationService.ShowError(
+                    localizationService.GetString("Tools.WndEditor.Save.FailureTitle"),
+                    localizationService.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
+                    NotificationDurations.Long);
+            }
+
             return false;
         }
         finally
@@ -2710,7 +2764,12 @@ public sealed partial class WndEditorViewModel(
     private void PushUndo(WndEditAction action)
     {
         PushUndoStack(action);
-        _redoStack.Clear();
+        if (_redoStack.Count > 0)
+        {
+            _savedHistoryVersion = int.MinValue;
+            _redoStack.Clear();
+        }
+
         _historyVersion++;
         IsModified = _historyVersion != _savedHistoryVersion;
         RefreshUndoCommands();
@@ -3850,15 +3909,12 @@ public sealed partial class WndEditorViewModel(
             : string.Empty;
 
         var tooltipTemplate = localizationService.GetString("Tools.WndEditor.Assets.ClickToAdd");
-        if (string.IsNullOrWhiteSpace(tooltipTemplate))
-        {
-            tooltipTemplate = "Click to add {0}";
-        }
-
         var items = new List<WndArtItemViewModel>(selected.Count);
         foreach (var name in selected)
         {
-            var tooltip = string.Format(System.Globalization.CultureInfo.InvariantCulture, tooltipTemplate, name);
+            var tooltip = !string.IsNullOrWhiteSpace(tooltipTemplate)
+                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, tooltipTemplate, name)
+                : name;
             _thumbnailBitmaps.TryGetValue(name, out var bmp);
             items.Add(new WndArtItemViewModel(name, tooltip, bmp));
         }
@@ -3907,9 +3963,7 @@ public sealed partial class WndEditorViewModel(
                 var importResult = await textureImportService.ImportTextureAsync(path, projectDirectory, null, cancellationToken).ConfigureAwait(false);
                 if (importResult.Success && importResult.Data != null)
                 {
-                    var mappedName = importResult.Data.MappedName;
-                    MissingImageNames.Remove(mappedName);
-                    return mappedName;
+                    return importResult.Data.MappedName;
                 }
 
                 if (KnownImageNames.Contains(stem, StringComparer.OrdinalIgnoreCase))

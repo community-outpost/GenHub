@@ -53,7 +53,6 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
             var name = SanitizeMappedName(string.IsNullOrWhiteSpace(mappedName) ? Path.GetFileNameWithoutExtension(sourceFilePath) : mappedName);
             var targetExtension = ResolveTargetExtension(extension);
             var textureFileName = string.Concat(name, targetExtension);
-            var (textureDirectory, texturePath) = ResolveTextureDestination(projectDirectory, textureFileName);
             var definitionsPath = Path.Combine(
                 projectDirectory,
                 WndConstants.AssetImport.MappedImagesRelativeDirectory,
@@ -61,10 +60,16 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
             await _upsertLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             var textureWritten = false;
+            string? texturePath = null;
             try
             {
+                var (textureDirectory, resolvedPath) = await Task.Run(
+                    () => ResolveTextureDestination(projectDirectory, textureFileName),
+                    cancellationToken).ConfigureAwait(false);
+                texturePath = resolvedPath;
+
                 var (imageWidth, imageHeight, potWidth, potHeight) = await Task.Run(
-                    () => WriteTexture(sourceFilePath, textureDirectory, texturePath, targetExtension, cancellationToken),
+                    () => WriteTexture(sourceFilePath, textureDirectory, texturePath, targetExtension, logger, cancellationToken),
                     cancellationToken).ConfigureAwait(false);
                 textureWritten = true;
 
@@ -77,7 +82,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
             }
             catch
             {
-                if (textureWritten && File.Exists(texturePath) && !string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(texturePath), StringComparison.OrdinalIgnoreCase))
+                if (textureWritten && texturePath != null && File.Exists(texturePath) && !string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(texturePath), StringComparison.OrdinalIgnoreCase))
                 {
                     try
                     {
@@ -149,7 +154,6 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
             var name = SanitizeMappedName(mappedName);
             var targetExtension = WndConstants.MappedImages.TextureExtensionTga;
             var textureFileName = string.Concat(name, targetExtension);
-            var (textureDirectory, texturePath) = ResolveTextureDestination(projectDirectory, textureFileName);
             var definitionsPath = Path.Combine(
                 projectDirectory,
                 WndConstants.AssetImport.MappedImagesRelativeDirectory,
@@ -157,10 +161,16 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
             await _upsertLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             var textureWritten = false;
+            string? texturePath = null;
             try
             {
+                var (textureDirectory, resolvedPath) = await Task.Run(
+                    () => ResolveTextureDestination(projectDirectory, textureFileName),
+                    cancellationToken).ConfigureAwait(false);
+                texturePath = resolvedPath;
+
                 var (imageWidth, imageHeight, potWidth, potHeight) = await Task.Run(
-                    () => WriteTextureBytes(imageBytes, textureDirectory, texturePath, cancellationToken),
+                    () => WriteTextureBytes(imageBytes, textureDirectory, texturePath, logger, cancellationToken),
                     cancellationToken).ConfigureAwait(false);
                 textureWritten = true;
 
@@ -173,7 +183,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
             }
             catch
             {
-                if (textureWritten && File.Exists(texturePath))
+                if (textureWritten && texturePath != null && File.Exists(texturePath))
                 {
                     try
                     {
@@ -420,7 +430,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 return (targetDir, Path.Combine(targetDir, textureFileName));
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Fall back to default location
         }
@@ -433,6 +443,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         string textureDirectory,
         string texturePath,
         string targetExtension,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(textureDirectory);
@@ -466,11 +477,13 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
             image.Settings.Compression = CompressionMethod.NoCompression;
             image.ColorType = image.HasAlpha ? ColorType.TrueColorAlpha : ColorType.TrueColor;
-            image.Format = MagickFormat.Tga;
+            image.Format = string.Equals(targetExtension, WndConstants.MappedImages.TextureExtensionDds, StringComparison.OrdinalIgnoreCase)
+                ? MagickFormat.Dds
+                : MagickFormat.Tga;
             image.Write(texturePath);
         }
 
-        SyncTextureToSiblingDirectories(textureDirectory, Path.GetFileName(texturePath), texturePath);
+        SyncTextureToSiblingDirectories(textureDirectory, Path.GetFileName(texturePath), texturePath, logger);
 
         return (imageWidth, imageHeight, potWidth, potHeight);
     }
@@ -479,6 +492,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         byte[] imageBytes,
         string textureDirectory,
         string texturePath,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(textureDirectory);
@@ -506,7 +520,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         image.Format = MagickFormat.Tga;
         image.Write(texturePath);
 
-        SyncTextureToSiblingDirectories(textureDirectory, Path.GetFileName(texturePath), texturePath);
+        SyncTextureToSiblingDirectories(textureDirectory, Path.GetFileName(texturePath), texturePath, logger);
 
         return (imageWidth, imageHeight, potWidth, potHeight);
     }
@@ -527,30 +541,11 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         return power;
     }
 
-    private static void SyncTextureToSiblingDirectories(string textureDirectory, string fileName, string sourceFile)
+    private static void SyncTextureToSiblingDirectories(string textureDirectory, string fileName, string sourceFile, ILogger logger)
     {
         try
         {
-            var current = new DirectoryInfo(textureDirectory);
-            DirectoryInfo? gameFilesEdited = null;
-            while (current != null)
-            {
-                if (current.Name.Equals(ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase))
-                {
-                    gameFilesEdited = current;
-                    break;
-                }
-
-                var sub = Path.Combine(current.FullName, ModBuilderConstants.GameFilesEditedDir);
-                if (Directory.Exists(sub))
-                {
-                    gameFilesEdited = new DirectoryInfo(sub);
-                    break;
-                }
-
-                current = current.Parent;
-            }
-
+            var gameFilesEdited = FindGameFilesEditedDirectory(textureDirectory);
             if (gameFilesEdited == null || !gameFilesEdited.Exists)
             {
                 return;
@@ -583,10 +578,32 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 File.Copy(sourceFile, destFile, overwrite: true);
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Best effort synchronization across language/art folders
+            logger.LogDebug(ex, "Failed to synchronize texture {File} to sibling directories", fileName);
         }
+    }
+
+    private static DirectoryInfo? FindGameFilesEditedDirectory(string textureDirectory)
+    {
+        var current = new DirectoryInfo(textureDirectory);
+        while (current != null)
+        {
+            if (current.Name.Equals(ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase))
+            {
+                return current;
+            }
+
+            var sub = Path.Combine(current.FullName, ModBuilderConstants.GameFilesEditedDir);
+            if (Directory.Exists(sub))
+            {
+                return new DirectoryInfo(sub);
+            }
+
+            current = current.Parent;
+        }
+
+        return null;
     }
 
     private static MagickImage CreateMagickImageFromBytes(byte[] bytes)
@@ -622,9 +639,19 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
         var bitCount = (int)BitConverter.ToInt16(dib, 14);
         var clrUsed = BitConverter.ToInt32(dib, 32);
-        var paletteEntries = clrUsed > 0
-            ? clrUsed
-            : (bitCount <= 8 && bitCount > 0 ? (1 << bitCount) : 0);
+        int paletteEntries;
+        if (clrUsed > 0)
+        {
+            paletteEntries = clrUsed;
+        }
+        else if (bitCount is > 0 and <= 8)
+        {
+            paletteEntries = 1 << bitCount;
+        }
+        else
+        {
+            paletteEntries = 0;
+        }
 
         var offsetToPixels = 14 + headerSize + (paletteEntries * 4);
         var totalFileSize = 14 + dib.Length;

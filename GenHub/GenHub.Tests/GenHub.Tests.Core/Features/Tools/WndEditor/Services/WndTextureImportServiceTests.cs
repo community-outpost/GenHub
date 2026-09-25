@@ -1,6 +1,5 @@
-using System.Linq;
-using GenHub.Core.Constants;
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.Services;
 using ImageMagick;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.Tools.WndEditor.Services;
@@ -134,7 +134,7 @@ public sealed class WndTextureImportServiceTests : IDisposable
 
         // Assert
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Unsupported texture format");
+        result.FirstError.Should().Contain("Unsupported texture format");
     }
 
     /// <summary>
@@ -149,7 +149,7 @@ public sealed class WndTextureImportServiceTests : IDisposable
 
         // Assert
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("not found");
+        result.FirstError.Should().Contain("not found");
     }
 
     /// <summary>
@@ -160,14 +160,14 @@ public sealed class WndTextureImportServiceTests : IDisposable
     public async Task ImportTextureAsync_OversizedImage_Fails()
     {
         // Arrange
-        var source = WriteSource("Huge.png", 5000, 100, MagickFormat.Png);
+        var source = WriteSource("Huge.png", (uint)WndConstants.Preview.MaxImportedTextureDimension + 100, 100, MagickFormat.Png);
 
         // Act
         var result = await _service.ImportTextureAsync(source, _projectDir);
 
         // Assert
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("exceed maximum permitted dimension");
+        result.FirstError.Should().Contain("exceed maximum permitted dimension");
     }
 
     /// <summary>
@@ -375,7 +375,7 @@ public sealed class WndTextureImportServiceTests : IDisposable
 
         // Assert
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("empty");
+        result.FirstError.Should().Contain("empty");
     }
 
     /// <summary>

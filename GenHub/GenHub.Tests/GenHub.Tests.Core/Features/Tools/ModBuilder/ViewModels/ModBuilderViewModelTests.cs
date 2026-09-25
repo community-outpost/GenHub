@@ -572,4 +572,52 @@ public class ModBuilderViewModelTests : IDisposable
 
         Assert.False(ModBuilderViewModel.ShouldRefreshSampleManifestsFile("ImprovedMenus", template, target));
     }
+
+    [Fact]
+    public void IsImprovedMenusConfigStale_WithLegacyLanguageScopedArtTextures_ReturnsTrue()
+    {
+        var legacyContent = @"
+[
+  {
+    ""Name"": ""MenuTexturesEnglish"",
+    ""SourceFiles"": [
+      ""GameFilesEdited/Data/English/Art/Textures/**/*.tga"",
+      ""GameFilesEdited/Data/English/Art/Textures/**/*.dds""
+    ]
+  }
+]";
+
+        var isStale = ModBuilderViewModel.IsImprovedMenusConfigStale(
+            ModBuilderConstants.ImprovedMenusSampleName,
+            legacyContent,
+            isItemsFile: true,
+            isPacksFile: false);
+
+        Assert.True(isStale);
+    }
+
+    [Fact]
+    public void IsImprovedMenusConfigStale_WithLooseArtTextures_ReturnsFalse()
+    {
+        var newContent = @"
+[
+  {
+    ""Name"": ""MenuTexturesEnglish"",
+    ""SourceFiles"": [
+      ""GameFilesEdited/Data/English/Art/Textures/**/*.tga"",
+      ""GameFilesEdited/Data/English/Art/Textures/**/*.dds"",
+      ""GameFilesEdited/Art/Textures/**/*.tga"",
+      ""GameFilesEdited/Art/Textures/**/*.dds""
+    ]
+  }
+]";
+
+        var isStale = ModBuilderViewModel.IsImprovedMenusConfigStale(
+            ModBuilderConstants.ImprovedMenusSampleName,
+            newContent,
+            isItemsFile: true,
+            isPacksFile: false);
+
+        Assert.False(isStale);
+    }
 }

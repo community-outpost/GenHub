@@ -844,7 +844,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private void LogResolvedProvenance(TieredImage image, string texturePath, uint pageWidth, uint pageHeight, SageVirtualFileSystem fileSystem)
     {
-        logger.LogInformation(
+        logger.LogDebug(
             "Resolved {Image} from {Texture} [{Left},{Top},{Right},{Bottom}] via {Ini} [{Tier}] ({IniArchive}) -> {Path} ({TextureArchive}, {PageWidth}x{PageHeight})",
             image.Image.Name,
             image.Image.Texture,

@@ -271,23 +271,30 @@ public partial class WndEditorView : UserControl
 
         var dropPos = CanvasHost != null ? e.GetPosition(CanvasHost) : (Point?)null;
 
-        if (e.Data.Contains(DataFormats.Files))
+        try
         {
-            var paths = ExtractDroppedFilePaths(e);
-            if (paths.Count > 0)
+            if (e.Data.Contains(DataFormats.Files))
             {
-                e.Handled = true;
-                await viewModel.ApplyDroppedFilesAsync(paths, dropPos).ConfigureAwait(false);
+                var paths = ExtractDroppedFilePaths(e);
+                if (paths.Count > 0)
+                {
+                    e.Handled = true;
+                    await viewModel.ApplyDroppedFilesAsync(paths, dropPos);
+                }
+            }
+            else if (e.Data.Contains(DataFormats.Text))
+            {
+                var text = e.Data.GetText();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    e.Handled = true;
+                    viewModel.ApplyDroppedImageName(text.Trim(), dropPos);
+                }
             }
         }
-        else if (e.Data.Contains(DataFormats.Text))
+        catch (Exception ex)
         {
-            var text = e.Data.GetText();
-            if (!string.IsNullOrWhiteSpace(text))
-            {
-                e.Handled = true;
-                viewModel.ApplyDroppedImageName(text.Trim(), dropPos);
-            }
+            viewModel.NotifyError("Drop Failed", $"Failed to process dropped item: {ex.Message}");
         }
     }
 }

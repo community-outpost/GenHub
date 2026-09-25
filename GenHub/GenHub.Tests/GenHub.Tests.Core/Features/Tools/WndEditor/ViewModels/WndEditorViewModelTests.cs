@@ -2177,32 +2177,6 @@ public sealed class WndEditorViewModelTests : IDisposable
         savedSource.Should().Contain("UPPERLEFT: 99 0");
     }
 
-    private static string DrawDataWith(string name, int index)
-    {
-        var entries = new List<WndDrawDataEntry>();
-        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
-        {
-            entries.Add(WndDrawDataEntry.Empty);
-        }
-
-        entries[index] = new WndDrawDataEntry(name, WndRgbaColor.White, WndRgbaColor.White);
-        return new WndDrawDataSet(entries).ToString();
-    }
-
-    private void SetupSingleInstallation()
-    {
-        var gameDir = Path.Combine(_tempDirectory, "Game");
-        Directory.CreateDirectory(gameDir);
-        var installation = new GameInstallation(gameDir, GameInstallationType.Steam)
-        {
-            HasZeroHour = true,
-            ZeroHourPath = gameDir,
-        };
-        _mockGameInstallService
-            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
-    }
-
     /// <summary>
     /// Tests that pasting when no window is selected returns false and shows a warning notification.
     /// </summary>
@@ -2287,6 +2261,7 @@ public sealed class WndEditorViewModelTests : IDisposable
             Mock.Of<ILogger<WndEditorViewModel>>());
 
         await vm.LoadFromTextAsync(SampleDocument, null);
+        vm.LinkedModFolder = _tempDirectory;
         vm.SelectedNode = vm.RootNodes[0].Children[0];
 
         var mockClipboard = new Mock<IClipboard>();
@@ -2369,7 +2344,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         // Arrange
         await _viewModel.LoadFromTextAsync(SampleDocument, null);
         _viewModel.SelectedNode = _viewModel.RootNodes[0];
-        _viewModel.KnownImageNames.Add("KnownArtButton");
+        _viewModel.KnownImageNames = ["KnownArtButton"];
 
         var mockClipboard = new Mock<IClipboard>();
         mockClipboard.Setup(c => c.GetFormatsAsync()).ReturnsAsync([DataFormats.Text]);
@@ -2382,5 +2357,81 @@ public sealed class WndEditorViewModelTests : IDisposable
         result.Should().BeTrue();
         var selectedWin = _viewModel.SelectedNode!.Window;
         selectedWin.GetProperty(WndConstants.PropertyKeys.EnabledDrawData).Should().Contain("KnownArtButton");
+    }
+
+    /// <summary>
+    /// Tests that pasting known art name is case-insensitive.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PasteAssetFromClipboardAsync_KnownArtNameTextCaseInsensitive_AppliesToSelectedWindow()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        _viewModel.KnownImageNames = ["KnownArtButton"];
+
+        var mockClipboard = new Mock<IClipboard>();
+        mockClipboard.Setup(c => c.GetFormatsAsync()).ReturnsAsync([DataFormats.Text]);
+        mockClipboard.Setup(c => c.GetTextAsync()).ReturnsAsync("knownartbutton");
+
+        // Act
+        var result = await _viewModel.PasteAssetFromClipboardAsync(mockClipboard.Object);
+
+        // Assert
+        result.Should().BeTrue();
+        var selectedWin = _viewModel.SelectedNode!.Window;
+        selectedWin.GetProperty(WndConstants.PropertyKeys.EnabledDrawData).Should().Contain("knownartbutton");
+    }
+
+    /// <summary>
+    /// Tests that diverging edits after undo clear dirty state tracking properly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Undo_DivergingEdit_PreservesModifiedState()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.IsModified.Should().BeFalse();
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+
+        // First edit
+        _viewModel.SelectedProperties!.ShortName = "Edit1";
+        _viewModel.IsModified.Should().BeTrue();
+
+        // Undo back to saved state
+        _viewModel.UndoCommand.Execute(null);
+        _viewModel.IsModified.Should().BeFalse();
+
+        // Diverging edit
+        _viewModel.SelectedProperties!.ShortName = "Edit2";
+        _viewModel.IsModified.Should().BeTrue();
+    }
+
+    private static string DrawDataWith(string name, int index)
+    {
+        var entries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        entries[index] = new WndDrawDataEntry(name, WndRgbaColor.White, WndRgbaColor.White);
+        return new WndDrawDataSet(entries).ToString();
+    }
+
+    private void SetupSingleInstallation()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "Game");
+        Directory.CreateDirectory(gameDir);
+        var installation = new GameInstallation(gameDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = gameDir,
+        };
+        _mockGameInstallService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
     }
 }

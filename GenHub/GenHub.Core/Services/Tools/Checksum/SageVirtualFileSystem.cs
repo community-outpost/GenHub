@@ -408,7 +408,7 @@ public sealed class SageVirtualFileSystem
 
     /// <summary>
     /// Searches mounted .BIG archives for an entry ending with the specified filename,
-    /// prioritizing higher tiers (Mod > Expansion > BaseGame).
+    /// prioritizing higher tiers (LinkedAsset > Mod > Expansion > BaseGame).
     /// </summary>
     /// <param name="fileName">The filename of the asset.</param>
     /// <param name="minTier">Optional lowest tier to consider.</param>
@@ -436,7 +436,7 @@ public sealed class SageVirtualFileSystem
 
     /// <summary>
     /// Searches mounted .BIG archives for an entry ending with the specified filename,
-    /// prioritizing higher tiers (Mod > Expansion > BaseGame), and returns the winning
+    /// prioritizing higher tiers (LinkedAsset > Mod > Expansion > BaseGame), and returns the winning
     /// internal path together with its bytes. Within a tier the earliest-mounted
     /// archive wins, matching the engine finding texture files by name.
     /// </summary>

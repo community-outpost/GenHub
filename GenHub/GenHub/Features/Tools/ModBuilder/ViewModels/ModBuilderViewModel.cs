@@ -26,6 +26,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using BuildStageEnum = GenHub.Core.Models.Tools.ModBuilder.BuildStage;
@@ -1520,7 +1521,10 @@ public partial class ModBuilderViewModel(
         return names;
     }
 
-    private static bool IsImprovedMenusConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
+    [GeneratedRegex(@"[""'][^""'/\\\r\n]+[/\\]Art[/\\]Textures[/\\]\*\*", RegexOptions.IgnoreCase)]
+    private static partial Regex LooseArtTexturesPattern();
+
+    internal static bool IsImprovedMenusConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
     {
         if (!sampleId.Equals(ModBuilderConstants.ImprovedMenusSampleName, StringComparison.OrdinalIgnoreCase))
         {
@@ -1535,7 +1539,7 @@ public partial class ModBuilderViewModel(
 
         return isItemsFile &&
             (!content.Contains(ModBuilderConstants.MenuTexturesEnglishItemName, StringComparison.OrdinalIgnoreCase) ||
-             !content.Contains(ModBuilderConstants.ArtTexturesWildcardPattern, StringComparison.OrdinalIgnoreCase));
+             !LooseArtTexturesPattern().IsMatch(content));
     }
 
     private static bool IsLeikezeHotkeysConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)

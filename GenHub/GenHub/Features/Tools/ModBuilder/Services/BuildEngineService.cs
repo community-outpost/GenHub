@@ -2495,6 +2495,16 @@ public sealed class BuildEngineService(
         var effectiveReleaseDir = releaseDir ?? setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
         var packFileName = GetPackFileName(pack);
         var packFilePath = Path.Combine(effectiveReleaseDir, packFileName);
+        var destPath = Path.Combine(entryStagingDir, packFileName);
+
+        if (!IsSubpathOf(effectiveReleaseDir, packFilePath) || !IsSubpathOf(entryStagingDir, destPath))
+        {
+            var escapeError = $"BIG pack archive '{packFileName}' resolves outside staging or release directories.";
+            logger.LogError(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
+            Interlocked.Increment(ref _filesFailed);
+            _lastErrorMessage = escapeError;
+            return;
+        }
 
         if (!File.Exists(packFilePath))
         {
@@ -2504,14 +2514,12 @@ public sealed class BuildEngineService(
 
         if (File.Exists(packFilePath))
         {
-            var destPath = Path.Combine(entryStagingDir, packFileName);
             EnsureDestinationDirectory(destPath);
             File.Copy(packFilePath, destPath, overwrite: true);
             logger.LogInformation("Staged BIG pack archive '{PackFile}' into manifest staging directory.", packFileName);
         }
         else
         {
-            Interlocked.Increment(ref _filesFailed);
             logger.LogError("BIG pack archive '{PackFile}' was not found and could not be built.", packFileName);
             _lastErrorMessage = $"Failed to build or locate BIG pack archive '{packFileName}' for manifest.";
         }
