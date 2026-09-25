@@ -8,6 +8,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
+using GenHub.Core.Utilities;
 using GenHub.Features.Manifest;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -29,6 +30,10 @@ public class ManifestGenerationServiceTests : IDisposable
     {
         public void Report(T value) => handler(value);
     }
+
+    private static readonly byte[] MachOHeader = [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
+
+    private static readonly byte[] ElfHeader = [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00];
 
     private readonly Mock<IFileHashProvider> _hashProviderMock;
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
@@ -263,6 +268,116 @@ public class ManifestGenerationServiceTests : IDisposable
 
         // Also verify required DLLs from GameClientConstants are included
         Assert.Contains(manifest.Files, f => f.RelativePath == "binkw32.dll");
+    }
+
+    /// <summary>
+    /// A native macOS client loads its dylibs from <c>@executable_path</c>, so the client
+    /// manifest must carry every dylib beside the Mach-O binary at the workspace root.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameClientManifestAsync_MachOClient_IncludesDylibsBesideExecutableAsync()
+    {
+        var clientPath = Path.Combine(_tempDirectory, "NativeMac");
+        Directory.CreateDirectory(Path.Combine(clientPath, "Data"));
+        var executablePath = Path.Combine(clientPath, "generalszh");
+        await File.WriteAllBytesAsync(executablePath, MachOHeader);
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "libSDL3.0.dylib"), "dylib");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "libavcodec.62.11.100.dylib"), "dylib");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "INIZH.big"), "archive");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "Data", "libnested.dylib"), "dylib");
+
+        var builder = await _service.CreateGameClientManifestAsync(
+            clientPath, GameType.ZeroHour, "Native Zero Hour", "1.04", executablePath);
+        var manifest = builder.Build();
+
+        Assert.Equal("generalszh", manifest.EntryPoint);
+        foreach (var library in new[] { "libSDL3.0.dylib", "libavcodec.62.11.100.dylib" })
+        {
+            var file = Assert.Single(manifest.Files, f => f.RelativePath == library);
+            Assert.False(file.IsExecutable);
+            Assert.Equal(GenHub.Core.Models.Enums.ContentSourceType.GameInstallation, file.SourceType);
+            Assert.Equal(Path.Combine(clientPath, library), file.SourcePath);
+        }
+
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.Contains("libnested", StringComparison.Ordinal));
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "INIZH.big");
+    }
+
+    /// <summary>
+    /// A native Linux client loads unversioned and versioned shared objects from
+    /// <c>$ORIGIN</c>, so both forms must reach the client manifest.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameClientManifestAsync_ElfClient_IncludesVersionedSharedObjectsAsync()
+    {
+        var clientPath = Path.Combine(_tempDirectory, "NativeLinux");
+        Directory.CreateDirectory(clientPath);
+        var executablePath = Path.Combine(clientPath, "generalszh");
+        await File.WriteAllBytesAsync(executablePath, ElfHeader);
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "libbgfx.so"), "so");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "libSDL3.so.0"), "so");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "libopenal.so.1.24.2"), "so");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "resources.sound"), "data");
+
+        var builder = await _service.CreateGameClientManifestAsync(
+            clientPath, GameType.ZeroHour, "Native Zero Hour", "1.04", executablePath);
+        var manifest = builder.Build();
+
+        Assert.Contains(manifest.Files, f => f.RelativePath == "libbgfx.so" && !f.IsExecutable);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "libSDL3.so.0" && !f.IsExecutable);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "libopenal.so.1.24.2" && !f.IsExecutable);
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "resources.sound");
+    }
+
+    /// <summary>
+    /// A Windows client never loads Unix shared libraries, so a stray one beside the
+    /// executable must not change the Windows client manifest.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameClientManifestAsync_WindowsClient_IgnoresUnixSharedLibrariesAsync()
+    {
+        var (clientPath, executablePath) = await PrepareDummyExeAsync();
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "libSDL3.0.dylib"), "dylib");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "libbgfx.so"), "so");
+
+        var builder = await _service.CreateGameClientManifestAsync(
+            clientPath, GameType.Generals, "TestClient", "1.0", executablePath);
+        var manifest = builder.Build();
+
+        Assert.DoesNotContain(manifest.Files, f => ExecutableFileClassifier.IsUnixSharedLibrary(f.RelativePath));
+    }
+
+    /// <summary>
+    /// A library symlink whose target is gone cannot be placed in a workspace. It is
+    /// skipped so the remaining libraries still reach the manifest.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameClientManifestAsync_NativeClient_SkipsDanglingLibrarySymlinkAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var clientPath = Path.Combine(_tempDirectory, "NativeDangling");
+        Directory.CreateDirectory(clientPath);
+        var executablePath = Path.Combine(clientPath, "generalszh");
+        await File.WriteAllBytesAsync(executablePath, MachOHeader);
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "libSDL3.0.dylib"), "dylib");
+        File.CreateSymbolicLink(Path.Combine(clientPath, "libSDL3.dylib"), "libSDL3.0.dylib");
+        File.CreateSymbolicLink(Path.Combine(clientPath, "libgone.dylib"), Path.Combine(clientPath, "missing.dylib"));
+
+        var builder = await _service.CreateGameClientManifestAsync(
+            clientPath, GameType.ZeroHour, "Native Zero Hour", "1.04", executablePath);
+        var manifest = builder.Build();
+
+        Assert.Contains(manifest.Files, f => f.RelativePath == "libSDL3.0.dylib");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "libSDL3.dylib");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "libgone.dylib");
     }
 
     /// <summary>

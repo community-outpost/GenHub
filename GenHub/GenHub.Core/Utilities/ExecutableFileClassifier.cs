@@ -3,6 +3,7 @@ using GenHub.Core.Models.Enums;
 using System;
 using System.Buffers.Binary;
 using System.IO;
+using System.Linq;
 
 namespace GenHub.Core.Utilities;
 
@@ -268,6 +269,41 @@ public static class ExecutableFileClassifier
 
         return MatchesAny(Path.GetExtension(path), LibraryExtensions)
             || Path.GetFileName(path).Contains(ContentFormatConstants.VersionedSharedLibraryMarker, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether a file is a macOS or Linux shared library that a native engine
+    /// binary loads from beside itself.
+    /// </summary>
+    /// <remarks>
+    /// Covers <c>.dylib</c>, unversioned <c>.so</c>, and versioned <c>.so.0</c> /
+    /// <c>.so.0.1.0</c>. The version suffix must be digits and dots, so names such as
+    /// <c>resources.sound</c> or <c>libfoo.so.txt</c> are rejected.
+    /// </remarks>
+    /// <param name="path">A file name or path.</param>
+    /// <returns><c>true</c> when the file is a Unix shared library.</returns>
+    public static bool IsUnixSharedLibrary(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var fileName = Path.GetFileName(path);
+        if (fileName.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase)
+            || fileName.EndsWith(".so", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var versioned = fileName.IndexOf(ContentFormatConstants.VersionedSharedLibraryMarker, StringComparison.OrdinalIgnoreCase);
+        if (versioned < 0)
+        {
+            return false;
+        }
+
+        var suffix = fileName[(versioned + ContentFormatConstants.VersionedSharedLibraryMarker.Length)..];
+        return suffix.Length > 0 && suffix.All(c => char.IsAsciiDigit(c) || c == '.');
     }
 
     /// <summary>

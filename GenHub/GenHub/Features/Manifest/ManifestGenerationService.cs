@@ -1053,6 +1053,31 @@ public class ManifestGenerationService(
         }
     }
 
+    /// <summary>
+    /// Determines whether the path is a file, or a symbolic link whose final target is a file.
+    /// </summary>
+    private static bool IsResolvableFile(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            if (info.LinkTarget is null)
+            {
+                return info.Exists;
+            }
+
+            return info.ResolveLinkTarget(returnFinalTarget: true) is FileInfo { Exists: true };
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     private static void RecordAuthoritativeStatus(
         AuthoritativeFileStatus status,
         CsvCatalogEntry entry,
@@ -1903,6 +1928,8 @@ public class ManifestGenerationService(
                         logger.LogWarning(ex, "Failed to collect auxiliary DLLs for {PublisherName} client", publisherName);
                     }
                 }
+
+                await AddNativeSharedLibrariesAsync(builder, executablePath, executableDirectory);
             }
 
             // Add client-specific configuration files
@@ -1962,6 +1989,41 @@ public class ManifestGenerationService(
         {
             logger.LogError(ex, "Error adding client files to manifest");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Adds the shared libraries that sit beside a native macOS or Linux engine binary.
+    /// The engine loads them from <c>@executable_path</c> or <c>$ORIGIN</c>, so the
+    /// workspace must place them next to the executable or the launch aborts in the loader.
+    /// </summary>
+    /// <param name="builder">The manifest builder.</param>
+    /// <param name="executablePath">The full path to the game executable.</param>
+    /// <param name="executableDirectory">The directory that holds the executable.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task AddNativeSharedLibrariesAsync(IContentManifestBuilder builder, string executablePath, string executableDirectory)
+    {
+        var platform = ExecutableFileClassifier.DetectPlatform(executablePath);
+        if (platform is not (ExecutablePlatform.MacOS or ExecutablePlatform.Linux))
+        {
+            return;
+        }
+
+        var libraries = Directory.EnumerateFiles(executableDirectory, "*", SearchOption.TopDirectoryOnly)
+            .Where(ExecutableFileClassifier.IsUnixSharedLibrary)
+            .Order(StringComparer.Ordinal);
+
+        foreach (var libraryPath in libraries)
+        {
+            if (!IsResolvableFile(libraryPath))
+            {
+                logger.LogWarning("Skipping shared library {LibraryPath} because it does not resolve to a file", libraryPath);
+                continue;
+            }
+
+            var libraryName = Path.GetFileName(libraryPath);
+            await builder.AddGameInstallationFileAsync(libraryName, libraryPath);
+            logger.LogDebug("Added native shared library {LibraryName} to GameClient manifest", libraryName);
         }
     }
 

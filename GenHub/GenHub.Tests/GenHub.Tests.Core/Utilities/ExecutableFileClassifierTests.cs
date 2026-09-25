@@ -98,6 +98,34 @@ public class ExecutableFileClassifierTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies which names a native engine loads as shared libraries from beside itself.
+    /// </summary>
+    /// <param name="path">The candidate path.</param>
+    /// <param name="expected">Whether the file is a Unix shared library.</param>
+    [Theory]
+    [InlineData("libSDL3.0.dylib", true)]
+    [InlineData("libavcodec.62.11.100.dylib", true)]
+    [InlineData("LIBFOO.DYLIB", true)]
+    [InlineData("libbgfx.so", true)]
+    [InlineData("libSDL3.so.0", true)]
+    [InlineData("libSDL3.so.0.1.0", true)]
+    [InlineData("libavcodec.58.so.4", true)]
+    [InlineData("mylib.sound.so.1", true)]
+    [InlineData("/opt/zh/libstdc++.so.6", true)]
+    [InlineData("generalszh", false)]
+    [InlineData("d3d8.dll", false)]
+    [InlineData("resources.sound", false)]
+    [InlineData("libfoo.so.txt", false)]
+    [InlineData("libfoo.so.", false)]
+    [InlineData("libfoo.sox", false)]
+    [InlineData("INIZH.big", false)]
+    [InlineData("", false)]
+    public void IsUnixSharedLibrary_ClassifiesCorrectly(string path, bool expected)
+    {
+        Assert.Equal(expected, ExecutableFileClassifier.IsUnixSharedLibrary(path));
+    }
+
+    /// <summary>
     /// Verifies magic-byte recognition of every supported executable format, and
     /// rejection of everything else.
     /// </summary>
