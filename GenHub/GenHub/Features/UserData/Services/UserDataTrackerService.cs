@@ -91,21 +91,7 @@ public class UserDataTrackerService(
 
             var userDataBasePath = GetUserDataBasePath(targetGame);
 
-            var mapNames = userDataFiles
-                .Where(f => f.InstallTarget == ContentInstallTarget.UserMapsDirectory)
-                .Select(f => StripLeadingDirectory(f.RelativePath.Replace('\\', '/').Trim('/'), GameSettingsConstants.FolderNames.Maps))
-                .Where(p => p.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
-                .Select(p =>
-                {
-                    var name = Path.GetFileNameWithoutExtension(p);
-                    return name.EndsWith(".map", StringComparison.OrdinalIgnoreCase)
-                        ? Path.GetFileNameWithoutExtension(name)
-                        : name;
-                })
-                .Where(n => !string.IsNullOrWhiteSpace(n))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
+            var mapNames = ExtractCandidateMapNames(userDataFiles);
             string? singleMapBaseName = mapNames.Count == 1 ? mapNames[0] : null;
 
             var resolvedFiles = new List<(ManifestFile File, string TargetPath)>(userDataFiles.Count);
@@ -830,6 +816,24 @@ public class UserDataTrackerService(
         return fullPath;
     }
 
+    private static List<string> ExtractCandidateMapNames(IEnumerable<ManifestFile> userDataFiles)
+    {
+        return userDataFiles
+            .Where(f => f.InstallTarget == ContentInstallTarget.UserMapsDirectory)
+            .Select(f => StripLeadingDirectory(f.RelativePath.Replace('\\', '/').Trim('/'), GameSettingsConstants.FolderNames.Maps))
+            .Where(p => p.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+            .Select(p =>
+            {
+                var name = Path.GetFileNameWithoutExtension(p);
+                return name.EndsWith(".map", StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetFileNameWithoutExtension(name)
+                    : name;
+            })
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     /// <summary>
     /// Resolves the relative path for a map file to ensure it conforms to C&amp;C Generals / Zero Hour
     /// map directory requirements (Maps/&lt;MapName&gt;/&lt;MapName&gt;.map, &lt;MapName&gt;.tga).
@@ -845,68 +849,102 @@ public class UserDataTrackerService(
         var slashIdx = normalized.LastIndexOf('/');
         if (slashIdx < 0)
         {
-            var ext = Path.GetExtension(normalized);
-            if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals(".str", StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals(".wak", StringComparison.OrdinalIgnoreCase))
-            {
-                var baseName = Path.GetFileNameWithoutExtension(normalized);
-                var resolvedFileName = normalized;
+            return ResolveFlatMapRelativePath(normalized, fallbackMapName, candidateMapNames);
+        }
 
-                var isGenericThumbnail = ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
-                    (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
-                     baseName.Equals("preview", StringComparison.OrdinalIgnoreCase) ||
-                     baseName.Equals(Path.GetFileNameWithoutExtension(MapManagerConstants.DefaultThumbnailName), StringComparison.OrdinalIgnoreCase));
+        return ResolveNestedMapRelativePath(normalized, slashIdx);
+    }
 
-                var isGenericIni = ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) &&
-                    baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
-
-                if ((isGenericThumbnail || isGenericIni) && !string.IsNullOrEmpty(fallbackMapName))
-                {
-                    baseName = fallbackMapName;
-                    if (isGenericThumbnail)
-                    {
-                        resolvedFileName = baseName + ".tga";
-                    }
-                    else if (isGenericIni)
-                    {
-                        resolvedFileName = MapManagerConstants.MapIniFileName;
-                    }
-                }
-                else if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
-                {
-                    baseName = baseName[..^4];
-                    if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase))
-                    {
-                        resolvedFileName = baseName + ".tga";
-                    }
-                }
-                else if (candidateMapNames != null && candidateMapNames.Count > 0)
-                {
-                    var matchedMap = candidateMapNames.FirstOrDefault(m =>
-                        baseName.Equals(m, StringComparison.OrdinalIgnoreCase) ||
-                        baseName.StartsWith(m + "_", StringComparison.OrdinalIgnoreCase) ||
-                        baseName.StartsWith(m + ".", StringComparison.OrdinalIgnoreCase));
-
-                    if (!string.IsNullOrEmpty(matchedMap))
-                    {
-                        baseName = matchedMap;
-                        if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
-                            baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
-                        {
-                            resolvedFileName = baseName + ".tga";
-                        }
-                    }
-                }
-
-                return Path.Combine(baseName, resolvedFileName);
-            }
-
+    private static string ResolveFlatMapRelativePath(
+        string normalized,
+        string? fallbackMapName,
+        IReadOnlyList<string>? candidateMapNames)
+    {
+        var ext = Path.GetExtension(normalized);
+        if (!IsSupportedMapExtension(ext))
+        {
             return normalized;
         }
 
+        var baseName = Path.GetFileNameWithoutExtension(normalized);
+        var (folderName, fileName) = ResolveFlatMapComponents(baseName, ext, normalized, fallbackMapName, candidateMapNames);
+        return Path.Combine(folderName, fileName);
+    }
+
+    private static bool IsSupportedMapExtension(string ext) =>
+        ext.Equals(".map", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".str", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".wak", StringComparison.OrdinalIgnoreCase);
+
+    private static (string FolderName, string FileName) ResolveFlatMapComponents(
+        string baseName,
+        string ext,
+        string originalFileName,
+        string? fallbackMapName,
+        IReadOnlyList<string>? candidateMapNames)
+    {
+        var isTga = ext.Equals(".tga", StringComparison.OrdinalIgnoreCase);
+        var isIni = ext.Equals(".ini", StringComparison.OrdinalIgnoreCase);
+
+        var isGenericThumbnail = isTga &&
+            (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+             baseName.Equals("preview", StringComparison.OrdinalIgnoreCase));
+
+        var isGenericIni = isIni && baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
+
+        if (isGenericThumbnail && !string.IsNullOrEmpty(fallbackMapName))
+        {
+            return (fallbackMapName, fallbackMapName + ".tga");
+        }
+
+        if (isGenericIni && !string.IsNullOrEmpty(fallbackMapName))
+        {
+            return (fallbackMapName, MapManagerConstants.MapIniFileName);
+        }
+
+        if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
+        {
+            var stripped = baseName[..^4];
+            var resolvedFile = isTga ? stripped + ".tga" : originalFileName;
+            return (stripped, resolvedFile);
+        }
+
+        var matchedMap = FindMatchingCandidateMap(baseName, candidateMapNames);
+        if (!string.IsNullOrEmpty(matchedMap))
+        {
+            var resolvedFile = isTga ? matchedMap + ".tga" : originalFileName;
+            return (matchedMap, resolvedFile);
+        }
+
+        return (baseName, originalFileName);
+    }
+
+    private static string? FindMatchingCandidateMap(string baseName, IReadOnlyList<string>? candidateMapNames)
+    {
+        if (candidateMapNames is null || candidateMapNames.Count == 0)
+        {
+            return null;
+        }
+
+        // 1. Exact match first across all candidates
+        var exact = candidateMapNames.FirstOrDefault(m => baseName.Equals(m, StringComparison.OrdinalIgnoreCase));
+        if (exact is not null)
+        {
+            return exact;
+        }
+
+        // 2. Prefix match: choose the longest candidate prefix to prevent shadowing (e.g. River_v2 over River)
+        return candidateMapNames
+            .Where(m => baseName.StartsWith(m + "_", StringComparison.OrdinalIgnoreCase) ||
+                        baseName.StartsWith(m + ".", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(m => m.Length)
+            .FirstOrDefault();
+    }
+
+    private static string ResolveNestedMapRelativePath(string normalized, int slashIdx)
+    {
         var directoryPart = normalized[..slashIdx];
         var fileName = normalized[(slashIdx + 1)..];
 

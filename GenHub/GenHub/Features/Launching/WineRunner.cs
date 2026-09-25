@@ -365,14 +365,15 @@ public class WineRunner(
 
             var relative = Path.GetRelativePath(sourceDir, file);
             var destFile = Path.Combine(targetDir, relative);
-            var destDir = Path.GetDirectoryName(destFile);
-            if (!string.IsNullOrEmpty(destDir))
-            {
-                Directory.CreateDirectory(destDir);
-            }
 
             try
             {
+                var destDir = Path.GetDirectoryName(destFile);
+                if (!string.IsNullOrEmpty(destDir))
+                {
+                    Directory.CreateDirectory(destDir);
+                }
+
                 if (!File.Exists(destFile) || File.GetLastWriteTimeUtc(file) > File.GetLastWriteTimeUtc(destFile))
                 {
                     File.Copy(file, destFile, overwrite: true);
@@ -385,6 +386,14 @@ public class WineRunner(
         }
     }
 
+    /// <summary>
+    /// Determines whether a WINEDLLOVERRIDES value already configures the Direct3D 8 DLL.
+    /// Entries are separated by semicolons, and each entry names one or more comma-separated
+    /// DLLs before the load order, so only an exact DLL-name match counts: a substring check
+    /// would mistake d3d8proxy for d3d8 and leave the wrapper override unset.
+    /// </summary>
+    /// <param name="existingOverrides">The current WINEDLLOVERRIDES value.</param>
+    /// <returns><c>true</c> when an entry already names the Direct3D 8 DLL; otherwise, <c>false</c>.</returns>
     private static bool HasDirect3D8Override(string existingOverrides) =>
         existingOverrides
             .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

@@ -328,6 +328,113 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that flat multi-map payloads containing sharing prefixes (e.g. River.map and River_v2.map)
+    /// install each map into its own subdirectory rather than shadowing exact matches with prefix matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_MultiMapFlatPayload_InstallsEachMapIntoOwnSubdirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "River.map",
+                Hash = "hash-map-river",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "River_v2.map",
+                Hash = "hash-map-river-v2",
+                Size = 1200,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "river.tga",
+                Hash = "hash-tga-river",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "River_v2_art.tga",
+                Hash = "hash-tga-river-v2",
+                Size = 600,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-multi-map-flat",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var riverMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
+        var riverTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.tga");
+        var riverV2MapPath = Path.Combine(_zeroHourDataDir, "Maps", "River_v2", "River_v2.map");
+        var riverV2TgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River_v2", "River_v2.tga");
+
+        Assert.True(File.Exists(riverMapPath));
+        Assert.True(File.Exists(riverTgaPath));
+        Assert.True(File.Exists(riverV2MapPath));
+        Assert.True(File.Exists(riverV2TgaPath));
+
+        Assert.False(File.Exists(Path.Combine(_zeroHourDataDir, "Maps", "River", "River_v2.map")));
+    }
+
+    /// <summary>
+    /// Verifies that flat multi-map payloads where the longer prefixed map is listed first
+    /// install each map into its own subdirectory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_MultiMapFlatPayload_ReverseOrder_InstallsEachMapIntoOwnSubdirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "River_v2.map",
+                Hash = "hash-map-river-v2",
+                Size = 1200,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "River.map",
+                Hash = "hash-map-river",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-multi-map-flat-rev",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var riverMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
+        var riverV2MapPath = Path.Combine(_zeroHourDataDir, "Maps", "River_v2", "River_v2.map");
+
+        Assert.True(File.Exists(riverMapPath));
+        Assert.True(File.Exists(riverV2MapPath));
+        Assert.False(File.Exists(Path.Combine(_zeroHourDataDir, "Maps", "River_v2", "River.map")));
+    }
+
+    /// <summary>
     /// Verifies that installing map files with an _art suffix (e.g. River_art.tga)
     /// normalizes the filename to River.tga inside the map folder so the game recognizes the thumbnail.
     /// </summary>

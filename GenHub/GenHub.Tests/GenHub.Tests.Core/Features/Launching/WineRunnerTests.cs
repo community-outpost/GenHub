@@ -1073,11 +1073,30 @@ public sealed class WineRunnerTests : IDisposable
             NativeOptionsIniPath = nativeOptionsPath,
         };
 
+        // Create a non-empty real prefix Maps directory to force fallback synchronization via MirrorDirectoryContent
+        var prefixMapsDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            GameSettingsConstants.FolderNames.Maps);
+        Directory.CreateDirectory(prefixMapsDir);
+        File.WriteAllText(Path.Combine(prefixMapsDir, "existing.txt"), "pre-existing");
+
         // Act
         var result = runner.ResolveCommand(configuration);
 
         // Assert
         Assert.True(result.Success, result.AllErrors);
+        var synchronizedMapFile = Path.Combine(prefixMapsDir, "RegularMap", "RegularMap.map");
+        Assert.True(File.Exists(synchronizedMapFile));
+        if (Directory.Exists(loopLink))
+        {
+            var loopDirInPrefix = Path.Combine(prefixMapsDir, "RegularMap", "loop");
+            Assert.False(Directory.Exists(loopDirInPrefix));
+        }
     }
 
     /// <summary>
