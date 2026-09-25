@@ -225,10 +225,7 @@ public sealed record OverlaySidecarConfig(
             port ??= GetIntProperty(relayElement, "port");
         }
 
-        if (string.IsNullOrWhiteSpace(host))
-        {
-            host = ApiConstants.OnlineRelayHost;
-        }
+        host = ApiConstants.ResolveRelayHost(host);
 
         port ??= OnlineConstants.DefaultRelayPort;
 

@@ -1095,6 +1095,110 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         _profileLock.Dispose();
     }
 
+    private static void RunOnUi(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
+    }
+
+    private static TopLevel? GetMainWindowTopLevel()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
+        {
+            return TopLevel.GetTopLevel(mainWindow);
+        }
+
+        return null;
+    }
+
+    private static bool IsElevationRequired(string adapterError) =>
+        adapterError.Contains(OnlineConstants.AdapterElevationRequired, StringComparison.Ordinal);
+
+    private static (string? GameRoot, string? ExePath) ResolveProfileRootAndExe(GameProfile profile)
+    {
+        string? gameRoot = null;
+        string? exePath = null;
+
+        var fullExe = ReplayCrcMatchingHelper.ResolveProfileFullExePath(profile.GameClient);
+        if (!string.IsNullOrEmpty(fullExe) && Path.IsPathRooted(fullExe))
+        {
+            exePath = fullExe;
+            gameRoot = Path.GetDirectoryName(fullExe);
+        }
+
+        if ((string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot)) &&
+            !string.IsNullOrWhiteSpace(profile.WorkingDirectory) &&
+            Directory.Exists(profile.WorkingDirectory))
+        {
+            gameRoot = profile.WorkingDirectory;
+        }
+
+        if ((string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot)) &&
+            !string.IsNullOrWhiteSpace(profile.GameClient?.WorkingDirectory) &&
+            Directory.Exists(profile.GameClient.WorkingDirectory))
+        {
+            gameRoot = profile.GameClient.WorkingDirectory;
+        }
+
+        return (gameRoot, exePath);
+    }
+
+    private static string? ResolveExePathCandidate(GameProfile profile, string gameRoot)
+    {
+        var candidates = new List<string?>();
+        if (!string.IsNullOrWhiteSpace(profile.CustomExecutablePath))
+        {
+            candidates.Add(Path.IsPathRooted(profile.CustomExecutablePath) ? profile.CustomExecutablePath : Path.Combine(gameRoot, profile.CustomExecutablePath));
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
+        {
+            candidates.Add(Path.IsPathRooted(profile.ExecutablePath) ? profile.ExecutablePath : Path.Combine(gameRoot, profile.ExecutablePath));
+        }
+
+        if (profile.GameClient != null)
+        {
+            if (!string.IsNullOrWhiteSpace(profile.GameClient.ExecutablePath))
+            {
+                candidates.Add(Path.IsPathRooted(profile.GameClient.ExecutablePath) ? profile.GameClient.ExecutablePath : Path.Combine(gameRoot, profile.GameClient.ExecutablePath));
+            }
+
+            var defaultName = ReplayCrcMatchingHelper.GetDefaultExecutableName(profile.GameClient.GameType, profile.GameClient.PublisherType);
+            candidates.Add(Path.Combine(gameRoot, defaultName));
+        }
+
+        candidates.Add(Path.Combine(gameRoot, GameClientConstants.SuperHackersZeroHourExecutable));
+        candidates.Add(Path.Combine(gameRoot, GameClientConstants.ZeroHourExecutable));
+        candidates.Add(Path.Combine(gameRoot, GameClientConstants.GeneralsExecutable));
+        candidates.Add(Path.Combine(gameRoot, GameClientConstants.SteamGameDatExecutable));
+
+        return candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c) && File.Exists(c));
+    }
+
+    private static string? GetSpecificInstallationPath(GameInstallation installation, GameType? gameType)
+    {
+        var targetPath = gameType == GameType.Generals
+            ? installation.GeneralsPath
+            : installation.ZeroHourPath;
+
+        return !string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath)
+            ? targetPath
+            : null;
+    }
+
+    private static string? GetGenericInstallationPath(GameInstallation installation)
+    {
+        return !string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath)
+            ? installation.InstallationPath
+            : null;
+    }
+
     private void InsertProfileSorted(GameProfile profile)
     {
         var insertIndex = 0;
@@ -1182,79 +1286,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         });
     }
 
-    private static TopLevel? GetMainWindowTopLevel()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
-        {
-            return TopLevel.GetTopLevel(mainWindow);
-        }
-
-        return null;
-    }
-
-    private static bool IsElevationRequired(string adapterError) =>
-        adapterError.Contains(OnlineConstants.AdapterElevationRequired, StringComparison.Ordinal);
-
-    private static (string? GameRoot, string? ExePath) ResolveProfileRootAndExe(GameProfile profile)
-    {
-        string? gameRoot = null;
-        string? exePath = null;
-
-        var fullExe = ReplayCrcMatchingHelper.ResolveProfileFullExePath(profile.GameClient);
-        if (!string.IsNullOrEmpty(fullExe) && Path.IsPathRooted(fullExe))
-        {
-            exePath = fullExe;
-            gameRoot = Path.GetDirectoryName(fullExe);
-        }
-
-        if ((string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot)) &&
-            !string.IsNullOrWhiteSpace(profile.WorkingDirectory) &&
-            Directory.Exists(profile.WorkingDirectory))
-        {
-            gameRoot = profile.WorkingDirectory;
-        }
-
-        if ((string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot)) &&
-            !string.IsNullOrWhiteSpace(profile.GameClient?.WorkingDirectory) &&
-            Directory.Exists(profile.GameClient.WorkingDirectory))
-        {
-            gameRoot = profile.GameClient.WorkingDirectory;
-        }
-
-        return (gameRoot, exePath);
-    }
-
-    private static string? ResolveExePathCandidate(GameProfile profile, string gameRoot)
-    {
-        var candidates = new List<string?>();
-        if (!string.IsNullOrWhiteSpace(profile.CustomExecutablePath))
-        {
-            candidates.Add(Path.IsPathRooted(profile.CustomExecutablePath) ? profile.CustomExecutablePath : Path.Combine(gameRoot, profile.CustomExecutablePath));
-        }
-
-        if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
-        {
-            candidates.Add(Path.IsPathRooted(profile.ExecutablePath) ? profile.ExecutablePath : Path.Combine(gameRoot, profile.ExecutablePath));
-        }
-
-        if (profile.GameClient != null)
-        {
-            if (!string.IsNullOrWhiteSpace(profile.GameClient.ExecutablePath))
-            {
-                candidates.Add(Path.IsPathRooted(profile.GameClient.ExecutablePath) ? profile.GameClient.ExecutablePath : Path.Combine(gameRoot, profile.GameClient.ExecutablePath));
-            }
-
-            var defaultName = ReplayCrcMatchingHelper.GetDefaultExecutableName(profile.GameClient.GameType, profile.GameClient.PublisherType);
-            candidates.Add(Path.Combine(gameRoot, defaultName));
-        }
-
-        candidates.Add(Path.Combine(gameRoot, GameClientConstants.SuperHackersZeroHourExecutable));
-        candidates.Add(Path.Combine(gameRoot, GameClientConstants.ZeroHourExecutable));
-        candidates.Add(Path.Combine(gameRoot, GameClientConstants.GeneralsExecutable));
-        candidates.Add(Path.Combine(gameRoot, GameClientConstants.SteamGameDatExecutable));
-
-        return candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c) && File.Exists(c));
-    }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanJoin() => !IsJoined && SelectedNetwork is not null;
@@ -1267,17 +1298,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanPlay() => IsJoined && !IsGameRunning;
 
-    private static void RunOnUi(Action action)
-    {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(action);
-        }
-    }
 
     private void OnConnectionLost(object? sender, EventArgs e)
     {
@@ -2157,23 +2177,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         return (gameRoot, exePath);
     }
 
-    private static string? GetSpecificInstallationPath(GameInstallation installation, GameType? gameType)
-    {
-        var targetPath = gameType == GameType.Generals
-            ? installation.GeneralsPath
-            : installation.ZeroHourPath;
-
-        return !string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath)
-            ? targetPath
-            : null;
-    }
-
-    private static string? GetGenericInstallationPath(GameInstallation installation)
-    {
-        return !string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath)
-            ? installation.InstallationPath
-            : null;
-    }
 
     private async Task<string?> ResolveInstallationRootAsync(GameProfile profile, CancellationToken cancellationToken)
     {
