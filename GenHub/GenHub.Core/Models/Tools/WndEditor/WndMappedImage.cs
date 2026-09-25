@@ -22,9 +22,7 @@ public sealed partial record WndMappedImage
     /// <param name="right">The source rectangle right edge in pixels.</param>
     /// <param name="bottom">The source rectangle bottom edge in pixels.</param>
     /// <param name="isRotated">Whether the packed content is rotated 90 degrees clockwise.</param>
-    /// <param name="textureWidth">The texture page width the coordinates are defined against (0 when absent).</param>
-    /// <param name="textureHeight">The texture page height the coordinates are defined against (0 when absent).</param>
-    public WndMappedImage(string name, string texture, int left, int top, int right, int bottom, bool isRotated, int textureWidth = 0, int textureHeight = 0)
+    public WndMappedImage(string name, string texture, int left, int top, int right, int bottom, bool isRotated = false)
     {
         Name = name;
         Texture = texture;
@@ -33,54 +31,52 @@ public sealed partial record WndMappedImage
         Right = right;
         Bottom = bottom;
         IsRotated = isRotated;
-        TextureWidth = textureWidth;
-        TextureHeight = textureHeight;
     }
 
     /// <summary>
     /// Gets the mapped image name referenced by DrawData entries.
     /// </summary>
-    public string Name { get; }
+    public string Name { get; init; }
 
     /// <summary>
     /// Gets the texture page file name.
     /// </summary>
-    public string Texture { get; }
+    public string Texture { get; init; }
 
     /// <summary>
     /// Gets the source rectangle left edge in pixels.
     /// </summary>
-    public int Left { get; }
+    public int Left { get; init; }
 
     /// <summary>
     /// Gets the source rectangle top edge in pixels.
     /// </summary>
-    public int Top { get; }
+    public int Top { get; init; }
 
     /// <summary>
     /// Gets the source rectangle right edge in pixels.
     /// </summary>
-    public int Right { get; }
+    public int Right { get; init; }
 
     /// <summary>
     /// Gets the source rectangle bottom edge in pixels.
     /// </summary>
-    public int Bottom { get; }
+    public int Bottom { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether the packed content is rotated 90 degrees clockwise.
     /// </summary>
-    public bool IsRotated { get; }
+    public bool IsRotated { get; init; }
 
     /// <summary>
     /// Gets the texture page width the coordinates are defined against (0 when absent).
     /// </summary>
-    public int TextureWidth { get; }
+    public int TextureWidth { get; init; }
 
     /// <summary>
     /// Gets the texture page height the coordinates are defined against (0 when absent).
     /// </summary>
-    public int TextureHeight { get; }
+    public int TextureHeight { get; init; }
 
     /// <summary>
     /// Gets the source rectangle width in pixels.
@@ -247,7 +243,11 @@ public sealed partial record WndMappedImage
                 return null;
             }
 
-            return new WndMappedImage(_name, _texture, _left, _top, _right, _bottom, _isRotated, _textureWidth, _textureHeight);
+            return new WndMappedImage(_name, _texture, _left, _top, _right, _bottom, _isRotated)
+            {
+                TextureWidth = _textureWidth,
+                TextureHeight = _textureHeight,
+            };
         }
 
         private void ApplyCoords(string value)

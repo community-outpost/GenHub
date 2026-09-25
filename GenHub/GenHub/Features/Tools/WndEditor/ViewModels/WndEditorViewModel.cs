@@ -557,36 +557,7 @@ public sealed partial class WndEditorViewModel(
         var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
         var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
 
-        string? mappedNameToApply = null;
-
-        foreach (var path in validPaths)
-        {
-            var stem = Path.GetFileNameWithoutExtension(path);
-
-            if (!string.IsNullOrEmpty(projectDirectory))
-            {
-                var importResult = await textureImportService.ImportTextureAsync(path, projectDirectory, null, cancellationToken).ConfigureAwait(false);
-                if (importResult.Success && importResult.Data != null)
-                {
-                    mappedNameToApply = importResult.Data.MappedName;
-                    MissingImageNames.Remove(mappedNameToApply);
-                }
-                else if (KnownImageNames.Contains(stem, StringComparer.OrdinalIgnoreCase))
-                {
-                    mappedNameToApply = stem;
-                }
-            }
-            else
-            {
-                mappedNameToApply = stem;
-            }
-
-            if (!string.IsNullOrEmpty(mappedNameToApply))
-            {
-                break;
-            }
-        }
-
+        var mappedNameToApply = await ResolveMappedNameForDroppedPathsAsync(validPaths, projectDirectory, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrEmpty(mappedNameToApply))
         {
             return false;
@@ -815,46 +786,74 @@ public sealed partial class WndEditorViewModel(
         try
         {
             var normalized = filePath.Replace('\\', '/');
-            var rawMarker = "/" + ModBuilderConstants.RawBundleItemsSubdir + "/";
-            var rawIndex = normalized.IndexOf(rawMarker, StringComparison.OrdinalIgnoreCase);
-            if (rawIndex >= 0)
-            {
-                var beforeMarker = filePath[..rawIndex];
-                var afterMarker = filePath[(rawIndex + rawMarker.Length)..];
-
-                var projectDir = Path.GetDirectoryName(beforeMarker);
-                if (!string.IsNullOrEmpty(projectDir))
-                {
-                    var candidateSource = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, afterMarker);
-                    if (File.Exists(candidateSource) || Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir)))
-                    {
-                        return candidateSource;
-                    }
-                }
-            }
-
-            var buildMarker = "/" + ModBuilderConstants.DefaultBuildDir + "/";
-            var buildIndex = normalized.IndexOf(buildMarker, StringComparison.OrdinalIgnoreCase);
-            if (buildIndex >= 0)
-            {
-                var projectDir = filePath[..buildIndex];
-                var afterBuild = filePath[(buildIndex + buildMarker.Length)..];
-                if (!string.IsNullOrEmpty(projectDir))
-                {
-                    var candidateSource = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, afterBuild);
-                    if (File.Exists(candidateSource))
-                    {
-                        return candidateSource;
-                    }
-                }
-            }
+            return TryMapRawBundleItemPath(filePath, normalized)
+                ?? TryMapBuildPath(filePath, normalized)
+                ?? filePath;
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
         {
             // Ignore path inspection errors and return original path
+            return filePath;
+        }
+    }
+
+    /// <summary>
+    /// Attempts to map a raw bundle items directory file path back to its source location.
+    /// </summary>
+    /// <param name="filePath">The original file path.</param>
+    /// <param name="normalized">The path with slashes normalized.</param>
+    /// <returns>The candidate source path if found; otherwise, null.</returns>
+    internal static string? TryMapRawBundleItemPath(string filePath, string normalized)
+    {
+        var rawMarker = "/" + ModBuilderConstants.RawBundleItemsSubdir + "/";
+        var rawIndex = normalized.IndexOf(rawMarker, StringComparison.OrdinalIgnoreCase);
+        if (rawIndex < 0)
+        {
+            return null;
         }
 
-        return filePath;
+        var beforeMarker = filePath[..rawIndex];
+        var afterMarker = filePath[(rawIndex + rawMarker.Length)..];
+
+        var projectDir = Path.GetDirectoryName(beforeMarker);
+        if (string.IsNullOrEmpty(projectDir))
+        {
+            return null;
+        }
+
+        var candidateSource = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, afterMarker);
+        if (File.Exists(candidateSource) || Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir)))
+        {
+            return candidateSource;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to map a default build directory file path back to its source location.
+    /// </summary>
+    /// <param name="filePath">The original file path.</param>
+    /// <param name="normalized">The path with slashes normalized.</param>
+    /// <returns>The candidate source path if found; otherwise, null.</returns>
+    internal static string? TryMapBuildPath(string filePath, string normalized)
+    {
+        var buildMarker = "/" + ModBuilderConstants.DefaultBuildDir + "/";
+        var buildIndex = normalized.IndexOf(buildMarker, StringComparison.OrdinalIgnoreCase);
+        if (buildIndex < 0)
+        {
+            return null;
+        }
+
+        var projectDir = filePath[..buildIndex];
+        var afterBuild = filePath[(buildIndex + buildMarker.Length)..];
+        if (string.IsNullOrEmpty(projectDir))
+        {
+            return null;
+        }
+
+        var candidateSource = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, afterBuild);
+        return File.Exists(candidateSource) ? candidateSource : null;
     }
 
     /// <summary>
@@ -3617,6 +3616,114 @@ public sealed partial class WndEditorViewModel(
         return null;
     }
 
+    private async Task<string?> ResolveMappedNameForDroppedPathsAsync(
+        IReadOnlyList<string> paths,
+        string? projectDirectory,
+        CancellationToken cancellationToken)
+    {
+        foreach (var path in paths)
+        {
+            var stem = Path.GetFileNameWithoutExtension(path);
+
+            if (!string.IsNullOrEmpty(projectDirectory))
+            {
+                var importResult = await textureImportService.ImportTextureAsync(path, projectDirectory, null, cancellationToken).ConfigureAwait(false);
+                if (importResult.Success && importResult.Data != null)
+                {
+                    var mappedName = importResult.Data.MappedName;
+                    MissingImageNames.Remove(mappedName);
+                    return mappedName;
+                }
+
+                if (KnownImageNames.Contains(stem, StringComparer.OrdinalIgnoreCase))
+                {
+                    return stem;
+                }
+            }
+            else
+            {
+                return stem;
+            }
+        }
+
+        return null;
+    }
+
+    private static Dictionary<string, Bitmap> DecodeThumbnails(IReadOnlyDictionary<string, byte[]> imageData)
+    {
+        var decoded = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (k, bytes) in imageData)
+        {
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                decoded[k] = new Bitmap(ms);
+            }
+            catch
+            {
+                // Skip decode errors on corrupt bytes
+            }
+        }
+
+        return decoded;
+    }
+
+    private void ApplyThumbnailsToItems(
+        Dictionary<string, Bitmap> decoded,
+        IReadOnlyList<WndArtItemViewModel> items)
+    {
+        foreach (var (k, bmp) in decoded)
+        {
+            if (!_thumbnailBitmaps.TryAdd(k, bmp))
+            {
+                bmp.Dispose();
+            }
+        }
+
+        foreach (var item in items)
+        {
+            if (item.Thumbnail == null && _thumbnailBitmaps.TryGetValue(item.Name, out var bmp))
+            {
+                item.Thumbnail = bmp;
+            }
+        }
+    }
+
+    private async Task LoadThumbnailsBackgroundAsync(
+        IReadOnlyList<string> missingNames,
+        AssetRoots roots,
+        string? projectDirectory,
+        IReadOnlyList<string> linkedBigs,
+        IReadOnlyList<WndArtItemViewModel> items)
+    {
+        try
+        {
+            var result = await assetService.Images.GetImagesAsync(
+                missingNames,
+                roots.BaseRoot,
+                null,
+                projectDirectory,
+                linkedBigs,
+                roots.IsZeroHour,
+                CancellationToken.None).ConfigureAwait(false);
+
+            if (!result.Success || result.Data == null || result.Data.Count == 0)
+            {
+                return;
+            }
+
+            var decoded = DecodeThumbnails(result.Data);
+            if (decoded.Count > 0)
+            {
+                await InvokeOnUIThreadAsync(() => ApplyThumbnailsToItems(decoded, items)).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to load art item thumbnails in background");
+        }
+    }
+
     private void QueueArtItemThumbnailsLoad(IReadOnlyList<WndArtItemViewModel> items)
     {
         var missingNames = items
@@ -3635,63 +3742,7 @@ public sealed partial class WndEditorViewModel(
         var projectDirectory = CombineProjectDirectories(LinkedModFolder, detectedProjectDir);
         var linkedBigs = LinkedBigFiles.ToList();
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var result = await assetService.Images.GetImagesAsync(
-                    missingNames,
-                    roots.BaseRoot,
-                    null,
-                    projectDirectory,
-                    linkedBigs,
-                    roots.IsZeroHour,
-                    CancellationToken.None).ConfigureAwait(false);
-
-                if (result.Success && result.Data != null && result.Data.Count > 0)
-                {
-                    var decoded = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var (k, bytes) in result.Data)
-                    {
-                        try
-                        {
-                            using var ms = new MemoryStream(bytes);
-                            decoded[k] = new Bitmap(ms);
-                        }
-                        catch
-                        {
-                            // Skip decode errors on corrupt bytes
-                        }
-                    }
-
-                    if (decoded.Count > 0)
-                    {
-                        await InvokeOnUIThreadAsync(() =>
-                        {
-                            foreach (var (k, bmp) in decoded)
-                            {
-                                if (!_thumbnailBitmaps.TryAdd(k, bmp))
-                                {
-                                    bmp.Dispose();
-                                }
-                            }
-
-                            foreach (var item in items)
-                            {
-                                if (item.Thumbnail == null && _thumbnailBitmaps.TryGetValue(item.Name, out var bmp))
-                                {
-                                    item.Thumbnail = bmp;
-                                }
-                            }
-                        }).ConfigureAwait(false);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Failed to load art item thumbnails in background");
-            }
-        });
+        _ = Task.Run(() => LoadThumbnailsBackgroundAsync(missingNames, roots, projectDirectory, linkedBigs, items));
     }
 
     private string FormatMissingNames(IReadOnlyList<string> missing)

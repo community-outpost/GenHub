@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -760,7 +761,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var releaseBigFile = Path.Combine(releaseDir, "BigPack.big");
         await File.WriteAllTextAsync(releaseBigFile, "BIG archive content");
 
-        string? capturedStagingDir = null;
+        var stagedBigExists = false;
         _mockLocalContentService
             .Setup(x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
@@ -776,9 +777,9 @@ public sealed class BuildEngineServiceTests : IDisposable
             .Callback<string, string, GenHub.Core.Models.Enums.ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string>(
                 (stagingDir, _, _, _, _, _, _, _, _, _) =>
                 {
-                    capturedStagingDir = stagingDir;
+                    stagedBigExists = File.Exists(Path.Combine(stagingDir, "BigPack.big"));
                 })
-            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Id = "test-manifest", Name = "BigPackProject" }));
+            .ReturnsAsync(OperationResult<GenHub.Core.Models.Manifest.ContentManifest>.CreateSuccess(new GenHub.Core.Models.Manifest.ContentManifest { Id = "1.0.test.mod.bigpackproject", Name = "BigPackProject" }));
 
         // Act
         var result = await _service.ExecuteBuildAsync(
@@ -789,8 +790,7 @@ public sealed class BuildEngineServiceTests : IDisposable
 
         // Assert
         result.Success.Should().BeTrue(result.FirstError);
-        capturedStagingDir.Should().NotBeNull();
-        File.Exists(Path.Combine(capturedStagingDir!, "BigPack.big")).Should().BeTrue();
+        stagedBigExists.Should().BeTrue();
     }
 
     [Fact]

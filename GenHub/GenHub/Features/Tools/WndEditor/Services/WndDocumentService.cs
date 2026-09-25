@@ -672,6 +672,42 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
         window.ControlTypeName = declared?.Trim() ?? string.Empty;
     }
 
+    private static bool TryProcessStatementLine(
+        string line,
+        ref bool inQuotes,
+        StringBuilder accumulator,
+        ParserState state,
+        int startLine,
+        out WndProperty? property)
+    {
+        property = null;
+        for (var i = 0; i < line.Length; i++)
+        {
+            var ch = line[i];
+            if (ch == WndConstants.Syntax.Quote)
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (ch == WndConstants.Syntax.StatementTerminator && !inQuotes)
+            {
+                var remainder = line.Substring(i + 1).Trim();
+                if (remainder.Length > 0 && !remainder.StartsWith("//", StringComparison.Ordinal))
+                {
+                    state.AddErrorAt(startLine, $"Unexpected trailing characters after statement terminator: '{remainder}'.");
+                    return true;
+                }
+
+                accumulator.Append(WndConstants.Syntax.StatementTerminator);
+                property = SplitStatement(accumulator.ToString(), state, startLine);
+                return true;
+            }
+
+            accumulator.Append(ch);
+        }
+
+        return false;
+    }
+
     private static WndProperty? ReadStatement(ParserState state)
     {
         var startLine = state.LineNumber;
@@ -689,27 +725,9 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
 
             state.Advance();
 
-            for (var i = 0; i < line.Length; i++)
+            if (TryProcessStatementLine(line, ref inQuotes, accumulator, state, startLine, out var property))
             {
-                var ch = line[i];
-                if (ch == WndConstants.Syntax.Quote)
-                {
-                    inQuotes = !inQuotes;
-                }
-                else if (ch == WndConstants.Syntax.StatementTerminator && !inQuotes)
-                {
-                    var remainder = line.Substring(i + 1).Trim();
-                    if (remainder.Length > 0 && !remainder.StartsWith("//", StringComparison.Ordinal))
-                    {
-                        state.AddErrorAt(startLine, $"Unexpected trailing characters after statement terminator: '{remainder}'.");
-                        return null;
-                    }
-
-                    accumulator.Append(WndConstants.Syntax.StatementTerminator);
-                    return SplitStatement(accumulator.ToString(), state, startLine);
-                }
-
-                accumulator.Append(ch);
+                return property;
             }
 
             accumulator.Append('\n');

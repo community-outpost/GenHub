@@ -255,6 +255,7 @@ public sealed class WndTextureImportServiceTests : IDisposable
         File.Exists(result.Data!.TexturePath).Should().BeTrue();
 
         var tgaBytes = File.ReadAllBytes(result.Data.TexturePath);
+
         // TGA header byte 2 is the image type: 2 indicates uncompressed true-color image
         tgaBytes[2].Should().Be(2);
     }

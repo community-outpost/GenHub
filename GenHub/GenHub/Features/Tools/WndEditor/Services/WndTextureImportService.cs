@@ -302,6 +302,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         {
             using var image = new MagickImage(sourceFilePath);
             image.Settings.Compression = CompressionMethod.NoCompression;
+            image.ColorType = image.HasAlpha ? ColorType.TrueColorAlpha : ColorType.TrueColor;
             image.Format = MagickFormat.Tga;
             image.Write(texturePath);
         }

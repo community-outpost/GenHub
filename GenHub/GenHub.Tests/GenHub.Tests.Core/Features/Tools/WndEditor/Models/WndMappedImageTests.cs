@@ -29,7 +29,7 @@ public sealed class WndMappedImageTests
 
         // Assert
         images.Should().ContainSingle();
-        images[0].Should().Be(new WndMappedImage("MenuButton", "MenuPage", 10, 20, 110, 60, false, 512, 512));
+        images[0].Should().Be(new WndMappedImage("MenuButton", "MenuPage", 10, 20, 110, 60, false) { TextureWidth = 512, TextureHeight = 512 });
         images[0].Width.Should().Be(100);
         images[0].Height.Should().Be(40);
     }
