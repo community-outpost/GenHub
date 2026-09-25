@@ -220,7 +220,7 @@ public sealed class GenLauncherDelivererTests
             It.IsAny<DownloadConfiguration>(),
             It.IsAny<IProgress<DownloadProgress>?>(),
             It.IsAny<CancellationToken>()))
-            .Returns(async () =>
+            .Returns<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>(async (cfg, _, _) =>
             {
                 var current = Interlocked.Increment(ref inFlight);
                 lock (lockObj)
@@ -242,7 +242,14 @@ public sealed class GenLauncherDelivererTests
                 }
 
                 Interlocked.Decrement(ref inFlight);
-                return DownloadResult.CreateSuccess("path", 100, TimeSpan.FromMilliseconds(10));
+                var dir = Path.GetDirectoryName(cfg.DestinationPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                await File.WriteAllBytesAsync(cfg.DestinationPath, [1, 2, 3]);
+                return DownloadResult.CreateSuccess(cfg.DestinationPath, 3, TimeSpan.FromMilliseconds(10));
             });
 
         _manifestPoolMock.Setup(m => m.AddManifestAsync(

@@ -436,6 +436,7 @@ public class DownloadService(
 
                     chunkBytesRead += bytesRead;
                     var currentDownloaded = Interlocked.Add(ref downloadedBytes, bytesRead);
+                    cts.CancelAfter(configuration.Timeout);
 
                     var now = DateTime.UtcNow;
                     if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || currentDownloaded == totalBytes))
@@ -444,7 +445,6 @@ public class DownloadService(
                         {
                             if (now - lastProgressReport >= configuration.ProgressReportingInterval || currentDownloaded == totalBytes)
                             {
-                                cts.CancelAfter(configuration.Timeout);
                                 ReportDownloadProgress(
                                     progress,
                                     currentDownloaded,
@@ -586,7 +586,7 @@ public class DownloadService(
                     stopwatch.Elapsed,
                     cancellationToken);
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException)
             {
                 throw;
             }
@@ -599,6 +599,7 @@ public class DownloadService(
                 logger.LogWarning(ex, "Parallel chunk download failed for {Url}. Falling back to sequential download.", configuration.Url);
                 TryDeleteFile(configuration.DestinationPath);
                 TryDeleteFile(etagSidecarPath);
+                cts.CancelAfter(configuration.Timeout);
 
                 connection = await EstablishDownloadConnectionAsync(configuration, validator, 0, cts);
             }
