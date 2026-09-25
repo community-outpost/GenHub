@@ -20,6 +20,7 @@ namespace GenHub.Tests.Integration.AppUpdate;
 [Trait("Category", "LiveNetwork")]
 public sealed class FastHttpClientFileDownloaderLiveTests : IDisposable
 {
+    // Pin the asset and digest together so this test verifies stable bytes, not the latest release.
     private const string ReleaseAssetUrl = "https://github.com/community-outpost/GenHub/releases/download/v0.0.3/GenHub-0.0.3-full.nupkg";
 
     private const string ReleaseAssetSha256 = "75981a34cbdecc29a2109ce62c2729c3249ea47e63764abbec1390038e933f7e";

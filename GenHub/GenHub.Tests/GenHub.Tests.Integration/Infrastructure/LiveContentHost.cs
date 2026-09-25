@@ -26,39 +26,43 @@ internal sealed class LiveContentHost : IDisposable
 
     private readonly IDisposable _environment;
     private readonly Dictionary<string, string?> _originalTempValues = [];
-    private readonly ServiceProvider _provider;
-    private readonly IServiceScope _scope;
+    private readonly string _originalLogFilePath = LoggingModule.ActiveLogFilePath;
+    private readonly ServiceProvider? _provider;
+    private readonly IServiceScope? _scope;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LiveContentHost"/> class.
     /// </summary>
-    internal LiveContentHost()
+    /// <param name="configureServices">Optional test-specific service registrations.</param>
+    internal LiveContentHost(Action<IServiceCollection>? configureServices = null)
     {
         var environment = new TemporaryApplicationEnvironment();
         _environment = environment;
         AppDataPath = environment.AppDataPath;
         CasPath = environment.CasPath;
-        TempPath = Path.Combine(Path.GetDirectoryName(AppDataPath)!, "tmp");
-        Directory.CreateDirectory(TempPath);
-
-        foreach (var name in TempVariables)
-        {
-            _originalTempValues[name] = Environment.GetEnvironmentVariable(name);
-            Environment.SetEnvironmentVariable(name, TempPath);
-        }
+        TempPath = Path.Combine(AppDataPath, "tmp");
 
         try
         {
+            Directory.CreateDirectory(TempPath);
+            foreach (var name in TempVariables)
+            {
+                _originalTempValues[name] = Environment.GetEnvironmentVariable(name);
+                Environment.SetEnvironmentVariable(name, TempPath);
+            }
+
             LoggingModule.ActiveLogFilePath = Path.Combine(AppDataPath, "Logs", "genhub-integration.log");
 
             var services = new ServiceCollection();
             services.ConfigureApplicationServices(AddPlatformNeutralServices);
+            configureServices?.Invoke(services);
             _provider = services.BuildServiceProvider();
             _scope = _provider.CreateScope();
         }
         catch
         {
-            RestoreEnvironment();
+            Dispose();
             throw;
         }
     }
@@ -81,7 +85,7 @@ internal sealed class LiveContentHost : IDisposable
     /// <summary>
     /// Gets the scoped service provider.
     /// </summary>
-    internal IServiceProvider Services => _scope.ServiceProvider;
+    internal IServiceProvider Services => _scope!.ServiceProvider;
 
     /// <summary>
     /// Gets the content orchestrator.
@@ -91,9 +95,27 @@ internal sealed class LiveContentHost : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        _scope.Dispose();
-        _provider.Dispose();
-        RestoreEnvironment();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        try
+        {
+            _scope?.Dispose();
+        }
+        finally
+        {
+            try
+            {
+                _provider?.Dispose();
+            }
+            finally
+            {
+                RestoreEnvironment();
+            }
+        }
     }
 
     /// <summary>
@@ -171,6 +193,8 @@ internal sealed class LiveContentHost : IDisposable
 
     private static IServiceCollection AddPlatformNeutralServices(IServiceCollection services)
     {
+        // Windows acquisition uses the base file service; this host does not support
+        // Windows workspace/hard-link tests, which require the Windows platform module.
         if (!OperatingSystem.IsWindows())
         {
             services.AddUnixFileOperations();
@@ -181,11 +205,17 @@ internal sealed class LiveContentHost : IDisposable
 
     private void RestoreEnvironment()
     {
-        foreach (var pair in _originalTempValues)
+        LoggingModule.ActiveLogFilePath = _originalLogFilePath;
+        try
         {
-            Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            foreach (var pair in _originalTempValues)
+            {
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
         }
-
-        _environment.Dispose();
+        finally
+        {
+            _environment.Dispose();
+        }
     }
 }
