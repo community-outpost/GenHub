@@ -160,7 +160,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
             Id = "mod-test",
             Name = "Test Mod",
             Description = "Initial description that meets length requirements",
-            ContentType = ContentType.Mod,
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
             TargetGame = GameType.Generals,
             Metadata = new ContentRichMetadata
             {

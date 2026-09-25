@@ -382,39 +382,6 @@ public sealed class GameClientEntryDetectorTests : IDisposable
         Assert.False(resolution.Success);
     }
 
-    private static void WritePlist(string contentsDirectory, string executableName)
-    {
-        var plist = new StringBuilder()
-            .AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
-            .AppendLine("<plist version=\"1.0\">")
-            .AppendLine("<dict>")
-            .AppendLine("    <key>CFBundleExecutable</key>")
-            .AppendLine($"    <string>{executableName}</string>")
-            .AppendLine("</dict>")
-            .AppendLine("</plist>")
-            .ToString();
-        File.WriteAllText(Path.Combine(contentsDirectory, "Info.plist"), plist);
-    }
-
-    private static void WriteBinary(string path, byte[] header)
-    {
-        var payload = new byte[64];
-        Buffer.BlockCopy(header, 0, payload, 0, header.Length);
-        File.WriteAllBytes(path, payload);
-    }
-
-    private string CreateBundle(string bundleName, string? declaredExecutable)
-    {
-        var bundle = Directory.CreateDirectory(Path.Combine(_payload, bundleName)).FullName;
-        var contents = Directory.CreateDirectory(Path.Combine(bundle, "Contents")).FullName;
-        if (declaredExecutable is not null)
-        {
-            WritePlist(contents, declaredExecutable);
-        }
-
-        return Directory.CreateDirectory(Path.Combine(contents, "MacOS")).FullName;
-    }
-
     /// <summary>
     /// Verifies that safe archives return the detected entry executable.
     /// </summary>
@@ -454,4 +421,38 @@ public sealed class GameClientEntryDetectorTests : IDisposable
         var entryPoint = GameClientEntryDetector.DetectEntryPointFromArchive(zipPath);
         Assert.Null(entryPoint);
     }
+
+    private static void WritePlist(string contentsDirectory, string executableName)
+    {
+        var plist = new StringBuilder()
+            .AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+            .AppendLine("<plist version=\"1.0\">")
+            .AppendLine("<dict>")
+            .AppendLine("    <key>CFBundleExecutable</key>")
+            .AppendLine($"    <string>{executableName}</string>")
+            .AppendLine("</dict>")
+            .AppendLine("</plist>")
+            .ToString();
+        File.WriteAllText(Path.Combine(contentsDirectory, "Info.plist"), plist);
+    }
+
+    private static void WriteBinary(string path, byte[] header)
+    {
+        var payload = new byte[64];
+        Buffer.BlockCopy(header, 0, payload, 0, header.Length);
+        File.WriteAllBytes(path, payload);
+    }
+
+    private string CreateBundle(string bundleName, string? declaredExecutable)
+    {
+        var bundle = Directory.CreateDirectory(Path.Combine(_payload, bundleName)).FullName;
+        var contents = Directory.CreateDirectory(Path.Combine(bundle, "Contents")).FullName;
+        if (declaredExecutable is not null)
+        {
+            WritePlist(contents, declaredExecutable);
+        }
+
+        return Directory.CreateDirectory(Path.Combine(contents, "MacOS")).FullName;
+    }
+
 }
