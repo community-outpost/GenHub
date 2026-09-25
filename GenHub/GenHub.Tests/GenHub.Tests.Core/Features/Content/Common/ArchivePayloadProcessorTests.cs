@@ -1323,27 +1323,25 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that a RAR archive named .zip passes validation, as GenLauncher serves some packages this way.
+    /// Verifies a complete RAR archive served as .zip is extracted by content and then removed.
     /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public void EnsureValidArchivePayload_RarSignatureNamedZip_Succeeds()
+    public async Task ExtractArchivesSafelyAsync_RarArchiveNamedZip_ExtractsContentAsync()
     {
-        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
-        try
-        {
-            File.WriteAllBytes(tempFile, [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "mod.zip");
 
-            var exception = Record.Exception(() => ArchivePayloadProcessor.EnsureValidArchivePayload(tempFile));
+        // Complete RAR5 archive with a stored readme.txt, header/data CRCs and an end marker.
+        await File.WriteAllBytesAsync(archivePath, Convert.FromBase64String(
+            "UmFyIRoHAQDFGjMyAwEAACYUNnUXAgIXBBcAr0Q9jwAACnJlYWRtZS50eHRtaXNsYWJlbGxlZCBSQVIgYXJjaGl2ZRmyOjUDBQAA"));
 
-            Assert.Null(exception);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        await CreateProcessor().ExtractArchivesSafelyAsync(_stagingDirectory);
+
+        var extracted = Path.Combine(_stagingDirectory, "readme.txt");
+        Assert.True(File.Exists(extracted));
+        Assert.Equal("mislabelled RAR archive", await File.ReadAllTextAsync(extracted));
+        Assert.False(File.Exists(archivePath));
     }
 
     /// <inheritdoc/>
