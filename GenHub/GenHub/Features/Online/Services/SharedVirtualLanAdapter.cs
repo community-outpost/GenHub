@@ -71,37 +71,13 @@ public sealed class SharedVirtualLanAdapter(
             if (!start.Success)
             {
                 var startError = start.Errors.Count > 0 ? start.Errors[0] : "Sidecar start failed.";
-                LastError = startError;
-
-                if (tunnelRunner != null)
-                {
-                    logger.LogInformation(
-                        "Sidecar not active ({Reason}); activating in-process virtual LAN tunnel runner.",
-                        startError);
-
-                    var runnerStart = await tunnelRunner.StartAsync(effectiveConfig, overlayIp, cancellationToken);
-                    if (runnerStart.Success)
-                    {
-                        OverlayIp = overlayIp;
-                        LastError = null;
-                        SetState(OnlineAdapterState.Up);
-                        return OperationResult<bool>.CreateSuccess(true);
-                    }
-
-                    var runnerError = runnerStart.Errors.Count > 0 ? runnerStart.Errors[0] : "In-process tunnel runner failed.";
-                    logger.LogWarning("In-process tunnel runner start failed: {Error}", runnerError);
-                    LastError = runnerError;
-                }
-
-                if (isPending && !hasSidecar && tunnelRunner == null)
-                {
-                    logger.LogInformation("Overlay selection is pending and no sidecar binary or tunnel runner available; joined without tunneling.");
-                    SetState(OnlineAdapterState.Down);
-                    return OperationResult<bool>.CreateSuccess(true);
-                }
-
-                logger.LogWarning("Virtual LAN adapter start failed: {Error}", LastError);
-                return Fail(LastError ?? "Virtual LAN adapter start failed.");
+                return await HandleSidecarStartFailureAsync(
+                    effectiveConfig,
+                    overlayIp,
+                    startError,
+                    isPending,
+                    hasSidecar,
+                    cancellationToken);
             }
 
             OverlayIp = overlayIp;
@@ -195,6 +171,47 @@ public sealed class SharedVirtualLanAdapter(
         {
             _lifecycleLock.Dispose();
         }
+    }
+
+    private async Task<OperationResult<bool>> HandleSidecarStartFailureAsync(
+        string effectiveConfig,
+        string overlayIp,
+        string startError,
+        bool isPending,
+        bool hasSidecar,
+        CancellationToken cancellationToken)
+    {
+        LastError = startError;
+
+        if (tunnelRunner != null)
+        {
+            logger.LogInformation(
+                "Sidecar not active ({Reason}); activating in-process virtual LAN tunnel runner.",
+                startError);
+
+            var runnerStart = await tunnelRunner.StartAsync(effectiveConfig, overlayIp, cancellationToken);
+            if (runnerStart.Success)
+            {
+                OverlayIp = overlayIp;
+                LastError = null;
+                SetState(OnlineAdapterState.Up);
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+
+            var runnerError = runnerStart.Errors.Count > 0 ? runnerStart.Errors[0] : "In-process tunnel runner failed.";
+            logger.LogWarning("In-process tunnel runner start failed: {Error}", runnerError);
+            LastError = runnerError;
+        }
+
+        if (isPending && !hasSidecar && tunnelRunner == null)
+        {
+            logger.LogInformation("Overlay selection is pending and no sidecar binary or tunnel runner available; joined without tunneling.");
+            SetState(OnlineAdapterState.Down);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        logger.LogWarning("Virtual LAN adapter start failed: {Error}", LastError);
+        return Fail(LastError ?? "Virtual LAN adapter start failed.");
     }
 
     private async Task StopOrphanedAsync()

@@ -248,9 +248,25 @@ public sealed record OverlaySidecarConfig(
     private static bool TryParsePrefixLength(JsonElement root, out int prefixLength, out string? error)
     {
         error = null;
-        var length = GetIntProperty(root, "prefixLength");
+        var length = GetIntProperty(root, "prefixLength")
+            ?? TryExtractPrefixFromSubnet(root)
+            ?? TryExtractPrefixFromMask(root)
+            ?? OnlineConstants.TunOverlayPrefixLength;
 
-        if (length is null && root.TryGetProperty("subnet", out var subnetElement) && subnetElement.ValueKind == JsonValueKind.String)
+        if (length is < 1 or > 32)
+        {
+            error = "Overlay configuration has an invalid prefix length.";
+            prefixLength = 0;
+            return false;
+        }
+
+        prefixLength = length;
+        return true;
+    }
+
+    private static int? TryExtractPrefixFromSubnet(JsonElement root)
+    {
+        if (root.TryGetProperty("subnet", out var subnetElement) && subnetElement.ValueKind == JsonValueKind.String)
         {
             var subnet = subnetElement.GetString();
             if (!string.IsNullOrEmpty(subnet) && subnet.Contains('/'))
@@ -258,12 +274,17 @@ public sealed record OverlaySidecarConfig(
                 var slashIndex = subnet.IndexOf('/');
                 if (int.TryParse(subnet[(slashIndex + 1)..], out var parsedPrefix))
                 {
-                    length = parsedPrefix;
+                    return parsedPrefix;
                 }
             }
         }
 
-        if (length is null && root.TryGetProperty("subnetMask", out var maskElement) && maskElement.ValueKind == JsonValueKind.String)
+        return null;
+    }
+
+    private static int? TryExtractPrefixFromMask(JsonElement root)
+    {
+        if (root.TryGetProperty("subnetMask", out var maskElement) && maskElement.ValueKind == JsonValueKind.String)
         {
             var maskStr = maskElement.GetString();
             if (IPAddress.TryParse(maskStr, out var maskIp))
@@ -275,20 +296,11 @@ public sealed record OverlaySidecarConfig(
                     bits += BitOperations.PopCount(b);
                 }
 
-                length = bits;
+                return bits;
             }
         }
 
-        length ??= OnlineConstants.TunOverlayPrefixLength;
-        if (length is < 1 or > 32)
-        {
-            error = "Overlay configuration has an invalid prefix length.";
-            prefixLength = 0;
-            return false;
-        }
-
-        prefixLength = length.Value;
-        return true;
+        return null;
     }
 
     private static bool TryParseMtu(JsonElement root, out int mtu, out string? error)

@@ -91,7 +91,7 @@
     <Target Name="BuildOverlay" BeforeTargets="Build">
         <MSBuild
             Projects="$(MSBuildProjectDirectory)\..\GenHub.Overlay\GenHub.Overlay.csproj"
-            Targets="Publish"
+            Targets="Restore;Publish"
             Properties="$(OverlayBundleProperties)"
             RemoveProperties="_IsPublishing;DOTNET_CLI_DISABLE_PUBLISH_AND_PACK_RELEASE;_CommandLineDefinedOutputPath;_CommandLineDefinedRuntimeIdentifier;_CommandLineDefinedSelfContained;BaseOutputPath;BaseIntermediateOutputPath" />
     </Target>

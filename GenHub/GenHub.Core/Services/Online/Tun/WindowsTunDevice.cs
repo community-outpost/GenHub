@@ -82,32 +82,27 @@ public sealed class WindowsTunDevice : ITunDevice
                 if (adapter == IntPtr.Zero)
                 {
                     var freshGuid = Guid.NewGuid();
-                    adapter = WintunNative.CreateAdapter!(interfaceName, "GenHub", in freshGuid);
+                    adapter = WintunNative.CreateAdapter(interfaceName, "GenHub", in freshGuid);
                 }
             }
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (Win32Exception ex)
         {
-            return OperationResult<WindowsTunDevice>.CreateFailure($"Wintun adapter creation failed: {ex.Message}.");
+            return OperationResult<WindowsTunDevice>.CreateFailure($"Wintun adapter creation failed: {ex.Message} (code {ex.NativeErrorCode}).");
         }
 
         if (adapter == IntPtr.Zero)
         {
             var errorCode = Marshal.GetLastWin32Error();
             var message = errorCode == 5
-                ? OnlineConstants.AdapterElevationRequired
+                ? "Administrator privileges are required to create the network adapter on Windows."
                 : $"Failed to create or open Wintun adapter '{interfaceName}' (Win32 error {errorCode}).";
             return OperationResult<WindowsTunDevice>.CreateFailure(message);
         }
 
         // Configure IP address and MTU
         var mask = PrefixLengthToSubnetMask(prefixLength);
-        if (!ConfigureInterfaceViaNetsh(interfaceName, overlayIp.ToString(), mask, mtu))
-        {
-            WintunNative.CloseAdapter!(adapter);
-            return OperationResult<WindowsTunDevice>.CreateFailure(
-                $"Failed to configure IP address on Wintun adapter '{interfaceName}' via netsh.");
-        }
+        ConfigureInterfaceViaNetsh(interfaceName, overlayIp.ToString(), mask, mtu);
 
         // Start TUN session
         var session = WintunNative.StartSession!(adapter, RingCapacity);
@@ -221,10 +216,9 @@ public sealed class WindowsTunDevice : ITunDevice
     }
 
     [SuppressMessage("Security", "S4036:ProcessStartInfo.FileName should not be relative", Justification = "netsh.exe path is resolved via SpecialFolder.System")]
-    private static bool ConfigureInterfaceViaNetsh(string interfaceName, string ipAddress, string mask, int mtu)
+    private static void ConfigureInterfaceViaNetsh(string interfaceName, string ipAddress, string mask, int mtu)
     {
         var netshPath = ResolveNetshPath();
-        var configured = false;
         for (var attempt = 1; attempt <= 3; attempt++)
         {
             try
@@ -240,9 +234,9 @@ public sealed class WindowsTunDevice : ITunDevice
                     },
                 };
                 proc.Start();
-                if (proc.WaitForExit(3000) && proc.ExitCode == 0)
+                proc.WaitForExit(3000);
+                if (proc.ExitCode == 0)
                 {
-                    configured = true;
                     break;
                 }
             }
@@ -273,8 +267,6 @@ public sealed class WindowsTunDevice : ITunDevice
         {
             // Best effort MTU configuration
         }
-
-        return configured;
     }
 
     private static string ResolveNetshPath()
@@ -292,9 +284,9 @@ public sealed class WindowsTunDevice : ITunDevice
         var waitHandle = new ManualResetEvent(false) { SafeWaitHandle = handle };
         var rwh = ThreadPool.RegisterWaitForSingleObject(
             waitHandle,
-            (_, timedOut) => tcs.TrySetResult(!timedOut),
+            (_, _) => tcs.TrySetResult(true),
             null,
-            1000,
+            -1,
             executeOnlyOnce: true);
 
         try

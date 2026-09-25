@@ -414,38 +414,40 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
         if (root.TryGetProperty("relay", out var relayProp) && relayProp.ValueKind == JsonValueKind.Object)
         {
-            if (relayProp.TryGetProperty("host", out var hostProp) && hostProp.ValueKind == JsonValueKind.String)
-            {
-                var hostStr = hostProp.GetString();
-                if (!string.IsNullOrWhiteSpace(hostStr))
-                {
-                    relayHost = hostStr;
-                }
-            }
-
-            if (relayProp.TryGetProperty("port", out var portProp) && portProp.TryGetInt32(out var p))
-            {
-                relayPort = p;
-            }
+            relayHost = GetStringProperty(relayProp, "host") ?? relayHost;
+            relayPort = GetIntProperty(relayProp, "port") ?? relayPort;
         }
         else
         {
-            if (root.TryGetProperty("relayHost", out var rhProp) && rhProp.ValueKind == JsonValueKind.String)
-            {
-                var hostStr = rhProp.GetString();
-                if (!string.IsNullOrWhiteSpace(hostStr))
-                {
-                    relayHost = hostStr;
-                }
-            }
-
-            if (root.TryGetProperty("relayPort", out var rpProp) && rpProp.TryGetInt32(out var p))
-            {
-                relayPort = p;
-            }
+            relayHost = GetStringProperty(root, "relayHost") ?? relayHost;
+            relayPort = GetIntProperty(root, "relayPort") ?? relayPort;
         }
 
         return (relayHost, relayPort);
+    }
+
+    private static string? GetStringProperty(JsonElement element, string propertyName)
+    {
+        if (element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
+        {
+            var str = prop.GetString();
+            if (!string.IsNullOrWhiteSpace(str))
+            {
+                return str;
+            }
+        }
+
+        return null;
+    }
+
+    private static int? GetIntProperty(JsonElement element, string propertyName)
+    {
+        if (element.TryGetProperty(propertyName, out var prop) && prop.TryGetInt32(out var value))
+        {
+            return value;
+        }
+
+        return null;
     }
 
     private static async Task<IPAddress> ResolveHostAddressAsync(string relayHost, CancellationToken cancellationToken)
