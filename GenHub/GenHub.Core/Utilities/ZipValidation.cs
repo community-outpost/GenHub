@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using System;
 using System.IO;
 
 namespace GenHub.Core.Utilities;
@@ -28,13 +30,20 @@ public static class ZipValidation
                 return false;
             }
 
-            // Check for ZIP magic bytes: 50 4B 03 04 (local file header) or 50 4B 05 06 (end of central directory)
-            return (buffer[0] == 0x50 && buffer[1] == 0x4B && buffer[2] == 0x03 && buffer[3] == 0x04) ||
-                   (buffer[0] == 0x50 && buffer[1] == 0x4B && buffer[2] == 0x05 && buffer[3] == 0x06);
+            return HasZipSignature(buffer);
         }
         catch
         {
             return false;
         }
     }
+
+    /// <summary>
+    /// Checks for a complete ZIP local-file or empty-archive signature.
+    /// </summary>
+    /// <param name="header">The initial archive bytes.</param>
+    /// <returns>True if the header starts with a supported ZIP signature.</returns>
+    public static bool HasZipSignature(ReadOnlySpan<byte> header) =>
+        header.StartsWith(ArchiveSignatureConstants.ZipLocalFileHeader) ||
+        header.StartsWith(ArchiveSignatureConstants.ZipEndOfCentralDirectory);
 }

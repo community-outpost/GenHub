@@ -1133,19 +1133,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     {
         // Community hosts often serve an archive under the wrong extension, such as a RAR
         // named .zip. Extraction detects the format from content, so any known signature passes.
-        ReadOnlySpan<byte> zipMagic = [0x50, 0x4B];
-        ReadOnlySpan<byte> sevenZipMagic = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
-        ReadOnlySpan<byte> rarMagic = [0x52, 0x61, 0x72, 0x21];
-        ReadOnlySpan<byte> gzipMagic = [0x1F, 0x8B];
-        ReadOnlySpan<byte> bzip2Magic = [0x42, 0x5A, 0x68];
-        ReadOnlySpan<byte> xzMagic = [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00];
-
-        return header.StartsWith(zipMagic) ||
-               header.StartsWith(sevenZipMagic) ||
-               header.StartsWith(rarMagic) ||
-               header.StartsWith(gzipMagic) ||
-               header.StartsWith(bzip2Magic) ||
-               header.StartsWith(xzMagic);
+        return ZipValidation.HasZipSignature(header) ||
+               header.StartsWith(ArchiveSignatureConstants.SevenZip) ||
+               header.StartsWith(ArchiveSignatureConstants.Rar) ||
+               header.StartsWith(ArchiveSignatureConstants.Gzip) ||
+               header.StartsWith(ArchiveSignatureConstants.Bzip2) ||
+               header.StartsWith(ArchiveSignatureConstants.Xz);
     }
 
     private static void ValidateArchiveMagicBytes(string archivePath, ReadOnlySpan<byte> header)
@@ -1154,19 +1147,18 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
         {
-            // ZIP files start with 'PK' (0x50, 0x4B)
-            if (header.Length < 2 || header[0] != 0x50 || header[1] != 0x4B)
+            // Require a complete local-file or empty-archive ZIP signature.
+            if (!ZipValidation.HasZipSignature(header))
             {
                 var preview = ReadTextPreview(archivePath, maxChars: 120);
                 throw new InvalidDataException(
-                    $"File '{Path.GetFileName(archivePath)}' is not a valid ZIP archive (missing PK signature). The download server may have returned an error page or corrupted content. Preview: {preview}");
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid ZIP archive (missing ZIP signature). The download server may have returned an error page or corrupted content. Preview: {preview}");
             }
         }
         else if (ext.Equals(".7z", StringComparison.OrdinalIgnoreCase))
         {
             // 7z files start with '7', 'z', 0xBC, 0xAF, 0x27, 0x1C
-            ReadOnlySpan<byte> sevenZipMagic = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
-            if (header.Length < sevenZipMagic.Length || !header[..sevenZipMagic.Length].SequenceEqual(sevenZipMagic))
+            if (!header.StartsWith(ArchiveSignatureConstants.SevenZip))
             {
                 var preview = ReadTextPreview(archivePath, maxChars: 120);
                 throw new InvalidDataException(
@@ -1176,8 +1168,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         else if (ext.Equals(".rar", StringComparison.OrdinalIgnoreCase))
         {
             // RAR files start with 'Rar!' (0x52, 0x61, 0x72, 0x21)
-            ReadOnlySpan<byte> rarMagic = [0x52, 0x61, 0x72, 0x21];
-            if (header.Length < rarMagic.Length || !header[..rarMagic.Length].SequenceEqual(rarMagic))
+            if (!header.StartsWith(ArchiveSignatureConstants.Rar))
             {
                 var preview = ReadTextPreview(archivePath, maxChars: 120);
                 throw new InvalidDataException(
@@ -1187,7 +1178,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         else if (ext.Equals(".gz", StringComparison.OrdinalIgnoreCase) || ext.Equals(".tgz", StringComparison.OrdinalIgnoreCase))
         {
             // GZIP files start with 0x1F, 0x8B
-            if (header.Length < 2 || header[0] != 0x1F || header[1] != 0x8B)
+            if (!header.StartsWith(ArchiveSignatureConstants.Gzip))
             {
                 var preview = ReadTextPreview(archivePath, maxChars: 120);
                 throw new InvalidDataException(
@@ -1195,7 +1186,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             }
         }
         else if (ext.Equals(".bz2", StringComparison.OrdinalIgnoreCase) &&
-                 (header.Length < 3 || header[0] != 0x42 || header[1] != 0x5A || header[2] != 0x68))
+                 !header.StartsWith(ArchiveSignatureConstants.Bzip2))
         {
             // BZip2 files start with 'B', 'Z', 'h' (0x42, 0x5A, 0x68)
             var preview = ReadTextPreview(archivePath, maxChars: 120);
@@ -1205,8 +1196,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         else if (ext.Equals(".xz", StringComparison.OrdinalIgnoreCase))
         {
             // XZ files start with 0xFD, '7', 'z', 'X', 'Z', 0x00
-            ReadOnlySpan<byte> xzMagic = [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00];
-            if (header.Length < xzMagic.Length || !header[..xzMagic.Length].SequenceEqual(xzMagic))
+            if (!header.StartsWith(ArchiveSignatureConstants.Xz))
             {
                 var preview = ReadTextPreview(archivePath, maxChars: 120);
                 throw new InvalidDataException(
