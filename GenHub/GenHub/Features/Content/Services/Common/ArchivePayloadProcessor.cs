@@ -2587,6 +2587,41 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        // 0. Unwrap any top-level "Maps" subdirectory (e.g., when root README prevents StripSingleWrapperDirectories)
+        var mapsWrapper = Directory.GetDirectories(extractedDirectory, "Maps", SearchOption.TopDirectoryOnly).FirstOrDefault();
+        if (mapsWrapper != null && Directory.Exists(mapsWrapper))
+        {
+            try
+            {
+                foreach (var innerDir in Directory.GetDirectories(mapsWrapper))
+                {
+                    var destDir = Path.Combine(extractedDirectory, Path.GetFileName(innerDir));
+                    if (!Directory.Exists(destDir))
+                    {
+                        Directory.Move(innerDir, destDir);
+                    }
+                }
+
+                foreach (var innerFile in Directory.GetFiles(mapsWrapper))
+                {
+                    var destFile = Path.Combine(extractedDirectory, Path.GetFileName(innerFile));
+                    if (!File.Exists(destFile))
+                    {
+                        File.Move(innerFile, destFile);
+                    }
+                }
+
+                if (!Directory.EnumerateFileSystemEntries(mapsWrapper).Any())
+                {
+                    Directory.Delete(mapsWrapper, recursive: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to unwrap inner Maps directory {Wrapper}", mapsWrapper);
+            }
+        }
+
         // 1. Rename any directories ending with .map to strip the extension
         var subDirs = Directory.GetDirectories(extractedDirectory, "*", SearchOption.AllDirectories);
         foreach (var subDir in subDirs.OrderByDescending(d => d.Length))

@@ -319,10 +319,25 @@ public class WineRunner(
             return;
         }
 
+        var normalizedSource = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceDir)) + Path.DirectorySeparatorChar;
+        var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetDir)) + Path.DirectorySeparatorChar;
+
+        if (string.Equals(normalizedSource, normalizedTarget, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         Directory.CreateDirectory(targetDir);
 
         foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
         {
+            var fullFilePath = Path.GetFullPath(file);
+            if (fullFilePath.StartsWith(normalizedTarget, StringComparison.OrdinalIgnoreCase))
+            {
+                // Target directory is nested inside source directory; avoid recursive copy into target
+                continue;
+            }
+
             var relative = Path.GetRelativePath(sourceDir, file);
             var destFile = Path.Combine(targetDir, relative);
             var destDir = Path.GetDirectoryName(destFile);

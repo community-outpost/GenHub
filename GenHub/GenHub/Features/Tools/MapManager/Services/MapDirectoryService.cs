@@ -334,20 +334,33 @@ public sealed class MapDirectoryService(
                         }
 
                         // Also rename companion asset files (e.g. OldName.tga -> NewName.tga, OldName.ini -> NewName.ini)
-                        var oldBaseName = Path.GetFileNameWithoutExtension(map.FileName);
-                        foreach (var assetPath in Directory.GetFiles(currentDirPath, oldBaseName + ".*"))
+                        // Assets may match either the old map file base name or the old directory name
+                        var candidateBases = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                         {
-                            var ext = Path.GetExtension(assetPath);
-                            if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
+                            Path.GetFileNameWithoutExtension(map.FileName),
+                        };
 
-                            var newAssetPath = Path.Combine(currentDirPath, newName + ext);
-                            if (!File.Exists(newAssetPath))
+                        if (!string.IsNullOrEmpty(map.DirectoryName))
+                        {
+                            candidateBases.Add(map.DirectoryName);
+                        }
+
+                        foreach (var baseName in candidateBases)
+                        {
+                            foreach (var assetPath in Directory.GetFiles(currentDirPath, baseName + ".*"))
                             {
-                                File.Move(assetPath, newAssetPath);
-                                logger.LogDebug("Renamed companion asset {Old} to {New}", assetPath, newAssetPath);
+                                var ext = Path.GetExtension(assetPath);
+                                if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    continue;
+                                }
+
+                                var newAssetPath = Path.Combine(currentDirPath, newName + ext);
+                                if (!File.Exists(newAssetPath))
+                                {
+                                    File.Move(assetPath, newAssetPath);
+                                    logger.LogDebug("Renamed companion asset {Old} to {New}", assetPath, newAssetPath);
+                                }
                             }
                         }
 
