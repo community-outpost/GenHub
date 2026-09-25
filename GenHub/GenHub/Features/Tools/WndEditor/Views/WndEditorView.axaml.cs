@@ -228,7 +228,7 @@ public partial class WndEditorView : UserControl
         CanvasScrollViewer.Offset = new Vector(_panStartOffset.X - deltaX, _panStartOffset.Y - deltaY);
     }
 
-    private void OnCanvasDragOver(object? sender, DragEventArgs e)
+    private static void OnCanvasDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text))
         {
@@ -239,6 +239,27 @@ public partial class WndEditorView : UserControl
         {
             e.DragEffects = DragDropEffects.None;
         }
+    }
+
+    private static List<string> ExtractDroppedFilePaths(DragEventArgs e)
+    {
+        var paths = new List<string>();
+        var files = e.Data.GetFiles();
+        if (files == null)
+        {
+            return paths;
+        }
+
+        foreach (var file in files)
+        {
+            var localPath = file?.Path?.LocalPath;
+            if (!string.IsNullOrEmpty(localPath))
+            {
+                paths.Add(localPath);
+            }
+        }
+
+        return paths;
     }
 
     private async void OnCanvasDrop(object? sender, DragEventArgs e)
@@ -252,24 +273,11 @@ public partial class WndEditorView : UserControl
 
         if (e.Data.Contains(DataFormats.Files))
         {
-            var files = e.Data.GetFiles();
-            if (files != null)
+            var paths = ExtractDroppedFilePaths(e);
+            if (paths.Count > 0)
             {
-                var paths = new List<string>();
-                foreach (var file in files)
-                {
-                    var localPath = file?.Path?.LocalPath;
-                    if (!string.IsNullOrEmpty(localPath))
-                    {
-                        paths.Add(localPath);
-                    }
-                }
-
-                if (paths.Count > 0)
-                {
-                    e.Handled = true;
-                    await viewModel.ApplyDroppedFilesAsync(paths, dropPos).ConfigureAwait(false);
-                }
+                e.Handled = true;
+                await viewModel.ApplyDroppedFilesAsync(paths, dropPos).ConfigureAwait(false);
             }
         }
         else if (e.Data.Contains(DataFormats.Text))
