@@ -73,10 +73,15 @@ public class DownloadService(
         return await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
     }
 
-    private static HttpRequestMessage CreateRequest(DownloadConfiguration configuration, Uri url, long rangeStart = 0)
+    private static void ApplyDownloadHeaders(
+        HttpRequestMessage request,
+        DownloadConfiguration configuration,
+        Uri targetUri)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Add("User-Agent", configuration.UserAgent);
+
+        var isRedirectedToDifferentHost = !string.Equals(targetUri.Host, configuration.Url.Host, StringComparison.OrdinalIgnoreCase);
+
         foreach (var header in configuration.Headers)
         {
             if (string.Equals(header.Key, "ETag", StringComparison.OrdinalIgnoreCase))
@@ -84,8 +89,19 @@ public class DownloadService(
                 continue;
             }
 
+            if (isRedirectedToDifferentHost && string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             request.Headers.Add(header.Key, header.Value);
         }
+    }
+
+    private static HttpRequestMessage CreateRequest(DownloadConfiguration configuration, Uri url, long rangeStart = 0)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        ApplyDownloadHeaders(request, configuration, url);
 
         if (rangeStart > 0 && request.Headers.Range == null)
         {
@@ -105,29 +121,27 @@ public class DownloadService(
         DownloadConfiguration configuration,
         Uri targetUri,
         long start,
-        long end)
+        long end,
+        EntityTagHeaderValue? initialEtag,
+        DateTimeOffset? initialLastModified)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, targetUri);
-        request.Headers.Add("User-Agent", configuration.UserAgent);
+        ApplyDownloadHeaders(request, configuration, targetUri);
+        request.Headers.Range = new RangeHeaderValue(start, end);
 
-        var isRedirectedToDifferentHost = !string.Equals(targetUri.Host, configuration.Url.Host, StringComparison.OrdinalIgnoreCase);
-
-        foreach (var header in configuration.Headers)
+        if (initialEtag != null)
         {
-            if (string.Equals(header.Key, "ETag", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (isRedirectedToDifferentHost && string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            request.Headers.Add(header.Key, header.Value);
+            request.Headers.IfRange = new RangeConditionHeaderValue(initialEtag);
+        }
+        else if (initialLastModified.HasValue)
+        {
+            request.Headers.IfRange = new RangeConditionHeaderValue(initialLastModified.Value);
+        }
+        else if (TryGetETagHeader(configuration, out var configEtag) && TryParseEntityTag(configEtag, out var parsedEtag))
+        {
+            request.Headers.IfRange = new RangeConditionHeaderValue(parsedEtag);
         }
 
-        request.Headers.Range = new RangeHeaderValue(start, end);
         return request;
     }
 
@@ -349,10 +363,42 @@ public class DownloadService(
         return downloadedBytes;
     }
 
+    private async Task<HttpResponseMessage> SendChunkRequestAsync(
+        DownloadConfiguration configuration,
+        IDownloadUrlValidator validator,
+        Uri targetUri,
+        long start,
+        long end,
+        EntityTagHeaderValue? initialEtag,
+        DateTimeOffset? initialLastModified,
+        CancellationToken token)
+    {
+        if (!configuration.ValidateRedirectsManually)
+        {
+            using var request = CreateChunkRequest(configuration, targetUri, start, end, initialEtag, initialLastModified);
+            return await httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                token).ConfigureAwait(false);
+        }
+
+        var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
+            httpClient,
+            uri => CreateChunkRequest(configuration, uri, start, end, initialEtag, initialLastModified),
+            targetUri,
+            DownloadDefaults.MaxRedirects,
+            validator,
+            token).ConfigureAwait(false);
+        return validated.Response;
+    }
+
     private async Task<long> DownloadParallelChunksAsync(
         DownloadConfiguration configuration,
+        IDownloadUrlValidator validator,
         Uri targetUri,
         long totalBytes,
+        EntityTagHeaderValue? initialEtag,
+        DateTimeOffset? initialLastModified,
         IProgress<DownloadProgress>? progress,
         Stopwatch stopwatch,
         CancellationTokenSource cts)
@@ -383,7 +429,7 @@ public class DownloadService(
             var downloadedBytes = 0L;
             var lastProgressReport = DateTime.UtcNow;
             var progressLock = new object();
-            var bufferSize = Math.Max(configuration.BufferSize, 131072);
+            var bufferSize = Math.Max(configuration.BufferSize, DownloadDefaults.ParallelChunkBufferSizeBytes);
 
             var parallelOptions = new ParallelOptions
             {
@@ -397,10 +443,14 @@ public class DownloadService(
                 var end = Math.Min(start + chunkSize - 1, totalBytes - 1);
                 var expectedChunkBytes = end - start + 1;
 
-                using var chunkRequest = CreateChunkRequest(configuration, targetUri, start, end);
-                using var chunkResponse = await httpClient.SendAsync(
-                    chunkRequest,
-                    HttpCompletionOption.ResponseHeadersRead,
+                using var chunkResponse = await SendChunkRequestAsync(
+                    configuration,
+                    validator,
+                    targetUri,
+                    start,
+                    end,
+                    initialEtag,
+                    initialLastModified,
                     token).ConfigureAwait(false);
 
                 if (chunkResponse.StatusCode != HttpStatusCode.PartialContent)
@@ -566,6 +616,8 @@ public class DownloadService(
         if (CanUseParallelDownload(configuration, connection))
         {
             var resolvedUri = connection.Response.RequestMessage?.RequestUri ?? configuration.Url;
+            var initialEtag = connection.Response.Headers.ETag;
+            var initialLastModified = connection.Response.Content.Headers.LastModified;
             connection.Response.Dispose();
 
             try
@@ -573,8 +625,11 @@ public class DownloadService(
                 var stopwatch = Stopwatch.StartNew();
                 var downloadedBytes = await DownloadParallelChunksAsync(
                     configuration,
+                    validator,
                     resolvedUri,
                     connection.TotalBytes,
+                    initialEtag,
+                    initialLastModified,
                     progress,
                     stopwatch,
                     cts);
@@ -645,7 +700,15 @@ public class DownloadService(
         var response = await SendRequestAsync(configuration, validator, 0, cts.Token);
         try
         {
-            response.EnsureSuccessStatusCode();
+            if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentRange != null)
+            {
+                response.EnsureSuccessStatusCode();
+                throw new HttpRequestException(
+                    $"Expected HTTP 200 OK without Content-Range for full download, but received status {response.StatusCode}.",
+                    null,
+                    response.StatusCode);
+            }
+
             ValidateResponseContentType(response, configuration.DestinationPath);
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
             return new DownloadConnection(response, false, 0, totalBytes);

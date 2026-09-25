@@ -404,17 +404,17 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             header = header[..read];
         }
 
+        if (LooksLikeHtmlOrWebDocument(header))
+        {
+            var preview = ReadTextPreview(archivePath, maxChars: 120);
+            throw new InvalidDataException(
+                $"Downloaded file is HTML or web error text, not an archive: {Path.GetFileName(archivePath)}. " +
+                $"This usually indicates the download link has expired, requires authentication, or was blocked by the host. Preview: {preview}");
+        }
+
         if (!HasValidArchiveMagicBytes(archivePath, header) &&
             !Path.GetExtension(archivePath).Equals(".tar", StringComparison.OrdinalIgnoreCase))
         {
-            if (LooksLikeHtmlOrWebDocument(header))
-            {
-                var preview = ReadTextPreview(archivePath, maxChars: 120);
-                throw new InvalidDataException(
-                    $"Downloaded file is HTML or web error text, not an archive: {Path.GetFileName(archivePath)}. " +
-                    $"This usually indicates the download link has expired, requires authentication, or was blocked by the host. Preview: {preview}");
-            }
-
             ValidateArchiveMagicBytes(archivePath, header);
         }
     }

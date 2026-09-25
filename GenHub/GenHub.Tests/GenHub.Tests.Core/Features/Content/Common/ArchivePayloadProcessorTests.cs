@@ -27,6 +27,26 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an HTML error document named with a .tar extension is identified and throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_HtmlErrorSavedAsTar_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var tarPath = Path.Combine(_stagingDirectory, "expired_download.tar");
+        await File.WriteAllTextAsync(tarPath, "<!DOCTYPE html><html><body>Link Expired</body></html>");
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod));
+        Assert.Contains("Downloaded file is HTML or web error text, not an archive", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that extracting a valid ZIP archive unpacks all entries and removes the archive file.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

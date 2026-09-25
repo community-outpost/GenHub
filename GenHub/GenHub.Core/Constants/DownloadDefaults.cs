@@ -64,6 +64,11 @@ public static class DownloadDefaults
     public const int ParallelDownloadChunkSizeBytes = 8 * 1024 * 1024;
 
     /// <summary>
+    /// Minimum buffer size in bytes (128 KB) for reading each parallel chunk stream.
+    /// </summary>
+    public const int ParallelChunkBufferSizeBytes = 128 * 1024;
+
+    /// <summary>
     /// SocketsHttpHandler connection timeout in seconds.
     /// </summary>
     public const int HttpConnectTimeoutSeconds = 30;

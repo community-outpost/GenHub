@@ -1210,6 +1210,133 @@ public class DownloadServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that if an un-ranged GET returns 206 Partial Content or Content-Range, the download fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WhenUnrangedRequestReceives206_FailsAsync()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"partial_{Guid.NewGuid():N}.bin");
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(new byte[] { 1, 2, 3 }),
+                };
+                response.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 2, 100);
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/file.bin"),
+                DestinationPath = tempFile,
+                MaxRetryAttempts = 1,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.False(result.Success);
+            Assert.Contains("Expected HTTP 200 OK without Content-Range for full download", result.FirstError);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that parallel chunk requests send If-Range matching the initial connection's ETag.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_ParallelDownload_PassesETagAsIfRangeToChunksAsync()
+    {
+        const int totalBytes = 16 * 1024 * 1024;
+        var chunk1Data = new byte[8 * 1024 * 1024];
+        var chunk2Data = new byte[8 * 1024 * 1024];
+        var tempFile = Path.Combine(Path.GetTempPath(), $"ifrange_{Guid.NewGuid():N}.bin");
+        var chunkIfRanges = new List<string?>();
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
+            {
+                if (request.Headers.Range == null)
+                {
+                    var initialResponse = new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new ByteArrayContent(Array.Empty<byte>()),
+                    };
+                    initialResponse.Content.Headers.ContentLength = totalBytes;
+                    initialResponse.Headers.AcceptRanges.Add("bytes");
+                    initialResponse.Headers.ETag = new EntityTagHeaderValue("\"etag-12345\"");
+                    return initialResponse;
+                }
+
+                lock (chunkIfRanges)
+                {
+                    chunkIfRanges.Add(request.Headers.IfRange?.EntityTag?.Tag);
+                }
+
+                var range = request.Headers.Range.Ranges.First();
+                var from = range.From!.Value;
+                var to = range.To!.Value;
+
+                var data = from == 0 ? chunk1Data : chunk2Data;
+                var chunkResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(data),
+                };
+                chunkResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes);
+                return chunkResponse;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/largefile.bin"),
+                DestinationPath = tempFile,
+                EnableParallelDownload = true,
+                ParallelConcurrency = 2,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.Equal(2, chunkIfRanges.Count);
+            Assert.All(chunkIfRanges, tag => Assert.Equal("\"etag-12345\"", tag));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
     private sealed class CustomStreamingContent(byte[] data, long? declaredContentLength) : HttpContent
     {
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>

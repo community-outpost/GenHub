@@ -520,10 +520,10 @@ public class GenLauncherDeliverer(
                 Url = downloadUri,
                 DestinationPath = destinationPath,
                 EnableResumption = true,
-                EnableParallelDownload = true,
+                EnableParallelDownload = maxConcurrency > 1,
                 ParallelConcurrency = totalFiles <= 1
-                    ? Math.Clamp(maxConcurrency, DownloadDefaults.DefaultParallelChunkConcurrency, DownloadDefaults.MaxParallelChunkConcurrency)
-                    : 2,
+                    ? maxConcurrency
+                    : Math.Min(maxConcurrency, 2),
             };
 
             if (!string.IsNullOrWhiteSpace(expectedEtag))
