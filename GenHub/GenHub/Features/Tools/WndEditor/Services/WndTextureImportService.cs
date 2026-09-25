@@ -252,7 +252,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
         try
         {
-            var sourceRoot = Path.Combine(projectDirectory, "GameFilesEdited");
+            var sourceRoot = Path.Combine(projectDirectory, ModBuilderConstants.GameFilesEditedDir);
             var searchDir = Directory.Exists(sourceRoot) ? sourceRoot : projectDirectory;
 
             var matches = Directory.EnumerateFiles(searchDir, textureFileName, SearchOption.AllDirectories)
@@ -268,19 +268,30 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 return (Path.GetDirectoryName(existingPath)!, existingPath);
             }
 
-            var standardArtTextures = Path.Combine(searchDir, "Art", "Textures");
+            var standardArtTextures = Path.Combine(
+                searchDir,
+                WndConstants.MappedImages.ArtFolder,
+                WndConstants.MappedImages.TexturesFolder);
             if (Directory.Exists(standardArtTextures))
             {
                 return (standardArtTextures, Path.Combine(standardArtTextures, textureFileName));
             }
 
-            var englishTextures = Path.Combine(searchDir, "Data", "English", "Art", "Textures");
+            var englishTextures = Path.Combine(
+                searchDir,
+                WndConstants.MappedImages.DataFolder,
+                WndConstants.MappedImages.EnglishFolder,
+                WndConstants.MappedImages.ArtFolder,
+                WndConstants.MappedImages.TexturesFolder);
             if (Directory.Exists(englishTextures))
             {
                 return (englishTextures, Path.Combine(englishTextures, textureFileName));
             }
 
-            var candidateDirs = Directory.EnumerateDirectories(searchDir, "Textures", SearchOption.AllDirectories)
+            var candidateDirs = Directory.EnumerateDirectories(
+                searchDir,
+                WndConstants.MappedImages.TexturesFolder,
+                SearchOption.AllDirectories)
                 .Where(d => !d.Contains(".Build", StringComparison.OrdinalIgnoreCase) &&
                             !d.Contains(".Release", StringComparison.OrdinalIgnoreCase) &&
                             !d.Contains(".staging", StringComparison.OrdinalIgnoreCase) &&
@@ -289,8 +300,11 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
             if (candidateDirs.Count > 0)
             {
+                var artTexturesSuffix = Path.Combine(
+                    WndConstants.MappedImages.ArtFolder,
+                    WndConstants.MappedImages.TexturesFolder);
                 var artTexturesDir = candidateDirs.FirstOrDefault(d =>
-                    d.EndsWith(Path.Combine("Art", "Textures"), StringComparison.OrdinalIgnoreCase));
+                    d.EndsWith(artTexturesSuffix, StringComparison.OrdinalIgnoreCase));
                 var targetDir = artTexturesDir ?? candidateDirs[0];
                 return (targetDir, Path.Combine(targetDir, textureFileName));
             }

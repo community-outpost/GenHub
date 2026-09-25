@@ -608,6 +608,18 @@ public static class WndConstants
         /// <summary>Texture detail folder name prefix.</summary>
         public const string TextureSizePrefix = "TextureSize_";
 
+        /// <summary>Subfolder name holding art assets.</summary>
+        public const string ArtFolder = "Art";
+
+        /// <summary>Subfolder name holding texture pages.</summary>
+        public const string TexturesFolder = "Textures";
+
+        /// <summary>Subfolder name holding data assets.</summary>
+        public const string DataFolder = "Data";
+
+        /// <summary>Folder name holding English localized assets.</summary>
+        public const string EnglishFolder = "English";
+
         /// <summary>Virtual directory holding GUI texture pages.</summary>
         public const string TexturesDirectory = "Art\\Textures";
 
