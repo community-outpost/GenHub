@@ -860,6 +860,22 @@
   <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
     <value>Invalid Directory</value>
   </data>
+  <data name="GameProfiles.Notification.ManualSelection.Message" xml:space="preserve">
+    <value>No game installations were automatically detected. Please select your Command &amp; Conquer: Generals or Zero Hour directory manually.</value>
+    <comment>Notification message explaining why the manual folder picker was opened</comment>
+  </data>
+  <data name="GameProfiles.Notification.ManualSelection.Title" xml:space="preserve">
+    <value>Select Game Directory</value>
+    <comment>Notification title when prompting user to manually select game installation directory</comment>
+  </data>
+  <data name="GameProfiles.Notification.NoInstallationsFound.Message" xml:space="preserve">
+    <value>No Command &amp; Conquer: Generals or Zero Hour installations were found. Use official storefronts to purchase the game or link an installation manually.</value>
+    <comment>Notification message when scan finds no installations</comment>
+  </data>
+  <data name="GameProfiles.Notification.NoInstallationsFound.Title" xml:space="preserve">
+    <value>No Game Installations Found</value>
+    <comment>Notification title when game scan finds no installations</comment>
+  </data>
   <data name="GameProfiles.Notification.LaunchError.Message" xml:space="preserve">
     <value>Error launching profile '{0}': {1}</value>
   </data>
@@ -1077,6 +1093,26 @@
   <data name="GameProfiles.Status.NewProfileWindowClosed" xml:space="preserve">
     <value>New profile window closed</value>
     <comment>Status when new profile window closes</comment>
+  </data>
+  <data name="GameProfiles.Storefront.BannerTitle" xml:space="preserve">
+    <value>Looking for Command &amp; Conquer Generals?</value>
+    <comment>Title shown on the empty state banner when no game installations or profiles are detected</comment>
+  </data>
+  <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
+    <value>Command &amp; Conquer Generals and Zero Hour could not be found. You need a valid installation of the game to play. You can purchase the game officially from Steam or the EA App.</value>
+    <comment>Description on empty state banner explaining where to acquire the game</comment>
+  </data>
+  <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
+    <value>Buy on Steam</value>
+    <comment>Button to open Steam store page for Generals</comment>
+  </data>
+  <data name="GameProfiles.Storefront.EaAppButton" xml:space="preserve">
+    <value>Buy on EA App</value>
+    <comment>Button to open EA App store page for Generals</comment>
+  </data>
+  <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
+    <value>Failed to open store page: {0}</value>
+    <comment>Error notification shown when opening a storefront URL fails</comment>
   </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>No game installations found</value>

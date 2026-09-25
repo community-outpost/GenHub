@@ -1646,8 +1646,7 @@ public class GameProcessManager(
                                 capturedErrors));
                     }
                 }
-
-                if (DateTime.UtcNow >= deadline)
+                else if (DateTime.UtcNow >= deadline)
                 {
                     logger.LogError(
                         "[Process] Launcher {LauncherId} did not start {ExpectedName} within {TimeoutMs}ms",

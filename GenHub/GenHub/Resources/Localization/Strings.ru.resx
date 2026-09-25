@@ -860,6 +860,22 @@
   <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
     <value>Неверный каталог</value>
   </data>
+  <data name="GameProfiles.Notification.ManualSelection.Message" xml:space="preserve">
+    <value>Установки игры не были найдены автоматически. Пожалуйста, укажите папку Command &amp; Conquer: Generals или Zero Hour вручную.</value>
+    <comment>Notification message explaining why the manual folder picker was opened</comment>
+  </data>
+  <data name="GameProfiles.Notification.ManualSelection.Title" xml:space="preserve">
+    <value>Выберите папку с игрой</value>
+    <comment>Notification title when prompting user to manually select game installation directory</comment>
+  </data>
+  <data name="GameProfiles.Notification.NoInstallationsFound.Message" xml:space="preserve">
+    <value>Установки Command &amp; Conquer: Generals или Zero Hour не найдены. Приобретите игру в официальных магазинах или укажите путь вручную.</value>
+    <comment>Notification message when scan finds no installations</comment>
+  </data>
+  <data name="GameProfiles.Notification.NoInstallationsFound.Title" xml:space="preserve">
+    <value>Установки игры не найдены</value>
+    <comment>Notification title when game scan finds no installations</comment>
+  </data>
   <data name="GameProfiles.Notification.LaunchError.Message" xml:space="preserve">
     <value>Ошибка при запуске профиля '{0}': {1}</value>
   </data>
@@ -1077,6 +1093,22 @@
   <data name="GameProfiles.Status.NewProfileWindowClosed" xml:space="preserve">
     <value>Окно нового профиля закрыто</value>
     <comment>Status when new profile window closes</comment>
+  </data>
+  <data name="GameProfiles.Storefront.BannerTitle" xml:space="preserve">
+    <value>Ищете Command &amp; Conquer Generals?</value>
+  </data>
+  <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
+    <value>Установка Command &amp; Conquer: Generals и Zero Hour не найдена. Для игры требуется установленная копия игры. Вы можете официально приобрести игру в Steam или EA App.</value>
+  </data>
+  <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
+    <value>Купить в Steam</value>
+  </data>
+  <data name="GameProfiles.Storefront.EaAppButton" xml:space="preserve">
+    <value>Купить в EA App</value>
+  </data>
+  <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
+    <value>Не удалось открыть страницу магазина: {0}</value>
+    <comment>Error notification shown when opening a storefront URL fails</comment>
   </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>Установленные игры не найдены</value>

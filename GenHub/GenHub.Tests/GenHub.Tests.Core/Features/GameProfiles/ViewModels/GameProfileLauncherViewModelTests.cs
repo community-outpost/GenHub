@@ -1163,6 +1163,147 @@ public class GameProfileLauncherViewModelTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that HasNoProfiles correctly tracks presence of regular profiles versus empty or add-profile button.
+    /// </summary>
+    [Fact]
+    public void HasNoProfiles_TracksProfileCollectionChanges()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        Assert.True(vm.HasNoProfiles);
+
+        var profileItem = CreateProfileItem("Test Profile");
+        vm.Profiles.Add(profileItem);
+        Assert.False(vm.HasNoProfiles);
+
+        vm.Profiles.Remove(profileItem);
+        Assert.True(vm.HasNoProfiles);
+
+        var toolProfile = new GameProfile
+        {
+            Name = "WorldBuilder",
+            ToolContentId = "tool-manifest-1",
+        };
+        var toolItem = new GameProfileItemViewModel("tool-1", toolProfile, string.Empty, string.Empty);
+        vm.Profiles.Add(toolItem);
+        Assert.True(vm.HasNoProfiles);
+    }
+
+    /// <summary>
+    /// Verifies that storefront commands can execute and open their respective storefront URLs.
+    /// </summary>
+    [Fact]
+    public void StorefrontCommands_Execute_OpensStoreUrls()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        var openedUrls = new List<string>();
+        vm.UrlOpener = url => openedUrls.Add(url);
+
+        Assert.True(vm.OpenSteamStoreCommand.CanExecute(null));
+        Assert.True(vm.OpenEaStoreCommand.CanExecute(null));
+
+        vm.OpenSteamStoreCommand.Execute(null);
+        vm.OpenEaStoreCommand.Execute(null);
+
+        Assert.Equal(2, openedUrls.Count);
+        Assert.Equal(PublisherInfoConstants.Steam.StoreUrl, openedUrls[0]);
+        Assert.Equal(PublisherInfoConstants.EaApp.StoreUrl, openedUrls[1]);
+    }
+
+    /// <summary>
+    /// Verifies that ShouldShowStorefrontBanner displays when no profiles exist or when no installations were detected.
+    /// </summary>
+    [Fact]
+    public void ShouldShowStorefrontBanner_ShowsWhenNoProfilesOrNoDetectedInstallations()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        vm.HasLoadedProfilesSuccessfully = true;
+
+        // When HasNoProfiles is true (no profiles loaded)
+        Assert.True(vm.HasNoProfiles);
+        Assert.True(vm.ShouldShowStorefrontBanner);
+
+        // When a profile exists
+        var profileItem = CreateProfileItem("Test Profile");
+        vm.Profiles.Add(profileItem);
+        Assert.False(vm.HasNoProfiles);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+
+        // When scan detected no installations, banner shows even if profiles exist
+        vm.HasNoDetectedInstallations = true;
+        Assert.True(vm.ShouldShowStorefrontBanner);
+
+        // When installations detected, banner hides
+        vm.HasNoDetectedInstallations = false;
+        Assert.False(vm.ShouldShowStorefrontBanner);
+    }
+
+    /// <summary>
+    /// Verifies that ScanForGamesAsync shows notification toasts and sets HasNoDetectedInstallations
+    /// when auto-detection finds 0 installations and manual prompt returns null.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_WhenNoInstallations_PromptsNotificationAndShowsWarning()
+    {
+        var vm = CreateViewModelWithScanMocks(out var installMock, out var notifMock);
+        vm.HasLoadedProfilesSuccessfully = true;
+
+        installMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(null);
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        // Verifies manual selection info notification was shown
+        notifMock.Verify(
+            n => n.ShowInfo(
+                "Select Game Directory",
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+
+        // Verifies no installations warning notification was shown
+        notifMock.Verify(
+            n => n.ShowWarning(
+                "No Game Installations Found",
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+
+        Assert.True(vm.HasNoDetectedInstallations);
+        Assert.True(vm.ShouldShowStorefrontBanner);
+    }
+
+    /// <summary>
+    /// Verifies that ScanForGamesAsync resets HasNoDetectedInstallations to false when a scan starts.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_WhenRescanning_ResetsHasNoDetectedInstallationsBeforeScan()
+    {
+        var vm = CreateViewModelWithScanMocks(out var installMock, out _);
+        vm.HasNoDetectedInstallations = true;
+
+        var wasResetDuringScan = false;
+        installMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                wasResetDuringScan = !vm.HasNoDetectedInstallations;
+                return Task.FromResult(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("Scan error"));
+            });
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.True(wasResetDuringScan);
+        Assert.False(vm.HasNoDetectedInstallations);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
@@ -1246,6 +1387,44 @@ public class GameProfileLauncherViewModelTests
         return CreateViewModelWithMockDependencies(
             new Mock<IGameProcessManager>(),
             new Mock<INotificationService>());
+    }
+
+    /// <summary>
+    /// Creates a GameProfileLauncherViewModel wired to the given installation service and
+    /// notification mocks for testing scan scenarios.
+    /// </summary>
+    /// <param name="installationServiceMock">The game installation service mock.</param>
+    /// <param name="notificationServiceMock">The notification service mock to observe.</param>
+    /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
+    private static GameProfileLauncherViewModel CreateViewModelWithScanMocks(
+        out Mock<IGameInstallationService> installationServiceMock,
+        out Mock<INotificationService> notificationServiceMock)
+    {
+        installationServiceMock = new Mock<IGameInstallationService>();
+        notificationServiceMock = new Mock<INotificationService>();
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        gameProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        return new GameProfileLauncherViewModel(
+            installationServiceMock.Object,
+            gameProfileManager.Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            notificationServiceMock.Object,
+            new Mock<ISetupWizardService>().Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
     }
 
     /// <summary>

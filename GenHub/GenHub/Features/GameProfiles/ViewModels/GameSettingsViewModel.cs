@@ -639,6 +639,18 @@ public partial class GameSettingsViewModel(
     private string? _gameSpyIPAddress;
 
     /// <summary>
+    /// Gets the minimum chat font size for GeneralsOnline.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
+    public int MinGoChatFontSize => GameSettingsGeneralsOnlineConstants.MinChatFontSize;
+
+    /// <summary>
+    /// Gets the maximum chat font size for GeneralsOnline.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
+    public int MaxGoChatFontSize => GameSettingsGeneralsOnlineConstants.MaxChatFontSize;
+
+    /// <summary>
     /// Initializes the ViewModel and loads settings for a specific profile.
     /// </summary>
     /// <param name="profileId">The profile ID to load settings for.</param>
@@ -743,7 +755,7 @@ public partial class GameSettingsViewModel(
             GoRememberUsername = GoRememberUsername,
             GoEnableNotifications = GoEnableNotifications,
             GoEnableSoundNotifications = GoEnableSoundNotifications,
-            GoChatFontSize = GoChatFontSize,
+            GoChatFontSize = Math.Clamp(GoChatFontSize, MinGoChatFontSize, MaxGoChatFontSize),
 
             // Camera settings
             GoCameraMaxHeightOnlyWhenLobbyHost = GoCameraMaxHeightOnlyWhenLobbyHost,
@@ -1229,7 +1241,7 @@ public partial class GameSettingsViewModel(
         if (profile.GoRememberUsername.HasValue) GoRememberUsername = profile.GoRememberUsername.Value;
         if (profile.GoEnableNotifications.HasValue) GoEnableNotifications = profile.GoEnableNotifications.Value;
         if (profile.GoEnableSoundNotifications.HasValue) GoEnableSoundNotifications = profile.GoEnableSoundNotifications.Value;
-        if (profile.GoChatFontSize.HasValue) GoChatFontSize = profile.GoChatFontSize.Value;
+        if (profile.GoChatFontSize.HasValue) GoChatFontSize = Math.Clamp(profile.GoChatFontSize.Value, MinGoChatFontSize, MaxGoChatFontSize);
 
         // Camera settings
         if (profile.GoCameraMaxHeightOnlyWhenLobbyHost.HasValue) GoCameraMaxHeightOnlyWhenLobbyHost = profile.GoCameraMaxHeightOnlyWhenLobbyHost.Value;
@@ -1824,7 +1836,7 @@ public partial class GameSettingsViewModel(
         GoRememberUsername = settings.RememberUsername;
         GoEnableNotifications = settings.EnableNotifications;
         GoEnableSoundNotifications = settings.EnableSoundNotifications;
-        GoChatFontSize = settings.ChatFontSize;
+        GoChatFontSize = Math.Clamp(settings.ChatFontSize, MinGoChatFontSize, MaxGoChatFontSize);
         GoCameraMaxHeightOnlyWhenLobbyHost = settings.Camera.MaxHeightOnlyWhenLobbyHost;
         GoCameraMinHeight = settings.Camera.MinHeight;
         GoCameraMoveSpeedRatio = settings.Camera.MoveSpeedRatio;
@@ -1870,7 +1882,7 @@ public partial class GameSettingsViewModel(
         settings.RememberUsername = GoRememberUsername;
         settings.EnableNotifications = GoEnableNotifications;
         settings.EnableSoundNotifications = GoEnableSoundNotifications;
-        settings.ChatFontSize = GoChatFontSize;
+        settings.ChatFontSize = Math.Clamp(GoChatFontSize, MinGoChatFontSize, MaxGoChatFontSize);
         settings.Camera.MaxHeightOnlyWhenLobbyHost = GoCameraMaxHeightOnlyWhenLobbyHost;
         settings.Camera.MinHeight = GoCameraMinHeight;
         settings.Camera.MoveSpeedRatio = GoCameraMoveSpeedRatio;

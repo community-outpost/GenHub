@@ -860,6 +860,22 @@
   <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
     <value>دليل غير صالح</value>
   </data>
+  <data name="GameProfiles.Notification.ManualSelection.Message" xml:space="preserve">
+    <value>لم يتم العثور على أي تثبيتات للعبة تلقائيًا. يُرجى تحديد مجلد Command &amp; Conquer: Generals أو Zero Hour يدويًا.</value>
+    <comment>Notification message explaining why the manual folder picker was opened</comment>
+  </data>
+  <data name="GameProfiles.Notification.ManualSelection.Title" xml:space="preserve">
+    <value>تحديد مجلد اللعبة</value>
+    <comment>Notification title when prompting user to manually select game installation directory</comment>
+  </data>
+  <data name="GameProfiles.Notification.NoInstallationsFound.Message" xml:space="preserve">
+    <value>لم يتم العثور على أي تثبيتات لـ Command &amp; Conquer: Generals أو Zero Hour. يمكنك شراء اللعبة من المتاجر الرسمية أو ربط مجلد التثبيت يدويًا.</value>
+    <comment>Notification message when scan finds no installations</comment>
+  </data>
+  <data name="GameProfiles.Notification.NoInstallationsFound.Title" xml:space="preserve">
+    <value>لم يتم العثور على أي تثبيتات للعبة</value>
+    <comment>Notification title when game scan finds no installations</comment>
+  </data>
   <data name="GameProfiles.Notification.LaunchError.Message" xml:space="preserve">
     <value>خطأ أثناء إطلاق ملف التعريف '{0}': {1}</value>
   </data>
@@ -1077,6 +1093,22 @@
   <data name="GameProfiles.Status.NewProfileWindowClosed" xml:space="preserve">
     <value>تم إغلاق نافذة ملف التعريف الجديد</value>
     <comment>Status when new profile window closes</comment>
+  </data>
+  <data name="GameProfiles.Storefront.BannerTitle" xml:space="preserve">
+    <value>تبحث عن Command &amp; Conquer Generals؟</value>
+  </data>
+  <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
+    <value>تعذر العثور على تثبيت Command &amp; Conquer Generals و Zero Hour. تحتاج إلى نسخة مثبتة من اللعبة للعب. يمكنك شراء اللعبة رسميًا من Steam أو تطبيق EA.</value>
+  </data>
+  <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
+    <value>شراء عبر Steam</value>
+  </data>
+  <data name="GameProfiles.Storefront.EaAppButton" xml:space="preserve">
+    <value>شراء عبر EA App</value>
+  </data>
+  <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
+    <value>فشل في فتح صفحة المتجر: {0}</value>
+    <comment>Error notification shown when opening a storefront URL fails</comment>
   </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>لم يتم العثور على أي تثبيتات للعبة</value>

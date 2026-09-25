@@ -11,6 +11,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Linux.GameInstallations;
 
@@ -19,6 +21,8 @@ namespace GenHub.Linux.GameInstallations;
 /// </summary>
 public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IGameInstallation
 {
+    private readonly Func<string, string[], (bool Success, string Output)>? _processRunner;
+
     [GeneratedRegex(@"^lutris-([\d\.]*)$")]
     private static partial Regex LutrisVersionRegex();
 
@@ -37,6 +41,19 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
         {
             Fetch();
         }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LutrisInstallation"/> class with a custom command runner for testing.
+    /// </summary>
+    /// <param name="processRunner">Custom command runner delegate used for process isolation.</param>
+    /// <param name="logger">Optional logger instance.</param>
+    internal LutrisInstallation(
+        Func<string, string[], (bool Success, string Output)> processRunner,
+        ILogger<LutrisInstallation>? logger = null)
+        : this(logger)
+    {
+        _processRunner = processRunner;
     }
 
     /// <inheritdoc/>
@@ -83,14 +100,22 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
     {
         logger?.LogInformation("Starting Lutris installation detection on Linux");
 
+        IsLutrisInstalled = false;
+        InstallationPath = string.Empty;
+        LutrisVersion = string.Empty;
+        PackageInstallationType = LinuxInstallationType.Binary;
+        HasZeroHour = false;
+        HasGenerals = false;
+        ZeroHourPath = string.Empty;
+        GeneralsPath = string.Empty;
+
         try
         {
             var lutrisExecutables = new Dictionary<string, LinuxInstallationType>
             {
                 { "lutris", LinuxInstallationType.Binary },
                 { "flatpak run net.lutris.Lutris", LinuxInstallationType.Flatpack },
-
-                // TODO add snap
+                { "snap run lutris", LinuxInstallationType.Snap },
             };
             foreach (var entry in lutrisExecutables)
             {
@@ -104,6 +129,7 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
                 // Check if EA app and Generals/ZH are installed
                 if (Directory.Exists(homeDir))
                 {
+                    IsLutrisInstalled = true;
                     InstallationPath = homeDir;
                     LutrisVersion = version;
                     PackageInstallationType = entry.Value;
@@ -152,26 +178,117 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
         AvailableGameClients.AddRange(clients);
     }
 
-    private static bool TryLutris(string installationPath, out string lutrisVersion)
+    private static ProcessStartInfo CreateLutrisStartInfo(string command, string[] extraArgs)
     {
-        lutrisVersion = string.Empty;
-        var process = new Process
+        var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var fileName = parts[0];
+        var psi = new ProcessStartInfo
         {
-            StartInfo = new ProcessStartInfo
-            {
-                WindowStyle = ProcessWindowStyle.Hidden,
-                FileName = installationPath,
-                Arguments = "-v",
-                RedirectStandardOutput = true,
-                RedirectStandardError = false,
-                WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            },
+            WindowStyle = ProcessWindowStyle.Hidden,
+            FileName = fileName,
+            RedirectStandardOutput = true,
+            RedirectStandardError = false,
+            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         };
 
-        if (!process.Start())
+        for (int i = 1; i < parts.Length; i++)
+        {
+            psi.ArgumentList.Add(parts[i]);
+        }
+
+        foreach (var arg in extraArgs)
+        {
+            psi.ArgumentList.Add(arg);
+        }
+
+        return psi;
+    }
+
+    private bool RunLutrisCommand(string installationPath, string[] args, out string output)
+    {
+        output = string.Empty;
+        if (_processRunner != null)
+        {
+            var result = _processRunner(installationPath, args);
+            output = result.Output;
+            return result.Success;
+        }
+
+        try
+        {
+            using var process = new Process
+            {
+                StartInfo = CreateLutrisStartInfo(installationPath, args),
+            };
+
+            if (!process.Start())
+            {
+                return false;
+            }
+
+            // Drain standard output asynchronously with cancellation and bounded wait to avoid deadlocks, hangs, or thread leaks
+            using var cts = new CancellationTokenSource(ProcessConstants.ExternalCliTimeoutMs);
+            var readOutputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
+            if (process.WaitForExit(ProcessConstants.ExternalCliTimeoutMs) && readOutputTask.Wait(ProcessConstants.ExternalCliTimeoutMs))
+            {
+                output = readOutputTask.Result;
+                return process.ExitCode == 0;
+            }
+
+            try
+            {
+                cts.Cancel();
+            }
+            catch (Exception)
+            {
+                // Ignore cancellation failure
+            }
+
+            try
+            {
+                process.StandardOutput.Close();
+            }
+            catch (Exception)
+            {
+                // Ignore stream close failure
+            }
+
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.LogDebug(ex, "Failed to terminate timed-out Lutris process.");
+            }
+
+            try
+            {
+                readOutputTask.Wait(ProcessConstants.ProcessKillWaitMs);
+            }
+            catch (Exception)
+            {
+                // Bounded wait to ensure readOutputTask finishes before process is disposed
+            }
+
             return false;
-        process.WaitForExit();
-        var output = process.StandardOutput.ReadToEnd();
+        }
+        catch (Exception ex)
+        {
+            logger?.LogDebug(ex, "Failed to execute Lutris command: {InstallationPath} {Args}", installationPath, string.Join(" ", args));
+            return false;
+        }
+    }
+
+    private bool TryLutris(string installationPath, out string lutrisVersion)
+    {
+        lutrisVersion = string.Empty;
+        if (!RunLutrisCommand(installationPath, ["-v"], out var output))
+            return false;
+
         foreach (var item in output.Split(Environment.NewLine))
         {
             if (string.IsNullOrWhiteSpace(item))
@@ -180,50 +297,48 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
             // check for lutris, if installed version is printed
             var match = LutrisVersionRegex().Match(item);
             if (match.Success && match.Groups.Count > 1)
+            {
                 lutrisVersion = match.Groups[1].Value;
-
-            return true;
+                return true;
+            }
         }
 
         return false;
     }
 
-    private static bool TryLutrisHasZH(string installationPath, out string directory)
+    private bool TryLutrisHasZH(string installationPath, out string directory)
     {
         directory = string.Empty;
-        var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                WindowStyle = ProcessWindowStyle.Hidden,
-                FileName = installationPath,
-                ArgumentList = { "-l", "-j" },
-                RedirectStandardOutput = true,
-                RedirectStandardError = false,
-                WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            },
-        };
-
-        if (!process.Start())
+        if (!RunLutrisCommand(installationPath, ["-l", "-j"], out var output))
             return false;
-        process.WaitForExit();
-        var output = process.StandardOutput.ReadToEnd();
-        var jsonOutput = LutrisGamesRegex().Match(output).Value;
+
+        var jsonMatch = LutrisGamesRegex().Match(output);
+        if (!jsonMatch.Success)
+            return false;
+
+        var jsonOutput = jsonMatch.Value;
 
         // check for games on lutris, it's a json array
-        var jsonOutputParsed = JsonSerializer.Deserialize<List<LutrisGame>>(jsonOutput);
+        try
+        {
+            var jsonOutputParsed = JsonSerializer.Deserialize<List<LutrisGame>>(jsonOutput);
 
-        if (jsonOutputParsed == null)
+            if (jsonOutputParsed == null)
+                return false;
+
+            var gameListFiltered =
+                jsonOutputParsed
+                    .FirstOrDefault(item => item.Slug == "ea-app" && !string.IsNullOrWhiteSpace(item.Directory));
+
+            if (gameListFiltered == null)
+                return false;
+
+            directory = gameListFiltered.Directory;
+            return true;
+        }
+        catch (JsonException)
+        {
             return false;
-
-        var gameListFiltered =
-            jsonOutputParsed
-                .FirstOrDefault(item => item.Slug == "ea-app" && !string.IsNullOrWhiteSpace(item.Directory));
-
-        if (gameListFiltered == null)
-            return false;
-
-        directory = gameListFiltered.Directory;
-        return true;
+        }
     }
 }

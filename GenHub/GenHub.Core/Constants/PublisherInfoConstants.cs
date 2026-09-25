@@ -59,6 +59,9 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for Steam.</summary>
         public const string LogoSource = ""; // Placeholder until asset lands
+
+        /// <summary>Store page URL for Command &amp; Conquer Generals and Zero Hour on Steam.</summary>
+        public const string StoreUrl = "https://store.steampowered.com/app/2229870/Command__Conquer_Generals/";
     }
 
     /// <summary>
@@ -77,6 +80,9 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for EA App.</summary>
         public const string LogoSource = ""; // Placeholder until asset lands
+
+        /// <summary>Store page URL for Command &amp; Conquer The Ultimate Collection on EA App.</summary>
+        public const string StoreUrl = "https://www.ea.com/games/command-and-conquer/command-and-conquer-the-ultimate-collection";
     }
 
     /// <summary>
