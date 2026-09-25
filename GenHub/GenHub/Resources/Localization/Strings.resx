@@ -13030,6 +13030,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
     <value>Customizes card badges, borders, and highlight bars for this content item in the downloads catalog.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.PreviewBadge" xml:space="preserve">
+    <value>Preview Badge</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
     <value>Browse Files...</value>
   </data>

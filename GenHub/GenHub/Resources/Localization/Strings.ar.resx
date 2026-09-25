@@ -12932,6 +12932,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
     <value>يحدد لون شارات البطاقة والحدود المميزة لهذا العنصر في كتالوج التنزيلات.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.PreviewBadge" xml:space="preserve">
+    <value>معاينة الشارة</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
     <value>استعراض الملفات...</value>
   </data>

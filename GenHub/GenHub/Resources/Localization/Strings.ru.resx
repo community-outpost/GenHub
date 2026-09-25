@@ -12932,6 +12932,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
     <value>Настраивает цвет значков карточек, рамок и полос выделения для этого элемента в каталоге загрузок.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.PreviewBadge" xml:space="preserve">
+    <value>Предпросмотр значка</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
     <value>Выбрать файлы...</value>
   </data>
