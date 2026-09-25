@@ -1074,12 +1074,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    partial void OnTelemetryPreferenceChanged(TelemetryLevel value)
-    {
-        _userSettingsService.Update(settings => settings.TelemetryPreference = value);
-        _ = _userSettingsService.SaveAsync();
-    }
-
     [RelayCommand]
     private async Task SaveSettings()
     {

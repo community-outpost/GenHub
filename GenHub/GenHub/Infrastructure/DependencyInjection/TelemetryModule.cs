@@ -4,6 +4,7 @@ using GenHub.Features.Telemetry.Services;
 using GenHub.Features.Telemetry.Sinks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -20,28 +21,23 @@ public static class TelemetryModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddTelemetryServices(this IServiceCollection services)
     {
-        services.AddHttpClient();
+        services.AddHttpClient("TelemetryAnalytics", c => c.Timeout = TimeSpan.FromSeconds(10));
+        services.AddHttpClient("TelemetrySentry", c => c.Timeout = TimeSpan.FromSeconds(10));
         services.AddSingleton<ITelemetrySanitizer, TelemetrySanitizer>();
 
         // Register default pluggable sinks
         services.AddSingleton<ITelemetrySink, LoggingTelemetrySink>();
 
         services.AddSingleton<AnalyticsTelemetrySink>(sp =>
-        {
-            var logger = sp.GetRequiredService<ILogger<AnalyticsTelemetrySink>>();
-            var factory = sp.GetService<IHttpClientFactory>();
-            var client = factory != null ? factory.CreateClient("TelemetryAnalytics") : sp.GetService<HttpClient>();
-            return new AnalyticsTelemetrySink(logger, client);
-        });
+            new AnalyticsTelemetrySink(
+                sp.GetRequiredService<ILogger<AnalyticsTelemetrySink>>(),
+                sp.GetRequiredService<IHttpClientFactory>().CreateClient("TelemetryAnalytics")));
         services.AddSingleton<ITelemetrySink>(sp => sp.GetRequiredService<AnalyticsTelemetrySink>());
 
         services.AddSingleton<SentryTelemetrySink>(sp =>
-        {
-            var logger = sp.GetRequiredService<ILogger<SentryTelemetrySink>>();
-            var factory = sp.GetService<IHttpClientFactory>();
-            var client = factory != null ? factory.CreateClient("TelemetrySentry") : sp.GetService<HttpClient>();
-            return new SentryTelemetrySink(logger, client);
-        });
+            new SentryTelemetrySink(
+                sp.GetRequiredService<ILogger<SentryTelemetrySink>>(),
+                sp.GetRequiredService<IHttpClientFactory>().CreateClient("TelemetrySentry")));
         services.AddSingleton<ITelemetrySink>(sp => sp.GetRequiredService<SentryTelemetrySink>());
 
         // Register core TelemetryService

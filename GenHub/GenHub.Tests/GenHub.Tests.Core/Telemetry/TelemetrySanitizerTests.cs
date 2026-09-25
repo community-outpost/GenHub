@@ -136,4 +136,41 @@ public class TelemetrySanitizerTests
         Assert.Contains(TelemetryConstants.UserDirectoryMask, result);
         Assert.DoesNotContain("Tester", result);
     }
+
+    /// <summary>
+    /// Verifies that query parameters and key-value credential secrets are redacted.
+    /// </summary>
+    [Fact]
+    public void SanitizeString_QueryAndKeyValueSecrets_MasksSensitiveValues()
+    {
+        var inputUrl = "https://host/callback?access_token=supersecret123&client_secret=secret99";
+        var sanitizedUrl = _sanitizer.SanitizeString(inputUrl);
+        Assert.DoesNotContain("supersecret123", sanitizedUrl);
+        Assert.DoesNotContain("secret99", sanitizedUrl);
+        Assert.Contains($"access_token={TelemetryConstants.SecretTokenMask}", sanitizedUrl);
+        Assert.Contains($"client_secret={TelemetryConstants.SecretTokenMask}", sanitizedUrl);
+
+        var inputKv = "login failed with password=hunter2 and apikey: my-secret-key-456";
+        var sanitizedKv = _sanitizer.SanitizeString(inputKv);
+        Assert.DoesNotContain("hunter2", sanitizedKv);
+        Assert.DoesNotContain("my-secret-key-456", sanitizedKv);
+        Assert.Contains($"password={TelemetryConstants.SecretTokenMask}", sanitizedKv);
+        Assert.Contains($"apikey: {TelemetryConstants.SecretTokenMask}", sanitizedKv);
+    }
+
+    /// <summary>
+    /// Verifies that cyclic references do not cause stack overflow and are replaced with a sentinel marker.
+    /// </summary>
+    [Fact]
+    public void SanitizeProperties_CyclicReference_DoesNotThrowAndBreaksLoop()
+    {
+        var cyclicDict = new Dictionary<string, object?>();
+        cyclicDict["self"] = cyclicDict;
+
+        var sanitized = _sanitizer.SanitizeProperties(cyclicDict);
+
+        Assert.NotNull(sanitized);
+        Assert.True(sanitized.ContainsKey("self"));
+        Assert.Equal("[CircularReference]", sanitized["self"]);
+    }
 }

@@ -36,6 +36,13 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
     [GeneratedRegex(@"(?:[^\s""]+)?/\.wine(?:-[^\s""]+)?/drive_c", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex WinePrefixRegex();
 
+    [GeneratedRegex(@"([?&](?:access_token|api_key|apikey|token|secret|password|client_secret)=)[^&\s]+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex QuerySecretRegex();
+
+    [GeneratedRegex(@"\b((?:password|secret|apikey|api_key|client_secret)\s*[:=]\s*)[^\s,;]+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex KeyValueSecretRegex();
+
+    private const int MaxSanitizeDepth = 10;
     private readonly string? _userProfilePath;
     private readonly string? _userName;
 
@@ -86,6 +93,12 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
         result = GitHubFineGrainedTokenRegex().Replace(result, TelemetryConstants.SecretTokenMask);
         result = BearerTokenRegex().Replace(result, "Bearer " + TelemetryConstants.SecretTokenMask);
 
+        // Mask query string secrets (e.g. ?access_token=..., &api_key=...)
+        result = QuerySecretRegex().Replace(result, "$1" + TelemetryConstants.SecretTokenMask);
+
+        // Mask key-value credentials (e.g. password=..., secret: ...)
+        result = KeyValueSecretRegex().Replace(result, "$1" + TelemetryConstants.SecretTokenMask);
+
         // Mask IP addresses
         result = Ipv4Regex().Replace(result, TelemetryConstants.IpAddressMask);
         result = Ipv6Regex().Replace(result, TelemetryConstants.IpAddressMask);
@@ -118,21 +131,27 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
             return new Dictionary<string, object?>();
         }
 
+        var visited = new HashSet<object>(ReferenceEqualityComparer.Instance) { properties };
         var sanitized = new Dictionary<string, object?>(properties.Count);
 
         foreach (var (key, val) in properties)
         {
-            sanitized[key] = SanitizeValue(val);
+            sanitized[key] = SanitizeValue(val, visited, 0);
         }
 
         return sanitized;
     }
 
-    private object? SanitizeValue(object? value)
+    private object? SanitizeValue(object? value, HashSet<object> visited, int depth)
     {
         if (value == null)
         {
             return null;
+        }
+
+        if (depth >= MaxSanitizeDepth)
+        {
+            return "[MaxDepth]";
         }
 
         if (value is string strValue)
@@ -140,9 +159,26 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
             return SanitizeString(strValue);
         }
 
+        var valType = value.GetType();
+
+        // For non-primitive reference types, track visited set to prevent cyclic recursion
+        if (!valType.IsValueType && value is not (string or System.Type))
+        {
+            if (!visited.Add(value))
+            {
+                return "[CircularReference]";
+            }
+        }
+
         if (value is IReadOnlyDictionary<string, object?> nestedDict)
         {
-            return SanitizeProperties(nestedDict);
+            var newDict = new Dictionary<string, object?>(nestedDict.Count);
+            foreach (var (k, v) in nestedDict)
+            {
+                newDict[SanitizeString(k) ?? string.Empty] = SanitizeValue(v, visited, depth + 1);
+            }
+
+            return newDict;
         }
 
         if (value is System.Collections.IDictionary dict)
@@ -151,18 +187,17 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
             foreach (System.Collections.DictionaryEntry entry in dict)
             {
                 var key = SanitizeString(entry.Key?.ToString()) ?? string.Empty;
-                newDict[key] = SanitizeValue(entry.Value);
+                newDict[key] = SanitizeValue(entry.Value, visited, depth + 1);
             }
 
             return newDict;
         }
 
-        var valType = value.GetType();
         if (valType.IsGenericType && valType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
         {
             var kProp = valType.GetProperty("Key")?.GetValue(value)?.ToString() ?? string.Empty;
             var vProp = valType.GetProperty("Value")?.GetValue(value);
-            return new KeyValuePair<string, object?>(SanitizeString(kProp) ?? string.Empty, SanitizeValue(vProp));
+            return new KeyValuePair<string, object?>(SanitizeString(kProp) ?? string.Empty, SanitizeValue(vProp, visited, depth + 1));
         }
 
         if (value is System.Collections.IEnumerable enumerable and not string)
@@ -170,7 +205,7 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
             var sanitizedList = new List<object?>();
             foreach (var item in enumerable)
             {
-                sanitizedList.Add(SanitizeValue(item));
+                sanitizedList.Add(SanitizeValue(item, visited, depth + 1));
             }
 
             return sanitizedList;
@@ -186,7 +221,7 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
                 {
                     if (prop.CanRead)
                     {
-                        dictObj[prop.Name] = SanitizeValue(prop.GetValue(value));
+                        dictObj[prop.Name] = SanitizeValue(prop.GetValue(value), visited, depth + 1);
                     }
                 }
 

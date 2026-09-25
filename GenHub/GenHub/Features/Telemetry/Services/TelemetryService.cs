@@ -365,14 +365,25 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         {
             while (await _channel.Reader.WaitToReadAsync(cancellationToken))
             {
-                while (_channel.Reader.TryRead(out var telemetryEvent))
+                while (true)
                 {
-                    if (telemetryEvent == null || !IsEnabled(telemetryEvent.Level))
+                    Interlocked.Increment(ref _inFlightCount);
+                    try
                     {
-                        continue;
-                    }
+                        if (!_channel.Reader.TryRead(out var telemetryEvent))
+                        {
+                            break;
+                        }
 
-                    await DispatchToSinksAsync(telemetryEvent, cancellationToken);
+                        if (telemetryEvent != null && IsEnabled(telemetryEvent.Level))
+                        {
+                            await DispatchToSinksAsync(telemetryEvent, cancellationToken);
+                        }
+                    }
+                    finally
+                    {
+                        Interlocked.Decrement(ref _inFlightCount);
+                    }
                 }
             }
         }
@@ -388,29 +399,21 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
     private async Task DispatchToSinksAsync(TelemetryEvent telemetryEvent, CancellationToken cancellationToken)
     {
-        Interlocked.Increment(ref _inFlightCount);
-        try
+        foreach (var sink in _sinks)
         {
-            foreach (var sink in _sinks)
+            if (!sink.CanHandle(telemetryEvent))
             {
-                if (!sink.CanHandle(telemetryEvent))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    await sink.EmitAsync(telemetryEvent, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogTrace(ex, "Telemetry sink {SinkName} failed emitting event", sink.Name);
-                }
+                continue;
             }
-        }
-        finally
-        {
-            Interlocked.Decrement(ref _inFlightCount);
+
+            try
+            {
+                await sink.EmitAsync(telemetryEvent, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogTrace(ex, "Telemetry sink {SinkName} failed emitting event", sink.Name);
+            }
         }
     }
 }
