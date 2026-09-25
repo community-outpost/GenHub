@@ -2727,6 +2727,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 if (!File.Exists(targetAssetFile))
                 {
                     File.Move(companion, targetAssetFile);
+                    logger.LogInformation("Organized loose companion {Source} into {Target}", companion, targetAssetFile);
                 }
             }
         }
