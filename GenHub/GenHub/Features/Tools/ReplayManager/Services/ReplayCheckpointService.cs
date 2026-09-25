@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -27,6 +28,7 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 public sealed partial class ReplayCheckpointService(
     IServiceScopeFactory? scopeFactory,
     IGameProcessManager processManager,
+    IGamePathProvider gamePathProvider,
     ILogger<ReplayCheckpointService> logger,
     string? customSaveDirectory,
     TimeSpan? mintTimeout,
@@ -44,6 +46,7 @@ public sealed partial class ReplayCheckpointService(
     /// </summary>
     /// <param name="scopeFactory">The service scope factory to create scopes for launching profiles.</param>
     /// <param name="processManager">The game process manager.</param>
+    /// <param name="gamePathProvider">The provider of the platform's game user-data directory.</param>
     /// <param name="logger">The logger instance.</param>
     /// <param name="customSaveDirectory">Optional custom save directory path.</param>
     /// <param name="mintTimeout">Optional custom minting timeout duration.</param>
@@ -51,12 +54,14 @@ public sealed partial class ReplayCheckpointService(
     public ReplayCheckpointService(
         IServiceScopeFactory scopeFactory,
         IGameProcessManager processManager,
+        IGamePathProvider gamePathProvider,
         ILogger<ReplayCheckpointService> logger,
         string? customSaveDirectory = null,
         TimeSpan? mintTimeout = null)
         : this(
             scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory)),
             processManager ?? throw new ArgumentNullException(nameof(processManager)),
+            gamePathProvider ?? throw new ArgumentNullException(nameof(gamePathProvider)),
             logger ?? throw new ArgumentNullException(nameof(logger)),
             customSaveDirectory,
             mintTimeout,
@@ -69,18 +74,21 @@ public sealed partial class ReplayCheckpointService(
     /// </summary>
     /// <param name="launcherFacade">The profile launcher facade.</param>
     /// <param name="processManager">The game process manager.</param>
+    /// <param name="gamePathProvider">The provider of the platform's game user-data directory.</param>
     /// <param name="logger">The logger instance.</param>
     /// <param name="customSaveDirectory">Optional custom save directory path.</param>
     /// <param name="mintTimeout">Optional custom minting timeout duration.</param>
     internal ReplayCheckpointService(
         IProfileLauncherFacade launcherFacade,
         IGameProcessManager processManager,
+        IGamePathProvider gamePathProvider,
         ILogger<ReplayCheckpointService> logger,
         string? customSaveDirectory = null,
         TimeSpan? mintTimeout = null)
         : this(
             scopeFactory: null,
             processManager ?? throw new ArgumentNullException(nameof(processManager)),
+            gamePathProvider ?? throw new ArgumentNullException(nameof(gamePathProvider)),
             logger ?? throw new ArgumentNullException(nameof(logger)),
             customSaveDirectory,
             mintTimeout,
@@ -96,16 +104,7 @@ public sealed partial class ReplayCheckpointService(
             return customSaveDirectory;
         }
 
-        var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        if (string.IsNullOrWhiteSpace(docs) || !Path.IsPathRooted(docs))
-        {
-            docs = AppContext.BaseDirectory;
-        }
-
-        var dataFolder = gameType == GameType.ZeroHour
-            ? GameSettingsConstants.FolderNames.ZeroHour
-            : GameSettingsConstants.FolderNames.Generals;
-        return Path.Combine(docs, dataFolder, ReplayManagerConstants.SaveFolderName);
+        return Path.Combine(gamePathProvider.GetOptionsDirectory(gameType), ReplayManagerConstants.SaveFolderName);
     }
 
     /// <inheritdoc/>

@@ -661,6 +661,24 @@ MoneyTransactionVolume = 70
         }
     }
 
+    /// <summary>
+    /// The GeneralsOnline settings.json resolves under the platform Zero Hour user-data directory,
+    /// not under the Documents folder.
+    /// </summary>
+    [Fact]
+    public void GetGeneralsOnlineSettingsPath_ResolvesUnderGamePathProviderDirectory()
+    {
+        var zeroHourData = Path.Combine(Path.GetTempPath(), "genhub-provider-root", GameSettingsConstants.FolderNames.ZeroHour);
+        _pathProviderMock.Setup(x => x.GetOptionsDirectory(GameType.ZeroHour)).Returns(zeroHourData);
+        var service = new GeneralsOnlinePathProbe(_loggerMock.Object, _pathProviderMock.Object);
+
+        var expected = Path.Combine(
+            zeroHourData,
+            GameSettingsConstants.FolderNames.GeneralsOnlineData,
+            GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        Assert.Equal(expected, service.SettingsPath);
+    }
+
     private GameSettingsService CreateServiceWritingGeneralsOnlineSettingsTo(string settingsPath)
     {
         var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
@@ -669,5 +687,11 @@ MoneyTransactionVolume = 70
         };
         mockService.Protected().Setup<string>("GetGeneralsOnlineSettingsPath").Returns(settingsPath);
         return mockService.Object;
+    }
+
+    private sealed class GeneralsOnlinePathProbe(ILogger<GameSettingsService> logger, IGamePathProvider pathProvider)
+        : GameSettingsService(logger, pathProvider)
+    {
+        public string SettingsPath => GetGeneralsOnlineSettingsPath();
     }
 }
