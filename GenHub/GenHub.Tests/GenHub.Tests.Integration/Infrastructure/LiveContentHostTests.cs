@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -28,7 +29,8 @@ public sealed class LiveContentHostTests
             throw new InvalidOperationException("Injected configuration failure");
         }));
 
-        AssertRestored(original, originalLog, appDataPath!);
+        Assert.NotNull(appDataPath);
+        AssertRestored(original, originalLog, appDataPath);
     }
 
     /// <summary>
@@ -81,7 +83,7 @@ public sealed class LiveContentHostTests
     }
 
     private static Dictionary<string, string?> CaptureEnvironment() =>
-        new[] { "TMPDIR", "TMP", "TEMP", "HOME", "APPDATA", "LOCALAPPDATA", "USERPROFILE", "XDG_CONFIG_HOME", "XDG_DATA_HOME" }
+        new[] { StorageMigrationConstants.AppDataPathEnvVar, "TMPDIR", "TMP", "TEMP", "HOME", "APPDATA", "LOCALAPPDATA", "USERPROFILE", "XDG_CONFIG_HOME", "XDG_DATA_HOME" }
             .ToDictionary(name => name, Environment.GetEnvironmentVariable);
 
     private static void AssertRestored(Dictionary<string, string?> original, string originalLog, string appDataPath)

@@ -20,6 +20,11 @@ namespace GenHub.Tests.Integration.Infrastructure;
 /// <summary>
 /// Builds the real application container against a disposable data root, CAS pool and temp directory.
 /// </summary>
+/// <remarks>
+/// Host lifetimes must not overlap: dispose each host before creating another.
+/// The host temporarily changes process-wide environment variables and the active log path.
+/// Assembly-level test parallelization is disabled to preserve this isolation.
+/// </remarks>
 internal sealed class LiveContentHost : IDisposable
 {
     private static readonly string[] TempVariables = ["TMPDIR", "TMP", "TEMP"];
