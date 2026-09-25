@@ -69,6 +69,7 @@ public sealed partial class WndEditorViewModel(
     private readonly Dictionary<Guid, WndWindow> _windowParents = new();
     private readonly object _previewSync = new();
     private readonly object _linkedAssetsSync = new();
+    private readonly object _thumbnailSync = new();
     private int _historyVersion;
     private int _savedHistoryVersion;
     private WndDocument? _document;
@@ -87,6 +88,7 @@ public sealed partial class WndEditorViewModel(
 
     private WndRuntimeArt _runtimeArt = WndRuntimeArt.Empty;
     private CancellationTokenSource? _previewCts;
+    private CancellationTokenSource? _thumbnailCts;
     private int _previewGeneration;
     private bool _installationsLoaded;
 
@@ -741,6 +743,12 @@ public sealed partial class WndEditorViewModel(
         {
             CancelAndDisposeCts(_previewCts);
             _previewCts = null;
+        }
+
+        lock (_thumbnailSync)
+        {
+            CancelAndDisposeCts(_thumbnailCts);
+            _thumbnailCts = null;
         }
 
         ClearComposedBitmaps();
@@ -3699,24 +3707,31 @@ public sealed partial class WndEditorViewModel(
     {
         try
         {
-            var result = await assetService.Images.GetImagesAsync(
-                missingNames,
-                roots.BaseRoot,
-                null,
-                projectDirectory,
-                linkedBigs,
-                roots.IsZeroHour,
-                cancellationToken).ConfigureAwait(false);
-
-            if (!result.Success || result.Data == null || result.Data.Count == 0 || cancellationToken.IsCancellationRequested)
+            const int batchSize = 50;
+            for (var i = 0; i < missingNames.Count; i += batchSize)
             {
-                return;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                var batch = missingNames.Skip(i).Take(batchSize).ToList();
 
-            var decoded = DecodeThumbnails(result.Data);
-            if (decoded.Count > 0 && !cancellationToken.IsCancellationRequested)
-            {
-                await InvokeOnUIThreadAsync(() => ApplyThumbnailsToItems(decoded, items)).ConfigureAwait(false);
+                var result = await assetService.Images.GetImagesAsync(
+                    batch,
+                    roots.BaseRoot,
+                    null,
+                    projectDirectory,
+                    linkedBigs,
+                    roots.IsZeroHour,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (!result.Success || result.Data == null || result.Data.Count == 0 || cancellationToken.IsCancellationRequested)
+                {
+                    continue;
+                }
+
+                var decoded = DecodeThumbnails(result.Data);
+                if (decoded.Count > 0 && !cancellationToken.IsCancellationRequested)
+                {
+                    await InvokeOnUIThreadAsync(() => ApplyThumbnailsToItems(decoded, items)).ConfigureAwait(false);
+                }
             }
         }
         catch (OperationCanceledException)
@@ -3734,7 +3749,6 @@ public sealed partial class WndEditorViewModel(
         var missingNames = items
             .Where(item => item.Thumbnail == null)
             .Select(item => item.Name)
-            .Take(50)
             .ToList();
 
         if (missingNames.Count == 0 || SelectedAssetInstallation == null)
@@ -3746,7 +3760,17 @@ public sealed partial class WndEditorViewModel(
         var detectedProjectDir = ResolveProjectDirectory(FilePath, roots) ?? ResolveProjectDirectory(FilesDirectory, roots);
         var projectDirectory = CombineProjectDirectories(LinkedModFolder, detectedProjectDir);
         var linkedBigs = LinkedBigFiles.ToList();
-        var cancellationToken = _previewCts?.Token ?? CancellationToken.None;
+
+        CancellationTokenSource cts = new();
+        CancellationTokenSource? toCancel;
+        lock (_thumbnailSync)
+        {
+            toCancel = _thumbnailCts;
+            _thumbnailCts = cts;
+        }
+
+        CancelAndDisposeCts(toCancel);
+        var cancellationToken = cts.Token;
 
         _ = Task.Run(() => LoadThumbnailsBackgroundAsync(missingNames, roots, projectDirectory, linkedBigs, items, cancellationToken), cancellationToken);
     }

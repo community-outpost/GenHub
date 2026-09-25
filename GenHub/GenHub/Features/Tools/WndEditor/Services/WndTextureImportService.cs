@@ -267,6 +267,33 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 var existingPath = matches[0];
                 return (Path.GetDirectoryName(existingPath)!, existingPath);
             }
+
+            var standardArtTextures = Path.Combine(searchDir, "Art", "Textures");
+            if (Directory.Exists(standardArtTextures))
+            {
+                return (standardArtTextures, Path.Combine(standardArtTextures, textureFileName));
+            }
+
+            var englishTextures = Path.Combine(searchDir, "Data", "English", "Art", "Textures");
+            if (Directory.Exists(englishTextures))
+            {
+                return (englishTextures, Path.Combine(englishTextures, textureFileName));
+            }
+
+            var candidateDirs = Directory.EnumerateDirectories(searchDir, "Textures", SearchOption.AllDirectories)
+                .Where(d => !d.Contains(".Build", StringComparison.OrdinalIgnoreCase) &&
+                            !d.Contains(".Release", StringComparison.OrdinalIgnoreCase) &&
+                            !d.Contains(".staging", StringComparison.OrdinalIgnoreCase) &&
+                            !d.Contains(".git", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (candidateDirs.Count > 0)
+            {
+                var artTexturesDir = candidateDirs.FirstOrDefault(d =>
+                    d.EndsWith(Path.Combine("Art", "Textures"), StringComparison.OrdinalIgnoreCase));
+                var targetDir = artTexturesDir ?? candidateDirs[0];
+                return (targetDir, Path.Combine(targetDir, textureFileName));
+            }
         }
         catch
         {
