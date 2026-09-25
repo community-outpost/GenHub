@@ -301,6 +301,18 @@ public static class TelemetryConstants
         /// <summary>Application version.</summary>
         public const string AppVersion = "app_version";
 
+        /// <summary>Full display version including commit hash.</summary>
+        public const string FullDisplayVersion = "full_display_version";
+
+        /// <summary>Git commit short hash.</summary>
+        public const string GitShortHash = "git_short_hash";
+
+        /// <summary>Build channel (e.g. Dev, PR, CI, Release).</summary>
+        public const string BuildChannel = "build_channel";
+
+        /// <summary>Pull request number for PR builds.</summary>
+        public const string PullRequestNumber = "pr_number";
+
         /// <summary>Executable path or name.</summary>
         public const string ExecutablePath = "executable_path";
     }

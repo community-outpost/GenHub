@@ -123,6 +123,10 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.Context,
             TelemetryConstants.Properties.InstallationId,
             TelemetryConstants.Properties.AppVersion,
+            TelemetryConstants.Properties.FullDisplayVersion,
+            TelemetryConstants.Properties.GitShortHash,
+            TelemetryConstants.Properties.BuildChannel,
+            TelemetryConstants.Properties.PullRequestNumber,
             TelemetryConstants.Properties.ExecutablePath,
         };
 

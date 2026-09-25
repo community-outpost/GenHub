@@ -53,7 +53,7 @@ The telemetry pipeline coordinates through the [`ITelemetryService`](file:///hom
 
 - **[`TelemetryService`](file:///home/ubuntu/workspaces/cc1-GenHub/GenHub/GenHub/Features/Telemetry/Services/TelemetryService.cs)**:
   - Validates user consent from `IUserSettingsService`.
-  - Enriches events with OS platform, architecture, app version, and anonymous installation GUID.
+  - Enriches events with OS platform, architecture, app version, full display version (including git commit hash), build channel, PR number, and anonymous installation GUID.
   - Sanitizes properties via `TelemetrySanitizer`.
   - Dispatches concurrently to registered sinks.
 - **[`PostHogTelemetrySink`](file:///home/ubuntu/workspaces/cc1-GenHub/GenHub/GenHub/Features/Telemetry/Sinks/PostHogTelemetrySink.cs)**:

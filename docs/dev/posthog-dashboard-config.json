@@ -124,6 +124,52 @@
           }
         },
         {
+          "name": "Active Installations by Full Build Version",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_started",
+                "name": "Active Builds",
+                "math": "dau"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "full_display_version"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Updates Applied Breakdown (From Version -> To Version)",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_update_applied",
+                "name": "Updates Applied",
+                "math": "total"
+              }
+            ],
+            "breakdown": {
+              "type": "event",
+              "property": "to_version"
+            },
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
           "name": "Publisher Content Downloads Completed",
           "type": "Trends",
           "display": "BoldNumber",

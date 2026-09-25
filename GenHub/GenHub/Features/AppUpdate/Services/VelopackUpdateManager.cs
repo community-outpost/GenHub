@@ -224,6 +224,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateChecked, new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+            [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+            [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
             [TelemetryConstants.Properties.Channel] = TelemetryChannel,
             [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
         });
@@ -348,6 +350,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             {
                 [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
                 [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
+                [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+                [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+                [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+                [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
             });
         }
         catch (Exception ex)
@@ -435,6 +441,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             {
                 [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
                 [TelemetryConstants.Properties.ToVersion] = targetVersion,
+                [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+                [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
                 [TelemetryConstants.Properties.Channel] = TelemetryChannel,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
             });
@@ -929,10 +937,22 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     },
                     cancellationToken);
 
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+                    [TelemetryConstants.Properties.ToVersion] = fileVersion,
+                    [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+                    [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+                    [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+                    [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+                });
+
                 progress?.Report(new UpdateProgress { Status = "Installing update...", PercentComplete = 90 });
 
                 CleanStrayAppDirectoryArtifacts();
                 _logger.LogInformation("Applying {Label} update and restarting", label);
+
+                TrackUpdateAppliedAndFlush(fileVersion);
 
                 localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
 

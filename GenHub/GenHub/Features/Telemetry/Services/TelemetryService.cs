@@ -115,6 +115,20 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
                 sessionId = _sanitizer.SanitizeString(rawSessionId.ToString());
             }
 
+            var eventProps = new Dictionary<string, object?>(sanitizedProperties);
+            eventProps.TryAdd(TelemetryConstants.Properties.FullDisplayVersion, AppConstants.FullDisplayVersion);
+            eventProps.TryAdd(TelemetryConstants.Properties.BuildChannel, AppConstants.BuildChannel);
+
+            if (!string.IsNullOrEmpty(AppConstants.GitShortHash))
+            {
+                eventProps.TryAdd(TelemetryConstants.Properties.GitShortHash, AppConstants.GitShortHash);
+            }
+
+            if (!string.IsNullOrEmpty(AppConstants.PullRequestNumber))
+            {
+                eventProps.TryAdd(TelemetryConstants.Properties.PullRequestNumber, AppConstants.PullRequestNumber);
+            }
+
             var telemetryEvent = new TelemetryEvent
             {
                 EventName = _sanitizer.SanitizeString(eventName),
@@ -124,7 +138,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
                 SessionId = sessionId,
                 AppVersion = AppConstants.AppVersion,
                 Platform = RuntimeInformation.OSDescription,
-                Properties = sanitizedProperties,
+                Properties = eventProps,
             };
 
             _channel.Writer.TryWrite(telemetryEvent);
@@ -171,6 +185,19 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
                     b.Data,
                 }).ToList(),
             };
+
+            combinedProperties.TryAdd(TelemetryConstants.Properties.FullDisplayVersion, AppConstants.FullDisplayVersion);
+            combinedProperties.TryAdd(TelemetryConstants.Properties.BuildChannel, AppConstants.BuildChannel);
+
+            if (!string.IsNullOrEmpty(AppConstants.GitShortHash))
+            {
+                combinedProperties.TryAdd(TelemetryConstants.Properties.GitShortHash, AppConstants.GitShortHash);
+            }
+
+            if (!string.IsNullOrEmpty(AppConstants.PullRequestNumber))
+            {
+                combinedProperties.TryAdd(TelemetryConstants.Properties.PullRequestNumber, AppConstants.PullRequestNumber);
+            }
 
             var sanitizedProperties = _sanitizer.SanitizeProperties(combinedProperties);
 

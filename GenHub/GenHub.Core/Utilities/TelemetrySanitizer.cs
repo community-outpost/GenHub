@@ -162,73 +162,114 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
         var valType = value.GetType();
 
         // For non-primitive reference types, track visited set to prevent cyclic recursion
-        if (!valType.IsValueType && value is not (string or System.Type))
+        if (!valType.IsValueType && value is not (string or System.Type) && !visited.Add(value))
         {
-            if (!visited.Add(value))
-            {
-                return "[CircularReference]";
-            }
+            return "[CircularReference]";
         }
 
-        if (value is IReadOnlyDictionary<string, object?> nestedDict)
+        if (value is IReadOnlyDictionary<string, object?> roDict)
         {
-            var newDict = new Dictionary<string, object?>(nestedDict.Count);
-            foreach (var (k, v) in nestedDict)
-            {
-                newDict[SanitizeString(k) ?? string.Empty] = SanitizeValue(v, visited, depth + 1);
-            }
-
-            return newDict;
+            return SanitizeReadOnlyDictionary(roDict, visited, depth);
         }
 
         if (value is System.Collections.IDictionary dict)
         {
-            var newDict = new Dictionary<string, object?>(dict.Count);
-            foreach (System.Collections.DictionaryEntry entry in dict)
-            {
-                var key = SanitizeString(entry.Key?.ToString()) ?? string.Empty;
-                newDict[key] = SanitizeValue(entry.Value, visited, depth + 1);
-            }
-
-            return newDict;
+            return SanitizeDictionary(dict, visited, depth);
         }
 
         if (valType.IsGenericType && valType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
         {
-            var kProp = valType.GetProperty("Key")?.GetValue(value)?.ToString() ?? string.Empty;
-            var vProp = valType.GetProperty("Value")?.GetValue(value);
-            return new KeyValuePair<string, object?>(SanitizeString(kProp) ?? string.Empty, SanitizeValue(vProp, visited, depth + 1));
+            return SanitizeKeyValuePair(value, valType, visited, depth);
         }
 
         if (value is System.Collections.IEnumerable enumerable and not string)
         {
-            var sanitizedList = new List<object?>();
-            foreach (var item in enumerable)
-            {
-                sanitizedList.Add(SanitizeValue(item, visited, depth + 1));
-            }
-
-            return sanitizedList;
+            return SanitizeEnumerable(enumerable, visited, depth);
         }
 
-        if (!valType.IsPrimitive && !valType.IsEnum && value is not (DateTime or DateTimeOffset or TimeSpan or Guid or decimal or byte[]))
+        return SanitizeCustomObject(value, valType, visited, depth);
+    }
+
+    private Dictionary<string, object?> SanitizeReadOnlyDictionary(
+        IReadOnlyDictionary<string, object?> nestedDict,
+        HashSet<object> visited,
+        int depth)
+    {
+        var newDict = new Dictionary<string, object?>(nestedDict.Count);
+        foreach (var (k, v) in nestedDict)
         {
-            var props = valType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            if (props.Length > 0 && valType.Namespace != "System")
-            {
-                var dictObj = new Dictionary<string, object?>(props.Length);
-                foreach (var prop in props)
-                {
-                    if (prop.CanRead)
-                    {
-                        dictObj[prop.Name] = SanitizeValue(prop.GetValue(value), visited, depth + 1);
-                    }
-                }
+            newDict[SanitizeString(k) ?? string.Empty] = SanitizeValue(v, visited, depth + 1);
+        }
 
-                return dictObj;
+        return newDict;
+    }
+
+    private Dictionary<string, object?> SanitizeDictionary(
+        System.Collections.IDictionary dict,
+        HashSet<object> visited,
+        int depth)
+    {
+        var newDict = new Dictionary<string, object?>(dict.Count);
+        foreach (System.Collections.DictionaryEntry entry in dict)
+        {
+            var key = SanitizeString(entry.Key?.ToString()) ?? string.Empty;
+            newDict[key] = SanitizeValue(entry.Value, visited, depth + 1);
+        }
+
+        return newDict;
+    }
+
+    private KeyValuePair<string, object?> SanitizeKeyValuePair(
+        object value,
+        Type valType,
+        HashSet<object> visited,
+        int depth)
+    {
+        var kProp = valType.GetProperty("Key")?.GetValue(value)?.ToString() ?? string.Empty;
+        var vProp = valType.GetProperty("Value")?.GetValue(value);
+        return new KeyValuePair<string, object?>(SanitizeString(kProp) ?? string.Empty, SanitizeValue(vProp, visited, depth + 1));
+    }
+
+    private List<object?> SanitizeEnumerable(
+        System.Collections.IEnumerable enumerable,
+        HashSet<object> visited,
+        int depth)
+    {
+        var sanitizedList = new List<object?>();
+        foreach (var item in enumerable)
+        {
+            sanitizedList.Add(SanitizeValue(item, visited, depth + 1));
+        }
+
+        return sanitizedList;
+    }
+
+    private object? SanitizeCustomObject(
+        object value,
+        Type valType,
+        HashSet<object> visited,
+        int depth)
+    {
+        if (valType.IsPrimitive || valType.IsEnum || value is (DateTime or DateTimeOffset or TimeSpan or Guid or decimal or byte[]))
+        {
+            return value;
+        }
+
+        var props = valType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        if (props.Length == 0 || valType.Namespace == "System")
+        {
+            return value;
+        }
+
+        var dictObj = new Dictionary<string, object?>(props.Length);
+        foreach (var prop in props)
+        {
+            if (prop.CanRead)
+            {
+                dictObj[prop.Name] = SanitizeValue(prop.GetValue(value), visited, depth + 1);
             }
         }
 
-        return value;
+        return dictObj;
     }
 }

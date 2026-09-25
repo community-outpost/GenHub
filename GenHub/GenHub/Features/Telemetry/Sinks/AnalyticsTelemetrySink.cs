@@ -83,6 +83,19 @@ public sealed class AnalyticsTelemetrySink(
                 ["$process_person_profile"] = false,
             };
 
+            postHogProperties.TryAdd(TelemetryConstants.Properties.FullDisplayVersion, AppConstants.FullDisplayVersion);
+            postHogProperties.TryAdd(TelemetryConstants.Properties.BuildChannel, AppConstants.BuildChannel);
+
+            if (!string.IsNullOrEmpty(AppConstants.GitShortHash))
+            {
+                postHogProperties.TryAdd(TelemetryConstants.Properties.GitShortHash, AppConstants.GitShortHash);
+            }
+
+            if (!string.IsNullOrEmpty(AppConstants.PullRequestNumber))
+            {
+                postHogProperties.TryAdd(TelemetryConstants.Properties.PullRequestNumber, AppConstants.PullRequestNumber);
+            }
+
             if (!string.IsNullOrEmpty(telemetryEvent.SessionId))
             {
                 postHogProperties["$session_id"] = telemetryEvent.SessionId;

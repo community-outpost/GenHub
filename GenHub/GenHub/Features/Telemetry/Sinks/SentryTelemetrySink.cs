@@ -230,57 +230,11 @@ public sealed class SentryTelemetrySink(
 
         for (var i = lines.Length - 1; i >= 0; i--)
         {
-            var line = lines[i].Trim();
-            if (!line.StartsWith("at ", StringComparison.OrdinalIgnoreCase))
+            var frame = TryParseStackFrame(lines[i]);
+            if (frame != null)
             {
-                continue;
+                frames.Add(frame);
             }
-
-            line = line[3..].Trim();
-            string function = line;
-            string? filename = null;
-            int? lineno = null;
-
-            var inIdx = line.IndexOf(" in ", StringComparison.Ordinal);
-            if (inIdx >= 0)
-            {
-                function = line[..inIdx].Trim();
-                var fileAndLine = line[(inIdx + 4)..].Trim();
-                var lineIdx = fileAndLine.LastIndexOf(":line ", StringComparison.OrdinalIgnoreCase);
-                if (lineIdx >= 0)
-                {
-                    filename = fileAndLine[..lineIdx].Trim();
-                    if (int.TryParse(fileAndLine[(lineIdx + 6)..].Trim(), out var parsedLine))
-                    {
-                        lineno = parsedLine;
-                    }
-                }
-                else
-                {
-                    filename = fileAndLine;
-                }
-            }
-
-            var inApp = !function.StartsWith("System.", StringComparison.OrdinalIgnoreCase) &&
-                        !function.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase);
-
-            var frame = new Dictionary<string, object?>
-            {
-                ["function"] = function,
-                ["in_app"] = inApp,
-            };
-
-            if (!string.IsNullOrEmpty(filename))
-            {
-                frame["filename"] = filename;
-            }
-
-            if (lineno.HasValue)
-            {
-                frame["lineno"] = lineno.Value;
-            }
-
-            frames.Add(frame);
         }
 
         if (frames.Count == 0)
@@ -292,6 +246,62 @@ public sealed class SentryTelemetrySink(
         {
             ["frames"] = frames,
         };
+    }
+
+    private static Dictionary<string, object?>? TryParseStackFrame(string rawLine)
+    {
+        var line = rawLine.Trim();
+        if (!line.StartsWith("at ", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        line = line[3..].Trim();
+        string function = line;
+        string? filename = null;
+        int? lineno = null;
+
+        var inIdx = line.IndexOf(" in ", StringComparison.Ordinal);
+        if (inIdx >= 0)
+        {
+            function = line[..inIdx].Trim();
+            (filename, lineno) = ParseSourceLocation(line[(inIdx + 4)..].Trim());
+        }
+
+        var inApp = !function.StartsWith("System.", StringComparison.OrdinalIgnoreCase) &&
+                    !function.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase);
+
+        var frame = new Dictionary<string, object?>
+        {
+            ["function"] = function,
+            ["in_app"] = inApp,
+        };
+
+        if (!string.IsNullOrEmpty(filename))
+        {
+            frame["filename"] = filename;
+        }
+
+        if (lineno.HasValue)
+        {
+            frame["lineno"] = lineno.Value;
+        }
+
+        return frame;
+    }
+
+    private static (string? Filename, int? LineNo) ParseSourceLocation(string fileAndLine)
+    {
+        var lineIdx = fileAndLine.LastIndexOf(":line ", StringComparison.OrdinalIgnoreCase);
+        if (lineIdx < 0)
+        {
+            return (fileAndLine, null);
+        }
+
+        var filename = fileAndLine[..lineIdx].Trim();
+        return int.TryParse(fileAndLine[(lineIdx + 6)..].Trim(), out var parsedLine)
+            ? (filename, parsedLine)
+            : (filename, null);
     }
 
     private static (string StoreUrl, string? PublicKey) ParseDsn(string dsn)
