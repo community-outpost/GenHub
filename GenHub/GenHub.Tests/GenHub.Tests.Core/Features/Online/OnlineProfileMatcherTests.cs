@@ -345,11 +345,11 @@ public class OnlineProfileMatcherTests
     }
 
     /// <summary>
-    /// Tests that matching INI CRC confirms compatibility even when the
-    /// exeCRC differs (e.g. retail vs community patch retail builds).
+    /// Tests that differing exeCRCs prevent the CRC upgrade even when
+    /// the iniCRC matches (the engine validates both CRCs at join).
     /// </summary>
     [Fact]
-    public void Compare_MatchingIniCrcWithDifferingExeCrc_ShouldBeExact()
+    public void Compare_MatchingIniCrcWithDifferingExeCrc_ShouldBeMismatch()
     {
         // Arrange
         var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
@@ -359,15 +359,15 @@ public class OnlineProfileMatcherTests
         var match = OnlineProfileMatcher.Compare(expected, "ZeroHour|1.04|client-1", local, "ZeroHour|1.04|client-1");
 
         // Assert
-        Assert.Equal(OnlineProfileMatch.Exact, match);
+        Assert.Equal(OnlineProfileMatch.Mismatch, match);
     }
 
     /// <summary>
-    /// Tests that a mixed-version lobby without CRCs on both sides results in mismatch
-    /// when content fingerprints do not match identically.
+    /// Tests that a lobby where one side carries CRCs and the other lacks CRCs
+    /// results in mismatch when content fingerprints differ.
     /// </summary>
     [Fact]
-    public void Compare_MixedVersionsWithoutCrcs_ShouldBeMismatch()
+    public void Compare_WithCrcsAgainstMissingCrcs_ShouldBeMismatch()
     {
         // Arrange
         var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);

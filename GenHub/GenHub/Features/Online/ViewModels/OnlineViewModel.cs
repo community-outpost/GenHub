@@ -17,6 +17,7 @@ using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
@@ -961,14 +962,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             }
             else
             {
-                var insertIndex = 0;
-                while (insertIndex < AvailableProfiles.Count &&
-                       string.Compare(AvailableProfiles[insertIndex].Name, createdProfile.Name, StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    insertIndex++;
-                }
-
-                AvailableProfiles.Insert(insertIndex, createdProfile);
+                InsertProfileSorted(createdProfile);
             }
         });
     }
@@ -997,78 +991,21 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         {
             if (_profilesLoaded)
             {
-                var existing = AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, updatedId, StringComparison.Ordinal));
-                if (existing is not null)
-                {
-                    if (updatedProfile.IsToolProfile)
-                    {
-                        AvailableProfiles.Remove(existing);
-                    }
-                    else
-                    {
-                        var oldIndex = AvailableProfiles.IndexOf(existing);
-                        if (!string.Equals(existing.Name, updatedProfile.Name, StringComparison.OrdinalIgnoreCase))
-                        {
-                            AvailableProfiles.RemoveAt(oldIndex);
-                            var insertIndex = 0;
-                            while (insertIndex < AvailableProfiles.Count &&
-                                   string.Compare(AvailableProfiles[insertIndex].Name, updatedProfile.Name, StringComparison.OrdinalIgnoreCase) < 0)
-                            {
-                                insertIndex++;
-                            }
-
-                            AvailableProfiles.Insert(insertIndex, updatedProfile);
-                        }
-                        else
-                        {
-                            AvailableProfiles[oldIndex] = updatedProfile;
-                        }
-                    }
-                }
-                else if (!updatedProfile.IsToolProfile)
-                {
-                    var insertIndex = 0;
-                    while (insertIndex < AvailableProfiles.Count &&
-                           string.Compare(AvailableProfiles[insertIndex].Name, updatedProfile.Name, StringComparison.OrdinalIgnoreCase) < 0)
-                    {
-                        insertIndex++;
-                    }
-
-                    AvailableProfiles.Insert(insertIndex, updatedProfile);
-                }
-
-                if (string.Equals(SelectedCreateProfile?.Id, updatedId, StringComparison.Ordinal))
-                {
-                    SelectedCreateProfile = updatedProfile.IsToolProfile ? null : updatedProfile;
-                }
-
-                if (string.Equals(SelectedPlayProfile?.Id, updatedId, StringComparison.Ordinal))
-                {
-                    SelectedPlayProfile = updatedProfile.IsToolProfile ? null : updatedProfile;
-                }
-
-                if (string.Equals(SelectedHostProfile?.Id, updatedId, StringComparison.Ordinal))
-                {
-                    SelectedHostProfile = updatedProfile.IsToolProfile ? null : updatedProfile;
-                }
+                UpdateAvailableProfilesList(updatedProfile);
+                UpdateSelectedProfileReferences(updatedProfile);
             }
+
+            var isPlayProfile = string.Equals(SelectedPlayProfile?.Id, updatedId, StringComparison.Ordinal);
+            var isHostProfile = IsCurrentUserHost && string.Equals(SelectedHostProfile?.Id, updatedId, StringComparison.Ordinal);
+            if ((!isPlayProfile && !isHostProfile) || !IsJoined)
+            {
+                return;
+            }
+
+            // Safe to detach: the refresh reports its own errors, and profile
+            // saves outlive any scoped token, so matching is uncancellable.
+            _ = RefreshAfterProfileUpdateAsync(isHostProfile);
         });
-
-        var isPlayProfile = string.Equals(SelectedPlayProfile?.Id, updatedId, StringComparison.Ordinal);
-        var isHostProfile = IsCurrentUserHost && string.Equals(SelectedHostProfile?.Id, updatedId, StringComparison.Ordinal);
-        if (!isPlayProfile && !isHostProfile)
-        {
-            return;
-        }
-
-        if (!IsJoined)
-        {
-            return;
-        }
-
-        // Safe to detach: the refresh reports its own errors, and profile
-        // saves outlive any scoped token, so matching is uncancellable.
-        _ = RefreshAfterProfileUpdateAsync(isHostProfile);
     }
 
     /// <summary>
@@ -1158,6 +1095,93 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         _profileLock.Dispose();
     }
 
+    private void InsertProfileSorted(GameProfile profile)
+    {
+        var insertIndex = 0;
+        while (insertIndex < AvailableProfiles.Count &&
+               string.Compare(AvailableProfiles[insertIndex].Name, profile.Name, StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            insertIndex++;
+        }
+
+        AvailableProfiles.Insert(insertIndex, profile);
+    }
+
+    private void UpdateAvailableProfilesList(GameProfile updatedProfile)
+    {
+        var existing = AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, updatedProfile.Id, StringComparison.Ordinal));
+        if (existing is not null)
+        {
+            if (updatedProfile.IsToolProfile)
+            {
+                AvailableProfiles.Remove(existing);
+                return;
+            }
+
+            var oldIndex = AvailableProfiles.IndexOf(existing);
+            if (!string.Equals(existing.Name, updatedProfile.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                AvailableProfiles.RemoveAt(oldIndex);
+                InsertProfileSorted(updatedProfile);
+            }
+            else
+            {
+                AvailableProfiles[oldIndex] = updatedProfile;
+            }
+        }
+        else if (!updatedProfile.IsToolProfile)
+        {
+            InsertProfileSorted(updatedProfile);
+        }
+    }
+
+    private void UpdateSelectedProfileReferences(GameProfile updatedProfile)
+    {
+        var target = updatedProfile.IsToolProfile ? null : updatedProfile;
+        if (string.Equals(SelectedCreateProfile?.Id, updatedProfile.Id, StringComparison.Ordinal))
+        {
+            SelectedCreateProfile = target;
+        }
+
+        if (string.Equals(SelectedPlayProfile?.Id, updatedProfile.Id, StringComparison.Ordinal))
+        {
+            SelectedPlayProfile = target;
+        }
+
+        if (string.Equals(SelectedHostProfile?.Id, updatedProfile.Id, StringComparison.Ordinal))
+        {
+            SelectedHostProfile = target;
+        }
+    }
+
+    private void ApplyLoadedProfiles(List<GameProfile> sorted)
+    {
+        RunOnUi(() =>
+        {
+            var selectedCreateId = SelectedCreateProfile?.Id;
+            var selectedPlayId = SelectedPlayProfile?.Id;
+            var selectedHostId = SelectedHostProfile?.Id;
+
+            AvailableProfiles = new ObservableCollection<GameProfile>(sorted);
+            _profilesLoaded = true;
+
+            if (selectedCreateId != null)
+            {
+                SelectedCreateProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedCreateId, StringComparison.Ordinal));
+            }
+
+            if (selectedPlayId != null)
+            {
+                SelectedPlayProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedPlayId, StringComparison.Ordinal));
+            }
+
+            if (selectedHostId != null)
+            {
+                SelectedHostProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedHostId, StringComparison.Ordinal));
+            }
+        });
+    }
+
     private static TopLevel? GetMainWindowTopLevel()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
@@ -1243,7 +1267,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanPlay() => IsJoined && !IsGameRunning;
 
-    private void RunOnUi(Action action)
+    private static void RunOnUi(Action action)
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
@@ -2054,30 +2078,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
                     .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                var selectedCreateId = SelectedCreateProfile?.Id;
-                var selectedPlayId = SelectedPlayProfile?.Id;
-                var selectedHostId = SelectedHostProfile?.Id;
-
-                RunOnUi(() =>
-                {
-                    AvailableProfiles = new ObservableCollection<GameProfile>(sorted);
-                    _profilesLoaded = true;
-
-                    if (selectedCreateId != null)
-                    {
-                        SelectedCreateProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedCreateId, StringComparison.Ordinal));
-                    }
-
-                    if (selectedPlayId != null)
-                    {
-                        SelectedPlayProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedPlayId, StringComparison.Ordinal));
-                    }
-
-                    if (selectedHostId != null)
-                    {
-                        SelectedHostProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedHostId, StringComparison.Ordinal));
-                    }
-                });
+                ApplyLoadedProfiles(sorted);
             }
             else
             {
@@ -2156,6 +2157,24 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         return (gameRoot, exePath);
     }
 
+    private static string? GetSpecificInstallationPath(GameInstallation installation, GameType? gameType)
+    {
+        var targetPath = gameType == GameType.Generals
+            ? installation.GeneralsPath
+            : installation.ZeroHourPath;
+
+        return !string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath)
+            ? targetPath
+            : null;
+    }
+
+    private static string? GetGenericInstallationPath(GameInstallation installation)
+    {
+        return !string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath)
+            ? installation.InstallationPath
+            : null;
+    }
+
     private async Task<string?> ResolveInstallationRootAsync(GameProfile profile, CancellationToken cancellationToken)
     {
         if (_installationService is null)
@@ -2170,19 +2189,16 @@ public sealed partial class OnlineViewModel : ViewModelBase,
                 var installResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
                 if (installResult.Success && installResult.Data is not null)
                 {
-                    var installation = installResult.Data;
-                    var targetPath = profile.GameClient?.GameType == GameType.Generals
-                        ? installation.GeneralsPath
-                        : installation.ZeroHourPath;
-
-                    if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
+                    var specific = GetSpecificInstallationPath(installResult.Data, profile.GameClient?.GameType);
+                    if (specific is not null)
                     {
-                        return targetPath;
+                        return specific;
                     }
 
-                    if (!string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath))
+                    var generic = GetGenericInstallationPath(installResult.Data);
+                    if (generic is not null)
                     {
-                        return installation.InstallationPath;
+                        return generic;
                     }
                 }
             }
@@ -2191,20 +2207,17 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             var allResult = await _installationService.GetAllInstallationsAsync(cancellationToken);
             if (allResult.Success && allResult.Data is not null)
             {
-                var isGenerals = profile.GameClient?.GameType == GameType.Generals;
-                foreach (var installation in allResult.Data)
+                var specific = allResult.Data
+                    .Select(inst => GetSpecificInstallationPath(inst, profile.GameClient?.GameType))
+                    .FirstOrDefault(path => path is not null);
+                if (specific is not null)
                 {
-                    var targetPath = isGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
-                    if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
-                    {
-                        return targetPath;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath))
-                    {
-                        return installation.InstallationPath;
-                    }
+                    return specific;
                 }
+
+                return allResult.Data
+                    .Select(GetGenericInstallationPath)
+                    .FirstOrDefault(path => path is not null);
             }
         }
         catch (OperationCanceledException)

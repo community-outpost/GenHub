@@ -66,44 +66,14 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             // Attempt to bring up a real layer-3 TUN adapter first
             if (OperatingSystem.IsWindows())
             {
-                var winResult = WindowsTunDevice.CreateOrOpen(
-                    OnlineConstants.TunDefaultWindowsInterfaceName,
-                    parsed.OverlayIp,
-                    parsed.PrefixLength,
-                    OnlineConstants.TunDefaultMtu);
-
-                if (winResult.Success && winResult.Data != null)
-                {
-                    return StartTunPump(winResult.Data, parsed, "Wintun");
-                }
-
-                logger.LogError(
-                    "Wintun adapter unavailable: {Error}",
-                    winResult.AllErrors);
-
-                return OperationResult<bool>.CreateFailure(
-                    $"Virtual LAN network adapter unavailable: {winResult.FirstError}");
+                return StartWindowsTunnel(parsed);
             }
             else if (OperatingSystem.IsLinux())
             {
-                if (tunSetup is not null)
+                var linuxResult = await TryStartLinuxTunnelAsync(parsed, cancellationToken).ConfigureAwait(false);
+                if (linuxResult is not null)
                 {
-                    return await StartProvisionedLinuxTunnelAsync(tunSetup, parsed, cancellationToken).ConfigureAwait(false);
-                }
-
-                if (LinuxTunInterface.Exists(OnlineConstants.TunDefaultInterfaceName))
-                {
-                    var linuxResult = LinuxTunDevice.Attach(OnlineConstants.TunDefaultInterfaceName, parsed.OverlayIp);
-                    if (linuxResult.Success && linuxResult.Data != null)
-                    {
-                        return StartTunPump(linuxResult.Data, parsed, "Linux TUN");
-                    }
-                    else
-                    {
-                        logger.LogWarning(
-                            "TUN interface exists but attach failed ({Errors}); falling back to socket proxy.",
-                            linuxResult.AllErrors);
-                    }
+                    return linuxResult;
                 }
             }
 
@@ -517,25 +487,80 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private OperationResult<bool> StartTunPump(ITunDevice device, ParsedTunnelConfig parsed, string adapterKind)
     {
-        _tunDevice = device;
-        _tunPump = new TunPacketPump(
-            _tunDevice,
-            parsed.RelayEndpoint,
-            parsed.NetworkId,
-            parsed.OverlayIp,
-            logger,
-            parsed.PrefixLength);
-        _tunPump.Start();
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                device.Dispose();
+                return OperationResult<bool>.CreateFailure("Virtual LAN runner disposed.");
+            }
 
-        IsRunning = true;
-        logger.LogInformation(
-            "Virtual LAN {Kind} adapter {Interface} active with IP {Ip} via relay {Relay}.",
-            adapterKind,
-            _tunDevice.InterfaceName,
-            parsed.OverlayIp,
-            parsed.RelayEndpoint);
+            _tunDevice = device;
+            _tunPump = new TunPacketPump(
+                _tunDevice,
+                parsed.RelayEndpoint,
+                parsed.NetworkId,
+                parsed.OverlayIp,
+                logger,
+                parsed.PrefixLength);
+            _tunPump.Start();
 
-        return OperationResult<bool>.CreateSuccess(true);
+            IsRunning = true;
+            logger.LogInformation(
+                "Virtual LAN {Kind} adapter {Interface} active with IP {Ip} via relay {Relay}.",
+                adapterKind,
+                _tunDevice.InterfaceName,
+                parsed.OverlayIp,
+                parsed.RelayEndpoint);
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+    }
+
+    private OperationResult<bool> StartWindowsTunnel(ParsedTunnelConfig parsed)
+    {
+        var winResult = WindowsTunDevice.CreateOrOpen(
+            OnlineConstants.TunDefaultWindowsInterfaceName,
+            parsed.OverlayIp,
+            parsed.PrefixLength,
+            OnlineConstants.TunDefaultMtu);
+
+        if (winResult.Success && winResult.Data != null)
+        {
+            return StartTunPump(winResult.Data, parsed, "Wintun");
+        }
+
+        logger.LogError(
+            "Wintun adapter unavailable: {Error}",
+            winResult.AllErrors);
+
+        return OperationResult<bool>.CreateFailure(
+            $"Virtual LAN network adapter unavailable: {winResult.FirstError}");
+    }
+
+    private async Task<OperationResult<bool>?> TryStartLinuxTunnelAsync(
+        ParsedTunnelConfig parsed,
+        CancellationToken cancellationToken)
+    {
+        if (tunSetup is not null)
+        {
+            return await StartProvisionedLinuxTunnelAsync(tunSetup, parsed, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (LinuxTunInterface.Exists(OnlineConstants.TunDefaultInterfaceName))
+        {
+            var linuxResult = LinuxTunDevice.Attach(OnlineConstants.TunDefaultInterfaceName, parsed.OverlayIp);
+            if (linuxResult.Success && linuxResult.Data != null)
+            {
+                return StartTunPump(linuxResult.Data, parsed, "Linux TUN");
+            }
+
+            logger.LogWarning(
+                "TUN interface exists but attach failed ({Errors}); falling back to socket proxy.",
+                linuxResult.AllErrors);
+        }
+
+        return null;
     }
 
     private async Task<OperationResult<bool>> StartProvisionedLinuxTunnelAsync(
@@ -554,6 +579,14 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             logger.LogError("Linux TUN setup failed: {Error}", provisioned.AllErrors);
             return OperationResult<bool>.CreateFailure(
                 $"Virtual LAN network adapter unavailable: {provisioned.FirstError}");
+        }
+
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return OperationResult<bool>.CreateFailure("Virtual LAN runner disposed.");
+            }
         }
 
         var attached = LinuxTunDevice.Attach(OnlineConstants.TunDefaultInterfaceName, parsed.OverlayIp);
