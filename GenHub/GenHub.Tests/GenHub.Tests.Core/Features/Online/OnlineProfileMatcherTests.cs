@@ -501,22 +501,6 @@ public class OnlineProfileMatcherTests
         Assert.Equal(OnlineProfileMatch.Exact, match);
     }
 
-    private static GameProfile ProfileWith(params string[] contentIds)
-    {
-        return new GameProfile
-        {
-            Id = Guid.NewGuid().ToString(),
-            Name = "Test",
-            GameClient = new GameClient
-            {
-                Id = "zerohour-client",
-                Name = "Zero Hour",
-                Version = "1.04",
-                GameType = GameType.ZeroHour,
-            },
-            EnabledContentIds = [.. contentIds],
-        };
-    }
     /// <summary>
     /// Tests that maps and map packs are excluded from gameplay content and do not change the fingerprint.
     /// </summary>
@@ -548,5 +532,22 @@ public class OnlineProfileMatcherTests
         Assert.Equal(fpModOnly, fpWithMaps);
         Assert.Single(gameplayIds);
         Assert.Equal("1.0.0.steam.mod.generals-plus", gameplayIds[0]);
+    }
+
+    private static GameProfile ProfileWith(params string[] contentIds)
+    {
+        return new GameProfile
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "Test",
+            GameClient = new GameClient
+            {
+                Id = "zerohour-client",
+                Name = "Zero Hour",
+                Version = "1.04",
+                GameType = GameType.ZeroHour,
+            },
+            EnabledContentIds = [.. contentIds],
+        };
     }
 }
