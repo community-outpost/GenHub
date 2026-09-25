@@ -19,6 +19,12 @@ public static class NativeClientFixture
     /// <summary>The engine executable's filename.</summary>
     public const string BinaryName = "generalszh";
 
+    /// <summary>The xUnit trait name that marks tests launching the real engine.</summary>
+    public const string TraitName = "Category";
+
+    /// <summary>The trait value that unit runs exclude with <c>Category!=NativeEngine</c>.</summary>
+    public const string TraitValue = "NativeEngine";
+
     /// <summary>
     /// Gets the native client directory, or <c>null</c> when these tests should skip.
     /// </summary>
