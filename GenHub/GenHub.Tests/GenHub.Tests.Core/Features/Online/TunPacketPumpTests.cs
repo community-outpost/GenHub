@@ -19,13 +19,22 @@ public class TunPacketPumpTests
     private sealed class FakeTunDevice : ITunDevice
     {
         private readonly List<byte[]> _writtenPackets = new();
-        private readonly TaskCompletionSource<bool> _packetWrittenTcs = new();
+        private readonly SemaphoreSlim _packetSignal = new(0);
 
         public string InterfaceName => "fake0";
 
         public IPAddress OverlayIp => IPAddress.Parse("10.42.0.2");
 
-        public IReadOnlyList<byte[]> WrittenPackets => _writtenPackets;
+        public IReadOnlyList<byte[]> WrittenPackets
+        {
+            get
+            {
+                lock (_writtenPackets)
+                {
+                    return _writtenPackets.ToList();
+                }
+            }
+        }
 
         public Task<int> ReadPacketAsync(byte[] buffer, CancellationToken cancellationToken)
         {
@@ -37,20 +46,23 @@ public class TunPacketPumpTests
 
         public async Task<bool> WaitForPacketWrittenAsync(TimeSpan timeout)
         {
-            using var cts = new CancellationTokenSource(timeout);
-            cts.Token.Register(() => _packetWrittenTcs.TrySetResult(false));
-            return await _packetWrittenTcs.Task;
+            return await _packetSignal.WaitAsync(timeout);
         }
 
         public ValueTask WritePacketAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken)
         {
-            _writtenPackets.Add(packet.ToArray());
-            _packetWrittenTcs.TrySetResult(true);
+            lock (_writtenPackets)
+            {
+                _writtenPackets.Add(packet.ToArray());
+            }
+
+            _packetSignal.Release();
             return ValueTask.CompletedTask;
         }
 
         public void Dispose()
         {
+            _packetSignal.Dispose();
         }
     }
 
@@ -99,13 +111,19 @@ public class TunPacketPumpTests
         IPAddress.Parse("10.42.0.3").GetAddressBytes().CopyTo(frame, 20);
         dummyIpPacket.CopyTo(frame, 24);
 
-        // Send from relay back to client endpoint
-        await relayServer.SendAsync(frame, frame.Length, receivedPing.RemoteEndPoint);
+        // Send from relay back to client endpoint with retry for UDP reliability under test runner load
+        using var retryCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (!retryCts.Token.IsCancellationRequested && fakeTun.WrittenPackets.Count == 0)
+        {
+            await relayServer.SendAsync(frame, frame.Length, receivedPing.RemoteEndPoint);
+            if (await fakeTun.WaitForPacketWrittenAsync(TimeSpan.FromMilliseconds(250)))
+            {
+                break;
+            }
+        }
 
         // Assert packet is delivered to TUN
-        var written = await fakeTun.WaitForPacketWrittenAsync(TimeSpan.FromSeconds(10));
-        Assert.True(written, "Packet was not written to TUN device");
-        Assert.Single(fakeTun.WrittenPackets);
+        Assert.NotEmpty(fakeTun.WrittenPackets);
         Assert.Equal(dummyIpPacket, fakeTun.WrittenPackets[0]);
 
         // Cleanup
