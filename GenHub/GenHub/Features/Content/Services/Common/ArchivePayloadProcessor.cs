@@ -2688,6 +2688,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             return;
         }
 
+        var reservedNames = new HashSet<string>(
+            looseMapFiles.Select(Path.GetFileNameWithoutExtension)
+                .Concat(Directory.EnumerateDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly).Select(Path.GetFileName))
+                .OfType<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
         foreach (var mapFile in looseMapFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -2697,28 +2703,33 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var targetMapFile = Path.Combine(targetFolder, Path.GetFileName(mapFile));
             try
             {
-                if (!File.Exists(targetMapFile))
+                if (Directory.Exists(targetFolder))
                 {
-                    Directory.CreateDirectory(targetFolder);
-                    File.Move(mapFile, targetMapFile);
-                }
-                else if (FilesAreEqual(mapFile, targetMapFile))
-                {
-                    File.Delete(mapFile);
-                    logger.LogInformation("Deduplicated identical loose map {Source} matching existing {Target}", mapFile, targetMapFile);
+                    if (File.Exists(targetMapFile))
+                    {
+                        if (FilesAreEqual(mapFile, targetMapFile))
+                        {
+                            File.Delete(mapFile);
+                            logger.LogInformation("Deduplicated identical loose map {Source} matching existing {Target}", mapFile, targetMapFile);
+                            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
+                            continue;
+                        }
+
+                        targetFolder = MoveToDisambiguatedFolder(extractedDirectory, mapFile, mapBase, targetMapFile, reservedNames);
+                    }
+                    else if (DirectoryContainsMapFilesDirectly(targetFolder))
+                    {
+                        targetFolder = MoveToDisambiguatedFolder(extractedDirectory, mapFile, mapBase, targetMapFile, reservedNames);
+                    }
+                    else
+                    {
+                        File.Move(mapFile, targetMapFile);
+                    }
                 }
                 else
                 {
-                    var disambiguatedFolder = GetUniqueMapDirectory(extractedDirectory, mapBase);
-                    Directory.CreateDirectory(disambiguatedFolder);
-                    var disambiguatedTargetFile = Path.Combine(disambiguatedFolder, Path.GetFileName(mapFile));
-                    File.Move(mapFile, disambiguatedTargetFile);
-                    logger.LogWarning(
-                        "Conflict between loose map {Source} and existing {Target}; preserving both maps by moving loose copy to {DisambiguatedFolder}",
-                        mapFile,
-                        targetMapFile,
-                        disambiguatedFolder);
-                    targetFolder = disambiguatedFolder;
+                    Directory.CreateDirectory(targetFolder);
+                    File.Move(mapFile, targetMapFile);
                 }
 
                 OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
@@ -2857,18 +2868,41 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
-    private string GetUniqueMapDirectory(string parentDirectory, string mapBase)
+    private string GetUniqueMapDirectory(string parentDirectory, string mapBase, ISet<string> reservedNames)
     {
-        var targetFolder = Path.Combine(parentDirectory, mapBase);
         var counter = 1;
-        while (Directory.Exists(targetFolder))
+        string candidateName;
+        string candidateFolder;
+        do
         {
-            targetFolder = Path.Combine(parentDirectory, $"{mapBase} ({counter})");
+            candidateName = $"{mapBase} ({counter})";
+            candidateFolder = Path.Combine(parentDirectory, candidateName);
             counter++;
         }
+        while (Directory.Exists(candidateFolder) || reservedNames.Contains(candidateName));
 
-        logger.LogDebug("Resolved unique map directory {TargetFolder} for {MapBase}", targetFolder, mapBase);
-        return targetFolder;
+        reservedNames.Add(candidateName);
+        logger.LogDebug("Resolved unique map directory {TargetFolder} for {MapBase}", candidateFolder, mapBase);
+        return candidateFolder;
+    }
+
+    private string MoveToDisambiguatedFolder(
+        string parentDirectory,
+        string sourceMapFile,
+        string mapBase,
+        string existingTargetFile,
+        ISet<string> reservedNames)
+    {
+        var disambiguatedFolder = GetUniqueMapDirectory(parentDirectory, mapBase, reservedNames);
+        Directory.CreateDirectory(disambiguatedFolder);
+        var disambiguatedTargetFile = Path.Combine(disambiguatedFolder, Path.GetFileName(sourceMapFile));
+        File.Move(sourceMapFile, disambiguatedTargetFile);
+        logger.LogWarning(
+            "Conflict between loose map {Source} and existing {Target}; preserving both maps by moving loose copy to {DisambiguatedFolder}",
+            sourceMapFile,
+            existingTargetFile,
+            disambiguatedFolder);
+        return disambiguatedFolder;
     }
 
     private void NormalizeMapPreviews(string extractedDirectory, CancellationToken cancellationToken)

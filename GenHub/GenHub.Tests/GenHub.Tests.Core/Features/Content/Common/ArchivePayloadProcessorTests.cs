@@ -1389,6 +1389,7 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         // Act & Assert
         ArchivePayloadProcessor.EnsureValidArchivePayload(archivePath);
         Assert.True(ZipValidation.IsValidZipFile(archivePath));
+    }
 
     /// <summary>
     /// Verifies that NormalizeMapPayloadStructure unwraps a lowercase "maps" directory
@@ -1587,6 +1588,56 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.False(File.Exists(tgaFile));
         Assert.True(File.Exists(Path.Combine(targetFolder, "Arena.MAP")));
         Assert.True(File.Exists(Path.Combine(targetFolder, "Arena.TGA")));
+    }
+
+    /// <summary>
+    /// Verifies that when a loose map conflicts with an existing directory, disambiguation avoids colliding
+    /// with another loose map that owns the candidate disambiguated base name (e.g., "Desert (1).map").
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_ConflictingLooseMapWithExistingDisambiguatedBaseName_AvoidsDirectoryCollisionAsync()
+    {
+        // Arrange: Existing Desert/Desert.map, loose conflicting Desert.map, and loose Desert (1).map
+        Directory.CreateDirectory(_stagingDirectory);
+        var existingDesertDir = Path.Combine(_stagingDirectory, "Desert");
+        Directory.CreateDirectory(existingDesertDir);
+        var existingMapFile = Path.Combine(existingDesertDir, "Desert.map");
+        await File.WriteAllTextAsync(existingMapFile, "existing-desert-map");
+
+        var looseDesertMap = Path.Combine(_stagingDirectory, "Desert.map");
+        await File.WriteAllTextAsync(looseDesertMap, "loose-conflicting-desert-map");
+
+        var looseDesert1Map = Path.Combine(_stagingDirectory, "Desert (1).map");
+        await File.WriteAllTextAsync(looseDesert1Map, "loose-desert-1-map");
+
+        // Act
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        // Assert:
+        // 1. Existing Desert/Desert.map is preserved.
+        Assert.True(File.Exists(existingMapFile));
+        Assert.Equal("existing-desert-map", await File.ReadAllTextAsync(existingMapFile));
+
+        // 2. Loose Desert (1).map gets its own dedicated folder "Desert (1)" with only its map.
+        var desert1Dir = Path.Combine(_stagingDirectory, "Desert (1)");
+        Assert.True(Directory.Exists(desert1Dir));
+        var desert1TargetMap = Path.Combine(desert1Dir, "Desert (1).map");
+        Assert.True(File.Exists(desert1TargetMap));
+        Assert.Equal("loose-desert-1-map", await File.ReadAllTextAsync(desert1TargetMap));
+
+        // 3. Disambiguated Desert.map skips "Desert (1)" to avoid collision and is placed in "Desert (2)".
+        var desert2Dir = Path.Combine(_stagingDirectory, "Desert (2)");
+        Assert.True(Directory.Exists(desert2Dir));
+        var desert2TargetMap = Path.Combine(desert2Dir, "Desert.map");
+        Assert.True(File.Exists(desert2TargetMap));
+        Assert.Equal("loose-conflicting-desert-map", await File.ReadAllTextAsync(desert2TargetMap));
+
+        // Ensure each folder only has its own single map file (no multiple map files sharing a directory).
+        Assert.Single(Directory.GetFiles(existingDesertDir, "*.map"));
+        Assert.Single(Directory.GetFiles(desert1Dir, "*.map"));
+        Assert.Single(Directory.GetFiles(desert2Dir, "*.map"));
     }
 
     /// <inheritdoc/>
