@@ -698,9 +698,10 @@ public class SteamLauncher : ISteamLauncher
         {
             await process.WaitForExitAsync(timeoutCts.Token);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            _logger.LogError(
+            _logger.LogWarning(
+                ex,
                 "[SteamLauncher] Process {ProcessName} ({Pid}) did not exit within {TimeoutMs}ms after termination signal",
                 process.ProcessName,
                 process.Id,

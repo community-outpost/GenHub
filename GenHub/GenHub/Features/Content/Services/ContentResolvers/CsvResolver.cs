@@ -71,25 +71,10 @@ public class CsvResolver(
                 return OperationResult<ContentManifest>.CreateFailure(loadResult.Errors);
             }
 
-            if (discoveredItem.ResolverMetadata.TryGetValue(CsvConstants.Sha256MetadataKey, out var expectedSha256) &&
-                !string.IsNullOrWhiteSpace(expectedSha256))
+            var integrityResult = VerifyCatalogIntegrity(discoveredItem, loadResult.Data.RawBytes);
+            if (!integrityResult.Success)
             {
-                var actualHash = Convert.ToHexString(SHA256.HashData(loadResult.Data.RawBytes));
-                if (!string.Equals(actualHash, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogError(
-                        "CSV catalog SHA-256 integrity verification failed for {SourceUrl}. Expected: {Expected}, Actual: {Actual}",
-                        discoveredItem.SourceUrl,
-                        expectedSha256,
-                        actualHash);
-
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"CSV catalog integrity check failed for {discoveredItem.SourceUrl}");
-                }
-
-                logger.LogDebug(
-                    "CSV catalog SHA-256 verified successfully for {SourceUrl}",
-                    discoveredItem.SourceUrl);
+                return OperationResult<ContentManifest>.CreateFailure(integrityResult.Errors);
             }
 
             var gameTypeStr = GetGameTypeString(discoveredItem);
@@ -117,14 +102,7 @@ public class CsvResolver(
             var isRemote = Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var uri) &&
                 (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
-            cancellationToken.ThrowIfCancellationRequested();
-            var manifestFiles = new List<ManifestFile>(matchingEntries.Count);
-            foreach (var entry in matchingEntries)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                manifestFiles.Add(CreateManifestFile(entry, isRemote));
-            }
-
+            var manifestFiles = CreateManifestFiles(matchingEntries, isRemote, cancellationToken);
             var manifest = BuildManifest(discoveredItem, gameTypeStr, version, languageStr, manifestFiles);
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -490,5 +468,49 @@ public class CsvResolver(
             logger.LogError(ex, "Failed to read CSV catalog file at {FilePath}", resolvedPath);
             return OperationResult<CsvContentLoadResult>.CreateFailure($"Failed to read CSV catalog file: {ex.Message}");
         }
+    }
+
+    private OperationResult<bool> VerifyCatalogIntegrity(ContentSearchResult discoveredItem, byte[] rawBytes)
+    {
+        if (!discoveredItem.ResolverMetadata.TryGetValue(CsvConstants.Sha256MetadataKey, out var expectedSha256) ||
+            string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var actualHash = Convert.ToHexString(SHA256.HashData(rawBytes));
+        if (!string.Equals(actualHash, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogError(
+                "CSV catalog SHA-256 integrity verification failed for {SourceUrl}. Expected: {Expected}, Actual: {Actual}",
+                discoveredItem.SourceUrl,
+                expectedSha256,
+                actualHash);
+
+            return OperationResult<bool>.CreateFailure(
+                $"CSV catalog integrity check failed for {discoveredItem.SourceUrl}");
+        }
+
+        logger.LogDebug(
+            "CSV catalog SHA-256 verified successfully for {SourceUrl}",
+            discoveredItem.SourceUrl);
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private List<ManifestFile> CreateManifestFiles(
+        IReadOnlyList<CsvCatalogEntry> matchingEntries,
+        bool isRemote,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var manifestFiles = new List<ManifestFile>(matchingEntries.Count);
+        foreach (var entry in matchingEntries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            manifestFiles.Add(CreateManifestFile(entry, isRemote));
+        }
+
+        return manifestFiles;
     }
 }
