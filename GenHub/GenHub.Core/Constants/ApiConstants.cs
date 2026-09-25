@@ -377,7 +377,7 @@ public static class ApiConstants
     /// Default relay hostname or IP for virtual LAN fallback tunneling.
     /// </summary>
     [SuppressMessage("Security", "S1313:Using hardcoded IP addresses is security-sensitive", Justification = "Default community fallback relay endpoint.")]
-    public const string DefaultOnlineRelayHost = "152.70.171.121"; // NOSONAR
+    public const string DefaultOnlineRelayHost = "130.61.202.35"; // NOSONAR
 
     /// <summary>
     /// Gets the active relay host, checking environment variable overrides first.
@@ -386,6 +386,28 @@ public static class ApiConstants
         Environment.GetEnvironmentVariable(OnlineRelayHostEnvVar) is { Length: > 0 } customHost
             ? customHost
             : DefaultOnlineRelayHost;
+
+    /// <summary>
+    /// Resolves the relay host to connect to. An explicit environment override
+    /// wins over the server-advertised host so relay moves stay testable without
+    /// an edge deploy; otherwise the advertised host wins over the default.
+    /// </summary>
+    /// <param name="advertisedHost">The relay host advertised by the server, if any.</param>
+    /// <returns>The override, the advertised host, or the default, in that order.</returns>
+    public static string ResolveRelayHost(string? advertisedHost)
+    {
+        if (Environment.GetEnvironmentVariable(OnlineRelayHostEnvVar) is { Length: > 0 } customHost)
+        {
+            return customHost;
+        }
+
+        if (!string.IsNullOrWhiteSpace(advertisedHost))
+        {
+            return advertisedHost;
+        }
+
+        return DefaultOnlineRelayHost;
+    }
 
     // User agents
 

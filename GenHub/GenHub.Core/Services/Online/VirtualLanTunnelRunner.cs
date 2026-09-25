@@ -356,21 +356,21 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private static (string Host, int Port) ExtractRelayHostAndPort(JsonElement root)
     {
-        var relayHost = ApiConstants.OnlineRelayHost;
+        string? advertisedHost = null;
         var relayPort = OnlineConstants.DefaultRelayPort;
 
         if (root.TryGetProperty("relay", out var relayProp) && relayProp.ValueKind == JsonValueKind.Object)
         {
-            relayHost = GetStringProperty(relayProp, "host") ?? relayHost;
+            advertisedHost = GetStringProperty(relayProp, "host");
             relayPort = GetIntProperty(relayProp, "port") ?? relayPort;
         }
         else
         {
-            relayHost = GetStringProperty(root, "relayHost") ?? relayHost;
+            advertisedHost = GetStringProperty(root, "relayHost");
             relayPort = GetIntProperty(root, "relayPort") ?? relayPort;
         }
 
-        return (relayHost, relayPort);
+        return (ApiConstants.ResolveRelayHost(advertisedHost), relayPort);
     }
 
     private static string? GetStringProperty(JsonElement element, string propertyName)
