@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -1333,10 +1334,19 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private (string IconPath, string CoverPath) ResolveProfileDisplayPaths(Core.Models.GameProfile.GameProfile profile, string fallbackGameType)
     {
+        var isCommunityOutpost = profile.IsCommunityOutpostProfile();
         var publisherKey = profile.GameClient?.PublisherType ?? profile.GameClient?.Name ?? profile.Name;
 
         string iconPath;
-        if (!string.IsNullOrEmpty(profile.IconPath) &&
+        if (isCommunityOutpost &&
+            (string.IsNullOrEmpty(profile.IconPath) ||
+             profile.IconPath.Contains(UriConstants.GenHubIconMarker) ||
+             profile.IconPath.Contains(UriConstants.ZeroHourIconMarker) ||
+             profile.IconPath.Contains("thesuperhackers-logo", StringComparison.OrdinalIgnoreCase)))
+        {
+            iconPath = CommunityOutpostConstants.LogoSource;
+        }
+        else if (!string.IsNullOrEmpty(profile.IconPath) &&
             !profile.IconPath.Contains(UriConstants.GenHubIconMarker) &&
             !profile.IconPath.Contains(UriConstants.ZeroHourIconMarker))
         {
@@ -1360,7 +1370,14 @@ public partial class GameProfileLauncherViewModel(
         }
 
         string coverPath;
-        if (!string.IsNullOrEmpty(profile.CoverPath) &&
+        if (isCommunityOutpost &&
+            (string.IsNullOrEmpty(profile.CoverPath) ||
+             profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker) ||
+             profile.CoverPath.Contains("china-cover", StringComparison.OrdinalIgnoreCase)))
+        {
+            coverPath = CommunityOutpostConstants.CoverSource;
+        }
+        else if (!string.IsNullOrEmpty(profile.CoverPath) &&
             !profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker))
         {
             coverPath = profile.CoverPath;

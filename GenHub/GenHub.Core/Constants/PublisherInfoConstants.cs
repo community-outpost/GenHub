@@ -30,7 +30,7 @@ public static class PublisherInfoConstants
     private static readonly (string[] Keywords, string LogoSource)[] LogoRules =
     [
         (["dominator", "dominatormappacks", "dominator-mappacks", "dominator map packs"], Dominator.LogoSource),
-        (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpost.LogoSource),
+        (["communityoutpost", "community outpost", "community-outpost", "community patch", "community-patch", "communitypatch"], CommunityOutpost.LogoSource),
         (["superhacker"], TheSuperHackers.LogoSource),
         (["generalsonline", "generals online", "generals-online"], GeneralsOnline.LogoSource),
         (["moddb", "mod db", "mod-db"], ModDB.LogoSource),
@@ -44,7 +44,7 @@ public static class PublisherInfoConstants
 
     private static readonly (string[] Keywords, string CoverSource)[] CoverRules =
     [
-        (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpostConstants.CoverSource),
+        (["communityoutpost", "community outpost", "community-outpost", "community patch", "community-patch", "communitypatch"], CommunityOutpostConstants.CoverSource),
         (["superhacker"], SuperHackersConstants.ZeroHourCoverSource),
         (["generalsonline", "generals online", "generals-online"], GeneralsOnlineConstants.CoverSource),
     ];
@@ -465,6 +465,11 @@ public static class PublisherInfoConstants
             return null;
         }
 
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(input))
+        {
+            return CommunityOutpost.LogoSource;
+        }
+
         foreach (var (keywords, logoSource) in LogoRules)
         {
             if (keywords.Any(keyword => input.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
@@ -481,6 +486,11 @@ public static class PublisherInfoConstants
         if (string.IsNullOrWhiteSpace(input))
         {
             return null;
+        }
+
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(input))
+        {
+            return CommunityOutpostConstants.CoverSource;
         }
 
         foreach (var (keywords, coverSource) in CoverRules)

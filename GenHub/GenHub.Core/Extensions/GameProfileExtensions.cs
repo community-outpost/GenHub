@@ -55,16 +55,64 @@ public static class GameProfileExtensions
     }
 
     /// <summary>
+    /// Checks if a profile runs a Community Outpost or Community Patch client.
+    /// </summary>
+    /// <param name="profile">The game profile.</param>
+    /// <returns>True if the profile runs Community Outpost or Community Patch, false otherwise.</returns>
+    public static bool IsCommunityOutpostProfile(this GameProfile profile)
+    {
+        var publisherType = profile.GameClient?.PublisherType;
+        if (!string.IsNullOrWhiteSpace(publisherType))
+        {
+            return string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Name) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Id) ||
+            profile.GameClient?.Name?.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        if (profile.EnabledContentIds?
+            .Any(id => id.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                       CommunityOutpostConstants.IsCommunityPatchIdentifier(id)) == true)
+        {
+            return true;
+        }
+
+        if (profile.GameClient == null && CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.Name))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Checks if a profile runs the TheSuperHackers client.
     /// </summary>
     /// <param name="profile">The game profile.</param>
     /// <returns>True if the profile runs TheSuperHackers, false otherwise.</returns>
     public static bool IsTheSuperHackersProfile(this GameProfile profile)
     {
+        if (profile.IsCommunityOutpostProfile())
+        {
+            return false;
+        }
+
         var publisherType = profile.GameClient?.PublisherType;
         if (!string.IsNullOrWhiteSpace(publisherType))
         {
-            return string.Equals(publisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+            return string.Equals(publisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(publisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Name) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Id) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.Name))
+        {
+            return false;
         }
 
         if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true)
@@ -73,7 +121,8 @@ public static class GameProfileExtensions
         }
 
         return profile.EnabledContentIds?
-            .Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)) == true;
+            .Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) &&
+                       !CommunityOutpostConstants.IsCommunityPatchIdentifier(id)) == true;
     }
 
     /// <summary>

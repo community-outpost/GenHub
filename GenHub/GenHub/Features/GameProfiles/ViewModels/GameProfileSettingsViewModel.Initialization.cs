@@ -325,6 +325,8 @@ public partial class GameProfileSettingsViewModel
             "GeneralsOnline 30Hz",
             "Community Outpost",
             "CommunityOutpost",
+            "Community Patch",
+            "CommunityPatch",
         ];
 
         var matchesStandardPattern = standardExactNames.Any(n => string.Equals(n, trimmedName, StringComparison.OrdinalIgnoreCase)) ||
@@ -347,7 +349,11 @@ public partial class GameProfileSettingsViewModel
                name.StartsWith("Zero Hour 1.", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("SuperHackers", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Generals Online", StringComparison.OrdinalIgnoreCase);
+               name.StartsWith("Generals Online", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Patch", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityPatch", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityOutpost", StringComparison.OrdinalIgnoreCase);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]

@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Tools.Checksum;
@@ -500,7 +501,16 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // Set color value with game type defaults or profile theme
         if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
         {
-            _colorValue = gp.ThemeColor;
+            if (gp.IsCommunityOutpostProfile() &&
+                (string.Equals(gp.ThemeColor, SuperHackersConstants.ZeroHourThemeColor, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(gp.ThemeColor, SuperHackersConstants.GeneralsThemeColor, StringComparison.OrdinalIgnoreCase)))
+            {
+                _colorValue = CommunityOutpostConstants.ThemeColor;
+            }
+            else
+            {
+                _colorValue = gp.ThemeColor;
+            }
         }
         else if (string.IsNullOrEmpty(_colorValue))
         {
@@ -997,6 +1007,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         TryResolveFromPatchManifest(enabledIds, isPublisherClient);
+
+        if (gameProfile.IsCommunityOutpostProfile())
+        {
+            Publisher = CommunityOutpostConstants.PublisherName;
+            ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
+        }
     }
 
     private void TryResolveFromEnabledGameClient(IReadOnlyList<string> enabledContentIds)
@@ -1040,17 +1056,26 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ResolveFromGameClient(GameClient gameClient)
     {
-        ExtractManifestInfo(gameClient.Id);
-
-        if (!string.IsNullOrEmpty(gameClient.PublisherType))
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(gameClient.Name) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(gameClient.Id))
         {
-            var pub = gameClient.PublisherType.ToLowerInvariant();
-            Publisher = MapPublisherName(pub, gameClient.PublisherType);
-            ApplyPublisherBranding(pub);
+            Publisher = CommunityOutpostConstants.PublisherName;
+            ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
         }
-        else if (string.IsNullOrEmpty(Publisher))
+        else
         {
-            ResolvePublisherFromGameClient(gameClient);
+            ExtractManifestInfo(gameClient.Id);
+
+            if (!string.IsNullOrEmpty(gameClient.PublisherType))
+            {
+                var pub = gameClient.PublisherType.ToLowerInvariant();
+                Publisher = MapPublisherName(pub, gameClient.PublisherType);
+                ApplyPublisherBranding(pub);
+            }
+            else if (string.IsNullOrEmpty(Publisher))
+            {
+                ResolvePublisherFromGameClient(gameClient);
+            }
         }
 
         if (string.IsNullOrEmpty(GameVersion) &&
@@ -1064,6 +1089,14 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ResolvePublisherFromGameClient(GameClient gameClient)
     {
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(gameClient.Name) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(gameClient.Id))
+        {
+            Publisher = CommunityOutpostConstants.PublisherName;
+            ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
+            return;
+        }
+
         if (!string.IsNullOrEmpty(gameClient.PublisherType))
         {
             var pub = gameClient.PublisherType.ToLowerInvariant();
