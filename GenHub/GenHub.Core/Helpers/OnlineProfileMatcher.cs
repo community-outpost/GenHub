@@ -200,17 +200,17 @@ public static class OnlineProfileMatcher
 
     /// <summary>
     /// Decides whether two fingerprints confirm network compatibility
-    /// through their embedded engine INI CRCs. INI CRC is the multiplayer network
-    /// compatibility check in Generals/Zero Hour: matching INI CRC means
-    /// identical game logic rules and data.
+    /// through their embedded engine CRCs. In Generals/Zero Hour, multiplayer
+    /// compatibility requires identical game rules (<c>iniCRC</c>) and
+    /// compatible engine binaries (<c>exeCRC</c> match-or-absent).
     /// </summary>
     /// <param name="first">One fingerprint.</param>
     /// <param name="second">The other fingerprint.</param>
-    /// <returns>True when both carry matching non-empty iniCRCs.</returns>
+    /// <returns>True when both carry matching non-empty iniCRCs and matching-or-absent exeCRCs.</returns>
     public static bool CrcConfirmsCompatible(string first, string second)
     {
-        if (!TryGetCompatibilityCrcs(first, out var firstIni, out _) ||
-            !TryGetCompatibilityCrcs(second, out var secondIni, out _))
+        if (!TryGetCompatibilityCrcs(first, out var firstIni, out var firstExe) ||
+            !TryGetCompatibilityCrcs(second, out var secondIni, out var secondExe))
         {
             return false;
         }
@@ -220,7 +220,14 @@ public static class OnlineProfileMatcher
             return false;
         }
 
-        return string.Equals(firstIni, secondIni, StringComparison.OrdinalIgnoreCase);
+        if (!string.Equals(firstIni, secondIni, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.IsNullOrEmpty(firstExe) ||
+            string.IsNullOrEmpty(secondExe) ||
+            string.Equals(firstExe, secondExe, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -365,25 +372,14 @@ public static class OnlineProfileMatcher
         return expectedContentIds.Count(id => local.Contains(id));
     }
 
-    private static string NormalizeCrc(string? crc)
-    {
-        if (string.IsNullOrWhiteSpace(crc))
-        {
-            return string.Empty;
-        }
-
-        var trimmed = crc.Trim();
-        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-        {
-            trimmed = trimmed[2..];
-        }
-
-        return trimmed.ToUpperInvariant();
-    }
-
     /// <summary>
     /// Determines whether two setups belong to the same base game (Generals vs Zero Hour).
     /// </summary>
+    /// <param name="clientKeyA">The first setup's game client key.</param>
+    /// <param name="clientKeyB">The second setup's game client key.</param>
+    /// <param name="fingerprintA">The first setup's fingerprint fallback.</param>
+    /// <param name="fingerprintB">The second setup's fingerprint fallback.</param>
+    /// <returns><c>true</c> if both setups belong to the same base game; otherwise, <c>false</c>.</returns>
     public static bool AreGameTypesCompatible(
         string? clientKeyA,
         string? clientKeyB,
@@ -399,6 +395,22 @@ public static class OnlineProfileMatcher
         }
 
         return string.Equals(gameTypeA, gameTypeB, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeCrc(string? crc)
+    {
+        if (string.IsNullOrWhiteSpace(crc))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = crc.Trim();
+        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed[2..];
+        }
+
+        return trimmed.ToUpperInvariant();
     }
 
     private static string ExtractGameType(string? clientKey, string? fingerprint)

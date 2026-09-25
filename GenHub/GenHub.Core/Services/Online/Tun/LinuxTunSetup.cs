@@ -122,10 +122,11 @@ public sealed class LinuxTunSetup(ILogger<LinuxTunSetup> logger) : ITunInterface
         int mtu,
         string user)
     {
-        var create = string.Join(' ', BuildCreateArgs(interfaceName, user));
+        var escapedUser = user.Replace("\"", "\\\"", StringComparison.Ordinal);
+        var ip = OnlineConstants.TunIpBinary;
         var address = string.Join(' ', BuildAddressArgs(interfaceName, overlayIp, prefixLength));
         var linkUp = string.Join(' ', BuildLinkUpArgs(interfaceName, mtu));
-        return $"sudo {OnlineConstants.TunIpBinary} {create} && sudo {OnlineConstants.TunIpBinary} {address} && sudo {OnlineConstants.TunIpBinary} {linkUp}";
+        return $"{ip} link show {interfaceName} >/dev/null 2>&1 || sudo {ip} tuntap add mode tun dev {interfaceName} user \"{escapedUser}\" && sudo {ip} addr flush dev {interfaceName} && sudo {ip} {address} && sudo {ip} {linkUp}";
     }
 
     private static OperationResult<bool> ValidateArguments(
@@ -169,7 +170,7 @@ public sealed class LinuxTunSetup(ILogger<LinuxTunSetup> logger) : ITunInterface
             return await RunProcessAsync(OnlineConstants.TunIpBinary, ipArgs, cancellationToken).ConfigureAwait(false);
         }
 
-        var pkexecArgs = new List<string> { OnlineConstants.TunIpBinary };
+        var pkexecArgs = new List<string> { "--disable-internal-agent", OnlineConstants.TunIpBinary };
         pkexecArgs.AddRange(ipArgs);
         var pkexec = await RunProcessAsync(OnlineConstants.TunPkexecBinary, pkexecArgs, cancellationToken).ConfigureAwait(false);
         if (pkexec.Succeeded)
@@ -238,8 +239,8 @@ public sealed class LinuxTunSetup(ILogger<LinuxTunSetup> logger) : ITunInterface
             return CommandResult.StartFailure($"'{fileName}' was cancelled.");
         }
 
-        // After an async wait, the sync wait drains the redirected streams.
-        process.WaitForExit();
+        // After an async wait, drain the redirected streams.
+        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
         return new CommandResult(true, process.ExitCode, Snippet(output.ToString()));
     }
 
