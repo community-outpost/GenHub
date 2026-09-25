@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -31,6 +32,59 @@ public class DownloadService(
         long ExistingBytes,
         long TotalBytes,
         long? ExpectedContentBytes = null);
+
+    private sealed record ParallelDownloadContext(
+        DownloadConfiguration Configuration,
+        IDownloadUrlValidator Validator,
+        Uri TargetUri,
+        long TotalBytes,
+        EntityTagHeaderValue? InitialEtag,
+        DateTimeOffset? InitialLastModified);
+
+    private sealed class ParallelProgressTracker(
+        DownloadConfiguration configuration,
+        IProgress<DownloadProgress>? progress,
+        long totalBytes,
+        string fileName,
+        Stopwatch stopwatch,
+        CancellationTokenSource cts)
+    {
+        private readonly object progressLock = new();
+        private long downloadedBytes;
+        private DateTime lastProgressReport = DateTime.UtcNow;
+
+        public void OnBytesRead(int bytesRead)
+        {
+            cts.CancelAfter(configuration.Timeout);
+            var currentDownloaded = Interlocked.Add(ref downloadedBytes, bytesRead);
+            if (progress == null)
+            {
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            if (now - lastProgressReport < configuration.ProgressReportingInterval && currentDownloaded != totalBytes)
+            {
+                return;
+            }
+
+            lock (progressLock)
+            {
+                if (now - lastProgressReport >= configuration.ProgressReportingInterval || currentDownloaded == totalBytes)
+                {
+                    ReportDownloadProgress(
+                        progress,
+                        currentDownloaded,
+                        currentDownloaded,
+                        totalBytes,
+                        fileName,
+                        configuration.Url,
+                        stopwatch.Elapsed);
+                    lastProgressReport = now;
+                }
+            }
+        }
+    }
 
     /// <inheritdoc/>
     public async Task<DownloadResult> DownloadFileAsync(
@@ -383,19 +437,88 @@ public class DownloadService(
         return downloadedBytes;
     }
 
-    private async Task<HttpResponseMessage> SendChunkRequestAsync(
-        DownloadConfiguration configuration,
-        IDownloadUrlValidator validator,
-        Uri targetUri,
+    private static void ValidateChunkResponse(
+        HttpResponseMessage chunkResponse,
+        ParallelDownloadContext context,
         long start,
-        long end,
-        EntityTagHeaderValue? initialEtag,
-        DateTimeOffset? initialLastModified,
+        long end)
+    {
+        if (chunkResponse.StatusCode != HttpStatusCode.PartialContent)
+        {
+            throw new InvalidOperationException(
+                $"Server returned status code {chunkResponse.StatusCode} instead of 206 Partial Content for range {start}-{end}.");
+        }
+
+        if (context.InitialEtag != null &&
+            chunkResponse.Headers.ETag != null &&
+            !chunkResponse.Headers.ETag.Equals(context.InitialEtag))
+        {
+            throw new InvalidOperationException(
+                $"Server returned chunk with mismatched ETag ({chunkResponse.Headers.ETag}) instead of expected {context.InitialEtag}.");
+        }
+
+        var chunkRange = chunkResponse.Content.Headers.ContentRange;
+        if (chunkRange is null ||
+            !string.Equals(chunkRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) ||
+            chunkRange.From != start ||
+            chunkRange.To != end ||
+            chunkRange.Length != context.TotalBytes)
+        {
+            throw new InvalidOperationException(
+                $"Server returned invalid Content-Range ({chunkRange}) for requested range {start}-{end} (expected total bytes: {context.TotalBytes}).");
+        }
+
+        ValidateResponseContentType(chunkResponse, context.Configuration.DestinationPath);
+    }
+
+    private static async Task CopyChunkToHandleAsync(
+        HttpResponseMessage chunkResponse,
+        SafeFileHandle fileHandle,
+        long start,
+        long expectedChunkBytes,
+        int bufferSize,
+        ParallelProgressTracker progressTracker,
         CancellationToken token)
     {
-        if (!configuration.ValidateRedirectsManually)
+        await using var chunkStream = await chunkResponse.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        var buffer = new byte[bufferSize];
+        var chunkBytesRead = 0L;
+        int bytesRead;
+
+        while ((bytesRead = await chunkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), token).ConfigureAwait(false)) > 0)
         {
-            using var request = CreateChunkRequest(configuration, targetUri, start, end, initialEtag, initialLastModified);
+            await RandomAccess.WriteAsync(
+                fileHandle,
+                buffer.AsMemory(0, bytesRead),
+                start + chunkBytesRead,
+                token).ConfigureAwait(false);
+
+            chunkBytesRead += bytesRead;
+            progressTracker.OnBytesRead(bytesRead);
+        }
+
+        if (chunkBytesRead != expectedChunkBytes)
+        {
+            throw new InvalidDataException(
+                $"Chunk range {start}-{start + expectedChunkBytes - 1} received {chunkBytesRead} bytes, expected {expectedChunkBytes}.");
+        }
+    }
+
+    private async Task<HttpResponseMessage> SendChunkRequestAsync(
+        ParallelDownloadContext context,
+        long start,
+        long end,
+        CancellationToken token)
+    {
+        if (!context.Configuration.ValidateRedirectsManually)
+        {
+            using var request = CreateChunkRequest(
+                context.Configuration,
+                context.TargetUri,
+                start,
+                end,
+                context.InitialEtag,
+                context.InitialLastModified);
             return await httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
@@ -404,34 +527,36 @@ public class DownloadService(
 
         var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
             httpClient,
-            uri => CreateChunkRequest(configuration, uri, start, end, initialEtag, initialLastModified),
-            targetUri,
+            uri => CreateChunkRequest(
+                context.Configuration,
+                uri,
+                start,
+                end,
+                context.InitialEtag,
+                context.InitialLastModified),
+            context.TargetUri,
             DownloadDefaults.MaxRedirects,
-            validator,
+            context.Validator,
             token).ConfigureAwait(false);
         return validated.Response;
     }
 
     private async Task<long> DownloadParallelChunksAsync(
-        DownloadConfiguration configuration,
-        IDownloadUrlValidator validator,
-        Uri targetUri,
-        long totalBytes,
-        EntityTagHeaderValue? initialEtag,
-        DateTimeOffset? initialLastModified,
+        ParallelDownloadContext context,
         IProgress<DownloadProgress>? progress,
         Stopwatch stopwatch,
         CancellationTokenSource cts)
     {
+        var configuration = context.Configuration;
         var fileName = Path.GetFileName(configuration.DestinationPath);
         var concurrency = Math.Clamp(configuration.ParallelConcurrency, 2, DownloadDefaults.MaxParallelChunkConcurrency);
         var chunkSize = DownloadDefaults.ParallelDownloadChunkSizeBytes;
-        var chunkCount = (int)Math.Ceiling((double)totalBytes / chunkSize);
+        var chunkCount = (int)Math.Ceiling((double)context.TotalBytes / chunkSize);
 
         logger.LogInformation(
             "Downloading {FileName} ({TotalBytes:N0} bytes) via parallel chunk mode ({Concurrency} connections, {ChunkCount} chunks of {ChunkSize:N0} bytes)",
             fileName,
-            totalBytes,
+            context.TotalBytes,
             concurrency,
             chunkCount,
             chunkSize);
@@ -443,12 +568,16 @@ public class DownloadService(
             FileShare.ReadWrite,
             FileOptions.Asynchronous))
         {
-            RandomAccess.SetLength(fileHandle, totalBytes);
+            RandomAccess.SetLength(fileHandle, context.TotalBytes);
             await TryWriteETagSidecarAsync(configuration, cts.Token).ConfigureAwait(false);
 
-            var downloadedBytes = 0L;
-            var lastProgressReport = DateTime.UtcNow;
-            var progressLock = new object();
+            var progressTracker = new ParallelProgressTracker(
+                configuration,
+                progress,
+                context.TotalBytes,
+                fileName,
+                stopwatch,
+                cts);
             var bufferSize = Math.Max(configuration.BufferSize, DownloadDefaults.ParallelChunkBufferSizeBytes);
 
             var parallelOptions = new ParallelOptions
@@ -460,93 +589,29 @@ public class DownloadService(
             await Parallel.ForEachAsync(Enumerable.Range(0, chunkCount), parallelOptions, async (chunkIndex, token) =>
             {
                 var start = (long)chunkIndex * chunkSize;
-                var end = Math.Min(start + chunkSize - 1, totalBytes - 1);
+                var end = Math.Min(start + chunkSize - 1, context.TotalBytes - 1);
                 var expectedChunkBytes = end - start + 1;
 
                 using var chunkResponse = await SendChunkRequestAsync(
-                    configuration,
-                    validator,
-                    targetUri,
+                    context,
                     start,
                     end,
-                    initialEtag,
-                    initialLastModified,
                     token).ConfigureAwait(false);
 
-                if (chunkResponse.StatusCode != HttpStatusCode.PartialContent)
-                {
-                    throw new InvalidOperationException(
-                        $"Server returned status code {chunkResponse.StatusCode} instead of 206 Partial Content for range {start}-{end}.");
-                }
+                ValidateChunkResponse(chunkResponse, context, start, end);
 
-                if (initialEtag != null &&
-                    chunkResponse.Headers.ETag != null &&
-                    !chunkResponse.Headers.ETag.Equals(initialEtag))
-                {
-                    throw new InvalidOperationException(
-                        $"Server returned chunk with mismatched ETag ({chunkResponse.Headers.ETag}) instead of expected {initialEtag}.");
-                }
-
-                var chunkRange = chunkResponse.Content.Headers.ContentRange;
-                if (chunkRange is null ||
-                    !string.Equals(chunkRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) ||
-                    chunkRange.From != start ||
-                    chunkRange.To != end ||
-                    chunkRange.Length != totalBytes)
-                {
-                    throw new InvalidOperationException(
-                        $"Server returned invalid Content-Range ({chunkRange}) for requested range {start}-{end} (expected total bytes: {totalBytes}).");
-                }
-
-                ValidateResponseContentType(chunkResponse, configuration.DestinationPath);
-
-                await using var chunkStream = await chunkResponse.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
-                var buffer = new byte[bufferSize];
-                var chunkBytesRead = 0L;
-                int bytesRead;
-
-                while ((bytesRead = await chunkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), token).ConfigureAwait(false)) > 0)
-                {
-                    await RandomAccess.WriteAsync(
-                        fileHandle,
-                        buffer.AsMemory(0, bytesRead),
-                        start + chunkBytesRead,
-                        token).ConfigureAwait(false);
-
-                    chunkBytesRead += bytesRead;
-                    var currentDownloaded = Interlocked.Add(ref downloadedBytes, bytesRead);
-                    cts.CancelAfter(configuration.Timeout);
-
-                    var now = DateTime.UtcNow;
-                    if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || currentDownloaded == totalBytes))
-                    {
-                        lock (progressLock)
-                        {
-                            if (now - lastProgressReport >= configuration.ProgressReportingInterval || currentDownloaded == totalBytes)
-                            {
-                                ReportDownloadProgress(
-                                    progress,
-                                    currentDownloaded,
-                                    currentDownloaded,
-                                    totalBytes,
-                                    fileName,
-                                    configuration.Url,
-                                    stopwatch.Elapsed);
-                                lastProgressReport = now;
-                            }
-                        }
-                    }
-                }
-
-                if (chunkBytesRead != expectedChunkBytes)
-                {
-                    throw new InvalidDataException(
-                        $"Chunk range {start}-{end} received {chunkBytesRead} bytes, expected {expectedChunkBytes}.");
-                }
+                await CopyChunkToHandleAsync(
+                    chunkResponse,
+                    fileHandle,
+                    start,
+                    expectedChunkBytes,
+                    bufferSize,
+                    progressTracker,
+                    token).ConfigureAwait(false);
             }).ConfigureAwait(false);
         }
 
-        return totalBytes;
+        return context.TotalBytes;
     }
 
     private async Task<HttpResponseMessage> SendRequestAsync(
@@ -644,24 +709,23 @@ public class DownloadService(
 
         if (CanUseParallelDownload(configuration, connection))
         {
-            var resolvedUri = connection.Response.RequestMessage?.RequestUri ?? configuration.Url;
-            var initialEtag = connection.Response.Headers.ETag;
-            var initialLastModified = connection.Response.Content.Headers.LastModified;
+            var parallelContext = new ParallelDownloadContext(
+                configuration,
+                validator,
+                connection.Response.RequestMessage?.RequestUri ?? configuration.Url,
+                connection.TotalBytes,
+                connection.Response.Headers.ETag,
+                connection.Response.Content.Headers.LastModified);
             connection.Response.Dispose();
 
             try
             {
                 var stopwatch = Stopwatch.StartNew();
                 var downloadedBytes = await DownloadParallelChunksAsync(
-                    configuration,
-                    validator,
-                    resolvedUri,
-                    connection.TotalBytes,
-                    initialEtag,
-                    initialLastModified,
+                    parallelContext,
                     progress,
                     stopwatch,
-                    cts);
+                    cts).ConfigureAwait(false);
                 stopwatch.Stop();
 
                 return await FinalizeDownloadAsync(
