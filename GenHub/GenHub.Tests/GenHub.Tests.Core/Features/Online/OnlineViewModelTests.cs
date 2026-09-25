@@ -672,8 +672,6 @@ public class OnlineViewModelTests
         Assert.Equal("profile-1", vm.ExpectedProfileId);
     }
 
-
-
     /// <summary>
     /// Tests that declining the ban confirmation never calls the service.
     /// </summary>
