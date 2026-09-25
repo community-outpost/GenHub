@@ -2633,9 +2633,16 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             }
         }
 
-        // 1. Rename any directories ending with .map to strip the extension
-        var subDirs = EnumerateDirectoriesSafe(extractedDirectory).ToList();
-        foreach (var subDir in subDirs.OrderByDescending(d => d.Length))
+        StripMapDirectoryExtensions(extractedDirectory, cancellationToken);
+        OrganizeLooseMapFiles(extractedDirectory, cancellationToken);
+        NormalizeMapPreviews(extractedDirectory, cancellationToken);
+    }
+
+    private void StripMapDirectoryExtensions(string extractedDirectory, CancellationToken cancellationToken)
+    {
+        // Only inspect immediate top-level directories so nested paths like MyMap/Textures.map are preserved
+        var subDirs = Directory.GetDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
+        foreach (var subDir in subDirs)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!Directory.Exists(subDir))
@@ -2666,59 +2673,78 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 }
             }
         }
+    }
 
-        // 2. Organize any loose .map files found directly at root
+    private void OrganizeLooseMapFiles(string extractedDirectory, CancellationToken cancellationToken)
+    {
         var looseMapFiles = Directory.GetFiles(extractedDirectory, "*.map", SearchOption.TopDirectoryOnly);
-        if (looseMapFiles.Length > 0)
+        if (looseMapFiles.Length == 0)
         {
-            foreach (var mapFile in looseMapFiles)
+            return;
+        }
+
+        foreach (var mapFile in looseMapFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var mapBase = Path.GetFileNameWithoutExtension(mapFile);
+            var targetFolder = Path.Combine(extractedDirectory, mapBase);
+            Directory.CreateDirectory(targetFolder);
+
+            var targetMapFile = Path.Combine(targetFolder, Path.GetFileName(mapFile));
+            if (!File.Exists(targetMapFile))
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var mapBase = Path.GetFileNameWithoutExtension(mapFile);
-                var targetFolder = Path.Combine(extractedDirectory, mapBase);
-                Directory.CreateDirectory(targetFolder);
+                File.Move(mapFile, targetMapFile);
+            }
 
-                var targetMapFile = Path.Combine(targetFolder, Path.GetFileName(mapFile));
-                if (!File.Exists(targetMapFile))
+            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, looseMapFiles.Length);
+        }
+    }
+
+    private void OrganizeLooseCompanionsForMap(
+        string extractedDirectory,
+        string targetFolder,
+        string mapBase,
+        int totalLooseMaps)
+    {
+        var looseFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
+        foreach (var companion in looseFiles)
+        {
+            if (companion.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var fn = Path.GetFileName(companion);
+            var ext = Path.GetExtension(fn);
+            var isCompanion = totalLooseMaps == 1 ||
+                fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
+                fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
+                fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+
+            if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            {
+                var targetAssetFile = Path.Combine(targetFolder, fn);
+                if (!File.Exists(targetAssetFile))
                 {
-                    File.Move(mapFile, targetMapFile);
-                }
-
-                // Move companion asset files directly at root matching mapBase or all loose assets if single map
-                var looseFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
-                foreach (var companion in looseFiles)
-                {
-                    if (companion.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    var fn = Path.GetFileName(companion);
-                    var ext = Path.GetExtension(fn);
-                    var isCompanion = looseMapFiles.Length == 1 ||
-                        fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
-                        fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
-                        fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
-
-                    if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
-                    {
-                        var targetAssetFile = Path.Combine(targetFolder, fn);
-                        if (!File.Exists(targetAssetFile))
-                        {
-                            File.Move(companion, targetAssetFile);
-                        }
-                    }
+                    File.Move(companion, targetAssetFile);
                 }
             }
         }
+    }
 
-        // 3. In every map directory, ensure <MapDirName>.tga exists if any .tga preview exists
+    private void NormalizeMapPreviews(string extractedDirectory, CancellationToken cancellationToken)
+    {
         var mapFolders = Directory.GetDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
         foreach (var folder in mapFolders)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var dirName = Path.GetFileName(folder);
             var mapFiles = Directory.GetFiles(folder, "*.map", SearchOption.TopDirectoryOnly);
+            if (mapFiles.Length == 0)
+            {
+                continue;
+            }
+
+            var dirName = Path.GetFileName(folder);
             var mapBaseName = mapFiles.Length == 1
                 ? Path.GetFileNameWithoutExtension(mapFiles[0])
                 : dirName;

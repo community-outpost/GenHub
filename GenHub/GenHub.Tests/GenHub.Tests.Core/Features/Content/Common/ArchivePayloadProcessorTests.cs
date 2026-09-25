@@ -1416,6 +1416,52 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Desert", "desert.map")));
     }
 
+    /// <summary>
+    /// Verifies that NormalizeMapPayloadStructure does not strip .map extensions from nested subdirectories.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_NestedDotMapDirectory_DoesNotStripNestedExtensionAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapDir = Path.Combine(_stagingDirectory, "Desert");
+        var nestedMapDir = Path.Combine(mapDir, "Textures.map");
+        Directory.CreateDirectory(nestedMapDir);
+        await File.WriteAllTextAsync(Path.Combine(nestedMapDir, "texture.dds"), "dds-data");
+        await File.WriteAllTextAsync(Path.Combine(mapDir, "Desert.map"), "map-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        Assert.True(Directory.Exists(nestedMapDir));
+        Assert.True(File.Exists(Path.Combine(nestedMapDir, "texture.dds")));
+    }
+
+    /// <summary>
+    /// Verifies that NormalizeMapPayloadStructure does not fabricate a .tga preview in a directory lacking a .map file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_TopLevelFolderWithoutMap_DoesNotFabricateTgaPreviewAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapDir = Path.Combine(_stagingDirectory, "Desert");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(Path.Combine(mapDir, "Desert.map"), "map-data");
+
+        var auxDir = Path.Combine(_stagingDirectory, "Textures");
+        Directory.CreateDirectory(auxDir);
+        var tgaPath = Path.Combine(auxDir, "preview.tga");
+        await File.WriteAllTextAsync(tgaPath, "preview-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var fabricatedTga = Path.Combine(auxDir, "Textures.tga");
+        Assert.False(File.Exists(fabricatedTga));
+        Assert.True(File.Exists(tgaPath));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
