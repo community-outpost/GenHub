@@ -448,6 +448,16 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return $"{UriConstants.AvarUriScheme}GenHub/{normalizedPath.TrimStart('/')}";
     }
 
+    private static ProfileBranding CreateCommunityOutpostBranding(string name, GameType gameType)
+    {
+        return new ProfileBranding(
+            name,
+            CommunityOutpostConstants.ThemeColor,
+            CommunityOutpostConstants.LogoSource,
+            NormalizeResourcePath(CommunityOutpostConstants.CoverSource),
+            gameType);
+    }
+
     private static void PopulateGameSettings(CreateProfileRequest request, UpdateProfileRequest? gameSettings)
     {
         if (gameSettings != null) GameSettingsMapper.PopulateRequest(request, gameSettings);
@@ -814,10 +824,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         if (isCo)
         {
-            var color = CommunityOutpostConstants.ThemeColor;
-            var cover = NormalizeResourcePath(CommunityOutpostConstants.CoverSource);
-            var icon = CommunityOutpostConstants.LogoSource;
-            return new ProfileBranding(displayName, color, icon, cover, gameType);
+            return CreateCommunityOutpostBranding(displayName, gameType);
         }
 
         bool isGo = publisher.Contains(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
@@ -833,12 +840,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
 
-        bool isTsh = !isCo &&
-                     (publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                      publisher.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
-                      publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                      itemName.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                      itemName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase));
+        bool isTsh = publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                     publisher.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                     publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                     itemName.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                     itemName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase);
 
         if (isTsh)
         {
@@ -1123,10 +1129,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             if (CommunityOutpostConstants.IsCommunityPatchIdentifier(Name))
             {
-                var color = CommunityOutpostConstants.ThemeColor;
-                var cover = NormalizeResourcePath(CommunityOutpostConstants.CoverSource);
-                var icon = CommunityOutpostConstants.LogoSource;
-                return new ProfileBranding(Name, color, icon, cover, GameTypeFilter);
+                return CreateCommunityOutpostBranding(Name, GameTypeFilter);
             }
 
             return ResolveFallbackBranding();

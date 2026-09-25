@@ -206,6 +206,45 @@ public class GameProfileExtensionsTests
         Assert.Equal(CommunityOutpostConstants.LogoSource, logo);
     }
 
+    /// <summary>
+    /// Verifies that a profile with publisher set to TheSuperHackers but named Community Patch
+    /// is recognized as Community Outpost, not TheSuperHackers.
+    /// </summary>
+    [Fact]
+    public void IsCommunityOutpostProfile_WithSuperHackersPublisherType_RecognizesCommunityPatch()
+    {
+        var profile = new GameProfile
+        {
+            Id = "profile-cp-mislabeled",
+            Name = "Community Patch (TheSuperHackers)",
+            GameClient = new GameClient
+            {
+                Id = "client-cp",
+                Name = "Community Patch",
+                GameType = GameType.ZeroHour,
+                PublisherType = "TheSuperHackers",
+            },
+        };
+
+        Assert.True(profile.IsCommunityOutpostProfile());
+        Assert.False(profile.IsTheSuperHackersProfile());
+    }
+
+    /// <summary>
+    /// Verifies that Community Patch 2 is carved out as non-Community Outpost,
+    /// while Community Patch 2024 remains classified as Community Patch.
+    /// </summary>
+    [Fact]
+    public void IsCommunityPatchIdentifier_DistinguishesCommunityPatch2FromCommunityPatch2024()
+    {
+        Assert.False(CommunityOutpostConstants.IsCommunityPatchIdentifier("Community Patch 2"));
+        Assert.False(CommunityOutpostConstants.IsCommunityPatchIdentifier("Community Patch 2.0"));
+        Assert.False(CommunityOutpostConstants.IsCommunityPatchIdentifier("GeneralsGamePatch2"));
+        Assert.True(CommunityOutpostConstants.IsCommunityPatchIdentifier("Community Patch 2024"));
+        Assert.True(CommunityOutpostConstants.IsCommunityPatchIdentifier("Community Patch (TheSuperHackers Build)"));
+    }
+
+
     private static GameProfile CreateZeroHourProfile(string? publisherType, string clientName, List<string> enabledContentIds)
     {
         return new GameProfile

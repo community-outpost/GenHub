@@ -86,11 +86,6 @@ public static class GameProfileExtensions
             return true;
         }
 
-        if (profile.GameClient == null && CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.Name))
-        {
-            return true;
-        }
-
         return false;
     }
 
@@ -111,13 +106,6 @@ public static class GameProfileExtensions
         {
             return string.Equals(publisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(publisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Name) ||
-            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Id) ||
-            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.Name))
-        {
-            return false;
         }
 
         if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true ||

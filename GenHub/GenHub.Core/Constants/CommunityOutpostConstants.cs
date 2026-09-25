@@ -366,14 +366,11 @@ public static class CommunityOutpostConstants
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(publisher))
+        if (!string.IsNullOrWhiteSpace(publisher) &&
+            (string.Equals(publisher, PublisherType, StringComparison.OrdinalIgnoreCase) ||
+             publisher.Contains(PublisherName, StringComparison.OrdinalIgnoreCase)))
         {
-            if (string.Equals(publisher, PublisherType, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(publisher, PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                publisher.Contains(PublisherName, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         if (!string.IsNullOrWhiteSpace(name) && name.Contains(PublisherName, StringComparison.OrdinalIgnoreCase))
@@ -434,8 +431,7 @@ public static class CommunityOutpostConstants
 
     private static bool ContainsCommunityPatchMarker(string value)
     {
-        if (value.Contains(SuperHackersConstants.GeneralsGamePatch2DisplayName, System.StringComparison.OrdinalIgnoreCase) ||
-            value.Contains(SuperHackersConstants.GeneralsGamePatch2Repo, System.StringComparison.OrdinalIgnoreCase))
+        if (IsGeneralsGamePatch2Marker(value))
         {
             return false;
         }
@@ -444,5 +440,27 @@ public static class CommunityOutpostConstants
                value.Contains(CommunityPatchNonRetCode, System.StringComparison.OrdinalIgnoreCase) ||
                value.Contains(ContentName, System.StringComparison.OrdinalIgnoreCase) ||
                value.Equals("CommunityPatch", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGeneralsGamePatch2Marker(string value)
+    {
+        if (value.Contains(SuperHackersConstants.GeneralsGamePatch2Repo, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var idx = value.IndexOf(SuperHackersConstants.GeneralsGamePatch2DisplayName, System.StringComparison.OrdinalIgnoreCase);
+        while (idx >= 0)
+        {
+            var nextCharIdx = idx + SuperHackersConstants.GeneralsGamePatch2DisplayName.Length;
+            if (nextCharIdx >= value.Length || !char.IsDigit(value[nextCharIdx]))
+            {
+                return true;
+            }
+
+            idx = value.IndexOf(SuperHackersConstants.GeneralsGamePatch2DisplayName, nextCharIdx + 1, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 }

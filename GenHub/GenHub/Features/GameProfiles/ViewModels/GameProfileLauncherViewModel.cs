@@ -1337,69 +1337,73 @@ public partial class GameProfileLauncherViewModel(
         var isCommunityOutpost = profile.IsCommunityOutpostProfile();
         var publisherKey = profile.GameClient?.PublisherType ?? profile.GameClient?.Name ?? profile.Name;
 
-        string iconPath;
+        var iconPath = ResolveProfileIconPath(profile, publisherKey, isCommunityOutpost);
+        var coverPath = ResolveProfileCoverPath(profile, publisherKey, fallbackGameType, isCommunityOutpost);
+
+        return (iconPath, coverPath);
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as instance method to adhere to StyleCop SA1204 ordering rules.")]
+    private string ResolveProfileIconPath(Core.Models.GameProfile.GameProfile profile, string? publisherKey, bool isCommunityOutpost)
+    {
         if (isCommunityOutpost &&
             (string.IsNullOrEmpty(profile.IconPath) ||
              profile.IconPath.Contains(UriConstants.GenHubIconMarker) ||
              profile.IconPath.Contains(UriConstants.ZeroHourIconMarker) ||
-             profile.IconPath.Contains("thesuperhackers-logo", StringComparison.OrdinalIgnoreCase)))
+             profile.IconPath.Contains(UriConstants.SuperHackersLogoMarker, StringComparison.OrdinalIgnoreCase)))
         {
-            iconPath = CommunityOutpostConstants.LogoSource;
+            return CommunityOutpostConstants.LogoSource;
         }
-        else if (!string.IsNullOrEmpty(profile.IconPath) &&
+
+        if (!string.IsNullOrEmpty(profile.IconPath) &&
             !profile.IconPath.Contains(UriConstants.GenHubIconMarker) &&
             !profile.IconPath.Contains(UriConstants.ZeroHourIconMarker))
         {
-            iconPath = profile.IconPath;
-        }
-        else
-        {
-            var publisherLogo = PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id);
-            if (publisherLogo != null)
-            {
-                iconPath = publisherLogo;
-            }
-            else if (!string.IsNullOrEmpty(profile.IconPath))
-            {
-                iconPath = profile.IconPath;
-            }
-            else
-            {
-                iconPath = UriConstants.DefaultIconUri;
-            }
+            return profile.IconPath;
         }
 
-        string coverPath;
+        var publisherLogo = PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id);
+        if (publisherLogo != null)
+        {
+            return publisherLogo;
+        }
+
+        if (!string.IsNullOrEmpty(profile.IconPath))
+        {
+            return profile.IconPath;
+        }
+
+        return UriConstants.DefaultIconUri;
+    }
+
+    private string ResolveProfileCoverPath(Core.Models.GameProfile.GameProfile profile, string? publisherKey, string fallbackGameType, bool isCommunityOutpost)
+    {
         if (isCommunityOutpost &&
             (string.IsNullOrEmpty(profile.CoverPath) ||
              profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker) ||
-             profile.CoverPath.Contains("china-cover", StringComparison.OrdinalIgnoreCase)))
+             profile.CoverPath.Contains(UriConstants.ChinaCoverMarker, StringComparison.OrdinalIgnoreCase)))
         {
-            coverPath = CommunityOutpostConstants.CoverSource;
-        }
-        else if (!string.IsNullOrEmpty(profile.CoverPath) &&
-            !profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker))
-        {
-            coverPath = profile.CoverPath;
-        }
-        else
-        {
-            var publisherCover = PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id);
-            if (publisherCover != null)
-            {
-                coverPath = publisherCover;
-            }
-            else if (!string.IsNullOrEmpty(profile.CoverPath))
-            {
-                coverPath = profile.CoverPath;
-            }
-            else
-            {
-                coverPath = profileResourceService.GetDefaultCoverPath(fallbackGameType);
-            }
+            return CommunityOutpostConstants.CoverSource;
         }
 
-        return (iconPath, coverPath);
+        if (!string.IsNullOrEmpty(profile.CoverPath) &&
+            !profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker))
+        {
+            return profile.CoverPath;
+        }
+
+        var publisherCover = PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id);
+        if (publisherCover != null)
+        {
+            return publisherCover;
+        }
+
+        if (!string.IsNullOrEmpty(profile.CoverPath))
+        {
+            return profile.CoverPath;
+        }
+
+        return profileResourceService.GetDefaultCoverPath(fallbackGameType);
     }
 
     /// <summary>

@@ -327,7 +327,6 @@ public partial class GameProfileSettingsViewModel
             "CommunityOutpost",
             "Community Patch",
             "CommunityPatch",
-            CommunityOutpostConstants.PublisherName,
         ];
 
         var matchesStandardPattern = standardExactNames.Any(n => string.Equals(n, trimmedName, StringComparison.OrdinalIgnoreCase)) ||
@@ -352,6 +351,12 @@ public partial class GameProfileSettingsViewModel
                name.StartsWith("The Super Hackers - ", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("GeneralsOnline - ", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Generals Online - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("GeneralsOnline v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Generals Online v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("GeneralsOnline 30Hz", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Generals Online 30Hz", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("GeneralsOnline 60Hz", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Generals Online 60Hz", StringComparison.OrdinalIgnoreCase) ||
                IsGeneratedCommunityName(name);
     }
 
@@ -368,8 +373,10 @@ public partial class GameProfileSettingsViewModel
                name.StartsWith("CommunityPatch (", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Outpost - ", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Outpost v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Outpost 1.", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Outpost (", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityOutpost - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityOutpost 1.", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityOutpost v", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityOutpost (", StringComparison.OrdinalIgnoreCase);
     }

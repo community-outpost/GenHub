@@ -499,24 +499,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         ResolveCompatibilityBadge(profile);
 
         // Set color value with game type defaults or profile theme
-        if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
-        {
-            if (gp.IsCommunityOutpostProfile() &&
-                (string.Equals(gp.ThemeColor, SuperHackersConstants.ZeroHourThemeColor, StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(gp.ThemeColor, SuperHackersConstants.GeneralsThemeColor, StringComparison.OrdinalIgnoreCase)))
-            {
-                _colorValue = CommunityOutpostConstants.ThemeColor;
-            }
-            else
-            {
-                _colorValue = gp.ThemeColor;
-            }
-        }
-        else if (string.IsNullOrEmpty(_colorValue))
-        {
-            // Only set default if ExtractManifestInfo didn't set a branded one
-            _colorValue = GetDefaultColorForGameType(profile.GameClient?.GameType);
-        }
+        _colorValue = ResolveInitialColorValue(profile, _colorValue);
 
         // Set user-friendly source type name (use the game type as the source)
         _sourceTypeName = GetFriendlyGameTypeName(profile.GameClient?.GameType);
@@ -536,26 +519,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // Set workspace status based on ActiveWorkspaceId and WorkspaceStrategy
         if (profile is GameProfile gameProfile2)
         {
-            _activeWorkspaceId = gameProfile2.ActiveWorkspaceId;
-            _isProcessRunning = false; // Will be updated by LauncherViewModel
-
-            // Determine if this is a Steam installation by checking the publisher in the manifest ID
-            _isSteamInstallation = gameProfile2.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
-
-            // Initialize Steam launch mode settings
-            var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(_isSteamInstallation, gameProfile2.GameClient);
-            _useSteamLaunch = isEligibleForSteam && (gameProfile2.UseSteamLaunch ?? true);
-
-            _workspaceStatus = string.IsNullOrEmpty(gameProfile2.ActiveWorkspaceId)
-                ? "Not Prepared"
-                : gameProfile2.WorkspaceStrategy switch
-                {
-                    WorkspaceStrategy.SymlinkOnly => "Symlinked",
-                    WorkspaceStrategy.FullCopy => "Copied",
-                    WorkspaceStrategy.HybridCopySymlink => "Hybrid",
-                    WorkspaceStrategy.HardLink => "Hard Linked",
-                    _ => "Prepared",
-                };
+            InitializeWorkspaceState(gameProfile2);
         }
     }
 
@@ -1088,20 +1052,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ResolvePublisherFromGameClient(GameClient gameClient)
     {
-        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(gameClient.PublisherType, gameClient.Id, gameClient.Name))
-        {
-            Publisher = CommunityOutpostConstants.PublisherName;
-            ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(gameClient.PublisherType))
-        {
-            var pub = gameClient.PublisherType.ToLowerInvariant();
-            Publisher = MapPublisherName(pub, gameClient.PublisherType);
-            ApplyPublisherBranding(pub);
-        }
-        else if (gameClient.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase))
+        if (gameClient.Name?.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) == true)
         {
             Publisher = PublisherInfoConstants.GeneralsOnline.Name;
             ApplyPublisherBranding(PublisherTypeConstants.GeneralsOnline);
@@ -1263,5 +1214,52 @@ public partial class GameProfileItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(CoverPath));
         OnPropertyChanged(nameof(CoverImagePath));
         OnPropertyChanged(nameof(CommandLineArguments));
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as instance method to adhere to StyleCop SA1204 ordering rules.")]
+    private string ResolveInitialColorValue(IGameProfile profile, string? currentColorValue)
+    {
+        if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
+        {
+            if (gp.IsCommunityOutpostProfile() &&
+                (string.Equals(gp.ThemeColor, SuperHackersConstants.ZeroHourThemeColor, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(gp.ThemeColor, SuperHackersConstants.GeneralsThemeColor, StringComparison.OrdinalIgnoreCase)))
+            {
+                return CommunityOutpostConstants.ThemeColor;
+            }
+
+            return gp.ThemeColor;
+        }
+
+        if (string.IsNullOrEmpty(currentColorValue))
+        {
+            return GetDefaultColorForGameType(profile.GameClient?.GameType);
+        }
+
+        return currentColorValue;
+    }
+
+    private void InitializeWorkspaceState(GameProfile gameProfile)
+    {
+        ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
+        IsProcessRunning = false; // Will be updated by LauncherViewModel
+
+        // Determine if this is a Steam installation by checking the publisher in the manifest ID
+        IsSteamInstallation = gameProfile.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
+
+        // Initialize Steam launch mode settings
+        var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(IsSteamInstallation, gameProfile.GameClient);
+        UseSteamLaunch = isEligibleForSteam && (gameProfile.UseSteamLaunch ?? true);
+
+        WorkspaceStatus = string.IsNullOrEmpty(gameProfile.ActiveWorkspaceId)
+            ? "Not Prepared"
+            : gameProfile.WorkspaceStrategy switch
+            {
+                WorkspaceStrategy.SymlinkOnly => "Symlinked",
+                WorkspaceStrategy.FullCopy => "Copied",
+                WorkspaceStrategy.HybridCopySymlink => "Hybrid",
+                WorkspaceStrategy.HardLink => "Hard Linked",
+                _ => "Prepared",
+            };
     }
 }
