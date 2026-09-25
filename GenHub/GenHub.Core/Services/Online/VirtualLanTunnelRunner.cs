@@ -487,34 +487,31 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
     private OperationResult<bool> StartTunPump(ITunDevice device, ParsedTunnelConfig parsed, string adapterKind)
     {
-        lock (_lock)
+        if (_disposed)
         {
-            if (_disposed)
-            {
-                device.Dispose();
-                return OperationResult<bool>.CreateFailure("Virtual LAN runner disposed.");
-            }
-
-            _tunDevice = device;
-            _tunPump = new TunPacketPump(
-                _tunDevice,
-                parsed.RelayEndpoint,
-                parsed.NetworkId,
-                parsed.OverlayIp,
-                logger,
-                parsed.PrefixLength);
-            _tunPump.Start();
-
-            IsRunning = true;
-            logger.LogInformation(
-                "Virtual LAN {Kind} adapter {Interface} active with IP {Ip} via relay {Relay}.",
-                adapterKind,
-                _tunDevice.InterfaceName,
-                parsed.OverlayIp,
-                parsed.RelayEndpoint);
-
-            return OperationResult<bool>.CreateSuccess(true);
+            device.Dispose();
+            return OperationResult<bool>.CreateFailure("Virtual LAN runner disposed.");
         }
+
+        _tunDevice = device;
+        _tunPump = new TunPacketPump(
+            _tunDevice,
+            parsed.RelayEndpoint,
+            parsed.NetworkId,
+            parsed.OverlayIp,
+            logger,
+            parsed.PrefixLength);
+        _tunPump.Start();
+
+        IsRunning = true;
+        logger.LogInformation(
+            "Virtual LAN {Kind} adapter {Interface} active with IP {Ip} via relay {Relay}.",
+            adapterKind,
+            _tunDevice.InterfaceName,
+            parsed.OverlayIp,
+            parsed.RelayEndpoint);
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private OperationResult<bool> StartWindowsTunnel(ParsedTunnelConfig parsed)
@@ -581,12 +578,9 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 $"Virtual LAN network adapter unavailable: {provisioned.FirstError}");
         }
 
-        lock (_lock)
+        if (_disposed)
         {
-            if (_disposed)
-            {
-                return OperationResult<bool>.CreateFailure("Virtual LAN runner disposed.");
-            }
+            return OperationResult<bool>.CreateFailure("Virtual LAN runner disposed.");
         }
 
         var attached = LinuxTunDevice.Attach(OnlineConstants.TunDefaultInterfaceName, parsed.OverlayIp);

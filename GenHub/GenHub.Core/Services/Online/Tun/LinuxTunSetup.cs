@@ -239,8 +239,8 @@ public sealed class LinuxTunSetup(ILogger<LinuxTunSetup> logger) : ITunInterface
             return CommandResult.StartFailure($"'{fileName}' was cancelled.");
         }
 
-        // After an async wait, drain the redirected streams.
-        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+        // After an async wait, drain the redirected streams synchronously.
+        process.WaitForExit();
         return new CommandResult(true, process.ExitCode, Snippet(output.ToString()));
     }
 
