@@ -80,7 +80,9 @@ public class DownloadService(
     {
         request.Headers.Add("User-Agent", configuration.UserAgent);
 
-        var isRedirectedToDifferentHost = !string.Equals(targetUri.Host, configuration.Url.Host, StringComparison.OrdinalIgnoreCase);
+        var shouldStripAuthorization = !string.Equals(targetUri.Host, configuration.Url.Host, StringComparison.OrdinalIgnoreCase)
+            || (string.Equals(configuration.Url.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(targetUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase));
 
         foreach (var header in configuration.Headers)
         {
@@ -89,7 +91,7 @@ public class DownloadService(
                 continue;
             }
 
-            if (isRedirectedToDifferentHost && string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+            if (shouldStripAuthorization && string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
