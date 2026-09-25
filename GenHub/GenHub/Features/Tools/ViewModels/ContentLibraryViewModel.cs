@@ -1425,7 +1425,7 @@ public partial class ContentLibraryViewModel(
         var content = activeCatalog?.Catalog?.Content;
         if (content != null)
         {
-            var catalogIcon = activeCatalog.IconUrl ?? activeCatalog.Catalog.IconUrl;
+            var catalogIcon = activeCatalog?.IconUrl ?? activeCatalog?.Catalog?.IconUrl;
             var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
 
             foreach (var item in content)
