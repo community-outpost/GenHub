@@ -739,14 +739,14 @@ public sealed class WndImageAssetServiceTests : IDisposable
         // Act
         var result = await _service.GetImagesAsync(["ScaledBtn"], _gameRoot, null, null);
 
-        // Assert: coordinates double to a 4,4,12,12 crop (8x8) spanning both colors.
+        // Assert: coordinates scale to sample the 16x16 page, but output is normalized to logical 4x4 dimensions.
         result.Success.Should().BeTrue();
         result.Data.Should().ContainKey("ScaledBtn");
         using var decoded = new MagickImage(result.Data!["ScaledBtn"]);
-        decoded.Width.Should().Be(8);
-        decoded.Height.Should().Be(8);
+        decoded.Width.Should().Be(4);
+        decoded.Height.Should().Be(4);
         PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Blue.ToString());
-        PixelAt(decoded, 7, 7).ToString().Should().Be(MagickColors.Red.ToString());
+        PixelAt(decoded, 3, 3).ToString().Should().Be(MagickColors.Red.ToString());
     }
 
     /// <summary>

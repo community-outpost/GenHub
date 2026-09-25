@@ -130,6 +130,62 @@ public sealed class WndPreviewImageComposerTests
         composed.Should().BeNull();
     }
 
+    /// <summary>
+    /// Tests that squashing narrow bars preserves both outer cap borders without gaps or cuts.
+    /// </summary>
+    [Fact]
+    public void ComposeThreePiece_NarrowBar_PreservesBothCapBorders()
+    {
+        // Left cap has a yellow border at x=0; right cap has a yellow border at x=19.
+        using var leftImg = new MagickImage(MagickColors.Red, 20, 6);
+        using var leftBorder = new MagickImage(MagickColors.Yellow, 2, 6);
+        leftImg.Composite(leftBorder, 0, 0, CompositeOperator.Over);
+        var left = leftImg.ToByteArray(MagickFormat.Png);
+
+        using var rightImg = new MagickImage(MagickColors.Blue, 20, 6);
+        using var rightBorder = new MagickImage(MagickColors.Yellow, 2, 6);
+        rightImg.Composite(rightBorder, 18, 0, CompositeOperator.Over);
+        var right = rightImg.ToByteArray(MagickFormat.Png);
+
+        var center = SolidPng(MagickColors.Green, 4, 6);
+
+        // Act: compose at width 30 (< 20 + 20)
+        var composed = WndPreviewImageComposer.ComposeThreePiece(left, center, right, 30, 6);
+
+        // Assert: left border at x=0 is intact, right border at x=29 is intact
+        composed.Should().NotBeNull();
+        using var decoded = new MagickImage(composed!);
+        decoded.Width.Should().Be(30);
+        PixelAt(decoded, 0, 3).Should().Be(MagickColors.Yellow);
+        PixelAt(decoded, 29, 3).Should().Be(MagickColors.Yellow);
+    }
+
+    /// <summary>
+    /// Tests that a fractional center tile fills the full gap between caps without leaving transparent pixels.
+    /// </summary>
+    [Fact]
+    public void ComposeThreePiece_ClippedCenter_DoesNotLeaveGap()
+    {
+        // Arrange: left 10px, right 10px, center 10px, target width 25 (10 left + 5 clipped center + 10 right)
+        var left = SolidPng(MagickColors.Red, 10, 6);
+        var center = SolidPng(MagickColors.Green, 10, 6);
+        var right = SolidPng(MagickColors.Blue, 10, 6);
+
+        // Act
+        var composed = WndPreviewImageComposer.ComposeThreePiece(left, center, right, 25, 6);
+
+        // Assert: every pixel from x=0 to 24 must be fully opaque
+        composed.Should().NotBeNull();
+        using var decoded = new MagickImage(composed!);
+        decoded.Width.Should().Be(25);
+        using var pixels = decoded.GetPixels();
+        for (var x = 0; x < 25; x++)
+        {
+            var p = pixels.GetPixel(x, 3)!.ToColor()!;
+            p.A.Should().Be((ushort)Quantum.Max, $"pixel at x={x} should be fully opaque");
+        }
+    }
+
     private static byte[] SolidPng(MagickColor color, uint width, uint height)
     {
         using var image = new MagickImage(color, width, height);

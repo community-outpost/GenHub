@@ -343,6 +343,14 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             cropped.Rotate(-90);
         }
 
+        var targetWidth = image.IsRotated ? image.Height : image.Width;
+        var targetHeight = image.IsRotated ? image.Width : image.Height;
+        if (targetWidth > 0 && targetHeight > 0 && ((int)cropped.Width != targetWidth || (int)cropped.Height != targetHeight))
+        {
+            cropped.Resize(new MagickGeometry((uint)targetWidth, (uint)targetHeight) { IgnoreAspectRatio = true });
+        }
+
+        cropped.ResetPage();
         return cropped.ToByteArray(MagickFormat.Png);
     }
 

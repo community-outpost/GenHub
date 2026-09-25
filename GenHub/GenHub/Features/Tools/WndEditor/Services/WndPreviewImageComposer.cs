@@ -150,6 +150,7 @@ public static class WndPreviewImageComposer
         if ((int)image.Height != height)
         {
             image.Resize(new MagickGeometry(image.Width, (uint)height) { IgnoreAspectRatio = true });
+            image.ResetPage();
         }
 
         return image;
@@ -160,10 +161,12 @@ public static class WndPreviewImageComposer
         var half = width / 2;
         using var leftHalf = (MagickImage)left.Clone();
         using var rightHalf = (MagickImage)right.Clone();
-        leftHalf.Crop(new MagickGeometry((uint)Math.Min(half, (int)leftHalf.Width), (uint)height));
-        rightHalf.Crop(new MagickGeometry((uint)Math.Min(width - half, (int)rightHalf.Width), (uint)height));
+        leftHalf.Resize(new MagickGeometry((uint)half, (uint)height) { IgnoreAspectRatio = true });
+        rightHalf.Resize(new MagickGeometry((uint)(width - half), (uint)height) { IgnoreAspectRatio = true });
+        leftHalf.ResetPage();
+        rightHalf.ResetPage();
         canvas.Composite(leftHalf, 0, 0, CompositeOperator.Over);
-        canvas.Composite(rightHalf, width - (int)rightHalf.Width, 0, CompositeOperator.Over);
+        canvas.Composite(rightHalf, half, 0, CompositeOperator.Over);
     }
 
     private static MagickImage StretchToWidth(MagickImage image, int width)
@@ -171,6 +174,7 @@ public static class WndPreviewImageComposer
         if ((int)image.Width != width)
         {
             image.Resize(new MagickGeometry((uint)width, image.Height) { IgnoreAspectRatio = true });
+            image.ResetPage();
         }
 
         return image;
@@ -181,17 +185,17 @@ public static class WndPreviewImageComposer
         var half = height / 2;
         using var topHalf = (MagickImage)top.Clone();
         using var bottomHalf = (MagickImage)bottom.Clone();
-        topHalf.Crop(new MagickGeometry((uint)width, (uint)Math.Min(half, (int)topHalf.Height)));
-        bottomHalf.Crop(new MagickGeometry((uint)width, (uint)Math.Min(height - half, (int)bottomHalf.Height)));
+        topHalf.Resize(new MagickGeometry((uint)width, (uint)half) { IgnoreAspectRatio = true });
+        bottomHalf.Resize(new MagickGeometry((uint)width, (uint)(height - half)) { IgnoreAspectRatio = true });
+        topHalf.ResetPage();
+        bottomHalf.ResetPage();
         canvas.Composite(topHalf, 0, 0, CompositeOperator.Over);
-        canvas.Composite(bottomHalf, 0, height - (int)bottomHalf.Height, CompositeOperator.Over);
+        canvas.Composite(bottomHalf, 0, half, CompositeOperator.Over);
     }
 
     private static void ComposeVerticalBar(MagickImage canvas, MagickImage top, MagickImage center, MagickImage bottom, int height)
     {
-        canvas.Composite(top, 0, 0, CompositeOperator.Over);
         var bottomY = height - (int)bottom.Height;
-        canvas.Composite(bottom, 0, bottomY, CompositeOperator.Over);
         var y = (int)top.Height;
         while (y + (int)center.Height <= bottomY)
         {
@@ -203,15 +207,17 @@ public static class WndPreviewImageComposer
         {
             using var clipped = (MagickImage)center.Clone();
             clipped.Crop(new MagickGeometry(clipped.Width, (uint)(bottomY - y)));
+            clipped.ResetPage();
             canvas.Composite(clipped, 0, y, CompositeOperator.Over);
         }
+
+        canvas.Composite(top, 0, 0, CompositeOperator.Over);
+        canvas.Composite(bottom, 0, bottomY, CompositeOperator.Over);
     }
 
     private static void ComposeBar(MagickImage canvas, MagickImage left, MagickImage center, MagickImage right, int width)
     {
-        canvas.Composite(left, 0, 0, CompositeOperator.Over);
         var rightX = width - (int)right.Width;
-        canvas.Composite(right, rightX, 0, CompositeOperator.Over);
         var x = (int)left.Width;
         while (x + (int)center.Width <= rightX)
         {
@@ -223,7 +229,11 @@ public static class WndPreviewImageComposer
         {
             using var clipped = (MagickImage)center.Clone();
             clipped.Crop(new MagickGeometry((uint)(rightX - x), clipped.Height));
+            clipped.ResetPage();
             canvas.Composite(clipped, x, 0, CompositeOperator.Over);
         }
+
+        canvas.Composite(left, 0, 0, CompositeOperator.Over);
+        canvas.Composite(right, rightX, 0, CompositeOperator.Over);
     }
 }
