@@ -1286,7 +1286,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         });
     }
 
-
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanJoin() => !IsJoined && SelectedNetwork is not null;
 
@@ -1297,7 +1296,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanPlay() => IsJoined && !IsGameRunning;
-
 
     private void OnConnectionLost(object? sender, EventArgs e)
     {
@@ -2176,7 +2174,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         return (gameRoot, exePath);
     }
-
 
     private async Task<string?> ResolveInstallationRootAsync(GameProfile profile, CancellationToken cancellationToken)
     {

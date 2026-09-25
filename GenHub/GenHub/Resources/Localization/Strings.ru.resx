@@ -2026,6 +2026,12 @@
   <data name="Online.Error.CreateTitle" xml:space="preserve">
     <value>Не удалось создать сеть</value>
   </data>
+  <data name="Online.Error.CreateFailed" xml:space="preserve">
+    <value>Не удалось создать сеть. Попробуйте еще раз.</value>
+  </data>
+  <data name="Online.Error.NetworkAlreadyExists" xml:space="preserve">
+    <value>Сеть с таким именем уже существует или вы уже подключены к сети.</value>
+  </data>
   <data name="Online.Error.DirectoryTitle" xml:space="preserve">
     <value>Не удалось загрузить сети</value>
   </data>
