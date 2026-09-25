@@ -12,6 +12,7 @@ contributing to the project.
 - [How to Contribute](#how-to-contribute)
 - [Code of Conduct](#code-of-conduct)
 - [Development Environment](#development-environment)
+- [Testing](#testing)
 - [Coding Style](#coding-style)
 - [Pull Requests](#pull-requests)
 - [Issue Reporting](#issue-reporting)
@@ -45,6 +46,30 @@ you agree to uphold a welcoming and inclusive environment for all contributors.
   major SDK such as .NET 9 will not satisfy it, and an older 8.0.x band will not either.
 - **IDE**: Visual Studio 2022 is recommended. The Community Edition is free and sufficient.
 - **Dependencies**: Restore NuGet packages before building.
+
+---
+
+## Testing
+
+For routine unit tests, exclude both real-engine launches and live-network tests:
+
+```sh
+dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj --filter "Category!=NativeEngine&Category!=LiveNetwork"
+```
+
+Use the same filter when testing other projects or a platform-compatible solution.
+Until the `NativeEngine` traits are available in your checkout, use
+`"FullyQualifiedName!~NativeClient&FullyQualifiedName!~RetailArchiveRoot&FullyQualifiedName!~EngineLaunchSmoke&Category!=LiveNetwork"`.
+
+Run the live-network suite explicitly when you intend to contact real providers and download packages:
+
+```sh
+dotnet test GenHub/GenHub.Tests/GenHub.Tests.Integration/GenHub.Tests.Integration.csproj --filter "Category=LiveNetwork"
+```
+
+The live suite uses temporary application data and CAS storage. External outages can fail these tests;
+keep them separate from unit-test results. Merge the archive-signature fix (#568) before expecting
+all acquisition tests to pass. A direct downloader test does not verify the full application-update flow.
 
 ---
 
