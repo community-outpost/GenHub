@@ -21,56 +21,21 @@ public static class InstallationExtensions
             .Concat(new[] { PublisherInfoConstants.Retail.Name }),
         StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Gets candidate executable file names for Generals and Zero Hour installations across all platforms and editions.
-    /// </summary>
-    public static IReadOnlyList<string> ValidGameExecutableNames => GameClientConstants.ValidGameExecutableNames;
+    private static readonly char[] FileNameWildcards = ['*', '?'];
 
-    /// <summary>
-    /// Gets candidate executable file names for Generals installations across all platforms and editions.
-    /// </summary>
-    public static IReadOnlyList<string> ValidGeneralsExecutableNames => GameClientConstants.ValidGeneralsExecutableNames;
-
-    /// <summary>
-    /// Gets candidate executable file names for Zero Hour installations across all platforms and editions.
-    /// </summary>
-    public static IReadOnlyList<string> ValidZeroHourExecutableNames => GameClientConstants.ValidZeroHourExecutableNames;
-
-    /// <summary>
-    /// Checks whether the directory contains a valid game executable in a case-insensitive manner.
-    /// </summary>
-    /// <param name="directoryPath">The directory path to check.</param>
-    /// <returns>True if at least one recognized executable is found; otherwise false.</returns>
-    public static bool HasValidGameExecutable(string? directoryPath)
+    private static readonly EnumerationOptions CaseInsensitiveFileSearch = new()
     {
-        return HasValidExecutableInternal(directoryPath, ValidGameExecutableNames);
-    }
-
-    /// <summary>
-    /// Checks whether the directory contains a valid Generals executable in a case-insensitive manner.
-    /// </summary>
-    /// <param name="directoryPath">The directory path to check.</param>
-    /// <returns>True if at least one recognized Generals executable is found; otherwise false.</returns>
-    public static bool HasValidGeneralsExecutable(string? directoryPath)
-    {
-        return HasValidExecutableInternal(directoryPath, ValidGeneralsExecutableNames);
-    }
-
-    /// <summary>
-    /// Checks whether the directory contains a valid Zero Hour executable in a case-insensitive manner.
-    /// </summary>
-    /// <param name="directoryPath">The directory path to check.</param>
-    /// <returns>True if at least one recognized Zero Hour executable is found; otherwise false.</returns>
-    public static bool HasValidZeroHourExecutable(string? directoryPath)
-    {
-        return HasValidExecutableInternal(directoryPath, ValidZeroHourExecutableNames);
-    }
+        MatchCasing = MatchCasing.CaseInsensitive,
+        RecurseSubdirectories = false,
+        IgnoreInaccessible = true,
+        AttributesToSkip = 0,
+    };
 
     /// <summary>
     /// Attempts to find a file in a case-insensitive manner, returning a path to the file if found.
     /// </summary>
     /// <param name="filePath">The full file path to check.</param>
-    /// <param name="matchedPath">The actual on-disk path if found; otherwise null.</param>
+    /// <param name="matchedPath">The on-disk spelling when enumeration succeeds; otherwise the accessible input path, or null if missing.</param>
     /// <returns>True if the file was found; otherwise false.</returns>
     public static bool TryGetFileCaseInsensitive(this string filePath, [NotNullWhen(true)] out string? matchedPath)
     {
@@ -80,40 +45,56 @@ public static class InstallationExtensions
             return false;
         }
 
-        // First try direct filesystem check (efficient on Windows NTFS)
-        if (File.Exists(filePath))
-        {
-            matchedPath = filePath;
-            return true;
-        }
-
-        // Fallback: explicit case-insensitive search for case-sensitive filesystems
         try
         {
-            var directory = Path.GetDirectoryName(filePath);
+            var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
             var fileName = Path.GetFileName(filePath);
+            if (directory.Length == 0)
+            {
+                // Preserve direct access without adding a current-directory case-insensitive search.
+                matchedPath = File.Exists(filePath) ? filePath : null;
+                return matchedPath is not null;
+            }
 
-            if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
+            if (string.IsNullOrEmpty(fileName))
             {
                 return false;
             }
 
-            var directoryInfo = new DirectoryInfo(directory);
-            if (!directoryInfo.Exists)
+            var candidates = fileName.IndexOfAny(FileNameWildcards) >= 0
+                ? Directory.EnumerateFiles(directory, "*", CaseInsensitiveFileSearch)
+                : Directory.EnumerateFiles(directory, fileName, CaseInsensitiveFileSearch);
+            string? actualName = null;
+            foreach (var candidate in candidates)
             {
-                return false;
+                var candidateName = Path.GetFileName(candidate);
+                if (string.Equals(candidateName, fileName, StringComparison.Ordinal))
+                {
+                    actualName = candidateName;
+                    break;
+                }
+
+                if (actualName is null && string.Equals(candidateName, fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    actualName = candidateName;
+                }
             }
 
-            var matchingFile = directoryInfo.GetFiles().FirstOrDefault(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
-            if (matchingFile is not null)
+            if (actualName is not null)
             {
-                matchedPath = matchingFile.FullName;
+                matchedPath = Path.Combine(directory, actualName);
                 return true;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            return false;
+            // A known file can be accessible even when its directory cannot be listed.
+        }
+
+        if (File.Exists(filePath))
+        {
+            matchedPath = filePath;
+            return true;
         }
 
         return false;
@@ -128,7 +109,7 @@ public static class InstallationExtensions
     /// <returns>True if the file exists (case-insensitive match).</returns>
     public static bool FileExistsCaseInsensitive(this string filePath)
     {
-        return TryGetFileCaseInsensitive(filePath, out _);
+        return File.Exists(filePath) || TryGetFileCaseInsensitive(filePath, out _);
     }
 
     /// <summary>
@@ -410,32 +391,4 @@ public static class InstallationExtensions
     /// <returns>The effective path to base Generals retail archives, or <c>null</c>.</returns>
     public static string? GetEffectiveGeneralsArchivePath(string? generalsPath, string? bundledGeneralsPath) =>
         !string.IsNullOrWhiteSpace(generalsPath) ? generalsPath : bundledGeneralsPath;
-
-    private static bool HasValidExecutableInternal(string? directoryPath, IReadOnlyList<string> validExecutables)
-    {
-        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
-        {
-            return false;
-        }
-
-        // Fast path: exact-case check with no directory enumeration.
-        if (validExecutables.Any(exe => File.Exists(Path.Combine(directoryPath, exe))))
-        {
-            return true;
-        }
-
-        // Slow path for case-sensitive filesystems holding case-variant names:
-        // enumerate once and intersect instead of re-enumerating per candidate.
-        try
-        {
-            var fileNames = new HashSet<string>(
-                new DirectoryInfo(directoryPath).GetFiles().Select(f => f.Name),
-                StringComparer.OrdinalIgnoreCase);
-            return validExecutables.Any(fileNames.Contains);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            return false;
-        }
-    }
 }

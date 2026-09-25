@@ -10276,4 +10276,25 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
     <value>Создание набора карт...</value>
   </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
+    <value>Игра неожиданно завершилась</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Message" xml:space="preserve">
+    <value>Игра неожиданно завершилась (код {0}). Подробности см. в журнале.</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Archives" xml:space="preserve">
+    <value>Игра не смогла загрузить архивы: {0}. Код завершения: {1}.</value>
+  </data>
+  <data name="GameProfiles.Notification.EarlyExit.WithCode" xml:space="preserve">
+    <value>Процесс завершился до окончания запуска (код завершения {0}). Подробности см. в журнале.</value>
+  </data>
+  <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
+    <value>Процесс завершился до окончания запуска. Подробности см. в журнале.</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
+    <value>Инструмент запущен</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
+    <value>«{0}» успешно запущен</value>
+  </data>
 </root>

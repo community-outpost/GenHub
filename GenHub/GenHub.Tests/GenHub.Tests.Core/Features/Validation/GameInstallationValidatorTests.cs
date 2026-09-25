@@ -3,6 +3,8 @@ using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -10,6 +12,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Validation;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -20,6 +23,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;
 
@@ -56,6 +60,23 @@ public class GameInstallationValidatorTests
         _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object, _hashProviderMock.Object);
     }
 
+    /// <summary>Unsupported game types fail before provider-dependent validation begins.</summary>
+    /// <param name="gameType">The unsupported game value.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(GameType.Unknown)]
+    [InlineData((GameType)(-1))]
+    [InlineData((GameType)999)]
+    public async Task ValidateInstallationAsync_UnsupportedGame_RejectsArgumentAsync(GameType gameType)
+    {
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            _validator.ValidateInstallationAsync(Path.GetTempPath(), gameType));
+        Assert.Equal("gameType", error.ParamName);
+        Assert.Equal(gameType, error.ActualValue);
+        _manifestProviderMock.VerifyNoOtherCalls();
+        _contentValidatorMock.VerifyNoOtherCalls();
+    }
+
     /// <summary>
     /// Verifies that progress is reported during validation.
     /// </summary>
@@ -84,7 +105,7 @@ public class GameInstallationValidatorTests
                 RequiredDirectories = new List<string> { "testdir" },
             };
             _manifestProviderMock
-                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), default))
                 .ReturnsAsync(manifest);
 
             // Create the required directory in both game directories
@@ -146,7 +167,7 @@ public class GameInstallationValidatorTests
     public async Task ValidateAsync_ManifestNotFound_AddsIssueAsync()
     {
         _manifestProviderMock
-            .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ContentManifest?)null);
 
         var installation = new GameInstallation(
@@ -176,7 +197,7 @@ public class GameInstallationValidatorTests
                 },
         };
         _manifestProviderMock
-            .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+            .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), default))
             .ReturnsAsync(manifest);
 
         // Setup ContentValidator to return missing file issue
@@ -250,7 +271,7 @@ public class GameInstallationValidatorTests
                 RequiredDirectories = new List<string> { "RequiredDir" },
             };
             _manifestProviderMock
-                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), default))
                 .ReturnsAsync(manifest);
 
             _contentValidatorMock
@@ -292,7 +313,7 @@ public class GameInstallationValidatorTests
                 RequiredDirectories = new List<string>(),
             };
             _manifestProviderMock
-                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), default))
                 .ReturnsAsync(manifest);
 
             var installation = new GameInstallation(
@@ -334,7 +355,7 @@ public class GameInstallationValidatorTests
                     },
             };
             _manifestProviderMock
-                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), default))
                 .ReturnsAsync(manifest);
 
             _contentValidatorMock
@@ -378,7 +399,7 @@ public class GameInstallationValidatorTests
                 Files = new() { new ManifestFile { RelativePath = "test.txt", Size = 0, Hash = string.Empty } },
             };
             _manifestProviderMock
-                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), default))
                 .ReturnsAsync(manifest);
 
             _contentValidatorMock
@@ -904,7 +925,7 @@ public class GameInstallationValidatorTests
 
             var mockManifestProvider = new Mock<IManifestProvider>();
             mockManifestProvider
-                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(fallbackManifest);
 
             var mockContentProvider = new Mock<IContentProvider>();
@@ -967,7 +988,7 @@ public class GameInstallationValidatorTests
 
             var mockManifestProvider = new Mock<IManifestProvider>();
             mockManifestProvider
-                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(manifest);
 
             _contentValidatorMock
@@ -1001,6 +1022,43 @@ public class GameInstallationValidatorTests
         }
     }
 
+    /// <summary>Manifest validation runs once and nested progress uses the outer scale.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task ValidateAsync_UsesOneContentPassAndConsistentProgressAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory.FullName, "INI.big"), "archive");
+            var installation = new GameInstallation(directory.FullName, GameInstallationType.Retail);
+            installation.SetPaths(directory.FullName, null);
+            var manifest = new ContentManifest { Files = new() };
+            _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manifest);
+            var issue = new ValidationIssue { IssueType = ValidationIssueType.ValidationUnavailable, Message = "Invalid manifest", Severity = ValidationSeverity.Error };
+            _contentValidatorMock.Setup(c => c.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .Callback<string, ContentManifest, IProgress<ValidationProgress>?, CancellationToken>((_, _, nested, _) => nested?.Report(new ValidationProgress(1, 3, "Nested")))
+                .ReturnsAsync(new ValidationResult(directory.FullName, [issue]));
+            _contentValidatorMock.Setup(c => c.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult(directory.FullName, [issue]));
+            var progress = new SynchronousProgress<ValidationProgress>();
+
+            var result = await _validator.ValidateAsync(installation, progress);
+
+            Assert.Single(result.Issues, i => i.Message == issue.Message);
+            _contentValidatorMock.Verify(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()), Times.Never);
+            _contentValidatorMock.Verify(c => c.ValidateAllAsync(directory.FullName, manifest, It.IsNotNull<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.NotEmpty(progress.GetReports());
+            Assert.All(progress.GetReports(), report => Assert.Equal(100, report.Total));
+            Assert.Contains(progress.GetReports(), report => report.Processed == 50 && report.CurrentFile == "Nested");
+        }
+        finally
+        {
+            directory.Delete(true);
+        }
+    }
+
     /// <summary>
     /// Custom progress implementation that captures reports synchronously.
     /// </summary>
@@ -1023,6 +1081,126 @@ public class GameInstallationValidatorTests
             {
                 _reports.Add(value);
             }
+        }
+    }
+
+    /// <summary>
+    /// A combined installation — both games flagged at the same directory — must be
+    /// validated once per game, so a Generals manifest is requested too instead of
+    /// silently never being fetched behind the Zero Hour preference.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_CombinedInstallation_ValidatesBothGames()
+    {
+        var tempDir = Directory.CreateTempSubdirectory("GenHub.CombinedValidation.");
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir.FullName, "INI.big"), "archive");
+            File.WriteAllText(Path.Combine(tempDir.FullName, "INIZH.big"), "archive");
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Retail,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, tempDir.FullName);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+
+            var manifest = new ContentManifest { Files = new List<ManifestFile>() };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manifest);
+
+            var progress = new SynchronousProgress<ValidationProgress>();
+            var result = await _validator.ValidateAsync(installation, progress, default);
+            var reports = progress.GetReports();
+            Assert.All(reports, report => Assert.Equal(200, report.Total));
+            Assert.Equal(new[] { 0, 25, 100, 100, 125, 200 }, reports.Select(report => report.Processed));
+
+            Assert.True(result.IsValid);
+            _manifestProviderMock.Verify(
+                m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.Generals, It.IsAny<CancellationToken>()),
+                Times.Once);
+            _manifestProviderMock.Verify(
+                m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.ZeroHour, It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Validating a combined directory once per game must not report the sibling game's
+    /// retail root archives as extraneous: each per-game manifest lists only its own
+    /// game's files, yet both games legitimately share the directory. Uses the real
+    /// <see cref="ContentValidator"/> so the extraneous-file scan actually runs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_CombinedInstallation_DoesNotReportSiblingArchivesAsExtraneous()
+    {
+        var tempDir = Directory.CreateTempSubdirectory("GenHub.CombinedExtraneous.");
+        try
+        {
+            var generalsArchive = Path.Combine(tempDir.FullName, "INI.big");
+            var zeroHourArchive = Path.Combine(tempDir.FullName, "INIZH.big");
+            await File.WriteAllTextAsync(generalsArchive, "archive");
+            await File.WriteAllTextAsync(zeroHourArchive, "archive");
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Retail,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, tempDir.FullName);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+
+            // Each per-game manifest lists only that game's archive, as a canonical
+            // (CAS/embedded) manifest would — the other game's files are not in it.
+            var generalsManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.108.retail.gameinstallation.generals"),
+                Name = "Generals",
+                Version = "1.08",
+                Files = new() { new ManifestFile { RelativePath = "INI.big", Hash = string.Empty } },
+            };
+            var zeroHourManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.104.retail.gameinstallation.zerohour"),
+                Name = "Zero Hour",
+                Version = "1.04",
+                Files = new() { new ManifestFile { RelativePath = "INIZH.big", Hash = string.Empty } },
+            };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.Generals, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(generalsManifest);
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.ZeroHour, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(zeroHourManifest);
+
+            var realContentValidator = new ContentValidator(
+                new Mock<IFileOperationsService>().Object,
+                new Mock<ICasService>().Object,
+                new Mock<ILogger<ContentValidator>>().Object);
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                _manifestProviderMock.Object,
+                realContentValidator,
+                _hashProviderMock.Object);
+
+            var result = await validator.ValidateAsync(installation, null, default);
+
+            // A retail-consistent combined directory must validate clean: no pass may
+            // flag the other pass's root archives.
+            Assert.Empty(result.Issues);
+            Assert.True(result.IsValid);
+        }
+        finally
+        {
+            tempDir.Delete(true);
         }
     }
 }

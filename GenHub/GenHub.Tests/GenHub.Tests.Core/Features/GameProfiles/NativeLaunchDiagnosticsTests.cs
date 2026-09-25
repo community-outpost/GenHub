@@ -125,10 +125,11 @@ public class NativeLaunchDiagnosticsTests : IDisposable
 
         var binary = Path.Combine(_tempDir, NativeClientFixture.BinaryName);
 
-        // Writes far more than a pipe buffer holds, then keeps running.
+        // Writes far more than a pipe buffer holds, then stays alive through startup detection.
+        // The test terminates it below; the bounded sleep also prevents an orphan on failure.
         await File.WriteAllTextAsync(
             binary,
-            "#!/bin/sh\ni=0\nwhile [ $i -lt 2000 ]; do echo \"log line $i padding padding padding\" >&2; i=$((i+1)); done\nsleep 2\n");
+            "#!/bin/sh\ni=0\nwhile [ $i -lt 2000 ]; do echo \"log line $i padding padding padding\" >&2; i=$((i+1)); done\nexec sleep 60\n");
         if (!OperatingSystem.IsWindows())
         {
             File.SetUnixFileMode(
@@ -142,11 +143,16 @@ public class NativeLaunchDiagnosticsTests : IDisposable
             WorkingDirectory = _tempDir,
         });
 
-        Assert.True(result.Success, $"Launch failed: {string.Join(" ", result.Errors)}");
-
-        if (result.Data is not null)
+        try
         {
-            await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+            Assert.True(result.Success, $"Launch failed: {string.Join(" ", result.Errors)}");
+        }
+        finally
+        {
+            if (result.Data is not null)
+            {
+                await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+            }
         }
     }
 

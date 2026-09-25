@@ -10,6 +10,7 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -386,6 +387,26 @@ public class GameClientDetector(
         int fallbackVersion = GameVersionHelper.NormalizeVersion(gameClient.Version);
         var fallbackIdResult = ManifestIdGenerator.GeneratePublisherContentId(fallbackPublisherId, ContentType.GameClient, fallbackContentName, userVersion: fallbackVersion);
         manifest.Id = ManifestId.Create(fallbackIdResult);
+    }
+
+    /// <summary>
+    /// Enumerates the top-level files of a directory that could be launched.
+    /// </summary>
+    /// <param name="directoryPath">The directory to scan.</param>
+    /// <returns>Full paths of the launch candidates.</returns>
+    /// <remarks>
+    /// Replaces the old <c>*.exe</c> glob, which hid extensionless binaries — the shape
+    /// of a native Mach-O or ELF game client — from publisher detection entirely.
+    /// Selection goes through <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate(string, string?)"/>,
+    /// which keeps <c>.exe</c> results identical while classifying extensionless files by
+    /// their magic bytes. These paths are on disk, so the absolute path is supplied and the
+    /// content-based rule applies rather than the name-only fallback.
+    /// </remarks>
+    private static string[] GetLaunchCandidateFiles(string directoryPath)
+    {
+        return Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
+            .Where(path => ExecutableFileClassifier.IsLegacyLaunchCandidate(path, path))
+            .ToArray();
     }
 
     /// <summary>
@@ -949,7 +970,11 @@ public class GameClientDetector(
         }
 
         // 1. Check manifest pool for existing DOWNLOADED content from publishers detected in this path
-        var detectedPublisherIds = await DetectPublisherExecutablesAsync(installationPath);
+        var candidates = await IdentifyPublisherCandidatesAsync(installationPath, cancellationToken);
+        var detectedPublisherIds = candidates
+            .Where(candidate => candidate.Identification.GameType == gameType || candidate.Identification.GameType == GameType.Unknown)
+            .Select(candidate => candidate.Identification.PublisherId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var publishersHandledFromPool = await DetectPublisherClientsFromPoolAsync(installation, installationPath, gameType, detectedPublisherIds, detectedClients, cancellationToken);
 
         // 2. Special handling for GeneralsOnline (detects multiple variants)
@@ -964,7 +989,7 @@ public class GameClientDetector(
         }
 
         // 3. Perform local detection for publishers NOT found in the pool
-        await DetectPublisherClientsFromLocalFilesAsync(installation, installationPath, gameType, publishersHandledFromPool, detectedClients);
+        AddPublisherClientsFromLocalFiles(installation, installationPath, gameType, publishersHandledFromPool, detectedClients, candidates);
 
         if (detectedClients.Count > 0)
         {
@@ -1019,64 +1044,35 @@ public class GameClientDetector(
     /// <summary>
     /// Detects publisher game clients from local files for publishers not yet handled from the pool.
     /// </summary>
-    private Task DetectPublisherClientsFromLocalFilesAsync(
+    private void AddPublisherClientsFromLocalFiles(
         GameInstallation installation,
         string installationPath,
         GameType gameType,
         HashSet<string> publishersHandledFromPool,
-        List<GameClient> detectedClients)
+        List<GameClient> detectedClients,
+        List<(string ExecutablePath, GameClientIdentification Identification)> candidates)
     {
-        var executableFiles = Directory.GetFiles(installationPath, "*.exe", SearchOption.TopDirectoryOnly);
-
-        foreach (var identifier in gameClientIdentifiers)
+        foreach (var (executablePath, identification) in candidates)
         {
-            if (publishersHandledFromPool.Contains(identifier.PublisherId))
-                continue;
-
-            foreach (var executablePath in executableFiles)
+            if (publishersHandledFromPool.Contains(identification.PublisherId)
+                || (identification.GameType != gameType && identification.GameType != GameType.Unknown))
             {
-                if (!identifier.CanIdentify(executablePath))
-                    continue;
-
-                try
-                {
-                    var identification = identifier.Identify(executablePath);
-                    if (identification == null) continue;
-
-                    // Skip if the identified game type doesn't match what we're looking for
-                    if (identification.GameType != gameType && identification.GameType != GameType.Unknown)
-                        continue;
-
-                    logger.LogInformation(
-                        "Detected {PublisherId} client: {DisplayName} at {ExecutablePath} (requires content acquisition)",
-                        identification.PublisherId,
-                        identification.DisplayName,
-                        executablePath);
-
-                    var gameClient = new GameClient
-                    {
-                        Name = identification.DisplayName,
-                        Id = string.Empty, // No manifest ID - these are detected-only clients that should prompt for verified publisher download
-                        Version = identification.LocalVersion ?? GameClientConstants.UnknownVersion,
-                        ExecutablePath = executablePath,
-                        GameType = gameType,
-                        InstallationId = installation.Id,
-                        WorkingDirectory = installationPath,
-                        SourceType = ContentType.GameClient,
-                        PublisherType = identification.PublisherId,
-                    };
-
-                    // Note: Manifest generation removed - user will be prompted to install verified publisher version
-                    detectedClients.Add(gameClient);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to detect publisher client at {ExecutablePath}", executablePath);
-                }
+                continue;
             }
-        }
 
-        return Task.CompletedTask;
+            detectedClients.Add(new GameClient
+            {
+                Name = identification.DisplayName,
+                Id = string.Empty,
+                Version = identification.LocalVersion ?? GameClientConstants.UnknownVersion,
+                ExecutablePath = executablePath,
+                GameType = gameType,
+                InstallationId = installation.Id,
+                WorkingDirectory = installationPath,
+                SourceType = ContentType.GameClient,
+                PublisherType = identification.PublisherId,
+            });
+        }
     }
 
     /// <summary>
@@ -1171,41 +1167,62 @@ public class GameClientDetector(
         return Task.FromResult(detectedClients);
     }
 
-    /// <summary>
-    /// Quickly scans installation path for publisher executables without full identification.
-    /// Returns set of publisher IDs that have executables present.
-    /// </summary>
-    /// <param name="installationPath">The path to scan.</param>
-    /// <returns>A set of publisher IDs with detected executables.</returns>
-    private Task<HashSet<string>> DetectPublisherExecutablesAsync(
-        string installationPath)
+    /// <summary>Identifies candidates once for both pool lookup and local detection.</summary>
+    /// <param name="installationPath">The installation directory to inspect.</param>
+    /// <param name="cancellationToken">Cancels enumeration and native binary inspection.</param>
+    /// <returns>Recognized executables and their publisher metadata.</returns>
+    private async Task<List<(string ExecutablePath, GameClientIdentification Identification)>> IdentifyPublisherCandidatesAsync(
+        string installationPath,
+        CancellationToken cancellationToken)
     {
-        var detectedPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        if (string.IsNullOrEmpty(installationPath) || !Directory.Exists(installationPath))
+        var candidates = new List<(string, GameClientIdentification)>();
+        foreach (var executablePath in GetLaunchCandidateFiles(installationPath))
         {
-            return Task.FromResult(detectedPublishers);
-        }
-
-        var executableFiles = Directory.GetFiles(installationPath, "*.exe", SearchOption.TopDirectoryOnly);
-
-        foreach (var executablePath in executableFiles)
-        {
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (var identifier in gameClientIdentifiers)
             {
-                if (identifier.CanIdentify(executablePath))
+                cancellationToken.ThrowIfCancellationRequested();
+                var identification = await IdentifyInstallationCandidateAsync(identifier, executablePath, cancellationToken);
+                if (identification is not null)
                 {
-                    detectedPublishers.Add(identifier.PublisherId);
-                    logger.LogDebug(
-                        "Detected {PublisherId} executable at {Path}",
-                        identifier.PublisherId,
-                        executablePath);
-                    break; // Each executable matches at most one identifier
+                    candidates.Add((executablePath, identification));
+                    break;
                 }
             }
         }
 
-        return Task.FromResult(detectedPublishers);
+        return candidates;
+    }
+
+    private async Task<GameClientIdentification?> IdentifyInstallationCandidateAsync(
+        IGameClientIdentifier identifier,
+        string executablePath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var native = !Path.HasExtension(executablePath);
+            GameClientIdentification? identification;
+            if (native && identifier is CommunityGameClientIdentifier community)
+            {
+                identification = await community.IdentifyNativeAsync(executablePath, cancellationToken);
+            }
+            else
+            {
+                identification = identifier.CanIdentify(executablePath) ? identifier.Identify(executablePath) : null;
+            }
+
+            return native && identification?.GameType == GameType.Unknown ? null : identification;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to identify publisher client at {ExecutablePath}", executablePath);
+            return null;
+        }
     }
 
     /// <summary>
@@ -1238,8 +1255,7 @@ public class GameClientDetector(
                     .Where(m =>
                         m.ContentType == ContentType.GameClient &&
                         string.Equals(m.Publisher?.PublisherType, publisherId, StringComparison.OrdinalIgnoreCase) &&
-
-                        // and their ID doesn't start with "1.0." (version 0)
+                        (gameType == GameType.Unknown || m.TargetGame == gameType) &&
                         GenHub.Core.Helpers.ManifestHelper.IsDownloadedManifest(m)),
             ];
 

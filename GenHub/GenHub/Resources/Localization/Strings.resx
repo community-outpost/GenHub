@@ -10369,4 +10369,25 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
     <value>Creating MapPack...</value>
   </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
+    <value>Game Exited Unexpectedly</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Message" xml:space="preserve">
+    <value>The game exited unexpectedly (code {0}). See the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Archives" xml:space="preserve">
+    <value>The game could not load these archives: {0}. Exit code: {1}.</value>
+  </data>
+  <data name="GameProfiles.Notification.EarlyExit.WithCode" xml:space="preserve">
+    <value>The process exited before launch completed (exit code {0}). See the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
+    <value>The process exited before launch completed. See the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
+    <value>Tool Launched</value>
+  </data>
+  <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
+    <value>Successfully launched '{0}'</value>
+  </data>
 </root>

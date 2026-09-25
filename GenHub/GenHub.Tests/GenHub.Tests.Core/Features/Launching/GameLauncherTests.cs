@@ -23,6 +23,8 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
+using System.Resources;
 using System.Text.Json;
 
 namespace GenHub.Tests.Core.Features.Launching;
@@ -156,6 +158,10 @@ public class GameLauncherTests : IDisposable
                 return DependencyResolutionResult.CreateSuccess(idList, [], []);
             });
 
+        var resources = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GameLauncher).Assembly);
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, arguments) => string.Format(CultureInfo.InvariantCulture, resources.GetString(key, CultureInfo.InvariantCulture)!, arguments));
         _gameLauncher = new GameLauncher(
             _loggerMock.Object,
             _profileManagerMock.Object,
@@ -171,7 +177,8 @@ public class GameLauncherTests : IDisposable
             _profileContentLinkerMock.Object,
             _steamLauncherMock.Object,
             _configurationProviderServiceMock.Object,
-            _launchReceiptServiceMock.Object);
+            _launchReceiptServiceMock.Object,
+            localization.Object);
     }
 
     /// <summary>
@@ -222,6 +229,62 @@ public class GameLauncherTests : IDisposable
 
         // Verify RegisterLaunchAsync called twice: once for placeholder, once for final update
         _launchRegistryMock.Verify(x => x.RegisterLaunchAsync(It.Is<GameLaunchInfo>(i => i.ProfileId == profile.Id)), Times.Exactly(2));
+    }
+
+    /// <summary>
+    /// An exit applied during registration must fail the launch before success is reported.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_ExitedDuringRegistration_DoesNotReportSuccessAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = @"C:\workspace",
+            ExecutablePath = @"C:\workspace\generals.exe",
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
+                TestContentIds,
+                [manifest],
+                []));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        _launchRegistryMock.Setup(x => x.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Callback<GameLaunchInfo>(launch =>
+            {
+                if (launch.ProcessInfo.ProcessId > 0)
+                {
+                    launch.TerminatedAt = DateTime.UtcNow;
+                    launch.ExitCode = 1;
+                    launch.FailureReason = "Buffered process failure";
+                }
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+        Assert.False(result.Success);
+        Assert.Contains("exit code 1", result.FirstError);
+        _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(It.IsAny<string>()), Times.Never);
     }
 
     /// <summary>
