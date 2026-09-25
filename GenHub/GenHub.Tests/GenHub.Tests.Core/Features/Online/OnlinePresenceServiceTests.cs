@@ -61,8 +61,8 @@ public sealed class OnlinePresenceServiceTests : IDisposable
         // Arrange
         const string message = """
             {"type":"roster","members":[
-              {"displayName":"Host","overlayIp":"10.42.0.1","quality":1,"isHost":true},
-              {"displayName":"Guest","overlayIp":"10.42.0.2","quality":2,"isHost":false}
+              {"displayName":"Host","overlayIp":"10.42.0.1","quality":1,"isHost":true,"isLaunched":true},
+              {"displayName":"Guest","overlayIp":"10.42.0.2","quality":2,"isHost":false,"isLaunched":false}
             ]}
             """;
 
@@ -73,6 +73,8 @@ public sealed class OnlinePresenceServiceTests : IDisposable
         Assert.NotNull(members);
         Assert.Equal(2, members.Count);
         Assert.Equal("10.42.0.2", members[1].OverlayIp);
+        Assert.True(members[0].IsLaunched);
+        Assert.False(members[1].IsLaunched);
     }
 
     /// <summary>

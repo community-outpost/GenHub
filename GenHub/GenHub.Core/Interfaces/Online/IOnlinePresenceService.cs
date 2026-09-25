@@ -46,7 +46,8 @@ public interface IOnlinePresenceService
     /// <param name="fingerprint">The local profile fingerprint.</param>
     /// <param name="profileName">The local profile display name.</param>
     /// <param name="displayName">The player name shown in the lobby roster. Blank keeps the edge default.</param>
-    void UpdateAdvertisedProfile(string fingerprint, string profileName, string displayName = "");
+    /// <param name="isLaunched">Whether the local client has launched their game profile.</param>
+    void UpdateAdvertisedProfile(string fingerprint, string profileName, string displayName = "", bool isLaunched = false);
 
     /// <summary>
     /// Connects the presence channel for a joined network.
@@ -63,9 +64,9 @@ public interface IOnlinePresenceService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Disconnects the presence channel. Safe to call when already disconnected.
+    /// Disconnects the presence channel cleanly.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True when the channel is disconnected.</returns>
+    /// <returns>True when the channel is disconnected cleanly.</returns>
     Task<OperationResult<bool>> DisconnectAsync(CancellationToken cancellationToken = default);
 }

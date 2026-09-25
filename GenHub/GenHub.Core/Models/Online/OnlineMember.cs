@@ -51,4 +51,10 @@ public sealed record OnlineMember
     /// </summary>
     [JsonPropertyName("profileName")]
     public string ProfileName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether this member has launched their game profile.
+    /// </summary>
+    [JsonPropertyName("isLaunched")]
+    public bool IsLaunched { get; init; }
 }

@@ -123,24 +123,13 @@ public interface IOnlineNetworkService
 
     /// <summary>
     /// Updates the profile information advertised by the local client.
-    /// Caches the local profile information to be published on the next presence heartbeat.
+    /// Caches the local profile information and immediately pushes a presence heartbeat.
     /// </summary>
     /// <param name="fingerprint">The local profile fingerprint.</param>
     /// <param name="profileName">The local profile display name.</param>
     /// <param name="displayName">The player name shown in the lobby roster. Blank keeps the edge default.</param>
-    void SetLocalProfileAdvertisement(string fingerprint, string profileName, string displayName = "");
-
-    /// <summary>
-    /// Reports a joined member for abuse.
-    /// </summary>
-    /// <param name="overlayIp">The member overlay IP.</param>
-    /// <param name="reason">The abuse reason.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The result of the report operation.</returns>
-    Task<OperationResult<bool>> ReportMemberAsync(
-        string overlayIp,
-        string reason,
-        CancellationToken cancellationToken = default);
+    /// <param name="isLaunched">Whether the local client has launched their game profile.</param>
+    void SetLocalProfileAdvertisement(string fingerprint, string profileName, string displayName = "", bool isLaunched = false);
 
     /// <summary>
     /// Bans a joined member (host only).

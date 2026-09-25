@@ -28,6 +28,10 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Features.Downloads.ViewModels;
+using GenHub.Features.Downloads.Views;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -70,6 +74,8 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     private readonly OnlineViewModelDependencies? _dependencies;
     private readonly IGameCrcCalculatorService? _crcCalculator;
     private readonly IGameInstallationService? _installationService;
+    private readonly IServiceProvider? _serviceProvider;
+    private readonly IContentManifestPool? _manifestPool;
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly SemaphoreSlim _profileLock = new(1, 1);
@@ -117,6 +123,8 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         _dependencies = dependencies;
         _crcCalculator = dependencies?.CrcCalculator;
         _installationService = dependencies?.GameInstallationService;
+        _serviceProvider = dependencies?.ServiceProvider;
+        _manifestPool = dependencies?.ManifestPool;
 
         WeakReferenceMessenger.Default.Register<ProfileCreatedMessage>(this);
         WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
@@ -741,52 +749,120 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         }
     }
 
+
+
+    internal Func<ProfileSelectionViewModel, Task<bool>>? ShowProfileSelectionDialogHandler { get; set; }
+
     /// <summary>
-    /// Reports the selected member for abuse, offering reason choices.
+    /// Displays the profile selection dialog.
+    /// </summary>
+    internal async Task<bool> ShowProfileSelectionDialogAsync(ProfileSelectionViewModel viewModel)
+    {
+        if (ShowProfileSelectionDialogHandler != null)
+        {
+            return await ShowProfileSelectionDialogHandler(viewModel);
+        }
+
+        var lifetime = Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var parentWindow = lifetime?.MainWindow;
+        if (parentWindow == null)
+        {
+            _logger.LogWarning("No parent window available for profile selection dialog");
+            return false;
+        }
+
+        var dialog = new ProfileSelectionView
+        {
+            DataContext = viewModel,
+        };
+
+        viewModel.RequestClose += (s, e) => dialog.Close();
+        await dialog.ShowDialog(parentWindow);
+        return viewModel.WasSuccessful;
+    }
+
+    /// <summary>
+    /// Opens the profile selection modal to select a play profile for online play with lobby compatibility.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [RelayCommand(CanExecute = nameof(CanModerate))]
-    public async Task ReportMemberAsync(CancellationToken cancellationToken = default)
+    [RelayCommand]
+    public async Task OpenProfileSelectionAsync(CancellationToken cancellationToken = default)
     {
-        if (SelectedMember is null)
+        if (_dependencies?.ServiceProvider == null)
         {
+            _logger.LogWarning("Cannot open profile selection: ServiceProvider not available.");
             return;
         }
 
-        var reason = await PickReportReasonAsync(SelectedMember.DisplayName);
-        if (string.IsNullOrEmpty(reason))
+        var profileVm = _dependencies.ServiceProvider.GetService<ProfileSelectionViewModel>();
+        if (profileVm == null)
         {
+            _logger.LogWarning("Cannot open profile selection: ProfileSelectionViewModel could not be resolved.");
             return;
         }
 
-        try
+        profileVm.DialogTitle = GetLocalizedString("Online.ProfileSelection.Title", "Select Game Profile");
+        profileVm.HeaderTitle = GetLocalizedString("Online.ProfileSelection.HeaderTitle", "Select Game Profile");
+        profileVm.HeaderSubtitle = GetLocalizedString("Online.ProfileSelection.HeaderSubtitle", "Choose a profile for online play with lobby compatibility");
+        profileVm.ActionBadgeText = GetLocalizedString("Online.ProfileSelection.SelectAction", "Select");
+
+        var targetGame = GameType.ZeroHour;
+        var expectedFp = ExpectedProfileFingerprint;
+        var expectedClientKey = ExpectedGameClientId;
+
+        if (string.IsNullOrEmpty(expectedFp) && SelectedDetail?.ExpectedProfile != null)
         {
-            IsLoading = true;
-            var result = await _networkService.ReportMemberAsync(SelectedMember.OverlayIp, reason, cancellationToken);
-            if (!result.Success)
+            expectedFp = SelectedDetail.ExpectedProfile.ExpectedProfileFingerprint;
+            expectedClientKey = SelectedDetail.ExpectedProfile.ExpectedGameClientId;
+        }
+
+        if (!string.IsNullOrEmpty(expectedClientKey))
+        {
+            var parts = expectedClientKey.Split(OnlineConstants.FingerprintSeparator);
+            if (parts.Length > 0 && Enum.TryParse<GameType>(parts[0], ignoreCase: true, out var parsedGame))
             {
-                ShowErrorToast("Online.Error.ReportTitle", GetString("Online.Error.ReportFailed"));
-                return;
+                targetGame = parsedGame;
+            }
+        }
+        else if (SelectedPlayProfile?.GameClient != null)
+        {
+            targetGame = SelectedPlayProfile.GameClient.GameType;
+        }
+
+        HashSet<string>? compatibleProfileIds = null;
+        if (!IsCurrentUserHost && !string.IsNullOrEmpty(expectedFp))
+        {
+            compatibleProfileIds = new HashSet<string>(StringComparer.Ordinal);
+            await EnsureProfilesLoadedAsync(cancellationToken);
+            foreach (var profile in AvailableProfiles)
+            {
+                var setup = await DescribeProfileAsync(profile, cancellationToken, includeCompatibilityCrcs: true);
+                var match = OnlineProfileMatcher.Compare(expectedFp, expectedClientKey, setup.Fingerprint, setup.ClientKey);
+                if (match == OnlineProfileMatch.Exact)
+                {
+                    compatibleProfileIds.Add(profile.Id);
+                }
+            }
+        }
+
+        await profileVm.LoadProfilesAsync(
+            targetGame,
+            contentManifestId: string.Empty,
+            contentName: "Online Play",
+            additionalManifestIds: null,
+            compatibleProfileIds: compatibleProfileIds,
+            ct: cancellationToken);
+
+        var success = await ShowProfileSelectionDialogAsync(profileVm);
+        if (success && profileVm.SelectedProfile != null)
+        {
+            SelectedPlayProfile = profileVm.SelectedProfile;
+            if (!IsJoined || IsCurrentUserHost)
+            {
+                SelectedHostProfile = profileVm.SelectedProfile;
             }
 
-            _notificationService.ShowSuccess(
-                GetString("Online.Report.SuccessTitle"),
-                GetString("Online.Report.SuccessMessage", SelectedMember.DisplayName),
-                NotificationDurations.Medium);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to report online member.");
-            ShowErrorToast("Online.Error.ReportTitle", null);
-        }
-        finally
-        {
-            IsLoading = false;
+            await RefreshMatchAfterPickerChangeAsync();
         }
     }
 
@@ -1395,7 +1471,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     {
         Members = new ObservableCollection<OnlineMember>(members);
         RefreshHostState();
-        ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
     }
 
@@ -1418,7 +1493,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         LeaveNetworkCommand.NotifyCanExecuteChanged();
         PlayCommand.NotifyCanExecuteChanged();
         CopyOverlayIpCommand.NotifyCanExecuteChanged();
-        ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
         SaveNetworkCommand.NotifyCanExecuteChanged();
         ToggleHostPanelCommand.NotifyCanExecuteChanged();
@@ -1462,7 +1536,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         PlayCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         CopyOverlayIpCommand.NotifyCanExecuteChanged();
-        ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
         SaveNetworkCommand.NotifyCanExecuteChanged();
         ToggleHostPanelCommand.NotifyCanExecuteChanged();
@@ -1623,6 +1696,11 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     /// <param name="value">The edited nickname.</param>
     partial void OnNicknameChanged(string value)
     {
+        if (IsGameRunning)
+        {
+            return;
+        }
+
         var normalized = LanNicknameCodec.Normalize(value);
         if (!string.Equals(normalized, value, StringComparison.Ordinal))
         {
@@ -1687,34 +1765,13 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     private string GetString(string key, int first, int second) =>
         _dependencies?.LocalizationService?.GetString(key, first, second) ?? $"{key} ({first}, {second})";
 
-    private async Task<string?> PickReportReasonAsync(string displayName)
+    private string GetLocalizedString(string key, string fallback)
     {
-        string? reason = null;
-        var reasons = new[]
-        {
-            GetString("Online.Report.Reason.Cheating"),
-            GetString("Online.Report.Reason.Harassment"),
-            GetString("Online.Report.Reason.Griefing"),
-        };
-
-        var actions = reasons.Select(text => new DialogAction
-        {
-            Text = text,
-            Style = NotificationActionStyle.Secondary,
-            Action = () => reason = text,
-        }).ToList();
-        actions.Add(new DialogAction
-        {
-            Text = GetString("Common.Button.Cancel"),
-            Style = NotificationActionStyle.Secondary,
-        });
-
-        await _dialogService.ShowMessageAsync(
-            GetString("Online.Report.DialogTitle"),
-            GetString("Online.Report.DialogMessage", displayName),
-            actions);
-        return reason;
+        var val = _dependencies?.LocalizationService?.GetString(key);
+        return string.IsNullOrEmpty(val) || val == key ? fallback : val;
     }
+
+
 
     private async Task LoadDetailAsync(OnlineNetworkSummary network, CancellationToken cancellationToken)
     {
@@ -1837,6 +1894,10 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         {
             // Presence advertisements carry no scoped token; the re-match is uncancellable.
             await UpdateMatchAndAdvertiseAsync(CancellationToken.None);
+            if (IsCurrentUserHost && IsJoined)
+            {
+                await RefreshHostExpectedProfileAsync(CancellationToken.None);
+            }
         }
         catch (Exception ex)
         {
@@ -1878,11 +1939,13 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     private async Task RefreshHostExpectedProfileAsync(CancellationToken cancellationToken)
     {
-        var hostProfile = SelectedHostProfile;
+        var hostProfile = SelectedPlayProfile ?? SelectedHostProfile;
         if (!IsCurrentUserHost || hostProfile is null)
         {
             return;
         }
+
+        SelectedHostProfile = hostProfile;
 
         var setup = await DescribeProfileAsync(hostProfile, cancellationToken, includeCompatibilityCrcs: true);
         var expected = new OnlineExpectedProfile
@@ -2028,15 +2091,51 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         !string.IsNullOrEmpty(clientKey) &&
         string.Equals(clientKey, ExpectedGameClientId, StringComparison.Ordinal);
 
+    private void UpdateLocalRosterMember(string fingerprint, string profileName, string displayName, bool isLaunched)
+    {
+        var localIp = CurrentJoin?.OverlayIp ?? OverlayIp;
+        if (string.IsNullOrEmpty(localIp))
+        {
+            return;
+        }
+
+        for (var i = 0; i < Members.Count; i++)
+        {
+            var m = Members[i];
+            if (string.Equals(m.OverlayIp, localIp, StringComparison.OrdinalIgnoreCase))
+            {
+                Members[i] = m with
+                {
+                    ProfileFingerprint = fingerprint,
+                    ProfileName = profileName,
+                    DisplayName = !string.IsNullOrWhiteSpace(displayName) ? displayName : m.DisplayName,
+                    IsLaunched = isLaunched,
+                };
+                break;
+            }
+        }
+    }
+
     private async Task UpdateMatchAndAdvertiseAsync(CancellationToken cancellationToken = default)
     {
+        string? profileFingerprint = null;
+        string? profileName = null;
+
         if (SelectedPlayProfile is null)
         {
             await AutoMatchProfileAsync(cancellationToken);
+            if (SelectedPlayProfile is not null)
+            {
+                var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
+                profileFingerprint = setup.Fingerprint;
+                profileName = SelectedPlayProfile.Name;
+            }
         }
         else
         {
             var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
+            profileFingerprint = setup.Fingerprint;
+            profileName = SelectedPlayProfile.Name;
             ApplyMatch(
                 OnlineProfileMatcher.Compare(
                     ExpectedProfileFingerprint,
@@ -2046,6 +2145,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
                 setup.GameplayContentIds);
         }
 
+        UpdateLocalRosterMember(profileFingerprint ?? string.Empty, profileName ?? string.Empty, Nickname, IsGameRunning);
         await AdvertiseSelectedProfileAsync(cancellationToken);
     }
 
@@ -2053,14 +2153,16 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     {
         if (SelectedPlayProfile is null)
         {
-            _networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty, Nickname);
+            _networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty, Nickname, IsGameRunning);
+            UpdateLocalRosterMember(string.Empty, string.Empty, Nickname, IsGameRunning);
             return;
         }
 
         // Same map-aware fingerprint the join body carries, so heartbeats
         // never flap between two advertisements for one profile.
         var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
-        _networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname);
+        _networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname, IsGameRunning);
+        UpdateLocalRosterMember(setup.Fingerprint, SelectedPlayProfile.Name, Nickname, IsGameRunning);
     }
 
     private async Task<(string Fingerprint, string Name)> ResolveAdvertisementAsync(CancellationToken cancellationToken)
@@ -2078,7 +2180,8 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             }
 
             var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken, includeCompatibilityCrcs: true);
-            _networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname);
+            _networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name, Nickname, IsGameRunning);
+            UpdateLocalRosterMember(setup.Fingerprint, SelectedPlayProfile.Name, Nickname, IsGameRunning);
             return (setup.Fingerprint, SelectedPlayProfile.Name);
         }
         catch (OperationCanceledException)
@@ -2201,11 +2304,12 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         GameProfile profile,
         CancellationToken cancellationToken)
     {
-        var (gameRoot, exePath) = ResolveProfileRootAndExe(profile);
+        var gameRoot = await ResolveInstallationRootAsync(profile, cancellationToken);
+        var (clientRoot, exePath) = ResolveProfileRootAndExe(profile);
 
         if (string.IsNullOrEmpty(gameRoot) || !Directory.Exists(gameRoot))
         {
-            gameRoot = await ResolveInstallationRootAsync(profile, cancellationToken);
+            gameRoot = clientRoot;
         }
 
         if (!string.IsNullOrEmpty(gameRoot) && (string.IsNullOrEmpty(exePath) || !File.Exists(exePath)))
@@ -2304,23 +2408,40 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         CancellationToken cancellationToken)
     {
         var client = profile.GameClient;
-        if (client is null || gameplayIds.Count == 0)
+        if (client is null)
         {
             return [];
         }
 
-        var available = await _profileManager.GetAvailableContentAsync(client, cancellationToken);
-        if (!available.Success || available.Data is null)
+        var sideloads = new List<string>();
+
+        var clientExe = ReplayCrcMatchingHelper.ResolveProfileFullExePath(client);
+        if (!string.IsNullOrEmpty(clientExe))
         {
-            return [];
+            var clientDir = Path.GetDirectoryName(clientExe);
+            if (!string.IsNullOrEmpty(clientDir) && Directory.Exists(clientDir))
+            {
+                sideloads.Add(clientDir);
+            }
         }
 
-        var wanted = new HashSet<string>(gameplayIds, StringComparer.Ordinal);
-        return available.Data
-            .Where(m => wanted.Contains(m.Id.ToString(), StringComparer.Ordinal))
-            .Select(m => m.SourcePath)
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Select(path => path!)
+        if (gameplayIds.Count > 0)
+        {
+            var available = await _profileManager.GetAvailableContentAsync(client, cancellationToken);
+            if (available.Success && available.Data is not null)
+            {
+                var wanted = new HashSet<string>(gameplayIds, StringComparer.Ordinal);
+                var contentPaths = available.Data
+                    .Where(m => wanted.Contains(m.Id.ToString(), StringComparer.Ordinal))
+                    .Select(m => m.SourcePath)
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .Select(path => path!);
+
+                sideloads.AddRange(contentPaths);
+            }
+        }
+
+        return sideloads
             .Distinct(StringComparer.Ordinal)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToList();
@@ -2342,20 +2463,31 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return cached;
         }
 
-        var available = await _profileManager.GetAvailableContentAsync(client, cancellationToken);
-        if (!available.Success || available.Data is null)
+        var dict = new Dictionary<string, ContentType>(StringComparer.Ordinal);
+
+        if (_manifestPool != null)
         {
-            return null;
+            var allManifests = await _manifestPool.GetAllManifestsAsync(cancellationToken);
+            if (allManifests.Success && allManifests.Data != null)
+            {
+                foreach (var manifest in allManifests.Data)
+                {
+                    dict[manifest.Id.ToString()] = manifest.ContentType;
+                }
+            }
         }
 
-        IReadOnlyDictionary<string, ContentType> map = available.Data
-            .GroupBy(m => m.Id.ToString(), StringComparer.Ordinal)
-            .ToDictionary(
-                g => g.Key,
-                g => OnlineProfileMatcher.ResolveDeclaredType(g.Select(m => m.ContentType)),
-                StringComparer.Ordinal);
-        _contentTypeCache[cacheKey] = map;
-        return map;
+        var available = await _profileManager.GetAvailableContentAsync(client, cancellationToken);
+        if (available.Success && available.Data is not null)
+        {
+            foreach (var group in available.Data.GroupBy(m => m.Id.ToString(), StringComparer.Ordinal))
+            {
+                dict[group.Key] = OnlineProfileMatcher.ResolveDeclaredType(group.Select(m => m.ContentType));
+            }
+        }
+
+        _contentTypeCache[cacheKey] = dict;
+        return dict;
     }
 
     partial void OnSelectedNetworkChanged(OnlineNetworkSummary? value)
@@ -2405,7 +2537,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     partial void OnSelectedMemberChanged(OnlineMember? value)
     {
-        ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
     }
 
@@ -2433,7 +2564,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         PlayCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
         CopyOverlayIpCommand.NotifyCanExecuteChanged();
-        ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
     }
 
@@ -2441,6 +2571,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     {
         PlayCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
+        _ = RefreshAdvertisementAsync();
     }
 
     partial void OnIsCurrentUserHostChanged(bool value)

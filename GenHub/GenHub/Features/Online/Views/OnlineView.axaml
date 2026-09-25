@@ -159,6 +159,7 @@
                                      Width="140"
                                      Height="32"
                                      Padding="8,4"
+                                     IsEnabled="{Binding !IsGameRunning}"
                                      ToolTip.Tip="{localization:Localize Online.Nickname.Hint}" />
                         </StackPanel>
                     </StackPanel>
@@ -207,17 +208,19 @@
                         <TextBlock Text="{localization:Localize Online.Detail.PlayProfileLabel}"
                                    Foreground="{DynamicResource TextSecondary}"
                                    VerticalAlignment="Center" />
-                        <ComboBox ItemsSource="{Binding AvailableProfiles}"
-                                  SelectedItem="{Binding SelectedPlayProfile, Mode=TwoWay}"
-                                  PlaceholderText="{localization:Localize Online.Detail.LaunchProfilePlaceholder}"
-                                  MinWidth="220"
-                                  AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="profiles:GameProfile">
-                                    <TextBlock Text="{Binding Name}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
+                        <Button Classes="toolbar-btn"
+                                Command="{Binding OpenProfileSelectionCommand}"
+                                MinWidth="220"
+                                ToolTip.Tip="{localization:Localize Online.Detail.PlayProfileLabel}"
+                                AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <material:MaterialIcon Kind="GamepadVariantOutline" Width="16" Height="16" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SelectedPlayProfile.Name, FallbackValue='Click to select profile...'}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxWidth="260" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="{localization:Localize Online.Detail.ExpectedProfileLabel}"
@@ -438,17 +441,19 @@
                         <StackPanel Spacing="8">
                             <TextBlock Classes="section-title" Text="{localization:Localize Online.Join.Title}" />
                             <TextBlock Classes="field-label" Text="{localization:Localize Online.Detail.PlayProfileLabel}" />
-                            <ComboBox ItemsSource="{Binding AvailableProfiles}"
-                                      SelectedItem="{Binding SelectedPlayProfile, Mode=TwoWay}"
-                                      PlaceholderText="{localization:Localize Online.Detail.LaunchProfilePlaceholder}"
-                                      HorizontalAlignment="Stretch"
-                                      AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="profiles:GameProfile">
-                                        <TextBlock Text="{Binding Name}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
+                            <Button Classes="toolbar-btn"
+                                    Command="{Binding OpenProfileSelectionCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    ToolTip.Tip="{localization:Localize Online.Detail.PlayProfileLabel}"
+                                    AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <material:MaterialIcon Kind="GamepadVariantOutline" Width="16" Height="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding SelectedPlayProfile.Name, FallbackValue='Click to select profile...'}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Button>
                             <TextBlock Classes="helper-text" Text="{localization:Localize Online.Join.ProfileHint}" />
                             <StackPanel Spacing="8" IsVisible="{Binding JoinRequiresPassword}">
                                 <TextBlock Classes="field-label" Text="{localization:Localize Online.Join.PasswordWatermark}" />
@@ -491,6 +496,15 @@
                                                            FontSize="10"
                                                            Foreground="{DynamicResource TextSecondary}" />
                                             </Border>
+                                            <Border Classes="badge"
+                                                    IsVisible="{Binding IsLaunched}"
+                                                    Background="{DynamicResource SuccessBrush}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="Launched"
+                                                           FontSize="10"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="White" />
+                                            </Border>
                                             <TextBlock Text="{Binding OverlayIp}"
                                                        Foreground="{DynamicResource TextSecondary}"
                                                        VerticalAlignment="Center" />
@@ -522,10 +536,6 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Classes="toolbar-btn"
-                                        Content="{localization:Localize Online.Action.Report}"
-                                        Command="{Binding ReportMemberCommand}"
-                                        AutomationProperties.Name="{localization:Localize Online.Action.Report}" />
                                 <Button Classes="toolbar-btn"
                                         Content="{localization:Localize Online.Action.Ban}"
                                         Command="{Binding BanMemberCommand}"

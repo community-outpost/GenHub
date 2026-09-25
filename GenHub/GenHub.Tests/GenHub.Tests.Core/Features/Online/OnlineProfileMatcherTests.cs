@@ -517,4 +517,36 @@ public class OnlineProfileMatcherTests
             EnabledContentIds = [.. contentIds],
         };
     }
+    /// <summary>
+    /// Tests that maps and map packs are excluded from gameplay content and do not change the fingerprint.
+    /// </summary>
+    [Fact]
+    public void ComputeFingerprint_WithMapsAndMapPacks_ShouldExcludeFromFingerprint()
+    {
+        // Arrange
+        var modOnly = ProfileWith("1.0.0.steam.mod.generals-plus");
+        var withMaps = ProfileWith(
+            "1.0.0.steam.mod.generals-plus",
+            "1.0.0.steam.map.last-stand",
+            "1.0.0.steam.mappack.gla-campaign",
+            "1.0.0.steam.mission.special-ops");
+
+        var types = new Dictionary<string, ContentType>(StringComparer.Ordinal)
+        {
+            ["1.0.0.steam.mod.generals-plus"] = ContentType.Mod,
+            ["1.0.0.steam.map.last-stand"] = ContentType.Map,
+            ["1.0.0.steam.mappack.gla-campaign"] = ContentType.MapPack,
+            ["1.0.0.steam.mission.special-ops"] = ContentType.Mission,
+        };
+
+        // Act
+        var fpModOnly = OnlineProfileMatcher.ComputeFingerprint(modOnly, types);
+        var fpWithMaps = OnlineProfileMatcher.ComputeFingerprint(withMaps, types);
+        var gameplayIds = OnlineProfileMatcher.GetGameplayContentIds(withMaps, types);
+
+        // Assert
+        Assert.Equal(fpModOnly, fpWithMaps);
+        Assert.Single(gameplayIds);
+        Assert.Equal("1.0.0.steam.mod.generals-plus", gameplayIds[0]);
+    }
 }

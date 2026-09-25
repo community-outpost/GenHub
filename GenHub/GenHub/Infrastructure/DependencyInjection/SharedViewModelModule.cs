@@ -49,7 +49,9 @@ public static class SharedViewModelModule
             sp.GetService<ILocalizationService>(),
             sp.GetService<IUserSettingsService>(),
             sp.GetService<IGameInstallationService>(),
-            sp.GetService<IGameCrcCalculatorService>()));
+            sp.GetService<IGameCrcCalculatorService>(),
+            sp,
+            sp.GetService<IContentManifestPool>()));
         services.AddSingleton<OnlineViewModel>();
         services.AddSingleton<NotificationManagerViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(
