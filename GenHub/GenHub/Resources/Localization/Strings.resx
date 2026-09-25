@@ -11649,20 +11649,14 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   <data name="Online.Detail.MatchDetailNoProfile" xml:space="preserve">
     <value>Select a launch profile to compare.</value>
   </data>
-  <data name="Online.Detail.MatchDetailSameClient" xml:space="preserve">
-    <value>Same game, {0} of {1} lobby mods installed.</value>
-  </data>
   <data name="Online.Detail.MatchDetailMismatch" xml:space="preserve">
-    <value>Different game client — these setups cannot play together.</value>
+    <value>Profile mismatch — these setups cannot play together.</value>
   </data>
   <data name="Online.Match.Exact" xml:space="preserve">
     <value>Matches</value>
   </data>
-  <data name="Online.Match.SameClient" xml:space="preserve">
-    <value>Same game, different mods</value>
-  </data>
   <data name="Online.Match.Mismatch" xml:space="preserve">
-    <value>Different game</value>
+    <value>Mismatch</value>
   </data>
   <data name="Online.Match.Unknown" xml:space="preserve">
     <value>Unknown</value>

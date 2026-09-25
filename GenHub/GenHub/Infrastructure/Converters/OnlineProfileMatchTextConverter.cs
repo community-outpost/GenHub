@@ -16,7 +16,6 @@ public class OnlineProfileMatchTextConverter : IValueConverter
         var key = value switch
         {
             OnlineProfileMatch.Exact => "Online.Match.Exact",
-            OnlineProfileMatch.SameClient => "Online.Match.SameClient",
             OnlineProfileMatch.Mismatch => "Online.Match.Mismatch",
             _ => "Online.Match.Unknown",
         };

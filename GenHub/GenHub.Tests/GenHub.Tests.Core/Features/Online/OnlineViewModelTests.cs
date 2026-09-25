@@ -744,11 +744,11 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
-    /// Tests that a same-client auto-match shows the shared mod counts.
+    /// Tests that selecting a network with non-matching profile setup marks it as Mismatch.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SelectNetwork_WithSameClientProfile_ShouldShowModCountsAsync()
+    public async Task SelectNetwork_WithDifferentProfileSetup_ShouldShowMismatchDetailAsync()
     {
         // Arrange
         var profile = ProfileWithClient("profile-1", "Zero Hour", GameType.ZeroHour, "zerohour-client", "1.04", "mod-a", "mod-x");
@@ -759,8 +759,8 @@ public class OnlineViewModelTests
         await WaitForAsync(() => vm.SelectedPlayProfile is not null);
 
         // Assert
-        Assert.Equal(OnlineProfileMatch.SameClient, vm.ProfileMatchState);
-        Assert.Equal("Online.Detail.MatchDetailSameClient (1, 2)", vm.ProfileMatchDetail);
+        Assert.Equal(OnlineProfileMatch.Mismatch, vm.ProfileMatchState);
+        Assert.Equal("Online.Detail.MatchDetailMismatch", vm.ProfileMatchDetail);
     }
 
     /// <summary>

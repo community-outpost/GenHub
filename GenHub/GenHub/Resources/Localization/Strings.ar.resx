@@ -11551,20 +11551,14 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Online.Detail.MatchDetailNoProfile" xml:space="preserve">
     <value>اختر ملف تشغيل للمقارنة.</value>
   </data>
-  <data name="Online.Detail.MatchDetailSameClient" xml:space="preserve">
-    <value>اللعبة نفسها، {0} من {1} من تعديلات الردهة مثبتة.</value>
-  </data>
   <data name="Online.Detail.MatchDetailMismatch" xml:space="preserve">
-    <value>عميل لعبة مختلف — لا يمكن لهذه الإعدادات اللعب معًا.</value>
+    <value>عدم تطابق الملف الشخصي — لا يمكن لهذه الإعدادات اللعب معًا.</value>
   </data>
   <data name="Online.Match.Exact" xml:space="preserve">
     <value>متطابق</value>
   </data>
-  <data name="Online.Match.SameClient" xml:space="preserve">
-    <value>نفس اللعبة، تعديلات مختلفة</value>
-  </data>
   <data name="Online.Match.Mismatch" xml:space="preserve">
-    <value>لعبة مختلفة</value>
+    <value>لا يتطابق</value>
   </data>
   <data name="Online.Match.Unknown" xml:space="preserve">
     <value>غير معروف</value>

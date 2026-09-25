@@ -72,10 +72,10 @@ public class OnlineProfileMatcherTests
     }
 
     /// <summary>
-    /// Tests that the same client with different mods compares as same-client.
+    /// Tests that the same client with different mods without matching INI CRC compares as mismatch.
     /// </summary>
     [Fact]
-    public void Compare_WithSameClientDifferentMods_ShouldBeSameClient()
+    public void Compare_WithSameClientDifferentMods_ShouldBeMismatch()
     {
         // Arrange
         var first = ProfileWith("1.0.0.steam.mod.generals-plus");
@@ -88,7 +88,7 @@ public class OnlineProfileMatcherTests
         var match = OnlineProfileMatcher.Compare(expected, client, local, client);
 
         // Assert
-        Assert.Equal(OnlineProfileMatch.SameClient, match);
+        Assert.Equal(OnlineProfileMatch.Mismatch, match);
     }
 
     /// <summary>
@@ -328,11 +328,10 @@ public class OnlineProfileMatcherTests
     }
 
     /// <summary>
-    /// Tests that differing engine CRCs keep the same-client verdict instead
-    /// of confirming compatibility.
+    /// Tests that differing engine INI CRCs result in a mismatch.
     /// </summary>
     [Fact]
-    public void Compare_SameClientWithDifferingIniCrc_ShouldStaySameClient()
+    public void Compare_WithDifferingIniCrc_ShouldBeMismatch()
     {
         // Arrange
         var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
@@ -342,15 +341,15 @@ public class OnlineProfileMatcherTests
         var match = OnlineProfileMatcher.Compare(expected, "ZeroHour|1.04|client-1", local, "ZeroHour|1.04|client-1");
 
         // Assert
-        Assert.Equal(OnlineProfileMatch.SameClient, match);
+        Assert.Equal(OnlineProfileMatch.Mismatch, match);
     }
 
     /// <summary>
-    /// Tests that a conflicting exeCRC blocks the CRC upgrade even when the
-    /// iniCRC matches.
+    /// Tests that matching INI CRC confirms compatibility even when the
+    /// exeCRC differs (e.g. retail vs community patch retail builds).
     /// </summary>
     [Fact]
-    public void Compare_SameClientWithConflictingExeCrc_ShouldStaySameClient()
+    public void Compare_MatchingIniCrcWithDifferingExeCrc_ShouldBeExact()
     {
         // Arrange
         var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
@@ -360,15 +359,15 @@ public class OnlineProfileMatcherTests
         var match = OnlineProfileMatcher.Compare(expected, "ZeroHour|1.04|client-1", local, "ZeroHour|1.04|client-1");
 
         // Assert
-        Assert.Equal(OnlineProfileMatch.SameClient, match);
+        Assert.Equal(OnlineProfileMatch.Exact, match);
     }
 
     /// <summary>
-    /// Tests that a mixed-version lobby without CRCs on both sides keeps the
-    /// id-based verdict.
+    /// Tests that a mixed-version lobby without CRCs on both sides results in mismatch
+    /// when content fingerprints do not match identically.
     /// </summary>
     [Fact]
-    public void Compare_MixedVersionsWithoutCrcs_ShouldStaySameClient()
+    public void Compare_MixedVersionsWithoutCrcs_ShouldBeMismatch()
     {
         // Arrange
         var local = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);
@@ -378,7 +377,7 @@ public class OnlineProfileMatcherTests
         var match = OnlineProfileMatcher.Compare(expected, "ZeroHour|1.04|client-1", local, "ZeroHour|1.04|client-1");
 
         // Assert
-        Assert.Equal(OnlineProfileMatch.SameClient, match);
+        Assert.Equal(OnlineProfileMatch.Mismatch, match);
     }
 
     /// <summary>

@@ -18,7 +18,6 @@ namespace GenHub.Infrastructure.Converters;
 public class OnlineMatchBrushConverter : IMultiValueConverter
 {
     private static readonly IBrush ExactBrush = new SolidColorBrush(Color.Parse(UiConstants.StatusSuccessColor));
-    private static readonly IBrush SameClientBrush = new SolidColorBrush(Color.Parse(UiConstants.StatusUpdateAvailableColor));
     private static readonly IBrush MismatchBrush = new SolidColorBrush(Color.Parse(UiConstants.StatusErrorColor));
     private static readonly IBrush UnknownBrush = new SolidColorBrush(Color.Parse(UiConstants.StatusInactiveColor));
 
@@ -32,7 +31,6 @@ public class OnlineMatchBrushConverter : IMultiValueConverter
         return OnlineProfileMatcher.CompareMember(member, expected, client) switch
         {
             OnlineProfileMatch.Exact => ExactBrush,
-            OnlineProfileMatch.SameClient => SameClientBrush,
             OnlineProfileMatch.Mismatch => MismatchBrush,
             _ => UnknownBrush,
         };

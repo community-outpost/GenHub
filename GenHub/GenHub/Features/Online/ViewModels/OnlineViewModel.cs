@@ -1725,11 +1725,9 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return;
         }
 
-        var shared = OnlineProfileMatcher.ScoreOverlap(_expectedContentIds, localContentIds);
         ProfileMatchDetail = match switch
         {
             OnlineProfileMatch.Exact => null,
-            OnlineProfileMatch.SameClient => GetString("Online.Detail.MatchDetailSameClient", shared, _expectedContentIds.Count),
             OnlineProfileMatch.Mismatch => GetString("Online.Detail.MatchDetailMismatch"),
             _ => GetString("Online.Detail.MatchDetailNoProfile"),
         };
@@ -1920,7 +1918,8 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             cancellationToken.ThrowIfCancellationRequested();
             var setup = await DescribeProfileAsync(profile, cancellationToken, includeCompatibilityCrcs: true);
             if (string.Equals(setup.Fingerprint, ExpectedProfileFingerprint, StringComparison.Ordinal) ||
-                OnlineProfileMatcher.CrcConfirmsCompatible(ExpectedProfileFingerprint, setup.Fingerprint))
+                (OnlineProfileMatcher.CrcConfirmsCompatible(ExpectedProfileFingerprint, setup.Fingerprint) &&
+                 OnlineProfileMatcher.AreGameTypesCompatible(ExpectedGameClientId, setup.ClientKey, ExpectedProfileFingerprint, setup.Fingerprint)))
             {
                 return new ProfileCandidate(profile, setup, true);
             }
@@ -2159,32 +2158,53 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     private async Task<string?> ResolveInstallationRootAsync(GameProfile profile, CancellationToken cancellationToken)
     {
-        if (_installationService is null || string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        if (_installationService is null)
         {
             return null;
         }
 
         try
         {
-            var installResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-            if (!installResult.Success || installResult.Data is null)
+            if (!string.IsNullOrWhiteSpace(profile.GameInstallationId))
             {
-                return null;
+                var installResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+                if (installResult.Success && installResult.Data is not null)
+                {
+                    var installation = installResult.Data;
+                    var targetPath = profile.GameClient?.GameType == GameType.Generals
+                        ? installation.GeneralsPath
+                        : installation.ZeroHourPath;
+
+                    if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
+                    {
+                        return targetPath;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath))
+                    {
+                        return installation.InstallationPath;
+                    }
+                }
             }
 
-            var installation = installResult.Data;
-            var targetPath = profile.GameClient?.GameType == GameType.Generals
-                ? installation.GeneralsPath
-                : installation.ZeroHourPath;
-
-            if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
+            // Fallback: search all available installations for one matching the game type
+            var allResult = await _installationService.GetAllInstallationsAsync(cancellationToken);
+            if (allResult.Success && allResult.Data is not null)
             {
-                return targetPath;
-            }
+                var isGenerals = profile.GameClient?.GameType == GameType.Generals;
+                foreach (var installation in allResult.Data)
+                {
+                    var targetPath = isGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
+                    if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
+                    {
+                        return targetPath;
+                    }
 
-            if (!string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath))
-            {
-                return installation.InstallationPath;
+                    if (!string.IsNullOrWhiteSpace(installation.InstallationPath) && Directory.Exists(installation.InstallationPath))
+                    {
+                        return installation.InstallationPath;
+                    }
+                }
             }
         }
         catch (OperationCanceledException)

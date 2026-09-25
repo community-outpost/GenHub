@@ -2,6 +2,8 @@ namespace GenHub.Core.Models.Online;
 
 /// <summary>
 /// How closely a local game profile matches a lobby's expected profile.
+/// In C&amp;C Generals and Zero Hour multiplayer, network compatibility is binary:
+/// either the game types and engine INI CRCs match, or players cannot play together without desync.
 /// </summary>
 public enum OnlineProfileMatch
 {
@@ -11,18 +13,12 @@ public enum OnlineProfileMatch
     Unknown,
 
     /// <summary>
-    /// Same game client and same gameplay content (same exe and ini inputs).
+    /// Matching INI CRC or identical profile content. The setups are network-compatible.
     /// </summary>
     Exact,
 
     /// <summary>
-    /// Same game client but different gameplay content. Joining still works;
-    /// the game itself may refuse mismatched lobbies.
-    /// </summary>
-    SameClient,
-
-    /// <summary>
-    /// Different game clients. These setups cannot play together.
+    /// Differing INI CRCs or different game types. These setups cannot play together.
     /// </summary>
     Mismatch,
 }

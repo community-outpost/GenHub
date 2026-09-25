@@ -199,30 +199,28 @@ public static class OnlineProfileMatcher
     }
 
     /// <summary>
-    /// Decides whether two fingerprints confirm byte-level compatibility
-    /// through their embedded engine CRCs. CRC evidence only ever confirms:
-    /// equal CRCs upgrade a same-client verdict to exact, while differing or
-    /// absent CRCs leave the id-based verdict untouched.
+    /// Decides whether two fingerprints confirm network compatibility
+    /// through their embedded engine INI CRCs. INI CRC is the multiplayer network
+    /// compatibility check in Generals/Zero Hour: matching INI CRC means
+    /// identical game logic rules and data.
     /// </summary>
     /// <param name="first">One fingerprint.</param>
     /// <param name="second">The other fingerprint.</param>
-    /// <returns>True when both carry equal iniCRCs with no conflicting exeCRC.</returns>
+    /// <returns>True when both carry matching non-empty iniCRCs.</returns>
     public static bool CrcConfirmsCompatible(string first, string second)
     {
-        if (!TryGetCompatibilityCrcs(first, out var firstIni, out var firstExe) ||
-            !TryGetCompatibilityCrcs(second, out var secondIni, out var secondExe))
+        if (!TryGetCompatibilityCrcs(first, out var firstIni, out _) ||
+            !TryGetCompatibilityCrcs(second, out var secondIni, out _))
         {
             return false;
         }
 
-        if (string.IsNullOrEmpty(firstIni) || !string.Equals(firstIni, secondIni, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(firstIni) || string.IsNullOrEmpty(secondIni))
         {
             return false;
         }
 
-        return string.IsNullOrEmpty(firstExe) ||
-            string.IsNullOrEmpty(secondExe) ||
-            string.Equals(firstExe, secondExe, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(firstIni, secondIni, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -241,12 +239,14 @@ public static class OnlineProfileMatcher
 
     /// <summary>
     /// Compares a local setup against the lobby's expected setup.
+    /// In C&amp;C Generals/Zero Hour, compatibility is binary: matching INI CRC or
+    /// matching fingerprint allows play; any difference is a mismatch.
     /// </summary>
     /// <param name="expectedFingerprint">The lobby's expected fingerprint.</param>
     /// <param name="expectedGameClientId">The lobby's expected game client key.</param>
     /// <param name="localFingerprint">The local profile fingerprint.</param>
     /// <param name="localGameClientId">The local game client key.</param>
-    /// <returns>The match outcome.</returns>
+    /// <returns>The match outcome (Exact or Mismatch).</returns>
     public static OnlineProfileMatch Compare(
         string expectedFingerprint,
         string expectedGameClientId,
@@ -263,18 +263,12 @@ public static class OnlineProfileMatcher
             return OnlineProfileMatch.Exact;
         }
 
-        // Equal engine CRCs overrule id-level or client-level packaging noise:
-        // the setups produce identical game data, so they are fully network-compatible.
+        // Matching engine INI CRCs confirm network compatibility regardless of packaging noise:
+        // matching INI CRC means the setups produce identical game data and can play together.
         if (CrcConfirmsCompatible(expectedFingerprint, localFingerprint) &&
             AreGameTypesCompatible(expectedGameClientId, localGameClientId, expectedFingerprint, localFingerprint))
         {
             return OnlineProfileMatch.Exact;
-        }
-
-        if (!string.IsNullOrEmpty(expectedGameClientId) &&
-            string.Equals(expectedGameClientId, localGameClientId, StringComparison.Ordinal))
-        {
-            return OnlineProfileMatch.SameClient;
         }
 
         return OnlineProfileMatch.Mismatch;
@@ -286,7 +280,7 @@ public static class OnlineProfileMatcher
     /// <param name="memberFingerprint">The member's advertised fingerprint.</param>
     /// <param name="expectedFingerprint">The lobby's expected fingerprint.</param>
     /// <param name="expectedGameClientId">The lobby's expected game client key.</param>
-    /// <returns>The match outcome.</returns>
+    /// <returns>The match outcome (Exact or Mismatch).</returns>
     public static OnlineProfileMatch CompareMember(
         string memberFingerprint,
         string expectedFingerprint,
@@ -302,18 +296,11 @@ public static class OnlineProfileMatcher
             return OnlineProfileMatch.Exact;
         }
 
-        // Equal engine CRCs overrule id-level or client-level packaging noise.
+        // Matching engine INI CRCs confirm network compatibility.
         if (CrcConfirmsCompatible(memberFingerprint, expectedFingerprint) &&
             AreGameTypesCompatible(expectedGameClientId, null, expectedFingerprint, memberFingerprint))
         {
             return OnlineProfileMatch.Exact;
-        }
-
-        if (!string.IsNullOrEmpty(expectedGameClientId) &&
-            TryGetGameClientKey(memberFingerprint, out var memberClient) &&
-            string.Equals(memberClient, expectedGameClientId, StringComparison.Ordinal))
-        {
-            return OnlineProfileMatch.SameClient;
         }
 
         return OnlineProfileMatch.Mismatch;
@@ -321,8 +308,7 @@ public static class OnlineProfileMatcher
 
     /// <summary>
     /// Extracts the game client key embedded in a fingerprint.
-    /// Accepts current and retired fingerprint versions so mixed-version
-    /// lobbies still detect the same-client case.
+    /// Accepts current and retired fingerprint versions.
     /// </summary>
     /// <param name="fingerprint">The fingerprint string.</param>
     /// <param name="gameClientId">The game client key, or empty when unparsable.</param>
@@ -360,8 +346,7 @@ public static class OnlineProfileMatcher
     }
 
     /// <summary>
-    /// Scores how much of the expected gameplay content a local profile covers.
-    /// Used to rank same-client candidates when no exact match exists.
+    /// Counts how many gameplay content ids from the expected set are also present locally.
     /// </summary>
     /// <param name="expectedContentIds">The lobby's expected gameplay content ids.</param>
     /// <param name="localContentIds">The local profile's gameplay content ids.</param>
@@ -396,7 +381,10 @@ public static class OnlineProfileMatcher
         return trimmed.ToUpperInvariant();
     }
 
-    private static bool AreGameTypesCompatible(
+    /// <summary>
+    /// Determines whether two setups belong to the same base game (Generals vs Zero Hour).
+    /// </summary>
+    public static bool AreGameTypesCompatible(
         string? clientKeyA,
         string? clientKeyB,
         string? fingerprintA,
