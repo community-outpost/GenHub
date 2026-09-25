@@ -1325,10 +1325,11 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     /// <summary>
     /// Verifies a complete RAR archive served as .zip is extracted by content and then removed.
     /// </summary>
-    /// <returns>A task representing the asynchronous test.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExtractArchivesSafelyAsync_RarArchiveNamedZip_ExtractsContentAsync()
     {
+        // Arrange
         Directory.CreateDirectory(_stagingDirectory);
         var archivePath = Path.Combine(_stagingDirectory, "mod.zip");
 
@@ -1336,8 +1337,10 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         await File.WriteAllBytesAsync(archivePath, Convert.FromBase64String(
             "UmFyIRoHAQDFGjMyAwEAACYUNnUXAgIXBBcAr0Q9jwAACnJlYWRtZS50eHRtaXNsYWJlbGxlZCBSQVIgYXJjaGl2ZRmyOjUDBQAA"));
 
+        // Act
         await CreateProcessor().ExtractArchivesSafelyAsync(_stagingDirectory);
 
+        // Assert
         var extracted = Path.Combine(_stagingDirectory, "readme.txt");
         Assert.True(File.Exists(extracted));
         Assert.Equal("mislabelled RAR archive", await File.ReadAllTextAsync(extracted));
