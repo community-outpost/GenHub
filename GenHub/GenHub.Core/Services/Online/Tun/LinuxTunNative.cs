@@ -125,6 +125,21 @@ internal static class LinuxTunNative
     }
 
     /// <summary>
+    /// Reports whether the process already runs with root privileges, in which
+    /// case TUN provisioning needs no polkit/sudo escalation.
+    /// </summary>
+    /// <returns>True when the effective user id is root.</returns>
+    internal static bool IsElevated()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return false;
+        }
+
+        return GetEffectiveUid() == 0;
+    }
+
+    /// <summary>
     /// Describes a native error number.
     /// </summary>
     /// <param name="errno">The error number.</param>
@@ -159,6 +174,9 @@ internal static class LinuxTunNative
 
     [DllImport("libc", ExactSpelling = true, EntryPoint = "getuid")]
     private static extern uint GetUid();
+
+    [DllImport("libc", ExactSpelling = true, EntryPoint = "geteuid")]
+    private static extern uint GetEffectiveUid();
 
     [DllImport("libc", SetLastError = true, ExactSpelling = true, EntryPoint = "close")]
     private static extern int Close(int fd);

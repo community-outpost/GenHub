@@ -21,7 +21,10 @@ namespace GenHub.Core.Services.Online;
 /// across a UDP relay server, using a real TUN virtual adapter when available,
 /// or fallback UDP proxying.
 /// </summary>
-public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logger) : ITunnelRunner
+/// <param name="logger">The logger.</param>
+/// <param name="tunSetup">Optional TUN interface provisioner. Without one, the
+/// Linux path only attaches to a pre-existing interface (unit tests).</param>
+public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logger, ITunInterfaceSetup? tunSetup = null) : ITunnelRunner
 {
     private readonly SemaphoreSlim _lock = new(1, 1);
     private ITunDevice? _tunDevice;
@@ -71,24 +74,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
                 if (winResult.Success && winResult.Data != null)
                 {
-                    _tunDevice = winResult.Data;
-                    _tunPump = new TunPacketPump(
-                        _tunDevice,
-                        parsed.RelayEndpoint,
-                        parsed.NetworkId,
-                        parsed.OverlayIp,
-                        logger,
-                        parsed.PrefixLength);
-                    _tunPump.Start();
-
-                    IsRunning = true;
-                    logger.LogInformation(
-                        "Virtual LAN Wintun adapter {Interface} active with IP {Ip} via relay {Relay}.",
-                        _tunDevice.InterfaceName,
-                        parsed.OverlayIp,
-                        parsed.RelayEndpoint);
-
-                    return OperationResult<bool>.CreateSuccess(true);
+                    return StartTunPump(winResult.Data, parsed, "Wintun");
                 }
 
                 logger.LogError(
@@ -98,35 +84,26 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 return OperationResult<bool>.CreateFailure(
                     $"Virtual LAN network adapter unavailable: {winResult.FirstError}");
             }
-            else if (OperatingSystem.IsLinux() && LinuxTunInterface.Exists(OnlineConstants.TunDefaultInterfaceName))
+            else if (OperatingSystem.IsLinux())
             {
-                var linuxResult = LinuxTunDevice.Attach(OnlineConstants.TunDefaultInterfaceName, parsed.OverlayIp);
-                if (linuxResult.Success && linuxResult.Data != null)
+                if (tunSetup is not null)
                 {
-                    _tunDevice = linuxResult.Data;
-                    _tunPump = new TunPacketPump(
-                        _tunDevice,
-                        parsed.RelayEndpoint,
-                        parsed.NetworkId,
-                        parsed.OverlayIp,
-                        logger,
-                        parsed.PrefixLength);
-                    _tunPump.Start();
-
-                    IsRunning = true;
-                    logger.LogInformation(
-                        "Virtual LAN Linux TUN adapter {Interface} active with IP {Ip} via relay {Relay}.",
-                        _tunDevice.InterfaceName,
-                        parsed.OverlayIp,
-                        parsed.RelayEndpoint);
-
-                    return OperationResult<bool>.CreateSuccess(true);
+                    return await StartProvisionedLinuxTunnelAsync(tunSetup, parsed, cancellationToken).ConfigureAwait(false);
                 }
-                else
+
+                if (LinuxTunInterface.Exists(OnlineConstants.TunDefaultInterfaceName))
                 {
-                    logger.LogWarning(
-                        "TUN interface exists but attach failed ({Errors}); falling back to socket proxy.",
-                        linuxResult.AllErrors);
+                    var linuxResult = LinuxTunDevice.Attach(OnlineConstants.TunDefaultInterfaceName, parsed.OverlayIp);
+                    if (linuxResult.Success && linuxResult.Data != null)
+                    {
+                        return StartTunPump(linuxResult.Data, parsed, "Linux TUN");
+                    }
+                    else
+                    {
+                        logger.LogWarning(
+                            "TUN interface exists but attach failed ({Errors}); falling back to socket proxy.",
+                            linuxResult.AllErrors);
+                    }
                 }
             }
 
@@ -536,6 +513,58 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         {
             // Task canceled cleanly
         }
+    }
+
+    private OperationResult<bool> StartTunPump(ITunDevice device, ParsedTunnelConfig parsed, string adapterKind)
+    {
+        _tunDevice = device;
+        _tunPump = new TunPacketPump(
+            _tunDevice,
+            parsed.RelayEndpoint,
+            parsed.NetworkId,
+            parsed.OverlayIp,
+            logger,
+            parsed.PrefixLength);
+        _tunPump.Start();
+
+        IsRunning = true;
+        logger.LogInformation(
+            "Virtual LAN {Kind} adapter {Interface} active with IP {Ip} via relay {Relay}.",
+            adapterKind,
+            _tunDevice.InterfaceName,
+            parsed.OverlayIp,
+            parsed.RelayEndpoint);
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> StartProvisionedLinuxTunnelAsync(
+        ITunInterfaceSetup setup,
+        ParsedTunnelConfig parsed,
+        CancellationToken cancellationToken)
+    {
+        var provisioned = await setup.SetupAsync(
+            OnlineConstants.TunDefaultInterfaceName,
+            parsed.OverlayIp,
+            parsed.PrefixLength,
+            OnlineConstants.TunDefaultMtu,
+            cancellationToken).ConfigureAwait(false);
+        if (!provisioned.Success)
+        {
+            logger.LogError("Linux TUN setup failed: {Error}", provisioned.AllErrors);
+            return OperationResult<bool>.CreateFailure(
+                $"Virtual LAN network adapter unavailable: {provisioned.FirstError}");
+        }
+
+        var attached = LinuxTunDevice.Attach(OnlineConstants.TunDefaultInterfaceName, parsed.OverlayIp);
+        if (!attached.Success || attached.Data is null)
+        {
+            logger.LogError("Linux TUN attach failed after setup: {Error}", attached.AllErrors);
+            return OperationResult<bool>.CreateFailure(
+                $"Virtual LAN network adapter unavailable: {attached.FirstError}");
+        }
+
+        return StartTunPump(attached.Data, parsed, "Linux TUN");
     }
 
     private void StopWithoutLock()
