@@ -79,26 +79,8 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             var configPath = await StageConfigAsync(configContents, cancellationToken);
             var elevatedLaunch = OperatingSystem.IsWindows() && !IsAdministrator();
             var process = CreateProcess(binary, locator.BuildArguments(configPath, overlayIp), elevatedLaunch);
-            var started = false;
-            string? startError = null;
-            try
-            {
-                started = process.Start();
-            }
-            catch (System.ComponentModel.Win32Exception winEx)
-            {
-                logger.LogWarning(winEx, "Overlay sidecar elevation or start failed.");
-                startError = winEx.NativeErrorCode == 1223
-                    ? OnlineConstants.AdapterElevationRequired
-                    : $"Failed to start overlay sidecar: {winEx.Message}";
-            }
-            catch (Exception ex) when (ex is InvalidOperationException)
-            {
-                logger.LogWarning(ex, "Overlay sidecar spawn failed.");
-                startError = $"Failed to start overlay sidecar: {ex.Message}";
-            }
 
-            if (!started)
+            if (!TryStartProcess(process, out var startError))
             {
                 process.Dispose();
                 DeleteConfig(configPath);
@@ -115,41 +97,8 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             var survived = await WaitForStartupAsync(process, configPath, cancellationToken);
             if (!survived)
             {
-                var exit = ReadExitCode(process);
-                var errPath = configPath + OnlineConstants.SidecarErrorFileSuffix;
-                string? specificError = null;
-                if (File.Exists(errPath))
-                {
-                    try
-                    {
-                        specificError = File.ReadAllText(errPath).Trim();
-                        File.Delete(errPath);
-                    }
-                    catch
-                    {
-                        // Best effort
-                    }
-                }
-
+                var errorMessage = await ReadStartupErrorMessageAsync(configPath, process, elevatedLaunch, cancellationToken).ConfigureAwait(false);
                 await StopInternalAsync();
-                string errorMessage;
-                if (!string.IsNullOrWhiteSpace(specificError))
-                {
-                    errorMessage = specificError;
-                }
-                else if (elevatedLaunch)
-                {
-                    // An elevated helper that dies without writing its error
-                    // report usually never got to read the staged config (for
-                    // example under over-the-shoulder elevation), so the only
-                    // honest diagnosis left is the elevation handoff itself.
-                    errorMessage = $"Overlay sidecar exited during startup (code {exit}) without an error report. {OnlineConstants.AdapterElevationRequired}";
-                }
-                else
-                {
-                    errorMessage = $"Overlay sidecar exited during startup (code {exit}).";
-                }
-
                 return OperationResult<SidecarInfo>.CreateFailure(errorMessage);
             }
 
@@ -404,6 +353,75 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         }
 
         return !process.HasExited;
+    }
+
+    private static async Task<string> ReadStartupErrorMessageAsync(
+        string configPath,
+        Process process,
+        bool elevatedLaunch,
+        CancellationToken cancellationToken)
+    {
+        var exit = ReadExitCode(process);
+        var errPath = configPath + OnlineConstants.SidecarErrorFileSuffix;
+        string? specificError = null;
+
+        if (File.Exists(errPath))
+        {
+            try
+            {
+                specificError = (await File.ReadAllTextAsync(errPath, cancellationToken).ConfigureAwait(false)).Trim();
+                File.Delete(errPath);
+            }
+            catch
+            {
+                // Best effort
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(specificError))
+        {
+            return specificError;
+        }
+
+        if (elevatedLaunch)
+        {
+            // An elevated helper that dies without writing its error
+            // report usually never got to read the staged config (for
+            // example under over-the-shoulder elevation), so the only
+            // honest diagnosis left is the elevation handoff itself.
+            return $"Overlay sidecar exited during startup (code {exit}) without an error report. {OnlineConstants.AdapterElevationRequired}";
+        }
+
+        return $"Overlay sidecar exited during startup (code {exit}).";
+    }
+
+    private bool TryStartProcess(Process process, out string? startError)
+    {
+        try
+        {
+            if (process.Start())
+            {
+                startError = null;
+                return true;
+            }
+
+            startError = "Overlay sidecar failed to start.";
+            return false;
+        }
+        catch (System.ComponentModel.Win32Exception winEx)
+        {
+            logger.LogWarning(winEx, "Overlay sidecar elevation or start failed.");
+            startError = winEx.NativeErrorCode == 1223
+                ? OnlineConstants.AdapterElevationRequired
+                : $"Failed to start overlay sidecar: {winEx.Message}";
+            return false;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException)
+        {
+            logger.LogWarning(ex, "Overlay sidecar spawn failed.");
+            startError = $"Failed to start overlay sidecar: {ex.Message}";
+            return false;
+        }
     }
 
     private void DrainOutput(Process process)

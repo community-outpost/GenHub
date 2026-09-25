@@ -7,6 +7,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <AssemblyName>genhub-overlay</AssemblyName>
         <RootNamespace>GenHub.Overlay</RootNamespace>
+        <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="StyleCop.Analyzers" />

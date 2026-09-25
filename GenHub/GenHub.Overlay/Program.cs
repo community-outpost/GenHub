@@ -99,15 +99,22 @@ public static class Program
         string? candidateConfigPath = null;
         string? defaultOverlayIp = null;
 
-        for (var i = 0; i < args.Length; i++)
+        var i = 0;
+        while (i < args.Length)
         {
             if (string.Equals(args[i], "--config", StringComparison.Ordinal) && i + 1 < args.Length)
             {
-                candidateConfigPath = args[++i];
+                candidateConfigPath = args[i + 1];
+                i += 2;
             }
             else if (string.Equals(args[i], "--ip", StringComparison.Ordinal) && i + 1 < args.Length)
             {
-                defaultOverlayIp = args[++i];
+                defaultOverlayIp = args[i + 1];
+                i += 2;
+            }
+            else
+            {
+                i++;
             }
         }
 
@@ -238,18 +245,22 @@ public static class Program
             var resolvedIp = ipv4 ?? (addresses.Length > 0 ? addresses[0] : null);
             if (resolvedIp == null)
             {
-                throw new InvalidOperationException($"DNS returned no addresses for relay host '{relayHost}'.");
+                var err = $"Cannot resolve relay host {relayHost}.";
+                Console.Error.WriteLine(err);
+                WriteErrorFile(configPath, err);
+                relayEndpoint = new IPEndPoint(IPAddress.Loopback, relayPort);
+                return false;
             }
 
             relayEndpoint = new IPEndPoint(resolvedIp, relayPort);
             return true;
         }
-        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or InvalidOperationException)
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException)
         {
-            var err = $"Failed to resolve relay host '{relayHost}': {ex.Message}";
+            var err = $"DNS resolution failed for {relayHost}: {ex.Message}";
             Console.Error.WriteLine(err);
             WriteErrorFile(configPath, err);
-            relayEndpoint = null!;
+            relayEndpoint = new IPEndPoint(IPAddress.Loopback, relayPort);
             return false;
         }
     }
