@@ -328,7 +328,6 @@ public partial class GameProfileSettingsViewModel
             "Community Patch",
             "CommunityPatch",
             CommunityOutpostConstants.PublisherName,
-            CommunityOutpostConstants.CommunityPatchDisplayName,
         ];
 
         var matchesStandardPattern = standardExactNames.Any(n => string.Equals(n, trimmedName, StringComparison.OrdinalIgnoreCase)) ||
@@ -356,7 +355,8 @@ public partial class GameProfileSettingsViewModel
                IsGeneratedCommunityName(name);
     }
 
-    private static bool IsGeneratedCommunityName(string name)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
+    private bool IsGeneratedCommunityName(string name)
     {
         return name.StartsWith("Community Patch - ", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Patch v", StringComparison.OrdinalIgnoreCase) ||
