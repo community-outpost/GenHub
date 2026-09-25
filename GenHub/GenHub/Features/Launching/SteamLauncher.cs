@@ -633,24 +633,24 @@ public class SteamLauncher : ISteamLauncher
         return developmentPaths.FirstOrDefault(File.Exists) ?? defaultPath;
     }
 
-    private bool TryTerminateTargetProcess(
+    private async Task<(bool Exited, bool Killed)> TryTerminateTargetProcessAsync(
         Process process,
         string targetExePath,
-        ref bool killedAny)
+        CancellationToken cancellationToken)
     {
         string? processPath = null;
         try
         {
             if (process.HasExited)
             {
-                return true;
+                return (true, false);
             }
 
             processPath = process.MainModule?.FileName;
         }
         catch (InvalidOperationException)
         {
-            return true;
+            return (true, false);
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
@@ -662,15 +662,15 @@ public class SteamLauncher : ISteamLauncher
                     process.ProcessName,
                     process.Id,
                     targetExePath);
-                return false;
+                return (false, false);
             }
 
-            return true;
+            return (true, false);
         }
 
         if (processPath is null || !PathComparer.Equals(Path.GetFullPath(processPath), targetExePath))
         {
-            return true;
+            return (true, false);
         }
 
         _logger.LogWarning(
@@ -684,26 +684,31 @@ public class SteamLauncher : ISteamLauncher
         }
         catch (InvalidOperationException)
         {
-            return true;
+            return (true, false);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[SteamLauncher] Failed to kill target process {Pid}", process.Id);
-            return false;
+            return (false, false);
         }
 
-        killedAny = true;
-        if (!process.WaitForExit(ProcessConstants.ProcessKillWaitMs))
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(ProcessConstants.ProcessKillWaitMs);
+        try
+        {
+            await process.WaitForExitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(
                 "[SteamLauncher] Process {ProcessName} ({Pid}) did not exit within {TimeoutMs}ms after termination signal",
                 process.ProcessName,
                 process.Id,
                 ProcessConstants.ProcessKillWaitMs);
-            return false;
+            return (false, true);
         }
 
-        return true;
+        return (true, true);
     }
 
     private async Task<bool> StopRunningTargetProcessesAsync(
@@ -719,7 +724,13 @@ public class SteamLauncher : ISteamLauncher
         {
             foreach (var process in runningProcesses)
             {
-                if (!TryTerminateTargetProcess(process, targetExePath, ref killedAny))
+                var (exited, killed) = await TryTerminateTargetProcessAsync(process, targetExePath, cancellationToken);
+                if (killed)
+                {
+                    killedAny = true;
+                }
+
+                if (!exited)
                 {
                     allExited = false;
                 }
