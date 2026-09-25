@@ -19,12 +19,16 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     private readonly TimeSpan _animationDuration = TimeSpan.FromMilliseconds(ScrollSpyConstants.AnimationDurationMs);
     private readonly List<(TKey Key, Control Control)> _sections = [];
     private DispatcherTimer? _animationTimer;
+    private Control? _animTargetControl;
     private double _animStartOffset;
     private double _animTargetOffset;
     private DateTime _animStartTime;
+    private int _animationGeneration;
+    private (bool HasValue, TKey Value) _animTargetKey;
     private TKey _lastReportedKey = default!;
     private bool _hasReportedKey;
     private bool _disposed;
+    private bool _suppressNextScrollChanged;
 
     /// <summary>
     /// Gets a value indicating whether a programmatic scroll animation is in progress.
@@ -61,26 +65,25 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     }
 
     /// <summary>
+    /// Animates the scroll viewer so the target control top aligns with the viewport top.
+    /// </summary>
+    /// <param name="targetControl">The target control to scroll to.</param>
+    public void ScrollToControl(Control targetControl)
+    {
+        ScrollToControl(targetControl, default);
+    }
+
+    /// <summary>
     /// Animates the scroll viewer so the section top aligns with the viewport top.
     /// </summary>
     /// <param name="key">The section identifier.</param>
     public void ScrollToSection(TKey key)
     {
         var targetControl = FindControl(key);
-        if (targetControl is null || scrollViewer.Content is not Control content)
+        if (targetControl is not null)
         {
-            return;
+            ScrollToControl(targetControl, (true, key));
         }
-
-        var transform = targetControl.TransformToVisual(content);
-        if (!transform.HasValue)
-        {
-            return;
-        }
-
-        var position = transform.Value.Transform(new Point(0, 0));
-        var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
-        StartAnimation(Math.Clamp(position.Y, 0, maxScrollY));
     }
 
     /// <inheritdoc/>
@@ -102,9 +105,62 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             : 1.0 - (Math.Pow((-2.0 * progress) + 2.0, 2) / 2.0);
     }
 
+    private void ScrollToControl(Control targetControl, (bool HasValue, TKey Value) explicitKey)
+    {
+        if (targetControl is null || scrollViewer.Content is not Control content)
+        {
+            return;
+        }
+
+        try
+        {
+            var transform = targetControl.TransformToVisual(content);
+            if (!transform.HasValue)
+            {
+                return;
+            }
+
+            var position = transform.Value.Transform(new Point(0, 0));
+            var targetKey = explicitKey;
+            if (!targetKey.HasValue)
+            {
+                foreach (var (key, control) in _sections)
+                {
+                    if (ReferenceEquals(control, targetControl))
+                    {
+                        targetKey = (true, key);
+                        break;
+                    }
+                }
+            }
+
+            StartAnimation(Math.Max(0, position.Y), targetControl, targetKey);
+        }
+        catch (InvalidOperationException)
+        {
+            // Visual target is detached from visual tree; ignore transform calculation.
+        }
+    }
+
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
-        if (IsScrollingProgrammatically || _sections.Count == 0)
+        if (IsScrollingProgrammatically)
+        {
+            return;
+        }
+
+        if (_suppressNextScrollChanged)
+        {
+            _suppressNextScrollChanged = false;
+            return;
+        }
+
+        UpdateActiveSection();
+    }
+
+    private void UpdateActiveSection()
+    {
+        if (_sections.Count == 0)
         {
             return;
         }
@@ -114,7 +170,8 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             return;
         }
 
-        ReportActiveKey(FindActiveKey() ?? _sections[0].Key);
+        var activeKey = FindActiveKey();
+        ReportActiveKey(activeKey is not null ? activeKey : _sections[0].Key);
     }
 
     private bool TryApplyBottomSnap()
@@ -188,21 +245,38 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         return null;
     }
 
-    private void StartAnimation(double targetY)
+    private void StartAnimation(double initialTargetY, Control? targetControl = null, (bool HasValue, TKey Value) targetKey = default)
     {
         StopAnimationTimer();
 
+        _animationGeneration++;
+        _animTargetKey = targetKey;
+
         var currentY = scrollViewer.Offset.Y;
-        if (Math.Abs(currentY - targetY) < ScrollSpyConstants.ScrollSnapEpsilon)
+        var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+        var effectiveTargetY = Math.Clamp(initialTargetY, 0, maxScrollY);
+
+        if (Math.Abs(currentY - effectiveTargetY) < ScrollSpyConstants.ScrollSnapEpsilon && (initialTargetY <= maxScrollY || targetControl == null))
         {
-            scrollViewer.Offset = new Vector(scrollViewer.Offset.X, targetY);
+            scrollViewer.Offset = new Vector(scrollViewer.Offset.X, effectiveTargetY);
             IsScrollingProgrammatically = false;
+            if (targetKey.HasValue && targetKey.Value is not null)
+            {
+                _suppressNextScrollChanged = !EqualityComparer<double>.Default.Equals(currentY, effectiveTargetY);
+                ReportActiveKey(targetKey.Value);
+            }
+            else
+            {
+                UpdateActiveSection();
+            }
+
             return;
         }
 
         IsScrollingProgrammatically = true;
+        _animTargetControl = targetControl;
         _animStartOffset = currentY;
-        _animTargetOffset = targetY;
+        _animTargetOffset = initialTargetY;
         _animStartTime = DateTime.UtcNow;
 
         _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ScrollSpyConstants.AnimationFrameIntervalMs) };
@@ -218,25 +292,78 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             _animationTimer.Stop();
             _animationTimer = null;
         }
+
+        _animTargetControl = null;
     }
 
     private void StopAnimation()
     {
+        _animationGeneration++;
+        _animTargetKey = default;
+        _suppressNextScrollChanged = false;
         StopAnimationTimer();
         IsScrollingProgrammatically = false;
     }
 
+    private void UpdateDynamicTargetOffset()
+    {
+        if (_animTargetControl is not null && scrollViewer.Content is Control content)
+        {
+            try
+            {
+                var transform = _animTargetControl.TransformToVisual(content);
+                if (transform.HasValue)
+                {
+                    _animTargetOffset = Math.Max(0, transform.Value.Transform(new Point(0, 0)).Y);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Visual target is detached during animation; retain current target offset.
+            }
+        }
+    }
+
+    private void CompleteAnimation()
+    {
+        var gen = _animationGeneration;
+        var targetKey = _animTargetKey;
+        StopAnimationTimer();
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                if (!_disposed && _animationGeneration == gen)
+                {
+                    IsScrollingProgrammatically = false;
+                    if (targetKey.HasValue && targetKey.Value is not null)
+                    {
+                        _suppressNextScrollChanged = true;
+                        ReportActiveKey(targetKey.Value);
+                    }
+                    else
+                    {
+                        UpdateActiveSection();
+                    }
+                }
+            },
+            DispatcherPriority.Normal);
+    }
+
     private void OnAnimationTick(object? sender, EventArgs e)
     {
+        UpdateDynamicTargetOffset();
+
+        var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+        var targetY = Math.Clamp(_animTargetOffset, 0, maxScrollY);
+
         var elapsed = DateTime.UtcNow - _animStartTime;
         var progress = Math.Min(1.0, elapsed.TotalMilliseconds / _animationDuration.TotalMilliseconds);
-        var currentY = _animStartOffset + ((_animTargetOffset - _animStartOffset) * EaseInOutQuadratic(progress));
+        var currentY = _animStartOffset + ((targetY - _animStartOffset) * EaseInOutQuadratic(progress));
         scrollViewer.Offset = new Vector(scrollViewer.Offset.X, currentY);
 
         if (progress >= 1.0)
         {
-            StopAnimationTimer();
-            Dispatcher.UIThread.Post(() => IsScrollingProgrammatically = false, DispatcherPriority.Normal);
+            CompleteAnimation();
         }
     }
 

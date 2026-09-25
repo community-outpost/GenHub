@@ -14,6 +14,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.GenLauncher;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Parsers;
@@ -171,6 +172,327 @@ public sealed class ContentDetailViewModelTests
         Assert.Equal(childManifestId, viewModel.ProfileManifestId);
         Assert.Equal(releaseFile.Name, viewModel.ProfileContentName);
         Assert.Equal(GameType.ZeroHour, viewModel.ProfileTargetGame);
+    }
+
+    /// <summary>
+    /// Verifies that when a release row matches a variant search result, the coordinator input
+    /// uses the row's synthesized file ID (not the variant ID), inherits resolver metadata, and
+    /// flips the row to downloaded upon completion.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_WithVariantMatch_UsesRowFileIdAndInheritsResolverMetadataAsync()
+    {
+        // Arrange
+        const string parentCatalogId = "genlauncher-parent";
+        const string variantManifestId = "1.20260101.genlauncher.mod.variant1";
+        const string childManifestId = "1.20260101.genlauncher.mod.shockwave";
+        const string testResolver = "GenLauncher";
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentCatalogId,
+            Name = "Shockwave",
+            ProviderName = "GenLauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shockwave",
+        };
+
+        var variant = new ContentSearchResult
+        {
+            Id = variantManifestId,
+            Name = "Shockwave 1.2",
+            Version = "1.2",
+            ProviderName = "GenLauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shockwave/1.2",
+            SelectedDownloadUrl = "https://example.com/shockwave/1.2.zip",
+        };
+        variant.ResolverMetadata["variantKey"] = "variantValue";
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            [variantManifestId] = variant,
+        };
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(childManifestId),
+                Name = "Shockwave 1.2",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object, variantSearchResults: variants);
+        var releaseFile = new DownloadableFile(
+            Name: "Shockwave 1.2",
+            DownloadUrl: "https://example.com/shockwave/1.2.zip",
+            FileSectionType: FileSectionType.Downloads,
+            Version: "1.2");
+        viewModel.PopulateReleases([releaseFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.StartsWith(ContentConstants.FileContentIdPrefix, coordinatorInput.Id, StringComparison.Ordinal);
+        Assert.NotEqual(variantManifestId, coordinatorInput.Id);
+        Assert.NotEqual(parentCatalogId, coordinatorInput.Id);
+
+        Assert.Equal(testResolver, coordinatorInput.ResolverId);
+        Assert.True(coordinatorInput.ResolverMetadata.TryGetValue("variantKey", out var metadataVal));
+        Assert.Equal("variantValue", metadataVal);
+
+        Assert.True(release.IsDownloaded);
+        Assert.Equal(childManifestId, release.DownloadedManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that a row whose file has no download URL can still download if the matching variant
+    /// has a non-empty ResolverId, even if RequiresResolution is false.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_WhenVariantHasResolverIdWithoutRequiresResolution_DownloadsSuccessfullyAsync()
+    {
+        // Arrange
+        const string parentCatalogId = "test-parent";
+        const string variantManifestId = "test.variant.1";
+        const string childManifestId = "1.100.custom.mod.test";
+        const string testResolver = "CustomResolver";
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentCatalogId,
+            Name = "Parent",
+            ProviderName = "Custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            RequiresResolution = false,
+        };
+
+        var variant = new ContentSearchResult
+        {
+            Id = variantManifestId,
+            Name = "Variant File",
+            ProviderName = "Custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = false,
+            SourceUrl = "https://example.com/details",
+        };
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            [variantManifestId] = variant,
+        };
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(childManifestId),
+                Name = "Variant File",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object, variantSearchResults: variants);
+        var fileWithoutUrl = new DownloadableFile(
+            Name: "Variant File",
+            DetailsUrl: "https://example.com/details",
+            FileSectionType: FileSectionType.Downloads);
+        viewModel.PopulateReleases([fileWithoutUrl]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.Equal(testResolver, coordinatorInput.ResolverId);
+        Assert.True(release.IsDownloaded);
+        Assert.Equal(childManifestId, release.DownloadedManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that a row matching several indistinguishable variants falls back to the parent
+    /// result instead of adopting an arbitrary variant's resolver metadata.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_WhenVariantMatchIsAmbiguous_FallsBackToParentMetadataAsync()
+    {
+        // Arrange
+        const string parentCatalogId = "ambiguous-parent";
+        const string parentResolver = "ParentResolver";
+        const string childManifestId = "1.100.custom.mod.ambiguous";
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentCatalogId,
+            Name = "Shared",
+            ProviderName = "Custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = parentResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shared",
+        };
+
+        ContentSearchResult CreateAmbiguousVariant(string id, string variantKey)
+        {
+            var variant = new ContentSearchResult
+            {
+                Id = id,
+                Name = "Shared",
+                ProviderName = "Custom",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                ResolverId = "VariantResolver",
+                RequiresResolution = true,
+                SourceUrl = "https://example.com/shared",
+            };
+            variant.ResolverMetadata[variantKey] = "value";
+            return variant;
+        }
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["1.100.custom.mod.ambiguousA"] = CreateAmbiguousVariant("1.100.custom.mod.ambiguousA", "variantKeyA"),
+            ["1.100.custom.mod.ambiguousB"] = CreateAmbiguousVariant("1.100.custom.mod.ambiguousB", "variantKeyB"),
+        };
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(childManifestId),
+                Name = "Shared",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object, variantSearchResults: variants);
+        var ambiguousFile = new DownloadableFile(
+            Name: "Shared",
+            FileSectionType: FileSectionType.Downloads);
+        viewModel.PopulateReleases([ambiguousFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.Equal(parentResolver, coordinatorInput.ResolverId);
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey("variantKeyA"));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey("variantKeyB"));
+        Assert.True(release.IsDownloaded);
+        Assert.Equal(childManifestId, release.DownloadedManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that same-name rows without download URLs receive distinct synthesized IDs
+    /// so their downloads and state updates do not coalesce.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_SameNameRowsWithoutUrls_UseDistinctRowIdsAsync()
+    {
+        // Arrange
+        const string childManifestId = "1.100.custom.mod.samename";
+
+        var parent = new ContentSearchResult
+        {
+            Id = "samename-parent",
+            Name = "Shared Name",
+            ProviderName = "Custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = "CustomResolver",
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shared",
+        };
+
+        var coordinatorInputs = new List<ContentSearchResult>();
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInputs.Add(content))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(childManifestId),
+                Name = "Shared Name",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        viewModel.PopulateReleases(
+        [
+            new DownloadableFile(
+                Name: "Shared Name",
+                DetailsUrl: "https://example.com/shared/1.0",
+                Version: "1.0",
+                FileSectionType: FileSectionType.Downloads),
+            new DownloadableFile(
+                Name: "Shared Name",
+                DetailsUrl: "https://example.com/shared/2.0",
+                Version: "2.0",
+                FileSectionType: FileSectionType.Downloads),
+        ]);
+        Assert.Equal(2, viewModel.Releases.Count);
+
+        // Act
+        foreach (var row in viewModel.Releases.ToList())
+        {
+            await Assert.IsAssignableFrom<IAsyncRelayCommand>(row.DownloadCommand).ExecuteAsync(null);
+        }
+
+        // Assert
+        Assert.Equal(2, coordinatorInputs.Count);
+        Assert.NotEqual(coordinatorInputs[0].Id, coordinatorInputs[1].Id);
+        Assert.All(
+            coordinatorInputs,
+            input => Assert.StartsWith(ContentConstants.FileContentIdPrefix, input.Id, StringComparison.Ordinal));
+        Assert.All(viewModel.Releases, row => Assert.True(row.IsDownloaded));
     }
 
     /// <summary>
@@ -4327,5 +4649,230 @@ public sealed class ContentDetailViewModelTests
         Assert.False(viewModel.ShowUpdateButton);
         Assert.False(viewModel.ShowAddToProfileButton);
         Assert.False(viewModel.ShowDeleteButton);
+    }
+
+    /// <summary>
+    /// Verifies that downloading a child file row belonging to a GenLauncher parent
+    /// clears GenLauncherVersionManifest data and strips S3 metadata so child direct downloads
+    /// are not hijacked into full S3 mod installations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_GenLauncherChildWithDownloadUrl_StripsS3MetadataAndClearsManifestDataAsync()
+    {
+        // Arrange
+        const string parentCatalogId = "genlauncher-zerohour-shockwave";
+        var parentManifest = new GenLauncherVersionManifest
+        {
+            Version = "1.2",
+            S3HostLink = "https://gen.insave.ovh:9000",
+        };
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentCatalogId,
+            Name = "Shockwave",
+            ProviderName = PublisherTypeConstants.GenLauncher,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = PublisherTypeConstants.GenLauncher,
+            RequiresResolution = true,
+            SourceUrl = "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataZH3.yaml",
+        };
+        parent.SetData(parentManifest);
+        parent.ResolverMetadata[GenLauncherConstants.S3HostMetadataKey] = "gen.insave.ovh:9000";
+        parent.ResolverMetadata[GenLauncherConstants.S3HostLinkMetadataKey] = "https://gen.insave.ovh:9000";
+        parent.ResolverMetadata[GenLauncherConstants.S3BucketMetadataKey] = "genlauncher";
+        parent.ResolverMetadata[GenLauncherConstants.S3BucketNameMetadataKey] = "genlauncher";
+        parent.ResolverMetadata[GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave";
+        parent.ResolverMetadata[GenLauncherConstants.S3FolderNameMetadataKey] = "Mods/Shockwave";
+        parent.ResolverMetadata[GenLauncherConstants.S3HostPublicKeyMetadataKey] = "public-key";
+        parent.ResolverMetadata[GenLauncherConstants.S3HostSecretKeyMetadataKey] = "secret-key";
+        parent.ResolverMetadata[GenLauncherConstants.YamlUrlMetadataKey] = "https://example.com/mod.yaml";
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.2999065.genlauncher.patch.shockwavebalancepatch"),
+                Name = "ShockWave Balance Patch",
+                ContentType = ContentType.Patch,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        var patchFile = new DownloadableFile(
+            Name: "ShockWave_Balance_Patch_2.999.06.5.zip",
+            DownloadUrl: "https://onedrive.live.com/download?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o",
+            FileSectionType: FileSectionType.Downloads,
+            Version: "2.999.06.5");
+
+        viewModel.PopulateReleases([patchFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.Null(coordinatorInput.Data);
+        Assert.Equal(patchFile.DownloadUrl, coordinatorInput.SelectedDownloadUrl);
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostLinkMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3BucketMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3BucketNameMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3FolderMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3FolderNameMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostPublicKeyMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.S3HostSecretKeyMetadataKey));
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GenLauncherConstants.YamlUrlMetadataKey));
+        Assert.True(coordinatorInput.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var recordedParentId));
+        Assert.Equal(parentCatalogId, recordedParentId);
+    }
+
+    /// <summary>
+    /// Verifies that attempting to download a release row that has no download URL
+    /// and cannot be resolved without a direct URL does not trigger the download coordinator.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_WhenFileHasNoDownloadUrlAndNoResolver_DoesNotDownloadAsync()
+    {
+        // Arrange
+        var content = new ContentSearchResult
+        {
+            Id = "mod-without-resolver",
+            Name = "Unresolvable Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            RequiresResolution = false,
+            ResolverId = null,
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(content, coordinator.Object);
+
+        var emptyFile = new DownloadableFile(
+            Name: "NoUrl.zip",
+            DownloadUrl: null,
+            FileSectionType: FileSectionType.Downloads);
+
+        viewModel.PopulateReleases([emptyFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        coordinator.Verify(
+            c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()),
+            Times.Never);
+        Assert.False(release.IsDownloading);
+    }
+
+    /// <summary>
+    /// Verifies that when multiple candidate variants match a row with ambiguous versions,
+    /// disambiguation rejects picking an arbitrary variant and falls back to parent result.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_WithAmbiguousVersionVariants_FallsBackToParentAsync()
+    {
+        // Arrange
+        const string parentCatalogId = "genlauncher-parent";
+        const string variant1Id = "1.20260101.genlauncher.mod.v1";
+        const string variant2Id = "1.20260101.genlauncher.mod.v2";
+        const string childManifestId = "1.20260101.genlauncher.mod.child";
+        const string testResolver = "GenLauncher";
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentCatalogId,
+            Name = "Shockwave",
+            ProviderName = "GenLauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shockwave",
+        };
+
+        var variant1 = new ContentSearchResult
+        {
+            Id = variant1Id,
+            Name = "Shockwave 1.2 A",
+            Version = "1.2",
+            ProviderName = "GenLauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shockwave/1.2/release.zip",
+        };
+        variant1.ResolverMetadata["variantKey"] = "fromVariant1";
+
+        var variant2 = new ContentSearchResult
+        {
+            Id = variant2Id,
+            Name = "Shockwave 1.2 B",
+            Version = "1.2",
+            ProviderName = "GenLauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = testResolver,
+            RequiresResolution = true,
+            SourceUrl = "https://example.com/shockwave/1.2/release.zip",
+        };
+        variant2.ResolverMetadata["variantKey"] = "fromVariant2";
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            [variant1Id] = variant1,
+            [variant2Id] = variant2,
+        };
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(childManifestId),
+                Name = "Shockwave 1.2",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object, variantSearchResults: variants);
+        var releaseFile = new DownloadableFile(
+            Name: "Shockwave 1.2 Release",
+            DownloadUrl: "https://example.com/shockwave/1.2/release.zip",
+            FileSectionType: FileSectionType.Downloads,
+            Version: "1.2");
+        viewModel.PopulateReleases([releaseFile]);
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert: coordinatorInput falls back to parent and does not take variant1's or variant2's metadata
+        Assert.NotNull(coordinatorInput);
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey("variantKey"));
     }
 }

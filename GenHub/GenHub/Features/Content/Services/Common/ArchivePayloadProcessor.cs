@@ -380,7 +380,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     }
 
     /// <summary>
-    /// Validates that an archive payload file exists, is non-empty, and does not contain HTML error text.
+    /// Validates that an archive payload file exists, is non-empty, and does not contain HTML/web error text or non-archive headers.
     /// </summary>
     /// <param name="archivePath">Path to the archive file.</param>
     internal static void EnsureValidArchivePayload(string archivePath)
@@ -391,10 +391,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
         }
 
-        Span<byte> header = stackalloc byte[16];
+        Span<byte> header = stackalloc byte[1024];
+        int read;
         using (var stream = File.OpenRead(archivePath))
         {
-            var read = stream.Read(header);
+            read = stream.Read(header);
             if (read == 0)
             {
                 throw new InvalidDataException($"Archive file is empty: {archivePath}");
@@ -403,11 +404,18 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             header = header[..read];
         }
 
-        if (LooksLikeHtml(header))
+        if (LooksLikeHtmlOrWebDocument(header))
         {
             var preview = ReadTextPreview(archivePath, maxChars: 120);
             throw new InvalidDataException(
-                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
+                $"Downloaded file is HTML or web error text, not an archive: {Path.GetFileName(archivePath)}. " +
+                $"This usually indicates the download link has expired, requires authentication, or was blocked by the host. Preview: {preview}");
+        }
+
+        if (!HasValidArchiveMagicBytes(archivePath, header) &&
+            !Path.GetExtension(archivePath).Equals(".tar", StringComparison.OrdinalIgnoreCase))
+        {
+            ValidateArchiveMagicBytes(archivePath, header);
         }
     }
 
@@ -1080,7 +1088,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             .ToList();
     }
 
-    private static bool LooksLikeHtml(ReadOnlySpan<byte> header)
+    private static bool LooksLikeHtmlOrWebDocument(ReadOnlySpan<byte> header)
     {
         if (header.Length >= 3 && header[0] == 0xEF && header[1] == 0xBB && header[2] == 0xBF)
         {
@@ -1092,21 +1100,144 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             header = header[1..];
         }
 
-        if (header.Length < 5)
+        if (header.Length < 4)
         {
             return false;
         }
 
-        Span<char> ascii = stackalloc char[Math.Min(header.Length, 9)];
-        for (var i = 0; i < ascii.Length; i++)
+        Span<char> ascii = stackalloc char[header.Length];
+        for (var i = 0; i < header.Length; i++)
         {
-            ascii[i] = (char)header[i];
+            var b = header[i];
+            ascii[i] = b < 128 ? (char)b : ' ';
         }
 
-        ReadOnlySpan<char> prefix = ascii;
-        return prefix.StartsWith("<!doctype", StringComparison.OrdinalIgnoreCase)
-            || prefix.StartsWith("<html", StringComparison.OrdinalIgnoreCase)
-            || prefix.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase);
+        ReadOnlySpan<char> text = ascii;
+        var trimmed = text.TrimStart();
+
+        return trimmed.StartsWith("<!doctype", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<html", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<!--", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<head", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<body", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<title", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<script", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<div", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("<Error", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("{\"error\"", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith("{\"message\"", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasValidArchiveMagicBytes(string archivePath, ReadOnlySpan<byte> header)
+    {
+        var ext = Path.GetExtension(archivePath);
+
+        if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            // ZIP files start with 'PK' (0x50, 0x4B)
+            return header.Length >= 2 && header[0] == 0x50 && header[1] == 0x4B;
+        }
+
+        if (ext.Equals(".7z", StringComparison.OrdinalIgnoreCase))
+        {
+            // 7z files start with '7', 'z', 0xBC, 0xAF, 0x27, 0x1C
+            ReadOnlySpan<byte> sevenZipMagic = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+            return header.Length >= sevenZipMagic.Length && header[..sevenZipMagic.Length].SequenceEqual(sevenZipMagic);
+        }
+
+        if (ext.Equals(".rar", StringComparison.OrdinalIgnoreCase))
+        {
+            // RAR files start with 'Rar!' (0x52, 0x61, 0x72, 0x21)
+            ReadOnlySpan<byte> rarMagic = [0x52, 0x61, 0x72, 0x21];
+            return header.Length >= rarMagic.Length && header[..rarMagic.Length].SequenceEqual(rarMagic);
+        }
+
+        if (ext.Equals(".gz", StringComparison.OrdinalIgnoreCase) || ext.Equals(".tgz", StringComparison.OrdinalIgnoreCase))
+        {
+            return header.Length >= 2 && header[0] == 0x1F && header[1] == 0x8B;
+        }
+
+        if (ext.Equals(".bz2", StringComparison.OrdinalIgnoreCase))
+        {
+            return header.Length >= 3 && header[0] == 0x42 && header[1] == 0x5A && header[2] == 0x68;
+        }
+
+        if (ext.Equals(".xz", StringComparison.OrdinalIgnoreCase))
+        {
+            // XZ files start with 0xFD, '7', 'z', 'X', 'Z', 0x00
+            ReadOnlySpan<byte> xzMagic = [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00];
+            return header.Length >= xzMagic.Length && header[..xzMagic.Length].SequenceEqual(xzMagic);
+        }
+
+        return false;
+    }
+
+    private static void ValidateArchiveMagicBytes(string archivePath, ReadOnlySpan<byte> header)
+    {
+        var ext = Path.GetExtension(archivePath);
+
+        if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            // ZIP files start with 'PK' (0x50, 0x4B)
+            if (header.Length < 2 || header[0] != 0x50 || header[1] != 0x4B)
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid ZIP archive (missing PK signature). The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
+        }
+        else if (ext.Equals(".7z", StringComparison.OrdinalIgnoreCase))
+        {
+            // 7z files start with '7', 'z', 0xBC, 0xAF, 0x27, 0x1C
+            ReadOnlySpan<byte> sevenZipMagic = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+            if (header.Length < sevenZipMagic.Length || !header[..sevenZipMagic.Length].SequenceEqual(sevenZipMagic))
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid 7Z archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
+        }
+        else if (ext.Equals(".rar", StringComparison.OrdinalIgnoreCase))
+        {
+            // RAR files start with 'Rar!' (0x52, 0x61, 0x72, 0x21)
+            ReadOnlySpan<byte> rarMagic = [0x52, 0x61, 0x72, 0x21];
+            if (header.Length < rarMagic.Length || !header[..rarMagic.Length].SequenceEqual(rarMagic))
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid RAR archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
+        }
+        else if (ext.Equals(".gz", StringComparison.OrdinalIgnoreCase) || ext.Equals(".tgz", StringComparison.OrdinalIgnoreCase))
+        {
+            // GZIP files start with 0x1F, 0x8B
+            if (header.Length < 2 || header[0] != 0x1F || header[1] != 0x8B)
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid GZIP archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
+        }
+        else if (ext.Equals(".bz2", StringComparison.OrdinalIgnoreCase) &&
+                 (header.Length < 3 || header[0] != 0x42 || header[1] != 0x5A || header[2] != 0x68))
+        {
+            // BZip2 files start with 'B', 'Z', 'h' (0x42, 0x5A, 0x68)
+            var preview = ReadTextPreview(archivePath, maxChars: 120);
+            throw new InvalidDataException(
+                $"File '{Path.GetFileName(archivePath)}' is not a valid BZip2 archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+        }
+        else if (ext.Equals(".xz", StringComparison.OrdinalIgnoreCase))
+        {
+            // XZ files start with 0xFD, '7', 'z', 'X', 'Z', 0x00
+            ReadOnlySpan<byte> xzMagic = [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00];
+            if (header.Length < xzMagic.Length || !header[..xzMagic.Length].SequenceEqual(xzMagic))
+            {
+                var preview = ReadTextPreview(archivePath, maxChars: 120);
+                throw new InvalidDataException(
+                    $"File '{Path.GetFileName(archivePath)}' is not a valid XZ archive. The download server may have returned an error page or corrupted content. Preview: {preview}");
+            }
+        }
     }
 
     private static string ReadTextPreview(string path, int maxChars)

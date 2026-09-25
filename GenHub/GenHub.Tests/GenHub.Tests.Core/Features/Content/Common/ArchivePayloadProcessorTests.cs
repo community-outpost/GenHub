@@ -27,6 +27,46 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an HTML error document named with a .tar extension is identified and throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_HtmlErrorSavedAsTar_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var tarPath = Path.Combine(_stagingDirectory, "expired_download.tar");
+        await File.WriteAllTextAsync(tarPath, "<!DOCTYPE html><html><body>Link Expired</body></html>");
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod));
+        Assert.Contains("Downloaded file is HTML or web error text, not an archive", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that an invalid XZ file without proper magic bytes throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_InvalidXzArchive_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var xzPath = Path.Combine(_stagingDirectory, "corrupted.xz");
+        await File.WriteAllBytesAsync(xzPath, new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod));
+        Assert.Contains("is not a valid XZ archive", ex.Message);
+    }
+
+    /// <summary>
     /// Verifies that extracting a valid ZIP archive unpacks all entries and removes the archive file.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -305,6 +345,48 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         var ex = await Assert.ThrowsAsync<InvalidDataException>(
             () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
         Assert.Contains("HTML", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that an HTML document with leading comment headers (e.g. OneDrive login page) throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_HtmlCommentHeaderFile_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var fakeZip = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllTextAsync(
+            fakeZip,
+            "<!-- Copyright (C) Microsoft Corporation. All rights reserved. -->\n<!DOCTYPE html><html><head><title>Sign in to your account</title></head><body>login.live.com</body></html>");
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(
+            () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+        Assert.Contains("HTML", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that a file named as a ZIP archive without PK magic bytes throws an InvalidDataException before extraction.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_InvalidZipMagicBytes_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var fakeZip = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllBytesAsync(fakeZip, [0x00, 0x01, 0x02, 0x03, 0x04]);
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(
+            () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+        Assert.Contains("not a valid ZIP archive", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -1157,6 +1239,58 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             if (Directory.Exists(tempRoot))
             {
                 Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that EnsureValidArchivePayload accepts a valid ZIP archive even when an entry contains HTML.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_ValidZipWithHtmlEntry_Succeeds()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = ZipFile.Open(tempZip, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("index.html", CompressionLevel.NoCompression);
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("<!DOCTYPE html><html><head><title>Test</title></head><body><h1>Content</h1></body></html>");
+            }
+
+            // Act & Assert
+            ArchivePayloadProcessor.EnsureValidArchivePayload(tempZip);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that EnsureValidArchivePayload rejects an HTML error page masquerading as a ZIP file.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_HtmlErrorDocument_ThrowsInvalidDataException()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+        try
+        {
+            File.WriteAllText(tempFile, "<!DOCTYPE html><html><head><title>Error</title></head><body>Access Denied</body></html>");
+
+            // Act & Assert
+            var ex = Assert.Throws<InvalidDataException>(() => ArchivePayloadProcessor.EnsureValidArchivePayload(tempFile));
+            Assert.Contains("HTML or web error text", ex.Message);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
             }
         }
     }

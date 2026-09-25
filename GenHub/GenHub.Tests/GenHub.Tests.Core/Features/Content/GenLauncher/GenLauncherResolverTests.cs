@@ -1,17 +1,14 @@
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GenLauncher;
 using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.GenLauncher;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
 using System;
-using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -43,27 +40,11 @@ public sealed class GenLauncherResolverTests
     [Fact]
     public async Task ResolveAsync_WithS3Payload_ParsesFilesAndDependencies()
     {
-        var factoryMock = new Mock<IHttpClientFactory>();
-        var handlerMock = new Mock<HttpMessageHandler>();
-
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(SampleS3Xml),
-            });
-
-        var httpClient = new HttpClient(handlerMock.Object);
-        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(httpClient);
-
-        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
-        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
-
-        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+        var (resolver, _) = CreateResolverWithHandler(new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(SampleS3Xml),
+        });
 
         var searchResult = new ContentSearchResult
         {
@@ -121,11 +102,7 @@ public sealed class GenLauncherResolverTests
     [Fact]
     public async Task ResolveAsync_WithSimpleDownloadLink_ResolvesDirectDownload()
     {
-        var factoryMock = new Mock<IHttpClientFactory>();
-        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
-        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
-
-        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+        var resolver = CreateResolver();
 
         var searchResult = new ContentSearchResult
         {
@@ -156,11 +133,7 @@ public sealed class GenLauncherResolverTests
     [Fact]
     public async Task ResolveAsync_WithOneDriveEmbedLink_FallsBackToSlugArchiveName()
     {
-        var factoryMock = new Mock<IHttpClientFactory>();
-        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
-        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
-
-        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+        var resolver = CreateResolver();
 
         var searchResult = new ContentSearchResult
         {
@@ -183,17 +156,42 @@ public sealed class GenLauncherResolverTests
     }
 
     /// <summary>
+    /// Tests that ResolveAsync appends .zip when the URL path or fallback name ends without a known archive extension.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithNonArchiveExtensionInUrl_AppendsZipFallback()
+    {
+        var resolver = CreateResolver();
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "version-tag-mod",
+            Name = "Shockwave-Release-v1.2",
+            Version = "1.2",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://example.com/releases/download/v1.2",
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var manifest = result.Data;
+        Assert.Single(manifest.Files);
+        Assert.Equal("Shockwave-Release-v1.2.zip", manifest.Files[0].RelativePath);
+    }
+
+    /// <summary>
     /// Tests that ResolveAsync throws when discovered item is null.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ResolveAsync_NullDiscoveredItem_ThrowsArgumentNullException()
     {
-        var factoryMock = new Mock<IHttpClientFactory>();
-        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
-        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
-
-        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+        var resolver = CreateResolver();
 
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             resolver.ResolveAsync(null!, CancellationToken.None));
@@ -206,17 +204,11 @@ public sealed class GenLauncherResolverTests
     [Fact]
     public async Task ResolveAsync_WithLoopbackS3Host_RejectsS3Resolution()
     {
-        var factoryMock = new Mock<IHttpClientFactory>();
         var handlerMock = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(handlerMock.Object);
-
-        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher))
-            .Returns(httpClient);
-
-        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
-        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
-
-        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(httpClient);
+        var resolver = CreateResolver(factoryMock.Object);
 
         var searchResult = new ContentSearchResult
         {
@@ -252,23 +244,7 @@ public sealed class GenLauncherResolverTests
     [Fact]
     public async Task ResolveAsync_WithYamlSourceUrl_DoesNotSetYamlAsDownloadFile()
     {
-        var handlerMock = new Mock<HttpMessageHandler>();
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.NotFound));
-
-        var httpClient = new HttpClient(handlerMock.Object);
-        var factoryMock = new Mock<IHttpClientFactory>();
-        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher))
-            .Returns(httpClient);
-
-        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
-        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
-
-        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+        var (resolver, handlerMock) = CreateResolverWithHandler(new HttpResponseMessage(HttpStatusCode.NotFound));
 
         var searchResult = new ContentSearchResult
         {
@@ -299,11 +275,7 @@ public sealed class GenLauncherResolverTests
     [Fact]
     public async Task ResolveAsync_WithGamePrefixedVariantGroupId_ProducesMatchingParentAndDependencyIds()
     {
-        var factoryMock = new Mock<IHttpClientFactory>();
-        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
-        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
-
-        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+        var resolver = CreateResolver();
 
         // Parent Mod with game-prefixed VariantGroupId as produced by GenLauncherDiscoverer
         var parentSearchResult = new ContentSearchResult
@@ -347,5 +319,251 @@ public sealed class GenLauncherResolverTests
         var parentDependency = addonManifest.Dependencies.Find(d => d.DependencyType == ContentType.Mod && d.Name == "Shockwave");
         Assert.NotNull(parentDependency);
         Assert.Equal(parentManifest.Id, parentDependency.Id);
+    }
+
+    /// <summary>
+    /// Tests that ResolveAsync prioritizes direct download URL for child content items with ParentContentId,
+    /// falls back to discoveredItem.Name when URL lacks an archive extension,
+    /// and does not make S3 network calls.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithChildContentDirectDownload_PrioritizesDirectDownloadAndDoesNotQueryS3()
+    {
+        var handlerMock = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(handlerMock.Object);
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(httpClient);
+        var resolver = CreateResolver(factoryMock.Object);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "shockwave-patch",
+            Name = "ShockWave_Balance_Patch_2.999.06.5.zip",
+            Version = "2.999.06.5",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "https://onedrive.live.com/download?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o",
+            ResolverMetadata =
+            {
+                [ContentConstants.ParentContentIdMetadataKey] = "shockwave-main",
+                [GenLauncherConstants.S3HostMetadataKey] = "s3.example.com",
+                [GenLauncherConstants.S3BucketMetadataKey] = "mod-bucket",
+                [GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var manifest = result.Data;
+        Assert.Single(manifest.Files);
+        Assert.Equal("ShockWave_Balance_Patch_2.999.06.5.zip", manifest.Files[0].RelativePath);
+        Assert.Equal("https://onedrive.live.com/download?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o", manifest.Files[0].DownloadUrl);
+
+        // Ensure no S3 HTTP requests were made
+        handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Never(),
+            ItExpr.IsAny<HttpRequestMessage>(),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Tests that ResolveAsync prioritizes SelectedDownloadUrl over SimpleDownloadLink metadata for child items.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_ChildModWithConflictingSimpleDownloadLinkAndSelectedDownloadUrl_PrioritizesSelectedDownloadUrl()
+    {
+        var resolver = CreateResolver();
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "child-patch",
+            Name = "Patch.zip",
+            Version = "1.1",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "https://mirror1.example.com/patch-selected.zip",
+            ResolverMetadata =
+            {
+                [ContentConstants.ParentContentIdMetadataKey] = "parent-mod",
+                [GenLauncherConstants.SimpleDownloadLinkMetadataKey] = "https://mirror2.example.com/patch-simple.zip",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var manifest = result.Data;
+        Assert.Single(manifest.Files);
+        Assert.Equal("https://mirror1.example.com/patch-selected.zip", manifest.Files[0].DownloadUrl);
+        Assert.Equal("patch-selected.zip", manifest.Files[0].RelativePath);
+    }
+
+    /// <summary>
+    /// Tests that ResolveAsync falls back to S3 storage if direct download candidates yield zero files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_ChildModWithInvalidDirectUrl_FallsBackToS3()
+    {
+        var (resolver, handlerMock) = CreateResolverWithHandler(new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(SampleS3Xml),
+        });
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "child-mod",
+            Name = "Shockwave Addon",
+            Version = "1.0",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+
+            // Invalid candidate: loopback URL is rejected as unsafe
+            SelectedDownloadUrl = "http://127.0.0.1/malicious.zip",
+            ResolverMetadata =
+            {
+                [ContentConstants.ParentContentIdMetadataKey] = "parent-mod",
+                [GenLauncherConstants.S3HostMetadataKey] = "s3.amazonaws.com",
+                [GenLauncherConstants.S3BucketMetadataKey] = "genlauncher",
+                [GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var manifest = result.Data;
+        Assert.Single(manifest.Files);
+        Assert.Equal("Shockwave.big", manifest.Files[0].RelativePath);
+
+        handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.IsAny<HttpRequestMessage>(),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Tests that ResolveAsync prioritizes S3 storage over SimpleDownloadLink for main catalog mods.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_MainModWithS3MetadataAndSimpleDownloadLink_PrioritizesS3Storage()
+    {
+        var (resolver, handlerMock) = CreateResolverWithHandler(new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(SampleS3Xml),
+        });
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "shockwave",
+            Name = "Shockwave",
+            Version = "1.2",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "https://onedrive.live.com/download?cid=0A88C98986A457EB",
+            ResolverMetadata =
+            {
+                [GenLauncherConstants.SimpleDownloadLinkMetadataKey] = "https://onedrive.live.com/download?cid=0A88C98986A457EB",
+                [GenLauncherConstants.S3HostMetadataKey] = "s3.amazonaws.com",
+                [GenLauncherConstants.S3BucketMetadataKey] = "genlauncher",
+                [GenLauncherConstants.S3FolderMetadataKey] = "Mods/Shockwave",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var manifest = result.Data;
+        Assert.Single(manifest.Files);
+        Assert.Equal("Shockwave.big", manifest.Files[0].RelativePath);
+
+        handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.IsAny<HttpRequestMessage>(),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Tests that ResolveAsync skips an unsafe SelectedDownloadUrl and falls back to a safe SimpleDownloadLink.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithUnsafeSelectedDownloadUrl_FallsBackToSafeSimpleDownloadLinkAsync()
+    {
+        var resolver = CreateResolver();
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "fallback-mod",
+            Name = "Fallback Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "http://127.0.0.1:8080/unsafe.zip",
+            ResolverMetadata =
+            {
+                [GenLauncherConstants.SimpleDownloadLinkMetadataKey] = "https://example.com/safe.zip",
+            },
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+        var file = Assert.Single(result.Data.Files);
+        Assert.Equal("https://example.com/safe.zip", file.DownloadUrl);
+    }
+
+    private static GenLauncherResolver CreateResolver(
+        IHttpClientFactory? httpClientFactory = null,
+        ILogger<GenLauncherResolver>? logger = null)
+    {
+        var factory = httpClientFactory ?? Mock.Of<IHttpClientFactory>();
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var log = logger ?? Mock.Of<ILogger<GenLauncherResolver>>();
+        return new GenLauncherResolver(factory, parser, log);
+    }
+
+    private static (GenLauncherResolver Resolver, Mock<HttpMessageHandler> HandlerMock) CreateResolverWithHandler(
+        HttpResponseMessage response)
+    {
+        var responseContent = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        var statusCode = response.StatusCode;
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(() => new HttpResponseMessage(statusCode)
+            {
+                Content = new StringContent(responseContent),
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(httpClient);
+
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
+        return (new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object), handlerMock);
     }
 }
