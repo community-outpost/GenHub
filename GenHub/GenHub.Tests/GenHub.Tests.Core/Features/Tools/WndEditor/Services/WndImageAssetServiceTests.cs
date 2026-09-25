@@ -698,7 +698,7 @@ public sealed class WndImageAssetServiceTests : IDisposable
         var directorySize = names.Sum(name => 8 + name.Length + 1);
         var dataStart = 16 + directorySize;
 
-        using var stream = new FileStream(archivePath, FileMode.Create, FileAccess.Write, FileShare.None);
+        using var stream = new FileStream(archivePath, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None);
         Span<byte> header = stackalloc byte[16];
         System.Text.Encoding.ASCII.GetBytes("BIGF", header[..4]);
         System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(header[4..8], (uint)(dataStart + payloads.Sum(payload => payload.Length)));
@@ -707,9 +707,9 @@ public sealed class WndImageAssetServiceTests : IDisposable
         stream.Write(header);
 
         var offset = dataStart;
+        Span<byte> entry = stackalloc byte[8];
         for (var i = 0; i < names.Count; i++)
         {
-            Span<byte> entry = stackalloc byte[8];
             System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(entry[..4], (uint)offset);
             System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(entry[4..8], (uint)payloads[i].Length);
             stream.Write(entry);
