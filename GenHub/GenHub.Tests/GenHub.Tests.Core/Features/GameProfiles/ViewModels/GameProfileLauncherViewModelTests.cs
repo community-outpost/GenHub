@@ -1279,6 +1279,31 @@ public class GameProfileLauncherViewModelTests
         Assert.True(vm.ShouldShowStorefrontBanner);
     }
 
+    /// <summary>
+    /// Verifies that ScanForGamesAsync resets HasNoDetectedInstallations to false when a scan starts.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_WhenRescanning_ResetsHasNoDetectedInstallationsBeforeScan()
+    {
+        var vm = CreateViewModelWithScanMocks(out var installMock, out _);
+        vm.HasNoDetectedInstallations = true;
+
+        var wasResetDuringScan = false;
+        installMock
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                wasResetDuringScan = !vm.HasNoDetectedInstallations;
+                return Task.FromResult(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("Scan error"));
+            });
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.True(wasResetDuringScan);
+        Assert.False(vm.HasNoDetectedInstallations);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
@@ -1402,6 +1427,13 @@ public class GameProfileLauncherViewModelTests
             CreateLocalizationService());
     }
 
+    /// <summary>
+    /// Creates a GameProfileLauncherViewModel wired to the given process manager and
+    /// notification mocks, so tests can raise process events and observe notifications.
+    /// </summary>
+    /// <param name="gameProcessManager">The process manager mock the view model subscribes to.</param>
+    /// <param name="notificationService">The notification service mock to observe.</param>
+    /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
     private static GameProfileLauncherViewModel CreateViewModelWithMockDependencies(
         Mock<IGameProcessManager> gameProcessManager,
         Mock<INotificationService> notificationService)

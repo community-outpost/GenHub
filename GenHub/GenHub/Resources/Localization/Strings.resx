@@ -1099,7 +1099,7 @@
     <comment>Title shown on the empty state banner when no game installations or profiles are detected</comment>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>No game profiles found. You need a copy of Command &amp; Conquer Generals and Zero Hour to play. You can purchase the game officially from Steam or the EA App.</value>
+    <value>Command &amp; Conquer Generals and Zero Hour could not be found. You need a valid installation of the game to play. You can purchase the game officially from Steam or the EA App.</value>
     <comment>Description on empty state banner explaining where to acquire the game</comment>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">

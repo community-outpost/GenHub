@@ -72,6 +72,7 @@ public class CsvResolver(
             }
 
             var integrityResult = VerifyCatalogIntegrity(discoveredItem, loadResult.Data.RawBytes);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!integrityResult.Success)
             {
                 return OperationResult<ContentManifest>.CreateFailure(integrityResult.Errors);

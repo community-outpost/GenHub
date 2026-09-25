@@ -1098,7 +1098,7 @@
     <value>Ищете Command &amp; Conquer Generals?</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>Профили игры не найдены. Для игры требуется копия Command &amp; Conquer Generals и Zero Hour. Вы можете приобрести игру в Steam или EA App.</value>
+    <value>Установка Command &amp; Conquer: Generals и Zero Hour не найдена. Для игры требуется установленная копия игры. Вы можете официально приобрести игру в Steam или EA App.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>Купить в Steam</value>

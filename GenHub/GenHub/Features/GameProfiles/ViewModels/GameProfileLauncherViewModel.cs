@@ -853,6 +853,7 @@ public partial class GameProfileLauncherViewModel(
             IsScanning = true;
             IsHeaderExpanded = true;
             _headerCollapseTimer.Stop(); // Ensure header stays open during scan
+            HasNoDetectedInstallations = false;
 
             StatusMessage = localizationService["GameProfiles.Status.ScanningForGames"];
             ErrorMessage = string.Empty;

@@ -1098,7 +1098,7 @@
     <value>تبحث عن Command &amp; Conquer Generals؟</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>لم يتم العثور على أي ملفات تعريف للعبة. تحتاج إلى نسخة من Command &amp; Conquer Generals و Zero Hour للعب. يمكنك شراء اللعبة رسميًا من Steam أو EA App.</value>
+    <value>تعذر العثور على تثبيت Command &amp; Conquer Generals و Zero Hour. تحتاج إلى نسخة مثبتة من اللعبة للعب. يمكنك شراء اللعبة رسميًا من Steam أو تطبيق EA.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>شراء عبر Steam</value>
