@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -366,6 +367,27 @@ public class ProfileContentLoader(
             ? manifest.Version
             : string.Empty;
 
+        string? exePath = null;
+        string? workingDir = null;
+
+        if (!string.IsNullOrWhiteSpace(manifest.SourcePath))
+        {
+            if (File.Exists(manifest.SourcePath))
+            {
+                exePath = manifest.SourcePath;
+                workingDir = Path.GetDirectoryName(manifest.SourcePath);
+            }
+            else if (Directory.Exists(manifest.SourcePath) && !string.IsNullOrWhiteSpace(manifest.EntryPoint))
+            {
+                var combined = Path.Combine(manifest.SourcePath, manifest.EntryPoint);
+                if (File.Exists(combined))
+                {
+                    exePath = combined;
+                    workingDir = manifest.SourcePath;
+                }
+            }
+        }
+
         return new GameClient
         {
             Id = manifest.Id.Value ?? string.Empty,
@@ -375,6 +397,8 @@ public class ProfileContentLoader(
             SourceType = ContentType.GameClient,
             PublisherType = manifest.Publisher?.PublisherType,
             InstallationId = installationId ?? string.Empty,
+            ExecutablePath = exePath ?? string.Empty,
+            WorkingDirectory = workingDir ?? string.Empty,
         };
     }
 

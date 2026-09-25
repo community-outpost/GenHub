@@ -4988,6 +4988,9 @@ This will modify game files and configuration settings at:
   <data name="Tools.ReplayManager.Action.SelectProfile" xml:space="preserve">
     <value>Select Profile to Run...</value>
   </data>
+  <data name="Tools.ReplayManager.Action.SelectRecoveryProfile" xml:space="preserve">
+    <value>Select Recovery Profile...</value>
+  </data>
   <data name="Tools.ReplayManager.Action.SelectClient" xml:space="preserve">
     <value>Select Game Client &amp; Create Profile...</value>
   </data>
@@ -8540,6 +8543,18 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Choose an available game client to create a fresh profile</value>
     </data>
+  <data name="Tools.ReplayManager.RecoveryProfileSelection.DialogTitleFormat" xml:space="preserve">
+    <value>Select Recovery Profile - {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.RecoveryProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Select Recovery Profile</value>
+  </data>
+  <data name="Tools.ReplayManager.RecoveryProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Choose a recovery-capable profile to mint checkpoints and recover this replay</value>
+  </data>
+  <data name="Tools.ReplayManager.RecoveryProfileSelection.ActionBadge" xml:space="preserve">
+    <value>Recover</value>
+  </data>
 <data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
     <value>Share Profile...</value>
   </data>

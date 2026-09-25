@@ -6,6 +6,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Services;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -112,6 +113,15 @@ internal static class GameProfileClientResolutionHelper
         var publisherType = ExtractPublisherType(segments, item.Publisher);
         var version = ExtractClientVersion(item.Version, segments, publisherType);
 
+        var exePath = item.GameClient?.ExecutablePath;
+        var workingDir = item.GameClient?.WorkingDirectory;
+
+        if (string.IsNullOrEmpty(exePath) && !string.IsNullOrWhiteSpace(item.SourcePath) && File.Exists(item.SourcePath))
+        {
+            exePath = item.SourcePath;
+            workingDir = Path.GetDirectoryName(item.SourcePath);
+        }
+
         return new GameClient
         {
             Id = manifestIdValue,
@@ -121,6 +131,8 @@ internal static class GameProfileClientResolutionHelper
             SourceType = ContentType.GameClient,
             PublisherType = publisherType,
             InstallationId = installationId,
+            ExecutablePath = exePath ?? string.Empty,
+            WorkingDirectory = workingDir ?? string.Empty,
         };
     }
 

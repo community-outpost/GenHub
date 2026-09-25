@@ -70,6 +70,8 @@ public partial class ReplayManagerViewModel(
     IRecipient<ProfileStoppedMessage>,
     IRecipient<ProfileDeletedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
+    IRecipient<ProfileCreatedMessage>,
+    IRecipient<ProfileUpdatedMessage>,
     IDisposable
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _runningProfiles = new(StringComparer.OrdinalIgnoreCase);
@@ -238,6 +240,12 @@ public partial class ReplayManagerViewModel(
 
     partial void OnSelectedCompatibleProfileChanged(GameProfile? value)
     {
+        if (value != null && ActiveCheckpointReplay != null)
+        {
+            ActiveCheckpointReplay.RecoveryProfileId = value.Id;
+            ActiveCheckpointReplay.RecoveryProfileName = value.Name;
+        }
+
         UpdateReplayTimingBounds();
     }
 
@@ -416,6 +424,38 @@ public partial class ReplayManagerViewModel(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to reload replays after profile list update");
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileCreatedMessage message)
+    {
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await LoadReplaysAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reload replays after profile creation: {ProfileId}", message.Profile?.Id);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileUpdatedMessage message)
+    {
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await LoadReplaysAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reload replays after profile update: {ProfileId}", message.Profile?.Id);
             }
         });
     }
@@ -1649,6 +1689,96 @@ public partial class ReplayManagerViewModel(
             contentName: replay.FileName,
             additionalManifestIds: null,
             compatibleProfileIds: compatibleProfileIds);
+
+        var dialog = new ProfileSelectionView(profileVm);
+        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+            IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+        if (mainWindow != null)
+        {
+            await dialog.ShowDialog(mainWindow);
+        }
+
+        return profileVm;
+    }
+
+    /// <summary>
+    /// Displays a profile selection dialog allowing the user to select from available recovery profiles to mint checkpoints or recover this replay.
+    /// </summary>
+    [RelayCommand]
+    private async Task SelectRecoveryProfileAsync(ReplayFile replay)
+    {
+        if (replay == null || IsBusy)
+        {
+            return;
+        }
+
+        if (serviceProvider == null)
+        {
+            await OpenCheckpointDrawerAsync(replay);
+            return;
+        }
+
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var profileVm = await ShowRecoveryProfileSelectionDialogAsync(scope.ServiceProvider, replay);
+
+            if (profileVm.WasSuccessful && profileVm.SelectedProfile != null)
+            {
+                replay.RecoveryProfileId = profileVm.SelectedProfile.Id;
+                replay.RecoveryProfileName = profileVm.SelectedProfile.Name;
+                await OpenCheckpointDrawerAsync(replay);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to display recovery profile selection dialog for {FileName}", replay.FileName);
+        }
+    }
+
+    private async Task<ProfileSelectionViewModel> ShowRecoveryProfileSelectionDialogAsync(
+        IServiceProvider sp,
+        ReplayFile replay)
+    {
+        logger.LogDebug("[ReplayManager] Displaying recovery profile selection dialog for '{FileName}'", replay.FileName);
+        var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
+        var dialogTitleFormat = LocalizationService?.GetString("Tools.ReplayManager.RecoveryProfileSelection.DialogTitleFormat") ?? "Select Recovery Profile - {0}";
+        profileVm.DialogTitle = string.Format(dialogTitleFormat, replay.FileName);
+        profileVm.HeaderTitle = LocalizationService?.GetString("Tools.ReplayManager.RecoveryProfileSelection.HeaderTitle") ?? "Select Recovery Profile";
+        profileVm.HeaderSubtitle = LocalizationService?.GetString("Tools.ReplayManager.RecoveryProfileSelection.HeaderSubtitle") ?? "Choose a recovery-capable profile to mint checkpoints and recover this replay";
+        profileVm.ActionBadgeText = LocalizationService?.GetString("Tools.ReplayManager.RecoveryProfileSelection.ActionBadge") ?? "Recover";
+        profileVm.CreateProfileCardSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle") ?? "Choose an available game client to create a fresh profile";
+
+        var (manager, mgrScope) = ResolveProfileManager();
+        IReadOnlyList<GameProfile> allProfiles = Array.Empty<GameProfile>();
+        try
+        {
+            if (manager != null)
+            {
+                var allProfilesResult = await manager.GetAllProfilesAsync();
+                if (allProfilesResult.Success && allProfilesResult.Data != null)
+                {
+                    allProfiles = allProfilesResult.Data;
+                }
+            }
+        }
+        finally
+        {
+            mgrScope?.Dispose();
+        }
+
+        var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfiles);
+        var recoveryProfileIds = new HashSet<string>(recoveryProfiles.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+
+        await profileVm.LoadProfilesAsync(
+            replay.GameVersion,
+            contentManifestId: string.Empty,
+            contentName: replay.FileName,
+            additionalManifestIds: null,
+            compatibleProfileIds: recoveryProfileIds);
 
         var dialog = new ProfileSelectionView(profileVm);
         var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
