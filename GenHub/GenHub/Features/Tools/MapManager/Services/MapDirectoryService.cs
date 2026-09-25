@@ -318,10 +318,11 @@ public sealed class MapDirectoryService(
                             return false;
                         }
 
-                        // First rename the .map file inside the directory
+                        var plannedMoves = new List<(string Source, string Target)>();
+
+                        // Preflight and plan .map file rename
                         var newMapFileName = newName + ".map";
                         var newMapFilePath = Path.Combine(currentDirPath, newMapFileName);
-
                         if (!string.Equals(map.FullPath, newMapFilePath, StringComparison.OrdinalIgnoreCase))
                         {
                             if (File.Exists(newMapFilePath))
@@ -330,10 +331,10 @@ public sealed class MapDirectoryService(
                                 return false;
                             }
 
-                            File.Move(map.FullPath, newMapFilePath);
+                            plannedMoves.Add((map.FullPath, newMapFilePath));
                         }
 
-                        // Also rename companion asset files (e.g. OldName.tga -> NewName.tga, OldName.ini -> NewName.ini)
+                        // Also plan companion asset files (e.g. OldName.tga -> NewName.tga, OldName.ini -> NewName.ini)
                         // Assets may match either the old map file base name or the old directory name
                         var candidateBases = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                         {
@@ -345,6 +346,7 @@ public sealed class MapDirectoryService(
                             candidateBases.Add(map.DirectoryName);
                         }
 
+                        var seenTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { newMapFilePath };
                         foreach (var baseName in candidateBases)
                         {
                             foreach (var assetPath in Directory.GetFiles(currentDirPath, baseName + ".*"))
@@ -356,19 +358,50 @@ public sealed class MapDirectoryService(
                                 }
 
                                 var newAssetPath = Path.Combine(currentDirPath, newName + ext);
-                                if (!File.Exists(newAssetPath))
+                                if (!seenTargets.Contains(newAssetPath) && !File.Exists(newAssetPath))
                                 {
-                                    File.Move(assetPath, newAssetPath);
-                                    logger.LogDebug("Renamed companion asset {Old} to {New}", assetPath, newAssetPath);
+                                    seenTargets.Add(newAssetPath);
+                                    plannedMoves.Add((assetPath, newAssetPath));
                                 }
                             }
                         }
 
-                        // Then rename the directory
-                        Directory.Move(currentDirPath, newDirPath);
+                        // Execute planned file moves with rollback if any operation fails
+                        var executedMoves = new List<(string Source, string Target)>();
+                        try
+                        {
+                            foreach (var (src, dst) in plannedMoves)
+                            {
+                                File.Move(src, dst);
+                                executedMoves.Add((src, dst));
+                                logger.LogDebug("Renamed companion asset {Old} to {New}", src, dst);
+                            }
 
-                        logger.LogInformation("Renamed map directory from {OldName} to {NewName}", map.DirectoryName, newName);
-                        return true;
+                            // Then rename the directory
+                            Directory.Move(currentDirPath, newDirPath);
+                            logger.LogInformation("Renamed map directory from {OldName} to {NewName}", map.DirectoryName, newName);
+                            return true;
+                        }
+                        catch
+                        {
+                            // Roll back executed moves
+                            foreach (var (src, dst) in executedMoves)
+                            {
+                                try
+                                {
+                                    if (File.Exists(dst) && !File.Exists(src))
+                                    {
+                                        File.Move(dst, src);
+                                    }
+                                }
+                                catch
+                                {
+                                    // Ignore rollback failures
+                                }
+                            }
+
+                            throw;
+                        }
                     }
 
                     // Rename standalone .map file
