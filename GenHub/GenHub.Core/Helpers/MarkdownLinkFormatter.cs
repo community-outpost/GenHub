@@ -427,6 +427,7 @@ public static partial class MarkdownLinkFormatter
 
     [GeneratedRegex(@"(?<prev>^[ \t]*[^\s\-*+>#|`].*)\r?\n(?<curr>[ \t]*[-*+][ \t]+)", RegexOptions.Multiline)]
     private static partial Regex ListPrecedingBlankLineRegex();
+
     private static bool IsOrderedListMarker(string trimmed)
     {
         var i = 0;

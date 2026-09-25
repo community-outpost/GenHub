@@ -718,6 +718,7 @@ public static class GameClientEntryDetector
     {
         return Path.GetRelativePath(root, path);
     }
+
     private static bool IsSafeArchiveRelativePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))

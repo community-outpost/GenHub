@@ -55,11 +55,6 @@ public static class ImageCacheConstants
     public const string ModDbReferrerUrl = "https://www.moddb.com/";
 
     /// <summary>
-    /// Deterministic placeholder image shown when content has no icon or thumbnail.
-    /// A fixed seed keeps the placeholder stable across cards and sessions.
-    /// </summary>
-    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Stable placeholder image endpoint for content without artwork.")]
-    /// <summary>
     /// Host name for the Picsum placeholder service.
     /// </summary>
     public const string PicsumHost = "picsum.photos";
