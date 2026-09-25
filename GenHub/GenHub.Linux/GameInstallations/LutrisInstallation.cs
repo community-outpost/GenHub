@@ -21,8 +21,6 @@ namespace GenHub.Linux.GameInstallations;
 /// </summary>
 public partial class LutrisInstallation : IGameInstallation
 {
-    private const int CommandTimeoutMs = 10000;
-
     private readonly ILogger<LutrisInstallation>? _logger;
     private readonly Func<string, string[], (bool Success, string Output)>? _processRunner;
 
@@ -239,9 +237,9 @@ public partial class LutrisInstallation : IGameInstallation
             }
 
             // Drain standard output asynchronously with cancellation and bounded wait to avoid deadlocks, hangs, or thread leaks
-            using var cts = new CancellationTokenSource(CommandTimeoutMs);
+            using var cts = new CancellationTokenSource(ProcessConstants.ExternalCliTimeoutMs);
             var readOutputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
-            if (process.WaitForExit(CommandTimeoutMs) && readOutputTask.Wait(CommandTimeoutMs))
+            if (process.WaitForExit(ProcessConstants.ExternalCliTimeoutMs) && readOutputTask.Wait(ProcessConstants.ExternalCliTimeoutMs))
             {
                 output = readOutputTask.Result;
                 return process.ExitCode == 0;
@@ -279,7 +277,7 @@ public partial class LutrisInstallation : IGameInstallation
 
             try
             {
-                readOutputTask.Wait(1000);
+                readOutputTask.Wait(ProcessConstants.ProcessKillWaitMs);
             }
             catch (Exception)
             {

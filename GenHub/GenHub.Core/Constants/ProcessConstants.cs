@@ -169,6 +169,11 @@ public static class ProcessConstants
     /// <summary>Maximum time to await a managed process exit notification after it has exited.</summary>
     public const int TerminationExitNotificationTimeoutMs = 5_000;
 
+    /// <summary>
+    /// Timeout in milliseconds when waiting for external package manager or launcher CLI queries (e.g., Lutris, Flatpak, Snap).
+    /// </summary>
+    public const int ExternalCliTimeoutMs = 10_000;
+
     /// <summary>Error returned when a termination request does not identify one process.</summary>
     public const string InvalidProcessIdError = "Process ID must be greater than zero.";
 }

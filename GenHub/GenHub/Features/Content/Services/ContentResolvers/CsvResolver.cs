@@ -293,6 +293,22 @@ public class CsvResolver(
         };
     }
 
+    private static List<ManifestFile> CreateManifestFiles(
+        IReadOnlyList<CsvCatalogEntry> matchingEntries,
+        bool isRemote,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var manifestFiles = new List<ManifestFile>(matchingEntries.Count);
+        foreach (var entry in matchingEntries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            manifestFiles.Add(CreateManifestFile(entry, isRemote));
+        }
+
+        return manifestFiles;
+    }
+
     private static GameType ResolveTargetGame(ContentSearchResult discoveredItem, string gameTypeStr)
     {
         if (discoveredItem.TargetGame != GameType.Unknown)
@@ -496,21 +512,5 @@ public class CsvResolver(
             discoveredItem.SourceUrl);
 
         return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    private List<ManifestFile> CreateManifestFiles(
-        IReadOnlyList<CsvCatalogEntry> matchingEntries,
-        bool isRemote,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var manifestFiles = new List<ManifestFile>(matchingEntries.Count);
-        foreach (var entry in matchingEntries)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            manifestFiles.Add(CreateManifestFile(entry, isRemote));
-        }
-
-        return manifestFiles;
     }
 }
