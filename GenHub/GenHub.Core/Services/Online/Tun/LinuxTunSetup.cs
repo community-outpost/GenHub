@@ -239,8 +239,11 @@ public sealed class LinuxTunSetup(ILogger<LinuxTunSetup> logger) : ITunInterface
             return CommandResult.StartFailure($"'{fileName}' was cancelled.");
         }
 
-        // After an async wait, drain the redirected streams.
-        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+        // After an async wait, drain the redirected streams. The parameterless WaitForExit() is required
+        // by the runtime to ensure asynchronous redirected stdout/stderr events are fully processed.
+#pragma warning disable S6966 // Synchronous WaitForExit required by design to drain redirected output streams
+        process.WaitForExit();
+#pragma warning restore S6966
         return new CommandResult(true, process.ExitCode, Snippet(output.ToString()));
     }
 

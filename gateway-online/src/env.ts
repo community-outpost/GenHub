@@ -35,6 +35,7 @@ export interface RoomMember {
   quality: number;
   isHost: boolean;
   lastSeen: number;
+  joinedAt: number;
   endpoint: string;
   lastIp: string;
   profileFingerprint: string;

@@ -132,7 +132,7 @@ member gets a toast plus a re-match.
 
 ## Privacy model
 
-Traffic routes through an encrypted TURN relay by default to protect player privacy;
+Traffic routes through an IP-masking packet relay by default to protect player privacy;
 real IP addresses are never shared with peers. The edge drops any endpoint sent by
 a relay member on create, join, and heartbeat. Direct connection with STUN discovery
 is supported at the service layer (`preferRelay: false`) but not yet surfaced as

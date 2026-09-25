@@ -6,6 +6,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -223,16 +224,22 @@ public sealed class WindowsTunDevice : ITunDevice
         {
             try
             {
-                using var proc = new Process
+                var psi = new ProcessStartInfo
                 {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = netshPath,
-                        Arguments = $"interface ipv4 set address name=\"{interfaceName}\" source=static addr={ipAddress} mask={mask}",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                    },
+                    FileName = netshPath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
                 };
+                psi.ArgumentList.Add("interface");
+                psi.ArgumentList.Add("ipv4");
+                psi.ArgumentList.Add("set");
+                psi.ArgumentList.Add("address");
+                psi.ArgumentList.Add($"name={interfaceName}");
+                psi.ArgumentList.Add("source=static");
+                psi.ArgumentList.Add($"addr={ipAddress}");
+                psi.ArgumentList.Add($"mask={mask}");
+
+                using var proc = new Process { StartInfo = psi };
                 proc.Start();
                 proc.WaitForExit(3000);
                 if (proc.ExitCode == 0)
@@ -250,16 +257,21 @@ public sealed class WindowsTunDevice : ITunDevice
 
         try
         {
-            using var proc = new Process
+            var psi = new ProcessStartInfo
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = ResolveNetshPath(),
-                    Arguments = $"interface ipv4 set subinterface name=\"{interfaceName}\" mtu={mtu} store=active",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                },
+                FileName = ResolveNetshPath(),
+                UseShellExecute = false,
+                CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("interface");
+            psi.ArgumentList.Add("ipv4");
+            psi.ArgumentList.Add("set");
+            psi.ArgumentList.Add("subinterface");
+            psi.ArgumentList.Add($"name={interfaceName}");
+            psi.ArgumentList.Add($"mtu={mtu.ToString(CultureInfo.InvariantCulture)}");
+            psi.ArgumentList.Add("store=active");
+
+            using var proc = new Process { StartInfo = psi };
             proc.Start();
             proc.WaitForExit(2000);
         }

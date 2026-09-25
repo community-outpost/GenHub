@@ -52,13 +52,25 @@ const getOrCreateRoom = (networkId) => {
 
 // Track sender endpoint
 const trackSender = (room, sourceIp, rinfo) => {
-  if (!room.has(sourceIp) && room.size >= MAX_PEERS_PER_ROOM) {
+  const existing = room.get(sourceIp);
+  const now = Date.now();
+  if (existing) {
+    // Prevent hijacking: if active within 30 seconds and remote IP differs, reject
+    if (existing.address !== rinfo.address && now - existing.lastSeen < 30000) {
+      return false;
+    }
+    existing.address = rinfo.address;
+    existing.port = rinfo.port;
+    existing.lastSeen = now;
+    return true;
+  }
+  if (room.size >= MAX_PEERS_PER_ROOM) {
     return false;
   }
   room.set(sourceIp, {
     address: rinfo.address,
     port: rinfo.port,
-    lastSeen: Date.now(),
+    lastSeen: now,
   });
   return true;
 };
