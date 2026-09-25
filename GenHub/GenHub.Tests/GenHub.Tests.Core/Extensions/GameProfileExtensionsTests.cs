@@ -244,7 +244,6 @@ public class GameProfileExtensionsTests
         Assert.True(CommunityOutpostConstants.IsCommunityPatchIdentifier("Community Patch (TheSuperHackers Build)"));
     }
 
-
     private static GameProfile CreateZeroHourProfile(string? publisherType, string clientName, List<string> enabledContentIds)
     {
         return new GameProfile

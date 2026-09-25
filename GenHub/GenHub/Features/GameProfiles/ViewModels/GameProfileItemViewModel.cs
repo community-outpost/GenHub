@@ -605,10 +605,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
             ResolveProfileVersionAndPublisher(gameProfile);
 
-            if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
-            {
-                ColorValue = gameProfile.ThemeColor;
-            }
+            ColorValue = ResolveInitialColorValue(gameProfile, ColorValue);
 
             UpdateDescription(gameProfile);
         }

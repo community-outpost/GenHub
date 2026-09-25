@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Features.GameProfiles.ViewModels;
 using Moq;
@@ -170,6 +171,43 @@ public class GameProfileItemViewModelTests
         Assert.Equal("Generals Online", vm.Publisher);
         Assert.Equal("000104", vm.GameVersion);
         Assert.Contains("Generals Online", vm.Description);
+    }
+
+    /// <summary>
+    /// Verifies that calling UpdateFromProfile normalizes stale SuperHackers theme color on a Community Outpost profile.
+    /// </summary>
+    [Fact]
+    public void UpdateFromProfile_WithStaleSuperHackersThemeColor_NormalizesToCommunityOutpostThemeColor()
+    {
+        // Arrange
+        var initialProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-color",
+            Name = "Initial Profile",
+        };
+
+        var vm = new GameProfileItemViewModel("test-profile-color", initialProfile, null!, null!);
+
+        var updatedClient = new GenHub.Core.Models.GameClients.GameClient
+        {
+            Id = "1.000.communityoutpost.gameclient.zerohour",
+            Name = "Community Patch",
+            PublisherType = "TheSuperHackers",
+        };
+
+        var updatedProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-color",
+            Name = "Community Patch",
+            GameClient = updatedClient,
+            ThemeColor = SuperHackersConstants.ZeroHourThemeColor,
+        };
+
+        // Act
+        vm.UpdateFromProfile(updatedProfile);
+
+        // Assert
+        Assert.Equal(CommunityOutpostConstants.ThemeColor, vm.ColorValue);
     }
 
     /// <summary>
