@@ -320,10 +320,14 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private static byte[] CropMappedImage(MagickImage page, WndMappedImage image)
     {
-        var left = Math.Clamp(image.Left, 0, (int)page.Width);
-        var top = Math.Clamp(image.Top, 0, (int)page.Height);
-        var right = Math.Clamp(image.Right, left, (int)page.Width);
-        var bottom = Math.Clamp(image.Bottom, top, (int)page.Height);
+        // Mirror the engine normalizing UVs by TextureWidth/TextureHeight so crops
+        // track the decoded page size (e.g. upscaled mod pages pair with retail coords).
+        var scaleX = image.TextureWidth > 0 ? (double)page.Width / image.TextureWidth : 1.0;
+        var scaleY = image.TextureHeight > 0 ? (double)page.Height / image.TextureHeight : 1.0;
+        var left = Math.Clamp((int)Math.Round(image.Left * scaleX), 0, (int)page.Width);
+        var top = Math.Clamp((int)Math.Round(image.Top * scaleY), 0, (int)page.Height);
+        var right = Math.Clamp((int)Math.Round(image.Right * scaleX), left, (int)page.Width);
+        var bottom = Math.Clamp((int)Math.Round(image.Bottom * scaleY), top, (int)page.Height);
 
         if (right <= left || bottom <= top)
         {
@@ -944,6 +948,37 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return SearchCandidatesInBand(fileSystem, trimmed, minTier, maxTier);
     }
 
+    private static List<string> ArchiveFileNameVariants(string fileName)
+    {
+        var candidates = new List<string>();
+        if (!string.IsNullOrEmpty(Path.GetExtension(fileName)))
+        {
+            // Mirror DDSFileClass: blindly swap the trailing extension characters to dds
+            // and try that first, falling back to the referenced name (usually .tga).
+            // Zero Hour ships many shared pages as .dds where base Generals ships .tga.
+            if (fileName.Length > 3)
+            {
+                var ddsVariant = string.Concat(fileName[..^3], "dds");
+                if (!string.Equals(ddsVariant, fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    candidates.Add(ddsVariant);
+                }
+            }
+
+            candidates.Add(fileName);
+        }
+        else
+        {
+            candidates.Add(fileName);
+            foreach (var ext in WndConstants.MappedImages.TextureExtensions)
+            {
+                candidates.Add(string.Concat(fileName, ext));
+            }
+        }
+
+        return candidates;
+    }
+
     private static (string Path, byte[] Bytes, MagickFormat Format)? SearchArchiveByNameInBand(
         SageVirtualFileSystem fileSystem,
         string trimmed,
@@ -956,16 +991,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             return null;
         }
 
-        var candidates = new List<string> { fileName };
-        if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
-        {
-            foreach (var ext in WndConstants.MappedImages.TextureExtensions)
-            {
-                candidates.Add(string.Concat(fileName, ext));
-            }
-        }
-
-        foreach (var candidate in candidates)
+        foreach (var candidate in ArchiveFileNameVariants(fileName))
         {
             var found = fileSystem.TryReadArchiveFileByNameWithPath(candidate, minTier, maxTier);
             if (found.HasValue && found.Value.Bytes.Length > 0 && TryDetectFormat(found.Value.Bytes, out var format))
@@ -1013,14 +1039,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             return null;
         }
 
-        var candidates = new List<string> { fileName };
-        if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
-        {
-            foreach (var ext in WndConstants.MappedImages.TextureExtensions)
-            {
-                candidates.Add(string.Concat(fileName, ext));
-            }
-        }
+        var candidates = ArchiveFileNameVariants(fileName);
 
         var match = SearchFileNameInBand(fileSystem, candidates, definitionTier, definitionTier);
         if (match != null)

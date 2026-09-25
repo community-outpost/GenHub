@@ -1,6 +1,7 @@
 using FluentAssertions;
 using GenHub.Features.Tools.WndEditor.Services;
 using ImageMagick;
+using ImageMagick.Drawing;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -581,7 +582,7 @@ public sealed class WndImageAssetServiceTests : IDisposable
             Path.Combine(_gameRoot, "TexturesZH.big"),
             new Dictionary<string, byte[]>
             {
-                [@"Data\Art\Textures\SharedPage.tga"] = SolidTga(MagickColors.Blue, 8, 8),
+                [@"Data\Art\Textures\SharedPage.tga"] = SolidImage(MagickColors.Blue, 8, 8, MagickFormat.Tga),
             });
 
         var generalsDir = Path.Combine(_gameRoot, "ZH_Generals");
@@ -595,7 +596,7 @@ public sealed class WndImageAssetServiceTests : IDisposable
             Path.Combine(generalsDir, "Textures.big"),
             new Dictionary<string, byte[]>
             {
-                [@"Data\English\Textures\SharedPage.tga"] = SolidTga(MagickColors.Orange, 8, 8),
+                [@"Data\English\Textures\SharedPage.tga"] = SolidImage(MagickColors.Orange, 8, 8, MagickFormat.Tga),
             });
 
         // Act
@@ -635,7 +636,7 @@ public sealed class WndImageAssetServiceTests : IDisposable
             Path.Combine(_gameRoot, "TexturesZH.big"),
             new Dictionary<string, byte[]>
             {
-                [@"Data\Art\Textures\SamePage.tga"] = SolidTga(MagickColors.Blue, 8, 8),
+                [@"Data\Art\Textures\SamePage.tga"] = SolidImage(MagickColors.Blue, 8, 8, MagickFormat.Tga),
             });
 
         var generalsDir = Path.Combine(_gameRoot, "ZH_Generals");
@@ -643,7 +644,7 @@ public sealed class WndImageAssetServiceTests : IDisposable
             Path.Combine(generalsDir, "Textures.big"),
             new Dictionary<string, byte[]>
             {
-                [@"Data\Art\Textures\SamePage.tga"] = SolidTga(MagickColors.Orange, 8, 8),
+                [@"Data\Art\Textures\SamePage.tga"] = SolidImage(MagickColors.Orange, 8, 8, MagickFormat.Tga),
             });
 
         // Act
@@ -654,6 +655,98 @@ public sealed class WndImageAssetServiceTests : IDisposable
         result.Data.Should().ContainKey("ZhSamePathBtn");
         using var decoded = new MagickImage(result.Data!["ZhSamePathBtn"]);
         PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Blue.ToString());
+    }
+
+    /// <summary>
+    /// Tests that a Zero Hour DDS page beats a base Generals TGA page with the same
+    /// stem, matching the engine trying the .dds variant before the .tga fallback.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_SharedDdsPage_BeatsBaseTgaPage()
+    {
+        // Arrange: the definition references the .tga name; Zero Hour ships the page
+        // as .dds while base Generals ships the same stem as .tga.
+        const string definition =
+            "MappedImage DdsBtn\n" +
+            "  Texture = DdsPage.tga\n" +
+            "  Coords = Left:0 Top:0 Right:8 Bottom:8\n" +
+            "  Status = NONE\n" +
+            "End\n";
+        WriteBigArchive(
+            Path.Combine(_gameRoot, "INIZH.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\TextureSize_512\ZHUI.ini"] = System.Text.Encoding.UTF8.GetBytes(definition),
+            });
+        WriteBigArchive(
+            Path.Combine(_gameRoot, "TexturesZH.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\Art\Textures\DdsPage.dds"] = SolidImage(MagickColors.Blue, 8, 8, MagickFormat.Dds),
+            });
+
+        var generalsDir = Path.Combine(_gameRoot, "ZH_Generals");
+        WriteBigArchive(
+            Path.Combine(generalsDir, "INI.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\TextureSize_512\BaseUI.ini"] = System.Text.Encoding.UTF8.GetBytes(definition),
+            });
+        WriteBigArchive(
+            Path.Combine(generalsDir, "Textures.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\Art\Textures\DdsPage.tga"] = SolidImage(MagickColors.Orange, 8, 8, MagickFormat.Tga),
+            });
+
+        // Act
+        var result = await _service.GetImagesAsync(["DdsBtn"], _gameRoot, null, null, null, true);
+
+        // Assert: the Zero Hour (blue) DDS page wins over the Generals (orange) TGA page.
+        result.Success.Should().BeTrue();
+        result.Data.Should().ContainKey("DdsBtn");
+        using var decoded = new MagickImage(result.Data!["DdsBtn"]);
+        PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Blue.ToString());
+    }
+
+    /// <summary>
+    /// Tests that definition coordinates scale to the decoded page size, matching the
+    /// engine normalizing UVs by TextureWidth/TextureHeight (e.g. upscaled mod pages).
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_TexturePageLargerThanDefinition_ScalesCrop()
+    {
+        // Arrange: 8x8-based coordinates against a 16x16 page whose top-left 8x8
+        // quadrant is blue and the rest is red.
+        WriteMappedImages(
+            "MappedImage ScaledBtn\n" +
+            "  Texture = ScaledPage\n" +
+            "  TextureWidth = 8\n" +
+            "  TextureHeight = 8\n" +
+            "  Coords = Left:2 Top:2 Right:6 Bottom:6\n" +
+            "  Status = NONE\n" +
+            "End\n");
+        var pagePath = Path.Combine(_gameRoot, "Art", "Textures", "ScaledPage.tga");
+        using (var page = new MagickImage(MagickColors.Red, 16, 16))
+        {
+            new Drawables().FillColor(MagickColors.Blue).Rectangle(0, 0, 7, 7).Draw(page);
+            page.Format = MagickFormat.Tga;
+            page.Write(pagePath);
+        }
+
+        // Act
+        var result = await _service.GetImagesAsync(["ScaledBtn"], _gameRoot, null, null);
+
+        // Assert: coordinates double to a 4,4,12,12 crop (8x8) spanning both colors.
+        result.Success.Should().BeTrue();
+        result.Data.Should().ContainKey("ScaledBtn");
+        using var decoded = new MagickImage(result.Data!["ScaledBtn"]);
+        decoded.Width.Should().Be(8);
+        decoded.Height.Should().Be(8);
+        PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Blue.ToString());
+        PixelAt(decoded, 7, 7).ToString().Should().Be(MagickColors.Red.ToString());
     }
 
     private void WriteMappedImages(string content)
@@ -683,10 +776,10 @@ public sealed class WndImageAssetServiceTests : IDisposable
         return pixels.GetPixel(x, y)!.ToColor()!;
     }
 
-    private static byte[] SolidTga(MagickColor color, uint width, uint height)
+    private static byte[] SolidImage(MagickColor color, uint width, uint height, MagickFormat format)
     {
         using var image = new MagickImage(color, width, height);
-        image.Format = MagickFormat.Tga;
+        image.Format = format;
         return image.ToByteArray();
     }
 

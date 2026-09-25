@@ -22,7 +22,9 @@ public sealed partial record WndMappedImage
     /// <param name="right">The source rectangle right edge in pixels.</param>
     /// <param name="bottom">The source rectangle bottom edge in pixels.</param>
     /// <param name="isRotated">Whether the packed content is rotated 90 degrees clockwise.</param>
-    public WndMappedImage(string name, string texture, int left, int top, int right, int bottom, bool isRotated)
+    /// <param name="textureWidth">The texture page width the coordinates are defined against (0 when absent).</param>
+    /// <param name="textureHeight">The texture page height the coordinates are defined against (0 when absent).</param>
+    public WndMappedImage(string name, string texture, int left, int top, int right, int bottom, bool isRotated, int textureWidth = 0, int textureHeight = 0)
     {
         Name = name;
         Texture = texture;
@@ -31,6 +33,8 @@ public sealed partial record WndMappedImage
         Right = right;
         Bottom = bottom;
         IsRotated = isRotated;
+        TextureWidth = textureWidth;
+        TextureHeight = textureHeight;
     }
 
     /// <summary>
@@ -67,6 +71,16 @@ public sealed partial record WndMappedImage
     /// Gets a value indicating whether the packed content is rotated 90 degrees clockwise.
     /// </summary>
     public bool IsRotated { get; }
+
+    /// <summary>
+    /// Gets the texture page width the coordinates are defined against (0 when absent).
+    /// </summary>
+    public int TextureWidth { get; }
+
+    /// <summary>
+    /// Gets the texture page height the coordinates are defined against (0 when absent).
+    /// </summary>
+    public int TextureHeight { get; }
 
     /// <summary>
     /// Gets the source rectangle width in pixels.
@@ -162,6 +176,8 @@ public sealed partial record WndMappedImage
         private int _bottom;
         private bool _hasCoords;
         private bool _isRotated;
+        private int _textureWidth;
+        private int _textureHeight;
 
         public bool InsideBlock => _name != null;
 
@@ -181,6 +197,8 @@ public sealed partial record WndMappedImage
             _bottom = 0;
             _hasCoords = false;
             _isRotated = false;
+            _textureWidth = 0;
+            _textureHeight = 0;
         }
 
         public void ApplyField(string line)
@@ -205,6 +223,16 @@ public sealed partial record WndMappedImage
             {
                 _isRotated = value.Contains(WndConstants.MappedImages.RotatedStatus, StringComparison.OrdinalIgnoreCase);
             }
+            else if (string.Equals(key, WndConstants.MappedImages.TextureWidthField, StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(value, out var textureWidth))
+            {
+                _textureWidth = textureWidth;
+            }
+            else if (string.Equals(key, WndConstants.MappedImages.TextureHeightField, StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(value, out var textureHeight))
+            {
+                _textureHeight = textureHeight;
+            }
         }
 
         public WndMappedImage? Build()
@@ -219,7 +247,7 @@ public sealed partial record WndMappedImage
                 return null;
             }
 
-            return new WndMappedImage(_name, _texture, _left, _top, _right, _bottom, _isRotated);
+            return new WndMappedImage(_name, _texture, _left, _top, _right, _bottom, _isRotated, _textureWidth, _textureHeight);
         }
 
         private void ApplyCoords(string value)

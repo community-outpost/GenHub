@@ -566,6 +566,12 @@ public static class WndConstants
         /// <summary>Texture file field.</summary>
         public const string TextureField = "Texture";
 
+        /// <summary>Texture page width field used to normalize UV coordinates.</summary>
+        public const string TextureWidthField = "TextureWidth";
+
+        /// <summary>Texture page height field used to normalize UV coordinates.</summary>
+        public const string TextureHeightField = "TextureHeight";
+
         /// <summary>Source rectangle field.</summary>
         public const string CoordsField = "Coords";
 
