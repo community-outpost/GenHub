@@ -93,8 +93,6 @@ public static class ClipboardInputHelper
             return [];
         }
 
-        var results = new List<string>();
-
         try
         {
             var formats = (await clipboard.GetFormatsAsync()) ?? [];
@@ -112,10 +110,10 @@ public static class ClipboardInputHelper
                     continue;
                 }
 
-                CollectPathsFromObject(data, results);
-                if (results.Count > 0)
+                var paths = ExtractPathsFromObject(data);
+                if (paths.Count > 0)
                 {
-                    return results;
+                    return paths;
                 }
             }
         }
@@ -124,7 +122,7 @@ public static class ClipboardInputHelper
             // Suppress clipboard errors
         }
 
-        return results;
+        return [];
     }
 
     /// <summary>
@@ -185,22 +183,25 @@ public static class ClipboardInputHelper
         return null;
     }
 
-    private static void CollectPathsFromObject(object data, List<string> results)
+    private static List<string> ExtractPathsFromObject(object data)
     {
+        var paths = new List<string>();
         switch (data)
         {
             case IEnumerable<IStorageItem> storageItems:
-                ExtractStorageItemPaths(storageItems, results);
+                ExtractStorageItemPaths(storageItems, paths);
                 break;
 
-            case IEnumerable<string> paths:
-                ExtractStringPaths(paths, results);
+            case IEnumerable<string> stringPaths:
+                ExtractStringPaths(stringPaths, paths);
                 break;
 
             case string singlePath:
-                ExtractSinglePath(singlePath, results);
+                ExtractSinglePath(singlePath, paths);
                 break;
         }
+
+        return paths;
     }
 
     private static void ExtractStorageItemPaths(IEnumerable<IStorageItem> storageItems, List<string> results)

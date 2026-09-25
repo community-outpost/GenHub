@@ -309,10 +309,16 @@ public class PublisherStudioService(
 
                 if (catalogHostingInfo.TryGetValue(catalog.Id, out var catalogUrl))
                 {
-                    var effectiveCatalogIcon = !string.IsNullOrWhiteSpace(catalog.IconUrl)
-                        ? catalog.IconUrl
-                        : (!string.IsNullOrWhiteSpace(catalog.Catalog?.IconUrl) ? catalog.Catalog.IconUrl : null);
-                    effectiveCatalogIcon ??= publisher.AvatarUrl;
+                    var effectiveCatalogIcon = catalog.IconUrl;
+                    if (string.IsNullOrWhiteSpace(effectiveCatalogIcon))
+                    {
+                        effectiveCatalogIcon = catalog.Catalog?.IconUrl;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(effectiveCatalogIcon))
+                    {
+                        effectiveCatalogIcon = publisher.AvatarUrl;
+                    }
 
                     catalogEntries.Add(new CatalogEntry
                     {

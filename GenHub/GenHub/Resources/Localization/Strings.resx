@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>Maximize / Restore</value>
   </data>
+  <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
+    <value>Paste image or file from clipboard (Ctrl+V)</value>
+  </data>
   <data name="Dialog.UpdateOption.Button.Update" xml:space="preserve">
     <value>Update</value>
   </data>

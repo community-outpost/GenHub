@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>تكبير / استعادة</value>
   </data>
+  <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
+    <value>لصق صورة أو ملف من الحافظة (Ctrl+V)</value>
+  </data>
   <data name="Dialog.UpdateOption.Button.Update" xml:space="preserve">
     <value>تحديث</value>
   </data>

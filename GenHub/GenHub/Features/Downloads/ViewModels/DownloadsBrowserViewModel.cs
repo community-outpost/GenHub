@@ -2654,6 +2654,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? ContentConstants.UpdateFailedStatusMessage}";
                 return false;
             }
+
+            return false;
         }
 
         var dialogService = serviceProvider.GetService<IDialogService>();

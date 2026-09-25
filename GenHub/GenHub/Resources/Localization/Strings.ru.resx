@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>Развернуть / Восстановить</value>
   </data>
+  <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
+    <value>Вставить изображение или файл из буфера обмена (Ctrl+V)</value>
+  </data>
   <data name="Dialog.UpdateOption.Button.Update" xml:space="preserve">
     <value>Обновить</value>
   </data>
