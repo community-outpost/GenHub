@@ -390,6 +390,33 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an archive served under another format's extension is still extracted from its content.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_SevenZipArchiveNamedZip_ExtractsContentAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var mislabelled = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllBytesAsync(
+            mislabelled,
+            Convert.FromBase64String(
+                "N3q8ryccAAQE0DRtEwAAAAAAAABSAAAAAAAAAKnyu85taXNsYWJlbGxlZCBhcmNoaXZlAQQGAAEJEwAHCwEAAQEADBMACAoB9b6xRQAABQERFwByAGUAYQBkAG0AZQAuAHQAeAB0AAAAGQQAAAAAFAoBAAA9glISTd0BFQYBACCApIEAAA=="));
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.ExtractArchivesSafelyAsync(_stagingDirectory);
+
+        // Assert
+        var extracted = Path.Combine(_stagingDirectory, "readme.txt");
+        Assert.True(File.Exists(extracted));
+        Assert.Equal("mislabelled archive", await File.ReadAllTextAsync(extracted));
+        Assert.False(File.Exists(mislabelled));
+    }
+
+    /// <summary>
     /// Verifies that a self-extracting .exe archive for a Mod is extracted safely and the source .exe is removed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -1285,6 +1312,30 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             // Act & Assert
             var ex = Assert.Throws<InvalidDataException>(() => ArchivePayloadProcessor.EnsureValidArchivePayload(tempFile));
             Assert.Contains("HTML or web error text", ex.Message);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a RAR archive named .zip passes validation, as GenLauncher serves some packages this way.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_RarSignatureNamedZip_Succeeds()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+        try
+        {
+            File.WriteAllBytes(tempFile, [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
+
+            var exception = Record.Exception(() => ArchivePayloadProcessor.EnsureValidArchivePayload(tempFile));
+
+            Assert.Null(exception);
         }
         finally
         {
