@@ -2,11 +2,23 @@ using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.Protected;
 using System;
@@ -145,63 +157,165 @@ public class TelemetryInstrumentationTests
     }
 
     /// <summary>
-    /// Verifies that content update applied telemetry payload contains expected keys and values.
+    /// Verifies that content update applied telemetry is dispatched through reconciler production code.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public void ContentUpdateApplied_Event_ContainsRequiredTelemetryProperties()
+    public async Task ContentUpdateApplied_Event_ContainsRequiredTelemetryPropertiesAsync()
     {
-        var properties = new Dictionary<string, object?>
+        const string latestVersion = "2.0.0";
+        var updateServiceMock = new Mock<ICommunityOutpostUpdateService>();
+        updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "1.0.0"));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(CommunityOutpostConstants.PublisherType, true);
+        var userSettingsServiceMock = new Mock<IUserSettingsService>();
+        userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        var oldManifest = new ContentManifest
         {
-            [TelemetryConstants.Properties.PublisherId] = "GeneralsOnline",
-            [TelemetryConstants.Properties.Strategy] = "GeneralsOnlineContentStrategy",
-            [TelemetryConstants.Properties.FromVersion] = "1.0.0",
-            [TelemetryConstants.Properties.ToVersion] = "1.1.0",
-            [TelemetryConstants.Properties.Success] = true,
-            [TelemetryConstants.Properties.ProfilesUpdated] = 2,
+            Id = "1.100.communityoutpost.patch.communitypatch",
+            Name = "Community Patch",
+            Version = "1.0.0",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = CommunityOutpostConstants.PublisherType,
+                Name = "Community Outpost",
+            },
         };
 
-        _telemetryServiceMock.Object.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, properties, TelemetryLevel.AnonymousMetrics);
+        var newManifest = new ContentManifest
+        {
+            Id = "1.200.communityoutpost.patch.communitypatch",
+            Name = "Community Patch",
+            Version = latestVersion,
+            Publisher = new PublisherInfo
+            {
+                PublisherType = CommunityOutpostConstants.PublisherType,
+                Name = "Community Outpost",
+            },
+        };
+
+        var poolCallCount = 0;
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                poolCallCount++;
+                return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(
+                    poolCallCount == 1 ? [oldManifest] : [oldManifest, newManifest]);
+            });
+
+        var contentOrchestratorMock = new Mock<IContentOrchestrator>();
+        contentOrchestratorMock
+            .Setup(x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new ContentSearchResult { Name = "Community Patch", Version = latestVersion },
+            ]));
+        contentOrchestratorMock
+            .Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(newManifest));
+
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        profileManagerMock
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([])));
+
+        var reconciliationServiceMock = new Mock<IContentReconciliationService>();
+        reconciliationServiceMock
+            .Setup(x => x.OrchestrateBulkUpdateAsync(It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(1, 0)));
+
+        var reconciler = new CommunityOutpostProfileReconciler(
+            NullLogger<CommunityOutpostProfileReconciler>.Instance,
+            updateServiceMock.Object,
+            manifestPoolMock.Object,
+            contentOrchestratorMock.Object,
+            reconciliationServiceMock.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<IDialogService>(),
+            userSettingsServiceMock.Object,
+            profileManagerMock.Object,
+            _telemetryServiceMock.Object);
+
+        var result = await reconciler.CheckAndReconcileIfNeededAsync("profile1");
+        Assert.True(result.Success, result.FirstError);
 
         _telemetryServiceMock.Verify(
             t => t.TrackEvent(
                 TelemetryConstants.Events.ContentUpdateApplied,
                 It.Is<IReadOnlyDictionary<string, object?>?>(p =>
                     p != null &&
-                    (string?)p[TelemetryConstants.Properties.PublisherId] == "GeneralsOnline" &&
-                    (string?)p[TelemetryConstants.Properties.Strategy] == "GeneralsOnlineContentStrategy" &&
+                    (string?)p[TelemetryConstants.Properties.PublisherId] == CommunityOutpostConstants.PublisherType &&
                     (string?)p[TelemetryConstants.Properties.FromVersion] == "1.0.0" &&
-                    (string?)p[TelemetryConstants.Properties.ToVersion] == "1.1.0" &&
-                    (bool?)p[TelemetryConstants.Properties.Success] == true &&
-                    (int?)p[TelemetryConstants.Properties.ProfilesUpdated] == 2),
+                    (string?)p[TelemetryConstants.Properties.ToVersion] == latestVersion &&
+                    (bool?)p[TelemetryConstants.Properties.Success] == true),
                 It.IsAny<TelemetryLevel>()),
             Times.Once);
     }
 
     /// <summary>
-    /// Verifies that content update failed telemetry payload contains error properties.
+    /// Verifies that content update failed telemetry is dispatched through reconciler production code.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public void ContentUpdateFailed_Event_ContainsRequiredTelemetryProperties()
+    public async Task ContentUpdateFailed_Event_ContainsRequiredTelemetryPropertiesAsync()
     {
-        var properties = new Dictionary<string, object?>
-        {
-            [TelemetryConstants.Properties.PublisherId] = "TheSuperHackers",
-            [TelemetryConstants.Properties.Strategy] = "SuperHackersContentStrategy",
-            [TelemetryConstants.Properties.Success] = false,
-            [TelemetryConstants.Properties.ErrorMessage] = "Network failure downloading manifest",
-        };
+        const string latestVersion = "2.0.0";
+        var updateServiceMock = new Mock<ICommunityOutpostUpdateService>();
+        updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "1.0.0"));
 
-        _telemetryServiceMock.Object.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, properties, TelemetryLevel.AnonymousMetrics);
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(CommunityOutpostConstants.PublisherType, true);
+        var userSettingsServiceMock = new Mock<IUserSettingsService>();
+        userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var contentOrchestratorMock = new Mock<IContentOrchestrator>();
+        contentOrchestratorMock
+            .Setup(x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new ContentSearchResult { Name = "Community Patch", Version = latestVersion },
+            ]));
+
+        contentOrchestratorMock
+            .Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("server unavailable"));
+
+        var reconciler = new CommunityOutpostProfileReconciler(
+            NullLogger<CommunityOutpostProfileReconciler>.Instance,
+            updateServiceMock.Object,
+            manifestPoolMock.Object,
+            contentOrchestratorMock.Object,
+            Mock.Of<IContentReconciliationService>(),
+            Mock.Of<INotificationService>(),
+            Mock.Of<IDialogService>(),
+            userSettingsServiceMock.Object,
+            Mock.Of<IGameProfileManager>(),
+            _telemetryServiceMock.Object);
+
+        await reconciler.CheckAndReconcileIfNeededAsync("profile1");
 
         _telemetryServiceMock.Verify(
             t => t.TrackEvent(
                 TelemetryConstants.Events.ContentUpdateFailed,
                 It.Is<IReadOnlyDictionary<string, object?>?>(p =>
                     p != null &&
-                    (string?)p[TelemetryConstants.Properties.PublisherId] == "TheSuperHackers" &&
-                    (string?)p[TelemetryConstants.Properties.Strategy] == "SuperHackersContentStrategy" &&
-                    (bool?)p[TelemetryConstants.Properties.Success] == false &&
-                    (string?)p[TelemetryConstants.Properties.ErrorMessage] == "Network failure downloading manifest"),
+                    (string?)p[TelemetryConstants.Properties.PublisherId] == CommunityOutpostConstants.PublisherType &&
+                    (string?)p[TelemetryConstants.Properties.FromVersion] == "1.0.0" &&
+                    (string?)p[TelemetryConstants.Properties.ToVersion] == latestVersion &&
+                    ((string?)p[TelemetryConstants.Properties.ErrorMessage])!.Contains("server unavailable")),
                 It.IsAny<TelemetryLevel>()),
             Times.Once);
     }

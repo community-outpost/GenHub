@@ -192,7 +192,8 @@ public class GameProcessManager(
 
             cancellationToken.ThrowIfCancellationRequested();
             _managedProcesses[process.Id] = process;
-            RegisterSessionAndEmitStarted(process, configuration.ExecutablePath, configuration.EnvironmentVariables);
+            var combinedEnvVars = MergeEnvironmentVariables(configuration.EnvironmentVariables, runnerResult.Data.EnvironmentVariables);
+            RegisterSessionAndEmitStarted(process, configuration.ExecutablePath, combinedEnvVars);
 
             if (configuration.WaitForExit)
             {
@@ -1079,6 +1080,34 @@ public class GameProcessManager(
         }
 
         return "Native";
+    }
+
+    private static IReadOnlyDictionary<string, string>? MergeEnvironmentVariables(
+        IReadOnlyDictionary<string, string>? configVars,
+        IReadOnlyDictionary<string, string>? runnerVars)
+    {
+        if (configVars == null || configVars.Count == 0)
+        {
+            return runnerVars;
+        }
+
+        if (runnerVars == null || runnerVars.Count == 0)
+        {
+            return configVars;
+        }
+
+        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in runnerVars)
+        {
+            merged[kvp.Key] = kvp.Value;
+        }
+
+        foreach (var kvp in configVars)
+        {
+            merged[kvp.Key] = kvp.Value;
+        }
+
+        return merged;
     }
 
     /// <summary>

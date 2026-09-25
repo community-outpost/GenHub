@@ -73,7 +73,7 @@ public static class TelemetryConstants
     /// <summary>
     /// Default PostHog event capture endpoint.
     /// </summary>
-    public const string DefaultPostHogCaptureEndpoint = "https://us.i.posthog.com/capture/";
+    public const string DefaultPostHogCaptureEndpoint = "https://us.i.posthog.com/i/v0/e/";
 
     /// <summary>
     /// Default PostHog project identifier.

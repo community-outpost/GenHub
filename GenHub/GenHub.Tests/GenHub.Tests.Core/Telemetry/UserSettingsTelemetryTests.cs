@@ -20,11 +20,11 @@ public class UserSettingsTelemetryTests
     /// Verifies default values for telemetry settings.
     /// </summary>
     [Fact]
-    public void DefaultSettings_HaveAnonymousMetricsEnabled()
+    public void DefaultSettings_HaveTelemetryDisabled()
     {
         var settings = new UserSettings();
 
-        Assert.Equal(TelemetryLevel.AnonymousMetrics, settings.TelemetryPreference);
+        Assert.Equal(TelemetryLevel.Disabled, settings.TelemetryPreference);
         Assert.False(settings.EnableTelemetryPromptShown);
         Assert.Null(settings.AnonymousInstallationId);
     }

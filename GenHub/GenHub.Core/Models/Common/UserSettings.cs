@@ -221,7 +221,7 @@ public class UserSettings
     /// <summary>
     /// Gets or sets the telemetry collection preference level.
     /// </summary>
-    public TelemetryLevel TelemetryPreference { get; set; } = TelemetryLevel.AnonymousMetrics;
+    public TelemetryLevel TelemetryPreference { get; set; } = TelemetryLevel.Disabled;
 
     /// <summary>
     /// Gets or sets a value indicating whether the telemetry onboarding prompt has been shown.

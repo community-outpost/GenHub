@@ -159,7 +159,7 @@ public sealed class SentryTelemetrySink(
             exceptionMessage = exMsgObj.ToString();
         }
 
-        if (extra.Remove(TelemetryConstants.Properties.StackTrace, out var stackObj) && stackObj != null)
+        if (extra.TryGetValue(TelemetryConstants.Properties.StackTrace, out var stackObj) && stackObj != null)
         {
             stackTrace = stackObj.ToString();
         }
@@ -197,23 +197,101 @@ public sealed class SentryTelemetrySink(
                 ["formatted"] = exceptionMessage ?? exceptionType ?? "Application Crash",
             };
 
+            var exceptionDict = new Dictionary<string, object?>
+            {
+                ["type"] = exceptionType ?? "Exception",
+                ["value"] = exceptionMessage ?? string.Empty,
+            };
+
+            var parsedStack = ParseSentryStackTrace(stackTrace);
+            if (parsedStack.Count > 0)
+            {
+                exceptionDict["stacktrace"] = parsedStack;
+            }
+
             payload["exception"] = new Dictionary<string, object?>
             {
-                ["values"] = new[]
-                {
-                    new Dictionary<string, object?>
-                    {
-                        ["type"] = exceptionType ?? "Exception",
-                        ["value"] = exceptionMessage ?? string.Empty,
-                        ["stacktrace"] = !string.IsNullOrEmpty(stackTrace)
-                            ? new Dictionary<string, object?> { ["raw"] = stackTrace }
-                            : new Dictionary<string, object?>(),
-                    },
-                },
+                ["values"] = new[] { exceptionDict },
             };
         }
 
         return payload;
+    }
+
+    private static Dictionary<string, object?> ParseSentryStackTrace(string? stackTrace)
+    {
+        if (string.IsNullOrWhiteSpace(stackTrace))
+        {
+            return new Dictionary<string, object?>();
+        }
+
+        var lines = stackTrace.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var frames = new List<Dictionary<string, object?>>();
+
+        for (var i = lines.Length - 1; i >= 0; i--)
+        {
+            var line = lines[i].Trim();
+            if (!line.StartsWith("at ", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            line = line[3..].Trim();
+            string function = line;
+            string? filename = null;
+            int? lineno = null;
+
+            var inIdx = line.IndexOf(" in ", StringComparison.Ordinal);
+            if (inIdx >= 0)
+            {
+                function = line[..inIdx].Trim();
+                var fileAndLine = line[(inIdx + 4)..].Trim();
+                var lineIdx = fileAndLine.LastIndexOf(":line ", StringComparison.OrdinalIgnoreCase);
+                if (lineIdx >= 0)
+                {
+                    filename = fileAndLine[..lineIdx].Trim();
+                    if (int.TryParse(fileAndLine[(lineIdx + 6)..].Trim(), out var parsedLine))
+                    {
+                        lineno = parsedLine;
+                    }
+                }
+                else
+                {
+                    filename = fileAndLine;
+                }
+            }
+
+            var inApp = !function.StartsWith("System.", StringComparison.OrdinalIgnoreCase) &&
+                        !function.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase);
+
+            var frame = new Dictionary<string, object?>
+            {
+                ["function"] = function,
+                ["in_app"] = inApp,
+            };
+
+            if (!string.IsNullOrEmpty(filename))
+            {
+                frame["filename"] = filename;
+            }
+
+            if (lineno.HasValue)
+            {
+                frame["lineno"] = lineno.Value;
+            }
+
+            frames.Add(frame);
+        }
+
+        if (frames.Count == 0)
+        {
+            return new Dictionary<string, object?>();
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["frames"] = frames,
+        };
     }
 
     private static (string StoreUrl, string? PublicKey) ParseDsn(string dsn)

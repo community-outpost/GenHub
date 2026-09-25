@@ -374,15 +374,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogInformation("Update package: {Package}", updateInfo.TargetFullRelease.FileName);
             _logger.LogInformation("Current app will exit and restart with new version");
 
-            _updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
+            TrackUpdateAppliedAndFlush(updateInfo.TargetFullRelease.Version.ToString());
 
-            _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateApplied, new Dictionary<string, object?>
-            {
-                [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
-                [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
-                [TelemetryConstants.Properties.Channel] = TelemetryChannel,
-                [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
-            });
+            _updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
 
             // If we reach here, restart might have failed
             _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - this is unexpected");
@@ -397,16 +391,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             // Try fallback to exit-only mode
             try
             {
+                TrackUpdateAppliedAndFlush(updateInfo.TargetFullRelease.Version.ToString());
                 _updateManager.ApplyUpdatesAndExit(updateInfo.TargetFullRelease);
                 _logger.LogInformation("Fallback to ApplyUpdatesAndExit succeeded. Please restart the application manually.");
-
-                _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateApplied, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
-                    [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
-                    [TelemetryConstants.Properties.Channel] = TelemetryChannel,
-                    [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
-                });
             }
             catch (Exception fallbackEx)
             {
@@ -430,12 +417,34 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         {
             CleanStrayAppDirectoryArtifacts();
             _logger.LogInformation("Applying update {Version} and exiting...", updateInfo.TargetFullRelease.Version);
+            TrackUpdateAppliedAndFlush(updateInfo.TargetFullRelease.Version.ToString());
             _updateManager.ApplyUpdatesAndExit(updateInfo.TargetFullRelease);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to apply updates and restart");
             throw;
+        }
+    }
+
+    private void TrackUpdateAppliedAndFlush(string targetVersion)
+    {
+        try
+        {
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateApplied, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+                [TelemetryConstants.Properties.ToVersion] = targetVersion,
+                [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+                [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+            });
+
+            using var flushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            _telemetryService?.FlushAsync(flushCts.Token).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to flush telemetry before Velopack update apply");
         }
     }
 

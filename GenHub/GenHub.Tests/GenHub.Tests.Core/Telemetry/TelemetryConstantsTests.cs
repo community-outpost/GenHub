@@ -23,7 +23,7 @@ public class TelemetryConstantsTests
         Assert.StartsWith("https://", TelemetryConstants.DefaultSentryDsn);
         Assert.StartsWith("phc_", TelemetryConstants.DefaultPostHogApiKey);
         Assert.Equal("https://us.i.posthog.com", TelemetryConstants.DefaultPostHogHost);
-        Assert.Equal("https://us.i.posthog.com/capture/", TelemetryConstants.DefaultPostHogCaptureEndpoint);
+        Assert.Equal("https://us.i.posthog.com/i/v0/e/", TelemetryConstants.DefaultPostHogCaptureEndpoint);
         Assert.Equal("567732", TelemetryConstants.DefaultPostHogProjectId);
     }
 

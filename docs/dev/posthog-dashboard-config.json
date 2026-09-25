@@ -214,7 +214,7 @@
             ],
             "breakdown": {
               "type": "event",
-              "property": "runner_environment"
+              "property": "runner"
             },
             "dateRange": {
               "date_from": "-30d"
@@ -399,7 +399,7 @@
           }
         },
         {
-          "name": "Total Data Transferred (GB)",
+          "name": "Total Data Transferred (MB)",
           "type": "Trends",
           "display": "BoldNumber",
           "query": {

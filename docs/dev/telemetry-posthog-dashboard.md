@@ -2,7 +2,7 @@
 
 This document describes the PostHog product analytics dashboards configured for GenHub telemetry, including dashboard layouts, HogQL queries, funnel definitions, breakdown attributes, and metric interpretations.
 
-A machine-readable configuration template is located at [`docs/dev/posthog-dashboard-config.json`](file:///home/ubuntu/workspaces/cc1-GenHub/docs/dev/posthog-dashboard-config.json).
+A machine-readable configuration template is located at [`docs/dev/posthog-dashboard-config.json`](./posthog-dashboard-config.json).
 
 ---
 
@@ -232,10 +232,10 @@ ORDER BY failure_count DESC
 
 ## 6. How to Import and Deploy
 
-1. In your PostHog instance (e.g. `https://eu.posthog.com` or self-hosted), navigate to **Dashboards > New Dashboard**.
-2. Either create the dashboard manually using the queries above, or use the PostHog REST API to batch-import [`docs/dev/posthog-dashboard-config.json`](file:///home/ubuntu/workspaces/cc1-GenHub/docs/dev/posthog-dashboard-config.json):
+1. In your PostHog instance (e.g. `https://us.posthog.com` or self-hosted), navigate to **Dashboards > New Dashboard**.
+2. Either create the dashboard manually using the queries above, or use the PostHog REST API to batch-import [`docs/dev/posthog-dashboard-config.json`](./posthog-dashboard-config.json):
    ```bash
-   curl -X POST "https://eu.posthog.com/api/projects/<project_id>/dashboards/" \
+   curl -X POST "https://us.posthog.com/api/projects/<project_id>/dashboards/" \
      -H "Authorization: Bearer <personal_api_key>" \
      -H "Content-Type: application/json" \
      -d @docs/dev/posthog-dashboard-config.json

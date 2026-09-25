@@ -145,15 +145,24 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
             return SanitizeProperties(nestedDict);
         }
 
-        if (value is IDictionary<string, object?> dict)
+        if (value is System.Collections.IDictionary dict)
         {
             var newDict = new Dictionary<string, object?>(dict.Count);
-            foreach (var kvp in dict)
+            foreach (System.Collections.DictionaryEntry entry in dict)
             {
-                newDict[kvp.Key] = SanitizeValue(kvp.Value);
+                var key = SanitizeString(entry.Key?.ToString()) ?? string.Empty;
+                newDict[key] = SanitizeValue(entry.Value);
             }
 
             return newDict;
+        }
+
+        var valType = value.GetType();
+        if (valType.IsGenericType && valType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+        {
+            var kProp = valType.GetProperty("Key")?.GetValue(value)?.ToString() ?? string.Empty;
+            var vProp = valType.GetProperty("Value")?.GetValue(value);
+            return new KeyValuePair<string, object?>(SanitizeString(kProp) ?? string.Empty, SanitizeValue(vProp));
         }
 
         if (value is System.Collections.IEnumerable enumerable and not string)
@@ -165,6 +174,24 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
             }
 
             return sanitizedList;
+        }
+
+        if (!valType.IsPrimitive && !valType.IsEnum && value is not (DateTime or DateTimeOffset or TimeSpan or Guid or decimal or byte[]))
+        {
+            var props = valType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (props.Length > 0 && valType.Namespace != "System")
+            {
+                var dictObj = new Dictionary<string, object?>(props.Length);
+                foreach (var prop in props)
+                {
+                    if (prop.CanRead)
+                    {
+                        dictObj[prop.Name] = SanitizeValue(prop.GetValue(value));
+                    }
+                }
+
+                return dictObj;
+            }
         }
 
         return value;
