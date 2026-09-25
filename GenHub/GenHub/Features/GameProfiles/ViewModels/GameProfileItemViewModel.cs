@@ -1236,6 +1236,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         return currentColorValue;
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
     private void InitializeWorkspaceState(GameProfile gameProfile)
     {
         ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
