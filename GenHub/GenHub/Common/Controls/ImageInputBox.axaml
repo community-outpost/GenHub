@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:local="clr-namespace:GenHub.Common.Controls"
+             x:Class="GenHub.Common.Controls.ImageInputBox"
+             x:DataType="local:ImageInputBox">
+    <Grid ColumnDefinitions="*,Auto">
+        <TextBox Name="InputTextBox"
+                 Grid.Column="0"
+                 DragDrop.AllowDrop="True"
+                 Text="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Mode=TwoWay}"
+                 Watermark="{Binding Watermark, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
+                 FontSize="13"
+                 Padding="10,8"/>
+        <Border Name="PreviewBorder"
+                Grid.Column="1"
+                Margin="8,0,0,0"
+                Width="34" Height="34"
+                CornerRadius="{Binding PreviewCornerRadius, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
+                Background="{DynamicResource GlassFillBrush}"
+                BorderBrush="{DynamicResource GlassBorderBrush}"
+                BorderThickness="1"
+                DragDrop.AllowDrop="True"
+                Cursor="Hand"
+                ClipToBounds="True"
+                VerticalAlignment="Center"
+                ToolTip.Tip="{Binding PreviewToolTip, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}">
+            <Panel>
+                <PathIcon Name="FallbackIcon"
+                          Data="{Binding FallbackIconData, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
+                          Width="16" Height="16"
+                          Foreground="{DynamicResource TextSecondary}"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          IsVisible="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                <Image controls:ImageLoader.Source="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
+                       Stretch="UniformToFill"
+                       IsVisible="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </Panel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels.Dialogs"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
              mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="260"
              DragDrop.AllowDrop="True"
              x:Class="GenHub.Features.Tools.Views.Dialogs.RenameCatalogDialogView"
@@ -65,40 +66,12 @@
                        Foreground="{DynamicResource TextPrimary}"
                        FontSize="13"
                        Margin="0,4,0,0"/>
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="IconTextBox"
-                         Grid.Column="0"
-                         DragDrop.AllowDrop="True"
-                         Text="{Binding IconUrl, Mode=TwoWay}"
-                         Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"
-                         FontSize="13"
-                         Padding="10,8"/>
-                <Border Name="IconDropTarget"
-                        Grid.Column="1"
-                        Width="36" Height="36"
-                        Margin="8,0,0,0"
-                        CornerRadius="6"
-                        ClipToBounds="True"
-                        Background="{DynamicResource GlassFillBrush}"
-                        BorderBrush="{DynamicResource GlassBorderBrush}"
-                        BorderThickness="1"
-                        DragDrop.AllowDrop="True"
-                        Cursor="Hand"
-                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}"
-                        VerticalAlignment="Center">
-                    <Panel>
-                        <Image controls:ImageLoader.Source="{Binding IconUrl}"
-                               Stretch="UniformToFill"
-                               IsVisible="{Binding IconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        <PathIcon Data="{StaticResource ContentIcon}"
-                                  Width="16" Height="16"
-                                  Foreground="{DynamicResource TextMuted}"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  IsVisible="{Binding IconUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
-                    </Panel>
-                </Border>
-            </Grid>
+            <commonControls:ImageInputBox Text="{Binding IconUrl, Mode=TwoWay}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"
+                                         FallbackIconData="{StaticResource ContentIcon}"
+                                         PreviewCornerRadius="6"
+                                         PreviewToolTip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}"
+                                         DropHandler="{Binding HandleIconDropAsync}"/>
 
             <TextBlock Text="{Binding ValidationError}"
                        Foreground="{DynamicResource StatusErrorBrush}"

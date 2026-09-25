@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
              mc:Ignorable="d"
              d:DesignWidth="900" d:DesignHeight="600"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherProfileView"
@@ -158,37 +159,12 @@
 
                     <StackPanel Grid.Row="4" Grid.Column="2" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.AvatarUrl}" Classes="field-label"/>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Name="AvatarTextBox"
-                                     Grid.Column="0"
-                                     DragDrop.AllowDrop="True"
-                                     Text="{Binding AvatarUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"/>
-                            <Border Name="AvatarDropTarget"
-                                    Grid.Column="1"
-                                    Margin="8,0,0,0"
-                                    Width="34" Height="34"
-                                    CornerRadius="17"
-                                    Background="{DynamicResource GlassFillBrush}"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    BorderThickness="1"
-                                    DragDrop.AllowDrop="True"
-                                    Cursor="Hand"
-                                    ClipToBounds="True"
-                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}">
-                                <Panel>
-                                    <PathIcon Data="{StaticResource PersonIcon}"
-                                              Width="16" Height="16"
-                                              Foreground="{DynamicResource TextSecondary}"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"
-                                              IsVisible="{Binding AvatarUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
-                                    <Image controls:ImageLoader.Source="{Binding AvatarUrl}"
-                                           Stretch="UniformToFill"
-                                           IsVisible="{Binding AvatarUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                </Panel>
-                            </Border>
-                        </Grid>
+                        <commonControls:ImageInputBox Text="{Binding AvatarUrl, Mode=TwoWay}"
+                                                     Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"
+                                                     FallbackIconData="{StaticResource PersonIcon}"
+                                                     PreviewCornerRadius="17"
+                                                     PreviewToolTip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}"
+                                                     DropHandler="{Binding HandleAvatarDropAsync}"/>
                     </StackPanel>
                 </Grid>
 
