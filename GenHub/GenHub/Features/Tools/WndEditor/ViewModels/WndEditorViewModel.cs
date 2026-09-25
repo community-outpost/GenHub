@@ -65,6 +65,7 @@ public sealed partial class WndEditorViewModel(
     private readonly Stack<WndEditAction> _undoStack = new();
     private readonly Stack<WndEditAction> _redoStack = new();
     private readonly Dictionary<string, Bitmap> _composedBitmaps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Bitmap> _thumbnailBitmaps = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, WndWindow> _windowParents = new();
     private readonly object _previewSync = new();
     private readonly object _linkedAssetsSync = new();
@@ -80,7 +81,6 @@ public sealed partial class WndEditorViewModel(
     private WndResizeDirection _resizeDirection = WndResizeDirection.None;
     private IReadOnlyList<GameInstallation> _installations = [];
     private Dictionary<string, Bitmap> _previewBitmaps = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Bitmap> _thumbnailBitmaps = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, byte[]> _previewPngs = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string> _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string> _schemeOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
