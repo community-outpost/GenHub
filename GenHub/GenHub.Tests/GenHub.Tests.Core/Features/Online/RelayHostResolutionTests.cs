@@ -1,7 +1,7 @@
-using System;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Online;
 using GenHub.Tests.Core.Collections;
+using System;
 
 namespace GenHub.Tests.Core.Features.Online;
 
