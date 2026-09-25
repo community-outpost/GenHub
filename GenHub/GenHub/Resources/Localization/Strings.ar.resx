@@ -12641,6 +12641,39 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.WndEditor.Apply.SuccessMessage" xml:space="preserve">
     <value>تم تطبيق {0} على {1}.</value>
   </data>
+  <data name="Tools.WndEditor.Paste.NoProjectTitle" xml:space="preserve">
+    <value>لا يوجد مجلد مشروع</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.NoProjectMessage" xml:space="preserve">
+    <value>لا يمكن لصق المظهر بدون مشروع أو مجلد تعديل نشط.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableTitle" xml:space="preserve">
+    <value>الحافظة غير متوفرة</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableMessage" xml:space="preserve">
+    <value>تعذر الوصول إلى حافظة النظام.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyTitle" xml:space="preserve">
+    <value>الحافظة فارغة</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyMessage" xml:space="preserve">
+    <value>لا تحتوي الحافظة على صورة أو ملف مظهر أو اسم رسم صالح.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedTitle" xml:space="preserve">
+    <value>صورة غير متوافقة</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedMessage" xml:space="preserve">
+    <value>تعذر التعرف على محتوى الحافظة كصورة أو ملف مظهر صالح.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Paste" xml:space="preserve">
+    <value>لصق</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Paste" xml:space="preserve">
+    <value>لصق الرسم</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.PasteTooltip" xml:space="preserve">
+    <value>لصق الصورة أو المظهر من الحافظة في النافذة المحددة (Ctrl+V)</value>
+  </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>تغيير حجم النافذة</value>
   </data>

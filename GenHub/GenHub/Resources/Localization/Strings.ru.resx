@@ -12641,6 +12641,39 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.WndEditor.Apply.SuccessMessage" xml:space="preserve">
     <value>{0} применено к {1}.</value>
   </data>
+  <data name="Tools.WndEditor.Paste.NoProjectTitle" xml:space="preserve">
+    <value>Папка проекта не найдена</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.NoProjectMessage" xml:space="preserve">
+    <value>Невозможно вставить текстуру без активного проекта или папки мода.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableTitle" xml:space="preserve">
+    <value>Буфер обмена недоступен</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableMessage" xml:space="preserve">
+    <value>Не удалось получить доступ к системному буферу обмена.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyTitle" xml:space="preserve">
+    <value>Буфер обмена пуст</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyMessage" xml:space="preserve">
+    <value>Буфер обмена не содержит изображений, файлов текстур или допустимых названий ресурсов.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedTitle" xml:space="preserve">
+    <value>Неподдерживаемое изображение</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedMessage" xml:space="preserve">
+    <value>Содержимое буфера обмена не удалось распознать как изображение или файл текстуры.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Paste" xml:space="preserve">
+    <value>Вставить</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Paste" xml:space="preserve">
+    <value>Вставить графику</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.PasteTooltip" xml:space="preserve">
+    <value>Вставить изображение или текстуру из буфера обмена в выбранное окно (Ctrl+V)</value>
+  </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Изменить размер окна</value>
   </data>

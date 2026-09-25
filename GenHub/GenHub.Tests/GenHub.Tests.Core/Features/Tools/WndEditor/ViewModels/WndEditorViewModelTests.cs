@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using FluentAssertions;
 using GenHub.Core.Constants;
@@ -2200,5 +2201,186 @@ public sealed class WndEditorViewModelTests : IDisposable
         _mockGameInstallService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+    }
+
+    /// <summary>
+    /// Tests that pasting when no window is selected returns false and shows a warning notification.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PasteAssetFromClipboardAsync_NoSelection_ReturnsFalse()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = null;
+        var mockClipboard = new Mock<IClipboard>();
+
+        // Act
+        var result = await _viewModel.PasteAssetFromClipboardAsync(mockClipboard.Object);
+
+        // Assert
+        result.Should().BeFalse();
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that pasting when clipboard is empty returns false and shows an info notification.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PasteAssetFromClipboardAsync_EmptyClipboard_ReturnsFalse()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        var mockClipboard = new Mock<IClipboard>();
+        mockClipboard.Setup(c => c.GetFormatsAsync()).ReturnsAsync(Array.Empty<string>());
+        mockClipboard.Setup(c => c.GetTextAsync()).ReturnsAsync((string?)null);
+
+        // Act
+        var result = await _viewModel.PasteAssetFromClipboardAsync(mockClipboard.Object);
+
+        // Assert
+        result.Should().BeFalse();
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that pasting raw image bytes from clipboard imports the texture and applies it to the selected window.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PasteAssetFromClipboardAsync_RawImageBytes_ImportsAndAppliesToSelectedWindow()
+    {
+        // Arrange
+        var mockTextureImporter = new Mock<IWndTextureImportService>();
+        mockTextureImporter
+            .Setup(t => t.ImportTextureFromBytesAsync(
+                It.IsAny<byte[]>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WndTextureImportResult>.CreateSuccess(
+                new WndTextureImportResult(
+                    MappedName: "PastedButtonArt",
+                    TextureFileName: "PastedButtonArt.tga",
+                    TexturePath: Path.Combine(_tempDirectory, "PastedButtonArt.tga"),
+                    DefinitionsPath: Path.Combine(_tempDirectory, "WndEditorImports.ini"),
+                    Width: 64,
+                    Height: 32)));
+
+        var docService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        var assetService = new WndEditorAssetService(_mockImageAssetService.Object, _mockStringTableService.Object);
+        var vm = new WndEditorViewModel(
+            docService,
+            _mockNotificationService.Object,
+            _mockLocalizationService.Object,
+            _mockDialogService.Object,
+            _mockGameInstallService.Object,
+            assetService,
+            mockTextureImporter.Object,
+            Mock.Of<IChallengeMedalService>(),
+            Mock.Of<ILogger<WndEditorViewModel>>());
+
+        await vm.LoadFromTextAsync(SampleDocument, null);
+        vm.SelectedNode = vm.RootNodes[0].Children[0];
+
+        var mockClipboard = new Mock<IClipboard>();
+        mockClipboard.Setup(c => c.GetFormatsAsync()).ReturnsAsync(["image/png"]);
+        mockClipboard.Setup(c => c.GetDataAsync("image/png")).ReturnsAsync(new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+
+        // Act
+        var result = await vm.PasteAssetFromClipboardAsync(mockClipboard.Object);
+
+        // Assert
+        result.Should().BeTrue();
+        var selectedWin = vm.SelectedNode!.Window;
+        selectedWin.GetProperty(WndConstants.PropertyKeys.EnabledDrawData).Should().Contain("PastedButtonArt");
+        vm.CanUndo.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that pasting copied file paths from clipboard imports and applies them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PasteAssetFromClipboardAsync_CopiedFiles_AppliesToSelectedWindow()
+    {
+        // Arrange
+        var testImagePath = Path.Combine(_tempDirectory, "CopiedTexture.png");
+        await File.WriteAllBytesAsync(testImagePath, [0x01, 0x02, 0x03]);
+
+        var mockTextureImporter = new Mock<IWndTextureImportService>();
+        mockTextureImporter
+            .Setup(t => t.ImportTextureAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WndTextureImportResult>.CreateSuccess(
+                new WndTextureImportResult(
+                    MappedName: "CopiedTexture",
+                    TextureFileName: "CopiedTexture.tga",
+                    TexturePath: Path.Combine(_tempDirectory, "CopiedTexture.tga"),
+                    DefinitionsPath: Path.Combine(_tempDirectory, "WndEditorImports.ini"),
+                    Width: 64,
+                    Height: 64)));
+
+        var docService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        var assetService = new WndEditorAssetService(_mockImageAssetService.Object, _mockStringTableService.Object);
+        var vm = new WndEditorViewModel(
+            docService,
+            _mockNotificationService.Object,
+            _mockLocalizationService.Object,
+            _mockDialogService.Object,
+            _mockGameInstallService.Object,
+            assetService,
+            mockTextureImporter.Object,
+            Mock.Of<IChallengeMedalService>(),
+            Mock.Of<ILogger<WndEditorViewModel>>());
+
+        await vm.LoadFromTextAsync(SampleDocument, null);
+        vm.SelectedNode = vm.RootNodes[0];
+
+        var mockClipboard = new Mock<IClipboard>();
+        mockClipboard.Setup(c => c.GetFormatsAsync()).ReturnsAsync([DataFormats.Files]);
+        mockClipboard.Setup(c => c.GetDataAsync(DataFormats.Files)).ReturnsAsync(new[] { testImagePath });
+
+        // Act
+        var result = await vm.PasteAssetFromClipboardAsync(mockClipboard.Object);
+
+        // Assert
+        result.Should().BeTrue();
+        var selectedWin = vm.SelectedNode!.Window;
+        selectedWin.GetProperty(WndConstants.PropertyKeys.EnabledDrawData).Should().Contain("CopiedTexture");
+    }
+
+    /// <summary>
+    /// Tests that pasting text containing an existing mapped art name applies it directly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PasteAssetFromClipboardAsync_KnownArtNameText_AppliesToSelectedWindow()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        _viewModel.KnownImageNames.Add("KnownArtButton");
+
+        var mockClipboard = new Mock<IClipboard>();
+        mockClipboard.Setup(c => c.GetFormatsAsync()).ReturnsAsync([DataFormats.Text]);
+        mockClipboard.Setup(c => c.GetTextAsync()).ReturnsAsync("KnownArtButton");
+
+        // Act
+        var result = await _viewModel.PasteAssetFromClipboardAsync(mockClipboard.Object);
+
+        // Assert
+        result.Should().BeTrue();
+        var selectedWin = _viewModel.SelectedNode!.Window;
+        selectedWin.GetProperty(WndConstants.PropertyKeys.EnabledDrawData).Should().Contain("KnownArtButton");
     }
 }

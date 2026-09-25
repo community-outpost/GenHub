@@ -581,6 +581,15 @@ public static class WndConstants
         /// <summary>Status flag marking 90 degree clockwise packed content.</summary>
         public const string RotatedStatus = "ROTATED_90_CLOCKWISE";
 
+        /// <summary>Status flag marking standard unrotated content.</summary>
+        public const string StatusNone = "NONE";
+
+        /// <summary>Texture property field alias.</summary>
+        public const string TextureProperty = TextureField;
+
+        /// <summary>Coordinates property field alias.</summary>
+        public const string TextureCoordsProperty = CoordsField;
+
         /// <summary>Left coordinate attribute.</summary>
         public const string LeftAttribute = "Left";
 

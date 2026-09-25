@@ -12742,6 +12742,39 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.WndEditor.Apply.SuccessMessage" xml:space="preserve">
     <value>Applied {0} to {1}.</value>
   </data>
+  <data name="Tools.WndEditor.Paste.NoProjectTitle" xml:space="preserve">
+    <value>No Project Folder</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.NoProjectMessage" xml:space="preserve">
+    <value>Cannot paste image texture without an active project or mod folder.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableTitle" xml:space="preserve">
+    <value>Clipboard unavailable</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableMessage" xml:space="preserve">
+    <value>Could not access the system clipboard.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyTitle" xml:space="preserve">
+    <value>Clipboard empty</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyMessage" xml:space="preserve">
+    <value>The clipboard does not contain any image, texture file, or valid art name.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedTitle" xml:space="preserve">
+    <value>No compatible image</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedMessage" xml:space="preserve">
+    <value>The clipboard content could not be recognized as an image or texture file.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Paste" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Paste" xml:space="preserve">
+    <value>Paste Art</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.PasteTooltip" xml:space="preserve">
+    <value>Paste image or texture from clipboard into the selected window (Ctrl+V)</value>
+  </data>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Resize window</value>
   </data>

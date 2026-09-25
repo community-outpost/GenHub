@@ -63,16 +63,16 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
             var textureWritten = false;
             try
             {
-                var (width, height) = await Task.Run(
+                var (imageWidth, imageHeight, potWidth, potHeight) = await Task.Run(
                     () => WriteTexture(sourceFilePath, textureDirectory, texturePath, targetExtension, cancellationToken),
                     cancellationToken).ConfigureAwait(false);
                 textureWritten = true;
 
-                UpsertDefinition(definitionsPath, name, textureFileName, width, height);
+                UpsertDefinition(definitionsPath, name, textureFileName, imageWidth, imageHeight, potWidth, potHeight);
 
-                logger.LogInformation("Imported texture {Name} ({Width}x{Height}) to {Path}", name, width, height, texturePath);
+                logger.LogInformation("Imported texture {Name} ({Width}x{Height}, POT {PotW}x{PotH}) to {Path}", name, imageWidth, imageHeight, potWidth, potHeight, texturePath);
                 return OperationResult<WndTextureImportResult>.CreateSuccess(
-                    new WndTextureImportResult(name, textureFileName, width, height, texturePath, definitionsPath),
+                    new WndTextureImportResult(name, textureFileName, imageWidth, imageHeight, texturePath, definitionsPath),
                     stopwatch.Elapsed);
             }
             catch
@@ -126,6 +126,102 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         }
     }
 
+    /// <inheritdoc />
+    public async Task<OperationResult<WndTextureImportResult>> ImportTextureFromBytesAsync(
+        byte[] imageBytes,
+        string projectDirectory,
+        string mappedName,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(imageBytes);
+        ArgumentNullException.ThrowIfNull(projectDirectory);
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            if (imageBytes.Length == 0)
+            {
+                return OperationResult<WndTextureImportResult>.CreateFailure(
+                    "Image bytes cannot be empty.",
+                    stopwatch.Elapsed);
+            }
+
+            var name = SanitizeMappedName(mappedName);
+            var targetExtension = WndConstants.MappedImages.TextureExtensionTga;
+            var textureFileName = string.Concat(name, targetExtension);
+            var (textureDirectory, texturePath) = ResolveTextureDestination(projectDirectory, textureFileName);
+            var definitionsPath = Path.Combine(
+                projectDirectory,
+                WndConstants.AssetImport.MappedImagesRelativeDirectory,
+                WndConstants.AssetImport.ImportsFileName);
+
+            await _upsertLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var textureWritten = false;
+            try
+            {
+                var (imageWidth, imageHeight, potWidth, potHeight) = await Task.Run(
+                    () => WriteTextureBytes(imageBytes, textureDirectory, texturePath, cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+                textureWritten = true;
+
+                UpsertDefinition(definitionsPath, name, textureFileName, imageWidth, imageHeight, potWidth, potHeight);
+
+                logger.LogInformation("Imported clipboard texture {Name} ({Width}x{Height}, POT {PotW}x{PotH}) to {Path}", name, imageWidth, imageHeight, potWidth, potHeight, texturePath);
+                return OperationResult<WndTextureImportResult>.CreateSuccess(
+                    new WndTextureImportResult(name, textureFileName, imageWidth, imageHeight, texturePath, definitionsPath),
+                    stopwatch.Elapsed);
+            }
+            catch
+            {
+                if (textureWritten && File.Exists(texturePath))
+                {
+                    try
+                    {
+                        File.Delete(texturePath);
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        logger.LogDebug(cleanupEx, "Failed to clean up texture file {Path} after failed import", texturePath);
+                    }
+                }
+
+                throw;
+            }
+            finally
+            {
+                _upsertLock.Release();
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to import clipboard texture as {Name}", mappedName);
+            return OperationResult<WndTextureImportResult>.CreateFailure(
+                $"Failed to import texture: {ex.Message}",
+                stopwatch.Elapsed);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied importing clipboard texture as {Name}", mappedName);
+            return OperationResult<WndTextureImportResult>.CreateFailure(
+                $"Access denied importing texture: {ex.Message}",
+                stopwatch.Elapsed);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Invalid texture format or dimensions for clipboard image");
+            return OperationResult<WndTextureImportResult>.CreateFailure(
+                ex.Message,
+                stopwatch.Elapsed);
+        }
+        catch (MagickException ex)
+        {
+            logger.LogWarning(ex, "Failed to decode clipboard image");
+            return OperationResult<WndTextureImportResult>.CreateFailure(
+                $"Failed to decode clipboard image: {ex.Message}",
+                stopwatch.Elapsed);
+        }
+    }
+
     /// <summary>
     /// Sanitizes a mapped image name to characters safe for file stems and INI headers.
     /// </summary>
@@ -155,94 +251,109 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
             }
         }
 
-        var sanitized = builder.ToString().Trim('_');
-        return sanitized.Length == 0 ? WndConstants.AssetImport.FallbackMappedName : sanitized;
+        var result = builder.ToString().TrimEnd('_');
+        return string.IsNullOrEmpty(result) ? WndConstants.AssetImport.FallbackMappedName : result;
     }
 
     /// <summary>
-    /// Builds a full-page mapped image definition block.
+    /// Formats a complete MappedImage definition block with power-of-two texture dimensions and SAGE engine attributes.
     /// </summary>
     /// <param name="mappedName">The mapped image name.</param>
-    /// <param name="textureFileName">The texture file name.</param>
-    /// <param name="width">The texture width in pixels.</param>
-    /// <param name="height">The texture height in pixels.</param>
-    /// <returns>The INI block text.</returns>
-    internal static string BuildDefinitionBlock(string mappedName, string textureFileName, int width, int height)
+    /// <param name="textureFileName">The target texture file name.</param>
+    /// <param name="imageWidth">Source image width.</param>
+    /// <param name="imageHeight">Source image height.</param>
+    /// <param name="textureWidth">Underlying texture surface width.</param>
+    /// <param name="textureHeight">Underlying texture surface height.</param>
+    /// <returns>Formatted INI block string.</returns>
+    internal static string BuildDefinitionBlock(
+        string mappedName,
+        string textureFileName,
+        int imageWidth,
+        int imageHeight,
+        int textureWidth,
+        int textureHeight)
     {
-        return string.Join(
-            Environment.NewLine,
-            string.Concat(WndConstants.MappedImages.BlockTag, " ", mappedName),
-            string.Concat("  ", WndConstants.MappedImages.TextureField, " = ", textureFileName),
-            string.Concat(
-                "  ",
-                WndConstants.MappedImages.CoordsField,
-                " = ",
-                WndConstants.MappedImages.LeftAttribute,
-                ":0 ",
-                WndConstants.MappedImages.TopAttribute,
-                ":0 ",
-                WndConstants.MappedImages.RightAttribute,
-                ":",
-                width,
-                " ",
-                WndConstants.MappedImages.BottomAttribute,
-                ":",
-                height),
-            WndConstants.MappedImages.EndTag);
+        var builder = new StringBuilder();
+        builder.AppendLine($"{WndConstants.MappedImages.BlockTag} {mappedName}");
+        builder.AppendLine($"  {WndConstants.MappedImages.TextureField} = {textureFileName}");
+        builder.AppendLine($"  {WndConstants.MappedImages.TextureWidthField} = {textureWidth}");
+        builder.AppendLine($"  {WndConstants.MappedImages.TextureHeightField} = {textureHeight}");
+        builder.AppendLine($"  {WndConstants.MappedImages.CoordsField} = {WndConstants.MappedImages.LeftAttribute}:0 {WndConstants.MappedImages.TopAttribute}:0 {WndConstants.MappedImages.RightAttribute}:{imageWidth} {WndConstants.MappedImages.BottomAttribute}:{imageHeight}");
+        builder.AppendLine($"  {WndConstants.MappedImages.StatusField} = {WndConstants.MappedImages.StatusNone}");
+        builder.AppendLine(WndConstants.MappedImages.EndTag);
+        return builder.ToString();
     }
 
     /// <summary>
-    /// Replaces or appends a mapped image block in existing INI content.
+    /// Formats a complete MappedImage definition block where texture surface matches image dimensions.
     /// </summary>
-    /// <param name="existingContent">The existing INI content, if any.</param>
-    /// <param name="mappedName">The mapped image name identifying the block.</param>
-    /// <param name="block">The replacement block text.</param>
-    /// <returns>The updated INI content.</returns>
-    internal static string UpsertDefinitionBlock(string? existingContent, string mappedName, string block)
+    /// <param name="mappedName">The target mapped image name to register.</param>
+    /// <param name="textureFileName">The target texture file name on disk.</param>
+    /// <param name="width">Source image width in pixels.</param>
+    /// <param name="height">Source image height in pixels.</param>
+    /// <returns>Formatted INI block string.</returns>
+    internal static string BuildDefinitionBlock(string mappedName, string textureFileName, int width, int height)
+        => BuildDefinitionBlock(mappedName, textureFileName, width, height, width, height);
+
+    /// <summary>
+    /// Inserts or replaces a MappedImage block in an existing INI content string.
+    /// </summary>
+    /// <param name="existingContent">The current content of the INI file, or null/empty.</param>
+    /// <param name="mappedName">The mapped image name to upsert.</param>
+    /// <param name="newBlock">The new block text to insert.</param>
+    /// <returns>The updated file content.</returns>
+    internal static string UpsertDefinitionBlock(string? existingContent, string mappedName, string newBlock)
     {
-        if (string.IsNullOrEmpty(existingContent))
+        if (string.IsNullOrWhiteSpace(existingContent))
         {
-            return block + Environment.NewLine;
+            return newBlock;
         }
 
-        var lines = existingContent.Split(["\r\n", "\n"], StringSplitOptions.None).ToList();
+        var lines = existingContent
+            .Split(["\r\n", "\r", "\n"], StringSplitOptions.None)
+            .ToList();
+
         RemoveExistingBlock(lines, mappedName);
-        while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[^1]))
+
+        var trimmedEnd = lines.Count;
+        while (trimmedEnd > 0 && string.IsNullOrWhiteSpace(lines[trimmedEnd - 1]))
         {
-            lines.RemoveAt(lines.Count - 1);
+            trimmedEnd--;
+        }
+
+        lines.RemoveRange(trimmedEnd, lines.Count - trimmedEnd);
+
+        var result = new StringBuilder();
+        foreach (var line in lines)
+        {
+            result.AppendLine(line);
         }
 
         if (lines.Count > 0)
         {
-            lines.Add(string.Empty);
+            result.AppendLine();
         }
 
-        lines.Add(block);
-        return string.Join(Environment.NewLine, lines) + Environment.NewLine;
+        result.Append(newBlock);
+        return result.ToString();
     }
 
     private static string ResolveTargetExtension(string sourceExtension)
     {
-        if (string.Equals(sourceExtension, WndConstants.MappedImages.TextureExtensionDds, StringComparison.OrdinalIgnoreCase))
-        {
-            return WndConstants.MappedImages.TextureExtensionDds;
-        }
-
-        if (string.Equals(sourceExtension, WndConstants.MappedImages.TextureExtensionTga, StringComparison.OrdinalIgnoreCase))
-        {
-            return WndConstants.MappedImages.TextureExtensionTga;
-        }
-
-        // The engine reads DDS and TGA texture pages. Normalize screenshots and web
-        // formats to TGA so the imported art works both in-game and in previews.
-        return WndConstants.MappedImages.TextureExtensionTga;
+        return string.Equals(sourceExtension, WndConstants.MappedImages.TextureExtensionDds, StringComparison.OrdinalIgnoreCase)
+            ? WndConstants.MappedImages.TextureExtensionDds
+            : WndConstants.MappedImages.TextureExtensionTga;
     }
 
     private static (string TextureDirectory, string TexturePath) ResolveTextureDestination(
         string projectDirectory,
         string textureFileName)
     {
-        var defaultDir = Path.Combine(projectDirectory, WndConstants.AssetImport.TexturesRelativeDirectory);
+        var defaultDir = Path.Combine(
+            projectDirectory,
+            ModBuilderConstants.GameFilesEditedDir,
+            WndConstants.MappedImages.ArtFolder,
+            WndConstants.MappedImages.TexturesFolder);
         var defaultPath = Path.Combine(defaultDir, textureFileName);
 
         if (!Directory.Exists(projectDirectory))
@@ -268,15 +379,6 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 return (Path.GetDirectoryName(existingPath)!, existingPath);
             }
 
-            var standardArtTextures = Path.Combine(
-                searchDir,
-                WndConstants.MappedImages.ArtFolder,
-                WndConstants.MappedImages.TexturesFolder);
-            if (Directory.Exists(standardArtTextures))
-            {
-                return (standardArtTextures, Path.Combine(standardArtTextures, textureFileName));
-            }
-
             var englishTextures = Path.Combine(
                 searchDir,
                 WndConstants.MappedImages.DataFolder,
@@ -286,6 +388,15 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
             if (Directory.Exists(englishTextures))
             {
                 return (englishTextures, Path.Combine(englishTextures, textureFileName));
+            }
+
+            var standardArtTextures = Path.Combine(
+                searchDir,
+                WndConstants.MappedImages.ArtFolder,
+                WndConstants.MappedImages.TexturesFolder);
+            if (Directory.Exists(standardArtTextures))
+            {
+                return (standardArtTextures, Path.Combine(standardArtTextures, textureFileName));
             }
 
             var candidateDirs = Directory.EnumerateDirectories(
@@ -317,7 +428,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         return (defaultDir, defaultPath);
     }
 
-    private static (int Width, int Height) WriteTexture(
+    private static (int ImageWidth, int ImageHeight, int TextureWidth, int TextureHeight) WriteTexture(
         string sourceFilePath,
         string textureDirectory,
         string texturePath,
@@ -334,25 +445,207 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
                 $"Texture dimensions ({ping.Width}x{ping.Height}) exceed maximum permitted dimension of {WndConstants.Preview.MaxImportedTextureDimension}px.");
         }
 
+        var imageWidth = (int)ping.Width;
+        var imageHeight = (int)ping.Height;
+        var potWidth = RoundUpToPowerOfTwo(imageWidth);
+        var potHeight = RoundUpToPowerOfTwo(imageHeight);
+
         if (string.Equals(Path.GetExtension(sourceFilePath), targetExtension, StringComparison.OrdinalIgnoreCase)
+            && imageWidth == potWidth && imageHeight == potHeight
             && !string.Equals(Path.GetFullPath(sourceFilePath), Path.GetFullPath(texturePath), StringComparison.OrdinalIgnoreCase))
         {
             File.Copy(sourceFilePath, texturePath, overwrite: true);
         }
-        else if (!string.Equals(Path.GetExtension(sourceFilePath), targetExtension, StringComparison.OrdinalIgnoreCase))
+        else
         {
             using var image = new MagickImage(sourceFilePath);
+            if (image.Width != (uint)potWidth || image.Height != (uint)potHeight)
+            {
+                image.Extent((uint)potWidth, (uint)potHeight, Gravity.Northwest, MagickColors.Transparent);
+            }
+
             image.Settings.Compression = CompressionMethod.NoCompression;
             image.ColorType = image.HasAlpha ? ColorType.TrueColorAlpha : ColorType.TrueColor;
             image.Format = MagickFormat.Tga;
             image.Write(texturePath);
         }
 
-        using var info = new MagickImage(texturePath);
-        return ((int)info.Width, (int)info.Height);
+        SyncTextureToSiblingDirectories(textureDirectory, Path.GetFileName(texturePath), texturePath);
+
+        return (imageWidth, imageHeight, potWidth, potHeight);
     }
 
-    private static void UpsertDefinition(string definitionsPath, string mappedName, string textureFileName, int width, int height)
+    private static (int ImageWidth, int ImageHeight, int TextureWidth, int TextureHeight) WriteTextureBytes(
+        byte[] imageBytes,
+        string textureDirectory,
+        string texturePath,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(textureDirectory);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var image = CreateMagickImageFromBytes(imageBytes);
+        if (image.Width > WndConstants.Preview.MaxImportedTextureDimension || image.Height > WndConstants.Preview.MaxImportedTextureDimension)
+        {
+            throw new InvalidOperationException(
+                $"Texture dimensions ({image.Width}x{image.Height}) exceed maximum permitted dimension of {WndConstants.Preview.MaxImportedTextureDimension}px.");
+        }
+
+        var imageWidth = (int)image.Width;
+        var imageHeight = (int)image.Height;
+        var potWidth = RoundUpToPowerOfTwo(imageWidth);
+        var potHeight = RoundUpToPowerOfTwo(imageHeight);
+
+        if (image.Width != (uint)potWidth || image.Height != (uint)potHeight)
+        {
+            image.Extent((uint)potWidth, (uint)potHeight, Gravity.Northwest, MagickColors.Transparent);
+        }
+
+        image.Settings.Compression = CompressionMethod.NoCompression;
+        image.ColorType = image.HasAlpha ? ColorType.TrueColorAlpha : ColorType.TrueColor;
+        image.Format = MagickFormat.Tga;
+        image.Write(texturePath);
+
+        SyncTextureToSiblingDirectories(textureDirectory, Path.GetFileName(texturePath), texturePath);
+
+        return (imageWidth, imageHeight, potWidth, potHeight);
+    }
+
+    private static int RoundUpToPowerOfTwo(int value)
+    {
+        if (value <= 1)
+        {
+            return 1;
+        }
+
+        var power = 1;
+        while (power < value && power < WndConstants.Preview.MaxImportedTextureDimension)
+        {
+            power <<= 1;
+        }
+
+        return power;
+    }
+
+    private static void SyncTextureToSiblingDirectories(string textureDirectory, string fileName, string sourceFile)
+    {
+        try
+        {
+            var current = new DirectoryInfo(textureDirectory);
+            DirectoryInfo? gameFilesEdited = null;
+            while (current != null)
+            {
+                if (current.Name.Equals(ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    gameFilesEdited = current;
+                    break;
+                }
+
+                var sub = Path.Combine(current.FullName, ModBuilderConstants.GameFilesEditedDir);
+                if (Directory.Exists(sub))
+                {
+                    gameFilesEdited = new DirectoryInfo(sub);
+                    break;
+                }
+
+                current = current.Parent;
+            }
+
+            if (gameFilesEdited == null || !gameFilesEdited.Exists)
+            {
+                return;
+            }
+
+            var dataDir = Path.Combine(gameFilesEdited.FullName, WndConstants.MappedImages.DataFolder);
+            if (Directory.Exists(dataDir))
+            {
+                foreach (var langDir in Directory.EnumerateDirectories(dataDir))
+                {
+                    var langArtTextures = Path.Combine(
+                        langDir,
+                        WndConstants.MappedImages.ArtFolder,
+                        WndConstants.MappedImages.TexturesFolder);
+                    if (Directory.Exists(langArtTextures) && !string.Equals(Path.GetFullPath(langArtTextures), Path.GetFullPath(textureDirectory), StringComparison.OrdinalIgnoreCase))
+                    {
+                        var destFile = Path.Combine(langArtTextures, fileName);
+                        File.Copy(sourceFile, destFile, overwrite: true);
+                    }
+                }
+            }
+
+            var artTextures = Path.Combine(
+                gameFilesEdited.FullName,
+                WndConstants.MappedImages.ArtFolder,
+                WndConstants.MappedImages.TexturesFolder);
+            if (Directory.Exists(artTextures) && !string.Equals(Path.GetFullPath(artTextures), Path.GetFullPath(textureDirectory), StringComparison.OrdinalIgnoreCase))
+            {
+                var destFile = Path.Combine(artTextures, fileName);
+                File.Copy(sourceFile, destFile, overwrite: true);
+            }
+        }
+        catch
+        {
+            // Best effort synchronization across language/art folders
+        }
+    }
+
+    private static MagickImage CreateMagickImageFromBytes(byte[] bytes)
+    {
+        try
+        {
+            return new MagickImage(bytes);
+        }
+        catch (MagickException)
+        {
+            if (bytes.Length > 40 && TryCreateBmpFromDib(bytes, out var bmpBytes))
+            {
+                return new MagickImage(bmpBytes);
+            }
+
+            throw;
+        }
+    }
+
+    private static bool TryCreateBmpFromDib(byte[] dib, out byte[] bmpBytes)
+    {
+        bmpBytes = [];
+        if (dib.Length < 40)
+        {
+            return false;
+        }
+
+        var headerSize = BitConverter.ToInt32(dib, 0);
+        if (headerSize != 40 && headerSize != 108 && headerSize != 124)
+        {
+            return false;
+        }
+
+        var bitCount = (int)BitConverter.ToInt16(dib, 14);
+        var clrUsed = BitConverter.ToInt32(dib, 32);
+        var paletteEntries = clrUsed > 0
+            ? clrUsed
+            : (bitCount <= 8 && bitCount > 0 ? (1 << bitCount) : 0);
+
+        var offsetToPixels = 14 + headerSize + (paletteEntries * 4);
+        var totalFileSize = 14 + dib.Length;
+        var fullBmp = new byte[totalFileSize];
+        fullBmp[0] = (byte)'B';
+        fullBmp[1] = (byte)'M';
+        BitConverter.GetBytes(totalFileSize).CopyTo(fullBmp, 2);
+        BitConverter.GetBytes(offsetToPixels).CopyTo(fullBmp, 10);
+        dib.CopyTo(fullBmp, 14);
+        bmpBytes = fullBmp;
+        return true;
+    }
+
+    private static void UpsertDefinition(
+        string definitionsPath,
+        string mappedName,
+        string textureFileName,
+        int imageWidth,
+        int imageHeight,
+        int textureWidth,
+        int textureHeight)
     {
         var directory = Path.GetDirectoryName(definitionsPath);
         if (!string.IsNullOrEmpty(directory))
@@ -361,7 +654,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         }
 
         var existing = File.Exists(definitionsPath) ? File.ReadAllText(definitionsPath) : null;
-        var block = BuildDefinitionBlock(mappedName, textureFileName, width, height);
+        var block = BuildDefinitionBlock(mappedName, textureFileName, imageWidth, imageHeight, textureWidth, textureHeight);
         File.WriteAllText(definitionsPath, UpsertDefinitionBlock(existing, mappedName, block));
     }
 

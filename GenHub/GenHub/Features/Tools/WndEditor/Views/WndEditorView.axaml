@@ -23,6 +23,7 @@
     <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
     <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
+    <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteAssetFromClipboardCommand}"/>
   </UserControl.KeyBindings>
   <UserControl.Styles>
     <Style Selector="TabControl.compact-tabs TabItem">
@@ -111,6 +112,13 @@
                           IsEnabled="{Binding CanRedo}">
                   <MenuItem.Icon>
                     <material:MaterialIcon Kind="Redo" Width="14" Height="14"/>
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.Paste}"
+                          Command="{Binding PasteAssetFromClipboardCommand}"
+                          InputGesture="Ctrl+V">
+                  <MenuItem.Icon>
+                    <material:MaterialIcon Kind="ContentPaste" Width="14" Height="14"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
@@ -562,7 +570,7 @@
             </TabItem>
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Assets}">
               <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="0,4,0,0">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" Margin="0,0,0,4">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*" Margin="0,0,0,4">
                   <Button Grid.Column="0"
                           Command="{Binding ImportTexturesWithDialogCommand}"
                           Padding="8,4"
@@ -572,6 +580,15 @@
                           Content="{localization:Localize Tools.WndEditor.Assets.ImportTextures}"
                           FontSize="11" FontWeight="SemiBold"/>
                   <Button Grid.Column="1"
+                          Command="{Binding PasteAssetFromClipboardCommand}"
+                          Padding="8,4" Margin="6,0,0,0"
+                          Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1" CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Assets.Paste}"
+                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Toolbar.PasteTooltip}"
+                          FontSize="11" FontWeight="SemiBold"/>
+                  <Button Grid.Column="2"
                           Command="{Binding ReloadAssetsCommand}"
                           Padding="8,4" Margin="6,0,0,0"
                           Background="Transparent"

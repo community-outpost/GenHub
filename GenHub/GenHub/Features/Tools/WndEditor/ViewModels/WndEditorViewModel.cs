@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
@@ -603,6 +604,81 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
+    /// Pastes an asset from the system clipboard into the currently selected window.
+    /// Supports raw image data (copied screenshot, browser image, bitmap/DIB), copied image/texture files, or copied mapped art names.
+    /// </summary>
+    /// <param name="clipboard">Optional clipboard instance. If null, the top-level window clipboard is used.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if an asset was successfully pasted and applied; otherwise false.</returns>
+    public async Task<bool> PasteAssetFromClipboardAsync(
+        IClipboard? clipboard = null,
+        CancellationToken cancellationToken = default)
+    {
+        var targetWindow = SelectedNode?.Window;
+        if (targetWindow == null)
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                NotificationDurations.Medium);
+            return false;
+        }
+
+        var topLevel = GetTopLevel();
+        if (topLevel?.FocusManager?.GetFocusedElement() is TextBox)
+        {
+            return false;
+        }
+
+        clipboard ??= topLevel?.Clipboard;
+        if (clipboard == null)
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Paste.UnavailableTitle"),
+                localizationService.GetString("Tools.WndEditor.Paste.UnavailableMessage"),
+                NotificationDurations.Medium);
+            return false;
+        }
+
+        // 1. Check for copied files (DataFormats.Files or "FileNames")
+        var filePaths = await ExtractClipboardFilesAsync(clipboard).ConfigureAwait(false);
+        if (filePaths.Count > 0)
+        {
+            return await ApplyDroppedFilesAsync(filePaths, canvasPosition: null, cancellationToken).ConfigureAwait(false);
+        }
+
+        // 2. Check for copied raw image bytes (PNG, JPEG, BMP, DIB, Bitmap)
+        var imageBytes = await ExtractClipboardImageBytesAsync(clipboard).ConfigureAwait(false);
+        if (imageBytes != null && imageBytes.Length > 0)
+        {
+            return await ApplyClipboardImageBytesAsync(imageBytes, targetWindow, cancellationToken).ConfigureAwait(false);
+        }
+
+        // 3. Check for copied text (file path or existing mapped image name)
+        var text = await clipboard.GetTextAsync().ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            var trimmedText = text.Trim().Trim('"', '\x27');
+            if (File.Exists(trimmedText))
+            {
+                return await ApplyDroppedFilesAsync([trimmedText], canvasPosition: null, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (KnownImageNames.Contains(trimmedText))
+            {
+                await InvokeOnUIThreadAsync(() => ApplyDroppedImageName(trimmedText)).ConfigureAwait(false);
+                return true;
+            }
+        }
+
+        notificationService.ShowInfo(
+            localizationService.GetString("Tools.WndEditor.Paste.EmptyTitle"),
+            localizationService.GetString("Tools.WndEditor.Paste.EmptyMessage"),
+            NotificationDurations.Medium);
+        return false;
+    }
+
+    /// <summary>
     /// Selects the tree node backing a canvas item.
     /// </summary>
     /// <param name="item">The canvas item to select, or null to clear selection.</param>
@@ -1200,6 +1276,199 @@ public sealed partial class WndEditorViewModel(
             window.ControlTypeName = declared.Trim();
         }
     }
+
+    /// <summary>
+    /// Pastes an asset from the clipboard into the currently selected window.
+    /// </summary>
+    [RelayCommand]
+    private async Task PasteAssetFromClipboard()
+    {
+        await PasteAssetFromClipboardAsync().ConfigureAwait(false);
+    }
+
+    private static async Task<IReadOnlyList<string>> ExtractClipboardFilesAsync(IClipboard clipboard)
+    {
+        try
+        {
+            var formats = await clipboard.GetFormatsAsync().ConfigureAwait(false);
+            if (formats == null)
+            {
+                return [];
+            }
+
+            var fileFormat = formats.FirstOrDefault(f =>
+                string.Equals(f, DataFormats.Files, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(f, "FileNames", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(f, "FileName", StringComparison.OrdinalIgnoreCase));
+
+            if (fileFormat == null)
+            {
+                return [];
+            }
+
+            var data = await clipboard.GetDataAsync(fileFormat).ConfigureAwait(false);
+            if (data == null)
+            {
+                return [];
+            }
+
+            var paths = new List<string>();
+            if (data is IEnumerable<IStorageItem> storageItems)
+            {
+                foreach (var item in storageItems)
+                {
+                    var local = item.TryGetLocalPath();
+                    if (!string.IsNullOrEmpty(local))
+                    {
+                        paths.Add(local);
+                    }
+                }
+            }
+            else if (data is IEnumerable<string> stringEnumerable)
+            {
+                paths.AddRange(stringEnumerable.Where(p => !string.IsNullOrWhiteSpace(p)));
+            }
+            else if (data is string singleString && !string.IsNullOrWhiteSpace(singleString))
+            {
+                paths.Add(singleString);
+            }
+
+            return paths;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static async Task<byte[]?> ExtractClipboardImageBytesAsync(IClipboard clipboard)
+    {
+        try
+        {
+            var formats = await clipboard.GetFormatsAsync().ConfigureAwait(false);
+            if (formats == null)
+            {
+                return null;
+            }
+
+            var preferredFormats = new[]
+            {
+                "image/png", "PNG", "image/jpeg", "image/bmp", "DeviceIndependentBitmap", "CF_DIB",
+            };
+
+            foreach (var pref in preferredFormats)
+            {
+                var matchingFormat = formats.FirstOrDefault(f => string.Equals(f, pref, StringComparison.OrdinalIgnoreCase));
+                if (matchingFormat != null)
+                {
+                    var data = await clipboard.GetDataAsync(matchingFormat).ConfigureAwait(false);
+                    var bytes = ExtractBytesFromData(data);
+                    if (bytes != null && bytes.Length > 0)
+                    {
+                        return bytes;
+                    }
+                }
+            }
+
+            foreach (var fmt in formats)
+            {
+                if (fmt.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                {
+                    var data = await clipboard.GetDataAsync(fmt).ConfigureAwait(false);
+                    var bytes = ExtractBytesFromData(data);
+                    if (bytes != null && bytes.Length > 0)
+                    {
+                        return bytes;
+                    }
+                }
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static byte[]? ExtractBytesFromData(object? data)
+    {
+        if (data == null)
+        {
+            return null;
+        }
+
+        if (data is byte[] bytes)
+        {
+            return bytes;
+        }
+
+        if (data is Stream stream)
+        {
+            using var ms = new MemoryStream();
+            stream.CopyTo(ms);
+            return ms.ToArray();
+        }
+
+        if (data is Bitmap bitmap)
+        {
+            using var ms = new MemoryStream();
+            bitmap.Save(ms);
+            return ms.ToArray();
+        }
+
+        return null;
+    }
+
+    private async Task<bool> ApplyClipboardImageBytesAsync(
+        byte[] imageBytes,
+        WndWindow targetWindow,
+        CancellationToken cancellationToken)
+    {
+        var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
+        if (string.IsNullOrWhiteSpace(projectDirectory))
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Paste.NoProjectTitle"),
+                localizationService.GetString("Tools.WndEditor.Paste.NoProjectMessage"),
+                NotificationDurations.Medium);
+            return false;
+        }
+
+        var rawName = !string.IsNullOrWhiteSpace(targetWindow.Name)
+            ? targetWindow.Name
+            : $"ImportedTexture_{DateTime.UtcNow:yyyyMMdd_HHmmss}";
+        var candidateName = WndTextureImportService.SanitizeMappedName(rawName);
+
+        var importResult = await textureImportService.ImportTextureFromBytesAsync(
+            imageBytes,
+            projectDirectory,
+            candidateName,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!importResult.Success || importResult.Data == null)
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.WndEditor.Paste.UnrecognizedTitle"),
+                importResult.FirstError ?? localizationService.GetString("Tools.WndEditor.Paste.UnrecognizedMessage"),
+                NotificationDurations.Long);
+            return false;
+        }
+
+        var mappedName = importResult.Data.MappedName;
+
+        await InvokeOnUIThreadAsync(() =>
+        {
+            SelectWindow(targetWindow);
+            ApplyImageToSelectedWindow(mappedName);
+            assetService.InvalidateCache();
+            RefreshAssetPreviews();
+        }).ConfigureAwait(false);
+
+        return true;
+    }
+
 
     /// <summary>
     /// Creates a new untitled document.
