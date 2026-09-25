@@ -60,6 +60,7 @@ public class GenericCatalogDiscoverer(
 
     private Core.Models.Providers.PublisherSubscription? _subscription;
     private string? _refreshedCatalogUrl;
+    private string? _refreshedAvatarUrl;
 
     /// <summary>
     /// Gets the unique identifier of the resolver used by this discoverer.
@@ -101,6 +102,19 @@ public class GenericCatalogDiscoverer(
     {
         var refreshed = _refreshedCatalogUrl;
         _refreshedCatalogUrl = null;
+        return refreshed;
+    }
+
+    /// <summary>
+    /// Takes the avatar URL resolved from the publisher definition or catalog during discovery,
+    /// if it differs from the stored subscription avatar URL. Consumers persist it so logo updates
+    /// propagate immediately. Returns null when unchanged.
+    /// </summary>
+    /// <returns>The refreshed avatar URL, or null.</returns>
+    public string? TakeRefreshedAvatarUrl()
+    {
+        var refreshed = _refreshedAvatarUrl;
+        _refreshedAvatarUrl = null;
         return refreshed;
     }
 
@@ -803,6 +817,7 @@ public class GenericCatalogDiscoverer(
             var definition = await TryFetchDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
             if (definition != null)
             {
+                RememberResolvedPublisherInfo(definition.Publisher);
                 logger.LogDebug("Resolving catalog URLs from definition for {PublisherId}", _subscription.PublisherId);
                 foreach (var url in ResolveDefinitionCatalogUrls(definition, _subscription.SelectedCatalogId))
                 {
@@ -862,6 +877,26 @@ public class GenericCatalogDiscoverer(
             candidateUrl);
         _subscription.CatalogUrl = candidateUrl;
         _refreshedCatalogUrl = candidateUrl;
+    }
+
+    private void RememberResolvedPublisherInfo(PublisherProfile? profile)
+    {
+        if (_subscription == null || profile == null)
+        {
+            return;
+        }
+
+        var candidateAvatar = profile.AvatarUrl;
+        if (!string.IsNullOrWhiteSpace(candidateAvatar) &&
+            !string.Equals(_subscription.AvatarUrl, candidateAvatar, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation(
+                "Resolved updated avatar URL for {PublisherId}: {AvatarUrl}",
+                _subscription.PublisherId,
+                candidateAvatar);
+            _subscription.AvatarUrl = candidateAvatar;
+            _refreshedAvatarUrl = candidateAvatar;
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Catalog discovery failures are reported via OperationResult.")]
@@ -925,6 +960,11 @@ public class GenericCatalogDiscoverer(
             if (parsed?.Success == true && parsed.Data != null)
             {
                 RememberResolvedCatalogUrl(candidateUrl);
+                if (parsed.Data.Publisher != null)
+                {
+                    RememberResolvedPublisherInfo(parsed.Data.Publisher);
+                }
+
                 return OperationResult<PublisherCatalog>.CreateSuccess(parsed.Data);
             }
 

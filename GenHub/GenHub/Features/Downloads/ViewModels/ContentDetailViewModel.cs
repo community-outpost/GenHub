@@ -534,14 +534,14 @@ public partial class ContentDetailViewModel(
     /// Gets the content name. Prefer the selected variant label or user-selected downloadable item
     /// so the specific mod/patch/addon title stays visible; fall back to search result, then parsed page title.
     /// </summary>
-    public string Name => SelectedVariant?.Name
+    public string Name => (!string.IsNullOrWhiteSpace(searchResult.Name) ? searchResult.Name : null)
+        ?? SelectedVariant?.Name
+        ?? ParsedPage?.Context.Title
         ?? (SelectedDownloadableItem != null &&
             !string.IsNullOrWhiteSpace(SelectedDownloadableItem.Name) &&
             !SelectedDownloadableItem.Name.StartsWith(UnknownValue, StringComparison.OrdinalIgnoreCase)
                 ? SelectedDownloadableItem.Name
                 : null)
-        ?? (!string.IsNullOrWhiteSpace(searchResult.Name) ? searchResult.Name : null)
-        ?? ParsedPage?.Context.Title
         ?? UnknownValue;
 
     /// <summary>
@@ -4174,8 +4174,9 @@ public partial class ContentDetailViewModel(
             ?? searchResult.IconUrl
             ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{rel.Version}-thumb", 256, 256);
 
+        var contentItemName = !string.IsNullOrWhiteSpace(catalogItem.Name) ? catalogItem.Name : searchResult.Name;
         var file = new DownloadableFile(
-            Name: filename,
+            Name: !string.IsNullOrWhiteSpace(contentItemName) ? contentItemName : filename,
             DownloadUrl: downloadUrl,
             SizeBytes: fileSize > 0 ? fileSize : null,
             UploadDate: rel.ReleaseDate,
@@ -4654,14 +4655,19 @@ public partial class ContentDetailViewModel(
         RefreshSelectedTargetProperties();
     }
 
-    private ReleaseItemViewModel? FindCandidateUpdate(ReleaseItemViewModel rel)
+    private ReleaseItemViewModel? FindCandidateUpdate(ReleaseItemViewModel rel, bool includeDownloaded = false)
     {
         var relIndex = Releases.IndexOf(rel);
         var relVersion = GetEffectiveVersion(rel);
 
         return Releases.FirstOrDefault(other =>
         {
-            if (other.IsDownloaded || ReferenceEquals(other, rel) || !IsSameReleaseLineage(rel, other))
+            if (ReferenceEquals(other, rel) || !IsSameReleaseLineage(rel, other))
+            {
+                return false;
+            }
+
+            if (!includeDownloaded && other.IsDownloaded)
             {
                 return false;
             }
@@ -4772,20 +4778,34 @@ public partial class ContentDetailViewModel(
 
         if (SelectedDownloadableItem is ReleaseItemViewModel rel && rel.IsUpdateAvailable)
         {
-            var newerRelease = FindCandidateUpdate(rel);
+            var newerRelease = FindCandidateUpdate(rel, includeDownloaded: false)
+                ?? FindCandidateUpdate(rel, includeDownloaded: true);
 
-            if (newerRelease?.File != null)
+            if (newerRelease != null)
             {
-                var success = await DownloadReleaseAsync(newerRelease, newerRelease.File, cancellationToken);
-                if (_disposed || !success)
+                if (newerRelease.IsDownloaded)
                 {
+                    SelectDownloadableItem(newerRelease, isUserInitiated: true);
+                    rel.IsUpdateAvailable = false;
+                    IsUpdateAvailable = false;
+                    RefreshSelectedTargetProperties();
+                    DownloadStatusMessage = $"Updated to {newerRelease.Name}";
                     return;
                 }
 
-                rel.IsUpdateAvailable = false;
-                IsUpdateAvailable = false;
-                RefreshSelectedTargetProperties();
-                return;
+                if (newerRelease.File != null)
+                {
+                    var success = await DownloadReleaseAsync(newerRelease, newerRelease.File, cancellationToken);
+                    if (_disposed || !success)
+                    {
+                        return;
+                    }
+
+                    rel.IsUpdateAvailable = false;
+                    IsUpdateAvailable = false;
+                    RefreshSelectedTargetProperties();
+                    return;
+                }
             }
         }
 

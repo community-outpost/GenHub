@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Common;
 using System;
 using System.Collections.ObjectModel;
@@ -33,6 +34,15 @@ public partial class UploadCatalogNodeViewModel : ObservableObject
 
     [ObservableProperty]
     private DateTime? _lastUpdated;
+
+    [ObservableProperty]
+    private bool _isExpanded = true;
+
+    /// <summary>
+    /// Toggles the collapsed / expanded display of this catalog.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleExpanded() => IsExpanded = !IsExpanded;
 
     /// <summary>
     /// Gets or sets the optional localization service used to resolve count text.

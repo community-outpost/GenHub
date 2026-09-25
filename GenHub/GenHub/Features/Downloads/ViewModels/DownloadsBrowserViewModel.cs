@@ -2672,8 +2672,9 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
-        var refreshedUrl = genericCatalogDiscoverer.TakeRefreshedCatalogUrl();
-        if (string.IsNullOrWhiteSpace(refreshedUrl))
+        var refreshedCatalogUrl = genericCatalogDiscoverer.TakeRefreshedCatalogUrl();
+        var refreshedAvatarUrl = genericCatalogDiscoverer.TakeRefreshedAvatarUrl();
+        if (string.IsNullOrWhiteSpace(refreshedCatalogUrl) && string.IsNullOrWhiteSpace(refreshedAvatarUrl))
         {
             return;
         }
@@ -2686,23 +2687,51 @@ public sealed partial class DownloadsBrowserViewModel(
                 return;
             }
 
-            if (string.Equals(storedResult.Data.CatalogUrl, refreshedUrl, StringComparison.OrdinalIgnoreCase))
+            bool changed = false;
+            if (!string.IsNullOrWhiteSpace(refreshedCatalogUrl) &&
+                !string.Equals(storedResult.Data.CatalogUrl, refreshedCatalogUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                storedResult.Data.CatalogUrl = refreshedCatalogUrl;
+                storedResult.Data.CachedCatalogHash = null;
+                storedResult.Data.LastFetched = null;
+                changed = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(refreshedAvatarUrl) &&
+                !string.Equals(storedResult.Data.AvatarUrl, refreshedAvatarUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                storedResult.Data.AvatarUrl = refreshedAvatarUrl;
+                changed = true;
+            }
+
+            if (!changed)
             {
                 return;
             }
 
-            storedResult.Data.CatalogUrl = refreshedUrl;
-            storedResult.Data.CachedCatalogHash = null;
-            storedResult.Data.LastFetched = null;
             var updateResult = await subscriptionStore.UpdateSubscriptionAsync(storedResult.Data, cancellationToken);
             if (updateResult.Success)
             {
-                logger.LogInformation("Persisted refreshed catalog URL for {PublisherId}", publisherId);
+                logger.LogInformation("Persisted refreshed subscription data for {PublisherId}", publisherId);
+                if (!string.IsNullOrWhiteSpace(refreshedAvatarUrl))
+                {
+                    RunOnUi(() =>
+                    {
+                        var existing = Publishers.FirstOrDefault(p =>
+                            p.PublisherId.Equals(publisherId, StringComparison.OrdinalIgnoreCase));
+                        if (existing != null)
+                        {
+                            existing.LogoSource = refreshedAvatarUrl;
+                        }
+                    });
+                }
+
+                WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(publisherId));
             }
             else
             {
                 logger.LogWarning(
-                    "Failed to persist refreshed catalog URL for {PublisherId}: {Errors}",
+                    "Failed to persist refreshed subscription data for {PublisherId}: {Errors}",
                     publisherId,
                     string.Join("; ", updateResult.Errors));
             }
@@ -2713,7 +2742,7 @@ public sealed partial class DownloadsBrowserViewModel(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            logger.LogDebug(ex, "Failed to persist refreshed catalog URL for {PublisherId}", publisherId);
+            logger.LogDebug(ex, "Failed to persist refreshed subscription data for {PublisherId}", publisherId);
         }
     }
 

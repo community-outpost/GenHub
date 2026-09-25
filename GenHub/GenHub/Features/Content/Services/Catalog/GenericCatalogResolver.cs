@@ -181,14 +181,13 @@ public partial class GenericCatalogResolver(
         CatalogContentItem contentItem,
         ReleaseArtifact? primaryArtifact)
     {
-        if (!string.IsNullOrWhiteSpace(searchResult.Name))
-        {
-            return searchResult.Name;
-        }
+        var baseName = !string.IsNullOrWhiteSpace(contentItem.Name)
+            ? contentItem.Name
+            : (!string.IsNullOrWhiteSpace(searchResult.Name) ? searchResult.Name : contentItem.Id);
 
         return !string.IsNullOrWhiteSpace(primaryArtifact?.Variant)
-            ? $"{contentItem.Name} ({primaryArtifact.Variant})"
-            : contentItem.Name;
+            ? $"{baseName} ({primaryArtifact.Variant})"
+            : baseName;
     }
 
     private static GameType ResolveTargetGame(

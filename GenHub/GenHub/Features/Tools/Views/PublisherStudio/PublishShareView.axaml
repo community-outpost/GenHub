@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:material="using:Material.Icons.Avalonia"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels"
              xmlns:interfaces="using:GenHub.Features.Tools.Interfaces"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
@@ -594,15 +595,32 @@
                                             Margin="0,0,0,14">
                                         <StackPanel Spacing="14">
                                             <!-- Catalog Header Row -->
-                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                                <PathIcon Data="{StaticResource ContentIcon}" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                                                <!-- Collapse / Expand Toggle Button -->
+                                                <Button Grid.Column="0"
+                                                        Command="{Binding ToggleExpandedCommand}"
+                                                        Classes="icon-btn"
+                                                        Padding="4"
+                                                        Margin="0,0,8,0"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip.Tip="Expand or collapse catalog">
+                                                    <Panel>
+                                                        <material:MaterialIcon Kind="ChevronDown" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding IsExpanded}"/>
+                                                        <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding !IsExpanded}"/>
+                                                    </Panel>
+                                                </Button>
+
+                                                <PathIcon Grid.Column="1" Data="{StaticResource ContentIcon}" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="Bold" Foreground="White"/>
                                                     <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
 
                                                 <!-- Status Badge -->
-                                                <Border Grid.Column="2"
+                                                <Border Grid.Column="3"
                                                         Classes="status-badge-active"
                                                         IsVisible="{Binding IsUpToDate}"
                                                         Margin="0,0,10,0"
@@ -612,7 +630,7 @@
                                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.Published}" FontSize="11" Foreground="{DynamicResource StatusSuccessBrush}" FontWeight="SemiBold"/>
                                                     </StackPanel>
                                                 </Border>
-                                                <Border Grid.Column="2"
+                                                <Border Grid.Column="3"
                                                         Classes="status-badge-pending"
                                                         IsVisible="{Binding HasPendingChanges}"
                                                         Margin="0,0,10,0"
@@ -622,7 +640,7 @@
                                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Status.ChangesPending}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" FontWeight="Bold"/>
                                                     </StackPanel>
                                                 </Border>
-                                                <Border Grid.Column="2"
+                                                <Border Grid.Column="3"
                                                         Classes="status-badge-pending"
                                                         IsVisible="{Binding !IsPublished}"
                                                         Margin="0,0,10,0"
@@ -634,7 +652,7 @@
                                                 </Border>
 
                                                 <!-- Publish Catalog Button -->
-                                                <Button Grid.Column="3"
+                                                <Button Grid.Column="4"
                                                         Command="{Binding #RootView.((vm:PublishShareViewModel)DataContext).PublishCatalogByIdCommand}"
                                                         CommandParameter="{Binding Id}"
                                                         ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Publish.PublishCatalogTooltip}"
@@ -654,8 +672,10 @@
                                                 </Button>
                                             </Grid>
 
-                                            <!-- Direct Download URL -->
-                                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsPublished}">
+                                            <!-- Collapsible Details Section -->
+                                            <StackPanel Spacing="14" IsVisible="{Binding IsExpanded}">
+                                                <!-- Direct Download URL -->
+                                                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsPublished}">
                                                 <TextBox Text="{Binding DirectDownloadUrl}"
                                                          IsReadOnly="True"
                                                          Classes="readonly"
@@ -783,6 +803,7 @@
                                                     </ItemsControl>
                                                 </StackPanel>
                                             </Border>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>

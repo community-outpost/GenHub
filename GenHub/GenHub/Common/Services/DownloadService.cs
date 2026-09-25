@@ -5,6 +5,7 @@ using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32.SafeHandles;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -12,6 +13,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -620,20 +622,25 @@ public class DownloadService(
         long rangeStart,
         CancellationToken cancellationToken)
     {
+        HttpResponseMessage response;
         if (!configuration.ValidateRedirectsManually)
         {
             using var request = CreateRequest(configuration, configuration.Url, rangeStart);
-            return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        }
+        else
+        {
+            var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
+                httpClient,
+                uri => CreateRequest(configuration, uri, rangeStart),
+                configuration.Url,
+                DownloadDefaults.MaxRedirects,
+                validator,
+                cancellationToken);
+            response = validated.Response;
         }
 
-        var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
-            httpClient,
-            uri => CreateRequest(configuration, uri, rangeStart),
-            configuration.Url,
-            DownloadDefaults.MaxRedirects,
-            validator,
-            cancellationToken);
-        return validated.Response;
+        return await ResolveGoogleDriveConfirmationIfNeededAsync(response, configuration, validator, cancellationToken);
     }
 
     private async Task<DownloadResult> DownloadWithRetryAsync(
@@ -941,5 +948,77 @@ public class DownloadService(
         }
 
         return false;
+    }
+
+    private async Task<HttpResponseMessage> ResolveGoogleDriveConfirmationIfNeededAsync(
+        HttpResponseMessage initialResponse,
+        DownloadConfiguration configuration,
+        IDownloadUrlValidator validator,
+        CancellationToken cancellationToken)
+    {
+        var mediaType = initialResponse.Content.Headers.ContentType?.MediaType;
+        var uri = initialResponse.RequestMessage?.RequestUri?.ToString() ?? configuration.Url?.ToString() ?? string.Empty;
+        var isGoogle = uri.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
+                       uri.Contains("docs.google.com", StringComparison.OrdinalIgnoreCase) ||
+                       uri.Contains("drive.usercontent.google.com", StringComparison.OrdinalIgnoreCase);
+
+        if (!isGoogle || !string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
+        {
+            return initialResponse;
+        }
+
+        var html = await initialResponse.Content.ReadAsStringAsync(cancellationToken);
+        initialResponse.Dispose();
+
+        var confirmMatch = Regex.Match(html, "href=\"(/uc\\?export=download[^\"]+confirm=[^\"]+)\"", RegexOptions.IgnoreCase);
+        string? confirmUrl = null;
+        if (confirmMatch.Success)
+        {
+            confirmUrl = "https://drive.google.com" + confirmMatch.Groups[1].Value.Replace("&amp;", "&");
+        }
+        else
+        {
+            var actionMatch = Regex.Match(html, "action=\"(https://drive\\.usercontent\\.google\\.com/download[^\"]*)\"", RegexOptions.IgnoreCase);
+            if (actionMatch.Success)
+            {
+                var action = actionMatch.Groups[1].Value.Replace("&amp;", "&");
+                var queryParams = new List<string>();
+                var inputMatches = Regex.Matches(html, "<input[^>]+type=\"hidden\"[^>]+name=\"([^\"]+)\"[^>]+value=\"([^\"]*)\"", RegexOptions.IgnoreCase);
+                foreach (Match m in inputMatches)
+                {
+                    queryParams.Add($"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}");
+                }
+
+                confirmUrl = queryParams.Count > 0
+                    ? action + (action.Contains("?") ? "&" : "?") + string.Join("&", queryParams)
+                    : action;
+            }
+        }
+
+        if (confirmUrl != null)
+        {
+            logger.LogInformation("Following Google Drive download confirmation");
+            var confirmedConfig = new DownloadConfiguration
+            {
+                Url = new Uri(confirmUrl),
+                DestinationPath = configuration.DestinationPath,
+                BufferSize = configuration.BufferSize,
+                Timeout = configuration.Timeout,
+                UserAgent = configuration.UserAgent,
+                OverwriteExisting = configuration.OverwriteExisting,
+                ExpectedHash = configuration.ExpectedHash,
+                MaxRetryAttempts = configuration.MaxRetryAttempts,
+                RetryDelay = configuration.RetryDelay,
+                ValidateRedirectsManually = configuration.ValidateRedirectsManually,
+            };
+            return await SendRequestAsync(confirmedConfig, validator, 0, cancellationToken);
+        }
+
+        if (html.Contains("quota", StringComparison.OrdinalIgnoreCase) || html.Contains("too many users", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Google Drive download quota exceeded for this file.");
+        }
+
+        throw new InvalidOperationException("Google Drive returned an HTML page instead of the expected file download.");
     }
 }

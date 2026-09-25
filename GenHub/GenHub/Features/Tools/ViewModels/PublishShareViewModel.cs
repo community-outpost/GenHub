@@ -536,13 +536,44 @@ public partial class PublishShareViewModel(
     /// Gets a value indicating whether the discovered cloud definition banner should be displayed.
     /// Shown when authenticated and a definition was discovered in the cloud.
     /// </summary>
-    public bool ShowDiscoveredDefinitionBanner => IsProviderAuthenticated && HasDiscoveredCloudDefinition;
+    public bool ShowDiscoveredDefinitionBanner =>
+        IsProviderAuthenticated &&
+        HasDiscoveredCloudDefinition &&
+        !IsCurrentProfileMatchingDiscoveredDefinition();
+
+    private bool IsCurrentProfileMatchingDiscoveredDefinition()
+    {
+        if (DiscoveredCloudDefinition == null)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id))
+        {
+            if (!string.IsNullOrEmpty(_currentHostingState?.Definition?.Url) &&
+                string.Equals(DiscoveredCloudDefinition.Url, _currentHostingState.Definition.Url, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(DiscoveredCloudDefinition.Name, project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the "no cloud definition found" banner should be displayed.
     /// Shown when authenticated, not currently scanning, and no definition was discovered.
     /// </summary>
-    public bool ShowNoDefinitionBanner => IsProviderAuthenticated && !HasDiscoveredCloudDefinition && !IsScanningStorage;
+    public bool ShowNoDefinitionBanner =>
+        IsProviderAuthenticated &&
+        !HasDiscoveredCloudDefinition &&
+        !IsScanningStorage &&
+        string.IsNullOrWhiteSpace(_currentHostingState?.Definition?.Url);
 
     /// <summary>
     /// Gets or sets the callback used to persist the project after uploads mutate it.
@@ -1410,7 +1441,7 @@ public partial class PublishShareViewModel(
         {
             AssetKind = HostedAssetKind.Definition,
             CanUpload = !isDefHosted && SelectedHostingProvider != null && SelectedHostingProvider.SupportsCatalogHosting,
-            CanLoadToProject = isDefHosted,
+            CanLoadToProject = false,
             LoadButtonTooltip = GetLocalizedString("Tools.PublisherStudio.Hosting.LoadToProjectTip", "Load this definition and its catalogs into current project"),
             Name = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
             Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryDefinition", "Publisher Definition"),
