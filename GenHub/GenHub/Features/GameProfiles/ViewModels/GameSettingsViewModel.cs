@@ -461,18 +461,6 @@ public partial class GameSettingsViewModel(
     [ObservableProperty]
     private int _goChatFontSize = GameSettingsGeneralsOnlineConstants.DefaultChatFontSize;
 
-    /// <summary>
-    /// Gets the minimum chat font size for GeneralsOnline.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
-    public int MinGoChatFontSize => GameSettingsGeneralsOnlineConstants.MinChatFontSize;
-
-    /// <summary>
-    /// Gets the maximum chat font size for GeneralsOnline.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
-    public int MaxGoChatFontSize => GameSettingsGeneralsOnlineConstants.MaxChatFontSize;
-
     // ===== Custom Camera Settings (Non-GeneralsOnline) =====
     [ObservableProperty]
     private float _cameraHeight = GameSettingsConstants.Camera.DefaultHeight;
@@ -649,6 +637,18 @@ public partial class GameSettingsViewModel(
 
     [ObservableProperty]
     private string? _gameSpyIPAddress;
+
+    /// <summary>
+    /// Gets the minimum chat font size for GeneralsOnline.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
+    public int MinGoChatFontSize => GameSettingsGeneralsOnlineConstants.MinChatFontSize;
+
+    /// <summary>
+    /// Gets the maximum chat font size for GeneralsOnline.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
+    public int MaxGoChatFontSize => GameSettingsGeneralsOnlineConstants.MaxChatFontSize;
 
     /// <summary>
     /// Initializes the ViewModel and loads settings for a specific profile.

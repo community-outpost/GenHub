@@ -148,7 +148,6 @@ public partial class GameProfileLauncherViewModel(
     /// Gets a value indicating whether the storefront purchase banner should be displayed.
     /// Only visible when profiles have been loaded successfully and no playable profiles exist.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property bound to UI elements.")]
     public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && HasNoProfiles;
 
     partial void OnHasLoadedProfilesSuccessfullyChanged(bool value)
@@ -177,6 +176,12 @@ public partial class GameProfileLauncherViewModel(
             return _profiles;
         }
     }
+
+    /// <summary>
+    /// Gets or sets an optional URL opener delegate for testing purposes.
+    /// Internal use only; intended for test hook injection.
+    /// </summary>
+    internal Action<string>? UrlOpener { get; set; }
 
     /// <summary>
     /// Performs asynchronous initialization for the GameProfileLauncherViewModel.
@@ -2297,12 +2302,6 @@ public partial class GameProfileLauncherViewModel(
             notificationService.ShowError(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, ex.Message));
         }
     }
-
-    /// <summary>
-    /// Gets or sets an optional URL opener delegate for testing purposes.
-    /// Internal use only; intended for test hook injection.
-    /// </summary>
-    internal Action<string>? UrlOpener { get; set; }
 
     /// <summary>
     /// Opens the official Steam store page for Command &amp; Conquer Generals and Zero Hour.

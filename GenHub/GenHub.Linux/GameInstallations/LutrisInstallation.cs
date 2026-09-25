@@ -19,9 +19,8 @@ namespace GenHub.Linux.GameInstallations;
 /// <summary>
 /// Lutris installation detector and manager for Linux.
 /// </summary>
-public partial class LutrisInstallation : IGameInstallation
+public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IGameInstallation
 {
-    private readonly ILogger<LutrisInstallation>? _logger;
     private readonly Func<string, string[], (bool Success, string Output)>? _processRunner;
 
     [GeneratedRegex(@"^lutris-([\d\.]*)$")]
@@ -29,15 +28,6 @@ public partial class LutrisInstallation : IGameInstallation
 
     [GeneratedRegex(@"\[[\s\S]*\]")]
     private static partial Regex LutrisGamesRegex();
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LutrisInstallation"/> class.
-    /// </summary>
-    /// <param name="logger">Optional logger instance.</param>
-    public LutrisInstallation(ILogger<LutrisInstallation>? logger = null)
-    {
-        _logger = logger;
-    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LutrisInstallation"/> class.
@@ -61,8 +51,8 @@ public partial class LutrisInstallation : IGameInstallation
     internal LutrisInstallation(
         Func<string, string[], (bool Success, string Output)> processRunner,
         ILogger<LutrisInstallation>? logger = null)
+        : this(logger)
     {
-        _logger = logger;
         _processRunner = processRunner;
     }
 
@@ -108,7 +98,7 @@ public partial class LutrisInstallation : IGameInstallation
     /// <inheritdoc/>
     public void Fetch()
     {
-        _logger?.LogInformation("Starting Lutris installation detection on Linux");
+        logger?.LogInformation("Starting Lutris installation detection on Linux");
 
         IsLutrisInstalled = false;
         InstallationPath = string.Empty;
@@ -161,7 +151,7 @@ public partial class LutrisInstallation : IGameInstallation
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error occurred during Lutris installation detection on Linux");
+            logger?.LogError(ex, "Error occurred during Lutris installation detection on Linux");
             IsLutrisInstalled = false;
         }
     }
@@ -272,7 +262,7 @@ public partial class LutrisInstallation : IGameInstallation
             }
             catch (Exception ex)
             {
-                _logger?.LogDebug(ex, "Failed to terminate timed-out Lutris process.");
+                logger?.LogDebug(ex, "Failed to terminate timed-out Lutris process.");
             }
 
             try
@@ -288,7 +278,7 @@ public partial class LutrisInstallation : IGameInstallation
         }
         catch (Exception ex)
         {
-            _logger?.LogDebug(ex, "Failed to execute Lutris command: {InstallationPath} {Args}", installationPath, string.Join(" ", args));
+            logger?.LogDebug(ex, "Failed to execute Lutris command: {InstallationPath} {Args}", installationPath, string.Join(" ", args));
             return false;
         }
     }
