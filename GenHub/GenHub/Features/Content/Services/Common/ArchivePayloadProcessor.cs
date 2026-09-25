@@ -2715,13 +2715,18 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         disambiguatedFolder);
                     targetFolder = disambiguatedFolder;
                 }
+
+                OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogWarning(ex, "Failed to organize or deduplicate loose map {MapFile}", mapFile);
             }
+        }
 
-            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
+        if (Directory.GetFiles(extractedDirectory, "*.map", SearchOption.TopDirectoryOnly).Length > 0)
+        {
+            return;
         }
 
         try
@@ -2806,10 +2811,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             return false;
         }
 
-        var pathComparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        if (string.Equals(file1.FullName, file2.FullName, pathComparison))
+        if (string.Equals(file1.FullName, file2.FullName, PathComparison))
         {
             return true;
         }
