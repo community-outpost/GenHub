@@ -113,7 +113,7 @@ public static class DownloadDefaults
     /// </summary>
     public static readonly IReadOnlySet<string> BinaryTargetExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz", ".txz", ".big", ".gib", ".ctr", ".exe", ".dat",
+        ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz", ".big", ".gib", ".ctr", ".exe", ".dat",
     };
 
     /// <summary>
