@@ -29,6 +29,7 @@ public class PublisherStudioDialogService(
     INotificationService? notificationService = null) : IPublisherStudioDialogService
 {
     private const string AllFilesFilterName = "All Files";
+    private readonly ILogger<PublisherStudioDialogService>? _logger = logger;
 
     /// <inheritdoc/>
     public Func<string, (string Name, string Url, long Size)?>? DuplicateAssetLookup { get; set; }
@@ -586,14 +587,6 @@ public class PublisherStudioDialogService(
             return;
         }
 
-        foreach (var path in initialPaths)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                continue;
-            }
-
-            await vm.AddArtifactFromPathAsync(path);
-        }
+        await vm.AddArtifactsFromPathsAsync(initialPaths);
     }
 }

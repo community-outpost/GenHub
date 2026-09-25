@@ -249,7 +249,7 @@ public partial class ContentLibraryViewModel(
 
             newContent.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
             newContent.PublisherAvatarUrl ??= parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
-            activeCatalog.Catalog.Content.Add(newContent);
+            activeCatalog.Catalog?.Content.Add(newContent);
             ContentItems.Add(newContent);
             OnPropertyChanged(nameof(FilteredContent));
             OnPropertyChanged(nameof(CatalogSummaryText));
@@ -439,6 +439,39 @@ public partial class ContentLibraryViewModel(
         }
 
         logger.LogInformation("Added media to {ContentId}", contentId);
+    }
+
+    /// <summary>
+    /// Updates the active catalog icon and propagates it immediately to all content items.
+    /// </summary>
+    /// <param name="iconUrl">The new icon URL or path.</param>
+    public void UpdateActiveCatalogIcon(string? iconUrl)
+    {
+        if (activeCatalog != null)
+        {
+            activeCatalog.IconUrl = iconUrl;
+            if (activeCatalog.Catalog != null)
+            {
+                activeCatalog.Catalog.IconUrl = iconUrl;
+                activeCatalog.Catalog.AvatarUrl = iconUrl;
+            }
+        }
+
+        foreach (var item in ContentItems)
+        {
+            item.CatalogIconUrl = iconUrl;
+        }
+
+        var content = activeCatalog?.Catalog?.Content;
+        if (content != null)
+        {
+            foreach (var item in content)
+            {
+                item.CatalogIconUrl = iconUrl;
+            }
+        }
+
+        OnPropertyChanged(nameof(CatalogSummaryText));
     }
 
     private static string NormalizeMediaPath(string path)
@@ -1384,48 +1417,18 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
-    /// Updates the active catalog icon and propagates it immediately to all content items.
-    /// </summary>
-    public void UpdateActiveCatalogIcon(string? iconUrl)
-    {
-        if (activeCatalog != null)
-        {
-            activeCatalog.IconUrl = iconUrl;
-            if (activeCatalog.Catalog != null)
-            {
-                activeCatalog.Catalog.IconUrl = iconUrl;
-                activeCatalog.Catalog.AvatarUrl = iconUrl;
-            }
-        }
-
-        foreach (var item in ContentItems)
-        {
-            item.CatalogIconUrl = iconUrl;
-        }
-
-        if (activeCatalog?.Catalog?.Content != null)
-        {
-            foreach (var item in activeCatalog.Catalog.Content)
-            {
-                item.CatalogIconUrl = iconUrl;
-            }
-        }
-
-        OnPropertyChanged(nameof(CatalogSummaryText));
-    }
-
-    /// <summary>
     /// Loads content items from the active catalog.
     /// </summary>
     private void LoadContent()
     {
         ContentItems.Clear();
-        if (activeCatalog?.Catalog?.Content != null)
+        var content = activeCatalog?.Catalog?.Content;
+        if (content != null)
         {
-            var catalogIcon = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
+            var catalogIcon = activeCatalog?.IconUrl ?? activeCatalog?.Catalog?.IconUrl;
             var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
 
-            foreach (var item in activeCatalog.Catalog.Content)
+            foreach (var item in content)
             {
                 item.CatalogIconUrl = catalogIcon;
                 item.PublisherAvatarUrl = publisherAvatar;

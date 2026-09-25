@@ -53,29 +53,10 @@ public static class ClipboardInputHelper
         {
             // 1. Check plain text first for URLs, local paths, or base64 data URIs
             var text = await clipboard.GetTextAsync();
-            if (!string.IsNullOrWhiteSpace(text))
+            var textResult = TryExtractFromText(text);
+            if (textResult != null)
             {
-                var trimmed = text.Trim().Trim('\"', '\'');
-
-                if (trimmed.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
-                {
-                    var savedDataUri = TrySaveDataUriImage(trimmed);
-                    if (savedDataUri != null)
-                    {
-                        return savedDataUri;
-                    }
-                }
-
-                if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
-                    (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-                {
-                    return trimmed;
-                }
-
-                if (File.Exists(trimmed) || Directory.Exists(trimmed))
-                {
-                    return trimmed;
-                }
+                return textResult;
             }
 
             // 2. Check files in clipboard
@@ -131,39 +112,7 @@ public static class ClipboardInputHelper
                     continue;
                 }
 
-                switch (data)
-                {
-                    case IEnumerable<IStorageItem> storageItems:
-                        foreach (var item in storageItems)
-                        {
-                            var localPath = item.Path.LocalPath;
-                            if (!string.IsNullOrWhiteSpace(localPath) && (File.Exists(localPath) || Directory.Exists(localPath)))
-                            {
-                                results.Add(localPath);
-                            }
-                        }
-                        break;
-
-                    case IEnumerable<string> paths:
-                        foreach (var path in paths)
-                        {
-                            var trimmed = path?.Trim().Trim('\"', '\'');
-                            if (!string.IsNullOrWhiteSpace(trimmed) && (File.Exists(trimmed) || Directory.Exists(trimmed)))
-                            {
-                                results.Add(trimmed);
-                            }
-                        }
-                        break;
-
-                    case string singlePath:
-                        var cleanSingle = singlePath.Trim().Trim('\"', '\'');
-                        if (File.Exists(cleanSingle) || Directory.Exists(cleanSingle))
-                        {
-                            results.Add(cleanSingle);
-                        }
-                        break;
-                }
-
+                CollectPathsFromObject(data, results);
                 if (results.Count > 0)
                 {
                     return results;
@@ -178,7 +127,118 @@ public static class ClipboardInputHelper
         return results;
     }
 
-    private static async Task<string?> TryExtractImageBytesFromClipboardAsync(IClipboard clipboard)
+    /// <summary>
+    /// Extracts all file paths, pasted image paths, or URLs present in the clipboard.
+    /// </summary>
+    /// <param name="clipboard">The system clipboard.</param>
+    /// <param name="destinationDirectory">Optional destination directory for extracted images.</param>
+    /// <returns>List of local file paths or URLs.</returns>
+    public static async Task<IReadOnlyList<string>> ExtractClipboardPathsAsync(
+        IClipboard? clipboard,
+        string? destinationDirectory = null)
+    {
+        if (clipboard == null)
+        {
+            return [];
+        }
+
+        var files = await ExtractFilesFromClipboardAsync(clipboard);
+        if (files.Count > 0)
+        {
+            return files;
+        }
+
+        var single = await ExtractPastedFileOrImageAsync(clipboard);
+        if (!string.IsNullOrWhiteSpace(single))
+        {
+            return [single];
+        }
+
+        return [];
+    }
+
+    private static string? TryExtractFromText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var trimmed = text.Trim().Trim('"', '\'');
+
+        if (trimmed.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return TrySaveDataUriImage(trimmed);
+        }
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            return trimmed;
+        }
+
+        if (File.Exists(trimmed) || Directory.Exists(trimmed))
+        {
+            return trimmed;
+        }
+
+        return null;
+    }
+
+    private static void CollectPathsFromObject(object data, List<string> results)
+    {
+        switch (data)
+        {
+            case IEnumerable<IStorageItem> storageItems:
+                ExtractStorageItemPaths(storageItems, results);
+                break;
+
+            case IEnumerable<string> paths:
+                ExtractStringPaths(paths, results);
+                break;
+
+            case string singlePath:
+                ExtractSinglePath(singlePath, results);
+                break;
+        }
+    }
+
+    private static void ExtractStorageItemPaths(IEnumerable<IStorageItem> storageItems, List<string> results)
+    {
+        foreach (var item in storageItems)
+        {
+            var localPath = item.Path.LocalPath;
+            if (!string.IsNullOrWhiteSpace(localPath) && (File.Exists(localPath) || Directory.Exists(localPath)))
+            {
+                results.Add(localPath);
+            }
+        }
+    }
+
+    private static void ExtractStringPaths(IEnumerable<string> paths, List<string> results)
+    {
+        foreach (var path in paths)
+        {
+            var trimmed = path?.Trim().Trim('"', '\'');
+            if (!string.IsNullOrWhiteSpace(trimmed) && (File.Exists(trimmed) || Directory.Exists(trimmed)))
+            {
+                results.Add(trimmed);
+            }
+        }
+    }
+
+    private static void ExtractSinglePath(string singlePath, List<string> results)
+    {
+        var cleanSingle = singlePath.Trim().Trim('"', '\'');
+        if (File.Exists(cleanSingle) || Directory.Exists(cleanSingle))
+        {
+            results.Add(cleanSingle);
+        }
+    }
+
+    private static async Task<string?> TryExtractImageBytesFromClipboardAsync(
+        IClipboard clipboard,
+        string? destinationDirectory = null)
     {
         var formats = (await clipboard.GetFormatsAsync()) ?? [];
 
@@ -196,41 +256,87 @@ public static class ClipboardInputHelper
                 continue;
             }
 
-            if (data is byte[] bytes && bytes.Length > 0)
+            var path = await TrySaveImageDataAsync(format, data, destinationDirectory);
+            if (!string.IsNullOrWhiteSpace(path))
             {
-                if (string.Equals(format, "DeviceIndependentBitmap", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(format, "CF_DIB", StringComparison.OrdinalIgnoreCase))
-                {
-                    return SaveDibBytesAsBmp(bytes);
-                }
-
-                var ext = format.Contains("jpeg", StringComparison.OrdinalIgnoreCase) || format.Contains("jpg", StringComparison.OrdinalIgnoreCase) ? ".jpg"
-                        : format.Contains("webp", StringComparison.OrdinalIgnoreCase) ? ".webp"
-                        : ".png";
-
-                var tempPath = Path.Combine(Path.GetTempPath(), $"pasted_img_{Guid.NewGuid():N}{ext}");
-                await File.WriteAllBytesAsync(tempPath, bytes);
-                return tempPath;
-            }
-
-            if (data is Stream stream && stream.Length > 0)
-            {
-                using var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
-                var streamBytes = ms.ToArray();
-                if (streamBytes.Length > 0)
-                {
-                    var tempPath = Path.Combine(Path.GetTempPath(), $"pasted_img_{Guid.NewGuid():N}.png");
-                    await File.WriteAllBytesAsync(tempPath, streamBytes);
-                    return tempPath;
-                }
+                return path;
             }
         }
 
         return null;
     }
 
-    private static string? SaveDibBytesAsBmp(byte[] dibBytes)
+    private static async Task<string?> TrySaveImageDataAsync(
+        string format,
+        object data,
+        string? destinationDirectory)
+    {
+        if (data is byte[] bytes && bytes.Length > 0)
+        {
+            return await SaveRawImageBytesAsync(format, bytes, destinationDirectory);
+        }
+
+        if (data is Stream stream && stream.Length > 0)
+        {
+            return await SaveImageStreamAsync(stream, destinationDirectory);
+        }
+
+        return null;
+    }
+
+    private static async Task<string?> SaveRawImageBytesAsync(
+        string format,
+        byte[] bytes,
+        string? destinationDirectory)
+    {
+        if (string.Equals(format, "DeviceIndependentBitmap", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(format, "CF_DIB", StringComparison.OrdinalIgnoreCase))
+        {
+            return SaveDibBytesAsBmp(bytes, destinationDirectory);
+        }
+
+        var ext = GetImageExtension(format);
+        var dir = destinationDirectory ?? Path.GetTempPath();
+        Directory.CreateDirectory(dir);
+        var targetPath = Path.Combine(dir, $"pasted_img_{Guid.NewGuid():N}{ext}");
+        await File.WriteAllBytesAsync(targetPath, bytes);
+        return targetPath;
+    }
+
+    private static async Task<string?> SaveImageStreamAsync(Stream stream, string? destinationDirectory)
+    {
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var streamBytes = ms.ToArray();
+        if (streamBytes.Length > 0)
+        {
+            var dir = destinationDirectory ?? Path.GetTempPath();
+            Directory.CreateDirectory(dir);
+            var targetPath = Path.Combine(dir, $"pasted_img_{Guid.NewGuid():N}.png");
+            await File.WriteAllBytesAsync(targetPath, streamBytes);
+            return targetPath;
+        }
+
+        return null;
+    }
+
+    private static string GetImageExtension(string format)
+    {
+        if (format.Contains("jpeg", StringComparison.OrdinalIgnoreCase) ||
+            format.Contains("jpg", StringComparison.OrdinalIgnoreCase))
+        {
+            return ".jpg";
+        }
+
+        if (format.Contains("webp", StringComparison.OrdinalIgnoreCase))
+        {
+            return ".webp";
+        }
+
+        return ".png";
+    }
+
+    private static string? SaveDibBytesAsBmp(byte[] dibBytes, string? destinationDirectory = null)
     {
         try
         {
@@ -251,9 +357,10 @@ public static class ClipboardInputHelper
                 var colors = biClrUsed == 0 ? (1u << biBitCount) : biClrUsed;
                 colorTableSize = colors * 4;
             }
-            else if (biCompression == 3 && biSize == 40) // BI_BITFIELDS
+            else if (biCompression == 3 && biSize == 40)
             {
-                colorTableSize = 12; // 3 masks * 4 bytes
+                // BI_BITFIELDS: 3 masks * 4 bytes
+                colorTableSize = 12;
             }
 
             var bfOffBits = 14 + biSize + colorTableSize;
@@ -274,9 +381,11 @@ public static class ClipboardInputHelper
             // Copy DIB bytes following the file header
             Buffer.BlockCopy(dibBytes, 0, bmpFileBytes, 14, dibBytes.Length);
 
-            var tempBmp = Path.Combine(Path.GetTempPath(), $"pasted_img_{Guid.NewGuid():N}.bmp");
-            File.WriteAllBytes(tempBmp, bmpFileBytes);
-            return tempBmp;
+            var dir = destinationDirectory ?? Path.GetTempPath();
+            Directory.CreateDirectory(dir);
+            var targetBmp = Path.Combine(dir, $"pasted_img_{Guid.NewGuid():N}.bmp");
+            File.WriteAllBytes(targetBmp, bmpFileBytes);
+            return targetBmp;
         }
         catch
         {
@@ -284,7 +393,7 @@ public static class ClipboardInputHelper
         }
     }
 
-    private static string? TrySaveDataUriImage(string dataUri)
+    private static string? TrySaveDataUriImage(string dataUri, string? destinationDirectory = null)
     {
         try
         {
@@ -312,9 +421,11 @@ public static class ClipboardInputHelper
             }
 
             var bytes = Convert.FromBase64String(base64Data);
-            var tempPath = Path.Combine(Path.GetTempPath(), $"pasted_img_{Guid.NewGuid():N}{ext}");
-            File.WriteAllBytes(tempPath, bytes);
-            return tempPath;
+            var dir = destinationDirectory ?? Path.GetTempPath();
+            Directory.CreateDirectory(dir);
+            var targetPath = Path.Combine(dir, $"pasted_img_{Guid.NewGuid():N}{ext}");
+            File.WriteAllBytes(targetPath, bytes);
+            return targetPath;
         }
         catch
         {

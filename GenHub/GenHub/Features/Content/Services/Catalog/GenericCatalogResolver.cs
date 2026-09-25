@@ -157,7 +157,7 @@ public partial class GenericCatalogResolver(
                     discoveredItem.Id,
                     resolvedTargetGame),
                 artifactHashes,
-                release?.EntryPoint);
+                release.EntryPoint);
 
             logger.LogInformation(
                 "Successfully resolved manifest for '{ContentName}' with {FileCount} files",

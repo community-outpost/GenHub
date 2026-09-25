@@ -296,7 +296,8 @@ public class PublisherStudioService(
 
         try
         {
-            if (project.Catalog.Publisher == null)
+            var projectCatalog = project.Catalog;
+            if (projectCatalog?.Publisher is not { } publisher)
             {
                 return Task.FromResult(OperationResult<string>.CreateFailure("Publisher profile is missing"));
             }
@@ -310,9 +311,8 @@ public class PublisherStudioService(
                 {
                     var effectiveCatalogIcon = !string.IsNullOrWhiteSpace(catalog.IconUrl)
                         ? catalog.IconUrl
-                        : (!string.IsNullOrWhiteSpace(catalog.Catalog?.IconUrl)
-                            ? catalog.Catalog.IconUrl
-                            : project.Catalog?.Publisher?.AvatarUrl);
+                        : (!string.IsNullOrWhiteSpace(catalog.Catalog?.IconUrl) ? catalog.Catalog.IconUrl : null);
+                    effectiveCatalogIcon ??= publisher.AvatarUrl;
 
                     catalogEntries.Add(new CatalogEntry
                     {
@@ -336,17 +336,17 @@ public class PublisherStudioService(
                 SchemaVersion = CatalogConstants.DefinitionSchemaVersion,
                 Publisher = new PublisherProfile
                 {
-                    Id = project.Catalog.Publisher.Id,
-                    Name = project.Catalog.Publisher.Name,
-                    Description = project.Catalog.Publisher.Description,
-                    WebsiteUrl = project.Catalog.Publisher.WebsiteUrl,
-                    AvatarUrl = project.Catalog.Publisher.AvatarUrl,
-                    SupportUrl = project.Catalog.Publisher.SupportUrl,
-                    ContactEmail = project.Catalog.Publisher.ContactEmail,
+                    Id = publisher.Id,
+                    Name = publisher.Name,
+                    Description = publisher.Description,
+                    WebsiteUrl = publisher.WebsiteUrl,
+                    AvatarUrl = publisher.AvatarUrl,
+                    SupportUrl = publisher.SupportUrl,
+                    ContactEmail = publisher.ContactEmail,
                 },
                 Catalogs = catalogEntries,
                 DefinitionUrl = definitionUrl,
-                Referrals = new List<PublisherReferral>(project.Catalog.Referrals),
+                Referrals = new List<PublisherReferral>(projectCatalog.Referrals),
                 Tags = new List<string>(project.Tags),
                 LastUpdated = DateTime.UtcNow,
             };

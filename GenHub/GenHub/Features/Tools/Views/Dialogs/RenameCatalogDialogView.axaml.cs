@@ -15,7 +15,7 @@ namespace GenHub.Features.Tools.Views.Dialogs;
 public partial class RenameCatalogDialogView : UserControl
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref=\"RenameCatalogDialogView\"/> class.
+    /// Initializes a new instance of the <see cref="RenameCatalogDialogView"/> class.
     /// </summary>
     public RenameCatalogDialogView()
     {
