@@ -451,19 +451,6 @@ public class UserSettingsService : IUserSettingsService
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            var defPath = GetDefaultSettingsFilePath();
-            if (string.IsNullOrWhiteSpace(_target.Path))
-            {
-                _target = SettingsFileTarget.Verified(defPath);
-            }
-
-            return;
-        }
-
-        var defaultPath = GetDefaultSettingsFilePath();
-        if (PathHelper.AreSamePath(path, defaultPath))
-        {
-            _target = SettingsFileTarget.Verified(path);
             return;
         }
 
