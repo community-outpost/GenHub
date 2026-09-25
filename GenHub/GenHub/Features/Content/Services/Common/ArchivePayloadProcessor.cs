@@ -2588,7 +2588,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         cancellationToken.ThrowIfCancellationRequested();
 
         // 0. Unwrap any top-level "Maps" subdirectory (e.g., when root README prevents StripSingleWrapperDirectories)
-        var mapsWrapper = Directory.GetDirectories(extractedDirectory, GameSettingsConstants.FolderNames.Maps, SearchOption.TopDirectoryOnly).FirstOrDefault();
+        var mapsWrapper = Directory.GetDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly)
+            .FirstOrDefault(dir => Path.GetFileName(dir).Equals(
+                GameSettingsConstants.FolderNames.Maps,
+                StringComparison.OrdinalIgnoreCase));
         if (mapsWrapper != null && Directory.Exists(mapsWrapper))
         {
             try

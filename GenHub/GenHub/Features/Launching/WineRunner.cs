@@ -236,6 +236,13 @@ public class WineRunner(
                 return true;
             }
 
+            var remainingLinkInfo = new DirectoryInfo(prefixSubDir);
+            if (remainingLinkInfo.LinkTarget != null || (remainingLinkInfo.Exists && (remainingLinkInfo.Attributes & FileAttributes.ReparsePoint) != 0))
+            {
+                // The stale symlink could not be removed; do not synchronize through the wrong directory
+                return false;
+            }
+
             Directory.CreateDirectory(prefixSubDir);
             SyncDirectoryFiles(nativeSubDir, prefixSubDir);
             return true;
@@ -333,7 +340,14 @@ public class WineRunner(
 
         Directory.CreateDirectory(targetDir);
 
-        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        var enumerationOptions = new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
         {
             var fullFilePath = Path.GetFullPath(file);
             if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
@@ -350,9 +364,16 @@ public class WineRunner(
                 Directory.CreateDirectory(destDir);
             }
 
-            if (!File.Exists(destFile) || File.GetLastWriteTimeUtc(file) > File.GetLastWriteTimeUtc(destFile))
+            try
             {
-                File.Copy(file, destFile, overwrite: true);
+                if (!File.Exists(destFile) || File.GetLastWriteTimeUtc(file) > File.GetLastWriteTimeUtc(destFile))
+                {
+                    File.Copy(file, destFile, overwrite: true);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Ignore transient copy failures for individual locked or inaccessible files
             }
         }
     }

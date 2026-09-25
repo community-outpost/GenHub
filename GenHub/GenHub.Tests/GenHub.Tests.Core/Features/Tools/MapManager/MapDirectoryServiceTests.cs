@@ -130,6 +130,54 @@ public sealed class MapDirectoryServiceTests : IDisposable
         Assert.False(Directory.Exists(oldDir));
     }
 
+    /// <summary>
+    /// Verifies that RenameMapAsync renames companion asset when map file and directory have mixed casing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameMapAsync_WithMixedCaseDirectoryAndMapName_RenamesCompanionAssetAsync()
+    {
+        var mockPathProvider = new Mock<IGamePathProvider>();
+        var fakeBasePath = Path.Combine(_tempDirectory, "TestRenameZHMixedCase");
+        mockPathProvider
+            .Setup(p => p.GetOptionsDirectory(GameType.ZeroHour))
+            .Returns(fakeBasePath);
+
+        var mapsDir = Path.Combine(fakeBasePath, MapManagerConstants.MapsSubdirectoryName);
+        var oldDir = Path.Combine(mapsDir, "OldMap");
+        Directory.CreateDirectory(oldDir);
+
+        var oldMapFile = Path.Combine(oldDir, "oldmap.map");
+        var oldTgaFile = Path.Combine(oldDir, "OldMap.tga");
+        await File.WriteAllTextAsync(oldMapFile, "map content");
+        await File.WriteAllTextAsync(oldTgaFile, "tga content");
+
+        var service = new MapDirectoryService(
+            _mapNameParser,
+            NullLogger<MapDirectoryService>.Instance,
+            pathProvider: mockPathProvider.Object);
+
+        var map = new MapFile
+        {
+            FileName = "oldmap.map",
+            FullPath = oldMapFile,
+            DirectoryName = "OldMap",
+            IsDirectory = true,
+            GameType = GameType.ZeroHour,
+            SizeBytes = 100,
+            LastModified = DateTime.UtcNow,
+        };
+
+        var result = await service.RenameMapAsync(map, "NewMap");
+
+        Assert.True(result);
+        var newDir = Path.Combine(mapsDir, "NewMap");
+        Assert.True(Directory.Exists(newDir));
+        Assert.True(File.Exists(Path.Combine(newDir, "NewMap.map")));
+        Assert.True(File.Exists(Path.Combine(newDir, "NewMap.tga")));
+        Assert.False(Directory.Exists(oldDir));
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

@@ -1034,6 +1034,52 @@ public sealed class WineRunnerTests : IDisposable
         Assert.Equal(nativePath, result.Data.FileName);
     }
 
+    /// <summary>
+    /// Verifies that WineRunner fallback directory synchronization ignores reparse points / directory symlinks
+    /// without entering an infinite loop.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithReparsePointInUserData_SkipsReparsePointDirectoryDuringSync()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-reparse-skip");
+        var runner = CreateRunner([binDirectory], prefixPath);
+
+        var nativeUserData = CreateDirectory("userdata-reparse");
+        var nativeOptionsPath = Path.Combine(nativeUserData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "resolution = 1920 1080");
+
+        var regularDir = Path.Combine(nativeUserData, GameSettingsConstants.FolderNames.Maps, "RegularMap");
+        Directory.CreateDirectory(regularDir);
+        File.WriteAllText(Path.Combine(regularDir, "RegularMap.map"), "map-content");
+
+        // Create a directory symlink that points to its parent if supported in test environment
+        var loopLink = Path.Combine(regularDir, "loop");
+        try
+        {
+            Directory.CreateSymbolicLink(loopLink, regularDir);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // If symlinks cannot be created, skip symlink assertion
+        }
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+    }
+
     private WineRunner CreateRunner(
         string[] extraSearchDirectories,
         string prefixPath,

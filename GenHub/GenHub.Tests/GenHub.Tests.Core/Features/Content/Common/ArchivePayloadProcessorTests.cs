@@ -1389,6 +1389,31 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         // Act & Assert
         ArchivePayloadProcessor.EnsureValidArchivePayload(archivePath);
         Assert.True(ZipValidation.IsValidZipFile(archivePath));
+
+    /// <summary>
+    /// Verifies that NormalizeMapPayloadStructure unwraps a lowercase "maps" directory
+    /// even when a root readme prevents StripSingleWrapperDirectories.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_LowerCaseMapsDirectoryWithReadme_UnwrapsMapsDirectoryAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var readmePath = Path.Combine(_stagingDirectory, "README.txt");
+        await File.WriteAllTextAsync(readmePath, "Readme content");
+
+        var lowerMapsDir = Path.Combine(_stagingDirectory, "maps");
+        var mapSubDir = Path.Combine(lowerMapsDir, "Desert");
+        Directory.CreateDirectory(mapSubDir);
+        var mapFilePath = Path.Combine(mapSubDir, "desert.map");
+        await File.WriteAllTextAsync(mapFilePath, "map-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        Assert.True(File.Exists(readmePath));
+        Assert.False(Directory.Exists(lowerMapsDir));
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Desert", "desert.map")));
     }
 
     /// <inheritdoc/>

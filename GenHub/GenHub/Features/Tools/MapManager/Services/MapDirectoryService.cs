@@ -339,17 +339,17 @@ public sealed class MapDirectoryService(
                         // Ordered: map file base name takes priority over directory name.
                         var candidateBases = new List<string> { Path.GetFileNameWithoutExtension(map.FileName) };
                         if (!string.IsNullOrEmpty(map.DirectoryName) &&
-                            !candidateBases.Contains(map.DirectoryName, StringComparer.OrdinalIgnoreCase))
+                            !candidateBases.Contains(map.DirectoryName, PathHelper.PathComparer))
                         {
                             candidateBases.Add(map.DirectoryName);
                         }
 
-                        var seenTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { newMapFilePath };
+                        var seenTargets = new HashSet<string>(PathHelper.PathComparer) { newMapFilePath };
                         foreach (var baseName in candidateBases)
                         {
                             foreach (var assetPath in Directory.GetFiles(currentDirPath, baseName + ".*"))
                             {
-                                if (!Path.GetFileNameWithoutExtension(assetPath).Equals(baseName, StringComparison.OrdinalIgnoreCase))
+                                if (!Path.GetFileNameWithoutExtension(assetPath).Equals(baseName, PathHelper.PathComparison))
                                 {
                                     continue;
                                 }
