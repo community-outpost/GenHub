@@ -1535,7 +1535,7 @@ public partial class ModBuilderViewModel(
 
         return isItemsFile &&
             (!content.Contains(ModBuilderConstants.MenuTexturesEnglishItemName, StringComparison.OrdinalIgnoreCase) ||
-             !content.Contains("Art/Textures/**/*.tga", StringComparison.OrdinalIgnoreCase));
+             !content.Contains(ModBuilderConstants.ArtTexturesWildcardPattern, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsLeikezeHotkeysConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)

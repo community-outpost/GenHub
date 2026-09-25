@@ -1111,6 +1111,12 @@ public static class WndConstants
         /// <summary>Default America HUD base image name for Zero Hour.</summary>
         public const string DefaultAmericaBaseZeroHour = "InGameUIAmericaBaseZH";
 
+        /// <summary>Standard main menu ruler image name.</summary>
+        public const string MainMenuRulerImageName = "MainMenuRuler";
+
+        /// <summary>Override key name for shell menu backdrop image.</summary>
+        public const string ShellMenuBackdropKey = "ShellMenuBackdrop";
+
         /// <summary>Standard virtual path to ControlBarScheme.ini under Data/INI.</summary>
         public const string DataIniPath = $"{DataDirectory}/{IniDirectory}/{FileName}";
 

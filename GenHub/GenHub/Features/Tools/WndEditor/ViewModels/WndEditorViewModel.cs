@@ -68,6 +68,8 @@ public sealed partial class WndEditorViewModel(
     private readonly Dictionary<Guid, WndWindow> _windowParents = new();
     private readonly object _previewSync = new();
     private readonly object _linkedAssetsSync = new();
+    private int _historyVersion;
+    private int _savedHistoryVersion;
     private WndDocument? _document;
     private double _canvasBaseWidth = WndConstants.Editor.MinCanvasWidth;
     private double _canvasBaseHeight = WndConstants.Editor.MinCanvasHeight;
@@ -374,6 +376,12 @@ public sealed partial class WndEditorViewModel(
     private IReadOnlyList<string> _filteredKnownImageNames = [];
 
     /// <summary>
+    /// Gets or sets the filtered art library items displayed in the Assets tab.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<WndArtItemViewModel> _filteredArtItems = [];
+
+    /// <summary>
     /// Gets or sets the art library truncation hint, or empty when everything fits.
     /// </summary>
     [ObservableProperty]
@@ -485,6 +493,11 @@ public sealed partial class WndEditorViewModel(
     public async Task<bool> LoadFromTextAsync(string content, string? filePath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (!await ConfirmDiscardUnsavedAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return false;
+        }
+
         var result = wndDocumentService.ParseText(content, filePath);
         if (!result.Success || result.Data == null)
         {
@@ -1512,6 +1525,19 @@ public sealed partial class WndEditorViewModel(
             NotificationDurations.Medium);
     }
 
+    /// <summary>
+    /// Applies an art asset item to the currently selected window.
+    /// </summary>
+    /// <param name="item">The art item to apply.</param>
+    [RelayCommand]
+    private void ApplyArtItem(WndArtItemViewModel? item)
+    {
+        if (item != null)
+        {
+            ApplyImageToSelectedWindow(item.Name);
+        }
+    }
+
     private static string? ResolveImportProjectDirectory(
         string? linkedModFolder,
         GameInstallationOption? selection,
@@ -1698,7 +1724,8 @@ public sealed partial class WndEditorViewModel(
         var action = _undoStack.Pop();
         action.Undo();
         _redoStack.Push(action);
-        IsModified = true;
+        _historyVersion--;
+        IsModified = _historyVersion != _savedHistoryVersion;
         RefreshUndoCommands();
     }
 
@@ -1716,7 +1743,8 @@ public sealed partial class WndEditorViewModel(
         var action = _redoStack.Pop();
         action.Redo();
         PushUndoStack(action);
-        IsModified = true;
+        _historyVersion++;
+        IsModified = _historyVersion != _savedHistoryVersion;
         RefreshUndoCommands();
     }
 
@@ -2171,6 +2199,7 @@ public sealed partial class WndEditorViewModel(
             await File.WriteAllTextAsync(tempPath, text, cancellationToken).ConfigureAwait(false);
             File.Move(tempPath, filePath, overwrite: true);
             tempPath = null;
+            _savedHistoryVersion = _historyVersion;
             IsModified = false;
             notificationService.ShowSuccess(
                 localizationService.GetString("Tools.WndEditor.Save.SuccessTitle"),
@@ -2224,6 +2253,8 @@ public sealed partial class WndEditorViewModel(
         FilePath = filePath;
         HasDocument = true;
         IsModified = false;
+        _historyVersion = 0;
+        _savedHistoryVersion = 0;
         _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _undoStack.Clear();
         _redoStack.Clear();
@@ -2270,6 +2301,11 @@ public sealed partial class WndEditorViewModel(
             {
                 _undoStack.Push(item);
             }
+
+            if (_savedHistoryVersion < _historyVersion - MaxUndoHistory)
+            {
+                _savedHistoryVersion = int.MinValue;
+            }
         }
     }
 
@@ -2277,7 +2313,8 @@ public sealed partial class WndEditorViewModel(
     {
         PushUndoStack(action);
         _redoStack.Clear();
-        IsModified = true;
+        _historyVersion++;
+        IsModified = _historyVersion != _savedHistoryVersion;
         RefreshUndoCommands();
     }
 
@@ -2582,6 +2619,11 @@ public sealed partial class WndEditorViewModel(
 
     private void SelectWindow(WndWindow? window)
     {
+        if (window != null && FindNode(window.Id) == null && !string.IsNullOrWhiteSpace(WindowsFilter))
+        {
+            WindowsFilter = string.Empty;
+        }
+
         SelectedNode = window == null ? null : FindNode(window.Id);
         if (SelectedNode != null)
         {
@@ -3396,16 +3438,249 @@ public sealed partial class WndEditorViewModel(
         if (matches.Count == 0)
         {
             FilteredKnownImageNames = [];
+            FilteredArtItems = [];
             LibraryStatusText = KnownImageNames.Count == 0
                 ? string.Empty
                 : localizationService.GetString("Tools.WndEditor.Assets.LibraryEmpty");
             return;
         }
 
-        FilteredKnownImageNames = matches.Take(WndConstants.Editor.MaxLibraryResults).ToList();
-        LibraryStatusText = matches.Count > FilteredKnownImageNames.Count
-            ? localizationService.GetString("Tools.WndEditor.Assets.LibraryTruncated", FilteredKnownImageNames.Count, matches.Count)
+        var selected = matches.Take(WndConstants.Editor.MaxLibraryResults).ToList();
+        FilteredKnownImageNames = selected;
+        LibraryStatusText = matches.Count > selected.Count
+            ? localizationService.GetString("Tools.WndEditor.Assets.LibraryTruncated", selected.Count, matches.Count)
             : string.Empty;
+
+        var tooltipTemplate = localizationService.GetString("Tools.WndEditor.Assets.ClickToAdd");
+        if (string.IsNullOrWhiteSpace(tooltipTemplate))
+        {
+            tooltipTemplate = "Click to add {0}";
+        }
+
+        var items = new List<WndArtItemViewModel>(selected.Count);
+        foreach (var name in selected)
+        {
+            var tooltip = string.Format(System.Globalization.CultureInfo.InvariantCulture, tooltipTemplate, name);
+            _previewBitmaps.TryGetValue(name, out var bmp);
+            items.Add(new WndArtItemViewModel(name, tooltip, bmp));
+        }
+
+        FilteredArtItems = items;
+        QueueArtItemThumbnailsLoad(items);
+    }
+
+    /// <summary>
+    /// Applies dropped texture file(s) to the window at the specified canvas position or the currently selected window.
+    /// Imports the texture if not already present in the mod project.
+    /// </summary>
+    /// <param name="filePaths">The dropped file paths.</param>
+    /// <param name="canvasPosition">Optional canvas coordinate where drop occurred.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when at least one texture was applied.</returns>
+    public async Task<bool> ApplyDroppedFilesAsync(
+        IReadOnlyList<string> filePaths,
+        Point? canvasPosition = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (filePaths == null || filePaths.Count == 0)
+        {
+            return false;
+        }
+
+        var targetWindow = ResolveTargetWindowAt(canvasPosition) ?? SelectedNode?.Window;
+        if (targetWindow == null)
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                NotificationDurations.Medium);
+            return false;
+        }
+
+        var textureExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".tga", ".dds", ".png", ".jpg", ".jpeg", ".bmp"
+        };
+
+        var validPaths = filePaths.Where(p => textureExtensions.Contains(Path.GetExtension(p))).ToList();
+        if (validPaths.Count == 0)
+        {
+            return false;
+        }
+
+        var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
+
+        string? mappedNameToApply = null;
+
+        foreach (var path in validPaths)
+        {
+            var stem = Path.GetFileNameWithoutExtension(path);
+
+            if (!string.IsNullOrEmpty(projectDirectory))
+            {
+                var importResult = await textureImportService.ImportTextureAsync(path, projectDirectory, null, cancellationToken).ConfigureAwait(false);
+                if (importResult.Success && importResult.Data != null)
+                {
+                    mappedNameToApply = importResult.Data.MappedName;
+                    MissingImageNames.Remove(mappedNameToApply);
+                }
+                else if (KnownImageNames.Contains(stem, StringComparer.OrdinalIgnoreCase))
+                {
+                    mappedNameToApply = stem;
+                }
+            }
+            else
+            {
+                mappedNameToApply = stem;
+            }
+
+            if (!string.IsNullOrEmpty(mappedNameToApply))
+            {
+                break;
+            }
+        }
+
+        if (string.IsNullOrEmpty(mappedNameToApply))
+        {
+            return false;
+        }
+
+        await InvokeOnUIThreadAsync(() =>
+        {
+            SelectWindow(targetWindow);
+            ApplyImageToSelectedWindow(mappedNameToApply);
+            assetService.InvalidateCache();
+            RefreshAssetPreviews();
+        }).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Applies a mapped image name dropped onto the canvas.
+    /// </summary>
+    /// <param name="imageName">The mapped image name.</param>
+    /// <param name="canvasPosition">Optional canvas coordinate where drop occurred.</param>
+    public void ApplyDroppedImageName(string imageName, Point? canvasPosition = null)
+    {
+        if (string.IsNullOrWhiteSpace(imageName))
+        {
+            return;
+        }
+
+        var targetWindow = ResolveTargetWindowAt(canvasPosition) ?? SelectedNode?.Window;
+        if (targetWindow == null)
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                NotificationDurations.Medium);
+            return;
+        }
+
+        SelectWindow(targetWindow);
+        ApplyImageToSelectedWindow(imageName.Trim());
+    }
+
+    private WndWindow? ResolveTargetWindowAt(Point? canvasPosition)
+    {
+        if (canvasPosition == null)
+        {
+            return null;
+        }
+
+        var pos = canvasPosition.Value;
+        for (var i = CanvasItems.Count - 1; i >= 0; i--)
+        {
+            var item = CanvasItems[i];
+            if (!item.CanvasVisible)
+            {
+                continue;
+            }
+
+            if (pos.X >= item.X && pos.X <= item.X + item.Width &&
+                pos.Y >= item.Y && pos.Y <= item.Y + item.Height)
+            {
+                return item.Window;
+            }
+        }
+
+        return null;
+    }
+
+    private void QueueArtItemThumbnailsLoad(IReadOnlyList<WndArtItemViewModel> items)
+    {
+        var missingNames = items
+            .Where(item => item.Thumbnail == null)
+            .Select(item => item.Name)
+            .Take(50)
+            .ToList();
+
+        if (missingNames.Count == 0 || SelectedAssetInstallation == null)
+        {
+            return;
+        }
+
+        var roots = ResolveAssetRoots(SelectedAssetInstallation);
+        var detectedProjectDir = ResolveProjectDirectory(FilePath, roots) ?? ResolveProjectDirectory(FilesDirectory, roots);
+        var projectDirectory = CombineProjectDirectories(LinkedModFolder, detectedProjectDir);
+        var linkedBigs = LinkedBigFiles.ToList();
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await assetService.Images.GetImagesAsync(
+                    missingNames,
+                    roots.BaseRoot,
+                    null,
+                    projectDirectory,
+                    linkedBigs,
+                    roots.IsZeroHour,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                if (result.Success && result.Data != null && result.Data.Count > 0)
+                {
+                    var decoded = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var (k, bytes) in result.Data)
+                    {
+                        try
+                        {
+                            using var ms = new MemoryStream(bytes);
+                            decoded[k] = new Bitmap(ms);
+                        }
+                        catch
+                        {
+                            // Skip decode errors on corrupt bytes
+                        }
+                    }
+
+                    if (decoded.Count > 0)
+                    {
+                        await InvokeOnUIThreadAsync(() =>
+                        {
+                            foreach (var (k, bmp) in decoded)
+                            {
+                                _previewBitmaps[k] = bmp;
+                            }
+
+                            foreach (var item in items)
+                            {
+                                if (item.Thumbnail == null && decoded.TryGetValue(item.Name, out var bmp))
+                                {
+                                    item.Thumbnail = bmp;
+                                }
+                            }
+                        }).ConfigureAwait(false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to load art item thumbnails in background");
+            }
+        });
     }
 
     private string FormatMissingNames(IReadOnlyList<string> missing)

@@ -27,6 +27,8 @@ public partial class WndEditorView : UserControl
         InitializeComponent();
         Focusable = true;
         DataContextChanged += OnDataContextChanged;
+        AddHandler(DragDrop.DragOverEvent, OnCanvasDragOver);
+        AddHandler(DragDrop.DropEvent, OnCanvasDrop);
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -223,5 +225,56 @@ public partial class WndEditorView : UserControl
         var deltaX = viewportPoint.X - _panStartPoint.X;
         var deltaY = viewportPoint.Y - _panStartPoint.Y;
         CanvasScrollViewer.Offset = new Vector(_panStartOffset.X - deltaX, _panStartOffset.Y - deltaY);
+    }
+
+    private void OnCanvasDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text))
+        {
+            e.DragEffects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
+    }
+
+    private async void OnCanvasDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not WndEditorViewModel viewModel)
+        {
+            return;
+        }
+
+        var dropPos = CanvasHost != null ? e.GetPosition(CanvasHost) : (Point?)null;
+
+        if (e.Data.Contains(DataFormats.Files))
+        {
+            var files = e.Data.GetFiles();
+            if (files != null)
+            {
+                var paths = files
+                    .Select(f => f.TryGetLocalPath() ?? f.Path?.LocalPath)
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .Select(p => p!)
+                    .ToList();
+
+                if (paths.Count > 0)
+                {
+                    e.Handled = true;
+                    await viewModel.ApplyDroppedFilesAsync(paths, dropPos).ConfigureAwait(false);
+                }
+            }
+        }
+        else if (e.Data.Contains(DataFormats.Text))
+        {
+            var text = e.Data.GetText();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                e.Handled = true;
+                viewModel.ApplyDroppedImageName(text.Trim(), dropPos);
+            }
+        }
     }
 }

@@ -655,28 +655,66 @@
                             Background="{DynamicResource SurfaceElevatedBrush}"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="6" Padding="4" ClipToBounds="True" Margin="0,4,0,0">
-                      <ListBox ItemsSource="{Binding FilteredKnownImageNames}"
-                               Background="Transparent" BorderThickness="0" Padding="0">
+                      <ListBox ItemsSource="{Binding FilteredArtItems}"
+                               Background="Transparent" BorderThickness="0" Padding="0"
+                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <UniformGrid Columns="2"/>
+                          </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.Styles>
+                          <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="1"/>
+                            <Setter Property="Margin" Value="1"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                          </Style>
+                          <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent"/>
+                          </Style>
+                          <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent"/>
+                          </Style>
+                        </ListBox.Styles>
                         <ListBox.ItemTemplate>
-                          <DataTemplate x:DataType="x:String">
-                            <Grid ColumnDefinitions="*,Auto" Margin="0,1">
-                              <TextBlock Grid.Column="0"
-                                         Text="{Binding}"
-                                         FontSize="11" Foreground="{DynamicResource TextPrimary}"
-                                         VerticalAlignment="Center"
-                                         TextTrimming="CharacterEllipsis"
-                                         ToolTip.Tip="{Binding}"/>
-                              <Button Grid.Column="1" x:CompileBindings="False"
-                                      Command="{Binding ElementName=Root, Path=DataContext.ApplyImageToSelectedWindowCommand}"
-                                      CommandParameter="{Binding}"
-                                      IsEnabled="{Binding ElementName=Root, Path=DataContext.SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                      Padding="6,2" Margin="6,0,0,0"
-                                      Background="Transparent"
-                                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                      CornerRadius="6"
-                                      Content="{localization:Localize Tools.WndEditor.Assets.ApplyOne}"
-                                      FontSize="10"/>
-                            </Grid>
+                          <DataTemplate x:DataType="vm:WndArtItemViewModel">
+                            <Button x:CompileBindings="False"
+                                    Command="{Binding ElementName=Root, Path=DataContext.ApplyImageToSelectedWindowCommand}"
+                                    CommandParameter="{Binding Name}"
+                                    IsEnabled="{Binding ElementName=Root, Path=DataContext.SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    Padding="4,3"
+                                    CornerRadius="5"
+                                    Background="{DynamicResource CardBackground}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    Cursor="Hand"
+                                    ToolTip.Tip="{Binding Tooltip}">
+                              <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                                <Border Grid.Column="0" Width="22" Height="22" CornerRadius="4" ClipToBounds="True"
+                                        Background="{DynamicResource SurfaceSubtleBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                        Margin="0,0,5,0" VerticalAlignment="Center">
+                                  <Panel>
+                                    <Image Source="{Binding Thumbnail}"
+                                           Stretch="UniformToFill"
+                                           IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                    <material:MaterialIcon Kind="ImageOutline"
+                                                           Width="12" Height="12"
+                                                           Foreground="{DynamicResource TextMuted}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                           IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                  </Panel>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Name}"
+                                           FontSize="10.5"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"/>
+                              </Grid>
+                            </Button>
                           </DataTemplate>
                         </ListBox.ItemTemplate>
                       </ListBox>
@@ -702,6 +740,7 @@
                 <Panel x:Name="CanvasHost"
                        Background="Transparent"
                        Cursor="{Binding CanvasCursor}"
+                       DragDrop.AllowDrop="True"
                        PointerPressed="OnCanvasHostPointerPressed"
                        PointerMoved="OnCanvasPointerMoved"
                        PointerReleased="OnCanvasPointerReleased"

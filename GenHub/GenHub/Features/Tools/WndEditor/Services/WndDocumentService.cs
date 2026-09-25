@@ -40,6 +40,11 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
 
         public int LineNumber => _index + 1;
 
+        public string PeekRaw()
+        {
+            return _lines[_index];
+        }
+
         public string PeekTrimmed()
         {
             return _lines[_index].Trim();
@@ -675,8 +680,8 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
 
         while (state.HasMore)
         {
-            var line = state.PeekTrimmed();
-            if (IsBlockTag(line))
+            var line = inQuotes ? state.PeekRaw() : state.PeekTrimmed();
+            if (!inQuotes && IsBlockTag(line))
             {
                 state.AddErrorAt(startLine, "Unterminated statement, expected ';'.");
                 return null;

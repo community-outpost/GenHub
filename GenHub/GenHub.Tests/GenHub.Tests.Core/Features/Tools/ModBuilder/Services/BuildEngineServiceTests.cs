@@ -2334,4 +2334,319 @@ public sealed class BuildEngineServiceTests : IDisposable
             Times.Never,
             "archive packing must not be called when converted asset is missing");
     }
+    [Fact]
+    public async Task ExecuteBuildAsync_WithBigPack_WhenManifestEntryCountDiffers_SucceedsWithoutFailingAsync()
+    {
+        // Arrange: Modder added a new file into a project with a publisher manifest.
+        // The archive contains 2 entries, but the publisher reference manifest lists 1.
+        var projectDir = Path.Combine(_tempDirectory, "ManifestEntryMismatch");
+        var editedDir = Path.Combine(projectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(projectDir, ".Build");
+        var releaseDir = Path.Combine(projectDir, ".Release");
+        var configDir = Path.Combine(projectDir, "config");
+        Directory.CreateDirectory(editedDir);
+        Directory.CreateDirectory(configDir);
+
+        var manifestPath = Path.Combine(configDir, "TestPack.big.manifest.json");
+        var manifestJson = """{
+  "bigFileName": "TestPack.big",
+  "sha256": "1111222233334444555566667777888899990000aaaaabbbbbcccccdddddeeeee",
+  "entryOrder": [ "Data\\test.txt" ]
+}""";
+        await File.WriteAllTextAsync(manifestPath, manifestJson);
+
+        var dataFile = Path.Combine(editedDir, "test.txt");
+        await File.WriteAllTextAsync(dataFile, "content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "ManifestEntryMismatch",
+            ProjectDir = projectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "Item1",
+                    IsBig = false,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = projectDir, AbsSourceFile = dataFile, RelTargetFile = "Data/test.txt" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>
+            {
+                new()
+                {
+                    Name = "TestPack",
+                    OutputFile = "TestPack.big",
+                    Big = true,
+                    AllowBuild = true,
+                    ManifestFile = "config/TestPack.big.manifest.json",
+                    ItemNames = new List<string> { "Item1" },
+                },
+            },
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Dummy BIG archive with entryCount = 2 (mismatch with manifest 1)
+        var dummyBigBytes = CreateDummyBigBytes(2);
+        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<double>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, IProgress<double>?, CancellationToken>((_, target, _, _, _) =>
+            {
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                File.WriteAllBytes(target, dummyBigBytes);
+            })
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string> { "TestPack" }, BuildStep.Build | BuildStep.Release);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        result.FilesFailed.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithBigPack_WhenSha256Differs_SucceedsWithoutFailingAsync()
+    {
+        // Arrange: Modder modified existing files, changing SHA256 relative to publisher baseline.
+        var projectDir = Path.Combine(_tempDirectory, "ManifestHashMismatch");
+        var editedDir = Path.Combine(projectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(projectDir, ".Build");
+        var releaseDir = Path.Combine(projectDir, ".Release");
+        var configDir = Path.Combine(projectDir, "config");
+        Directory.CreateDirectory(editedDir);
+        Directory.CreateDirectory(configDir);
+
+        var manifestPath = Path.Combine(configDir, "TestPack.big.manifest.json");
+        var manifestJson = """{
+  "bigFileName": "TestPack.big",
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "entryOrder": [ "Data\\test.txt" ]
+}""";
+        await File.WriteAllTextAsync(manifestPath, manifestJson);
+
+        var dataFile = Path.Combine(editedDir, "test.txt");
+        await File.WriteAllTextAsync(dataFile, "content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "ManifestHashMismatch",
+            ProjectDir = projectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "Item1",
+                    IsBig = false,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = projectDir, AbsSourceFile = dataFile, RelTargetFile = "Data/test.txt" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>
+            {
+                new()
+                {
+                    Name = "TestPack",
+                    OutputFile = "TestPack.big",
+                    Big = true,
+                    AllowBuild = true,
+                    ManifestFile = "config/TestPack.big.manifest.json",
+                    ItemNames = new List<string> { "Item1" },
+                },
+            },
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Dummy BIG archive with entryCount = 1 (matching manifest count, but dummy bytes hash != all zeroes)
+        var dummyBigBytes = CreateDummyBigBytes(1);
+        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<double>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, IProgress<double>?, CancellationToken>((_, target, _, _, _) =>
+            {
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                File.WriteAllBytes(target, dummyBigBytes);
+            })
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string> { "TestPack" }, BuildStep.Build | BuildStep.Release);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        result.FilesFailed.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithBigPack_WhenSha256Matches_SucceedsByteForByteAsync()
+    {
+        // Arrange: Unmodified sample project matching publisher SHA256 exactly.
+        var projectDir = Path.Combine(_tempDirectory, "ManifestExactMatch");
+        var editedDir = Path.Combine(projectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(projectDir, ".Build");
+        var releaseDir = Path.Combine(projectDir, ".Release");
+        var configDir = Path.Combine(projectDir, "config");
+        Directory.CreateDirectory(editedDir);
+        Directory.CreateDirectory(configDir);
+
+        var dummyBigBytes = CreateDummyBigBytes(1);
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        var expectedSha = Convert.ToHexString(sha.ComputeHash(dummyBigBytes)).ToLowerInvariant();
+
+        var manifestPath = Path.Combine(configDir, "TestPack.big.manifest.json");
+        var manifestJson = $"""{{
+  "bigFileName": "TestPack.big",
+  "sha256": "{expectedSha}",
+  "entryOrder": [ "Data\\test.txt" ]
+}}""";
+        await File.WriteAllTextAsync(manifestPath, manifestJson);
+
+        var dataFile = Path.Combine(editedDir, "test.txt");
+        await File.WriteAllTextAsync(dataFile, "content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "ManifestExactMatch",
+            ProjectDir = projectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "Item1",
+                    IsBig = false,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = projectDir, AbsSourceFile = dataFile, RelTargetFile = "Data/test.txt" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>
+            {
+                new()
+                {
+                    Name = "TestPack",
+                    OutputFile = "TestPack.big",
+                    Big = true,
+                    AllowBuild = true,
+                    ManifestFile = "config/TestPack.big.manifest.json",
+                    ItemNames = new List<string> { "Item1" },
+                },
+            },
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<double>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, string?, IProgress<double>?, CancellationToken>((_, target, _, _, _) =>
+            {
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                File.WriteAllBytes(target, dummyBigBytes);
+            })
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string> { "TestPack" }, BuildStep.Build | BuildStep.Release);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        result.FilesFailed.Should().Be(0);
+    }
+
+    private static byte[] CreateDummyBigBytes(uint entryCount)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(new byte[] { (byte)'B', (byte)'I', (byte)'G', (byte)'4' });
+        writer.Write(16u);
+        var countBytes = BitConverter.GetBytes(entryCount);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(countBytes);
+        }
+        writer.Write(countBytes);
+        writer.Write(16u);
+        return ms.ToArray();
+    }
 }

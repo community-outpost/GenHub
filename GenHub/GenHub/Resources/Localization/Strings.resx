@@ -12727,6 +12727,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.WndEditor.Assets.LibraryTruncated" xml:space="preserve">
     <value>Showing {0} of {1} — refine the search.</value>
   </data>
+  <data name="Tools.WndEditor.Assets.ClickToAdd" xml:space="preserve">
+    <value>Click to add {0}</value>
+  </data>
   <data name="Tools.WndEditor.Apply.NoSelectionTitle" xml:space="preserve">
     <value>No window selected</value>
   </data>

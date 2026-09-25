@@ -443,9 +443,9 @@ public static class WndPreviewPlanner
         IReadOnlyDictionary<string, string>? overrides,
         string? underlay)
     {
-        if (string.Equals(single, "MainMenuRuler", StringComparison.OrdinalIgnoreCase)
+        if (string.Equals(single, WndConstants.ControlBarScheme.MainMenuRulerImageName, StringComparison.OrdinalIgnoreCase)
             && overrides != null
-            && overrides.TryGetValue("ShellMenuBackdrop", out var shellBackdrop)
+            && overrides.TryGetValue(WndConstants.ControlBarScheme.ShellMenuBackdropKey, out var shellBackdrop)
             && !string.IsNullOrWhiteSpace(shellBackdrop))
         {
             return shellBackdrop;

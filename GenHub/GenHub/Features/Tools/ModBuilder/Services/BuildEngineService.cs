@@ -1159,12 +1159,14 @@ public sealed class BuildEngineService(
 
             if (manifest.EntryOrder.Count > 0 && TryReadBigEntryCount(packFilePath, out var entryCount) && entryCount != manifest.EntryOrder.Count)
             {
-                var countMismatchMsg = $"Archive {packFileName} contains {entryCount} entries but the manifest lists {manifest.EntryOrder.Count}; entry count mismatch";
-                logger.LogError("{MismatchMessage}", countMismatchMsg);
-                _lastErrorMessage = countMismatchMsg;
-                Interlocked.Increment(ref _filesFailed);
+                logger.LogInformation(
+                    "Archive {PackFileName} contains {EntryCount} entries while reference manifest lists {ManifestCount}; skipping byte-for-byte exact match verification (archive contains project modifications)",
+                    packFileName,
+                    entryCount,
+                    manifest.EntryOrder.Count);
                 return;
             }
+
             progress?.Report(new BuildProgress
             {
                 CurrentStage = BuildStage.Verifying,
@@ -1187,10 +1189,11 @@ public sealed class BuildEngineService(
             }
             else
             {
-                var mismatchMsg = $"BIG archive SHA256 mismatch for {Path.GetFileName(packFilePath)}! Expected {manifest.Sha256}, got {builtSha256}";
-                logger.LogWarning("{MismatchMessage}", mismatchMsg);
-                _lastErrorMessage = mismatchMsg;
-                Interlocked.Increment(ref _filesFailed);
+                logger.LogInformation(
+                    "BIG archive {PackFileName} SHA256 differs from reference manifest (expected for modified projects). Reference: {Expected}, Built: {Actual}",
+                    packFileName,
+                    manifest.Sha256,
+                    builtSha256);
             }
         }
         catch (OperationCanceledException)
@@ -1199,10 +1202,7 @@ public sealed class BuildEngineService(
         }
         catch (Exception ex)
         {
-            var readErrorMsg = $"Failed to verify hash for built archive {packFilePath}: {ex.Message}";
-            logger.LogError(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
-            _lastErrorMessage = readErrorMsg;
-            Interlocked.Increment(ref _filesFailed);
+            logger.LogWarning(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
         }
     }
 
