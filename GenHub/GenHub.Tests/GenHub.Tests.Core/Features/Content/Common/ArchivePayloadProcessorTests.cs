@@ -1566,6 +1566,29 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.Equal("conflicting-content", await File.ReadAllTextAsync(Path.Combine(disambiguatedFolder, "Desert.map")));
     }
 
+    /// <summary>
+    /// Verifies that loose map files with uppercase extensions like .MAP are properly organized into their own folders.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_UppercaseMapExtension_OrganizesCorrectlyAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapFile = Path.Combine(_stagingDirectory, "Arena.MAP");
+        var tgaFile = Path.Combine(_stagingDirectory, "Arena.TGA");
+        await File.WriteAllTextAsync(mapFile, "map-content");
+        await File.WriteAllTextAsync(tgaFile, "tga-content");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var targetFolder = Path.Combine(_stagingDirectory, "Arena");
+        Assert.False(File.Exists(mapFile));
+        Assert.False(File.Exists(tgaFile));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Arena.MAP")));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Arena.TGA")));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
