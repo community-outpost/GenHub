@@ -1541,6 +1541,31 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Snow", "map.tga")));
     }
 
+    /// <summary>
+    /// Verifies that when a loose map conflicts with a preexisting subdirectory map of the same name but different content,
+    /// both maps are preserved by moving the loose map into a disambiguated directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_ConflictingLooseMapWithExistingSubdir_PreservesBothMapsInDisambiguatedFolderAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var targetFolder = Path.Combine(_stagingDirectory, "Desert");
+        Directory.CreateDirectory(targetFolder);
+        await File.WriteAllTextAsync(Path.Combine(targetFolder, "Desert.map"), "existing-content");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "conflicting-content");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var disambiguatedFolder = Path.Combine(_stagingDirectory, "Desert (1)");
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Desert.map")));
+        Assert.Equal("existing-content", await File.ReadAllTextAsync(Path.Combine(targetFolder, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(disambiguatedFolder, "Desert.map")));
+        Assert.Equal("conflicting-content", await File.ReadAllTextAsync(Path.Combine(disambiguatedFolder, "Desert.map")));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

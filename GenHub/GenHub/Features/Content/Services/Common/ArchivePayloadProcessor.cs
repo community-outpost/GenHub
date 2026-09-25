@@ -2688,13 +2688,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             cancellationToken.ThrowIfCancellationRequested();
             var mapBase = Path.GetFileNameWithoutExtension(mapFile);
             var targetFolder = Path.Combine(extractedDirectory, mapBase);
-            Directory.CreateDirectory(targetFolder);
 
             var targetMapFile = Path.Combine(targetFolder, Path.GetFileName(mapFile));
             try
             {
                 if (!File.Exists(targetMapFile))
                 {
+                    Directory.CreateDirectory(targetFolder);
                     File.Move(mapFile, targetMapFile);
                 }
                 else if (FilesAreEqual(mapFile, targetMapFile))
@@ -2704,8 +2704,16 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 }
                 else
                 {
-                    logger.LogWarning("Conflict between loose map {Source} and existing {Target}; keeping target map and removing duplicate loose copy", mapFile, targetMapFile);
-                    File.Delete(mapFile);
+                    var disambiguatedFolder = GetUniqueMapDirectory(extractedDirectory, mapBase);
+                    Directory.CreateDirectory(disambiguatedFolder);
+                    var disambiguatedTargetFile = Path.Combine(disambiguatedFolder, Path.GetFileName(mapFile));
+                    File.Move(mapFile, disambiguatedTargetFile);
+                    logger.LogWarning(
+                        "Conflict between loose map {Source} and existing {Target}; preserving both maps by moving loose copy to {DisambiguatedFolder}",
+                        mapFile,
+                        targetMapFile,
+                        disambiguatedFolder);
+                    targetFolder = disambiguatedFolder;
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -2798,7 +2806,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             return false;
         }
 
-        if (string.Equals(file1.FullName, file2.FullName, StringComparison.OrdinalIgnoreCase))
+        var pathComparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (string.Equals(file1.FullName, file2.FullName, pathComparison))
         {
             return true;
         }
@@ -2813,8 +2824,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             while (true)
             {
-                var bytesRead1 = s1.Read(buffer1);
-                var bytesRead2 = s2.Read(buffer2);
+                var bytesRead1 = s1.ReadAtLeast(buffer1, buffer1.Length, throwOnEndOfStream: false);
+                var bytesRead2 = s2.ReadAtLeast(buffer2, buffer2.Length, throwOnEndOfStream: false);
 
                 if (bytesRead1 != bytesRead2)
                 {
@@ -2837,6 +2848,20 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             logger.LogWarning(ex, "Failed to compare files {File1} and {File2}", path1, path2);
             return false;
         }
+    }
+
+    private string GetUniqueMapDirectory(string parentDirectory, string mapBase)
+    {
+        var targetFolder = Path.Combine(parentDirectory, mapBase);
+        var counter = 1;
+        while (Directory.Exists(targetFolder))
+        {
+            targetFolder = Path.Combine(parentDirectory, $"{mapBase} ({counter})");
+            counter++;
+        }
+
+        logger.LogDebug("Resolved unique map directory {TargetFolder} for {MapBase}", targetFolder, mapBase);
+        return targetFolder;
     }
 
     private void NormalizeMapPreviews(string extractedDirectory, CancellationToken cancellationToken)
