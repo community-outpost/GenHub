@@ -44,6 +44,26 @@ public static class DownloadDefaults
     public const int MaxDeliveryConcurrency = 8;
 
     /// <summary>
+    /// Default concurrency level for parallel chunk downloading of large files.
+    /// </summary>
+    public const int DefaultParallelChunkConcurrency = 4;
+
+    /// <summary>
+    /// Maximum allowed parallel chunk concurrency.
+    /// </summary>
+    public const int MaxParallelChunkConcurrency = 8;
+
+    /// <summary>
+    /// Threshold file size in bytes (16 MB) above which files may be downloaded using parallel chunks if supported by the origin server.
+    /// </summary>
+    public const long ParallelDownloadThresholdBytes = 16 * 1024 * 1024;
+
+    /// <summary>
+    /// Default chunk size in bytes (8 MB) for parallel chunk downloads.
+    /// </summary>
+    public const int ParallelDownloadChunkSizeBytes = 8 * 1024 * 1024;
+
+    /// <summary>
     /// SocketsHttpHandler connection timeout in seconds.
     /// </summary>
     public const int HttpConnectTimeoutSeconds = 30;

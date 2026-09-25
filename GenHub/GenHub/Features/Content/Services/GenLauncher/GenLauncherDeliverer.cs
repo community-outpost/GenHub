@@ -433,7 +433,7 @@ public class GenLauncherDeliverer(
 
         var fileStopwatch = Stopwatch.StartNew();
 
-        var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, cancellationToken);
+        var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, totalFiles, cancellationToken);
         fileStopwatch.Stop();
 
         if (!downloadResult.Success)
@@ -486,6 +486,7 @@ public class GenLauncherDeliverer(
         string destinationPath,
         Uri downloadUri,
         IProgress<DownloadProgress>? progress,
+        int totalFiles,
         CancellationToken cancellationToken)
     {
         const int maxAttempts = 3;
@@ -507,12 +508,22 @@ public class GenLauncherDeliverer(
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
             }
 
+            var configuredConcurrency = configurationProvider?.GetMaxConcurrentDownloads() ?? DownloadDefaults.MaxConcurrentDownloads;
+            var maxConcurrency = Math.Clamp(
+                configuredConcurrency,
+                DownloadDefaults.MinConcurrentDownloads,
+                DownloadDefaults.MaxDeliveryConcurrency);
+
             var expectedEtag = !string.IsNullOrWhiteSpace(file.ETag) ? file.ETag : file.Hash;
             var downloadConfig = new DownloadConfiguration
             {
                 Url = downloadUri,
                 DestinationPath = destinationPath,
                 EnableResumption = true,
+                EnableParallelDownload = true,
+                ParallelConcurrency = totalFiles <= 1
+                    ? Math.Clamp(maxConcurrency, DownloadDefaults.DefaultParallelChunkConcurrency, DownloadDefaults.MaxParallelChunkConcurrency)
+                    : 2,
             };
 
             if (!string.IsNullOrWhiteSpace(expectedEtag))

@@ -1059,6 +1059,157 @@ public class DownloadServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that when a file meets the parallel download threshold and server supports byte ranges,
+    /// it downloads the file using parallel chunks.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WhenServerSupportsRangesAndFileIsLarge_DownloadsInParallelChunksAsync()
+    {
+        const int totalBytes = 16 * 1024 * 1024;
+        var chunk1Data = new byte[8 * 1024 * 1024];
+        var chunk2Data = new byte[8 * 1024 * 1024];
+        Array.Fill(chunk1Data, (byte)1);
+        Array.Fill(chunk2Data, (byte)2);
+
+        var tempFile = Path.Combine(Path.GetTempPath(), $"parallel_{Guid.NewGuid():N}.bin");
+        var chunkRequestsCount = 0;
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
+            {
+                if (request.Headers.Range == null)
+                {
+                    var initialResponse = new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new ByteArrayContent(Array.Empty<byte>()),
+                    };
+                    initialResponse.Content.Headers.ContentLength = totalBytes;
+                    initialResponse.Headers.AcceptRanges.Add("bytes");
+                    return initialResponse;
+                }
+
+                Interlocked.Increment(ref chunkRequestsCount);
+                var range = request.Headers.Range.Ranges.First();
+                var from = range.From!.Value;
+                var to = range.To!.Value;
+
+                var data = from == 0 ? chunk1Data : chunk2Data;
+                var chunkResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(data),
+                };
+                chunkResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes);
+                return chunkResponse;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/largefile.bin"),
+                DestinationPath = tempFile,
+                EnableParallelDownload = true,
+                ParallelConcurrency = 2,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.Equal(totalBytes, result.BytesDownloaded);
+            Assert.Equal(2, chunkRequestsCount);
+
+            var written = File.ReadAllBytes(tempFile);
+            Assert.Equal(totalBytes, written.Length);
+            Assert.Equal(1, written[0]);
+            Assert.Equal(2, written[^1]);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when parallel chunk download fails, the service falls back gracefully to sequential download.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WhenParallelChunkFails_FallsBackToSequentialDownloadAsync()
+    {
+        const int totalBytes = 16 * 1024 * 1024;
+        var fullData = new byte[totalBytes];
+        Array.Fill(fullData, (byte)7);
+
+        var tempFile = Path.Combine(Path.GetTempPath(), $"fallback_{Guid.NewGuid():N}.bin");
+        var attempts = 0;
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
+            {
+                if (request.Headers.Range != null)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                }
+
+                attempts++;
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(fullData),
+                };
+                response.Content.Headers.ContentLength = totalBytes;
+                if (attempts == 1)
+                {
+                    response.Headers.AcceptRanges.Add("bytes");
+                }
+
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/fallback.bin"),
+                DestinationPath = tempFile,
+                EnableParallelDownload = true,
+                ParallelConcurrency = 2,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.Equal(totalBytes, result.BytesDownloaded);
+            Assert.True(File.Exists(tempFile));
+            Assert.Equal(totalBytes, new FileInfo(tempFile).Length);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
     private sealed class CustomStreamingContent(byte[] data, long? declaredContentLength) : HttpContent
     {
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>

@@ -26,6 +26,9 @@ public sealed class DownloadConfiguration
         DestinationPath = string.Empty;
         OverwriteExisting = true;
         EnableResumption = true;
+        EnableParallelDownload = true;
+        ParallelConcurrency = DownloadDefaults.DefaultParallelChunkConcurrency;
+        ParallelDownloadThresholdBytes = DownloadDefaults.ParallelDownloadThresholdBytes;
         ProgressReportingInterval = TimeSpan.FromMilliseconds(100);
         Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         VerifySslCertificate = true;
@@ -57,6 +60,15 @@ public sealed class DownloadConfiguration
 
     /// <summary>Gets or sets a value indicating whether to enable HTTP range-based download resumption.</summary>
     public bool EnableResumption { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to enable parallel chunk downloading for large files.</summary>
+    public bool EnableParallelDownload { get; set; }
+
+    /// <summary>Gets or sets the concurrency level for parallel chunk downloading.</summary>
+    public int ParallelConcurrency { get; set; }
+
+    /// <summary>Gets or sets the minimum file size threshold in bytes for parallel chunk downloading.</summary>
+    public long ParallelDownloadThresholdBytes { get; set; }
 
     /// <summary>Gets or sets the progress reporting interval.</summary>
     public TimeSpan ProgressReportingInterval { get; set; }

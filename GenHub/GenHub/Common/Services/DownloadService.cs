@@ -101,6 +101,36 @@ public class DownloadService(
         return request;
     }
 
+    private static HttpRequestMessage CreateChunkRequest(
+        DownloadConfiguration configuration,
+        Uri targetUri,
+        long start,
+        long end)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, targetUri);
+        request.Headers.Add("User-Agent", configuration.UserAgent);
+
+        var isRedirectedToDifferentHost = !string.Equals(targetUri.Host, configuration.Url.Host, StringComparison.OrdinalIgnoreCase);
+
+        foreach (var header in configuration.Headers)
+        {
+            if (string.Equals(header.Key, "ETag", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (isRedirectedToDifferentHost && string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            request.Headers.Add(header.Key, header.Value);
+        }
+
+        request.Headers.Range = new RangeHeaderValue(start, end);
+        return request;
+    }
+
     private static bool TryGetETagHeader(DownloadConfiguration configuration, [NotNullWhen(true)] out string? etag)
     {
         etag = configuration.Headers
@@ -190,6 +220,82 @@ public class DownloadService(
         }
     }
 
+    private static void ValidateResponseContentType(HttpResponseMessage response, string destinationPath)
+    {
+        var extension = Path.GetExtension(destinationPath);
+        if (!DownloadDefaults.IsBinaryTargetExtension(extension))
+        {
+            return;
+        }
+
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(mediaType, "application/xhtml+xml", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException(
+                $"Download server returned HTML ({mediaType}) instead of the expected binary content for '{Path.GetFileName(destinationPath)}'. " +
+                "The link may have expired, requires interactive browser authentication, or was blocked.");
+        }
+    }
+
+    private static bool SupportsByteRanges(HttpResponseMessage response)
+    {
+        return response.Headers.AcceptRanges.Any(r => string.Equals(r, "bytes", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool CanUseParallelDownload(DownloadConfiguration configuration, DownloadConnection connection)
+    {
+        return configuration.EnableParallelDownload
+            && !connection.IsResumed
+            && connection.ExistingBytes == 0
+            && configuration.ParallelConcurrency > 1
+            && connection.TotalBytes >= configuration.ParallelDownloadThresholdBytes
+            && SupportsByteRanges(connection.Response);
+    }
+
+    private static (long TotalBytes, long? ExpectedContentBytes) ValidateAndCalculateRangeBytes(
+        ContentRangeHeaderValue contentRange,
+        HttpResponseMessage response,
+        long existingBytes)
+    {
+        var totalBytes = contentRange.Length
+            ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
+
+        long? expectedContentBytes = null;
+        if (contentRange.To.HasValue)
+        {
+            var calculatedExpected = contentRange.To.Value - existingBytes + 1;
+            if (calculatedExpected <= 0 || (contentRange.Length.HasValue && contentRange.To.Value >= contentRange.Length.Value))
+            {
+                throw new InvalidDataException("Resumed response content range is invalid.");
+            }
+
+            if (response.Content.Headers.ContentLength is long contentLength && contentLength != calculatedExpected)
+            {
+                throw new InvalidDataException("Resumed response Content-Length does not match Content-Range.");
+            }
+
+            expectedContentBytes = calculatedExpected;
+        }
+
+        return (totalBytes, expectedContentBytes);
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception)
+        {
+            // Non-fatal cleanup
+        }
+    }
+
     private static async Task<long> StreamContentToFileAsync(
         DownloadConnection connection,
         DownloadConfiguration configuration,
@@ -243,51 +349,125 @@ public class DownloadService(
         return downloadedBytes;
     }
 
-    private static (long TotalBytes, long? ExpectedContentBytes) ValidateAndCalculateRangeBytes(
-        ContentRangeHeaderValue contentRange,
-        HttpResponseMessage response,
-        long existingBytes)
+    private async Task<long> DownloadParallelChunksAsync(
+        DownloadConfiguration configuration,
+        Uri targetUri,
+        long totalBytes,
+        IProgress<DownloadProgress>? progress,
+        Stopwatch stopwatch,
+        CancellationTokenSource cts)
     {
-        var totalBytes = contentRange.Length
-            ?? (existingBytes + (response.Content.Headers.ContentLength ?? 0));
+        var fileName = Path.GetFileName(configuration.DestinationPath);
+        var concurrency = Math.Clamp(configuration.ParallelConcurrency, 2, DownloadDefaults.MaxParallelChunkConcurrency);
+        var chunkSize = DownloadDefaults.ParallelDownloadChunkSizeBytes;
+        var chunkCount = (int)Math.Ceiling((double)totalBytes / chunkSize);
 
-        long? expectedContentBytes = null;
-        if (contentRange.To.HasValue)
+        logger.LogInformation(
+            "Downloading {FileName} ({TotalBytes:N0} bytes) via parallel chunk mode ({Concurrency} connections, {ChunkCount} chunks of {ChunkSize:N0} bytes)",
+            fileName,
+            totalBytes,
+            concurrency,
+            chunkCount,
+            chunkSize);
+
+        using (var fileHandle = File.OpenHandle(
+            configuration.DestinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.ReadWrite,
+            FileOptions.Asynchronous))
         {
-            var calculatedExpected = contentRange.To.Value - existingBytes + 1;
-            if (calculatedExpected <= 0 || (contentRange.Length.HasValue && contentRange.To.Value >= contentRange.Length.Value))
+            RandomAccess.SetLength(fileHandle, totalBytes);
+            await TryWriteETagSidecarAsync(configuration, cts.Token).ConfigureAwait(false);
+
+            var downloadedBytes = 0L;
+            var lastProgressReport = DateTime.UtcNow;
+            var progressLock = new object();
+            var bufferSize = Math.Max(configuration.BufferSize, 131072);
+
+            var parallelOptions = new ParallelOptions
             {
-                throw new InvalidDataException("Resumed response content range is invalid.");
-            }
+                MaxDegreeOfParallelism = concurrency,
+                CancellationToken = cts.Token,
+            };
 
-            if (response.Content.Headers.ContentLength is long contentLength && contentLength != calculatedExpected)
+            await Parallel.ForEachAsync(Enumerable.Range(0, chunkCount), parallelOptions, async (chunkIndex, token) =>
             {
-                throw new InvalidDataException("Resumed response Content-Length does not match Content-Range.");
-            }
+                var start = (long)chunkIndex * chunkSize;
+                var end = Math.Min(start + chunkSize - 1, totalBytes - 1);
+                var expectedChunkBytes = end - start + 1;
 
-            expectedContentBytes = calculatedExpected;
+                using var chunkRequest = CreateChunkRequest(configuration, targetUri, start, end);
+                using var chunkResponse = await httpClient.SendAsync(
+                    chunkRequest,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    token).ConfigureAwait(false);
+
+                if (chunkResponse.StatusCode != HttpStatusCode.PartialContent)
+                {
+                    throw new InvalidOperationException(
+                        $"Server returned status code {chunkResponse.StatusCode} instead of 206 Partial Content for range {start}-{end}.");
+                }
+
+                var chunkRange = chunkResponse.Content.Headers.ContentRange;
+                if (chunkRange is null ||
+                    !string.Equals(chunkRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) ||
+                    chunkRange.From != start ||
+                    chunkRange.To != end)
+                {
+                    throw new InvalidOperationException(
+                        $"Server returned invalid Content-Range ({chunkRange}) for requested range {start}-{end}.");
+                }
+
+                ValidateResponseContentType(chunkResponse, configuration.DestinationPath);
+
+                await using var chunkStream = await chunkResponse.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+                var buffer = new byte[bufferSize];
+                var chunkBytesRead = 0L;
+                int bytesRead;
+
+                while ((bytesRead = await chunkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), token).ConfigureAwait(false)) > 0)
+                {
+                    await RandomAccess.WriteAsync(
+                        fileHandle,
+                        buffer.AsMemory(0, bytesRead),
+                        start + chunkBytesRead,
+                        token).ConfigureAwait(false);
+
+                    chunkBytesRead += bytesRead;
+                    var currentDownloaded = Interlocked.Add(ref downloadedBytes, bytesRead);
+
+                    var now = DateTime.UtcNow;
+                    if (progress != null && (now - lastProgressReport >= configuration.ProgressReportingInterval || currentDownloaded == totalBytes))
+                    {
+                        lock (progressLock)
+                        {
+                            if (now - lastProgressReport >= configuration.ProgressReportingInterval || currentDownloaded == totalBytes)
+                            {
+                                cts.CancelAfter(configuration.Timeout);
+                                ReportDownloadProgress(
+                                    progress,
+                                    currentDownloaded,
+                                    currentDownloaded,
+                                    totalBytes,
+                                    fileName,
+                                    configuration.Url,
+                                    stopwatch.Elapsed);
+                                lastProgressReport = now;
+                            }
+                        }
+                    }
+                }
+
+                if (chunkBytesRead != expectedChunkBytes)
+                {
+                    throw new InvalidDataException(
+                        $"Chunk range {start}-{end} received {chunkBytesRead} bytes, expected {expectedChunkBytes}.");
+                }
+            }).ConfigureAwait(false);
         }
 
-        return (totalBytes, expectedContentBytes);
-    }
-
-    private static void ValidateResponseContentType(HttpResponseMessage response, string destinationPath)
-    {
-        var mediaType = response.Content.Headers.ContentType?.MediaType;
-        if (string.IsNullOrWhiteSpace(mediaType))
-        {
-            return;
-        }
-
-        var isBinaryTarget = DownloadDefaults.IsBinaryTargetExtension(Path.GetExtension(destinationPath));
-
-        if (isBinaryTarget && (mediaType.Equals("text/html", StringComparison.OrdinalIgnoreCase) ||
-                               mediaType.Equals("application/xhtml+xml", StringComparison.OrdinalIgnoreCase)))
-        {
-            throw new InvalidDataException(
-                $"Download server returned HTML ({mediaType}) instead of the expected binary content for '{Path.GetFileName(destinationPath)}'. " +
-                "The link may have expired, requires interactive browser authentication, or was blocked.");
-        }
+        return totalBytes;
     }
 
     private async Task<HttpResponseMessage> SendRequestAsync(
@@ -317,17 +497,11 @@ public class DownloadService(
         IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
-        Exception? lastException = null;
-
-        for (int attempt = 1; attempt <= configuration.MaxRetryAttempts; attempt++)
+        var maxAttempts = Math.Max(1, configuration.MaxRetryAttempts);
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             try
             {
-                if (attempt > 1)
-                {
-                    await Task.Delay(configuration.RetryDelay, cancellationToken);
-                }
-
                 return await PerformDownloadAsync(configuration, progress, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -336,26 +510,23 @@ public class DownloadService(
             }
             catch (InvalidDataException ex)
             {
-                logger.LogError(ex, "Download failed with unrecoverable content error for {Url}", configuration.Url);
-                return DownloadResult.CreateFailure(ex.Message);
+                logger.LogError(ex, "Download for {Url} failed with non-retryable invalid data error: {Message}", configuration.Url, ex.Message);
+                return DownloadResult.CreateFailure(ex.Message, 0, TimeSpan.Zero);
             }
             catch (Exception ex)
             {
-                lastException = ex;
-                if (attempt < configuration.MaxRetryAttempts)
+                if (attempt == maxAttempts)
                 {
-                    logger.LogWarning(ex, "Download attempt {Attempt} failed for {Url}, retrying...", attempt, configuration.Url);
+                    logger.LogError(ex, "Download failed after {Attempts} attempts for {Url}", maxAttempts, configuration.Url);
+                    return DownloadResult.CreateFailure(ex.Message, 0, TimeSpan.Zero);
                 }
+
+                logger.LogWarning(ex, "Download attempt {Attempt} failed for {Url}, retrying...", attempt, configuration.Url);
+                await Task.Delay(configuration.RetryDelay, cancellationToken);
             }
         }
 
-        var errorMessage = $"Download failed after {configuration.MaxRetryAttempts} attempts";
-        if (lastException != null)
-        {
-            errorMessage += $": {lastException.Message}";
-        }
-
-        return DownloadResult.CreateFailure(errorMessage);
+        return DownloadResult.CreateFailure("Download failed.", 0, TimeSpan.Zero);
     }
 
     private async Task<DownloadResult> PerformDownloadAsync(
@@ -391,6 +562,48 @@ public class DownloadService(
         var validator = urlValidator ?? new DownloadUrlValidator();
 
         var connection = await EstablishDownloadConnectionAsync(configuration, validator, existingBytes, cts);
+
+        if (CanUseParallelDownload(configuration, connection))
+        {
+            var resolvedUri = connection.Response.RequestMessage?.RequestUri ?? configuration.Url;
+            connection.Response.Dispose();
+
+            try
+            {
+                var stopwatch = Stopwatch.StartNew();
+                var downloadedBytes = await DownloadParallelChunksAsync(
+                    configuration,
+                    resolvedUri,
+                    connection.TotalBytes,
+                    progress,
+                    stopwatch,
+                    cts);
+                stopwatch.Stop();
+
+                return await FinalizeDownloadAsync(
+                    configuration,
+                    downloadedBytes,
+                    stopwatch.Elapsed,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (InvalidDataException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Parallel chunk download failed for {Url}. Falling back to sequential download.", configuration.Url);
+                TryDeleteFile(configuration.DestinationPath);
+                TryDeleteFile(etagSidecarPath);
+
+                connection = await EstablishDownloadConnectionAsync(configuration, validator, 0, cts);
+            }
+        }
+
         using (connection.Response)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -551,21 +764,6 @@ public class DownloadService(
         }
 
         return false;
-    }
-
-    private void TryDeleteFile(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to delete file {FilePath}", path);
-        }
     }
 
     private bool TryReadSidecarEtag(string sidecarPath, [NotNullWhen(true)] out EntityTagHeaderValue? parsedEtag)
