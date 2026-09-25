@@ -41,9 +41,9 @@ you agree to uphold a welcoming and inclusive environment for all contributors.
 
 ## Development Environment
 
-- **.NET Version**: GenHub targets **.NET 8**. `global.json` pins the SDK to the 8.0.4xx feature
-  band with `rollForward: latestFeature`, so install a **8.0.4xx SDK** (8.0.400 or newer). A later
-  major SDK such as .NET 9 will not satisfy it, and an older 8.0.x band will not either.
+- **.NET Version**: GenHub targets **.NET 8**. `global.json` specifies SDK **8.0.400**
+  with `rollForward: latestMajor`, so install **8.0.400 or newer**. Later major SDKs
+  are accepted; older SDKs do not satisfy this requirement.
 - **IDE**: Visual Studio 2022 is recommended. The Community Edition is free and sufficient.
 - **Dependencies**: Restore NuGet packages before building.
 
