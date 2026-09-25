@@ -205,51 +205,76 @@ public class WineRunner(
     {
         if (Directory.Exists(prefixSubDir))
         {
-            var dirInfo = new DirectoryInfo(prefixSubDir);
-            if (dirInfo.LinkTarget != null)
+            return BridgeExistingDirectory(nativeSubDir, prefixSubDir);
+        }
+
+        return CreateNewBridgeSymlinkOrSync(nativeSubDir, prefixSubDir);
+    }
+
+    private static bool BridgeExistingDirectory(string nativeSubDir, string prefixSubDir)
+    {
+        var dirInfo = new DirectoryInfo(prefixSubDir);
+        if (dirInfo.LinkTarget != null)
+        {
+            var resolvedTarget = Path.GetFullPath(dirInfo.LinkTarget, Path.GetDirectoryName(prefixSubDir) ?? ".");
+            var normalizedTarget = Path.TrimEndingDirectorySeparator(resolvedTarget);
+            var normalizedNative = Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeSubDir));
+
+            if (string.Equals(normalizedTarget, normalizedNative, StringComparison.OrdinalIgnoreCase))
             {
-                var resolvedTarget = Path.GetFullPath(dirInfo.LinkTarget, Path.GetDirectoryName(prefixSubDir) ?? ".");
-                var normalizedTarget = Path.TrimEndingDirectorySeparator(resolvedTarget);
-                var normalizedNative = Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeSubDir));
-
-                if (string.Equals(normalizedTarget, normalizedNative, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-
-                // Stale symlink pointing to the wrong target - remove and recreate
-                try
-                {
-                    Directory.Delete(prefixSubDir, recursive: false);
-                    Directory.CreateSymbolicLink(prefixSubDir, nativeSubDir);
-                    return true;
-                }
-                catch
-                {
-                    return false;
-                }
+                return false;
             }
 
-            // Real directory: if it is empty, we can safely replace it with a symlink
-            try
-            {
-                if (!Directory.EnumerateFileSystemEntries(prefixSubDir).Any())
-                {
-                    Directory.Delete(prefixSubDir, recursive: false);
-                    Directory.CreateSymbolicLink(prefixSubDir, nativeSubDir);
-                    return true;
-                }
-            }
-            catch
-            {
-                // Fall back to mirroring
-            }
+            // Stale symlink pointing to the wrong target - remove and recreate
+            return TryRecreateSymlink(prefixSubDir, nativeSubDir);
+        }
 
-            // If non-empty or symlink creation failed, synchronize files in both directions
-            SyncDirectoryFiles(nativeSubDir, prefixSubDir);
+        // Real directory: if it is empty, we can safely replace it with a symlink
+        if (TryReplaceEmptyDirectoryWithSymlink(prefixSubDir, nativeSubDir))
+        {
             return true;
         }
 
+        // If non-empty or symlink creation failed, synchronize files in both directions
+        SyncDirectoryFiles(nativeSubDir, prefixSubDir);
+        return true;
+    }
+
+    private static bool TryRecreateSymlink(string linkPath, string targetPath)
+    {
+        try
+        {
+            Directory.Delete(linkPath, recursive: false);
+            Directory.CreateSymbolicLink(linkPath, targetPath);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryReplaceEmptyDirectoryWithSymlink(string dirPath, string targetPath)
+    {
+        try
+        {
+            if (!Directory.EnumerateFileSystemEntries(dirPath).Any())
+            {
+                Directory.Delete(dirPath, recursive: false);
+                Directory.CreateSymbolicLink(dirPath, targetPath);
+                return true;
+            }
+        }
+        catch
+        {
+            // Fall back to mirroring
+        }
+
+        return false;
+    }
+
+    private static bool CreateNewBridgeSymlinkOrSync(string nativeSubDir, string prefixSubDir)
+    {
         // Target does not exist yet (or is a broken/dangling symlink): create symlink pointing to native folder
         try
         {

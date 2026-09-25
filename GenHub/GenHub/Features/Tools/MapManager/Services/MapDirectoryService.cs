@@ -32,6 +32,11 @@ public sealed class MapDirectoryService(
     /// <inheritdoc />
     public string GetMapDirectory(GameType version)
     {
+        if (version is not (GameType.Generals or GameType.ZeroHour))
+        {
+            throw new ArgumentException("Unsupported game version", nameof(version));
+        }
+
         if (pathProvider is not null)
         {
             return Path.Combine(pathProvider.GetOptionsDirectory(version), MapSubfolder);

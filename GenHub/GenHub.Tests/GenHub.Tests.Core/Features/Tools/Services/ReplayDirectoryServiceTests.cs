@@ -4868,6 +4868,34 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal(expectedPath, result);
     }
 
+    /// <summary>
+    /// Verifies that GetReplayDirectory throws ArgumentException for unsupported game types.
+    /// </summary>
+    /// <param name="invalidGameType">The invalid game type to test.</param>
+    [Theory]
+    [InlineData(GameType.Unknown)]
+    [InlineData((GameType)999)]
+    public void GetReplayDirectory_WithUnsupportedGameType_ThrowsArgumentException(GameType invalidGameType)
+    {
+        var mockPathProvider = new Mock<IGamePathProvider>();
+        var serviceWithPathProvider = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: mockPathProvider.Object);
+
+        var serviceWithoutPathProvider = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: null);
+
+        Assert.Throws<ArgumentException>(() => serviceWithPathProvider.GetReplayDirectory(invalidGameType));
+        Assert.Throws<ArgumentException>(() => serviceWithoutPathProvider.GetReplayDirectory(invalidGameType));
+    }
+
     private static ReplayFile CreateCrcReplayFile(string fileName, uint exeCrc, uint iniCrc, CrcMappingEntry? matchedClient = null) => new()
     {
         FileName = fileName,

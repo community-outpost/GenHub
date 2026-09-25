@@ -100,6 +100,30 @@ public sealed class MapDirectoryServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that GetMapDirectory throws ArgumentException for unsupported game types.
+    /// </summary>
+    /// <param name="invalidGameType">The invalid game type to test.</param>
+    [Theory]
+    [InlineData(GameType.Unknown)]
+    [InlineData((GameType)999)]
+    public void GetMapDirectory_WithUnsupportedGameType_ThrowsArgumentException(GameType invalidGameType)
+    {
+        var mockPathProvider = new Mock<IGamePathProvider>();
+        var serviceWithPathProvider = new MapDirectoryService(
+            _mapNameParser,
+            NullLogger<MapDirectoryService>.Instance,
+            pathProvider: mockPathProvider.Object);
+
+        var serviceWithoutPathProvider = new MapDirectoryService(
+            _mapNameParser,
+            NullLogger<MapDirectoryService>.Instance,
+            pathProvider: null);
+
+        Assert.Throws<ArgumentException>(() => serviceWithPathProvider.GetMapDirectory(invalidGameType));
+        Assert.Throws<ArgumentException>(() => serviceWithoutPathProvider.GetMapDirectory(invalidGameType));
+    }
+
+    /// <summary>
     /// Verifies that EnsureDirectoryExists creates the map directory if it does not exist.
     /// </summary>
     [Fact]
