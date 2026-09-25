@@ -416,37 +416,49 @@ public sealed class SageVirtualFileSystem
     /// <returns>The file bytes if found; otherwise <c>null</c>.</returns>
     public byte[]? TryReadArchiveFileByName(string fileName, SageFileTier? minTier = null, SageFileTier? maxTier = null)
     {
-        if (string.IsNullOrWhiteSpace(fileName))
+        var match = FindArchiveEntryByName(fileName, minTier, maxTier);
+        if (!match.HasValue)
         {
             return null;
         }
 
-        var searchKey = fileName.ToLowerInvariant();
-        (BigArchiveEntry Entry, SageFileTier Tier)? bestMatch = null;
-
-        foreach (var (key, pair) in _archiveEntries)
+        try
         {
-            if (!IsTierInBand(pair.Tier, minTier, maxTier))
-            {
-                continue;
-            }
-
-            if (MatchesEntryFileName(key, searchKey) && IsBetterArchiveMatch(pair, bestMatch))
-            {
-                bestMatch = pair;
-            }
+            return BigArchiveReader.ReadEntryData(match.Value.Entry);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            _logger?.LogWarning(ex, "Failed to read archive entry for {FileName}", fileName);
         }
 
-        if (bestMatch.HasValue)
+        return null;
+    }
+
+    /// <summary>
+    /// Searches mounted .BIG archives for an entry ending with the specified filename,
+    /// prioritizing higher tiers (Mod > Expansion > BaseGame), and returns the winning
+    /// internal path together with its bytes. Within a tier the earliest-mounted
+    /// archive wins, matching the engine finding texture files by name.
+    /// </summary>
+    /// <param name="fileName">The filename of the asset.</param>
+    /// <param name="minTier">Optional lowest tier to consider.</param>
+    /// <param name="maxTier">Optional highest tier to consider.</param>
+    /// <returns>The internal path and file bytes if found; otherwise <c>null</c>.</returns>
+    public (string Path, byte[] Bytes)? TryReadArchiveFileByNameWithPath(string fileName, SageFileTier? minTier = null, SageFileTier? maxTier = null)
+    {
+        var match = FindArchiveEntryByName(fileName, minTier, maxTier);
+        if (!match.HasValue)
         {
-            try
-            {
-                return BigArchiveReader.ReadEntryData(bestMatch.Value.Entry);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
-            {
-                _logger?.LogWarning(ex, "Failed to read archive entry for {FileName}", fileName);
-            }
+            return null;
+        }
+
+        try
+        {
+            return (match.Value.Entry.Path, BigArchiveReader.ReadEntryData(match.Value.Entry));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            _logger?.LogWarning(ex, "Failed to read archive entry for {FileName}", fileName);
         }
 
         return null;
@@ -542,6 +554,32 @@ public sealed class SageVirtualFileSystem
     {
         return key.EndsWith(searchKey, StringComparison.OrdinalIgnoreCase)
             && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\');
+    }
+
+    private (BigArchiveEntry Entry, SageFileTier Tier)? FindArchiveEntryByName(string fileName, SageFileTier? minTier, SageFileTier? maxTier)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var searchKey = fileName.ToLowerInvariant();
+        (BigArchiveEntry Entry, SageFileTier Tier)? bestMatch = null;
+
+        foreach (var (key, pair) in _archiveEntries)
+        {
+            if (!IsTierInBand(pair.Tier, minTier, maxTier))
+            {
+                continue;
+            }
+
+            if (MatchesEntryFileName(key, searchKey) && IsBetterArchiveMatch(pair, bestMatch))
+            {
+                bestMatch = pair;
+            }
+        }
+
+        return bestMatch;
     }
 
     private bool IsBetterArchiveMatch(

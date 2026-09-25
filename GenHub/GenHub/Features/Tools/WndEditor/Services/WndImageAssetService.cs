@@ -180,14 +180,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var tierBase = (int)tier * 1_000_000;
 
         var normalized = relativePath.Replace('/', '\\');
-        var isTrueHandCreatedDir = normalized.Contains(@"\MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase)
-            || normalized.StartsWith(@"Data\INI\MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase)
-            || normalized.StartsWith(@"MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase);
-
         var isTextureSize = normalized.Contains(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase);
 
         var handCreatedBonus = 0;
-        if (isTrueHandCreatedDir && !isTextureSize)
+        if (IsTrueHandCreatedPath(relativePath))
         {
             handCreatedBonus = 100_000;
         }
@@ -225,6 +221,16 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var end = normalized.IndexOfAny(['\\', '.'], start);
         var span = (end < 0 ? normalized[start..] : normalized[start..end]).Trim();
         return int.TryParse(span, out var parsed) ? parsed : -1;
+    }
+
+    private static bool IsTrueHandCreatedPath(string relativePath)
+    {
+        var normalized = relativePath.Replace('/', '\\');
+        var inHandCreatedDir = normalized.Contains(@"\MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith(@"Data\INI\MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith(@"MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase);
+        return inHandCreatedDir
+            && !normalized.Contains(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string GetVirtualFileName(string path)
@@ -448,12 +454,15 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                     .OrderBy(group => group.Key)
                     .Select(group => $"{group.Key}={group.Count()}")));
         var mountedArchives = fileSystem.GetMountedArchivesInOrder();
+        var handCreatedWinners = images.Values.Count(image => IsTrueHandCreatedPath(image.SourceIniPath));
+        var textureSizeWinners = images.Values.Count(image => image.SourceIniPath.Contains(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase));
         logger.LogInformation(
-            "Mounted {Count} archives: {Archives}; Winning sources: HandCreated={HandCreated}, TextureSize={TextureSize}",
+            "Mounted {Count} archives: {Archives}; Winning sources: HandCreated={HandCreated}, TextureSize={TextureSize}, Other={Other}",
             mountedArchives.Count,
             string.Join(", ", mountedArchives),
-            images.Values.Count(image => image.SourceIniPath.Contains(WndConstants.Preview.HandCreatedDirectory, StringComparison.OrdinalIgnoreCase)),
-            images.Values.Count(image => image.SourceIniPath.Contains(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase)));
+            handCreatedWinners,
+            textureSizeWinners,
+            images.Count - handCreatedWinners - textureSizeWinners);
         return new AssetIndex(key, fileSystem, images, alternates);
     }
 
@@ -821,7 +830,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private void LogResolvedProvenance(TieredImage image, string texturePath, uint pageWidth, uint pageHeight, SageVirtualFileSystem fileSystem)
     {
-        logger.LogDebug(
+        logger.LogInformation(
             "Resolved {Image} from {Texture} [{Left},{Top},{Right},{Bottom}] via {Ini} [{Tier}] ({IniArchive}) -> {Path} ({TextureArchive}, {PageWidth}x{PageHeight})",
             image.Image.Name,
             image.Image.Texture,
@@ -870,31 +879,102 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         SageFileTier definitionTier)
     {
         var trimmed = texture.Trim();
-        var match = SearchCandidatesInBand(fileSystem, trimmed, definitionTier, definitionTier);
-        if (match != null)
+        foreach (var band in TextureSearchBands(definitionTier))
         {
-            return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.SameTier);
-        }
-
-        if (definitionTier < SageFileTier.LinkedAsset)
-        {
-            match = SearchCandidatesInBand(fileSystem, trimmed, (SageFileTier)((int)definitionTier + 1), SageFileTier.LinkedAsset);
+            var match = SearchBandOrdered(fileSystem, trimmed, band.MinTier, band.MaxTier);
             if (match != null)
             {
-                return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.HigherTier);
-            }
-        }
-
-        if (definitionTier > SageFileTier.BaseGame)
-        {
-            match = SearchCandidatesInBand(fileSystem, trimmed, SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1));
-            if (match != null)
-            {
-                return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.LowerTier);
+                return (match.Value.Path, match.Value.Bytes, match.Value.Format, band.MatchClass);
             }
         }
 
         return TryReadTextureByFileName(fileSystem, trimmed, definitionTier);
+    }
+
+    private static IEnumerable<(SageFileTier MinTier, SageFileTier MaxTier, TextureMatchClass MatchClass)> TextureSearchBands(
+        SageFileTier definitionTier)
+    {
+        yield return (definitionTier, definitionTier, TextureMatchClass.SameTier);
+        if (definitionTier < SageFileTier.LinkedAsset)
+        {
+            yield return ((SageFileTier)((int)definitionTier + 1), SageFileTier.LinkedAsset, TextureMatchClass.HigherTier);
+        }
+
+        if (definitionTier > SageFileTier.BaseGame)
+        {
+            yield return (SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1), TextureMatchClass.LowerTier);
+        }
+    }
+
+    private (string Path, byte[] Bytes, MagickFormat Format)? SearchBandOrdered(
+        SageVirtualFileSystem fileSystem,
+        string trimmed,
+        SageFileTier minTier,
+        SageFileTier maxTier)
+    {
+        if (trimmed.IndexOfAny(['/', '\\']) < 0)
+        {
+            // Bare texture names resolve by filename across mounted archives with the
+            // earliest-mounted archive winning, matching the engine finding the texture
+            // file by name. This must outrank speculative directory probing so Zero Hour
+            // pages beat base Generals pages stored at different internal paths.
+            var byName = SearchArchiveByNameInBand(fileSystem, trimmed, minTier, maxTier);
+            if (byName != null)
+            {
+                return byName;
+            }
+        }
+        else
+        {
+            // Pathed references resolve exactly first: the engine opens the texture path
+            // through its directory tree where the first-loaded archive wins.
+            var exact = fileSystem.ReadInTierBand(trimmed, minTier, maxTier);
+            if (exact != null && exact.Length > 0 && TryDetectFormat(exact, out var exactFormat))
+            {
+                return (trimmed, exact, exactFormat);
+            }
+
+            var byName = SearchArchiveByNameInBand(fileSystem, trimmed, minTier, maxTier);
+            if (byName != null)
+            {
+                return byName;
+            }
+        }
+
+        return SearchCandidatesInBand(fileSystem, trimmed, minTier, maxTier);
+    }
+
+    private static (string Path, byte[] Bytes, MagickFormat Format)? SearchArchiveByNameInBand(
+        SageVirtualFileSystem fileSystem,
+        string trimmed,
+        SageFileTier minTier,
+        SageFileTier maxTier)
+    {
+        var fileName = GetVirtualFileName(trimmed);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var candidates = new List<string> { fileName };
+        if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
+        {
+            foreach (var ext in WndConstants.MappedImages.TextureExtensions)
+            {
+                candidates.Add(string.Concat(fileName, ext));
+            }
+        }
+
+        foreach (var candidate in candidates)
+        {
+            var found = fileSystem.TryReadArchiveFileByNameWithPath(candidate, minTier, maxTier);
+            if (found.HasValue && found.Value.Bytes.Length > 0 && TryDetectFormat(found.Value.Bytes, out var format))
+            {
+                return (found.Value.Path, found.Value.Bytes, format);
+            }
+        }
+
+        return null;
     }
 
     private (string Path, byte[] Bytes, MagickFormat Format)? SearchCandidatesInBand(
