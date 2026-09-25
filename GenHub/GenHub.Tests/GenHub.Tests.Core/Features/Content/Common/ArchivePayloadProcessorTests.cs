@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -387,6 +388,33 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         var ex = await Assert.ThrowsAsync<InvalidDataException>(
             () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
         Assert.Contains("not a valid ZIP archive", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that an archive served under another format's extension is still extracted from its content.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_SevenZipArchiveNamedZip_ExtractsContentAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var mislabelled = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllBytesAsync(
+            mislabelled,
+            Convert.FromBase64String(
+                "N3q8ryccAAQE0DRtEwAAAAAAAABSAAAAAAAAAKnyu85taXNsYWJlbGxlZCBhcmNoaXZlAQQGAAEJEwAHCwEAAQEADBMACAoB9b6xRQAABQERFwByAGUAYQBkAG0AZQAuAHQAeAB0AAAAGQQAAAAAFAoBAAA9glISTd0BFQYBACCApIEAAA=="));
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.ExtractArchivesSafelyAsync(_stagingDirectory);
+
+        // Assert
+        var extracted = Path.Combine(_stagingDirectory, "readme.txt");
+        Assert.True(File.Exists(extracted));
+        Assert.Equal("mislabelled archive", await File.ReadAllTextAsync(extracted));
+        Assert.False(File.Exists(mislabelled));
     }
 
     /// <summary>
@@ -1293,6 +1321,74 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
                 File.Delete(tempFile);
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that a complete RAR archive served as .zip is extracted by content and then removed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_RarArchiveNamedZip_ExtractsContentAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "mod.zip");
+
+        // Complete RAR5 archive with a stored readme.txt, header/data CRCs and an end marker.
+        await File.WriteAllBytesAsync(archivePath, Convert.FromBase64String(
+            "UmFyIRoHAQDFGjMyAwEAACYUNnUXAgIXBBcAr0Q9jwAACnJlYWRtZS50eHRtaXNsYWJlbGxlZCBSQVIgYXJjaGl2ZRmyOjUDBQAA"));
+
+        // Act
+        await CreateProcessor().ExtractArchivesSafelyAsync(_stagingDirectory);
+
+        // Assert
+        var extracted = Path.Combine(_stagingDirectory, "readme.txt");
+        Assert.True(File.Exists(extracted));
+        Assert.Equal("mislabelled RAR archive", await File.ReadAllTextAsync(extracted));
+        Assert.False(File.Exists(archivePath));
+    }
+
+    /// <summary>
+    /// Verifies that incomplete or invalid PK prefixes are rejected before extraction for every candidate format.
+    /// </summary>
+    /// <param name="extension">The candidate archive extension.</param>
+    /// <param name="hex">The invalid header bytes.</param>
+    [Theory]
+    [InlineData(".zip", "504B")]
+    [InlineData(".zip", "504B03")]
+    [InlineData(".zip", "504B0000")]
+    [InlineData(".7z", "504B0000")]
+    [InlineData(".rar", "504B0000")]
+    [InlineData(".gz", "504B0000")]
+    [InlineData(".bz2", "504B0000")]
+    [InlineData(".xz", "504B0000")]
+    public void EnsureValidArchivePayload_InvalidPkPrefix_ThrowsInvalidDataException(string extension, string hex)
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "mod" + extension);
+        File.WriteAllBytes(archivePath, Convert.FromHexString(hex));
+
+        // Act & Assert
+        Assert.Throws<InvalidDataException>(() => ArchivePayloadProcessor.EnsureValidArchivePayload(archivePath));
+    }
+
+    /// <summary>
+    /// Verifies that an empty ZIP archive remains valid even when served under another extension.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_EmptyZipNamedRar_Succeeds()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "mod.rar");
+        using (ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+        }
+
+        // Act & Assert
+        ArchivePayloadProcessor.EnsureValidArchivePayload(archivePath);
+        Assert.True(ZipValidation.IsValidZipFile(archivePath));
     }
 
     /// <inheritdoc/>
