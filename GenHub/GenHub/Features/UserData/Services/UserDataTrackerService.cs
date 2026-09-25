@@ -914,7 +914,8 @@ public class UserDataTrackerService(
         var matchedMap = FindMatchingCandidateMap(baseName, candidateMapNames);
         if (!string.IsNullOrEmpty(matchedMap))
         {
-            var resolvedFile = isTga ? matchedMap + ".tga" : originalFileName;
+            var isCaseOnlyMatch = isTga && string.Equals(baseName, matchedMap, StringComparison.OrdinalIgnoreCase);
+            var resolvedFile = isCaseOnlyMatch ? matchedMap + ".tga" : originalFileName;
             return (matchedMap, resolvedFile);
         }
 

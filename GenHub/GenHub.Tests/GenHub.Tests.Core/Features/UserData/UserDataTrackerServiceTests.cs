@@ -435,6 +435,70 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that flat payloads with variant companion thumbnails (e.g. OldMap.backup.tga)
+    /// preserve their filename in the map directory without clobbering the main thumbnail (OldMap.tga).
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_FlatPayloadWithVariantThumbnail_PreservesVariantFilenameWithoutClobberingAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "OldMap.map",
+                Hash = "hash-map-oldmap",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "OldMap.tga",
+                Hash = "hash-tga-oldmap",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "OldMap.backup.tga",
+                Hash = "hash-tga-oldmap-backup",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-variant-tga",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var mapPath = Path.Combine(_zeroHourDataDir, "Maps", "OldMap", "OldMap.map");
+        var tgaPath = Path.Combine(_zeroHourDataDir, "Maps", "OldMap", "OldMap.tga");
+        var backupTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "OldMap", "OldMap.backup.tga");
+
+        Assert.True(File.Exists(mapPath));
+        Assert.True(File.Exists(tgaPath));
+        Assert.True(File.Exists(backupTgaPath));
+
+        // Reinstall to ensure dictionary key on AbsolutePath does not throw on reinstall
+        var reinstallResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-variant-tga",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(reinstallResult.Success);
+    }
+
+    /// <summary>
     /// Verifies that installing map files with an _art suffix (e.g. River_art.tga)
     /// normalizes the filename to River.tga inside the map folder so the game recognizes the thumbnail.
     /// </summary>
