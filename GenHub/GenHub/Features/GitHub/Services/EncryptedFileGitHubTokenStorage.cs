@@ -33,7 +33,7 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
     public EncryptedFileGitHubTokenStorage(IConfigurationProviderService? configurationProvider = null)
     {
         var appData = configurationProvider?.GetApplicationDataPath()
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+            ?? AppDataPathHelper.GetDataRoot();
         Directory.CreateDirectory(appData);
         _tokenFilePath = GitHubTokenPathResolver.GetPrimaryTokenFilePath(appData);
         _fallbackTokenFilePath = GitHubTokenPathResolver.GetFallbackTokenFilePath(appData);
