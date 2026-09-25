@@ -113,6 +113,26 @@ public class GameVersionHelperTests
     }
 
     /// <summary>
+    /// Verifies that IsPureVersionString recognises version-only release titles and keeps descriptive ones.
+    /// </summary>
+    /// <param name="text">The release title.</param>
+    /// <param name="tagName">The release tag.</param>
+    /// <param name="expected">Whether the title is only a version.</param>
+    [Theory]
+    [InlineData("1.0.1", "1.0.1", true)]
+    [InlineData("v1.0.1", "1.0.1", true)]
+    [InlineData("2.0-beta", "other", true)]
+    [InlineData("alpha-4", "alpha-4", true)]
+    [InlineData("", "1.0.1", true)]
+    [InlineData(null, null, true)]
+    [InlineData("Community Patch 2.0 Alpha 4", "alpha-4", false)]
+    [InlineData("Weekly Release 2026-08-01", "weekly-2026-08-01", false)]
+    public void IsPureVersionString_DetectsVersionOnlyTitles(string? text, string? tagName, bool expected)
+    {
+        Assert.Equal(expected, GameVersionHelper.IsPureVersionString(text, tagName));
+    }
+
+    /// <summary>
     /// Verifies that FormatNumericManifestVersion formats versions correctly across different publishers and options.
     /// </summary>
     /// <param name="versionNumber">The integer version number.</param>

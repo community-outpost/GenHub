@@ -368,6 +368,11 @@ public sealed partial class ContentGridItemViewModel(
     public bool IsDownloadSizeVisible => DownloadSize > 0;
 
     /// <summary>
+    /// Gets a value indicating whether the version and size chip row has anything to show.
+    /// </summary>
+    public bool HasVersionOrSize => HasDisplayVersion || IsDownloadSizeVisible;
+
+    /// <summary>
     /// Gets a value indicating whether the Download button should be shown. Reflects the
     /// currently selected variant when the card represents a variant group.
     /// </summary>
@@ -1254,6 +1259,10 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(DownloadSize));
         OnPropertyChanged(nameof(LastUpdatedDisplay));
         OnPropertyChanged(nameof(IsDownloadSizeVisible));
+        OnPropertyChanged(nameof(Version));
+        OnPropertyChanged(nameof(VersionBadge));
+        OnPropertyChanged(nameof(HasDisplayVersion));
+        OnPropertyChanged(nameof(HasVersionOrSize));
         OnPropertyChanged(nameof(SourceUrl));
         OnPropertyChanged(nameof(TargetGame));
         OnPropertyChanged(nameof(Id));

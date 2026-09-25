@@ -428,7 +428,7 @@ public class SuperHackersProviderTests
     }
 
     /// <summary>
-    /// Verifies that SearchAsync falls back to display name and tag name when release name is blank.
+    /// Verifies that SearchAsync falls back to the display name when release name is blank.
     /// </summary>
     /// <param name="releaseName">The candidate release name to test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -470,7 +470,54 @@ public class SuperHackersProviderTests
         var items = result.Data?.ToList();
         Assert.NotNull(items);
         Assert.Single(items);
-        Assert.Equal($"{SuperHackersConstants.GeneralsGamePatch2DisplayName} alpha-4", items[0].Name);
+        Assert.Equal(SuperHackersConstants.GeneralsGamePatch2DisplayName, items[0].Name);
+        Assert.Equal("alpha-4", items[0].Version);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync uses the display name when the release title is only a version,
+    /// and keeps the version in the version field.
+    /// </summary>
+    /// <param name="releaseName">The version-only release title.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("1.0.1")]
+    [InlineData("v1.0.1")]
+    [InlineData("1.0.2")]
+    public async Task SearchAsync_UsesDisplayName_WhenReleaseNameIsVersionOnlyAsync(string releaseName)
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "1.0.1",
+            Name = releaseName,
+            Body = "Patch notes",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/tag/1.0.1",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubRelease)null!);
+
+        var query = new ContentSearchQuery { ContentType = ContentType.Patch };
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!);
+        Assert.Equal(SuperHackersConstants.GeneralsGamePatch2DisplayName, item.Name);
+        Assert.Equal("1.0.1", item.Version);
     }
 
     /// <summary>
