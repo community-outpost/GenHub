@@ -48,30 +48,47 @@ public class GenericCatalogProfileReconciler(
     {
         try
         {
-            var profileResult = await profileManager.GetProfileAsync(triggeringProfileId, cancellationToken);
-            if (!profileResult.Success || profileResult.Data == null)
+            List<GameProfile> profilesToCheck = [];
+            if (!string.IsNullOrEmpty(triggeringProfileId))
             {
-                logger.LogWarning("[Catalog Reconciler] Profile {ProfileId} not found, skipping catalog reconciliation", triggeringProfileId);
-                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
+                var profileResult = await profileManager.GetProfileAsync(triggeringProfileId, cancellationToken);
+                if (!profileResult.Success || profileResult.Data == null)
+                {
+                    logger.LogWarning("[Catalog Reconciler] Profile {ProfileId} not found, skipping catalog reconciliation", triggeringProfileId);
+                    return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
+                }
+
+                profilesToCheck.Add(profileResult.Data);
+            }
+            else
+            {
+                var allProfilesResult = await profileManager.GetAllProfilesAsync(cancellationToken);
+                if (allProfilesResult.Success && allProfilesResult.Data != null)
+                {
+                    profilesToCheck.AddRange(allProfilesResult.Data);
+                }
             }
 
             var subResult = await subscriptionStore.GetSubscriptionsAsync(cancellationToken);
-            if (!subResult.Success || subResult.Data == null || subResult.Data.Count == 0)
+            if (!subResult.Success || subResult.Data == null || subResult.Data.Count == 0 || profilesToCheck.Count == 0)
             {
                 return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
-            foreach (var subscription in subResult.Data)
+            foreach (var profile in profilesToCheck)
             {
-                if (cancellationToken.IsCancellationRequested)
+                foreach (var subscription in subResult.Data)
                 {
-                    break;
-                }
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
 
-                var reconciliationOutcome = await ReconcileSubscriptionAsync(profileResult.Data, subscription, cancellationToken);
-                if (reconciliationOutcome != null)
-                {
-                    return reconciliationOutcome;
+                    var reconciliationOutcome = await ReconcileSubscriptionAsync(profile, subscription, cancellationToken);
+                    if (reconciliationOutcome != null)
+                    {
+                        return reconciliationOutcome;
+                    }
                 }
             }
 

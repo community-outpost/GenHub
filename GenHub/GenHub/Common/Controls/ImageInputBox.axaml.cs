@@ -141,11 +141,6 @@ public partial class ImageInputBox : UserControl
         }
     }
 
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
-
     private static void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text))
@@ -272,6 +267,11 @@ public partial class ImageInputBox : UserControl
         }
 
         return null;
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 
     private async void OnTextBoxKeyDown(object? sender, KeyEventArgs e)

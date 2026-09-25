@@ -13440,4 +13440,29 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>تم تشغيل '{0}' بنجاح</value>
   </data>
+  <data name="Tools.PublisherStudio.Duplicate.MessageFormat" xml:space="preserve">
+    <value>عثرنا على ملف مطابق مستضاف بالفعل لدى المزود الخاص بك:
+• الاسم: {0}
+• الرابط: {1}
+
+هل ترغب في استخدام هذا الملف المستضاف بدلاً من رفع نسخة جديدة؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Title" xml:space="preserve">
+    <value>عنوان / اسم الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.TitlePlaceholder" xml:space="preserve">
+    <value>اتركه فارغاً لوراثة اسم المحتوى والإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsPublishedTitle" xml:space="preserve">
+    <value>تم نشر الفهارس</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsPublishedMessageFormat" xml:space="preserve">
+    <value>تم بنجاح نشر {0} فهرس(فهارس).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionPublishedTitle" xml:space="preserve">
+    <value>تم نشر التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionPublishedMessage" xml:space="preserve">
+    <value>تم رفع ملف تعريف المزود بنجاح.</value>
+  </data>
 </root>

@@ -13538,4 +13538,29 @@ Would you like to add this catalog to your provider project?</value>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>Successfully launched '{0}'</value>
   </data>
+  <data name="Tools.PublisherStudio.Duplicate.MessageFormat" xml:space="preserve">
+    <value>We found an identical file already hosted on your provider:
+• Name: {0}
+• URL: {1}
+
+Would you like to use this existing hosted file instead of uploading a new copy?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Title" xml:space="preserve">
+    <value>Release Title / Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.TitlePlaceholder" xml:space="preserve">
+    <value>Leave empty to inherit content name and version</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsPublishedTitle" xml:space="preserve">
+    <value>Catalogs Published</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsPublishedMessageFormat" xml:space="preserve">
+    <value>Successfully published {0} catalog(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionPublishedTitle" xml:space="preserve">
+    <value>Definition Published</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionPublishedMessage" xml:space="preserve">
+    <value>Provider definition uploaded successfully.</value>
+  </data>
 </root>

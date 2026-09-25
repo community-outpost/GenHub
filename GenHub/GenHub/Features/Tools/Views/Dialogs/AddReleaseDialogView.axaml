@@ -95,13 +95,13 @@
                 <!-- Info -->
                 <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="{DynamicResource TextPrimary}"/>
 
-                <!-- Addon Specific Fields -->
-                <StackPanel Spacing="8" IsVisible="{Binding IsAddonMode}">
+                <!-- Title (Addon or Release) -->
+                <StackPanel Spacing="8">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddonTitle}" Classes="label"/>
-                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                        <TextBlock Text="{Binding TitleLabel}" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding IsAddonMode}"/>
                     </StackPanel>
-                    <TextBox Text="{Binding Title}" Watermark="{localization:Localize Tools.PublisherStudio.Release.AddonTitlePlaceholder}"/>
+                    <TextBox Text="{Binding Title}" Watermark="{Binding TitlePlaceholder}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="8" IsVisible="{Binding IsAddonMode}">

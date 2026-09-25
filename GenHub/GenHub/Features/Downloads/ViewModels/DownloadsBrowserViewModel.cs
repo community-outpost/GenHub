@@ -18,6 +18,7 @@ using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -506,6 +507,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 .ToList();
             if (familyItems.Count <= 1)
             {
+                if (familyItems.Count == 1)
+                {
+                    ReconcileItemVariants(familyItems[0]);
+                }
+
                 continue;
             }
 
@@ -704,6 +710,44 @@ public sealed partial class DownloadsBrowserViewModel(
                 item.UpdateTargetVm = null;
                 item.NotifyStateChanged();
             }
+        }
+    }
+
+    private static void ReconcileItemVariants(ContentGridItemViewModel item)
+    {
+        if (item.Variants.Count <= 1)
+        {
+            return;
+        }
+
+        var downloadedVariants = item.Variants.Where(v => v.CurrentState == ContentState.Downloaded).ToList();
+        if (downloadedVariants.Count == 0)
+        {
+            return;
+        }
+
+        var hasNewerVariant = false;
+        foreach (var downloaded in downloadedVariants)
+        {
+            var isAnyNewer = item.Variants.Any(v =>
+                v.CurrentState != ContentState.Downloaded &&
+                !string.IsNullOrEmpty(v.ManifestId) &&
+                !string.IsNullOrEmpty(downloaded.ManifestId) &&
+                ContentStateService.IsNewerVersion(v.ManifestId, downloaded.ManifestId, v.Name, downloaded.Name));
+
+            if (isAnyNewer)
+            {
+                downloaded.CurrentState = ContentState.UpdateAvailable;
+                hasNewerVariant = true;
+            }
+        }
+
+        if (hasNewerVariant)
+        {
+            item.CurrentState = ContentState.UpdateAvailable;
+            item.IsDownloaded = true;
+            item.UpdateTargetVm = item;
+            item.NotifyStateChanged();
         }
     }
 
@@ -1260,6 +1304,46 @@ public sealed partial class DownloadsBrowserViewModel(
             });
 
             var definitionResult = await definitionService.FetchDefinitionAsync(subscription.DefinitionUrl, cancellationToken);
+            if (definitionResult.Success && definitionResult.Data != null)
+            {
+                var definition = definitionResult.Data;
+                var updated = false;
+                if (!string.IsNullOrWhiteSpace(definition.Publisher?.AvatarUrl) &&
+                    !string.Equals(subscription.AvatarUrl, definition.Publisher.AvatarUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    subscription.AvatarUrl = definition.Publisher.AvatarUrl;
+                    updated = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(definition.Publisher?.Name) &&
+                    !string.Equals(subscription.PublisherName, definition.Publisher.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    subscription.PublisherName = definition.Publisher.Name;
+                    updated = true;
+                }
+
+                if (updated)
+                {
+                    await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+                    RunOnUi(() =>
+                    {
+                        var pub = Publishers.FirstOrDefault(p => string.Equals(p.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase));
+                        if (pub != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(subscription.AvatarUrl))
+                            {
+                                pub.LogoSource = subscription.AvatarUrl;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(subscription.PublisherName))
+                            {
+                                pub.DisplayName = subscription.PublisherName;
+                            }
+                        }
+                    });
+                }
+            }
+
             var catalogs = definitionResult.Success
                 ? definitionResult.Data?.Catalogs.Where(c => !string.IsNullOrWhiteSpace(c.Url)).ToList()
                 : null;
@@ -2563,7 +2647,92 @@ public sealed partial class DownloadsBrowserViewModel(
             return false;
         }
 
-        return await DownloadContentAsync(targetItem, ct);
+        var dialogService = serviceProvider.GetService<IDialogService>();
+        UpdateDialogResult? promptResult = null;
+        if (dialogService != null)
+        {
+            var versionText = !string.IsNullOrWhiteSpace(targetItem.SearchResult?.Version)
+                ? $" ({targetItem.SearchResult.Version})"
+                : string.Empty;
+
+            var title = $"{targetItem.Name} Update Available";
+            var message = $"A new version of **{targetItem.Name}** is available{versionText}.\n\nHow do you want to apply this update?";
+            promptResult = await dialogService.ShowUpdateOptionDialogAsync(title, message, initialDeleteOldVersions: true);
+
+            if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        var oldManifestId = item.SearchResult != null
+            ? await contentStateService.GetLocalManifestIdAsync(item.SearchResult, ct)
+            : null;
+
+        var downloadSuccess = await DownloadContentAsync(targetItem, ct);
+        if (!downloadSuccess)
+        {
+            return false;
+        }
+
+        if (promptResult?.DeleteOldVersions == true && !string.IsNullOrEmpty(oldManifestId))
+        {
+            try
+            {
+                var newManifestId = targetItem.SearchResult != null
+                    ? await contentStateService.GetLocalManifestIdAsync(targetItem.SearchResult, ct)
+                    : null;
+                var profileManager = serviceProvider.GetService<IGameProfileManager>();
+
+                if (profileManager != null && !string.IsNullOrEmpty(newManifestId))
+                {
+                    var profiles = await profileManager.GetAllProfilesAsync(ct);
+                    if (profiles.Success && profiles.Data != null)
+                    {
+                        foreach (var prof in profiles.Data)
+                        {
+                            if (prof.EnabledContentIds?.Contains(oldManifestId, StringComparer.OrdinalIgnoreCase) == true)
+                            {
+                                prof.EnabledContentIds.Remove(oldManifestId);
+                                if (!prof.EnabledContentIds.Contains(newManifestId, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    prof.EnabledContentIds.Add(newManifestId);
+                                }
+
+                                var updateReq = new UpdateProfileRequest
+                                {
+                                    EnabledContentIds = prof.EnabledContentIds.ToList(),
+                                };
+                                await profileManager.UpdateProfileAsync(prof.Id, updateReq, ct);
+                            }
+                        }
+                    }
+                }
+
+                var reconciliationService = serviceProvider.GetService<IContentReconciliationService>();
+                if (reconciliationService != null)
+                {
+                    await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to cleanup old version {OldManifestId} after update", oldManifestId);
+            }
+        }
+
+        var notificationService = serviceProvider.GetService<INotificationService>();
+        notificationService?.ShowSuccess(
+            "Update Completed",
+            $"Updated {targetItem.Name} to latest version.",
+            NotificationDurations.Medium);
+
+        if (SelectedPublisher != null)
+        {
+            await RefreshAndReconcileItemsAsync(ContentItems, SelectedPublisher.PublisherId);
+        }
+
+        return true;
     }
 
     private async Task RefreshAndReconcileItemsAsync(IReadOnlyList<ContentGridItemViewModel> items, string publisherId)

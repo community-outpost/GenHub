@@ -1,10 +1,13 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
@@ -55,7 +58,8 @@ public partial class PublishShareViewModel(
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null,
     IHostingCredentialStore? credentialStore = null,
-    Action<string>? browserLauncher = null) : ObservableObject, IDisposable
+    Action<string>? browserLauncher = null,
+    IPublisherSubscriptionStore? subscriptionStore = null) : ObservableObject, IDisposable
 {
     /// <summary>
     /// Artwork slots that can reference local image files in content metadata.
@@ -679,18 +683,34 @@ public partial class PublishShareViewModel(
 
         try
         {
-            // Cascade down: Publish all catalogs and their content items first
-            var totalCatalogs = project.Catalogs.Count;
+            // Cascade down: Publish only catalogs that have pending changes (or are not published yet)
+            var catalogsToPublish = project.Catalogs.Where(c =>
+                CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == c.Id)?.NeedsPublish ?? true).ToList();
+
+            var totalCatalogs = catalogsToPublish.Count;
             var currentCatalog = 0;
-            foreach (var catalog in project.Catalogs)
+            var publishedAny = false;
+            foreach (var catalog in catalogsToPublish)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 currentCatalog++;
-                var (success, error) = await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs, cancellationToken);
+                var (success, error) = await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs, cancellationToken, uploadDefinition: false);
                 if (!success)
                 {
                     logger.LogWarning("Catalog publish failed during cascading definition upload: {CatalogName} - {Error}", catalog.Name, error);
                 }
+                else
+                {
+                    publishedAny = true;
+                }
+            }
+
+            if (publishedAny && totalCatalogs > 0)
+            {
+                notificationService?.ShowSuccess(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.CatalogsPublishedTitle", "Catalogs Published"),
+                    FormatLocalizedString("Tools.PublisherStudio.Publish.CatalogsPublishedMessageFormat", "Successfully published {0} catalog(s).", totalCatalogs),
+                    NotificationDurations.Short);
             }
 
             // Regenerate provider definition now that catalogs and content items have updated URLs
@@ -700,6 +720,11 @@ public partial class PublishShareViewModel(
             if (result.Success)
             {
                 HasDefinitionChanges = false;
+                await SyncLocalSubscriptionMetadataAsync();
+                notificationService?.ShowSuccess(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionPublishedTitle", "Definition Published"),
+                    GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionPublishedMessage", "Provider definition uploaded successfully."),
+                    NotificationDurations.Short);
             }
 
             return result;
@@ -2550,7 +2575,8 @@ public partial class PublishShareViewModel(
     private async Task<OperationResult<HostingUploadResult>> UploadCatalogCoreAsync(
         CancellationToken cancellationToken,
         bool manageUploadingState,
-        bool suppressNotifications = false)
+        bool suppressNotifications = false,
+        bool uploadDefinition = true)
     {
         var preconditionResult = await ValidateUploadPreconditionsAsync(suppressNotifications);
         if (preconditionResult != null || SelectedHostingProvider == null)
@@ -2622,7 +2648,7 @@ public partial class PublishShareViewModel(
             var uploadResult = await PerformCatalogUploadAsync(progress, cancellationToken);
             if (uploadResult.Success && uploadResult.Data != null)
             {
-                await CompletePublishSuccessAsync(uploadResult.Data, cancellationToken, suppressNotifications);
+                await CompletePublishSuccessAsync(uploadResult.Data, cancellationToken, suppressNotifications, uploadDefinition);
                 return uploadResult;
             }
             else
@@ -2700,7 +2726,11 @@ public partial class PublishShareViewModel(
         return await SelectedHostingProvider.UploadCatalogAsync(CatalogJson, project.Catalog.Publisher.Id, catalogFileName, progress, cancellationToken);
     }
 
-    private async Task CompletePublishSuccessAsync(HostingUploadResult data, CancellationToken cancellationToken = default, bool suppressNotifications = false)
+    private async Task CompletePublishSuccessAsync(
+        HostingUploadResult data,
+        CancellationToken cancellationToken = default,
+        bool suppressNotifications = false,
+        bool uploadDefinition = true)
     {
         if (SelectedHostingProvider == null) return;
 
@@ -2722,39 +2752,55 @@ public partial class PublishShareViewModel(
         await PersistCurrentDropboxCredentialAsync();
         NotifyLibraryRefresh();
 
-        // 4. Generate and upload provider definition
-        CurrentPublishStep = 4;
-        UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.GeneratingProviderDefinition", "Generating provider definition...");
-        var definitionGenerated = await GenerateProviderDefinitionAsync();
-
-        var defResult = await UploadProviderDefinitionIfAvailableAsync(cancellationToken);
-
-        // 5. Generate subscription URL (uses definition URL if available)
-        GenerateSubscriptionUrl();
-
-        CurrentPublishStep = 6;
-        PublishCompleted = true;
-        PublishSummary = BuildPublishSummary(CatalogUrl, ProviderDefinitionUrl, SubscriptionUrl);
-        if (defResult != null && !defResult.Success)
+        if (uploadDefinition)
         {
-            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat", "Catalog published, but provider definition upload failed: {0}", defResult.FirstError);
-            NotifyDefinitionStale();
-            if (!suppressNotifications)
+            // 4. Generate and upload provider definition
+            CurrentPublishStep = 4;
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.GeneratingProviderDefinition", "Generating provider definition...");
+            var definitionGenerated = await GenerateProviderDefinitionAsync();
+
+            var defResult = await UploadProviderDefinitionIfAvailableAsync(cancellationToken);
+
+            // 5. Generate subscription URL (uses definition URL if available)
+            GenerateSubscriptionUrl();
+
+            CurrentPublishStep = 6;
+            PublishCompleted = true;
+            PublishSummary = BuildPublishSummary(CatalogUrl, ProviderDefinitionUrl, SubscriptionUrl);
+            if (defResult != null && !defResult.Success)
             {
-                notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
+                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat", "Catalog published, but provider definition upload failed: {0}", defResult.FirstError);
+                NotifyDefinitionStale();
+                if (!suppressNotifications)
+                {
+                    notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
+                }
             }
-        }
-        else if (!definitionGenerated)
-        {
-            NotifyDefinitionStale();
-            if (!suppressNotifications)
+            else if (!definitionGenerated)
             {
-                notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
+                NotifyDefinitionStale();
+                if (!suppressNotifications)
+                {
+                    notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
+                }
+            }
+            else
+            {
+                UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishedSuccessfully", "Published successfully!");
+                if (!suppressNotifications)
+                {
+                    notificationService?.ShowSuccess(
+                        GetLocalizedString(PublishSuccessTitleKey, SuccessLiteral),
+                        UploadStatusMessage,
+                        autoDismissMs: 4000);
+                }
             }
         }
         else
         {
-            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishedSuccessfully", "Published successfully!");
+            CurrentPublishStep = 6;
+            PublishCompleted = true;
+            PublishSummary = BuildPublishSummary(CatalogUrl, ProviderDefinitionUrl, SubscriptionUrl);
             if (!suppressNotifications)
             {
                 notificationService?.ShowSuccess(
@@ -4384,7 +4430,7 @@ public partial class PublishShareViewModel(
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 currentCatalog++;
-                var (success, error) = await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs, cancellationToken);
+                var (success, error) = await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs, cancellationToken, uploadDefinition: false);
                 if (success)
                 {
                     publishedAny = true;
@@ -4434,7 +4480,12 @@ public partial class PublishShareViewModel(
         return !IsUploading;
     }
 
-    private async Task<(bool Success, string? Error)> PublishCatalogItemAsync(NamedCatalog catalog, int currentCatalog, int totalCatalogs, CancellationToken cancellationToken)
+    private async Task<(bool Success, string? Error)> PublishCatalogItemAsync(
+        NamedCatalog catalog,
+        int currentCatalog,
+        int totalCatalogs,
+        CancellationToken cancellationToken,
+        bool uploadDefinition = true)
     {
         UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.PublishingCatalogFormat", "Publishing catalog {0}/{1}: {2}", currentCatalog, totalCatalogs, catalog.Name);
 
@@ -4442,7 +4493,11 @@ public partial class PublishShareViewModel(
         ActiveCatalog = catalog;
         try
         {
-            var res = await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
+            var res = await UploadCatalogCoreAsync(
+                cancellationToken,
+                manageUploadingState: false,
+                suppressNotifications: true,
+                uploadDefinition: uploadDefinition);
             if (res.Success)
             {
                 // Publish status is updated centrally in CompletePublishSuccessAsync.
@@ -5814,6 +5869,48 @@ public partial class PublishShareViewModel(
         {
             logger.LogError(ex, "Failed to download string from {Url}", directUrl);
             return null;
+        }
+    }
+
+    private async Task SyncLocalSubscriptionMetadataAsync()
+    {
+        if (subscriptionStore == null || string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id))
+        {
+            return;
+        }
+
+        try
+        {
+            var publisherId = project.Catalog.Publisher.Id;
+            var subResult = await subscriptionStore.GetSubscriptionAsync(publisherId);
+            if (subResult.Success && subResult.Data != null)
+            {
+                var sub = subResult.Data;
+                var updated = false;
+                if (!string.IsNullOrWhiteSpace(project.Catalog.Publisher.AvatarUrl) &&
+                    !string.Equals(sub.AvatarUrl, project.Catalog.Publisher.AvatarUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    sub.AvatarUrl = project.Catalog.Publisher.AvatarUrl;
+                    updated = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(project.Catalog.Publisher.Name) &&
+                    !string.Equals(sub.PublisherName, project.Catalog.Publisher.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    sub.PublisherName = project.Catalog.Publisher.Name;
+                    updated = true;
+                }
+
+                if (updated)
+                {
+                    await subscriptionStore.UpdateSubscriptionAsync(sub);
+                    WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(publisherId));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to sync local subscription metadata for publisher {PublisherId}", project.Catalog?.Publisher?.Id);
         }
     }
 }

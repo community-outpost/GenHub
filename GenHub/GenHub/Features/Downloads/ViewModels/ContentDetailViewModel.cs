@@ -2489,9 +2489,10 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(Name));
         }
 
-        if (value != null && Releases.Count > 0)
+        if (value != null && (Releases.Count > 0 || Addons.Count > 0))
         {
-            var match = Releases.FirstOrDefault(r =>
+            var allRows = Releases.Cast<DownloadableItemViewModel>().Concat(Addons).ToList();
+            var match = allRows.FirstOrDefault(r =>
                 !string.IsNullOrEmpty(value.ManifestId) &&
                 string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase) &&
                 r.Name != null && !string.IsNullOrEmpty(value.Name) &&
@@ -2499,12 +2500,12 @@ public partial class ContentDetailViewModel(
                  r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
                  value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)))
                 ?? (!string.IsNullOrEmpty(value.ManifestId)
-                    ? Releases.FirstOrDefault(r =>
+                    ? allRows.FirstOrDefault(r =>
                         string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase))
                     : null)
-                ?? Releases.FirstOrDefault(r =>
+                ?? allRows.FirstOrDefault(r =>
                     string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase))
-                ?? Releases.FirstOrDefault(r =>
+                ?? allRows.FirstOrDefault(r =>
                     !string.IsNullOrEmpty(value.Name) && r.Name != null &&
                     (r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
                      value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)));
@@ -2514,18 +2515,10 @@ public partial class ContentDetailViewModel(
                     string.Equals(match.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase);
                 var isExactNameMatch = string.Equals(match.Name, value.Name, StringComparison.OrdinalIgnoreCase);
 
-                // The variant carries no version, so an exact-name match is only trustworthy
-                // when the name is unique across releases: same-named siblings (e.g. a patch
-                // and a full build sharing a title) are indistinguishable here, and binding
-                // the variant's manifest to the wrong one would corrupt Add to Profile.
                 var isUniqueNameMatch = isExactNameMatch &&
-                    Releases.Count(row => string.Equals(row.Name, value.Name, StringComparison.OrdinalIgnoreCase)) == 1;
+                    allRows.Count(row => string.Equals(row.Name, value.Name, StringComparison.OrdinalIgnoreCase)) == 1;
                 var isExactManifestOrNameMatch = isManifestMatch || isUniqueNameMatch;
 
-                // Only an exact manifest or unique-name match may flip row state: fuzzy
-                // substring matches routinely pick a sibling release and would show
-                // "Add to Profile" on the wrong row. The row's own async state probe
-                // corrects display state; selection below is still harmless.
                 if (value.CurrentState == ContentState.Downloaded && isExactManifestOrNameMatch)
                 {
                     match.IsDownloaded = true;
@@ -2546,7 +2539,7 @@ public partial class ContentDetailViewModel(
 
                 if (!ReferenceEquals(SelectedDownloadableItem, match))
                 {
-                    SelectDownloadableItem(match);
+                    SelectDownloadableItem(match, isUserInitiated: false);
                 }
                 else
                 {
@@ -4188,7 +4181,11 @@ public partial class ContentDetailViewModel(
             Description: description,
             FileSectionType: FileSectionType.Downloads);
 
-        var releaseName = $"Version {rel.Version}";
+        var releaseName = !string.IsNullOrWhiteSpace(rel.Title)
+            ? rel.Title
+            : (!string.IsNullOrWhiteSpace(searchResult.Name)
+                ? $"{searchResult.Name} Version {rel.Version}"
+                : $"Version {rel.Version}");
 
         var releaseItem = new ReleaseItemViewModel
         {
@@ -4543,9 +4540,18 @@ public partial class ContentDetailViewModel(
 
         if (Variants.Count > 0)
         {
-            var matchingVariant = Variants.FirstOrDefault(v =>
-                string.Equals(v.ManifestId, item.DownloadedManifestId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(v.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+            var matchingVariant = (!string.IsNullOrEmpty(item.DownloadedManifestId)
+                ? Variants.FirstOrDefault(v => string.Equals(v.ManifestId, item.DownloadedManifestId, StringComparison.OrdinalIgnoreCase))
+                : null)
+                ?? Variants.FirstOrDefault(v => string.Equals(v.Name, item.Name, StringComparison.OrdinalIgnoreCase))
+                ?? Variants.FirstOrDefault(v =>
+                    !string.IsNullOrWhiteSpace(v.Name) && !string.IsNullOrWhiteSpace(item.Name) &&
+                    (v.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase) ||
+                     item.Name.Contains(v.Name, StringComparison.OrdinalIgnoreCase)))
+                ?? (item.File != null && !string.IsNullOrEmpty(item.File.Version)
+                    ? Variants.FirstOrDefault(v => v.Name.Contains(item.File.Version, StringComparison.OrdinalIgnoreCase))
+                    : null);
+
             if (matchingVariant != null && !ReferenceEquals(SelectedVariant, matchingVariant))
             {
                 SelectedVariant = matchingVariant;
@@ -4752,6 +4758,23 @@ public partial class ContentDetailViewModel(
 
         if (_updateTargetSearchResult != null)
         {
+            if (dialogService != null)
+            {
+                var versionText = !string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version)
+                    ? $" ({_updateTargetSearchResult.Version})"
+                    : string.Empty;
+
+                var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
+                    $"{Name} Update Available",
+                    $"A new version of **{Name}** is available{versionText}.\n\nHow do you want to apply this update?",
+                    initialDeleteOldVersions: true);
+
+                if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+
             var success = await ExecuteDownloadFlowAsync(_updateTargetSearchResult, cancellationToken);
             if (_disposed || !success)
             {
@@ -6532,6 +6555,75 @@ public partial class ContentDetailViewModel(
         }
     }
 
+    private string? FindManifestIdForFile(DownloadableFile file)
+    {
+        if (file == null)
+        {
+            return null;
+        }
+
+        var fileDownloadUrl = file.DownloadUrl?.TrimEnd('/');
+        var fileDetailsUrl = file.DetailsUrl?.TrimEnd('/');
+        var fileName = file.Name?.Trim();
+        var fileVersion = file.Version?.Trim();
+
+        if (variantSearchResults != null)
+        {
+            foreach (var kvp in variantSearchResults)
+            {
+                var sr = kvp.Value;
+                var srDownloadUrl = sr.SelectedDownloadUrl?.TrimEnd('/');
+                var srSourceUrl = sr.SourceUrl?.TrimEnd('/');
+
+                if (!string.IsNullOrEmpty(fileDownloadUrl) &&
+                    (string.Equals(srDownloadUrl, fileDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(srSourceUrl, fileDownloadUrl, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return kvp.Key;
+                }
+
+                if (!string.IsNullOrEmpty(fileDetailsUrl) &&
+                    (string.Equals(srSourceUrl, fileDetailsUrl, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(srDownloadUrl, fileDetailsUrl, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return kvp.Key;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(fileName))
+            {
+                var matchByName = variantSearchResults.FirstOrDefault(kvp =>
+                    string.Equals(kvp.Value.Name?.Trim(), fileName, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(matchByName.Key))
+                {
+                    return matchByName.Key;
+                }
+            }
+        }
+
+        if (Variants.Count > 0 && !string.IsNullOrEmpty(fileName))
+        {
+            var matchVariant = Variants.FirstOrDefault(v =>
+                string.Equals(v.Name?.Trim(), fileName, StringComparison.OrdinalIgnoreCase));
+            if (matchVariant != null && !string.IsNullOrEmpty(matchVariant.ManifestId))
+            {
+                return matchVariant.ManifestId;
+            }
+
+            if (!string.IsNullOrEmpty(fileVersion))
+            {
+                var matchByVersion = Variants.FirstOrDefault(v =>
+                    v.Name.Contains(fileVersion, StringComparison.OrdinalIgnoreCase));
+                if (matchByVersion != null && !string.IsNullOrEmpty(matchByVersion.ManifestId))
+                {
+                    return matchByVersion.ManifestId;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private ReleaseItemViewModel CreateReleaseItemViewModel(DownloadableFile file)
     {
         var isDetailsAlreadyLoaded = IsFileDetailsAlreadyLoaded(file);
@@ -6563,11 +6655,18 @@ public partial class ContentDetailViewModel(
             mappedType = ContentType.Mod;
         }
 
+        var resolvedManifestId = FindManifestIdForFile(file);
+        var isDownloadedVariant = !string.IsNullOrEmpty(resolvedManifestId) &&
+            Variants.Any(v => string.Equals(v.ManifestId, resolvedManifestId, StringComparison.OrdinalIgnoreCase) &&
+                              v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+
         ReleaseItemViewModel releaseItem = new()
         {
             Id = Guid.NewGuid().ToString(),
             Name = file.Name ?? ContentConstants.UnknownReleaseName,
             Version = file.Version,
+            DownloadedManifestId = resolvedManifestId,
+            IsDownloaded = isDownloadedVariant,
             ReleaseDate = file.ReleaseDate ?? file.UploadDate,
             FileSize = file.SizeBytes ?? 0,
             SizeDisplay = file.SizeDisplay,
@@ -6657,10 +6756,17 @@ public partial class ContentDetailViewModel(
             ? ModDBCategoryMapper.MapCategoryByName(file.Category)
             : ContentType.Addon;
 
+        var resolvedAddonManifestId = FindManifestIdForFile(file);
+        var isDownloadedAddonVariant = !string.IsNullOrEmpty(resolvedAddonManifestId) &&
+            Variants.Any(v => string.Equals(v.ManifestId, resolvedAddonManifestId, StringComparison.OrdinalIgnoreCase) &&
+                              v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+
         AddonItemViewModel addonItem = new()
         {
             Id = Guid.NewGuid().ToString(),
             Name = file.Name ?? ContentConstants.UnknownAddonName,
+            DownloadedManifestId = resolvedAddonManifestId,
+            IsDownloaded = isDownloadedAddonVariant,
             ReleaseDate = file.ReleaseDate ?? file.UploadDate,
             FileSize = file.SizeBytes ?? 0,
             SizeDisplay = file.SizeDisplay,

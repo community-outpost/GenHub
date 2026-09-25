@@ -43,6 +43,34 @@ public partial class AddReleaseDialogViewModel(
     [ObservableProperty]
     private string _category = "Addon";
 
+    /// <summary>
+    /// Gets the localized label for the release or addon title input.
+    /// </summary>
+    public string TitleLabel => IsAddonMode
+        ? GetLocalizedString("Tools.PublisherStudio.Release.AddonTitle", "Addon Title / Name")
+        : GetLocalizedString("Tools.PublisherStudio.Release.Title", "Release Title / Name");
+
+    /// <summary>
+    /// Gets the placeholder/watermark for the title input, showing the inherited name if blank.
+    /// </summary>
+    public string TitlePlaceholder => IsAddonMode
+        ? GetLocalizedString("Tools.PublisherStudio.Release.AddonTitlePlaceholder", "e.g., Russian Localization Patch")
+        : (!string.IsNullOrWhiteSpace(contentItem?.Name)
+            ? $"{contentItem.Name} Version {Version}".Trim()
+            : GetLocalizedString("Tools.PublisherStudio.Release.TitlePlaceholder", "Leave empty to inherit content name and version"));
+
+    partial void OnVersionChanged(string value)
+    {
+        OnPropertyChanged(nameof(TitlePlaceholder));
+        Validate();
+    }
+
+    partial void OnIsAddonModeChanged(bool value)
+    {
+        OnPropertyChanged(nameof(TitleLabel));
+        OnPropertyChanged(nameof(TitlePlaceholder));
+    }
+
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [LocalizedRequired("Tools.PublisherStudio.Validation.VersionRequired", "Version is required")]
@@ -431,8 +459,6 @@ public partial class AddReleaseDialogViewModel(
         }
     }
 
-    partial void OnVersionChanged(string value) => Validate();
-
     partial void OnTitleChanged(string value) => Validate();
 
     /// <summary>
@@ -769,9 +795,25 @@ public partial class AddReleaseDialogViewModel(
             return;
         }
 
+        string? effectiveTitle;
+        if (!string.IsNullOrWhiteSpace(Title))
+        {
+            effectiveTitle = Title.Trim();
+        }
+        else if (!IsAddonMode)
+        {
+            effectiveTitle = !string.IsNullOrWhiteSpace(contentItem?.Name)
+                ? $"{contentItem.Name} Version {Version.Trim()}"
+                : $"Version {Version.Trim()}";
+        }
+        else
+        {
+            effectiveTitle = null;
+        }
+
         var release = new ContentRelease
         {
-            Title = IsAddonMode && !string.IsNullOrWhiteSpace(Title) ? Title.Trim() : null,
+            Title = effectiveTitle,
             Category = IsAddonMode && !string.IsNullOrWhiteSpace(Category) ? Category.Trim() : null,
             Version = Version.Trim(),
             ReleaseDate = ReleaseDate.UtcDateTime,
@@ -819,6 +861,11 @@ public partial class AddReleaseDialogViewModel(
 
     private string GetLocalizedString(string key, string fallback)
     {
-        return localizationService?.GetString(key) ?? fallback;
+        if (localizationService != null && localizationService.TryGetString(key, out var localized) && !string.IsNullOrWhiteSpace(localized))
+        {
+            return localized;
+        }
+
+        return fallback;
     }
 }

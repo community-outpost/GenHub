@@ -952,42 +952,6 @@ public class DownloadService(
         return false;
     }
 
-    private static string? TryExtractConfirmationUrl(string html, Uri? requestUri)
-    {
-        var confirmMatch = Regex.Match(html, "href=\"(/uc\\?export=download[^\"]+confirm=[^\"]+)\"", RegexOptions.IgnoreCase, RegexTimeout);
-        if (confirmMatch.Success)
-        {
-            var relativeUrl = confirmMatch.Groups[1].Value.Replace("&amp;", "&");
-            var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
-            return new Uri(baseUri, relativeUrl).ToString();
-        }
-
-        return TryExtractFormActionUrl(html);
-    }
-
-    private static string? TryExtractFormActionUrl(string html)
-    {
-        var actionMatch = Regex.Match(html, "action=\"(https://drive\\.usercontent\\.google\\.com/download[^\"]*)\"", RegexOptions.IgnoreCase, RegexTimeout);
-        if (!actionMatch.Success)
-        {
-            return null;
-        }
-
-        var action = actionMatch.Groups[1].Value.Replace("&amp;", "&");
-        var inputMatches = Regex.Matches(html, "<input[^>]+type=\"hidden\"[^>]+name=\"([^\"]+)\"[^>]+value=\"([^\"]*)\"", RegexOptions.IgnoreCase, RegexTimeout);
-        var queryParams = inputMatches
-            .Select(m => $"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}")
-            .ToList();
-
-        if (queryParams.Count > 0)
-        {
-            var separator = action.Contains('?') ? "&" : "?";
-            return $"{action}{separator}{string.Join("&", queryParams)}";
-        }
-
-        return action;
-    }
-
     private async Task<HttpResponseMessage> ResolveGoogleDriveConfirmationIfNeededAsync(
         HttpResponseMessage initialResponse,
         DownloadConfiguration configuration,
@@ -1034,5 +998,41 @@ public class DownloadService(
         }
 
         throw new InvalidOperationException("Google Drive returned an HTML page instead of the expected file download.");
+    }
+
+    private string? TryExtractConfirmationUrl(string html, Uri? requestUri)
+    {
+        var confirmMatch = Regex.Match(html, "href=\"(/uc\\?export=download[^\"]+confirm=[^\"]+)\"", RegexOptions.IgnoreCase, RegexTimeout);
+        if (confirmMatch.Success)
+        {
+            var relativeUrl = confirmMatch.Groups[1].Value.Replace("&amp;", "&");
+            var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
+            return new Uri(baseUri, relativeUrl).ToString();
+        }
+
+        return TryExtractFormActionUrl(html);
+    }
+
+    private string? TryExtractFormActionUrl(string html)
+    {
+        var actionMatch = Regex.Match(html, "action=\"(https://drive\\.usercontent\\.google\\.com/download[^\"]*)\"", RegexOptions.IgnoreCase, RegexTimeout);
+        if (!actionMatch.Success)
+        {
+            return null;
+        }
+
+        var action = actionMatch.Groups[1].Value.Replace("&amp;", "&");
+        var inputMatches = Regex.Matches(html, "<input[^>]+type=\"hidden\"[^>]+name=\"([^\"]+)\"[^>]+value=\"([^\"]*)\"", RegexOptions.IgnoreCase, RegexTimeout);
+        var queryParams = inputMatches
+            .Select(m => $"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}")
+            .ToList();
+
+        if (queryParams.Count > 0)
+        {
+            var separator = action.Contains('?') ? "&" : "?";
+            return $"{action}{separator}{string.Join("&", queryParams)}";
+        }
+
+        return action;
     }
 }
