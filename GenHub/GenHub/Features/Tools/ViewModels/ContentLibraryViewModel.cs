@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Helpers;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -246,6 +247,8 @@ public partial class ContentLibraryViewModel(
                 return;
             }
 
+            newContent.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
+            newContent.PublisherAvatarUrl ??= parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
             activeCatalog.Catalog.Content.Add(newContent);
             ContentItems.Add(newContent);
             OnPropertyChanged(nameof(FilteredContent));
@@ -1284,6 +1287,133 @@ public partial class ContentLibraryViewModel(
         RefreshHostingHint();
     }
 
+    [ObservableProperty]
+    private string _newVideoUrl = string.Empty;
+
+    [RelayCommand]
+    private async Task AddScreenshotAsync()
+    {
+        if (SelectedContent == null)
+        {
+            return;
+        }
+
+        var files = await dialogService.ShowImageFilesPickerAsync(
+            GetLocalizedString("Tools.PublisherStudio.Library.PickScreenshotTitle", "Select Screenshot Images"));
+
+        if (files != null && files.Count > 0)
+        {
+            await AddMediaToSelectedContentAsync(files);
+        }
+    }
+
+    [RelayCommand]
+    private async Task PasteScreenshotAsync()
+    {
+        if (SelectedContent == null)
+        {
+            return;
+        }
+
+        var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+        var clipboard = desktop?.MainWindow?.Clipboard;
+        if (clipboard == null)
+        {
+            return;
+        }
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub", "Clipboard");
+        var paths = await ClipboardInputHelper.ExtractClipboardPathsAsync(clipboard, tempDir);
+        if (paths.Count > 0)
+        {
+            await AddMediaToSelectedContentAsync(paths);
+        }
+        else
+        {
+            var title = GetLocalizedString("Tools.PublisherStudio.Library.NoClipboardImageTitle", "No Image Found");
+            var message = GetLocalizedString("Tools.PublisherStudio.Library.NoClipboardImageMessage", "No image, file, or image URL was found on the clipboard.");
+            notificationService?.ShowWarning(title, message);
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddVideoAsync()
+    {
+        if (SelectedContent == null)
+        {
+            return;
+        }
+
+        var files = await dialogService.ShowVideoFilesPickerAsync(
+            GetLocalizedString("Tools.PublisherStudio.Library.PickVideoTitle", "Select Video Files"));
+
+        if (files != null && files.Count > 0)
+        {
+            await AddMediaToSelectedContentAsync(files);
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddVideoUrlAsync()
+    {
+        if (SelectedContent == null || string.IsNullOrWhiteSpace(NewVideoUrl))
+        {
+            return;
+        }
+
+        var url = NewVideoUrl.Trim();
+        SelectedContent.Metadata ??= new();
+
+        if (string.IsNullOrWhiteSpace(SelectedContent.Metadata.VideoUrl))
+        {
+            SelectedContent.Metadata.VideoUrl = url;
+        }
+        else if (!SelectedContent.Metadata.VideoUrls.Contains(url, StringComparer.OrdinalIgnoreCase))
+        {
+            SelectedContent.Metadata.VideoUrls.Add(url);
+        }
+
+        NewVideoUrl = string.Empty;
+        RefreshSelectedContent();
+        SelectedDetailTabIndex = DetailTabMedia;
+        MarkProjectAndCatalogDirty();
+        if (parentViewModel != null)
+        {
+            await parentViewModel.SaveProjectAsync();
+        }
+    }
+
+    /// <summary>
+    /// Updates the active catalog icon and propagates it immediately to all content items.
+    /// </summary>
+    public void UpdateActiveCatalogIcon(string? iconUrl)
+    {
+        if (activeCatalog != null)
+        {
+            activeCatalog.IconUrl = iconUrl;
+            if (activeCatalog.Catalog != null)
+            {
+                activeCatalog.Catalog.IconUrl = iconUrl;
+                activeCatalog.Catalog.AvatarUrl = iconUrl;
+            }
+        }
+
+        foreach (var item in ContentItems)
+        {
+            item.CatalogIconUrl = iconUrl;
+        }
+
+        if (activeCatalog?.Catalog?.Content != null)
+        {
+            foreach (var item in activeCatalog.Catalog.Content)
+            {
+                item.CatalogIconUrl = iconUrl;
+            }
+        }
+
+        OnPropertyChanged(nameof(CatalogSummaryText));
+    }
+
     /// <summary>
     /// Loads content items from the active catalog.
     /// </summary>
@@ -1292,8 +1422,13 @@ public partial class ContentLibraryViewModel(
         ContentItems.Clear();
         if (activeCatalog?.Catalog?.Content != null)
         {
+            var catalogIcon = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
+            var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+
             foreach (var item in activeCatalog.Catalog.Content)
             {
+                item.CatalogIconUrl = catalogIcon;
+                item.PublisherAvatarUrl = publisherAvatar;
                 ContentItems.Add(item);
             }
         }

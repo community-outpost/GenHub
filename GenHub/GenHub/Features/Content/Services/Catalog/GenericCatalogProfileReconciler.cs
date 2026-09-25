@@ -184,7 +184,7 @@ public class GenericCatalogProfileReconciler(
     }
 
     private async Task<string?> GetLocalManifestIdIfApplicableAsync(
-        GameProfile profile,
+        GameProfile? profile,
         ContentSearchResult item,
         CancellationToken cancellationToken)
     {
@@ -198,6 +198,11 @@ public class GenericCatalogProfileReconciler(
         if (string.IsNullOrEmpty(localManifestId))
         {
             return null;
+        }
+
+        if (profile == null)
+        {
+            return localManifestId;
         }
 
         var isUsedInProfile = (profile.EnabledContentIds?.Contains(localManifestId, StringComparer.OrdinalIgnoreCase) == true) ||

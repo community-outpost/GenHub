@@ -6,6 +6,7 @@
              xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
              xmlns:converters="using:GenHub.Infrastructure.Converters"
              xmlns:controls="using:GenHub.Infrastructure.Controls"
+             xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
              mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="720"
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddContentDialogView"
              x:DataType="vm:AddContentDialogViewModel"
@@ -173,111 +174,33 @@
                         <!-- Icon -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IconArtwork}" Classes="label"/>
-                            <Border x:Name="IconDropTarget"
-                                    DragDrop.AllowDrop="True"
-                                    Background="{DynamicResource GlassFillBrush}"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="4">
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="4" Margin="2,0,6,0"
-                                            ClipToBounds="True" Background="{DynamicResource AccentBadgeBackgroundBrush}"
-                                            IsVisible="{Binding IconArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <Image controls:ImageLoader.Source="{Binding IconArtwork}" Stretch="UniformToFill"/>
-                                    </Border>
-                                    <TextBox Grid.Column="1"
-                                             x:Name="IconTextBox"
-                                             Text="{Binding IconArtwork, Mode=TwoWay}"
-                                             Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
-                                             VerticalAlignment="Center"
-                                             BorderThickness="0"
-                                             Background="Transparent"/>
-                                    <Button Grid.Column="2"
-                                            Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
-                                            Command="{Binding BrowseArtworkCommand}"
-                                            CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetIcon}"
-                                            Padding="10,6"
-                                            Margin="4,0,2,0"
-                                            Background="{DynamicResource GlassStrongBrush}"
-                                            CornerRadius="6"
-                                            Foreground="{DynamicResource TextPrimary}"/>
-                                </Grid>
-                            </Border>
+                            <commonControls:ImageInputBox Text="{Binding IconArtwork, Mode=TwoWay}"
+                                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
+                                                         FallbackIconData="{StaticResource ContentIcon}"
+                                                         PreviewCornerRadius="6"
+                                                         PreviewToolTip="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
                         </StackPanel>
 
                         <!-- Banner -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BannerArtwork}" Classes="label"/>
-                            <Border x:Name="BannerDropTarget"
-                                    DragDrop.AllowDrop="True"
-                                    Background="{DynamicResource GlassFillBrush}"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="4">
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <Border Grid.Column="0" Width="64" Height="36" CornerRadius="4" Margin="2,0,6,0"
-                                            ClipToBounds="True" Background="{DynamicResource GlassBorderBrush}"
-                                            IsVisible="{Binding BannerArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <Image controls:ImageLoader.Source="{Binding BannerArtwork}" Stretch="UniformToFill"/>
-                                    </Border>
-                                    <TextBox Grid.Column="1"
-                                             x:Name="BannerTextBox"
-                                             Text="{Binding BannerArtwork, Mode=TwoWay}"
-                                             Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
-                                             VerticalAlignment="Center"
-                                             BorderThickness="0"
-                                             Background="Transparent"/>
-                                    <Button Grid.Column="2"
-                                            Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
-                                            Command="{Binding BrowseArtworkCommand}"
-                                            CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetBanner}"
-                                            Padding="10,6"
-                                            Margin="4,0,2,0"
-                                            Background="{DynamicResource GlassStrongBrush}"
-                                            CornerRadius="6"
-                                            Foreground="{DynamicResource TextPrimary}"/>
-                                </Grid>
-                            </Border>
+                            <commonControls:ImageInputBox Text="{Binding BannerArtwork, Mode=TwoWay}"
+                                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
+                                                         FallbackIconData="{StaticResource ContentIcon}"
+                                                         PreviewCornerRadius="6"
+                                                         PreviewToolTip="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
                         </StackPanel>
 
                         <!-- Backdrop cover -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BackdropArtwork}" Classes="label"/>
-                            <Border x:Name="BackdropDropTarget"
-                                    DragDrop.AllowDrop="True"
-                                    Background="{DynamicResource GlassFillBrush}"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="4">
-                                <Grid ColumnDefinitions="Auto,*,Auto">
-                                    <Border Grid.Column="0" Width="64" Height="36" CornerRadius="4" Margin="2,0,6,0"
-                                            ClipToBounds="True" Background="{DynamicResource GlassBorderBrush}"
-                                            IsVisible="{Binding BackdropArtwork, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <Image controls:ImageLoader.Source="{Binding BackdropArtwork}" Stretch="UniformToFill"/>
-                                    </Border>
-                                    <TextBox Grid.Column="1"
-                                             x:Name="BackdropTextBox"
-                                             Text="{Binding BackdropArtwork, Mode=TwoWay}"
-                                             Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
-                                             VerticalAlignment="Center"
-                                             BorderThickness="0"
-                                             Background="Transparent"/>
-                                    <Button Grid.Column="2"
-                                            Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
-                                            Command="{Binding BrowseArtworkCommand}"
-                                            CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetBackdrop}"
-                                            Padding="10,6"
-                                            Margin="4,0,2,0"
-                                            Background="{DynamicResource GlassStrongBrush}"
-                                            CornerRadius="6"
-                                            Foreground="{DynamicResource TextPrimary}"/>
-                                </Grid>
-                            </Border>
+                            <commonControls:ImageInputBox Text="{Binding BackdropArtwork, Mode=TwoWay}"
+                                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
+                                                         FallbackIconData="{StaticResource ContentIcon}"
+                                                         PreviewCornerRadius="6"
+                                                         PreviewToolTip="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
                         </StackPanel>
 

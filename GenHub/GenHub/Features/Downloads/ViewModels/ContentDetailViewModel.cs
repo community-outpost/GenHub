@@ -4761,6 +4761,7 @@ public partial class ContentDetailViewModel(
             }
 
             RefreshSelectedTargetProperties();
+            await LoadInitialStateAsync();
             return;
         }
 
@@ -4804,6 +4805,7 @@ public partial class ContentDetailViewModel(
             }
 
             RefreshSelectedTargetProperties();
+            await LoadInitialStateAsync();
             return;
         }
 

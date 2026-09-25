@@ -13465,4 +13465,34 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.DefinitionPublishedMessage" xml:space="preserve">
     <value>Определение провайдера успешно загружено.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.AddScreenshot" xml:space="preserve">
+    <value>Добавить скриншот</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteScreenshot" xml:space="preserve">
+    <value>Вставить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteScreenshotTooltip" xml:space="preserve">
+    <value>Вставить изображение, файл или URL из буфера обмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddVideo" xml:space="preserve">
+    <value>Добавить видео файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddVideoUrl" xml:space="preserve">
+    <value>Добавить URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.VideoUrlWatermark" xml:space="preserve">
+    <value>Введите URL видео (например YouTube, Vimeo, MP4)...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PickScreenshotTitle" xml:space="preserve">
+    <value>Выберите изображения скриншотов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PickVideoTitle" xml:space="preserve">
+    <value>Выберите видео файлы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardImageTitle" xml:space="preserve">
+    <value>Изображение не найдено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
+    <value>В буфере обмена не найдено изображение, файл или URL.</value>
+  </data>
 </root>

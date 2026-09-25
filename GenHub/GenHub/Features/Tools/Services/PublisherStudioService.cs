@@ -207,6 +207,12 @@ public class PublisherStudioService(
             var catalogToExport = catalog?.Catalog ?? project.Catalog;
             var catalogName = catalog?.Name ?? "default";
 
+            if (catalog != null)
+            {
+                catalogToExport.IconUrl = catalog.IconUrl;
+                catalogToExport.AvatarUrl = catalog.IconUrl;
+            }
+
             var json = JsonSerializer.Serialize(catalogToExport, ExportJsonOptions);
 
             logger.LogInformation("Exported catalog '{CatalogName}' for project: {ProjectName}", catalogName, project.ProjectName);
@@ -302,12 +308,18 @@ public class PublisherStudioService(
 
                 if (catalogHostingInfo.TryGetValue(catalog.Id, out var catalogUrl))
                 {
+                    var effectiveCatalogIcon = !string.IsNullOrWhiteSpace(catalog.IconUrl)
+                        ? catalog.IconUrl
+                        : (!string.IsNullOrWhiteSpace(catalog.Catalog?.IconUrl)
+                            ? catalog.Catalog.IconUrl
+                            : project.Catalog?.Publisher?.AvatarUrl);
+
                     catalogEntries.Add(new CatalogEntry
                     {
                         Id = catalog.Id,
                         Name = catalog.Name,
                         Description = catalog.Description,
-                        IconUrl = catalog.IconUrl,
+                        IconUrl = effectiveCatalogIcon,
                         Url = catalogUrl,
                         Mirrors = [],
                     });

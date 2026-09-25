@@ -1,12 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Input.Platform;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using GenHub.Common.Helpers;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,7 +15,7 @@ namespace GenHub.Common.Controls;
 /// <summary>
 /// A reusable image input control supporting direct URL/path text entry,
 /// file and text drag-and-drop, clipboard paste of raw bitmaps or image URLs,
-/// and clickable thumbnail browse.
+/// explicit paste button, and clickable thumbnail browse.
 /// </summary>
 public partial class ImageInputBox : UserControl
 {
@@ -63,6 +62,8 @@ public partial class ImageInputBox : UserControl
     /// </summary>
     public static readonly StyledProperty<Func<string, Task>?> DropHandlerProperty =
         AvaloniaProperty.Register<ImageInputBox, Func<string, Task>?>(nameof(DropHandler));
+
+    private bool _isProcessingInput;
 
     /// <summary>
     /// Gets or sets the image URL or file path.
@@ -128,16 +129,34 @@ public partial class ImageInputBox : UserControl
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
 
-        var textBox = this.FindControl<TextBox>("InputTextBox");
-        if (textBox != null)
-        {
-            textBox.AddHandler(KeyDownEvent, OnTextBoxKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        }
+        AddHandler(KeyDownEvent, OnControlKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         var previewBorder = this.FindControl<Border>("PreviewBorder");
         if (previewBorder != null)
         {
             previewBorder.PointerPressed += OnPreviewBorderPointerPressed;
+        }
+
+        var pasteButton = this.FindControl<Button>("PasteButton");
+        if (pasteButton != null)
+        {
+            pasteButton.Click += OnPasteButtonClick;
+        }
+
+        var inputTextBox = this.FindControl<TextBox>("InputTextBox");
+        if (inputTextBox != null)
+        {
+            inputTextBox.PropertyChanged += (s, e) =>
+            {
+                if (e.Property == TextBox.TextProperty && !_isProcessingInput)
+                {
+                    var newText = inputTextBox.Text?.Trim();
+                    if (!string.IsNullOrWhiteSpace(newText) && File.Exists(newText) && DropHandler != null)
+                    {
+                        _ = ProcessIncomingInputAsync(newText);
+                    }
+                }
+            };
         }
     }
 
@@ -183,100 +202,17 @@ public partial class ImageInputBox : UserControl
         }
     }
 
-    private static async Task<string?> TryExtractClipboardImageAsync(IClipboard clipboard)
-    {
-        var formats = await clipboard.GetFormatsAsync();
-        var imageFormat = formats.FirstOrDefault(f =>
-            f.Contains("png", StringComparison.OrdinalIgnoreCase) ||
-            f.Contains("jpeg", StringComparison.OrdinalIgnoreCase) ||
-            f.Contains("bitmap", StringComparison.OrdinalIgnoreCase) ||
-            f.Contains("image", StringComparison.OrdinalIgnoreCase));
-
-        if (imageFormat == null)
-        {
-            return null;
-        }
-
-        var data = await clipboard.GetDataAsync(imageFormat);
-        var bytes = await ExtractBytesFromDataAsync(data);
-        if (bytes == null || bytes.Length == 0)
-        {
-            return null;
-        }
-
-        var tempFile = Path.Combine(Path.GetTempPath(), $"genhub_pasted_{Guid.NewGuid():N}.png");
-        await File.WriteAllBytesAsync(tempFile, bytes);
-        return tempFile;
-    }
-
-    private static async Task<byte[]?> ExtractBytesFromDataAsync(object? data)
-    {
-        if (data is byte[] b)
-        {
-            return b;
-        }
-
-        if (data is MemoryStream ms)
-        {
-            return ms.ToArray();
-        }
-
-        if (data is Stream s)
-        {
-            using var ms2 = new MemoryStream();
-            await s.CopyToAsync(ms2);
-            return ms2.ToArray();
-        }
-
-        return null;
-    }
-
-    private static async Task<string?> TryExtractClipboardFileAsync(IClipboard clipboard)
-    {
-        var files = await clipboard.GetDataAsync(DataFormats.Files);
-        if (files is IEnumerable<IStorageItem> storageItems)
-        {
-            var first = storageItems.FirstOrDefault();
-            if (first != null && !string.IsNullOrWhiteSpace(first.Path.LocalPath))
-            {
-                return first.Path.LocalPath;
-            }
-        }
-        else if (files is IEnumerable<string> filePaths)
-        {
-            var first = filePaths.FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(first))
-            {
-                return first;
-            }
-        }
-
-        return null;
-    }
-
-    private static async Task<string?> TryExtractClipboardTextAsync(IClipboard clipboard)
-    {
-        var text = await clipboard.GetTextAsync();
-        if (!string.IsNullOrWhiteSpace(text))
-        {
-            var trimmed = text.Trim();
-            if (Uri.TryCreate(trimmed, UriKind.Absolute, out _) || File.Exists(trimmed))
-            {
-                return trimmed;
-            }
-        }
-
-        return null;
-    }
-
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
     }
 
-    private async void OnTextBoxKeyDown(object? sender, KeyEventArgs e)
+    private async void OnControlKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.V || (!e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Meta)))
+        var isPaste = (e.Key == Key.V && (e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta)))
+                      || (e.Key == Key.Insert && e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+
+        if (!isPaste)
         {
             return;
         }
@@ -287,29 +223,27 @@ public partial class ImageInputBox : UserControl
             return;
         }
 
+        e.Handled = true;
+        await PasteFromClipboardAsync(topLevel.Clipboard);
+    }
+
+    private async void OnPasteButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.Clipboard != null)
+        {
+            await PasteFromClipboardAsync(topLevel.Clipboard);
+        }
+    }
+
+    private async Task PasteFromClipboardAsync(Avalonia.Input.Platform.IClipboard clipboard)
+    {
         try
         {
-            var imagePath = await TryExtractClipboardImageAsync(topLevel.Clipboard);
-            if (imagePath != null)
+            var result = await ClipboardInputHelper.ExtractPastedFileOrImageAsync(clipboard);
+            if (!string.IsNullOrWhiteSpace(result))
             {
-                e.Handled = true;
-                await ProcessIncomingInputAsync(imagePath);
-                return;
-            }
-
-            var filePath = await TryExtractClipboardFileAsync(topLevel.Clipboard);
-            if (filePath != null)
-            {
-                e.Handled = true;
-                await ProcessIncomingInputAsync(filePath);
-                return;
-            }
-
-            var text = await TryExtractClipboardTextAsync(topLevel.Clipboard);
-            if (text != null)
-            {
-                e.Handled = true;
-                await ProcessIncomingInputAsync(text);
+                await ProcessIncomingInputAsync(result);
             }
         }
         catch (Exception ex)
@@ -352,13 +286,26 @@ public partial class ImageInputBox : UserControl
 
     private async Task ProcessIncomingInputAsync(string fileOrUrl)
     {
-        if (DropHandler != null)
+        if (_isProcessingInput)
         {
-            await DropHandler(fileOrUrl);
+            return;
         }
-        else
+
+        _isProcessingInput = true;
+        try
         {
-            Text = fileOrUrl;
+            if (DropHandler != null)
+            {
+                await DropHandler(fileOrUrl);
+            }
+            else
+            {
+                Text = fileOrUrl;
+            }
+        }
+        finally
+        {
+            _isProcessingInput = false;
         }
     }
 }

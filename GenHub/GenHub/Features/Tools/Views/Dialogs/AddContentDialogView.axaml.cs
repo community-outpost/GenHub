@@ -42,35 +42,6 @@ public partial class AddContentDialogView : UserControl
         }
     }
 
-    private static bool TryHandleArtworkDrop(Visual? sourceVisual, List<string> paths, AddContentDialogViewModel vm)
-    {
-        var firstPath = paths[0];
-        if (!IsImageFile(firstPath))
-        {
-            return false;
-        }
-
-        if (IsInSubtree(sourceVisual, "IconDropTarget") || IsInSubtree(sourceVisual, "IconTextBox"))
-        {
-            vm.IconArtwork = firstPath;
-            return true;
-        }
-
-        if (IsInSubtree(sourceVisual, "BannerDropTarget") || IsInSubtree(sourceVisual, "BannerTextBox"))
-        {
-            vm.BannerArtwork = firstPath;
-            return true;
-        }
-
-        if (IsInSubtree(sourceVisual, "BackdropDropTarget") || IsInSubtree(sourceVisual, "BackdropTextBox"))
-        {
-            vm.BackdropArtwork = firstPath;
-            return true;
-        }
-
-        return false;
-    }
-
     private static async Task<bool> TryHandleDropZonesAsync(Visual? sourceVisual, List<string> paths, AddContentDialogViewModel vm)
     {
         if (IsInSubtree(sourceVisual, "ContentMediaDropZone"))
@@ -213,12 +184,6 @@ public partial class AddContentDialogView : UserControl
             }
 
             var sourceVisual = e.Source as Visual;
-
-            if (TryHandleArtworkDrop(sourceVisual, paths, vm))
-            {
-                e.Handled = true;
-                return;
-            }
 
             if (await TryHandleDropZonesAsync(sourceVisual, paths, vm))
             {

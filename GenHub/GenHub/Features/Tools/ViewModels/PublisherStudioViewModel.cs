@@ -1317,6 +1317,19 @@ public partial class PublisherStudioViewModel(
         if (iconChanged)
         {
             target.IconUrl = newIcon;
+            if (target.Catalog != null)
+            {
+                target.Catalog.IconUrl = newIcon;
+                target.Catalog.AvatarUrl = newIcon;
+            }
+
+            ContentLibraryViewModel?.UpdateActiveCatalogIcon(newIcon);
+
+            if (PublishShareViewModel != null)
+            {
+                PublishShareViewModel.SyncAvailableCatalogs();
+                PublishShareViewModel.MarkCatalogChanged(target.Id);
+            }
         }
 
         UpdateCatalogInCollection(target);

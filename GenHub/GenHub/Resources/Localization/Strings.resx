@@ -13563,4 +13563,34 @@ Would you like to use this existing hosted file instead of uploading a new copy?
   <data name="Tools.PublisherStudio.Publish.DefinitionPublishedMessage" xml:space="preserve">
     <value>Provider definition uploaded successfully.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.AddScreenshot" xml:space="preserve">
+    <value>Add Screenshot</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteScreenshot" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteScreenshotTooltip" xml:space="preserve">
+    <value>Paste image, file, or URL from clipboard</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddVideo" xml:space="preserve">
+    <value>Add Video File</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddVideoUrl" xml:space="preserve">
+    <value>Add URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.VideoUrlWatermark" xml:space="preserve">
+    <value>Enter video URL (e.g. YouTube, Vimeo, MP4)...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PickScreenshotTitle" xml:space="preserve">
+    <value>Select Screenshot Images</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PickVideoTitle" xml:space="preserve">
+    <value>Select Video Files</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardImageTitle" xml:space="preserve">
+    <value>No Image Found</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
+    <value>No image, file, or image URL was found on the clipboard.</value>
+  </data>
 </root>

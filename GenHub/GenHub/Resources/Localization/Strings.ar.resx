@@ -13465,4 +13465,34 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.DefinitionPublishedMessage" xml:space="preserve">
     <value>تم رفع ملف تعريف المزود بنجاح.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.AddScreenshot" xml:space="preserve">
+    <value>إضافة لقطة شاشة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteScreenshot" xml:space="preserve">
+    <value>لصق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteScreenshotTooltip" xml:space="preserve">
+    <value>لصق صورة أو ملف أو رابط من الحافظة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddVideo" xml:space="preserve">
+    <value>إضافة ملف فيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddVideoUrl" xml:space="preserve">
+    <value>إضافة رابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.VideoUrlWatermark" xml:space="preserve">
+    <value>أدخل رابط الفيديو (مثل YouTube ،Vimeo ،MP4)...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PickScreenshotTitle" xml:space="preserve">
+    <value>حدد صور لقطات الشاشة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PickVideoTitle" xml:space="preserve">
+    <value>حدد ملفات الفيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardImageTitle" xml:space="preserve">
+    <value>لم يتم العثور على صورة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
+    <value>لم يتم العثور على صورة أو ملف أو رابط صورة في الحافظة.</value>
+  </data>
 </root>

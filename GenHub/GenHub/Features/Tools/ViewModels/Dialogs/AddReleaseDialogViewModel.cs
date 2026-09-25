@@ -4,6 +4,7 @@ using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.Interfaces;
 using System;
@@ -405,6 +406,7 @@ public partial class AddReleaseDialogViewModel(
             Variant = source.Variant,
             IsDefaultVariant = source.IsDefaultVariant,
             LocalFilePath = source.LocalFilePath,
+            EntryPoint = source.EntryPoint,
         };
     }
 
@@ -573,6 +575,10 @@ public partial class AddReleaseDialogViewModel(
             sha256 = string.Empty;
         }
 
+        var detectedEntry = filename.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+            ? GameClientEntryDetector.DetectEntryPointFromArchive(path)
+            : null;
+
         var artifact = new ReleaseArtifact
         {
             Filename = filename,
@@ -582,6 +588,7 @@ public partial class AddReleaseDialogViewModel(
             ContentType = MimeTypeHelper.FromFileName(filename),
             IsPrimary = Artifacts.Count == 0,
             LocalFilePath = path,
+            EntryPoint = detectedEntry,
         };
 
         if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
@@ -823,6 +830,8 @@ public partial class AddReleaseDialogViewModel(
             effectiveTitle = null;
         }
 
+        var primaryEntryPoint = Artifacts.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.EntryPoint))?.EntryPoint;
+
         var release = new ContentRelease
         {
             Title = effectiveTitle,
@@ -834,6 +843,7 @@ public partial class AddReleaseDialogViewModel(
             IsFeatured = IsFeatured,
             Changelog = Changelog.Trim(),
             BundleArtifacts = BundleArtifacts,
+            EntryPoint = primaryEntryPoint,
             Artifacts = [.. Artifacts],
             Dependencies = [.. Dependencies],
             ImageUrls = ParseUrls(ImageUrlsInput),

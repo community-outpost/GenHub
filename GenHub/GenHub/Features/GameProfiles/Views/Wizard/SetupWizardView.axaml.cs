@@ -17,6 +17,14 @@ public partial class SetupWizardView : Window
     public SetupWizardView()
     {
         InitializeComponent();
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Avalonia.Input.Key.Escape && !e.Handled)
+            {
+                e.Handled = true;
+                Close();
+            }
+        };
     }
 
     /// <summary>

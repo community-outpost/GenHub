@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -8,9 +9,11 @@ namespace GenHub.Core.Models.Providers;
 /// Represents a catalog within a publisher definition (V2 schema).
 /// Each publisher can have multiple catalogs for different content types.
 /// </summary>
-public class CatalogEntry
+public class CatalogEntry : ObservableObject
 {
     private List<string> _mirrors = [];
+    private string? _iconUrl;
+    private string? _publisherAvatarUrl;
 
     /// <summary>
     /// Gets or sets the unique ID for this catalog within the publisher (e.g., "zh-mods", "maps").
@@ -34,7 +37,17 @@ public class CatalogEntry
     /// Gets or sets an optional icon or avatar URL for this catalog.
     /// </summary>
     [JsonPropertyName("iconUrl")]
-    public string? IconUrl { get; set; }
+    public string? IconUrl
+    {
+        get => _iconUrl;
+        set
+        {
+            if (SetProperty(ref _iconUrl, value))
+            {
+                OnPropertyChanged(nameof(EffectiveIconUrl));
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets the primary URL where this catalog JSON is hosted.
@@ -53,7 +66,23 @@ public class CatalogEntry
     }
 
     /// <summary>
-    /// Gets the effective icon URL for this catalog, falling back to a deterministic placeholder.
+    /// Gets or sets the publisher avatar URL fallback for this catalog when no custom icon is set.
+    /// </summary>
+    [JsonIgnore]
+    public string? PublisherAvatarUrl
+    {
+        get => _publisherAvatarUrl;
+        set
+        {
+            if (SetProperty(ref _publisherAvatarUrl, value))
+            {
+                OnPropertyChanged(nameof(EffectiveIconUrl));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the effective icon URL for this catalog, falling back to publisher avatar or a deterministic placeholder.
     /// </summary>
     [JsonIgnore]
     public string EffectiveIconUrl
@@ -63,6 +92,11 @@ public class CatalogEntry
             if (!string.IsNullOrWhiteSpace(IconUrl))
             {
                 return IconUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(PublisherAvatarUrl))
+            {
+                return PublisherAvatarUrl;
             }
 
             var seed = !string.IsNullOrWhiteSpace(Id) ? Id : Name;

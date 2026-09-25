@@ -62,6 +62,12 @@ public class ContentRelease
     public string? Changelog { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional entry point path for this release.
+    /// </summary>
+    [JsonPropertyName("entryPoint")]
+    public string? EntryPoint { get; set; }
+
+    /// <summary>
     /// Gets or sets the downloadable artifacts for this release.
     /// </summary>
     [JsonPropertyName("artifacts")]

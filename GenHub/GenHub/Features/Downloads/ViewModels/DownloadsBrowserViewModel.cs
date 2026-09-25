@@ -28,6 +28,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
+using GenHub.Features.Content.Services.Reconciliation;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
@@ -1460,13 +1461,17 @@ public sealed partial class DownloadsBrowserViewModel(
         _suppressCatalogChanged = true;
         try
         {
+            var previouslySelectedId = SelectedCatalog?.Id;
+            var publisherAvatar = subscription.AvatarUrl ?? SelectedPublisher?.LogoSource;
             AvailableCatalogs.Clear();
             foreach (var catalog in catalogs)
             {
+                catalog.PublisherAvatarUrl = publisherAvatar;
                 AvailableCatalogs.Add(catalog);
             }
 
-            var match = FindMatchingCatalogEntry(catalogs, subscription);
+            var match = AvailableCatalogs.FirstOrDefault(c => string.Equals(c.Id, previouslySelectedId, StringComparison.OrdinalIgnoreCase))
+                ?? FindMatchingCatalogEntry(catalogs, subscription);
             if (match == null && !string.IsNullOrWhiteSpace(subscription.CatalogUrl))
             {
                 match = new CatalogEntry
@@ -1474,6 +1479,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     Id = CatalogConstants.CurrentCatalogEntryId,
                     Name = _localizationService?.GetString("Downloads.Browser.CurrentCatalog") ?? "Current catalog",
                     Url = subscription.CatalogUrl,
+                    PublisherAvatarUrl = publisherAvatar,
                 };
                 AvailableCatalogs.Insert(0, match);
             }
@@ -1926,6 +1932,10 @@ public sealed partial class DownloadsBrowserViewModel(
             if (!append)
             {
                 PrepareContentCollectionForRefresh(publisherId, isCustomQuery);
+                if (SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = LoadAvailableCatalogsAsync(publisherId, _vmCts.Token);
+                }
             }
 
             // Build base query
@@ -2642,9 +2652,8 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
                 targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? ContentConstants.UpdateFailedStatusMessage}";
+                return false;
             }
-
-            return false;
         }
 
         var dialogService = serviceProvider.GetService<IDialogService>();
@@ -2656,7 +2665,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 : string.Empty;
 
             var title = $"{targetItem.Name} Update Available";
-            var message = $"A new version of **{targetItem.Name}** is available{versionText}.\n\nHow do you want to apply this update?";
+            var message = $"{targetItem.Name} has an update available{versionText}.\n\nHow do you want to apply this update?";
             promptResult = await dialogService.ShowUpdateOptionDialogAsync(title, message, initialDeleteOldVersions: true);
 
             if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
@@ -2675,49 +2684,67 @@ public sealed partial class DownloadsBrowserViewModel(
             return false;
         }
 
-        if (promptResult?.DeleteOldVersions == true && !string.IsNullOrEmpty(oldManifestId))
+        var newManifestId = targetItem.SearchResult != null
+            ? await contentStateService.GetLocalManifestIdAsync(targetItem.SearchResult, ct)
+            : null;
+
+        var activeProfileManager = profileManager ?? serviceProvider.GetService<IGameProfileManager>();
+        var reconciliationService = serviceProvider.GetService<IContentReconciliationService>();
+        var manifestPool = serviceProvider.GetService<IContentManifestPool>();
+
+        if (activeProfileManager != null && reconciliationService != null && manifestPool != null)
         {
             try
             {
-                var newManifestId = targetItem.SearchResult != null
-                    ? await contentStateService.GetLocalManifestIdAsync(targetItem.SearchResult, ct)
+                var oldManifest = !string.IsNullOrEmpty(oldManifestId)
+                    ? await manifestPool.GetManifestAsync(oldManifestId, ct)
                     : null;
-                var activeProfileManager = profileManager ?? serviceProvider.GetService<IGameProfileManager>();
+                var newManifest = !string.IsNullOrEmpty(newManifestId)
+                    ? await manifestPool.GetManifestAsync(newManifestId, ct)
+                    : null;
 
-                if (activeProfileManager != null && !string.IsNullOrEmpty(newManifestId))
-                {
-                    var profiles = await activeProfileManager.GetAllProfilesAsync(ct);
-                    if (profiles.Success && profiles.Data != null)
-                    {
-                        foreach (var prof in profiles.Data)
-                        {
-                            if (prof.EnabledContentIds?.Contains(oldManifestId, StringComparer.OrdinalIgnoreCase) == true)
-                            {
-                                prof.EnabledContentIds.Remove(oldManifestId);
-                                if (!prof.EnabledContentIds.Contains(newManifestId, StringComparer.OrdinalIgnoreCase))
-                                {
-                                    prof.EnabledContentIds.Add(newManifestId);
-                                }
+                var oldManifests = oldManifest?.Success == true && oldManifest.Data != null
+                    ? new List<ContentManifest> { oldManifest.Data }
+                    : new List<ContentManifest>();
+                var newManifests = newManifest?.Success == true && newManifest.Data != null
+                    ? new List<ContentManifest> { newManifest.Data }
+                    : new List<ContentManifest>();
 
-                                var updateReq = new UpdateProfileRequest
-                                {
-                                    EnabledContentIds = prof.EnabledContentIds.ToList(),
-                                };
-                                await activeProfileManager.UpdateProfileAsync(prof.Id, updateReq, ct);
-                            }
-                        }
-                    }
-                }
+                var mapping = (!string.IsNullOrEmpty(oldManifestId) && !string.IsNullOrEmpty(newManifestId))
+                    ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [oldManifestId] = newManifestId }
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                var reconciliationService = serviceProvider.GetService<IContentReconciliationService>();
-                if (reconciliationService != null)
+                var strategy = promptResult?.Strategy ?? UpdateStrategy.ReplaceCurrent;
+                var shouldDelete = promptResult?.DeleteOldVersions ?? true;
+
+                var helperContext = new PublisherReconciliationContext(
+                    activeProfileManager,
+                    reconciliationService,
+                    notificationService,
+                    logger,
+                    targetItem.SearchResult?.ProviderName ?? "Content",
+                    "[Downloads Update]");
+
+                var updateOutcome = await PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
+                    new UpdateStrategyExecutionArgs(
+                        strategy,
+                        oldManifests,
+                        newManifests,
+                        mapping,
+                        targetItem.SearchResult?.Version ?? string.Empty,
+                        shouldDelete,
+                        null),
+                    helperContext,
+                    ct);
+
+                if (updateOutcome.ShouldDeleteOldVersions && !updateOutcome.AnyFailure)
                 {
                     await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to cleanup old version {OldManifestId} after update", oldManifestId);
+                logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
             }
         }
 

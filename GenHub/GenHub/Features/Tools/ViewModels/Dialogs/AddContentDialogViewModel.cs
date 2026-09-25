@@ -5,6 +5,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Utilities;
 using GenHub.Features.Tools.Interfaces;
@@ -1704,11 +1705,19 @@ public partial class AddContentDialogViewModel(
         }
 
         contentItem.Releases.Add(release);
+        if (!string.IsNullOrWhiteSpace(release.EntryPoint) && string.IsNullOrWhiteSpace(contentItem.EntryPoint))
+        {
+            contentItem.EntryPoint = release.EntryPoint;
+        }
     }
 
     private void AttachSingleInitialArtifact(CatalogContentItem contentItem, ContentRelease release, string version)
     {
         var artifactName = DetermineArtifactName(contentItem.Id, version);
+
+        var detectedEntry = (!UseDirectUrl && !string.IsNullOrWhiteSpace(LocalFilePath) && LocalFilePath.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            ? GameClientEntryDetector.DetectEntryPointFromArchive(LocalFilePath)
+            : null;
 
         var artifact = new ReleaseArtifact
         {
@@ -1719,7 +1728,13 @@ public partial class AddContentDialogViewModel(
             Sha256 = UseDirectUrl ? string.Empty : (Sha256Hash?.Trim() ?? string.Empty),
             ContentType = MimeTypeHelper.FromFileName(artifactName),
             IsPrimary = true,
+            EntryPoint = detectedEntry,
         };
+
+        if (detectedEntry != null && string.IsNullOrWhiteSpace(release.EntryPoint))
+        {
+            release.EntryPoint = detectedEntry;
+        }
 
         release.Artifacts.Add(artifact);
     }
@@ -1734,6 +1749,10 @@ public partial class AddContentDialogViewModel(
                 ? PackageFilename.Trim()
                 : StagedArtifactFilename(entry);
 
+            var detectedEntry = entry.IsArchive
+                ? GameClientEntryDetector.DetectEntryPointFromArchive(entry.LocalPath)
+                : null;
+
             release.Artifacts.Add(new ReleaseArtifact
             {
                 Filename = artifactName,
@@ -1743,7 +1762,13 @@ public partial class AddContentDialogViewModel(
                 Sha256 = entry.Sha256Hash?.Trim() ?? string.Empty,
                 ContentType = MimeTypeHelper.FromFileName(artifactName),
                 IsPrimary = index == 0,
+                EntryPoint = detectedEntry,
             });
+
+            if (detectedEntry != null && string.IsNullOrWhiteSpace(release.EntryPoint))
+            {
+                release.EntryPoint = detectedEntry;
+            }
         }
 
         // Multiple staged files are parts of one payload; bundle them so the

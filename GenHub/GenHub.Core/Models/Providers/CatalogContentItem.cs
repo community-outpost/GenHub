@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using System;
@@ -10,8 +11,11 @@ namespace GenHub.Core.Models.Providers;
 /// A content item entry within a publisher catalog.
 /// Represents a mod, map, addon, or other content with one or more releases.
 /// </summary>
-public class CatalogContentItem
+public class CatalogContentItem : ObservableObject
 {
+    private string? _catalogIconUrl;
+    private string? _publisherAvatarUrl;
+
     /// <summary>
     /// Gets or sets the unique content identifier within this publisher's catalog.
     /// Combined with publisher ID to form the full manifest ID.
@@ -42,6 +46,12 @@ public class CatalogContentItem
     /// </summary>
     [JsonPropertyName("targetGame")]
     public GameType TargetGame { get; set; } = GameType.ZeroHour;
+
+    /// <summary>
+    /// Gets or sets the entry point relative path for this content item (e.g., "generals.exe" or "game.dat").
+    /// </summary>
+    [JsonPropertyName("entryPoint")]
+    public string? EntryPoint { get; set; }
 
     /// <summary>
     /// Gets or sets the list of releases (versions) for this content.
@@ -108,7 +118,39 @@ public class CatalogContentItem
     public bool IsStandalone { get; set; } = true;
 
     /// <summary>
-    /// Gets the effective icon URL for this content item, falling back to publisher logo or deterministic placeholder.
+    /// Gets or sets the inherited catalog icon URL fallback for this content item.
+    /// </summary>
+    [JsonIgnore]
+    public string? CatalogIconUrl
+    {
+        get => _catalogIconUrl;
+        set
+        {
+            if (SetProperty(ref _catalogIconUrl, value))
+            {
+                OnPropertyChanged(nameof(EffectiveIconUrl));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the inherited publisher avatar URL fallback for this content item.
+    /// </summary>
+    [JsonIgnore]
+    public string? PublisherAvatarUrl
+    {
+        get => _publisherAvatarUrl;
+        set
+        {
+            if (SetProperty(ref _publisherAvatarUrl, value))
+            {
+                OnPropertyChanged(nameof(EffectiveIconUrl));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the effective icon URL for this content item, falling back to catalog icon, publisher avatar, or deterministic placeholder.
     /// </summary>
     [JsonIgnore]
     public string EffectiveIconUrl
@@ -127,9 +169,31 @@ public class CatalogContentItem
                 return PublisherInfoConstants.Dominator.LogoSource;
             }
 
+            if (!string.IsNullOrWhiteSpace(CatalogIconUrl) &&
+                !CatalogIconUrl.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase))
+            {
+                return CatalogIconUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(PublisherAvatarUrl) &&
+                !PublisherAvatarUrl.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase))
+            {
+                return PublisherAvatarUrl;
+            }
+
             if (!string.IsNullOrWhiteSpace(Metadata?.IconUrl))
             {
                 return Metadata.IconUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(CatalogIconUrl))
+            {
+                return CatalogIconUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(PublisherAvatarUrl))
+            {
+                return PublisherAvatarUrl;
             }
 
             return ImageCacheConstants.GetPicsumUrl($"{Id}-icon", 128, 128);

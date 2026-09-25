@@ -156,7 +156,8 @@ public partial class GenericCatalogResolver(
                     resolvedName,
                     discoveredItem.Id,
                     resolvedTargetGame),
-                artifactHashes);
+                artifactHashes,
+                release?.EntryPoint);
 
             logger.LogInformation(
                 "Successfully resolved manifest for '{ContentName}' with {FileCount} files",
@@ -709,9 +710,16 @@ public partial class GenericCatalogResolver(
         CatalogContentItem contentItem,
         ReleaseArtifact? primaryArtifact,
         ManifestResolutionContext context,
-        IReadOnlyDictionary<string, string>? artifactHashes = null)
+        IReadOnlyDictionary<string, string>? artifactHashes = null,
+        string? releaseEntryPoint = null)
     {
         ApplyFileHashes(manifest, contentItem, primaryArtifact, artifactHashes);
+
+        var entryPoint = primaryArtifact?.EntryPoint ?? releaseEntryPoint ?? contentItem.EntryPoint;
+        if (!string.IsNullOrWhiteSpace(entryPoint))
+        {
+            manifest.EntryPoint = entryPoint;
+        }
 
         if (!string.IsNullOrWhiteSpace(context.SearchResultId) &&
             ManifestIdValidator.IsValid(context.SearchResultId, out _))

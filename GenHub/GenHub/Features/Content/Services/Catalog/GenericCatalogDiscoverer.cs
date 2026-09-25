@@ -993,8 +993,14 @@ public class GenericCatalogDiscoverer(
             pair => pair.Value.Name,
             StringComparer.OrdinalIgnoreCase);
 
+        var catalogIcon = !string.IsNullOrWhiteSpace(catalog.IconUrl) ? catalog.IconUrl : catalog.AvatarUrl;
+        var publisherAvatar = _subscription?.AvatarUrl ?? catalog.Publisher?.AvatarUrl;
+
         foreach (var contentItem in catalog.Content)
         {
+            contentItem.CatalogIconUrl ??= catalogIcon;
+            contentItem.PublisherAvatarUrl ??= publisherAvatar;
+
             // Apply version filtering (default: latest only)
             var policy = query.IncludeOlderVersions
                 ? VersionPolicy.AllVersions
@@ -1301,16 +1307,30 @@ public class GenericCatalogDiscoverer(
             ? contentItem.Metadata.Author
             : effectiveProviderName;
 
+        var catalogIcon = !string.IsNullOrWhiteSpace(catalog.IconUrl)
+            ? catalog.IconUrl
+            : catalog.AvatarUrl;
+
         var publisherLogo = _subscription?.AvatarUrl
             ?? catalog.Publisher?.AvatarUrl
             ?? PublisherInfoConstants.GetPublisherLogo(effectiveProviderName, catalog.Publisher?.Id ?? string.Empty);
 
-        var itemIcon = contentItem.EffectiveIconUrl ?? contentItem.Metadata?.IconUrl;
+        var itemIcon = !string.IsNullOrWhiteSpace(contentItem.Metadata?.IconUrl) &&
+                       !contentItem.Metadata.IconUrl.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase)
+            ? contentItem.Metadata.IconUrl
+            : null;
 
-        var fallbackLogo = !string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : null;
-        var iconUrl = !string.IsNullOrWhiteSpace(itemIcon)
-            ? itemIcon
-            : fallbackLogo;
+        if (itemIcon == null &&
+            ((contentItem.Id != null && contentItem.Id.Contains("dominator", StringComparison.OrdinalIgnoreCase)) ||
+             (contentItem.Name != null && contentItem.Name.Contains("dominator", StringComparison.OrdinalIgnoreCase))))
+        {
+            itemIcon = PublisherInfoConstants.Dominator.LogoSource;
+        }
+
+        var iconUrl = itemIcon
+            ?? (!string.IsNullOrWhiteSpace(catalogIcon) ? catalogIcon : null)
+            ?? (!string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : null)
+            ?? ImageCacheConstants.GetPicsumUrl($"{contentItem.Id}-icon", 128, 128);
 
         return (effectiveProviderName, authorName, iconUrl);
     }

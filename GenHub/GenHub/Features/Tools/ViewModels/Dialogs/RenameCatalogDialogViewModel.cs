@@ -1,8 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using GenHub.Common.Validation;
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,15 +9,8 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
 
 /// <summary>
-/// ViewModel for editing/renaming a catalog and setting its optional icon.
+/// ViewModel for the rename / edit catalog dialog.
 /// </summary>
-/// <param name="currentName">The current catalog name.</param>
-/// <param name="onComplete">Callback invoked with the dialog result.</param>
-/// <param name="canDelete">Whether the catalog can be deleted.</param>
-/// <param name="onDelete">Optional delete callback.</param>
-/// <param name="currentIconUrl">Optional current icon URL.</param>
-/// <param name="onUploadImage">Optional upload callback for local image files.</param>
-[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class RenameCatalogDialogViewModel(
     string currentName,
     Action<RenameCatalogResult?> onComplete,
@@ -28,10 +20,10 @@ public partial class RenameCatalogDialogViewModel(
     Func<string, Task<string?>>? onUploadImage = null) : ObservableValidator
 {
     [ObservableProperty]
-    [NotifyDataErrorInfo]
-    [LocalizedRequired("Tools.PublisherStudio.Validation.CatalogNameRequired", "Catalog name is required")]
-    [LocalizedMinLength(1, "Tools.PublisherStudio.Validation.CatalogNameNotEmpty", "Catalog name cannot be empty")]
-    private string _catalogName = currentName ?? string.Empty;
+    [Required(ErrorMessage = "Catalog name is required")]
+    [MinLength(1, ErrorMessage = "Catalog name cannot be empty")]
+    [MaxLength(100, ErrorMessage = "Catalog name cannot exceed 100 characters")]
+    private string _catalogName = currentName;
 
     [ObservableProperty]
     private string? _iconUrl = currentIconUrl;
@@ -40,13 +32,15 @@ public partial class RenameCatalogDialogViewModel(
     private bool _canDelete = canDelete;
 
     [ObservableProperty]
-    private string? _validationError;
+    private bool _isValid = true;
 
     [ObservableProperty]
-    private bool _isValid;
+    private string? _validationError;
 
     /// <summary>
-    /// Handles drag and drop of an image file or URL for the catalog icon.
+    /// Handles image drop or paste for the catalog icon.
+    /// If an upload handler is provided, it uploads the file and stores the URL;
+    /// otherwise it stores the local path or URL directly.
     /// </summary>
     /// <param name="fileOrUrl">The dropped file path or URL string.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -73,12 +67,11 @@ public partial class RenameCatalogDialogViewModel(
                 if (!string.IsNullOrWhiteSpace(uploadedUrl))
                 {
                     IconUrl = uploadedUrl;
+                    return;
                 }
             }
-            else
-            {
-                IconUrl = trimmed;
-            }
+
+            IconUrl = trimmed;
         }
     }
 

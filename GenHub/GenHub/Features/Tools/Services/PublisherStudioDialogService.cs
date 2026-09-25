@@ -302,6 +302,60 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> ShowImageFilesPickerAsync(string title)
+    {
+        var mainWindow = GetMainWindow();
+        if (mainWindow == null) return [];
+
+        var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType("Image Files (*.png, *.jpg, *.jpeg, *.webp, *.bmp, *.gif)")
+                {
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"],
+                },
+                new Avalonia.Platform.Storage.FilePickerFileType(AllFilesFilterName)
+                {
+                    Patterns = ["*.*"],
+                },
+            ],
+        };
+
+        var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
+        return files.Select(f => f.Path.LocalPath).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> ShowVideoFilesPickerAsync(string title)
+    {
+        var mainWindow = GetMainWindow();
+        if (mainWindow == null) return [];
+
+        var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType("Video Files (*.mp4, *.webm, *.mkv, *.avi, *.mov)")
+                {
+                    Patterns = ["*.mp4", "*.webm", "*.mkv", "*.avi", "*.mov"],
+                },
+                new Avalonia.Platform.Storage.FilePickerFileType(AllFilesFilterName)
+                {
+                    Patterns = ["*.*"],
+                },
+            ],
+        };
+
+        var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
+        return files.Select(f => f.Path.LocalPath).ToList();
+    }
+
+    /// <inheritdoc/>
     public async Task<string?> ShowFolderPickerAsync(string title)
     {
         var mainWindow = GetMainWindow();
@@ -523,22 +577,23 @@ public class PublisherStudioDialogService(
         return files.Count > 0 ? files[0].Path.LocalPath : null;
     }
 
-    private async Task StageInitialArtifactsAsync(AddReleaseDialogViewModel vm, IEnumerable<string>? initialPaths)
+    private static async Task StageInitialArtifactsAsync(
+        AddReleaseDialogViewModel vm,
+        IEnumerable<string>? initialPaths)
     {
-        var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
-        if (pathsList is { Count: > 0 })
+        if (initialPaths == null)
         {
-            try
+            return;
+        }
+
+        foreach (var path in initialPaths)
+        {
+            if (string.IsNullOrWhiteSpace(path))
             {
-                await vm.AddArtifactsFromPathsAsync(pathsList);
+                continue;
             }
-            catch (Exception ex)
-            {
-                logger?.LogWarning(ex, "Failed to stage initial artifacts for dialog.");
-                var title = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle") ?? "Could Not Stage Files";
-                var message = localizationService?.GetString("Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage") ?? "Some dropped files could not be staged and were skipped. See logs for details.";
-                notificationService?.ShowWarning(title, message);
-            }
+
+            await vm.AddArtifactFromPathAsync(path);
         }
     }
 }
