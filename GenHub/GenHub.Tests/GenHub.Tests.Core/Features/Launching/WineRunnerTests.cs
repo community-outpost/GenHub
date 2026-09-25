@@ -1080,6 +1080,55 @@ public sealed class WineRunnerTests : IDisposable
         Assert.True(result.Success, result.AllErrors);
     }
 
+    /// <summary>
+    /// Verifies that when a prefix user-data subdirectory target is an existing regular file,
+    /// WineRunner preserves the file untouched and skips bridging rather than deleting it.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WhenPrefixSubdirectoryIsRegularFile_LeavesFileUntouched()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-file-preserve");
+        var runner = CreateRunner([binDirectory], prefixPath);
+
+        var nativeUserData = CreateDirectory("userdata-file-preserve");
+        var nativeOptionsPath = Path.Combine(nativeUserData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "resolution = 1920 1080");
+
+        var nativeMapDir = Path.Combine(nativeUserData, GameSettingsConstants.FolderNames.Maps, "TestMap");
+        Directory.CreateDirectory(nativeMapDir);
+        File.WriteAllText(Path.Combine(nativeMapDir, "TestMap.map"), "map-content");
+
+        // Create a regular file in the prefix where Maps directory would normally be bridged
+        var prefixDocsDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName);
+        Directory.CreateDirectory(prefixDocsDir);
+        var conflictingFilePath = Path.Combine(prefixDocsDir, GameSettingsConstants.FolderNames.Maps);
+        File.WriteAllText(conflictingFilePath, "important non-directory file content");
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert: launch succeeds and the file is never overwritten or deleted
+        Assert.True(result.Success, result.AllErrors);
+        Assert.True(File.Exists(conflictingFilePath));
+        Assert.Equal("important non-directory file content", File.ReadAllText(conflictingFilePath));
+    }
+
     private WineRunner CreateRunner(
         string[] extraSearchDirectories,
         string prefixPath,

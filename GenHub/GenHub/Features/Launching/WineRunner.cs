@@ -304,7 +304,7 @@ public class WineRunner(
             }
             else if (File.Exists(prefixSubDir))
             {
-                File.Delete(prefixSubDir);
+                return false;
             }
 
             Directory.CreateSymbolicLink(prefixSubDir, nativeSubDir);
