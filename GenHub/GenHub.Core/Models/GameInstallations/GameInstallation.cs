@@ -10,6 +10,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Security;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace GenHub.Core.Models.GameInstallations;
 
@@ -28,8 +31,11 @@ public class GameInstallation(
 
     /// <summary>
     /// Gets or sets the unique identifier for this installation.
+    /// Defaults to <see cref="CreateStableId"/> so the same installation keeps its ID across app restarts.
     /// </summary>
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Id { get; set; } = string.IsNullOrWhiteSpace(installationPath)
+        ? Guid.NewGuid().ToString()
+        : CreateStableId(installationType, installationPath);
 
     /// <summary>
     /// Gets or sets the display name for this installation.
@@ -117,6 +123,35 @@ public class GameInstallation(
 
     /// <summary>Gets the internal list of available game clients for population.</summary>
     internal List<GameClient> AvailableClientsInternal { get; } = [];
+
+    /// <summary>
+    /// Derives a deterministic installation ID from the installation type and normalized path.
+    /// </summary>
+    /// <param name="installationType">The installation type.</param>
+    /// <param name="installationPath">The installation root path.</param>
+    /// <returns>A GUID-formatted ID that is identical for the same type and path in every process.</returns>
+    public static string CreateStableId(GameInstallationType installationType, string installationPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(installationPath);
+
+        string normalizedPath;
+        try
+        {
+            normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installationPath));
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or SecurityException)
+        {
+            normalizedPath = installationPath;
+        }
+
+        if (PathHelper.PathComparison == StringComparison.OrdinalIgnoreCase)
+        {
+            normalizedPath = normalizedPath.ToUpperInvariant();
+        }
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{installationType}|{normalizedPath}"));
+        return new Guid(hash.AsSpan(0, 16)).ToString();
+    }
 
     /// <summary>
     /// Sets the paths for Generals and Zero Hour.

@@ -1153,6 +1153,51 @@ public class GameInstallationTests
         }
     }
 
+    /// <summary>
+    /// Verifies that two instances built for the same type and path share one ID, so an ID
+    /// persisted in a profile still resolves after the app restarts.
+    /// </summary>
+    [Fact]
+    public void Id_SameTypeAndPath_IsIdenticalAcrossInstances()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "GenHubStableId_" + Guid.NewGuid().ToString("N"));
+
+        var first = new GameInstallation(root, GameInstallationType.Custom);
+        var second = new GameInstallation(root + Path.DirectorySeparatorChar, GameInstallationType.Custom);
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(GameInstallation.CreateStableId(GameInstallationType.Custom, root), first.Id);
+        Assert.True(Guid.TryParse(first.Id, out _));
+    }
+
+    /// <summary>
+    /// Verifies that the stable ID distinguishes installations by path and by type.
+    /// </summary>
+    [Fact]
+    public void Id_DifferentTypeOrPath_Differs()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "GenHubStableId_" + Guid.NewGuid().ToString("N"));
+
+        var custom = new GameInstallation(root, GameInstallationType.Custom);
+        var retail = new GameInstallation(root, GameInstallationType.Retail);
+        var otherPath = new GameInstallation(root + "_other", GameInstallationType.Custom);
+
+        Assert.NotEqual(custom.Id, retail.Id);
+        Assert.NotEqual(custom.Id, otherPath.Id);
+    }
+
+    /// <summary>
+    /// Verifies that an installation without a path still receives a unique ID.
+    /// </summary>
+    [Fact]
+    public void Id_EmptyPath_IsUniquePerInstance()
+    {
+        var first = new GameInstallation(string.Empty, GameInstallationType.Unknown);
+        var second = new GameInstallation(string.Empty, GameInstallationType.Unknown);
+
+        Assert.NotEqual(first.Id, second.Id);
+    }
+
     private sealed class BareInstallation(string zeroHourPath) : IGameInstallation
     {
         /// <inheritdoc />
