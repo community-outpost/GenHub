@@ -222,7 +222,8 @@ public partial class GameProfileSettingsViewModel
 
             void AddFilterIfAvailable(ContentType type, string iconData)
             {
-                if (availableTypes.Contains(type))
+            if (!availableTypes.Contains(SelectedContentType))
+            {
                 {
                     newFilters.Add(new FilterTypeInfo(type, type.GetDisplayName(), iconData));
                 }
@@ -327,6 +328,8 @@ public partial class GameProfileSettingsViewModel
             "CommunityOutpost",
             "Community Patch",
             "CommunityPatch",
+            CommunityOutpostConstants.PublisherName,
+            CommunityOutpostConstants.CommunityPatchDisplayName,
         ];
 
         var matchesStandardPattern = standardExactNames.Any(n => string.Equals(n, trimmedName, StringComparison.OrdinalIgnoreCase)) ||
@@ -347,13 +350,29 @@ public partial class GameProfileSettingsViewModel
                name.StartsWith("Generals 1.", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Zero Hour v", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Zero Hour 1.", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("SuperHackers", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Generals Online", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Patch", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityPatch", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityOutpost", StringComparison.OrdinalIgnoreCase);
+               name.StartsWith("SuperHackers - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("The Super Hackers - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("GeneralsOnline - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Generals Online - ", StringComparison.OrdinalIgnoreCase) ||
+               IsGeneratedCommunityName(name);
+    }
+
+    private static bool IsGeneratedCommunityName(string name)
+    {
+        return name.StartsWith("Community Patch - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Patch v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Patch 1.", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Patch (", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityPatch - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityPatch v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityPatch 1.", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityPatch (", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Outpost - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Outpost v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Community Outpost (", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityOutpost - ", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityOutpost v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("CommunityOutpost (", StringComparison.OrdinalIgnoreCase);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]

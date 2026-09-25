@@ -61,22 +61,27 @@ public static class GameProfileExtensions
     /// <returns>True if the profile runs Community Outpost or Community Patch, false otherwise.</returns>
     public static bool IsCommunityOutpostProfile(this GameProfile profile)
     {
+        // Check Community Patch identifiers first so legacy or mislabeled publisher types do not cause a false negative
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Name) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Id) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.Name) ||
+            profile.GameClient?.Name?.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
         var publisherType = profile.GameClient?.PublisherType;
         if (!string.IsNullOrWhiteSpace(publisherType))
         {
             return string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
         }
 
-        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Name) ||
-            CommunityOutpostConstants.IsCommunityPatchIdentifier(profile.GameClient?.Id) ||
-            profile.GameClient?.Name?.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
+        // Only inspect enabled content if it represents a game client or patch manifest, not just an addon/map
         if (profile.EnabledContentIds?
-            .Any(id => id.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-                       CommunityOutpostConstants.IsCommunityPatchIdentifier(id)) == true)
+            .Any(id => (id.Contains(ManifestConstants.GameClientManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+                        id.Contains(ManifestConstants.PatchManifestSegment, StringComparison.OrdinalIgnoreCase)) &&
+                       (id.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                        CommunityOutpostConstants.IsCommunityPatchIdentifier(id))) == true)
         {
             return true;
         }
@@ -115,7 +120,8 @@ public static class GameProfileExtensions
             return false;
         }
 
-        if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true)
+        if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true ||
+            profile.GameClient?.Name?.Contains(SuperHackersConstants.NameMarker, StringComparison.OrdinalIgnoreCase) == true)
         {
             return true;
         }

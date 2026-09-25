@@ -284,18 +284,19 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (enabledClients.Count > 0)
         {
             hasGo = enabledClients.Any(IsGeneralsOnlineItem);
-            hasTsh = hasGo || enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile));
+            hasTsh = hasGo || enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile) || IsCommunityPatchClientItem(c, _originalProfile));
         }
         else if (activeInstallation != null)
         {
             hasGo = IsGeneralsOnlineItem(activeInstallation);
-            hasTsh = hasGo || IsTheSuperHackersClientItem(activeInstallation, _originalProfile);
+            hasTsh = hasGo || IsTheSuperHackersClientItem(activeInstallation, _originalProfile) || IsCommunityPatchClientItem(activeInstallation, _originalProfile);
         }
         else
         {
             hasGo = _originalProfile?.IsGeneralsOnlineProfile() == true;
             hasTsh = hasGo || (_originalProfile?.IsTheSuperHackersProfile() == true) ||
-                     (_originalProfile?.GameClient != null && IsTheSuperHackersGameClient(_originalProfile.GameClient));
+                     (_originalProfile?.IsCommunityOutpostProfile() == true) ||
+                     (_originalProfile?.GameClient != null && (IsTheSuperHackersGameClient(_originalProfile.GameClient) || IsCommunityPatchGameClient(_originalProfile.GameClient)));
         }
 
         GameSettingsViewModel?.UpdateApplicableClientVisibility(hasTsh, hasGo);
@@ -571,10 +572,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private static bool MatchesTheSuperHackersIdentifiers(string? id, string? publisher, string? name)
     {
-        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(id) ||
-            CommunityOutpostConstants.IsCommunityPatchIdentifier(name) ||
-            string.Equals(publisher, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(publisher) && publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase)))
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(publisher, id, name))
         {
             return false;
         }
@@ -667,12 +665,25 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return null;
     }
 
+    private static bool IsCommunityPatchClientItem(ContentDisplayItem item, GameProfile? profile)
+    {
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(item.Publisher, item.ManifestId.Value, item.DisplayName))
+        {
+            return true;
+        }
+
+        var client = item.GameClient ?? profile?.GameClient;
+        return client != null && IsCommunityPatchGameClient(client);
+    }
+
+    private static bool IsCommunityPatchGameClient(GameClient client)
+    {
+        return CommunityOutpostConstants.IsCommunityOutpostIdentity(client.PublisherType, client.Id, client.Name);
+    }
+
     private static bool IsTheSuperHackersClientItem(ContentDisplayItem item, GameProfile? profile)
     {
-        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(item.DisplayName) ||
-            CommunityOutpostConstants.IsCommunityPatchIdentifier(item.ManifestId.Value) ||
-            string.Equals(item.Publisher, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(item.Publisher) && item.Publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase)))
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(item.Publisher, item.ManifestId.Value, item.DisplayName))
         {
             return false;
         }
@@ -714,10 +725,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private static bool IsTheSuperHackersGameClient(GameClient client)
     {
-        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(client.Name) ||
-            CommunityOutpostConstants.IsCommunityPatchIdentifier(client.Id) ||
-            string.Equals(client.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(client.PublisherType) && client.PublisherType.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase)))
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(client.PublisherType, client.Id, client.Name))
         {
             return false;
         }

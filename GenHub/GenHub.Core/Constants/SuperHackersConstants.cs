@@ -34,6 +34,16 @@ public static class SuperHackersConstants
     public const string LogoSource = "/Assets/Logos/thesuperhackers-logo.png";
 
     /// <summary>
+    /// Marker token for identifying TheSuperHackers logo.
+    /// </summary>
+    public const string LogoMarker = "thesuperhackers-logo";
+
+    /// <summary>
+    /// Marker token for identifying China/Zero Hour cover.
+    /// </summary>
+    public const string CoverMarker = "china-cover";
+
+    /// <summary>
     /// Cover image source path for Generals variant.
     /// </summary>
     public const string GeneralsCoverSource = "/Assets/Covers/china-cover.jpg";

@@ -1056,16 +1056,15 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ResolveFromGameClient(GameClient gameClient)
     {
-        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(gameClient.Name) ||
-            CommunityOutpostConstants.IsCommunityPatchIdentifier(gameClient.Id))
+        ExtractManifestInfo(gameClient.Id);
+
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(gameClient.PublisherType, gameClient.Id, gameClient.Name))
         {
             Publisher = CommunityOutpostConstants.PublisherName;
             ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
         }
         else
         {
-            ExtractManifestInfo(gameClient.Id);
-
             if (!string.IsNullOrEmpty(gameClient.PublisherType))
             {
                 var pub = gameClient.PublisherType.ToLowerInvariant();
@@ -1089,8 +1088,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ResolvePublisherFromGameClient(GameClient gameClient)
     {
-        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(gameClient.Name) ||
-            CommunityOutpostConstants.IsCommunityPatchIdentifier(gameClient.Id))
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(gameClient.PublisherType, gameClient.Id, gameClient.Name))
         {
             Publisher = CommunityOutpostConstants.PublisherName;
             ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
