@@ -181,9 +181,11 @@ public partial class GenericCatalogResolver(
         CatalogContentItem contentItem,
         ReleaseArtifact? primaryArtifact)
     {
-        var baseName = !string.IsNullOrWhiteSpace(contentItem.Name)
-            ? contentItem.Name
-            : (!string.IsNullOrWhiteSpace(searchResult.Name) ? searchResult.Name : contentItem.Id);
+        var baseName = contentItem.Name;
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            baseName = string.IsNullOrWhiteSpace(searchResult.Name) ? contentItem.Id : searchResult.Name;
+        }
 
         return !string.IsNullOrWhiteSpace(primaryArtifact?.Variant)
             ? $"{baseName} ({primaryArtifact.Variant})"

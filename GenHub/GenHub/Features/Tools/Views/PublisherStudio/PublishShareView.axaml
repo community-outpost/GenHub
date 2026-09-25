@@ -606,7 +606,7 @@
                                                         BorderThickness="0"
                                                         Cursor="Hand"
                                                         VerticalAlignment="Center"
-                                                        ToolTip.Tip="Expand or collapse catalog">
+                                                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileTree.TooltipExpandCollapse}">
                                                     <Panel>
                                                         <material:MaterialIcon Kind="ChevronDown" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding IsExpanded}"/>
                                                         <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding !IsExpanded}"/>

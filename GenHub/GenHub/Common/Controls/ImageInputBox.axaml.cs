@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -145,7 +146,7 @@ public partial class ImageInputBox : UserControl
         AvaloniaXamlLoader.Load(this);
     }
 
-    private void OnDragOver(object? sender, DragEventArgs e)
+    private static void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files) || e.Data.Contains(DataFormats.Text))
         {
@@ -158,8 +159,13 @@ public partial class ImageInputBox : UserControl
         }
     }
 
-    private async void OnDrop(object? sender, DragEventArgs e)
+    private static async void OnDrop(object? sender, DragEventArgs e)
     {
+        if (sender is not ImageInputBox box)
+        {
+            return;
+        }
+
         e.Handled = true;
         if (e.Data.Contains(DataFormats.Files))
         {
@@ -167,7 +173,7 @@ public partial class ImageInputBox : UserControl
             var first = files?.FirstOrDefault();
             if (first != null && !string.IsNullOrWhiteSpace(first.Path.LocalPath))
             {
-                await ProcessIncomingInputAsync(first.Path.LocalPath);
+                await box.ProcessIncomingInputAsync(first.Path.LocalPath);
                 return;
             }
         }
@@ -177,101 +183,138 @@ public partial class ImageInputBox : UserControl
             var text = e.Data.GetText();
             if (!string.IsNullOrWhiteSpace(text))
             {
-                await ProcessIncomingInputAsync(text.Trim());
+                await box.ProcessIncomingInputAsync(text.Trim());
             }
         }
     }
 
+    private static async Task<string?> TryExtractClipboardImageAsync(IClipboard clipboard)
+    {
+        var formats = await clipboard.GetFormatsAsync();
+        var imageFormat = formats.FirstOrDefault(f =>
+            f.Contains("png", StringComparison.OrdinalIgnoreCase) ||
+            f.Contains("jpeg", StringComparison.OrdinalIgnoreCase) ||
+            f.Contains("bitmap", StringComparison.OrdinalIgnoreCase) ||
+            f.Contains("image", StringComparison.OrdinalIgnoreCase));
+
+        if (imageFormat == null)
+        {
+            return null;
+        }
+
+        var data = await clipboard.GetDataAsync(imageFormat);
+        var bytes = await ExtractBytesFromDataAsync(data);
+        if (bytes == null || bytes.Length == 0)
+        {
+            return null;
+        }
+
+        var tempFile = Path.Combine(Path.GetTempPath(), $"genhub_pasted_{Guid.NewGuid():N}.png");
+        await File.WriteAllBytesAsync(tempFile, bytes);
+        return tempFile;
+    }
+
+    private static async Task<byte[]?> ExtractBytesFromDataAsync(object? data)
+    {
+        if (data is byte[] b)
+        {
+            return b;
+        }
+
+        if (data is MemoryStream ms)
+        {
+            return ms.ToArray();
+        }
+
+        if (data is Stream s)
+        {
+            using var ms2 = new MemoryStream();
+            await s.CopyToAsync(ms2);
+            return ms2.ToArray();
+        }
+
+        return null;
+    }
+
+    private static async Task<string?> TryExtractClipboardFileAsync(IClipboard clipboard)
+    {
+        var files = await clipboard.GetDataAsync(DataFormats.Files);
+        if (files is IEnumerable<IStorageItem> storageItems)
+        {
+            var first = storageItems.FirstOrDefault();
+            if (first != null && !string.IsNullOrWhiteSpace(first.Path.LocalPath))
+            {
+                return first.Path.LocalPath;
+            }
+        }
+        else if (files is IEnumerable<string> filePaths)
+        {
+            var first = filePaths.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(first))
+            {
+                return first;
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<string?> TryExtractClipboardTextAsync(IClipboard clipboard)
+    {
+        var text = await clipboard.GetTextAsync();
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            var trimmed = text.Trim();
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out _) || File.Exists(trimmed))
+            {
+                return trimmed;
+            }
+        }
+
+        return null;
+    }
+
     private async void OnTextBoxKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.V && (e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta)))
+        if (e.Key != Key.V || (!e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Meta)))
         {
-            var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel?.Clipboard == null)
+            return;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.Clipboard == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var imagePath = await TryExtractClipboardImageAsync(topLevel.Clipboard);
+            if (imagePath != null)
             {
+                e.Handled = true;
+                await ProcessIncomingInputAsync(imagePath);
                 return;
             }
 
-            try
+            var filePath = await TryExtractClipboardFileAsync(topLevel.Clipboard);
+            if (filePath != null)
             {
-                var formats = await topLevel.Clipboard.GetFormatsAsync();
-
-                // 1. Raw bitmap or image format in clipboard
-                var imageFormat = formats.FirstOrDefault(f =>
-                    f.Contains("png", StringComparison.OrdinalIgnoreCase) ||
-                    f.Contains("jpeg", StringComparison.OrdinalIgnoreCase) ||
-                    f.Contains("bitmap", StringComparison.OrdinalIgnoreCase) ||
-                    f.Contains("image", StringComparison.OrdinalIgnoreCase));
-
-                if (imageFormat != null)
-                {
-                    var data = await topLevel.Clipboard.GetDataAsync(imageFormat);
-                    byte[]? bytes = null;
-                    if (data is byte[] b)
-                    {
-                        bytes = b;
-                    }
-                    else if (data is MemoryStream ms)
-                    {
-                        bytes = ms.ToArray();
-                    }
-                    else if (data is Stream s)
-                    {
-                        using var ms2 = new MemoryStream();
-                        await s.CopyToAsync(ms2);
-                        bytes = ms2.ToArray();
-                    }
-
-                    if (bytes != null && bytes.Length > 0)
-                    {
-                        e.Handled = true;
-                        var tempFile = Path.Combine(Path.GetTempPath(), $"genhub_pasted_{Guid.NewGuid():N}.png");
-                        await File.WriteAllBytesAsync(tempFile, bytes);
-                        await ProcessIncomingInputAsync(tempFile);
-                        return;
-                    }
-                }
-
-                // 2. Files in clipboard
-                var files = await topLevel.Clipboard.GetDataAsync(DataFormats.Files);
-                if (files is IEnumerable<IStorageItem> storageItems)
-                {
-                    var first = storageItems.FirstOrDefault();
-                    if (first != null && !string.IsNullOrWhiteSpace(first.Path.LocalPath))
-                    {
-                        e.Handled = true;
-                        await ProcessIncomingInputAsync(first.Path.LocalPath);
-                        return;
-                    }
-                }
-                else if (files is IEnumerable<string> filePaths)
-                {
-                    var first = filePaths.FirstOrDefault();
-                    if (!string.IsNullOrWhiteSpace(first))
-                    {
-                        e.Handled = true;
-                        await ProcessIncomingInputAsync(first);
-                        return;
-                    }
-                }
-
-                // 3. Text/URL in clipboard
-                var text = await topLevel.Clipboard.GetTextAsync();
-                if (!string.IsNullOrWhiteSpace(text))
-                {
-                    var trimmed = text.Trim();
-                    if (Uri.TryCreate(trimmed, UriKind.Absolute, out _) || File.Exists(trimmed))
-                    {
-                        e.Handled = true;
-                        await ProcessIncomingInputAsync(trimmed);
-                        return;
-                    }
-                }
+                e.Handled = true;
+                await ProcessIncomingInputAsync(filePath);
+                return;
             }
-            catch (Exception ex)
+
+            var text = await TryExtractClipboardTextAsync(topLevel.Clipboard);
+            if (text != null)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to paste clipboard content: {ex.Message}");
+                e.Handled = true;
+                await ProcessIncomingInputAsync(text);
             }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to paste clipboard content: {ex.Message}");
         }
     }
 
