@@ -491,7 +491,8 @@ public sealed class MapImportService(
                                 }
 
                                 // C&C Generals & Zero Hour require <MapDirName>.tga inside the map directory to render the minimap preview
-                                var expectedTgaPath = Path.Combine(mapDirPath, mapDirName + ".tga");
+                                var actualDirName = Path.GetFileName(mapDirPath);
+                                var expectedTgaPath = Path.Combine(mapDirPath, actualDirName + ".tga");
                                 if (!File.Exists(expectedTgaPath) && thumbnailPath != null && File.Exists(thumbnailPath))
                                 {
                                     try
@@ -1200,7 +1201,8 @@ public sealed class MapImportService(
                 context.CancellationToken);
 
             // C&C Generals & Zero Hour require <MapDirName>.tga inside the map directory to render the minimap preview
-            var expectedTgaPath = Path.Combine(mapDirPath, mapDirName + ".tga");
+            var actualDirName = Path.GetFileName(mapDirPath);
+            var expectedTgaPath = Path.Combine(mapDirPath, actualDirName + ".tga");
             if (!File.Exists(expectedTgaPath) && thumbnailPath != null && File.Exists(thumbnailPath))
             {
                 try

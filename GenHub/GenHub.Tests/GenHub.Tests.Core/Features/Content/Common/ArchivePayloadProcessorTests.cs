@@ -1493,6 +1493,52 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.False(File.Exists(Path.Combine(mapFolder, "metadata.ini")));
     }
 
+    /// <summary>
+    /// Verifies that loose map organization deduplicates root map files when the target map already exists in subdirectory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_DuplicateMapAtRootAndInSubdirectory_DeduplicatesLooseRootMapAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var targetFolder = Path.Combine(_stagingDirectory, "Desert");
+        Directory.CreateDirectory(targetFolder);
+        await File.WriteAllTextAsync(Path.Combine(targetFolder, "Desert.map"), "identical-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "identical-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.tga"), "preview-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Desert.tga")));
+    }
+
+    /// <summary>
+    /// Verifies that multiple loose maps sharing a root map.tga receive the thumbnail in each respective map folder.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_MultiLooseMapsWithSharedMapTga_CopiesPreviewToAllMapFoldersAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "desert-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Snow.map"), "snow-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "map.tga"), "preview-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var desertTga = Path.Combine(_stagingDirectory, "Desert", "Desert.tga");
+        var snowTga = Path.Combine(_stagingDirectory, "Snow", "Snow.tga");
+        var rootTga = Path.Combine(_stagingDirectory, "map.tga");
+
+        Assert.True(File.Exists(desertTga));
+        Assert.True(File.Exists(snowTga));
+        Assert.False(File.Exists(rootTga));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

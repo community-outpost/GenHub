@@ -2695,8 +2695,35 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 File.Move(mapFile, targetMapFile);
             }
+            else
+            {
+                var rootInfo = new FileInfo(mapFile);
+                var targetInfo = new FileInfo(targetMapFile);
+                if (rootInfo.Length == targetInfo.Length && File.ReadAllBytes(mapFile).AsSpan().SequenceEqual(File.ReadAllBytes(targetMapFile)))
+                {
+                    File.Delete(mapFile);
+                    logger.LogInformation("Deduplicated identical loose map {Source} matching existing {Target}", mapFile, targetMapFile);
+                }
+                else
+                {
+                    logger.LogWarning("Conflict between loose map {Source} and existing {Target}; keeping target map and removing duplicate loose copy", mapFile, targetMapFile);
+                    File.Delete(mapFile);
+                }
+            }
 
             OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase);
+        }
+
+        var rootThumbnail = Path.Combine(extractedDirectory, MapManagerConstants.DefaultThumbnailName);
+        if (File.Exists(rootThumbnail))
+        {
+            File.Delete(rootThumbnail);
+        }
+
+        var rootMapIni = Path.Combine(extractedDirectory, MapManagerConstants.MapIniFileName);
+        if (File.Exists(rootMapIni))
+        {
+            File.Delete(rootMapIni);
         }
     }
 
@@ -2726,7 +2753,16 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var targetAssetFile = Path.Combine(targetFolder, fn);
                 if (!File.Exists(targetAssetFile))
                 {
-                    File.Move(companion, targetAssetFile);
+                    if (fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
+                        fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Copy(companion, targetAssetFile);
+                    }
+                    else
+                    {
+                        File.Move(companion, targetAssetFile);
+                    }
+
                     logger.LogInformation("Organized loose companion {Source} into {Target}", companion, targetAssetFile);
                 }
             }
