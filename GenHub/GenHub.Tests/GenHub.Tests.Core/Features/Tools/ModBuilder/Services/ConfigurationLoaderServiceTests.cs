@@ -936,4 +936,43 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         // Assert
         errors.Should().ContainSingle(e => e.Contains("Broken", StringComparison.Ordinal) && e.Contains("Nope", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public async Task ResolveWildcardsAsync_WhenCalledMultipleTimesWithNewFilesAdded_ResolvesNewlyAddedFiles()
+    {
+        // Arrange
+        var gameFilesDir = Path.Combine(_tempDirectory, "GameFilesEdited", "Data");
+        Directory.CreateDirectory(gameFilesDir);
+        await File.WriteAllTextAsync(Path.Combine(gameFilesDir, "a.ini"), "a");
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "PatchINI",
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = _tempDirectory, AbsSourceFile = "GameFilesEdited/Data/*.ini", RelTargetFile = string.Empty },
+                    },
+                },
+            },
+        };
+
+        // Act 1: Initial resolution
+        var result1 = await _service.ResolveWildcardsAsync(configuration);
+        result1.Items[0].Files.Should().HaveCount(1);
+
+        // Act 2: Add a new file to the directory (e.g. imported asset)
+        await File.WriteAllTextAsync(Path.Combine(gameFilesDir, "b.ini"), "b");
+
+        // Act 3: Subsequent resolution on the same configuration object
+        var result2 = await _service.ResolveWildcardsAsync(result1);
+
+        // Assert
+        result2.Items[0].Files.Should().HaveCount(2);
+        result2.Items[0].Files.Select(f => Path.GetFileName(f.AbsSourceFile)).Should().BeEquivalentTo(["a.ini", "b.ini"]);
+        result2.Items[0].SourcePatterns.Should().ContainSingle().Which.Should().Be("GameFilesEdited/Data/*.ini");
+    }
 }

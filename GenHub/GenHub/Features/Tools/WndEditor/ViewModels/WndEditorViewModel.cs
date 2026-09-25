@@ -414,6 +414,8 @@ public sealed partial class WndEditorViewModel(
             return false;
         }
 
+        filePath = NormalizeSourceFilePath(filePath);
+
         var result = await wndDocumentService.ParseFileAsync(filePath, cancellationToken);
         if (!result.Success || result.Data == null)
         {
@@ -442,6 +444,12 @@ public sealed partial class WndEditorViewModel(
         if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
         {
             return false;
+        }
+
+        var gameFilesEdited = Path.Combine(folderPath, ModBuilderConstants.GameFilesEditedDir);
+        if (Directory.Exists(gameFilesEdited))
+        {
+            folderPath = gameFilesEdited;
         }
 
         FilesDirectory = folderPath;
@@ -654,6 +662,64 @@ public sealed partial class WndEditorViewModel(
     internal static void ParseControlBarSchemeIni(string iniText, Dictionary<string, string> result, string? preferredScheme = WndConstants.ControlBarScheme.AmericaSchemeName)
     {
         WndControlBarSchemeParser.Parse(iniText, result, preferredScheme);
+    }
+
+    /// <summary>
+    /// If the path points to a file within a ModBuilder build artifact directory (e.g. .Build/raw_bundle_items/...),
+    /// maps it back to the corresponding project source file under GameFilesEdited.
+    /// </summary>
+    /// <param name="filePath">The file path to normalize.</param>
+    /// <returns>The normalized source file path.</returns>
+    internal static string NormalizeSourceFilePath(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return filePath;
+        }
+
+        try
+        {
+            var normalized = filePath.Replace('\\', '/');
+            var rawMarker = "/" + ModBuilderConstants.RawBundleItemsSubdir + "/";
+            var rawIndex = normalized.IndexOf(rawMarker, StringComparison.OrdinalIgnoreCase);
+            if (rawIndex >= 0)
+            {
+                var beforeMarker = filePath[..rawIndex];
+                var afterMarker = filePath[(rawIndex + rawMarker.Length)..];
+
+                var projectDir = Path.GetDirectoryName(beforeMarker);
+                if (!string.IsNullOrEmpty(projectDir))
+                {
+                    var candidateSource = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, afterMarker);
+                    if (File.Exists(candidateSource) || Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir)))
+                    {
+                        return candidateSource;
+                    }
+                }
+            }
+
+            var buildMarker = "/" + ModBuilderConstants.DefaultBuildDir + "/";
+            var buildIndex = normalized.IndexOf(buildMarker, StringComparison.OrdinalIgnoreCase);
+            if (buildIndex >= 0)
+            {
+                var projectDir = filePath[..buildIndex];
+                var afterBuild = filePath[(buildIndex + buildMarker.Length)..];
+                if (!string.IsNullOrEmpty(projectDir))
+                {
+                    var candidateSource = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, afterBuild);
+                    if (File.Exists(candidateSource))
+                    {
+                        return candidateSource;
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
+        {
+            // Ignore path inspection errors and return original path
+        }
+
+        return filePath;
     }
 
     /// <summary>
@@ -1523,7 +1589,26 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        await WriteDocumentToFileAsync(FilePath, cancellationToken);
+        var normalizedPath = NormalizeSourceFilePath(FilePath);
+        var oldPath = FilePath;
+        if (!string.Equals(normalizedPath, oldPath, StringComparison.OrdinalIgnoreCase))
+        {
+            FilePath = normalizedPath;
+            SyncFilesDirectory(normalizedPath);
+        }
+
+        var saved = await WriteDocumentToFileAsync(FilePath, cancellationToken);
+        if (saved && !string.Equals(normalizedPath, oldPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldPath))
+        {
+            try
+            {
+                await WriteDocumentToFileAsync(oldPath, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogDebug(ex, "Failed to mirror saved file to transient build path {Path}", oldPath);
+            }
+        }
     }
 
     /// <summary>
@@ -1845,6 +1930,14 @@ public sealed partial class WndEditorViewModel(
             return null;
         }
 
+        if (parent != null &&
+            (directoryInfo.Name.StartsWith('.') ||
+             string.Equals(directoryInfo.Name, ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(directoryInfo.Name, ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
         var node = new WndFileTreeNodeViewModel(
             directoryInfo.Name,
             directoryInfo.FullName,
@@ -2122,6 +2215,11 @@ public sealed partial class WndEditorViewModel(
 
     private void AdoptDocument(WndDocument document, string? filePath)
     {
+        if (!string.IsNullOrEmpty(filePath))
+        {
+            filePath = NormalizeSourceFilePath(filePath);
+        }
+
         _document = document;
         FilePath = filePath;
         HasDocument = true;
@@ -2145,6 +2243,7 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
+        filePath = NormalizeSourceFilePath(filePath);
         var directory = Path.GetDirectoryName(filePath);
         if (string.IsNullOrEmpty(FilesDirectory) || !Directory.Exists(FilesDirectory))
         {

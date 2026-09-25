@@ -2047,6 +2047,135 @@ public sealed class WndEditorViewModelTests : IDisposable
         dict["BackgroundMarker"].Should().Be("CustomHUDImage");
     }
 
+    /// <summary>
+    /// Tests that NormalizeSourceFilePath maps a path under .Build/raw_bundle_items back to GameFilesEdited.
+    /// </summary>
+    [Fact]
+    public void NormalizeSourceFilePath_WithRawBundleItemsBuildPath_MapsToGameFilesEdited()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "SampleMod");
+        var gameFiles = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "window", "Menus");
+        Directory.CreateDirectory(gameFiles);
+        var sourceWnd = Path.Combine(gameFiles, "MainMenu.wnd");
+        File.WriteAllText(sourceWnd, SampleDocument);
+
+        var buildWnd = Path.Combine(projectDir, ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.RawBundleItemsSubdir, "window", "Menus", "MainMenu.wnd");
+
+        // Act
+        var normalized = WndEditorViewModel.NormalizeSourceFilePath(buildWnd);
+
+        // Assert
+        normalized.Should().Be(sourceWnd);
+    }
+
+    /// <summary>
+    /// Tests that NormalizeSourceFilePath leaves paths already pointing to GameFilesEdited untouched.
+    /// </summary>
+    [Fact]
+    public void NormalizeSourceFilePath_WithSourcePath_ReturnsUnchanged()
+    {
+        // Arrange
+        var sourceWnd = Path.Combine(_tempDirectory, "SampleMod", ModBuilderConstants.GameFilesEditedDir, "MainMenu.wnd");
+
+        // Act
+        var normalized = WndEditorViewModel.NormalizeSourceFilePath(sourceWnd);
+
+        // Assert
+        normalized.Should().Be(sourceWnd);
+    }
+
+    /// <summary>
+    /// Tests that OpenFolderAsync on a ModBuilder project directory automatically scopes FilesDirectory to GameFilesEdited.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task OpenFolderAsync_WithModBuilderProjectDir_ScopesToGameFilesEdited()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "ImprovedMenus");
+        var gameFiles = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Window", "Menus");
+        Directory.CreateDirectory(gameFiles);
+        var wndFile = Path.Combine(gameFiles, "MainMenu.wnd");
+        await File.WriteAllTextAsync(wndFile, SampleDocument);
+
+        // Act
+        var result = await _viewModel.OpenFolderAsync(projectDir);
+
+        // Assert
+        result.Should().BeTrue();
+        _viewModel.FilesDirectory.Should().Be(Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir));
+        _viewModel.FilePath.Should().Be(wndFile);
+    }
+
+    /// <summary>
+    /// Tests that BuildDirectoryNode skips .Build, .Release, and hidden/dot directories.
+    /// </summary>
+    [Fact]
+    public void RefreshFiles_SkipsDotAndBuildDirectories()
+    {
+        // Arrange
+        var rootDir = Path.Combine(_tempDirectory, "ModProject");
+        var buildDir = Path.Combine(rootDir, ".Build", "raw_bundle_items", "Window");
+        var releaseDir = Path.Combine(rootDir, ".Release", "Window");
+        var gitDir = Path.Combine(rootDir, ".git", "Window");
+        var validDir = Path.Combine(rootDir, "GameFilesEdited", "Window");
+
+        Directory.CreateDirectory(buildDir);
+        Directory.CreateDirectory(releaseDir);
+        Directory.CreateDirectory(gitDir);
+        Directory.CreateDirectory(validDir);
+
+        File.WriteAllText(Path.Combine(buildDir, "BuildMenu.wnd"), SampleDocument);
+        File.WriteAllText(Path.Combine(releaseDir, "ReleaseMenu.wnd"), SampleDocument);
+        File.WriteAllText(Path.Combine(gitDir, "GitMenu.wnd"), SampleDocument);
+        File.WriteAllText(Path.Combine(validDir, "ValidMenu.wnd"), SampleDocument);
+
+        // Act
+        _viewModel.FilesDirectory = rootDir;
+
+        // Assert
+        _viewModel.Files.Should().HaveCount(1);
+        var rootNode = _viewModel.Files[0];
+        rootNode.Children.Should().HaveCount(1);
+        rootNode.Children[0].Name.Should().Be("GameFilesEdited");
+    }
+
+    /// <summary>
+    /// Tests that saving a document opened from .Build/raw_bundle_items redirects write to GameFilesEdited.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveFileAsync_WithRawBundleItemsBuildPath_RedirectsSaveToGameFilesEdited()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "ModProjectSave");
+        var sourceDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "window");
+        var buildDir = Path.Combine(projectDir, ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.RawBundleItemsSubdir, "window");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(buildDir);
+
+        var sourcePath = Path.Combine(sourceDir, "Menu.wnd");
+        var buildPath = Path.Combine(buildDir, "Menu.wnd");
+        await File.WriteAllTextAsync(sourcePath, SampleDocument);
+        await File.WriteAllTextAsync(buildPath, SampleDocument);
+
+        // Open the build path
+        await _viewModel.OpenFileAsync(buildPath);
+        _viewModel.FilePath.Should().Be(sourcePath);
+
+        // Mutate document
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        _viewModel.SelectedProperties!.UpperLeftX = 99;
+
+        // Act
+        await _viewModel.SaveFileCommand.ExecuteAsync(null);
+
+        // Assert
+        var savedSource = await File.ReadAllTextAsync(sourcePath);
+        savedSource.Should().Contain("UPPERLEFT: 99 0");
+    }
+
     private static string DrawDataWith(string name, int index)
     {
         var entries = new List<WndDrawDataEntry>();
