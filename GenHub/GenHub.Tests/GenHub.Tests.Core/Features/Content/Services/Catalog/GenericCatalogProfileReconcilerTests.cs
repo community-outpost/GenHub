@@ -104,6 +104,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// <summary>
     /// Verifies that when the triggering profile is not found, None is returned.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckAndReconcileIfNeededAsync_ProfileNotFound_ReturnsNone()
     {
@@ -120,6 +121,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// <summary>
     /// Verifies that when no subscriptions exist, None is returned.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckAndReconcileIfNeededAsync_NoSubscriptions_ReturnsNone()
     {
@@ -141,6 +143,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// <summary>
     /// Verifies that when discovery returns no items, None is returned.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckAndReconcileIfNeededAsync_NoDiscoveryItems_ReturnsNone()
     {
@@ -167,6 +170,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// <summary>
     /// Verifies that when an item is not in UpdateAvailable state, it is skipped.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckAndReconcileIfNeededAsync_ItemNotUpdateAvailable_SkipsAndReturnsNone()
     {
@@ -200,6 +204,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// <summary>
     /// Verifies that when the item version has been marked as skipped by the user, the prompt is skipped.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckAndReconcileIfNeededAsync_VersionSkipped_SkipsPromptAndReturnsNone()
     {
@@ -244,6 +249,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// <summary>
     /// Verifies that when the user chooses to skip the update dialog, reconciliation returns None.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CheckAndReconcileIfNeededAsync_UserSkipsUpdatePrompt_ReturnsNone()
     {
@@ -284,6 +290,6 @@ public sealed class GenericCatalogProfileReconcilerTests
 
         Assert.True(result.Success);
         Assert.Equal(PublisherReconciliationResult.None, result.Data);
-        _downloadCoordinatorMock.Verify(d => d.DownloadContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _downloadCoordinatorMock.Verify(d => d.DownloadContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
     }
 }
