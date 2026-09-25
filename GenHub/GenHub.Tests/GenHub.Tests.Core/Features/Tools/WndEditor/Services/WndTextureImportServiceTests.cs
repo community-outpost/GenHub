@@ -211,6 +211,54 @@ public sealed class WndTextureImportServiceTests : IDisposable
         WndTextureImportService.SanitizeMappedName(raw).Should().Be(expected);
     }
 
+    /// <summary>
+    /// Tests that importing a texture when it already exists in a custom project subfolder overwrites it in place.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportTextureAsync_ExistingInCustomSubdirectory_OverwritesInPlace()
+    {
+        // Arrange
+        var customSubdir = Path.Combine(_projectDir, "GameFilesEdited", "Data", "English", "Art", "Textures");
+        Directory.CreateDirectory(customSubdir);
+        var existingTexturePath = Path.Combine(customSubdir, "sclogosuserinterface512_001.tga");
+        File.WriteAllBytes(existingTexturePath, [0x00, 0x01]);
+
+        var source = WriteSource("sclogosuserinterface512_001.png", 32, 32, MagickFormat.Png);
+
+        // Act
+        var result = await _service.ImportTextureAsync(source, _projectDir);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.TexturePath.Should().Be(existingTexturePath);
+        File.ReadAllBytes(existingTexturePath).Length.Should().BeGreaterThan(2);
+    }
+
+    /// <summary>
+    /// Tests that a converted PNG writes an uncompressed TGA (type 2 true-color) without RLE compression.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportTextureAsync_PngSource_WritesUncompressedTga()
+    {
+        // Arrange
+        var source = WriteSource("UncompressedTest.png", 16, 16, MagickFormat.Png);
+
+        // Act
+        var result = await _service.ImportTextureAsync(source, _projectDir);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        File.Exists(result.Data!.TexturePath).Should().BeTrue();
+
+        var tgaBytes = File.ReadAllBytes(result.Data.TexturePath);
+        // TGA header byte 2 is the image type: 2 indicates uncompressed true-color image
+        tgaBytes[2].Should().Be(2);
+    }
+
     private string WriteSource(string fileName, uint width, uint height, MagickFormat format)
     {
         var path = Path.Combine(_sourceDir, fileName);

@@ -2484,6 +2484,39 @@ public sealed class BuildEngineService(
         }
     }
 
+    private async Task StageBigPackArchiveForManifestAsync(
+        BundlePack pack,
+        BuildSetup setup,
+        string entryStagingDir,
+        string? releaseDir,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var effectiveReleaseDir = releaseDir ?? setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+        var packFileName = GetPackFileName(pack);
+        var packFilePath = Path.Combine(effectiveReleaseDir, packFileName);
+
+        if (!File.Exists(packFilePath))
+        {
+            logger.LogInformation("BIG pack archive '{PackFile}' not found in release directory; building it before staging for manifest...", packFileName);
+            await BuildSingleReleaseBundlePackAsync(pack, setup, progress, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (File.Exists(packFilePath))
+        {
+            var destPath = Path.Combine(entryStagingDir, packFileName);
+            EnsureDestinationDirectory(destPath);
+            File.Copy(packFilePath, destPath, overwrite: true);
+            logger.LogInformation("Staged BIG pack archive '{PackFile}' into manifest staging directory.", packFileName);
+        }
+        else
+        {
+            Interlocked.Increment(ref _filesFailed);
+            logger.LogError("BIG pack archive '{PackFile}' was not found and could not be built.", packFileName);
+            _lastErrorMessage = $"Failed to build or locate BIG pack archive '{packFileName}' for manifest.";
+        }
+    }
+
     private async Task<bool> ExecuteManifestPlanEntryAsync(
         BuildStructure buildStructure,
         ManifestPlanEntry entry,
@@ -2514,7 +2547,14 @@ public sealed class BuildEngineService(
         foreach (var pack in entry.Packs)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await StagePackFilesAsync(pack, items, stagingPaths, progress, cancellationToken).ConfigureAwait(false);
+            if (pack.IsBigPack)
+            {
+                await StageBigPackArchiveForManifestAsync(pack, buildStructure.Setup, entryStagingDir, dirs.ReleaseDir, progress, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await StagePackFilesAsync(pack, items, stagingPaths, progress, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         var stagedFiles = Directory.GetFiles(entryStagingDir, "*", SearchOption.AllDirectories);

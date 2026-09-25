@@ -52,9 +52,8 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
             var name = SanitizeMappedName(string.IsNullOrWhiteSpace(mappedName) ? Path.GetFileNameWithoutExtension(sourceFilePath) : mappedName);
             var targetExtension = ResolveTargetExtension(extension);
-            var textureDirectory = Path.Combine(projectDirectory, WndConstants.AssetImport.TexturesRelativeDirectory);
             var textureFileName = string.Concat(name, targetExtension);
-            var texturePath = Path.Combine(textureDirectory, textureFileName);
+            var (textureDirectory, texturePath) = ResolveTextureDestination(projectDirectory, textureFileName);
             var definitionsPath = Path.Combine(
                 projectDirectory,
                 WndConstants.AssetImport.MappedImagesRelativeDirectory,
@@ -239,6 +238,44 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         return WndConstants.MappedImages.TextureExtensionTga;
     }
 
+    private static (string TextureDirectory, string TexturePath) ResolveTextureDestination(
+        string projectDirectory,
+        string textureFileName)
+    {
+        var defaultDir = Path.Combine(projectDirectory, WndConstants.AssetImport.TexturesRelativeDirectory);
+        var defaultPath = Path.Combine(defaultDir, textureFileName);
+
+        if (!Directory.Exists(projectDirectory))
+        {
+            return (defaultDir, defaultPath);
+        }
+
+        try
+        {
+            var sourceRoot = Path.Combine(projectDirectory, "GameFilesEdited");
+            var searchDir = Directory.Exists(sourceRoot) ? sourceRoot : projectDirectory;
+
+            var matches = Directory.EnumerateFiles(searchDir, textureFileName, SearchOption.AllDirectories)
+                .Where(p => !p.Contains(".Build", StringComparison.OrdinalIgnoreCase) &&
+                            !p.Contains(".Release", StringComparison.OrdinalIgnoreCase) &&
+                            !p.Contains(".staging", StringComparison.OrdinalIgnoreCase) &&
+                            !p.Contains(".git", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (matches.Count > 0)
+            {
+                var existingPath = matches[0];
+                return (Path.GetDirectoryName(existingPath)!, existingPath);
+            }
+        }
+        catch
+        {
+            // Fall back to default location
+        }
+
+        return (defaultDir, defaultPath);
+    }
+
     private static (int Width, int Height) WriteTexture(
         string sourceFilePath,
         string textureDirectory,
@@ -264,6 +301,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
         else if (!string.Equals(Path.GetExtension(sourceFilePath), targetExtension, StringComparison.OrdinalIgnoreCase))
         {
             using var image = new MagickImage(sourceFilePath);
+            image.Settings.Compression = CompressionMethod.NoCompression;
             image.Format = MagickFormat.Tga;
             image.Write(texturePath);
         }

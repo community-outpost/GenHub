@@ -80,6 +80,7 @@ public sealed partial class WndEditorViewModel(
     private WndResizeDirection _resizeDirection = WndResizeDirection.None;
     private IReadOnlyList<GameInstallation> _installations = [];
     private Dictionary<string, Bitmap> _previewBitmaps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Bitmap> _thumbnailBitmaps = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, byte[]> _previewPngs = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string> _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string> _schemeOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -778,6 +779,13 @@ public sealed partial class WndEditorViewModel(
         }
 
         _previewBitmaps.Clear();
+
+        foreach (var bitmap in _thumbnailBitmaps.Values)
+        {
+            bitmap.Dispose();
+        }
+
+        _thumbnailBitmaps.Clear();
     }
 
     /// <summary>
@@ -3575,7 +3583,7 @@ public sealed partial class WndEditorViewModel(
         foreach (var name in selected)
         {
             var tooltip = string.Format(System.Globalization.CultureInfo.InvariantCulture, tooltipTemplate, name);
-            _previewBitmaps.TryGetValue(name, out var bmp);
+            _thumbnailBitmaps.TryGetValue(name, out var bmp);
             items.Add(new WndArtItemViewModel(name, tooltip, bmp));
         }
 
@@ -3662,12 +3670,15 @@ public sealed partial class WndEditorViewModel(
                         {
                             foreach (var (k, bmp) in decoded)
                             {
-                                _previewBitmaps[k] = bmp;
+                                if (!_thumbnailBitmaps.TryAdd(k, bmp))
+                                {
+                                    bmp.Dispose();
+                                }
                             }
 
                             foreach (var item in items)
                             {
-                                if (item.Thumbnail == null && decoded.TryGetValue(item.Name, out var bmp))
+                                if (item.Thumbnail == null && _thumbnailBitmaps.TryGetValue(item.Name, out var bmp))
                                 {
                                     item.Thumbnail = bmp;
                                 }

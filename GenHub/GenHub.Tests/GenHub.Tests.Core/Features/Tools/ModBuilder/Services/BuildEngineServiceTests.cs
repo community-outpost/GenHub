@@ -747,6 +747,53 @@ public sealed class BuildEngineServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteBuildAsync_WithBigPack_StagesBigArchiveInManifest()
+    {
+        // Arrange
+        var fixture = CreateManifestFixture("BigPackProject", ["BigPack"]);
+        var bigPack = fixture.Configuration.Packs[0];
+        bigPack.Big = true;
+        bigPack.OutputFile = "BigPack.big";
+
+        var releaseDir = Path.Combine(fixture.Project.ProjectDir, ".Release");
+        Directory.CreateDirectory(releaseDir);
+        var releaseBigFile = Path.Combine(releaseDir, "BigPack.big");
+        await File.WriteAllTextAsync(releaseBigFile, "BIG archive content");
+
+        string? capturedStagingDir = null;
+        _mockLocalContentService
+            .Setup(x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<GenHub.Core.Models.Enums.ContentType>(),
+                It.IsAny<GameType>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string>()))
+            .Callback<string, string, GenHub.Core.Models.Enums.ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string>(
+                (stagingDir, _, _, _, _, _, _, _, _, _) =>
+                {
+                    capturedStagingDir = stagingDir;
+                })
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Id = "test-manifest", Name = "BigPackProject" }));
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            fixture.Project,
+            fixture.Configuration,
+            ["BigPack"],
+            BuildStep.CreateManifest);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        capturedStagingDir.Should().NotBeNull();
+        File.Exists(Path.Combine(capturedStagingDir!, "BigPack.big")).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ExecuteBuildAsync_WithCustomContentType_PassesContentTypeToManifestCreation()
     {
         // Arrange
