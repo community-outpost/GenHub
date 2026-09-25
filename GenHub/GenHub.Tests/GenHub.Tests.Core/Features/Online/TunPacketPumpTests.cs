@@ -1,3 +1,4 @@
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Services.Online.Tun;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -105,7 +106,7 @@ public class TunPacketPumpTests
 
         // 16 bytes NetworkId + 4 bytes TargetIp (10.42.0.2) + 4 bytes SourceIp (10.42.0.3) + payload
         var frame = new byte[24 + dummyIpPacket.Length];
-        var networkIdBytes = Convert.FromHexString("00112233445566778899aabbccddeeff");
+        var networkIdBytes = VirtualLanFramingHelper.ParseNetworkIdBytes("00112233445566778899aabbccddeeff");
         networkIdBytes.CopyTo(frame, 0);
         IPAddress.Parse("10.42.0.2").GetAddressBytes().CopyTo(frame, 16);
         IPAddress.Parse("10.42.0.3").GetAddressBytes().CopyTo(frame, 20);
@@ -212,7 +213,7 @@ public class TunPacketPumpTests
             NullLogger.Instance);
 
         var frame = new byte[44];
-        var netId = Convert.FromHexString("00112233445566778899aabbccddeeff");
+        var netId = VirtualLanFramingHelper.ParseNetworkIdBytes("00112233445566778899aabbccddeeff");
         netId.CopyTo(frame, 0);
 
         // Target: 255.255.255.255
