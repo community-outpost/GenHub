@@ -39,6 +39,18 @@ public partial class ImportSubscriptionDialog : Window
         }
     }
 
+    /// <inheritdoc/>
+    /// <param name="e">The key event arguments.</param>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.Escape && !e.Handled)
+        {
+            e.Handled = true;
+            Close();
+        }
+    }
+
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);

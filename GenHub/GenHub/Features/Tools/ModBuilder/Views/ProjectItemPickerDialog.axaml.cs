@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using System.Collections.Generic;
@@ -31,6 +32,18 @@ public partial class ProjectItemPickerDialog : Window
         : this()
     {
         DataContext = viewModel;
+    }
+
+    /// <inheritdoc/>
+    /// <param name="e">The key event arguments.</param>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.Escape && !e.Handled)
+        {
+            e.Handled = true;
+            Close();
+        }
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e)

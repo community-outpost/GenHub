@@ -76,6 +76,18 @@ public partial class SubscriptionConfirmationDialog : Window
         }
     }
 
+    /// <inheritdoc/>
+    /// <param name="e">The key event arguments.</param>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.Escape && !e.Handled)
+        {
+            e.Handled = true;
+            CloseDialog(false);
+        }
+    }
+
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.GetCurrentPoint(sender as Visual).Properties.IsLeftButtonPressed)
