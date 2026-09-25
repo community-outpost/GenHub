@@ -2588,7 +2588,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         cancellationToken.ThrowIfCancellationRequested();
 
         // 0. Unwrap any top-level "Maps" subdirectory (e.g., when root README prevents StripSingleWrapperDirectories)
-        var mapsWrapper = Directory.GetDirectories(extractedDirectory, "Maps", SearchOption.TopDirectoryOnly).FirstOrDefault();
+        var mapsWrapper = Directory.GetDirectories(extractedDirectory, GameSettingsConstants.FolderNames.Maps, SearchOption.TopDirectoryOnly).FirstOrDefault();
         if (mapsWrapper != null && Directory.Exists(mapsWrapper))
         {
             try
@@ -2623,7 +2623,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         // 1. Rename any directories ending with .map to strip the extension
-        var subDirs = Directory.GetDirectories(extractedDirectory, "*", SearchOption.AllDirectories);
+        var subDirs = EnumerateDirectoriesSafe(extractedDirectory).ToList();
         foreach (var subDir in subDirs.OrderByDescending(d => d.Length))
         {
             cancellationToken.ThrowIfCancellationRequested();

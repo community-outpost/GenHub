@@ -31,7 +31,7 @@ public class WineRunner(
         GameSettingsConstants.FolderNames.Maps,
         GameSettingsConstants.FolderNames.Replays,
         GameSettingsConstants.FolderNames.Screenshots,
-        "Save",
+        GameSettingsConstants.FolderNames.Save,
     ];
 
     /// <inheritdoc/>
@@ -161,10 +161,7 @@ public class WineRunner(
             return false;
         }
 
-        if (string.Equals(
-            Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeDataDirectory)),
-            Path.TrimEndingDirectorySeparator(Path.GetFullPath(prefixDataDirectory)),
-            StringComparison.OrdinalIgnoreCase))
+        if (PathHelper.AreSamePath(nativeDataDirectory, prefixDataDirectory))
         {
             return false;
         }
@@ -178,7 +175,7 @@ public class WineRunner(
                 directoryNames.Add(Path.GetFileName(dir));
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Ignore directory enumeration errors
         }
@@ -197,7 +194,7 @@ public class WineRunner(
 
                 bridgedAny |= BridgeDirectory(nativeSubDir, prefixSubDir);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Continue to next directory if bridging fails for one
             }
@@ -228,7 +225,7 @@ public class WineRunner(
             var normalizedTarget = Path.TrimEndingDirectorySeparator(resolvedTarget);
             var normalizedNative = Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeSubDir));
 
-            if (string.Equals(normalizedTarget, normalizedNative, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(normalizedTarget, normalizedNative, PathHelper.PathComparison))
             {
                 return false;
             }
@@ -256,7 +253,7 @@ public class WineRunner(
             Directory.CreateSymbolicLink(linkPath, targetPath);
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
             return false;
         }
@@ -273,7 +270,7 @@ public class WineRunner(
                 return true;
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
             // Fall back to mirroring
         }
@@ -299,7 +296,7 @@ public class WineRunner(
             Directory.CreateSymbolicLink(prefixSubDir, nativeSubDir);
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
             SyncDirectoryFiles(nativeSubDir, prefixSubDir);
             return true;
@@ -322,7 +319,7 @@ public class WineRunner(
         var normalizedSource = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceDir)) + Path.DirectorySeparatorChar;
         var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetDir)) + Path.DirectorySeparatorChar;
 
-        if (string.Equals(normalizedSource, normalizedTarget, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(normalizedSource, normalizedTarget, PathHelper.PathComparison))
         {
             return;
         }
@@ -332,7 +329,7 @@ public class WineRunner(
         foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
         {
             var fullFilePath = Path.GetFullPath(file);
-            if (fullFilePath.StartsWith(normalizedTarget, StringComparison.OrdinalIgnoreCase))
+            if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
             {
                 // Target directory is nested inside source directory; avoid recursive copy into target
                 continue;

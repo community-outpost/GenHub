@@ -212,6 +212,70 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8.map")));
     }
 
+    /// <summary>
+    /// Verifies that installing nested map files keeps companion files (such as .map, map.ini, Custom.ini, preview.tga)
+    /// together in the same parent directory rather than splitting them by basename.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_NestedMapWithCustomIniAndPreview_KeepsAllFilesUnderSingleMapDirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Desert/desert.map",
+                Hash = "hash-map-desert",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Desert/map.ini",
+                Hash = "hash-ini-map",
+                Size = 300,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Desert/Custom.ini",
+                Hash = "hash-ini-custom",
+                Size = 200,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Desert/preview.tga",
+                Hash = "hash-tga-preview",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-nested-map-grouping",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "Desert", "desert.map");
+        var expectedMapIniPath = Path.Combine(_zeroHourDataDir, "Maps", "Desert", "map.ini");
+        var expectedCustomIniPath = Path.Combine(_zeroHourDataDir, "Maps", "Desert", "Custom.ini");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "Desert", "Desert.tga");
+
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedMapIniPath));
+        Assert.True(File.Exists(expectedCustomIniPath));
+        Assert.True(File.Exists(expectedTgaPath));
+
+        // Ensure no stray directories were created based on basenames
+        Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "Custom")));
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

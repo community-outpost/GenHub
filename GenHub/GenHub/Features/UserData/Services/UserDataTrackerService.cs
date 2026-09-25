@@ -791,8 +791,8 @@ public class UserDataTrackerService(
         {
             ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, normalizedRelativePath),
             ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, ResolveMapRelativePath(normalizedRelativePath)),
-            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(normalizedRelativePath, "Replays")),
-            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(normalizedRelativePath, "Screenshots")),
+            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(normalizedRelativePath, GameSettingsConstants.FolderNames.Replays)),
+            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(normalizedRelativePath, GameSettingsConstants.FolderNames.Screenshots)),
             _ => Path.Combine(userDataBasePath, normalizedRelativePath),
         };
 
@@ -850,35 +850,11 @@ public class UserDataTrackerService(
         var fileExt = Path.GetExtension(fileName);
         var fileBase = Path.GetFileNameWithoutExtension(fileName);
 
-        if (fileExt.Equals(".map", StringComparison.OrdinalIgnoreCase))
+        if (fileExt.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
+            (fileBase.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+             fileBase.Equals("preview", StringComparison.OrdinalIgnoreCase)))
         {
-            folderName = fileBase;
-        }
-        else if (fileExt.Equals(".tga", StringComparison.OrdinalIgnoreCase))
-        {
-            if (fileBase.Equals("map", StringComparison.OrdinalIgnoreCase) ||
-                fileBase.Equals("preview", StringComparison.OrdinalIgnoreCase))
-            {
-                fileName = folderName + ".tga";
-            }
-            else if (fileBase.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
-            {
-                folderName = fileBase[..^4];
-            }
-            else
-            {
-                folderName = fileBase;
-            }
-        }
-        else if (fileExt.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
-                 fileExt.Equals(".str", StringComparison.OrdinalIgnoreCase) ||
-                 fileExt.Equals(".wak", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.IsNullOrWhiteSpace(fileBase) &&
-                !fileBase.Equals("map", StringComparison.OrdinalIgnoreCase))
-            {
-                folderName = fileBase;
-            }
+            fileName = folderName + ".tga";
         }
 
         return Path.Combine(folderName, fileName);

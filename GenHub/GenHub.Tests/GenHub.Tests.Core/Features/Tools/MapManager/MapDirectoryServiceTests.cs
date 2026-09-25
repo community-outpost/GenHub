@@ -79,6 +79,57 @@ public sealed class MapDirectoryServiceTests : IDisposable
         Assert.False(Directory.Exists(oldDir));
     }
 
+    /// <summary>
+    /// Verifies that RenameMapAsync does not match or overwrite companion files with multi-dot names (e.g. OldMap.backup.tga).
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameMapAsync_WithMultiDotCompanionAsset_DoesNotRenameMultiDotFileAsync()
+    {
+        var mockPathProvider = new Mock<IGamePathProvider>();
+        var fakeBasePath = Path.Combine(_tempDirectory, "TestRenameZHMultiDot");
+        mockPathProvider
+            .Setup(p => p.GetOptionsDirectory(GameType.ZeroHour))
+            .Returns(fakeBasePath);
+
+        var mapsDir = Path.Combine(fakeBasePath, MapManagerConstants.MapsSubdirectoryName);
+        var oldDir = Path.Combine(mapsDir, "OldMap");
+        Directory.CreateDirectory(oldDir);
+
+        var oldMapFile = Path.Combine(oldDir, "OldMap.map");
+        var oldTgaFile = Path.Combine(oldDir, "OldMap.tga");
+        var oldBackupFile = Path.Combine(oldDir, "OldMap.backup.tga");
+        await File.WriteAllTextAsync(oldMapFile, "map content");
+        await File.WriteAllTextAsync(oldTgaFile, "tga content");
+        await File.WriteAllTextAsync(oldBackupFile, "backup content");
+
+        var service = new MapDirectoryService(
+            _mapNameParser,
+            NullLogger<MapDirectoryService>.Instance,
+            pathProvider: mockPathProvider.Object);
+
+        var map = new MapFile
+        {
+            FileName = "OldMap.map",
+            FullPath = oldMapFile,
+            DirectoryName = "OldMap",
+            IsDirectory = true,
+            GameType = GameType.ZeroHour,
+            SizeBytes = 100,
+            LastModified = DateTime.UtcNow,
+        };
+
+        var result = await service.RenameMapAsync(map, "NewMap");
+
+        Assert.True(result);
+        var newDir = Path.Combine(mapsDir, "NewMap");
+        Assert.True(Directory.Exists(newDir));
+        Assert.True(File.Exists(Path.Combine(newDir, "NewMap.map")));
+        Assert.True(File.Exists(Path.Combine(newDir, "NewMap.tga")));
+        Assert.True(File.Exists(Path.Combine(newDir, "OldMap.backup.tga")));
+        Assert.False(Directory.Exists(oldDir));
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

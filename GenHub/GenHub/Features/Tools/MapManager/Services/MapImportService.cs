@@ -368,13 +368,14 @@ public sealed class MapImportService(
                                 ? Path.GetFileNameWithoutExtension(mapFileName)
                                 : Path.GetFileName(directoryName);
 
+                            if (mapDirName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+                            {
+                                mapDirName = Path.GetFileNameWithoutExtension(mapDirName);
+                            }
+
                             if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == ".." || mapDirName.Equals("Maps", StringComparison.OrdinalIgnoreCase))
                             {
                                 mapDirName = Path.GetFileNameWithoutExtension(mapFileName);
-                            }
-                            else if (mapDirName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
-                            {
-                                mapDirName = Path.GetFileNameWithoutExtension(mapDirName);
                             }
 
                             var mapDirPath = GetUniqueDirectoryPath(Path.Combine(targetDir, mapDirName));
@@ -1145,13 +1146,14 @@ public sealed class MapImportService(
             ? Path.GetFileNameWithoutExtension(mapFileName)
             : Path.GetFileName(directoryName);
 
+        if (mapDirName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+        {
+            mapDirName = Path.GetFileNameWithoutExtension(mapDirName);
+        }
+
         if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == ".." || mapDirName.Equals("Maps", StringComparison.OrdinalIgnoreCase))
         {
             mapDirName = Path.GetFileNameWithoutExtension(mapFileName);
-        }
-        else if (mapDirName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
-        {
-            mapDirName = Path.GetFileNameWithoutExtension(mapDirName);
         }
 
         var mapDirPath = GetUniqueDirectoryPath(Path.Combine(context.TargetDir, mapDirName));
