@@ -52,6 +52,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     private const string ExtractingFilesStageDescription = "Extracting files";
     private const string LinkTempSuffix = ".genhub-linktmp";
     private const int LinkTempReservationAttempts = 100;
+    private const string MapSearchPattern = "*.map";
     private static readonly byte[] SevenZipSignature = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
     private static readonly byte[] RarSignature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07];
     private static readonly byte[] Rar5Signature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
@@ -2456,7 +2457,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static bool DirectoryContainsMapFilesDirectly(string directory)
     {
-        return Directory.GetFiles(directory, "*.map", SearchOption.TopDirectoryOnly).Length > 0;
+        return Directory.GetFiles(directory, MapSearchPattern, SearchOption.TopDirectoryOnly).Length > 0;
     }
 
     private static void PromoteDirectoryContents(string sourceDirectory, string targetDirectory)
@@ -2677,7 +2678,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private void OrganizeLooseMapFiles(string extractedDirectory, CancellationToken cancellationToken)
     {
-        var looseMapFiles = Directory.GetFiles(extractedDirectory, "*.map", SearchOption.TopDirectoryOnly);
+        var looseMapFiles = Directory.GetFiles(extractedDirectory, MapSearchPattern, SearchOption.TopDirectoryOnly);
         if (looseMapFiles.Length == 0)
         {
             return;
@@ -2724,7 +2725,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             }
         }
 
-        if (Directory.GetFiles(extractedDirectory, "*.map", SearchOption.TopDirectoryOnly).Length > 0)
+        if (Directory.GetFiles(extractedDirectory, MapSearchPattern, SearchOption.TopDirectoryOnly).Length > 0)
         {
             return;
         }
@@ -2872,7 +2873,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         foreach (var folder in mapFolders)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var mapFiles = Directory.GetFiles(folder, "*.map", SearchOption.TopDirectoryOnly);
+            var mapFiles = Directory.GetFiles(folder, MapSearchPattern, SearchOption.TopDirectoryOnly);
             if (mapFiles.Length == 0)
             {
                 continue;
