@@ -14,6 +14,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Tools.Checksum;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -39,7 +40,12 @@ namespace GenHub.Features.Online.ViewModels;
 /// and share one virtual LAN for in-game LAN lobbies. Anyone can join any
 /// lobby; profile match state only tells members whose setup fits the game.
 /// </summary>
-public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecipient<ProfileUpdatedMessage>
+public sealed partial class OnlineViewModel : ViewModelBase,
+    IDisposable,
+    IRecipient<ProfileCreatedMessage>,
+    IRecipient<ProfileUpdatedMessage>,
+    IRecipient<ProfileDeletedMessage>,
+    IRecipient<ProfileListUpdatedMessage>
 {
     private sealed record OnlineProfileSetup(
         string Fingerprint,
@@ -111,7 +117,10 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         _crcCalculator = dependencies?.CrcCalculator;
         _installationService = dependencies?.GameInstallationService;
 
+        WeakReferenceMessenger.Default.Register<ProfileCreatedMessage>(this);
         WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
+        WeakReferenceMessenger.Default.Register<ProfileDeletedMessage>(this);
+        WeakReferenceMessenger.Default.Register<ProfileListUpdatedMessage>(this);
     }
 
     [ObservableProperty]
@@ -268,9 +277,24 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         _networkService.RosterChanged += OnRosterChanged;
         _networkService.ConnectionLost += OnConnectionLost;
         _networkService.ExpectedProfileChanged += OnExpectedProfileChanged;
+        if (!WeakReferenceMessenger.Default.IsRegistered<ProfileCreatedMessage>(this))
+        {
+            WeakReferenceMessenger.Default.Register<ProfileCreatedMessage>(this);
+        }
+
         if (!WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(this))
         {
             WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
+        }
+
+        if (!WeakReferenceMessenger.Default.IsRegistered<ProfileDeletedMessage>(this))
+        {
+            WeakReferenceMessenger.Default.Register<ProfileDeletedMessage>(this);
+        }
+
+        if (!WeakReferenceMessenger.Default.IsRegistered<ProfileListUpdatedMessage>(this))
+        {
+            WeakReferenceMessenger.Default.Register<ProfileListUpdatedMessage>(this);
         }
 
         Nickname = LanNicknameCodec.Normalize(_dependencies?.UserSettingsService?.Get().OnlineNickname ?? string.Empty);
@@ -892,7 +916,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         {
             // Safe to detach: the loader reports its own errors, and the
             // panel outlives any scoped token, so loading is uncancellable.
-            _ = EnsureProfilesLoadedAsync(CancellationToken.None);
+            _ = EnsureProfilesLoadedAsync(CancellationToken.None, forceReload: true);
         }
     }
 
@@ -903,11 +927,56 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     public void ToggleHostPanel()
     {
         IsHostPanelOpen = !IsHostPanelOpen;
+        if (IsHostPanelOpen)
+        {
+            _ = EnsureProfilesLoadedAsync(CancellationToken.None, forceReload: true);
+        }
+    }
+
+    /// <summary>
+    /// Receives game profile creation notifications so newly added profiles appear
+    /// in the profile picker dropdowns immediately.
+    /// </summary>
+    /// <param name="message">The profile created message.</param>
+    public void Receive(ProfileCreatedMessage message)
+    {
+        if (_disposed || message.Profile.IsToolProfile)
+        {
+            return;
+        }
+
+        RunOnUi(() =>
+        {
+            if (!_profilesLoaded)
+            {
+                return;
+            }
+
+            var createdProfile = message.Profile;
+            var existing = AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, createdProfile.Id, StringComparison.Ordinal));
+            if (existing is not null)
+            {
+                var idx = AvailableProfiles.IndexOf(existing);
+                AvailableProfiles[idx] = createdProfile;
+            }
+            else
+            {
+                var insertIndex = 0;
+                while (insertIndex < AvailableProfiles.Count &&
+                       string.Compare(AvailableProfiles[insertIndex].Name, createdProfile.Name, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    insertIndex++;
+                }
+
+                AvailableProfiles.Insert(insertIndex, createdProfile);
+            }
+        });
     }
 
     /// <summary>
     /// Receives game profile updates so an edited play or hosted profile
-    /// re-matches and re-advertises while the lobby stays open.
+    /// re-matches and re-advertises while the lobby stays open, and updates
+    /// the profile picker dropdown entries.
     /// </summary>
     /// <param name="message">The updated profile.</param>
     public void Receive(ProfileUpdatedMessage message)
@@ -921,7 +990,70 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         // cached map so the next fingerprint reflects the edited profile.
         _contentTypeCache.Clear();
 
-        var updatedId = message.Profile.Id;
+        var updatedProfile = message.Profile;
+        var updatedId = updatedProfile.Id;
+
+        RunOnUi(() =>
+        {
+            if (_profilesLoaded)
+            {
+                var existing = AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, updatedId, StringComparison.Ordinal));
+                if (existing is not null)
+                {
+                    if (updatedProfile.IsToolProfile)
+                    {
+                        AvailableProfiles.Remove(existing);
+                    }
+                    else
+                    {
+                        var oldIndex = AvailableProfiles.IndexOf(existing);
+                        if (!string.Equals(existing.Name, updatedProfile.Name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            AvailableProfiles.RemoveAt(oldIndex);
+                            var insertIndex = 0;
+                            while (insertIndex < AvailableProfiles.Count &&
+                                   string.Compare(AvailableProfiles[insertIndex].Name, updatedProfile.Name, StringComparison.OrdinalIgnoreCase) < 0)
+                            {
+                                insertIndex++;
+                            }
+
+                            AvailableProfiles.Insert(insertIndex, updatedProfile);
+                        }
+                        else
+                        {
+                            AvailableProfiles[oldIndex] = updatedProfile;
+                        }
+                    }
+                }
+                else if (!updatedProfile.IsToolProfile)
+                {
+                    var insertIndex = 0;
+                    while (insertIndex < AvailableProfiles.Count &&
+                           string.Compare(AvailableProfiles[insertIndex].Name, updatedProfile.Name, StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        insertIndex++;
+                    }
+
+                    AvailableProfiles.Insert(insertIndex, updatedProfile);
+                }
+
+                if (string.Equals(SelectedCreateProfile?.Id, updatedId, StringComparison.Ordinal))
+                {
+                    SelectedCreateProfile = updatedProfile.IsToolProfile ? null : updatedProfile;
+                }
+
+                if (string.Equals(SelectedPlayProfile?.Id, updatedId, StringComparison.Ordinal))
+                {
+                    SelectedPlayProfile = updatedProfile.IsToolProfile ? null : updatedProfile;
+                }
+
+                if (string.Equals(SelectedHostProfile?.Id, updatedId, StringComparison.Ordinal))
+                {
+                    SelectedHostProfile = updatedProfile.IsToolProfile ? null : updatedProfile;
+                }
+            }
+        });
+
         var isPlayProfile = string.Equals(SelectedPlayProfile?.Id, updatedId, StringComparison.Ordinal);
         var isHostProfile = IsCurrentUserHost && string.Equals(SelectedHostProfile?.Id, updatedId, StringComparison.Ordinal);
         if (!isPlayProfile && !isHostProfile)
@@ -939,6 +1071,67 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         _ = RefreshAfterProfileUpdateAsync(isHostProfile);
     }
 
+    /// <summary>
+    /// Receives game profile deletion notifications so removed profiles are
+    /// pruned from the available profile list immediately.
+    /// </summary>
+    /// <param name="message">The deleted profile notice.</param>
+    public void Receive(ProfileDeletedMessage message)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        var deletedId = message.ProfileId;
+        RunOnUi(() =>
+        {
+            if (_profilesLoaded)
+            {
+                var existing = AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, deletedId, StringComparison.Ordinal));
+                if (existing is not null)
+                {
+                    AvailableProfiles.Remove(existing);
+                }
+            }
+
+            if (string.Equals(SelectedCreateProfile?.Id, deletedId, StringComparison.Ordinal))
+            {
+                SelectedCreateProfile = null;
+            }
+
+            if (string.Equals(SelectedPlayProfile?.Id, deletedId, StringComparison.Ordinal))
+            {
+                SelectedPlayProfile = null;
+            }
+
+            if (string.Equals(SelectedHostProfile?.Id, deletedId, StringComparison.Ordinal))
+            {
+                SelectedHostProfile = null;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Receives bulk game profile list updates (such as imports or restores)
+    /// and refetches all available profiles.
+    /// </summary>
+    /// <param name="message">The profile list update notification.</param>
+    public void Receive(ProfileListUpdatedMessage message)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _contentTypeCache.Clear();
+
+        if (_profilesLoaded)
+        {
+            _ = EnsureProfilesLoadedAsync(CancellationToken.None, forceReload: true);
+        }
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -948,7 +1141,10 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         }
 
         _disposed = true;
+        WeakReferenceMessenger.Default.Unregister<ProfileCreatedMessage>(this);
         WeakReferenceMessenger.Default.Unregister<ProfileUpdatedMessage>(this);
+        WeakReferenceMessenger.Default.Unregister<ProfileDeletedMessage>(this);
+        WeakReferenceMessenger.Default.Unregister<ProfileListUpdatedMessage>(this);
         _networkService.RosterChanged -= OnRosterChanged;
         _networkService.ConnectionLost -= OnConnectionLost;
         _networkService.ExpectedProfileChanged -= OnExpectedProfileChanged;
@@ -1047,16 +1243,21 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanPlay() => IsJoined && !IsGameRunning;
 
-    private void OnConnectionLost(object? sender, EventArgs e)
+    private void RunOnUi(Action action)
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
-            HandleConnectionLost();
+            action();
         }
         else
         {
-            Dispatcher.UIThread.Post(HandleConnectionLost);
+            Dispatcher.UIThread.Post(action);
         }
+    }
+
+    private void OnConnectionLost(object? sender, EventArgs e)
+    {
+        RunOnUi(HandleConnectionLost);
     }
 
     private void HandleConnectionLost()
@@ -1070,14 +1271,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
     private void OnExpectedProfileChanged(object? sender, OnlineExpectedProfile expected)
     {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            _ = HandleExpectedProfileChangedAsync(expected);
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(() => _ = HandleExpectedProfileChangedAsync(expected));
-        }
+        RunOnUi(() => _ = HandleExpectedProfileChangedAsync(expected));
     }
 
     private async Task HandleExpectedProfileChangedAsync(OnlineExpectedProfile expected)
@@ -1111,14 +1305,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
     private void OnRosterChanged(object? sender, IReadOnlyList<OnlineMember> members)
     {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            ApplyRoster(members);
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(() => ApplyRoster(members));
-        }
+        RunOnUi(() => ApplyRoster(members));
     }
 
     private void ApplyRoster(IReadOnlyList<OnlineMember> members)
@@ -1835,9 +2022,14 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         return profile.Success && profile.Data is not null ? profile.Data.Id : null;
     }
 
-    private async Task EnsureProfilesLoadedAsync(CancellationToken cancellationToken = default)
+    private Task EnsureProfilesLoadedAsync(CancellationToken cancellationToken = default)
     {
-        if (_disposed || _profilesLoaded)
+        return EnsureProfilesLoadedAsync(cancellationToken, forceReload: false);
+    }
+
+    private async Task EnsureProfilesLoadedAsync(CancellationToken cancellationToken, bool forceReload)
+    {
+        if (_disposed || (_profilesLoaded && !forceReload))
         {
             return;
         }
@@ -1845,7 +2037,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         await _profileLock.WaitAsync(cancellationToken);
         try
         {
-            if (_profilesLoaded)
+            if (_profilesLoaded && !forceReload)
             {
                 return;
             }
@@ -1858,9 +2050,35 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
 
             if (profiles.Success && profiles.Data is not null)
             {
-                AvailableProfiles = new ObservableCollection<GameProfile>(
-                    profiles.Data.Where(p => !p.IsToolProfile).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase));
-                _profilesLoaded = true;
+                var sorted = profiles.Data
+                    .Where(p => !p.IsToolProfile)
+                    .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var selectedCreateId = SelectedCreateProfile?.Id;
+                var selectedPlayId = SelectedPlayProfile?.Id;
+                var selectedHostId = SelectedHostProfile?.Id;
+
+                RunOnUi(() =>
+                {
+                    AvailableProfiles = new ObservableCollection<GameProfile>(sorted);
+                    _profilesLoaded = true;
+
+                    if (selectedCreateId != null)
+                    {
+                        SelectedCreateProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedCreateId, StringComparison.Ordinal));
+                    }
+
+                    if (selectedPlayId != null)
+                    {
+                        SelectedPlayProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedPlayId, StringComparison.Ordinal));
+                    }
+
+                    if (selectedHostId != null)
+                    {
+                        SelectedHostProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedHostId, StringComparison.Ordinal));
+                    }
+                });
             }
             else
             {
