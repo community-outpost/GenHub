@@ -2033,9 +2033,6 @@
   <data name="Online.Error.CreateFailed" xml:space="preserve">
     <value>Creation failed. Please try again.</value>
   </data>
-  <data name="Online.Error.NetworkAlreadyExists" xml:space="preserve">
-    <value>A network with this name already exists or you are already in a network.</value>
-  </data>
   <data name="Online.Error.DirectoryTitle" xml:space="preserve">
     <value>Could not load networks</value>
   </data>

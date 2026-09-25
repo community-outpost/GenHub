@@ -2029,9 +2029,6 @@
   <data name="Online.Error.CreateFailed" xml:space="preserve">
     <value>فشل الإنشاء. يرجى المحاولة مرة أخرى.</value>
   </data>
-  <data name="Online.Error.NetworkAlreadyExists" xml:space="preserve">
-    <value>توجد شبكة بهذا الاسم بالفعل أو أنك مشترك في شبكة بالفعل.</value>
-  </data>
   <data name="Online.Error.DirectoryTitle" xml:space="preserve">
     <value>تعذر تحميل الشبكات</value>
   </data>
