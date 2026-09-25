@@ -145,11 +145,18 @@ public partial class GameProfileLauncherViewModel(
     private bool _hasNoProfiles = true;
 
     /// <summary>
+    /// Gets a value indicating whether no game installations were detected during scan.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasNoDetectedInstallations;
+
+    /// <summary>
     /// Gets a value indicating whether the storefront purchase banner should be displayed.
-    /// Only visible when profiles have been loaded successfully and no playable profiles exist.
+    /// Visible when profiles have been loaded successfully and either no playable profiles exist
+    /// or no game installations were detected on the system.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
-    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && HasNoProfiles;
+    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && (HasNoProfiles || HasNoDetectedInstallations);
 
     partial void OnHasLoadedProfilesSuccessfullyChanged(bool value)
     {
@@ -157,6 +164,11 @@ public partial class GameProfileLauncherViewModel(
     }
 
     partial void OnHasNoProfilesChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
+    }
+
+    partial void OnHasNoDetectedInstallationsChanged(bool value)
     {
         OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
     }
@@ -183,6 +195,12 @@ public partial class GameProfileLauncherViewModel(
     /// Internal use only; intended for test hook injection.
     /// </summary>
     internal Action<string>? UrlOpener { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional manual directory prompter delegate for testing purposes.
+    /// Internal use only; intended for test hook injection.
+    /// </summary>
+    internal Func<Task<GameInstallation?>>? ManualDirectoryPrompter { get; set; }
 
     /// <summary>
     /// Performs asynchronous initialization for the GameProfileLauncherViewModel.
@@ -854,10 +872,17 @@ public partial class GameProfileLauncherViewModel(
                     }
                     else
                     {
+                        HasNoDetectedInstallations = true;
                         StatusMessage = localizationService["GameProfiles.Status.NoInstallationsFound"];
+                        notificationService.ShowWarning(
+                            localizationService["GameProfiles.Notification.NoInstallationsFound.Title"],
+                            localizationService["GameProfiles.Notification.NoInstallationsFound.Message"],
+                            autoDismissMs: NotificationDurations.VeryLong);
                         return;
                     }
                 }
+
+                HasNoDetectedInstallations = false;
 
                 logger.LogInformation(
                     "Game scan completed. Found {Count} installations ({GeneralsCount} Generals, {ZeroHourCount} Zero Hour)",
@@ -899,7 +924,14 @@ public partial class GameProfileLauncherViewModel(
     {
         logger.LogInformation("No game installations found, prompting user for manual directory selection");
 
-        var manualInstallation = await PromptForManualGameDirectoryAsync();
+        notificationService.ShowInfo(
+            localizationService["GameProfiles.Notification.ManualSelection.Title"],
+            localizationService["GameProfiles.Notification.ManualSelection.Message"],
+            autoDismissMs: NotificationDurations.VeryLong);
+
+        var manualInstallation = ManualDirectoryPrompter != null
+            ? await ManualDirectoryPrompter()
+            : await PromptForManualGameDirectoryAsync();
         if (manualInstallation == null)
         {
             logger.LogInformation("User cancelled manual directory selection");

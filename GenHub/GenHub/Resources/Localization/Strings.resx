@@ -860,6 +860,22 @@
   <data name="GameProfiles.Notification.InvalidDirectory.Title" xml:space="preserve">
     <value>Invalid Directory</value>
   </data>
+  <data name="GameProfiles.Notification.ManualSelection.Message" xml:space="preserve">
+    <value>No game installations were automatically detected. Please select your Command &amp; Conquer: Generals or Zero Hour directory manually.</value>
+    <comment>Notification message explaining why the manual folder picker was opened</comment>
+  </data>
+  <data name="GameProfiles.Notification.ManualSelection.Title" xml:space="preserve">
+    <value>Select Game Directory</value>
+    <comment>Notification title when prompting user to manually select game installation directory</comment>
+  </data>
+  <data name="GameProfiles.Notification.NoInstallationsFound.Message" xml:space="preserve">
+    <value>No Command &amp; Conquer: Generals or Zero Hour installations were found. Use official storefronts to purchase the game or link an installation manually.</value>
+    <comment>Notification message when scan finds no installations</comment>
+  </data>
+  <data name="GameProfiles.Notification.NoInstallationsFound.Title" xml:space="preserve">
+    <value>No Game Installations Found</value>
+    <comment>Notification title when game scan finds no installations</comment>
+  </data>
   <data name="GameProfiles.Notification.LaunchError.Message" xml:space="preserve">
     <value>Error launching profile '{0}': {1}</value>
   </data>
