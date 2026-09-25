@@ -2334,6 +2334,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             Times.Never,
             "archive packing must not be called when converted asset is missing");
     }
+
     [Fact]
     public async Task ExecuteBuildAsync_WithBigPack_WhenManifestEntryCountDiffers_SucceedsWithoutFailingAsync()
     {

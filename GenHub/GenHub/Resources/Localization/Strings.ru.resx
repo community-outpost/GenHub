@@ -14184,6 +14184,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>«{0}» успешно запущен</value>
   </data>
+  <data name="Tools.WndEditor.Assets.ClickToAdd" xml:space="preserve">
+    <value>Нажмите, чтобы добавить {0}</value>
+  </data>
   <data name="Tools.PublisherStudio.Duplicate.MessageFormat" xml:space="preserve">
     <value>Мы нашли идентичный файл, уже размещенный у вашего провайдера:
 • Имя: {0}

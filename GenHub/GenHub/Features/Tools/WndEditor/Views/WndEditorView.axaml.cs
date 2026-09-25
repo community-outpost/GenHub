@@ -6,6 +6,8 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Features.Tools.WndEditor.Views;
 
@@ -254,11 +256,15 @@ public partial class WndEditorView : UserControl
             var files = e.Data.GetFiles();
             if (files != null)
             {
-                var paths = files
-                    .Select(f => f.TryGetLocalPath() ?? f.Path?.LocalPath)
-                    .Where(p => !string.IsNullOrEmpty(p))
-                    .Select(p => p!)
-                    .ToList();
+                var paths = new List<string>();
+                foreach (var file in files)
+                {
+                    var localPath = file?.Path?.LocalPath;
+                    if (!string.IsNullOrEmpty(localPath))
+                    {
+                        paths.Add(localPath);
+                    }
+                }
 
                 if (paths.Count > 0)
                 {

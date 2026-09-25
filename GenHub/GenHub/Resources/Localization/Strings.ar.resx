@@ -14184,6 +14184,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>تم تشغيل '{0}' بنجاح</value>
   </data>
+  <data name="Tools.WndEditor.Assets.ClickToAdd" xml:space="preserve">
+    <value>انقر للإضافة {0}</value>
+  </data>
   <data name="Tools.PublisherStudio.Duplicate.MessageFormat" xml:space="preserve">
     <value>عثرنا على ملف مطابق مستضاف بالفعل لدى المزود الخاص بك:
 • الاسم: {0}

@@ -515,6 +515,120 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
+    /// Applies dropped texture file(s) to the window at the specified canvas position or the currently selected window.
+    /// Imports the texture if not already present in the mod project.
+    /// </summary>
+    /// <param name="filePaths">The dropped file paths.</param>
+    /// <param name="canvasPosition">Optional canvas coordinate where drop occurred.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when at least one texture was applied.</returns>
+    public async Task<bool> ApplyDroppedFilesAsync(
+        IReadOnlyList<string> filePaths,
+        Point? canvasPosition = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (filePaths == null || filePaths.Count == 0)
+        {
+            return false;
+        }
+
+        var targetWindow = ResolveTargetWindowAt(canvasPosition) ?? SelectedNode?.Window;
+        if (targetWindow == null)
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                NotificationDurations.Medium);
+            return false;
+        }
+
+        var textureExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".tga", ".dds", ".png", ".jpg", ".jpeg", ".bmp",
+        };
+
+        var validPaths = filePaths.Where(p => textureExtensions.Contains(Path.GetExtension(p))).ToList();
+        if (validPaths.Count == 0)
+        {
+            return false;
+        }
+
+        var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
+
+        string? mappedNameToApply = null;
+
+        foreach (var path in validPaths)
+        {
+            var stem = Path.GetFileNameWithoutExtension(path);
+
+            if (!string.IsNullOrEmpty(projectDirectory))
+            {
+                var importResult = await textureImportService.ImportTextureAsync(path, projectDirectory, null, cancellationToken).ConfigureAwait(false);
+                if (importResult.Success && importResult.Data != null)
+                {
+                    mappedNameToApply = importResult.Data.MappedName;
+                    MissingImageNames.Remove(mappedNameToApply);
+                }
+                else if (KnownImageNames.Contains(stem, StringComparer.OrdinalIgnoreCase))
+                {
+                    mappedNameToApply = stem;
+                }
+            }
+            else
+            {
+                mappedNameToApply = stem;
+            }
+
+            if (!string.IsNullOrEmpty(mappedNameToApply))
+            {
+                break;
+            }
+        }
+
+        if (string.IsNullOrEmpty(mappedNameToApply))
+        {
+            return false;
+        }
+
+        await InvokeOnUIThreadAsync(() =>
+        {
+            SelectWindow(targetWindow);
+            ApplyImageToSelectedWindow(mappedNameToApply);
+            assetService.InvalidateCache();
+            RefreshAssetPreviews();
+        }).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Applies a mapped image name dropped onto the canvas.
+    /// </summary>
+    /// <param name="imageName">The mapped image name.</param>
+    /// <param name="canvasPosition">Optional canvas coordinate where drop occurred.</param>
+    public void ApplyDroppedImageName(string imageName, Point? canvasPosition = null)
+    {
+        if (string.IsNullOrWhiteSpace(imageName))
+        {
+            return;
+        }
+
+        var targetWindow = ResolveTargetWindowAt(canvasPosition) ?? SelectedNode?.Window;
+        if (targetWindow == null)
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
+                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
+                NotificationDurations.Medium);
+            return;
+        }
+
+        SelectWindow(targetWindow);
+        ApplyImageToSelectedWindow(imageName.Trim());
+    }
+
+    /// <summary>
     /// Selects the tree node backing a canvas item.
     /// </summary>
     /// <param name="item">The canvas item to select, or null to clear selection.</param>
@@ -3467,120 +3581,6 @@ public sealed partial class WndEditorViewModel(
 
         FilteredArtItems = items;
         QueueArtItemThumbnailsLoad(items);
-    }
-
-    /// <summary>
-    /// Applies dropped texture file(s) to the window at the specified canvas position or the currently selected window.
-    /// Imports the texture if not already present in the mod project.
-    /// </summary>
-    /// <param name="filePaths">The dropped file paths.</param>
-    /// <param name="canvasPosition">Optional canvas coordinate where drop occurred.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True when at least one texture was applied.</returns>
-    public async Task<bool> ApplyDroppedFilesAsync(
-        IReadOnlyList<string> filePaths,
-        Point? canvasPosition = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (filePaths == null || filePaths.Count == 0)
-        {
-            return false;
-        }
-
-        var targetWindow = ResolveTargetWindowAt(canvasPosition) ?? SelectedNode?.Window;
-        if (targetWindow == null)
-        {
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
-                NotificationDurations.Medium);
-            return false;
-        }
-
-        var textureExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ".tga", ".dds", ".png", ".jpg", ".jpeg", ".bmp"
-        };
-
-        var validPaths = filePaths.Where(p => textureExtensions.Contains(Path.GetExtension(p))).ToList();
-        if (validPaths.Count == 0)
-        {
-            return false;
-        }
-
-        var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
-        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
-
-        string? mappedNameToApply = null;
-
-        foreach (var path in validPaths)
-        {
-            var stem = Path.GetFileNameWithoutExtension(path);
-
-            if (!string.IsNullOrEmpty(projectDirectory))
-            {
-                var importResult = await textureImportService.ImportTextureAsync(path, projectDirectory, null, cancellationToken).ConfigureAwait(false);
-                if (importResult.Success && importResult.Data != null)
-                {
-                    mappedNameToApply = importResult.Data.MappedName;
-                    MissingImageNames.Remove(mappedNameToApply);
-                }
-                else if (KnownImageNames.Contains(stem, StringComparer.OrdinalIgnoreCase))
-                {
-                    mappedNameToApply = stem;
-                }
-            }
-            else
-            {
-                mappedNameToApply = stem;
-            }
-
-            if (!string.IsNullOrEmpty(mappedNameToApply))
-            {
-                break;
-            }
-        }
-
-        if (string.IsNullOrEmpty(mappedNameToApply))
-        {
-            return false;
-        }
-
-        await InvokeOnUIThreadAsync(() =>
-        {
-            SelectWindow(targetWindow);
-            ApplyImageToSelectedWindow(mappedNameToApply);
-            assetService.InvalidateCache();
-            RefreshAssetPreviews();
-        }).ConfigureAwait(false);
-
-        return true;
-    }
-
-    /// <summary>
-    /// Applies a mapped image name dropped onto the canvas.
-    /// </summary>
-    /// <param name="imageName">The mapped image name.</param>
-    /// <param name="canvasPosition">Optional canvas coordinate where drop occurred.</param>
-    public void ApplyDroppedImageName(string imageName, Point? canvasPosition = null)
-    {
-        if (string.IsNullOrWhiteSpace(imageName))
-        {
-            return;
-        }
-
-        var targetWindow = ResolveTargetWindowAt(canvasPosition) ?? SelectedNode?.Window;
-        if (targetWindow == null)
-        {
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionTitle"),
-                localizationService.GetString("Tools.WndEditor.Apply.NoSelectionMessage"),
-                NotificationDurations.Medium);
-            return;
-        }
-
-        SelectWindow(targetWindow);
-        ApplyImageToSelectedWindow(imageName.Trim());
     }
 
     private WndWindow? ResolveTargetWindowAt(Point? canvasPosition)
