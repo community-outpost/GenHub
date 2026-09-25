@@ -24,7 +24,6 @@ public class OnlineMatchTextConverter : IMultiValueConverter
         var key = OnlineProfileMatcher.CompareMember(member, expected, client) switch
         {
             Core.Models.Online.OnlineProfileMatch.Exact => "Online.Match.Exact",
-            Core.Models.Online.OnlineProfileMatch.SameClient => "Online.Match.SameClient",
             Core.Models.Online.OnlineProfileMatch.Mismatch => "Online.Match.Mismatch",
             _ => "Online.Match.Unknown",
         };
