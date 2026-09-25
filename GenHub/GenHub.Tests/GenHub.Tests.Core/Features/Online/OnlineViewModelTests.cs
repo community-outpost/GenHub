@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Tools.Checksum;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -1077,7 +1078,10 @@ public class OnlineViewModelTests
     public void OnlineViewModel_ShouldRegisterWithWeakReferenceMessengerOnConstruction()
     {
         using var vm = CreateViewModel();
+        Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileCreatedMessage>(vm));
         Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(vm));
+        Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileDeletedMessage>(vm));
+        Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileListUpdatedMessage>(vm));
     }
 
     /// <summary>
@@ -1087,9 +1091,132 @@ public class OnlineViewModelTests
     public void OnlineViewModel_Dispose_ShouldUnregisterFromWeakReferenceMessenger()
     {
         var vm = CreateViewModel();
+        Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileCreatedMessage>(vm));
         Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(vm));
+        Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileDeletedMessage>(vm));
+        Assert.True(WeakReferenceMessenger.Default.IsRegistered<ProfileListUpdatedMessage>(vm));
         vm.Dispose();
+        Assert.False(WeakReferenceMessenger.Default.IsRegistered<ProfileCreatedMessage>(vm));
         Assert.False(WeakReferenceMessenger.Default.IsRegistered<ProfileUpdatedMessage>(vm));
+        Assert.False(WeakReferenceMessenger.Default.IsRegistered<ProfileDeletedMessage>(vm));
+        Assert.False(WeakReferenceMessenger.Default.IsRegistered<ProfileListUpdatedMessage>(vm));
+    }
+
+    /// <summary>
+    /// Tests that toggling the create panel open re-fetches available profiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ToggleCreatePanel_WhenOpened_ShouldReloadProfilesAsync()
+    {
+        // Arrange
+        var profile1 = ProfileWithClient("p1", "Profile 1", GameType.ZeroHour, "c1", "1.04");
+        var profile2 = ProfileWithClient("p2", "Profile 2", GameType.ZeroHour, "c2", "1.04");
+        var profiles = new Mock<IGameProfileManager>();
+        var currentProfiles = new List<GameProfile> { profile1 };
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(currentProfiles.ToList()));
+
+        using var vm = CreateViewModel(profiles: profiles.Object);
+
+        // First open loads profile1
+        vm.ToggleCreatePanel();
+        await WaitForAsync(() => vm.AvailableProfiles.Count == 1);
+        Assert.Contains(vm.AvailableProfiles, p => p.Id == "p1");
+
+        // Close panel
+        vm.ToggleCreatePanel();
+        Assert.False(vm.IsCreatePanelOpen);
+
+        // Profile 2 is created
+        currentProfiles.Add(profile2);
+
+        // Act: reopen create panel
+        vm.ToggleCreatePanel();
+        await WaitForAsync(() => vm.AvailableProfiles.Count == 2);
+
+        // Assert: profile2 is now present
+        Assert.Contains(vm.AvailableProfiles, p => p.Id == "p2");
+    }
+
+    /// <summary>
+    /// Tests that receiving ProfileCreatedMessage adds the new profile to AvailableProfiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Receive_ProfileCreatedMessage_ShouldAddToAvailableProfilesAsync()
+    {
+        // Arrange
+        var profile1 = ProfileWithClient("p1", "Alpha Profile", GameType.ZeroHour, "c1", "1.04");
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile1]));
+
+        using var vm = CreateViewModel(profiles: profiles.Object);
+        vm.ToggleCreatePanel();
+        await WaitForAsync(() => vm.AvailableProfiles.Count == 1);
+
+        // Act
+        var newProfile = ProfileWithClient("p2", "Beta Profile", GameType.ZeroHour, "c2", "1.04");
+        WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(newProfile));
+
+        // Assert
+        Assert.Equal(2, vm.AvailableProfiles.Count);
+        Assert.Contains(vm.AvailableProfiles, p => p.Id == "p2");
+    }
+
+    /// <summary>
+    /// Tests that receiving ProfileUpdatedMessage updates the existing profile in AvailableProfiles and SelectedCreateProfile.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Receive_ProfileUpdatedMessage_ShouldUpdateAvailableProfilesAsync()
+    {
+        // Arrange
+        var profile1 = ProfileWithClient("p1", "Old Name", GameType.ZeroHour, "c1", "1.04");
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile1]));
+
+        using var vm = CreateViewModel(profiles: profiles.Object);
+        vm.ToggleCreatePanel();
+        await WaitForAsync(() => vm.AvailableProfiles.Count == 1);
+        vm.SelectedCreateProfile = vm.AvailableProfiles[0];
+
+        // Act
+        var updatedProfile = ProfileWithClient("p1", "New Name", GameType.ZeroHour, "c1", "1.04");
+        WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(updatedProfile));
+
+        // Assert
+        Assert.Single(vm.AvailableProfiles);
+        Assert.Equal("New Name", vm.AvailableProfiles[0].Name);
+        Assert.Equal("New Name", vm.SelectedCreateProfile?.Name);
+    }
+
+    /// <summary>
+    /// Tests that receiving ProfileDeletedMessage removes the profile from AvailableProfiles and clears selection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Receive_ProfileDeletedMessage_ShouldRemoveFromAvailableProfilesAsync()
+    {
+        // Arrange
+        var profile1 = ProfileWithClient("p1", "Profile 1", GameType.ZeroHour, "c1", "1.04");
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile1]));
+
+        using var vm = CreateViewModel(profiles: profiles.Object);
+        vm.ToggleCreatePanel();
+        await WaitForAsync(() => vm.AvailableProfiles.Count == 1);
+        vm.SelectedCreateProfile = vm.AvailableProfiles[0];
+
+        // Act
+        WeakReferenceMessenger.Default.Send(new ProfileDeletedMessage("p1", "Profile 1"));
+
+        // Assert
+        Assert.Empty(vm.AvailableProfiles);
+        Assert.Null(vm.SelectedCreateProfile);
     }
 
     private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
