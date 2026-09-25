@@ -117,7 +117,14 @@ public class CsvResolver(
             var isRemote = Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var uri) &&
                 (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
-            var manifestFiles = matchingEntries.Select(e => CreateManifestFile(e, isRemote)).ToList();
+            cancellationToken.ThrowIfCancellationRequested();
+            var manifestFiles = new List<ManifestFile>(matchingEntries.Count);
+            foreach (var entry in matchingEntries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                manifestFiles.Add(CreateManifestFile(entry, isRemote));
+            }
+
             var manifest = BuildManifest(discoveredItem, gameTypeStr, version, languageStr, manifestFiles);
 
             cancellationToken.ThrowIfCancellationRequested();
