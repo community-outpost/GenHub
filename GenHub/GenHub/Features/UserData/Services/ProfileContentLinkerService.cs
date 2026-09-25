@@ -155,16 +155,23 @@ public class ProfileContentLinkerService(
     {
         logger.LogInformation("[ProfileContentLinker] Cleaning up user data for deleted profile {ProfileId}", profileId);
 
+        // Every other path holds at most one game lock, so taking them all in a fixed order cannot deadlock.
+        var acquiredLocks = new List<SemaphoreSlim>();
         try
         {
-            // Clear active profile if it's being deleted
+            foreach (var gameType in Enum.GetValues<GameType>().Order())
+            {
+                var gameLock = GetGameLock(gameType);
+                await gameLock.WaitAsync(cancellationToken);
+                acquiredLocks.Add(gameLock);
+            }
+
             foreach (var kvp in _activeProfileByGame.Where(k => string.Equals(k.Value, profileId, StringComparison.OrdinalIgnoreCase)))
             {
                 _activeProfileByGame.TryRemove(KeyValuePair.Create(kvp.Key, kvp.Value));
             }
 
-            var cleanupResult = await userDataTracker.CleanupProfileAsync(profileId, cancellationToken);
-            return cleanupResult;
+            return await userDataTracker.CleanupProfileAsync(profileId, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -174,6 +181,13 @@ public class ProfileContentLinkerService(
         {
             logger.LogError(ex, "[ProfileContentLinker] Failed to cleanup profile {ProfileId}", profileId);
             return OperationResult<bool>.CreateFailure($"Failed to cleanup profile: {ex.Message}");
+        }
+        finally
+        {
+            foreach (var gameLock in acquiredLocks)
+            {
+                gameLock.Release();
+            }
         }
     }
 

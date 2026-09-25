@@ -168,8 +168,16 @@ public class WorkspaceManager(
 
             if (workspace == null)
             {
-                logger.LogWarning("Workspace {Id} not found for cleanup", workspaceId);
-                return OperationResult<bool>.CreateSuccess(false);
+                logger.LogDebug("Workspace {Id} not found for cleanup; removing any leftover CAS references", workspaceId);
+                if (string.IsNullOrWhiteSpace(workspaceId))
+                {
+                    return OperationResult<bool>.CreateSuccess(false);
+                }
+
+                var orphanUntrackResult = await casReferenceTracker.UntrackWorkspaceAsync(workspaceId, cancellationToken);
+                return orphanUntrackResult.Success
+                    ? OperationResult<bool>.CreateSuccess(false)
+                    : OperationResult<bool>.CreateFailure($"Failed to untrack CAS references: {orphanUntrackResult.FirstError}");
             }
 
             // CRITICAL: Untrack CAS references BEFORE deleting workspace to prevent reference counting leak.

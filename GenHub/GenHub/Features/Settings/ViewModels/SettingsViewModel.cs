@@ -2638,17 +2638,32 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var profilesResult = await _profileManager.GetAllProfilesAsync();
             if (profilesResult.Success && profilesResult.Data != null)
             {
-                var count = profilesResult.Data.Count;
-                foreach (var profile in profilesResult.Data)
+                var deletedCount = 0;
+                var failedProfileNames = new List<string>();
+                foreach (var profile in profilesResult.Data.ToList())
                 {
-                    // Copy ID to avoid potential collection modification issues if list is live
-                    string id = profile.Id;
-                    await _profileManager.DeleteProfileAsync(id);
+                    var deleteResult = await _profileManager.DeleteProfileAsync(profile.Id);
+                    if (deleteResult.Success)
+                    {
+                        deletedCount++;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to delete profile {ProfileName} ({ProfileId}): {Error}", profile.Name, profile.Id, deleteResult.FirstError);
+                        failedProfileNames.Add(profile.Name);
+                    }
                 }
 
-                if (showToast)
+                if (showToast && failedProfileNames.Count > 0)
                 {
-                    _notificationService.ShowSuccess("Profiles Deleted", $"Deleted {count} profile(s) successfully.", 3000);
+                    _notificationService.ShowWarning(
+                        "Profiles Partially Deleted",
+                        $"Deleted {deletedCount} profile(s). Could not delete {failedProfileNames.Count}: {string.Join(", ", failedProfileNames)}.",
+                        5000);
+                }
+                else if (showToast)
+                {
+                    _notificationService.ShowSuccess("Profiles Deleted", $"Deleted {deletedCount} profile(s) successfully.", 3000);
                 }
             }
 

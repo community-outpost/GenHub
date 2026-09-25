@@ -561,6 +561,47 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that Settings "Delete manifests" removes the workspace, workspace CAS references, and user data
+    /// of the profiles it deletes, so a forced garbage collection can free their objects.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenProfileOrphaned_RemovesItsWorkspaceRefsAndUserDataAsync()
+    {
+        // Arrange
+        using var fixture = new ProfileDeletionFixture();
+        await fixture.ArrangeProfileWithDataAsync();
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(ProfileDeletionFixture.MapManifestId),
+            Name = "Test Map Pack",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel(profileManager: fixture.CreateProfileManager());
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        await fixture.AssertProfileAndDataRemovedAsync();
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that deleting manifests scrubs orphaned manifest IDs from existing game profiles.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -980,6 +1021,44 @@ public class SettingsViewModelTests
         Assert.Contains(removedManifestId, scrubbedIds);
         Assert.DoesNotContain(pendingManifestId, scrubbedIds);
         Assert.Equal(CancellationToken.None, scrubToken);
+    }
+
+    /// <summary>
+    /// Verifies that a profile that could not be deleted is reported instead of counted as deleted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfilesCommand_WhenProfileDeleteFails_ReportsItAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-stuck", Name = "Stuck Profile" }]));
+        _mockProfileManager
+            .Setup(x => x.DeleteProfileAsync("profile-stuck", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Failed to remove the profile's user data"));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteProfilesConfirmationTitle,
+                AppConstants.DeleteProfilesConfirmationMessage,
+                AppConstants.DeleteProfilesConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteProfilesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(It.IsAny<string>(), It.Is<string>(m => m.Contains("Stuck Profile")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     /// <summary>
@@ -2287,12 +2366,13 @@ public class SettingsViewModelTests
         IPublisherSubscriptionStore? subscriptionStore = null,
         IPublisherCatalogRefreshService? catalogRefreshService = null,
         ILocalizationService? localizationService = null,
-        bool includeUpdateManager = true) => new(
+        bool includeUpdateManager = true,
+        IGameProfileManager? profileManager = null) => new(
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
         _mockCasLifecycleManager.Object,
-        _mockProfileManager.Object,
+        profileManager ?? _mockProfileManager.Object,
         _mockWorkspaceManager.Object,
         _mockManifestPool.Object,
         includeUpdateManager ? _mockUpdateManager.Object : null,
@@ -2316,6 +2396,9 @@ public class SettingsViewModelTests
         _mockProfileManager
             .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-to-delete" }]));
+        _mockProfileManager
+            .Setup(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _mockProfileManager
             .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));

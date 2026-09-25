@@ -5,6 +5,8 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.UserData;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -27,6 +29,8 @@ public class GameProfileManagerTests
     private readonly Mock<IGameInstallationService> _installationServiceMock = new();
     private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
     private readonly Mock<IGameSettingsService> _gameSettingsServiceMock = new();
+    private readonly Mock<IWorkspaceManager> _workspaceManagerMock = new();
+    private readonly Mock<IProfileContentLinker> _profileContentLinkerMock = new();
     private readonly Mock<ILogger<GameProfileManager>> _loggerMock = new();
     private readonly GameProfileManager _profileManager;
 
@@ -35,11 +39,20 @@ public class GameProfileManagerTests
     /// </summary>
     public GameProfileManagerTests()
     {
+        _workspaceManagerMock
+            .Setup(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _profileContentLinkerMock
+            .Setup(x => x.CleanupDeletedProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
         _profileManager = new GameProfileManager(
             _profileRepositoryMock.Object,
             _installationServiceMock.Object,
             _manifestPoolMock.Object,
             _gameSettingsServiceMock.Object,
+            _workspaceManagerMock.Object,
+            _profileContentLinkerMock.Object,
             _loggerMock.Object);
     }
 

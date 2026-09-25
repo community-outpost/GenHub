@@ -430,20 +430,6 @@ public class ProfileLauncherFacade(
                     logger.LogDebug("Profile {ProfileId} launch is in registry but process has exited, allowing deletion", profileId);
                 }
 
-                // Get profile to check for active workspace before deleting
-                var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-                if (profileResult.Success && profileResult.Data != null && !string.IsNullOrEmpty(profileResult.Data.ActiveWorkspaceId))
-                {
-                    logger.LogInformation("Cleaning up workspace {WorkspaceId} for profile {ProfileId} before deletion", profileResult.Data.ActiveWorkspaceId, profileId);
-                    var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profileResult.Data.ActiveWorkspaceId, cancellationToken);
-                    if (cleanupResult.Failed)
-                    {
-                        logger.LogWarning("Failed to cleanup workspace {WorkspaceId} for profile {ProfileId}: {Error}", profileResult.Data.ActiveWorkspaceId, profileId, cleanupResult.FirstError);
-
-                        // Continue with profile deletion even if workspace cleanup fails
-                    }
-                }
-
                 var deleteResult = await profileManager.DeleteProfileAsync(profileId, cancellationToken);
                 if (deleteResult.Success)
                 {
