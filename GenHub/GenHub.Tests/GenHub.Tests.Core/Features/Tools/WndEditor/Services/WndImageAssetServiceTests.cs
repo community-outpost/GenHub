@@ -749,6 +749,64 @@ public sealed class WndImageAssetServiceTests : IDisposable
         PixelAt(decoded, 7, 7).ToString().Should().Be(MagickColors.Red.ToString());
     }
 
+    /// <summary>
+    /// Tests that a mod texture page wins over a retail page with the same name for a
+    /// retail definition, matching the engine loading mod archives first.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_RetailDefinitionWithModTexture_PrefersModTexture()
+    {
+        // Arrange: retail defines the image and ships an orange page; the mod project
+        // ships an upscaled blue page under the same name but no new definition.
+        const string definition =
+            "MappedImage TopBtn\n" +
+            "  Texture = TopPage.tga\n" +
+            "  Coords = Left:0 Top:0 Right:8 Bottom:8\n" +
+            "  Status = NONE\n" +
+            "End\n";
+        WriteBigArchive(
+            Path.Combine(_gameRoot, "INIZH.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\INI\MappedImages\TextureSize_512\ZHUI.ini"] = System.Text.Encoding.UTF8.GetBytes(definition),
+            });
+        var generalsDir = Path.Combine(_gameRoot, "ZH_Generals");
+        WriteBigArchive(
+            Path.Combine(generalsDir, "Textures.big"),
+            new Dictionary<string, byte[]>
+            {
+                [@"Data\Art\Textures\TopPage.tga"] = SolidImage(MagickColors.Orange, 8, 8, MagickFormat.Tga),
+            });
+
+        var modDir = Path.Combine(Path.GetTempPath(), "GenHub_TopTierTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            WriteBigArchive(
+                Path.Combine(modDir, "0_TestMod.big"),
+                new Dictionary<string, byte[]>
+                {
+                    [@"Data\English\Art\Textures\TopPage.tga"] = SolidImage(MagickColors.Blue, 8, 8, MagickFormat.Tga),
+                });
+
+            // Act
+            var result = await _service.GetImagesAsync(["TopBtn"], _gameRoot, null, modDir, null, true);
+
+            // Assert: the mod (blue) page wins over the retail (orange) page.
+            result.Success.Should().BeTrue();
+            result.Data.Should().ContainKey("TopBtn");
+            using var decoded = new MagickImage(result.Data!["TopBtn"]);
+            PixelAt(decoded, 0, 0).ToString().Should().Be(MagickColors.Blue.ToString());
+        }
+        finally
+        {
+            if (Directory.Exists(modDir))
+            {
+                Directory.Delete(modDir, true);
+            }
+        }
+    }
+
     private void WriteMappedImages(string content)
     {
         File.WriteAllText(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "TextureSize_512", "Test.ini"), content);

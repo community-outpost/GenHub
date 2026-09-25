@@ -34,6 +34,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     private const string WindowPrefix = @"Window\";
     private const string WindowMenusPrefix = @"Window\Menus\";
 
+    private static readonly SageFileTier[] TierSearchOrder = [SageFileTier.LinkedAsset, SageFileTier.Mod, SageFileTier.Expansion, SageFileTier.BaseGame];
+
     private readonly ConcurrentDictionary<string, AssetIndex> _indexes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte[]> _imageCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, ImageProvenance> _provenanceCache = new(StringComparer.OrdinalIgnoreCase);
@@ -885,7 +887,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var trimmed = texture.Trim();
         foreach (var band in TextureSearchBands(definitionTier))
         {
-            var match = SearchBandOrdered(fileSystem, trimmed, band.MinTier, band.MaxTier);
+            var match = SearchBandOrdered(fileSystem, trimmed, band.Tier, band.Tier);
             if (match != null)
             {
                 return (match.Value.Path, match.Value.Bytes, match.Value.Format, band.MatchClass);
@@ -895,18 +897,29 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return TryReadTextureByFileName(fileSystem, trimmed, definitionTier);
     }
 
-    private static IEnumerable<(SageFileTier MinTier, SageFileTier MaxTier, TextureMatchClass MatchClass)> TextureSearchBands(
+    private static IEnumerable<(SageFileTier Tier, TextureMatchClass MatchClass)> TextureSearchBands(
         SageFileTier definitionTier)
     {
-        yield return (definitionTier, definitionTier, TextureMatchClass.SameTier);
-        if (definitionTier < SageFileTier.LinkedAsset)
+        // Fixed top-down order matching the engine loading higher layers first:
+        // a mod page with the same name always shadows the retail page, as if the
+        // mod archives were installed with sort-first names in the game directory.
+        foreach (var tier in TierSearchOrder)
         {
-            yield return ((SageFileTier)((int)definitionTier + 1), SageFileTier.LinkedAsset, TextureMatchClass.HigherTier);
-        }
+            TextureMatchClass matchClass;
+            if (tier == definitionTier)
+            {
+                matchClass = TextureMatchClass.SameTier;
+            }
+            else if (tier > definitionTier)
+            {
+                matchClass = TextureMatchClass.HigherTier;
+            }
+            else
+            {
+                matchClass = TextureMatchClass.LowerTier;
+            }
 
-        if (definitionTier > SageFileTier.BaseGame)
-        {
-            yield return (SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1), TextureMatchClass.LowerTier);
+            yield return (tier, matchClass);
         }
     }
 
@@ -1041,27 +1054,12 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         var candidates = ArchiveFileNameVariants(fileName);
 
-        var match = SearchFileNameInBand(fileSystem, candidates, definitionTier, definitionTier);
-        if (match != null)
+        foreach (var band in TextureSearchBands(definitionTier))
         {
-            return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.SameTier);
-        }
-
-        if (definitionTier < SageFileTier.LinkedAsset)
-        {
-            match = SearchFileNameInBand(fileSystem, candidates, (SageFileTier)((int)definitionTier + 1), SageFileTier.LinkedAsset);
+            var match = SearchFileNameInBand(fileSystem, candidates, band.Tier, band.Tier);
             if (match != null)
             {
-                return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.HigherTier);
-            }
-        }
-
-        if (definitionTier > SageFileTier.BaseGame)
-        {
-            match = SearchFileNameInBand(fileSystem, candidates, SageFileTier.BaseGame, (SageFileTier)((int)definitionTier - 1));
-            if (match != null)
-            {
-                return (match.Value.Path, match.Value.Bytes, match.Value.Format, TextureMatchClass.LowerTier);
+                return (match.Value.Path, match.Value.Bytes, match.Value.Format, band.MatchClass);
             }
         }
 
