@@ -380,14 +380,6 @@ public static class ApiConstants
     public const string DefaultOnlineRelayHost = "130.61.202.35"; // NOSONAR
 
     /// <summary>
-    /// Gets the active relay host, checking environment variable overrides first.
-    /// </summary>
-    public static string OnlineRelayHost =>
-        Environment.GetEnvironmentVariable(OnlineRelayHostEnvVar) is { Length: > 0 } customHost
-            ? customHost
-            : DefaultOnlineRelayHost;
-
-    /// <summary>
     /// Resolves the relay host to connect to. An explicit environment override
     /// wins over the server-advertised host so relay moves stay testable without
     /// an edge deploy; otherwise the advertised host wins over the default.

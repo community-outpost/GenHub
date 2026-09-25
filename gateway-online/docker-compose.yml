@@ -10,7 +10,7 @@ services:
       - JWT_SIGNING_SECRET=${JWT_SIGNING_SECRET:?set JWT_SIGNING_SECRET in .env}
       - PASSWORD_PEPPER=${PASSWORD_PEPPER:?set PASSWORD_PEPPER in .env}
       - COTURN_SECRET=${COTURN_SECRET:?set COTURN_SECRET in .env}
-      - TURN_URIS=${TURN_URIS:-turn:152.70.171.121:3478?transport=udp,turn:152.70.171.121:3478?transport=tcp}
+      - TURN_URIS=${TURN_URIS:-turn:130.61.202.35:3478?transport=udp,turn:130.61.202.35:3478?transport=tcp}
       - EMPTY_NETWORK_TTL_SECONDS=${EMPTY_NETWORK_TTL_SECONDS:-300}
     volumes:
       - ./:/app
@@ -45,7 +45,7 @@ services:
       - "--realm=genhub.online"
       - "--use-auth-secret"
       - "--static-auth-secret=${COTURN_SECRET:?set COTURN_SECRET in .env}"
-      - "--external-ip=152.70.171.121/10.0.0.197"
+      - "--external-ip=130.61.202.35"
       - "--min-port=49152"
       - "--max-port=49252"
       - "--no-cli"
