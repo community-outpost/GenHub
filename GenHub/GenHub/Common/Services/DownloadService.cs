@@ -259,6 +259,23 @@ public class DownloadService(
         return response.Headers.AcceptRanges.Any(r => string.Equals(r, "bytes", StringComparison.OrdinalIgnoreCase));
     }
 
+    private static bool HasStrongETag(DownloadConfiguration configuration, DownloadConnection connection)
+    {
+        if (connection.Response.Headers.ETag is { IsWeak: false })
+        {
+            return true;
+        }
+
+        return TryGetETagHeader(configuration, out var configEtag)
+            && TryParseEntityTag(configEtag, out var parsedEtag)
+            && !parsedEtag.IsWeak;
+    }
+
+    private static bool HasStrongRepresentationValidator(DownloadConfiguration configuration, DownloadConnection connection)
+    {
+        return HasStrongETag(configuration, connection) || !string.IsNullOrWhiteSpace(configuration.ExpectedHash);
+    }
+
     private static bool CanUseParallelDownload(DownloadConfiguration configuration, DownloadConnection connection)
     {
         return configuration.EnableParallelDownload
@@ -266,7 +283,8 @@ public class DownloadService(
             && connection.ExistingBytes == 0
             && configuration.ParallelConcurrency > 1
             && connection.TotalBytes >= configuration.ParallelDownloadThresholdBytes
-            && SupportsByteRanges(connection.Response);
+            && SupportsByteRanges(connection.Response)
+            && HasStrongRepresentationValidator(configuration, connection);
     }
 
     private static (long TotalBytes, long? ExpectedContentBytes) ValidateAndCalculateRangeBytes(
@@ -459,6 +477,14 @@ public class DownloadService(
                 {
                     throw new InvalidOperationException(
                         $"Server returned status code {chunkResponse.StatusCode} instead of 206 Partial Content for range {start}-{end}.");
+                }
+
+                if (initialEtag != null &&
+                    chunkResponse.Headers.ETag != null &&
+                    !chunkResponse.Headers.ETag.Equals(initialEtag))
+                {
+                    throw new InvalidOperationException(
+                        $"Server returned chunk with mismatched ETag ({chunkResponse.Headers.ETag}) instead of expected {initialEtag}.");
                 }
 
                 var chunkRange = chunkResponse.Content.Headers.ContentRange;

@@ -1092,6 +1092,7 @@ public class DownloadServiceTests
                     };
                     initialResponse.Content.Headers.ContentLength = totalBytes;
                     initialResponse.Headers.AcceptRanges.Add("bytes");
+                    initialResponse.Headers.ETag = new EntityTagHeaderValue("\"etag-12345\"");
                     return initialResponse;
                 }
 
@@ -1177,6 +1178,7 @@ public class DownloadServiceTests
                 if (attempts == 1)
                 {
                     response.Headers.AcceptRanges.Add("bytes");
+                    response.Headers.ETag = new EntityTagHeaderValue("\"etag-fallback\"");
                 }
 
                 return response;
@@ -1367,6 +1369,7 @@ public class DownloadServiceTests
                     };
                     response.Content.Headers.ContentLength = totalBytes;
                     response.Headers.AcceptRanges.Add("bytes");
+                    response.Headers.ETag = new EntityTagHeaderValue("\"etag-mismatch\"");
                     sequentialRequested = true;
                     return response;
                 }
@@ -1443,6 +1446,7 @@ public class DownloadServiceTests
                     };
                     initialResponse.Content.Headers.ContentLength = totalBytes;
                     initialResponse.Headers.AcceptRanges.Add("bytes");
+                    initialResponse.Headers.ETag = new EntityTagHeaderValue("\"etag-auth\"");
 
                     // Simulate redirect from https to http on same host
                     initialResponse.RequestMessage = new HttpRequestMessage(HttpMethod.Get, "http://secure.example.com/file.bin");
@@ -1485,6 +1489,69 @@ public class DownloadServiceTests
             Assert.True(result.Success);
             Assert.Equal(2, chunkAuthorizationHeaders.Count);
             Assert.All(chunkAuthorizationHeaders, auth => Assert.Null(auth));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when server supports ranges but lacks a strong representation validator and ExpectedHash is unset, sequential download is used.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WhenServerSupportsRangesButLacksRepresentationValidator_UsesSequentialDownloadAsync()
+    {
+        const int totalBytes = 16 * 1024 * 1024;
+        var fullPayload = new byte[totalBytes];
+        Array.Fill(fullPayload, (byte)9);
+
+        var tempFile = Path.Combine(Path.GetTempPath(), $"no_validator_{Guid.NewGuid():N}.bin");
+        var chunkRangeRequested = false;
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
+            {
+                if (request.Headers.Range != null)
+                {
+                    chunkRangeRequested = true;
+                }
+
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(fullPayload),
+                };
+                response.Content.Headers.ContentLength = totalBytes;
+                response.Headers.AcceptRanges.Add("bytes");
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/unvalidated.bin"),
+                DestinationPath = tempFile,
+                EnableParallelDownload = true,
+                ParallelConcurrency = 2,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.False(chunkRangeRequested);
+            Assert.Equal(totalBytes, result.BytesDownloaded);
         }
         finally
         {
