@@ -100,6 +100,16 @@ the adapter error (no teardown wipes it), the Online view maps the
 elevation marker to remediation guidance, and Play stays blocked until the
 user leaves, rejoins, and accepts the prompt (or restarts GenHub elevated).
 
+## Linux provisioning
+
+Creating `genhub0` needs `CAP_NET_ADMIN`, so the in-process runner provisions
+it through iproute2 (`LinuxTunSetup`): `ip tuntap add`, `ip addr add` with the
+member overlay IP, and `ip link set up`, escalated via polkit (`pkexec`) on
+desktops or non-interactive `sudo -n` on headless hosts. The interface persists
+across joins and is re-addressed per lobby; provisioning failure fails the
+bring-up loudly with the exact manual `sudo ip ...` fallback instead of
+starting the socket proxy, which cannot give the game an adapter address.
+
 ## Profile matching
 
 Profile ids are machine-local, so lobbies match on the fingerprint

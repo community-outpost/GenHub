@@ -286,6 +286,33 @@ public static class OnlineConstants
     public const string DefaultTunSubnetMask = "255.255.240.0";
 
     /// <summary>
+    /// The iproute2 utility used to provision the Linux TUN interface.
+    /// </summary>
+    public const string TunIpBinary = "ip";
+
+    /// <summary>
+    /// The polkit helper used to escalate TUN provisioning on Linux desktops.
+    /// </summary>
+    public const string TunPkexecBinary = "pkexec";
+
+    /// <summary>
+    /// The fallback escalator for TUN provisioning on headless Linux hosts.
+    /// </summary>
+    public const string TunSudoBinary = "sudo";
+
+    /// <summary>
+    /// Flag keeping the sudo fallback non-interactive so it fails fast instead
+    /// of blocking on a password prompt the GUI cannot answer.
+    /// </summary>
+    public const string TunSudoNonInteractiveFlag = "-n";
+
+    /// <summary>
+    /// Per-command timeout in milliseconds for privileged TUN provisioning. The
+    /// polkit prompt needs a human-scale window; iproute2 itself is instant.
+    /// </summary>
+    public const int TunSetupTimeoutMs = 120000;
+
+    /// <summary>
     /// Sidecar exit code for clean shutdown.
     /// </summary>
     public const int SidecarExitSuccess = 0;

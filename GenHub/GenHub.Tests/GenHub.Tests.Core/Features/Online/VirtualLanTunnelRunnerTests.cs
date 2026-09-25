@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Services.Online;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -7,6 +9,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.Online;
@@ -141,6 +144,57 @@ public class VirtualLanTunnelRunnerTests : IDisposable
         // Assert
         Assert.False(result.Success);
         Assert.False(_runner.IsRunning);
+    }
+
+    /// <summary>
+    /// Tests that a failed Linux TUN setup fails the start loudly instead of
+    /// falling back to a socket proxy the game cannot use.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartAsync_WhenLinuxSetupFails_ShouldFailWithoutProxyAsync()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            // The provisioned path only runs on Linux.
+            return;
+        }
+
+        // Arrange
+        var configJson = """
+        {
+            "v": 1,
+            "networkId": "2c36769e-814b-4818-adbc-b42cedd00729",
+            "overlayIp": "10.42.0.2",
+            "relay": { "host": "127.0.0.1", "port": 58091 }
+        }
+        """;
+        var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(configJson));
+        var setup = new Mock<ITunInterfaceSetup>();
+        setup.Setup(s => s.SetupAsync(
+                OnlineConstants.TunDefaultInterfaceName,
+                IPAddress.Parse("10.42.0.2"),
+                OnlineConstants.TunOverlayPrefixLength,
+                OnlineConstants.TunDefaultMtu,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("no polkit agent"));
+        using var runner = new VirtualLanTunnelRunner(Mock.Of<ILogger<VirtualLanTunnelRunner>>(), setup.Object);
+
+        // Act
+        var result = await runner.StartAsync(base64, "10.42.0.2");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.False(runner.IsRunning);
+        Assert.Contains("Virtual LAN network adapter unavailable", result.FirstError);
+        setup.Verify(
+            s => s.SetupAsync(
+                OnlineConstants.TunDefaultInterfaceName,
+                IPAddress.Parse("10.42.0.2"),
+                OnlineConstants.TunOverlayPrefixLength,
+                OnlineConstants.TunDefaultMtu,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>
