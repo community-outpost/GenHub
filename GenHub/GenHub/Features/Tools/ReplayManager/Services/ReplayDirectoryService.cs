@@ -625,6 +625,17 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
+    /// Determines whether the given game profile has recovery/checkpoint capability.
+    /// </summary>
+    /// <param name="profile">The game profile to check.</param>
+    /// <returns><see langword="true"/> if the profile has checkpoint capability; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasCheckpointCapability(GameProfile profile)
+    {
+        return HasClientCheckpointCapability(profile.GameClient) ||
+               HasEnabledContentCheckpointCapability(profile.EnabledContentIds);
+    }
+
+    /// <summary>
     /// Finds all compatible game profiles for the specified replay criteria, sorted by candidate score descending.
     /// </summary>
     /// <param name="profiles">The candidate game profiles.</param>
@@ -1384,12 +1395,6 @@ public sealed class ReplayDirectoryService(
         return false;
     }
 
-    private static bool HasCheckpointCapability(GameProfile profile)
-    {
-        return HasClientCheckpointCapability(profile.GameClient) ||
-               HasEnabledContentCheckpointCapability(profile.EnabledContentIds);
-    }
-
     private static bool HasClientCheckpointCapability(GameClient? client)
     {
         if (client == null)
@@ -1436,10 +1441,11 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
-    /// Determines whether a candidate recovery profile runs the same executable build as the replay.
-    /// Checkpoint minting re-simulates the replay frame by frame, so unlike play matching (which
-    /// trusts retail provenance for retail replays) it requires the exact engine build: a verifiably
-    /// different build would desynchronize and produce invalid checkpoints. Profiles whose executable
+    /// Determines whether a candidate recovery profile runs an executable build compatible with the replay.
+    /// Checkpoint minting re-simulates the replay frame by frame. For non-retail replays (e.g. GeneralsOnline),
+    /// strict engine CRC equivalence is required to prevent desynchronization. For retail replays, custom recovery
+    /// binaries (such as community MP recovery builds) are trusted if they possess checkpoint capabilities, as they
+    /// are specifically modified to simulate retail gameplay and mint valid checkpoints. Profiles whose executable
     /// cannot be verified (missing file or cold CRC cache) are allowed through to preserve existing behavior.
     /// </summary>
     /// <param name="profile">The candidate game profile.</param>
@@ -1483,7 +1489,7 @@ public sealed class ReplayDirectoryService(
             // For retail replays, recovery-capable game clients use custom modified binaries (e.g. MP recovery builds)
             // whose CRC will not match stock retail CRCs, but are specifically compiled to simulate and mint checkpoints
             // for retail replays.
-            if ((isRetailReplay || ReplayCrcMatchingHelper.IsRetailExeCrc(replayExeCrc, gameVersion)) && HasCheckpointCapability(profile))
+            if (isRetailReplay && HasCheckpointCapability(profile))
             {
                 return true;
             }

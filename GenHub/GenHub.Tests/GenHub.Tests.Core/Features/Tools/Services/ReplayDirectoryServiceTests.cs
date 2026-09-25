@@ -4990,10 +4990,12 @@ public sealed class ReplayDirectoryServiceTests
                 Name = "Zero Hour 1.04 (Recovery)",
                 GameClient = new GameClient
                 {
-                    Id = "1.0.local.gameclient.generalszh-mp-recovery",
+                    Id = isRetail
+                        ? "1.0.local.gameclient.generalszh-mp-recovery"
+                        : "1.0.generalsonline.gameclient.generalszh-mp-recovery",
                     Name = "Zero Hour 1.04 Recovery",
                     GameType = GameType.ZeroHour,
-                    PublisherType = "custom",
+                    PublisherType = isRetail ? "custom" : "generalsonline",
                     Capabilities = GameClientCapabilities.AllRecoveryFeatures,
                     ExecutablePath = fakeExePath,
                     WorkingDirectory = tempDir,

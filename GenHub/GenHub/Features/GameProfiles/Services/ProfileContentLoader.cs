@@ -374,8 +374,13 @@ public class ProfileContentLoader(
         {
             if (File.Exists(manifest.SourcePath))
             {
-                exePath = manifest.SourcePath;
-                workingDir = Path.GetDirectoryName(manifest.SourcePath);
+                var ext = Path.GetExtension(manifest.SourcePath);
+                if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".dat", StringComparison.OrdinalIgnoreCase))
+                {
+                    exePath = manifest.SourcePath;
+                    workingDir = Path.GetDirectoryName(manifest.SourcePath);
+                }
             }
             else if (Directory.Exists(manifest.SourcePath) && !string.IsNullOrWhiteSpace(manifest.EntryPoint))
             {

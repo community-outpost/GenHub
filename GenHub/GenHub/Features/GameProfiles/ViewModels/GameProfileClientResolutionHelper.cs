@@ -113,13 +113,18 @@ internal static class GameProfileClientResolutionHelper
         var publisherType = ExtractPublisherType(segments, item.Publisher);
         var version = ExtractClientVersion(item.Version, segments, publisherType);
 
-        var exePath = item.GameClient?.ExecutablePath;
-        var workingDir = item.GameClient?.WorkingDirectory;
+        string? exePath = null;
+        string? workingDir = null;
 
-        if (string.IsNullOrEmpty(exePath) && !string.IsNullOrWhiteSpace(item.SourcePath) && File.Exists(item.SourcePath))
+        if (!string.IsNullOrWhiteSpace(item.SourcePath) && File.Exists(item.SourcePath))
         {
-            exePath = item.SourcePath;
-            workingDir = Path.GetDirectoryName(item.SourcePath);
+            var ext = Path.GetExtension(item.SourcePath);
+            if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".dat", StringComparison.OrdinalIgnoreCase))
+            {
+                exePath = item.SourcePath;
+                workingDir = Path.GetDirectoryName(item.SourcePath);
+            }
         }
 
         return new GameClient

@@ -22,6 +22,7 @@ using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.Downloads.Views;
 using GenHub.Features.Tools.Helpers;
+using GenHub.Features.Tools.ReplayManager.Services;
 using GenHub.Features.Tools.ReplayManager.Views;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -75,6 +76,7 @@ public partial class ReplayManagerViewModel(
     IDisposable
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _runningProfiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _selectedRecoveryProfiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
@@ -240,10 +242,12 @@ public partial class ReplayManagerViewModel(
 
     partial void OnSelectedCompatibleProfileChanged(GameProfile? value)
     {
-        if (value != null && ActiveCheckpointReplay != null)
+        var replay = ActiveCheckpointReplay;
+        if (value != null && replay != null && ReplayDirectoryService.HasCheckpointCapability(value))
         {
-            ActiveCheckpointReplay.RecoveryProfileId = value.Id;
-            ActiveCheckpointReplay.RecoveryProfileName = value.Name;
+            replay.RecoveryProfileId = value.Id;
+            replay.RecoveryProfileName = value.Name;
+            _selectedRecoveryProfiles[replay.FullPath] = value.Id;
         }
 
         UpdateReplayTimingBounds();
@@ -324,6 +328,8 @@ public partial class ReplayManagerViewModel(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
+        EnsureMessengerRegistered();
+
         if (LocalizationService != null)
         {
             LocalizationService.PropertyChanged -= OnLocalizationChanged;
@@ -391,7 +397,7 @@ public partial class ReplayManagerViewModel(
     {
         _runningProfiles.TryRemove(message.ProfileId, out _);
 
-        Dispatcher.UIThread.Post(async () =>
+        PostReloadReplays("profile deletion", message.ProfileId, () =>
         {
             foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
                          .Where(replay => string.Equals(replay.MatchingProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase)))
@@ -400,64 +406,25 @@ public partial class ReplayManagerViewModel(
                 replay.MatchingProfileName = null;
                 replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
             }
-
-            try
-            {
-                await LoadReplaysAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to reload replays after profile deletion: {ProfileId}", message.ProfileId);
-            }
         });
     }
 
     /// <inheritdoc />
     public void Receive(ProfileListUpdatedMessage message)
     {
-        Dispatcher.UIThread.Post(async () =>
-        {
-            try
-            {
-                await LoadReplaysAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to reload replays after profile list update");
-            }
-        });
+        PostReloadReplays("profile list update");
     }
 
     /// <inheritdoc />
     public void Receive(ProfileCreatedMessage message)
     {
-        Dispatcher.UIThread.Post(async () =>
-        {
-            try
-            {
-                await LoadReplaysAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to reload replays after profile creation: {ProfileId}", message.Profile?.Id);
-            }
-        });
+        PostReloadReplays("profile creation", message.Profile?.Id);
     }
 
     /// <inheritdoc />
     public void Receive(ProfileUpdatedMessage message)
     {
-        Dispatcher.UIThread.Post(async () =>
-        {
-            try
-            {
-                await LoadReplaysAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to reload replays after profile update: {ProfileId}", message.Profile?.Id);
-            }
-        });
+        PostReloadReplays("profile update", message.Profile?.Id);
     }
 
     /// <inheritdoc />
@@ -1667,18 +1634,59 @@ public partial class ReplayManagerViewModel(
         }
     }
 
+    private ProfileSelectionViewModel CreateProfileSelectionViewModel(
+        IServiceProvider sp,
+        ReplayFile replay,
+        string dialogTitleKey,
+        string defaultDialogTitleFormat,
+        string headerTitleKey,
+        string defaultHeaderTitle,
+        string headerSubtitleKey,
+        string defaultHeaderSubtitle,
+        string actionBadgeKey,
+        string defaultActionBadge)
+    {
+        var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
+        var dialogTitleFormat = LocalizationService?.GetString(dialogTitleKey) ?? defaultDialogTitleFormat;
+        profileVm.DialogTitle = string.Format(dialogTitleFormat, replay.FileName);
+        profileVm.HeaderTitle = LocalizationService?.GetString(headerTitleKey) ?? defaultHeaderTitle;
+        profileVm.HeaderSubtitle = LocalizationService?.GetString(headerSubtitleKey) ?? defaultHeaderSubtitle;
+        profileVm.ActionBadgeText = LocalizationService?.GetString(actionBadgeKey) ?? defaultActionBadge;
+        profileVm.CreateProfileCardSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle") ?? "Choose an available game client to create a fresh profile";
+        return profileVm;
+    }
+
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private async Task ShowProfileSelectionDialogWindowAsync(ProfileSelectionViewModel profileVm)
+    {
+        var dialog = new ProfileSelectionView(profileVm);
+        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+            IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+        if (mainWindow != null)
+        {
+            await dialog.ShowDialog(mainWindow);
+        }
+    }
+
     private async Task<ProfileSelectionViewModel> ShowProfileSelectionDialogAsync(
         IServiceProvider sp,
         ReplayFile replay)
     {
         logger.LogDebug("[ReplayManager] Displaying profile selection dialog for '{FileName}'", replay.FileName);
-        var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
-        var dialogTitleFormat = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.DialogTitleFormat") ?? "Select Profile - {0}";
-        profileVm.DialogTitle = string.Format(dialogTitleFormat, replay.FileName);
-        profileVm.HeaderTitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.HeaderTitle") ?? "Select Profile to Run Replay";
-        profileVm.HeaderSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.HeaderSubtitle") ?? "Click a profile to launch this replay";
-        profileVm.ActionBadgeText = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.ActionBadge") ?? "Play";
-        profileVm.CreateProfileCardSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle") ?? "Choose an available game client to create a fresh profile";
+        var profileVm = CreateProfileSelectionViewModel(
+            sp,
+            replay,
+            "Tools.ReplayManager.ProfileSelection.DialogTitleFormat",
+            "Select Profile - {0}",
+            "Tools.ReplayManager.ProfileSelection.HeaderTitle",
+            "Select Profile to Run Replay",
+            "Tools.ReplayManager.ProfileSelection.HeaderSubtitle",
+            "Click a profile to launch this replay",
+            "Tools.ReplayManager.ProfileSelection.ActionBadge",
+            "Play");
 
         var compatibleProfiles = await directoryService.GetCompatibleProfilesForReplayAsync(replay);
         var compatibleProfileIds = new HashSet<string>(compatibleProfiles.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
@@ -1690,17 +1698,7 @@ public partial class ReplayManagerViewModel(
             additionalManifestIds: null,
             compatibleProfileIds: compatibleProfileIds);
 
-        var dialog = new ProfileSelectionView(profileVm);
-        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
-            IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.MainWindow
-                : null;
-
-        if (mainWindow != null)
-        {
-            await dialog.ShowDialog(mainWindow);
-        }
-
+        await ShowProfileSelectionDialogWindowAsync(profileVm);
         return profileVm;
     }
 
@@ -1726,10 +1724,24 @@ public partial class ReplayManagerViewModel(
             using var scope = serviceProvider.CreateScope();
             var profileVm = await ShowRecoveryProfileSelectionDialogAsync(scope.ServiceProvider, replay);
 
+            if (profileVm.IsCreateNewRequested)
+            {
+                var createdProfileId = await SelectClientAndCreateProfileAsync(replay);
+                if (!string.IsNullOrEmpty(createdProfileId))
+                {
+                    replay.RecoveryProfileId = createdProfileId;
+                    _selectedRecoveryProfiles[replay.FullPath] = createdProfileId;
+                    await OpenCheckpointDrawerAsync(replay);
+                }
+
+                return;
+            }
+
             if (profileVm.WasSuccessful && profileVm.SelectedProfile != null)
             {
                 replay.RecoveryProfileId = profileVm.SelectedProfile.Id;
                 replay.RecoveryProfileName = profileVm.SelectedProfile.Name;
+                _selectedRecoveryProfiles[replay.FullPath] = profileVm.SelectedProfile.Id;
                 await OpenCheckpointDrawerAsync(replay);
             }
         }
@@ -1744,13 +1756,17 @@ public partial class ReplayManagerViewModel(
         ReplayFile replay)
     {
         logger.LogDebug("[ReplayManager] Displaying recovery profile selection dialog for '{FileName}'", replay.FileName);
-        var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
-        var dialogTitleFormat = LocalizationService?.GetString("Tools.ReplayManager.RecoveryProfileSelection.DialogTitleFormat") ?? "Select Recovery Profile - {0}";
-        profileVm.DialogTitle = string.Format(dialogTitleFormat, replay.FileName);
-        profileVm.HeaderTitle = LocalizationService?.GetString("Tools.ReplayManager.RecoveryProfileSelection.HeaderTitle") ?? "Select Recovery Profile";
-        profileVm.HeaderSubtitle = LocalizationService?.GetString("Tools.ReplayManager.RecoveryProfileSelection.HeaderSubtitle") ?? "Choose a recovery-capable profile to mint checkpoints and recover this replay";
-        profileVm.ActionBadgeText = LocalizationService?.GetString("Tools.ReplayManager.RecoveryProfileSelection.ActionBadge") ?? "Recover";
-        profileVm.CreateProfileCardSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle") ?? "Choose an available game client to create a fresh profile";
+        var profileVm = CreateProfileSelectionViewModel(
+            sp,
+            replay,
+            "Tools.ReplayManager.RecoveryProfileSelection.DialogTitleFormat",
+            "Select Recovery Profile - {0}",
+            "Tools.ReplayManager.RecoveryProfileSelection.HeaderTitle",
+            "Select Recovery Profile",
+            "Tools.ReplayManager.RecoveryProfileSelection.HeaderSubtitle",
+            "Choose a recovery-capable profile to mint checkpoints and recover this replay",
+            "Tools.ReplayManager.RecoveryProfileSelection.ActionBadge",
+            "Recover");
 
         var (manager, mgrScope) = ResolveProfileManager();
         IReadOnlyList<GameProfile> allProfiles = Array.Empty<GameProfile>();
@@ -1780,17 +1796,7 @@ public partial class ReplayManagerViewModel(
             additionalManifestIds: null,
             compatibleProfileIds: recoveryProfileIds);
 
-        var dialog = new ProfileSelectionView(profileVm);
-        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
-            IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.MainWindow
-                : null;
-
-        if (mainWindow != null)
-        {
-            await dialog.ShowDialog(mainWindow);
-        }
-
+        await ShowProfileSelectionDialogWindowAsync(profileVm);
         return profileVm;
     }
 
@@ -1896,6 +1902,13 @@ public partial class ReplayManagerViewModel(
         try
         {
             var replays = await directoryService.GetReplaysAsync(SelectedTab);
+            foreach (var r in replays)
+            {
+                if (_selectedRecoveryProfiles.TryGetValue(r.FullPath, out var savedRecoveryId))
+                {
+                    r.RecoveryProfileId = savedRecoveryId;
+                }
+            }
 
             // Marshall to UI thread for collection updates
             await Dispatcher.UIThread.InvokeAsync(() =>
@@ -2511,6 +2524,22 @@ public partial class ReplayManagerViewModel(
             var errTitle = LocalizationService?.GetString("Common.DeleteError") ?? "Delete Error";
             notificationService.ShowError(errTitle, ex.Message);
         }
+    }
+
+    private void PostReloadReplays(string reason, string? profileId = null, Action? onUiThread = null)
+    {
+        Dispatcher.UIThread.Post(async () =>
+        {
+            onUiThread?.Invoke();
+            try
+            {
+                await LoadReplaysAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reload replays after {Reason}: {ProfileId}", reason, profileId);
+            }
+        });
     }
 
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
