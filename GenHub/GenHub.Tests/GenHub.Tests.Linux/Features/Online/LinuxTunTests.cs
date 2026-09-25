@@ -7,7 +7,7 @@ namespace GenHub.Tests.Linux.Features.Online;
 /// </summary>
 public class LinuxTunTests
 {
-    private const string MissingInterfaceName = "genhub-definitely-missing";
+    private const string MissingInterfaceName = "genhub-none";
 
     /// <summary>
     /// Verifies a missing interface reports absent without privileges.

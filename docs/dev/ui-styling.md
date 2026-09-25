@@ -161,6 +161,36 @@ All scrollbars automatically inherit global theme styling from `GenHub/GenHub/As
   - Explicitly set `VerticalScrollBarVisibility="Auto"` and `HorizontalScrollBarVisibility="Disabled"` on vertical content viewers to prevent unwanted horizontal shifts.
   - Never wrap components that already have internal scrolling (such as `MarkdownScrollViewer` or `DataGrid`) in an outer `ScrollViewer`.
 
+> [!CAUTION]
+> **NEVER SET `Padding` DIRECTLY ON `<ScrollViewer>` — ALWAYS USE INNER CONTAINER MARGINS (MINIMUM 48px-64px BOTTOM CLEARANCE)**
+>
+> In Avalonia UI (11.x), setting `Padding` directly on `<ScrollViewer>` passes that padding to its internal `ScrollContentPresenter`. Avalonia does **NOT** incorporate bottom or right padding into the scrollable `Extent` measurement. Consequently, the scrollbar reaches its maximum offset prematurely, permanently clipping the bottom of the content outside the viewport!
+>
+> In addition, GenHub's main window hosts a persistent floating version watermark in the bottom-right corner of `MainView` (`HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,5"`). Views without sufficient bottom clearance will have bottom-right elements (such as primary submit buttons or privacy text) covered or obstructed by this watermark.
+>
+> **Mandatory Rule:**
+> 1. Keep `<ScrollViewer>` free of any `Padding`.
+> 2. Apply all padding/margins to the direct root child container (e.g., `<StackPanel Margin="24,24,24,64" ...>`).
+> 3. Always provide at least **48px to 64px bottom margin** on the inner container.
+>
+> ```xml
+> <!-- ❌ BAD: Avalonia extent bug clips bottom content; version overlay covers submit buttons -->
+> <ScrollViewer Padding="24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+>     <StackPanel Spacing="16">
+>         <!-- Bottom button here will be cut off or obscured -->
+>         <Button Content="Join network" />
+>     </StackPanel>
+> </ScrollViewer>
+>
+> <!-- ✔️ GOOD: ScrollViewer measures full extent cleanly; 64px bottom margin clears window edge & watermark -->
+> <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+>     <StackPanel Spacing="16" Margin="24,24,24,64">
+>         <!-- Bottom button fully visible and comfortably clickable -->
+>         <Button Content="Join network" />
+>     </StackPanel>
+> </ScrollViewer>
+> ```
+
 ## Dynamic accent color themes
 
 GenHub supports live hot-swappable accent color palettes managed by `IThemeService`:
@@ -282,6 +312,7 @@ Always use constants from `GenHub.Core.Constants.NotificationDurations`:
 - **Hardcoding hex values in XAML.** Never write `Background="#252525"` or `Foreground="#FFFFFF"`. Use dynamic theme resources.
 - **Local Accent Resource Shadows.** Never define `<SolidColorBrush x:Key="AccentColor" ...>` in local controls.
 - **Duplicating ComboBox, Expander, or ScrollBar templates.** Never copy-paste `ComboBox`, `Expander`, or `ScrollBar` template styles into local views.
+- **Setting `Padding` on `ScrollViewer`.** Never apply `Padding` directly to `<ScrollViewer>`. Due to Avalonia's `ScrollContentPresenter` extent calculation bug, bottom content will be cut off. Always set `Margin="24,24,24,64"` on the inner content container.
 - **Nested ScrollViewers.** Never nest a `ScrollViewer` inside another `ScrollViewer` or wrap controls that manage their own scrolling.
 - **Sharp full-bleed list items.** Avoid `CornerRadius="0"` on selectable list items. Use rounded inset pills.
 - **Fuzzy text drop shadows.** Avoid `DropShadowEffect` on labels and headers. Use clean font weights and contrast.
@@ -295,7 +326,8 @@ Always use constants from `GenHub.Core.Constants.NotificationDurations`:
 - [ ] Sidebars and master-detail panes use `SidebarLayout`.
 - [ ] Dropdowns use standard `ComboBox` with global theme styling (no inline template copies).
 - [ ] Collapsible sections use standard `Expander` card styling.
-- [ ] Scrollable views configure `VerticalScrollBarVisibility="Auto"` and `HorizontalScrollBarVisibility="Disabled"`.
+- [ ] Scrollable views configure `VerticalScrollBarVisibility="Auto"` and `HorizontalScrollBarVisibility="Disabled"` without direct `Padding` on `<ScrollViewer>`.
+- [ ] Direct child container of `ScrollViewer` has at least 48px-64px bottom margin (e.g. `Margin="24,24,24,64"`) to guarantee bottom visibility and avoid occlusion by the floating version overlay.
 - [ ] List items use inset pill containers with 8px corner radii.
 - [ ] Buttons use standard action or icon classes.
 - [ ] User action feedback, completions, warnings, and errors use `INotificationService` toasts (no inline `StatusMessage` labels).

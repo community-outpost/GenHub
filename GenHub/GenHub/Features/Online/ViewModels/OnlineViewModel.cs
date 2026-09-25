@@ -576,6 +576,14 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
                 return;
             }
 
+            // Launching without tunneling only produces a game that cannot see
+            // the lobby, so stop here with the concrete adapter diagnosis.
+            if (_networkService.AdapterState != OnlineAdapterState.Up)
+            {
+                ShowNoTunnelToast();
+                return;
+            }
+
             await WarnOnUnreachableMeshAsync(cancellationToken);
 
             _notificationService.ShowInfo(
@@ -964,6 +972,9 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         return null;
     }
 
+    private static bool IsElevationRequired(string adapterError) =>
+        adapterError.Contains(OnlineConstants.AdapterElevationRequired, StringComparison.Ordinal);
+
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanJoin() => !IsJoined && SelectedNetwork is not null;
 
@@ -1148,9 +1159,9 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             OnlineConstants.ErrorNetworkNotFound => "Online.Error.NetworkNotFound",
             OnlineConstants.ErrorServiceUnavailable => "Online.Error.ServiceUnavailable",
             OnlineConstants.ErrorAdapterFailed => "Online.Error.AdapterFailed",
-            _ => null,
+            _ => "Online.Error.JoinFailed",
         };
-        ShowErrorToast("Online.Error.JoinTitle", messageKey is not null ? GetString(messageKey) : errorCode);
+        ShowErrorToast("Online.Error.JoinTitle", GetString(messageKey));
     }
 
     private void ShowCreateErrorToast(string? errorCode)
@@ -1162,17 +1173,26 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             OnlineConstants.ErrorPasswordTooLong => "Online.Error.PasswordTooLong",
             OnlineConstants.ErrorPasswordTooShort => "Online.Error.PasswordTooShort",
             OnlineConstants.ErrorPasswordRequired => "Online.Error.PasswordRequired",
-            _ => null,
+            _ => "Online.Error.CreateFailed",
         };
-        ShowErrorToast(CreateErrorTitleKey, messageKey is null ? errorCode : GetString(messageKey));
+        ShowErrorToast(CreateErrorTitleKey, GetString(messageKey));
     }
 
     private void ShowErrorToast(string titleKey, string? detail)
     {
-        var detailText = string.IsNullOrWhiteSpace(detail)
+        var detailText = string.IsNullOrWhiteSpace(detail) || detail.StartsWith(OnlineConstants.ErrorCodePrefix, StringComparison.Ordinal)
             ? GetString("Online.Error.GenericDetail")
             : OnlineLogScrubber.Scrub(detail);
         _notificationService.ShowError(GetString(titleKey), detailText, NotificationDurations.Long);
+    }
+
+    private void ShowNoTunnelToast()
+    {
+        var adapterErr = _networkService.AdapterError;
+        var detail = string.IsNullOrWhiteSpace(adapterErr)
+            ? GetString("Online.Play.NoTunnelMessage")
+            : $"{GetString("Online.Play.NoTunnelMessage")} {OnlineLogScrubber.Scrub(adapterErr)}";
+        ShowErrorToast("Online.Play.NoTunnelTitle", detail);
     }
 
     private bool IsOverlayPending()
@@ -1193,6 +1213,17 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         var adapterErr = _networkService.AdapterError;
         if (!string.IsNullOrWhiteSpace(adapterErr))
         {
+            if (IsElevationRequired(adapterErr))
+            {
+                var elevationMessage = GetString("Online.Adapter.ElevationMessage");
+                AdapterStatusTooltip = elevationMessage;
+                _notificationService.ShowWarning(
+                    GetString("Online.Adapter.ElevationTitle"),
+                    elevationMessage,
+                    NotificationDurations.Long);
+                return;
+            }
+
             AdapterStatusTooltip = adapterErr;
             _notificationService.ShowWarning(
                 GetString("Online.Adapter.UnavailableTitle"),
@@ -1279,6 +1310,7 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
             try
             {
                 await Task.Delay(NicknameDebounceMs, token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
                 await PersistNicknameAsync(normalized).ConfigureAwait(false);
 
                 if (IsJoined && !token.IsCancellationRequested)
@@ -1909,9 +1941,9 @@ public sealed partial class OnlineViewModel : ViewModelBase, IDisposable, IRecip
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            _logger.LogDebug(ex, "Failed to resolve installation path for profile {ProfileId}", profile.Id);
+            _logger.LogWarning(ex, "Failed to resolve installation path for profile {ProfileId}", profile.Id);
         }
 
         return null;

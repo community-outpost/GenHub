@@ -147,14 +147,18 @@ public sealed record OverlaySidecarConfig(
         if (root.TryGetProperty("interface", out var ifaceProp))
         {
             var val = ifaceProp.ValueKind == JsonValueKind.String ? ifaceProp.GetString() : null;
-            if (string.IsNullOrWhiteSpace(val) || !LinuxTunNative.IsValidInterfaceName(val))
+            var isValid = OperatingSystem.IsWindows()
+                ? IsValidWindowsInterfaceName(val)
+                : LinuxTunNative.IsValidInterfaceName(val);
+
+            if (!isValid)
             {
                 error = "Overlay configuration has an invalid interface name.";
                 iface = string.Empty;
                 return false;
             }
 
-            iface = val;
+            iface = val!;
             return true;
         }
 
@@ -162,6 +166,13 @@ public sealed record OverlaySidecarConfig(
             ? OnlineConstants.TunDefaultWindowsInterfaceName
             : OnlineConstants.TunDefaultInterfaceName;
         return true;
+    }
+
+    private static bool IsValidWindowsInterfaceName(string? name)
+    {
+        return !string.IsNullOrWhiteSpace(name) &&
+               name.Length <= 128 &&
+               !name.Any(c => c is '"' or '\\' or '\r' or '\n' or '\0');
     }
 
     private static bool TryParseOverlayIp(JsonElement root, string? defaultOverlayIp, out string overlayIp, out string? error)

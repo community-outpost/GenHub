@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.IO;
 using System.Reflection;
@@ -19,7 +20,7 @@ internal static class WintunNative
     /// <param name="tunnelType">The adapter type string.</param>
     /// <param name="requestedGuid">Optional GUID.</param>
     /// <returns>Adapter pointer or IntPtr.Zero on failure.</returns>
-    [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Unicode)]
+    [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
     internal delegate IntPtr WintunCreateAdapterFunc(
         [MarshalAs(UnmanagedType.LPWStr)] string name,
         [MarshalAs(UnmanagedType.LPWStr)] string tunnelType,
@@ -28,7 +29,7 @@ internal static class WintunNative
     /// <summary>Opens an existing Wintun adapter by name.</summary>
     /// <param name="name">The adapter name.</param>
     /// <returns>Adapter pointer or IntPtr.Zero if not found.</returns>
-    [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Unicode)]
+    [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet = CharSet.Unicode, SetLastError = true)]
     internal delegate IntPtr WintunOpenAdapterFunc(
         [MarshalAs(UnmanagedType.LPWStr)] string name);
 
@@ -47,7 +48,7 @@ internal static class WintunNative
     /// <param name="adapter">The adapter pointer.</param>
     /// <param name="capacity">Ring capacity in bytes.</param>
     /// <returns>Session pointer or IntPtr.Zero on failure.</returns>
-    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    [UnmanagedFunctionPointer(CallingConvention.Winapi, SetLastError = true)]
     internal delegate IntPtr WintunStartSessionFunc(IntPtr adapter, uint capacity);
 
     /// <summary>Ends a Wintun adapter session.</summary>
@@ -138,8 +139,6 @@ internal static class WintunNative
                 return _moduleHandle != IntPtr.Zero;
             }
 
-            _initialized = true;
-
             var archFolder = GetArchitectureFolder();
             if (archFolder == null)
             {
@@ -153,8 +152,18 @@ internal static class WintunNative
                 return false;
             }
 
-            ResolveDelegates(_moduleHandle);
-            return true;
+            try
+            {
+                ResolveDelegates(_moduleHandle);
+                _initialized = true;
+                return true;
+            }
+            catch (EntryPointNotFoundException)
+            {
+                NativeLibrary.Free(_moduleHandle);
+                _moduleHandle = IntPtr.Zero;
+                return false;
+            }
         }
     }
 
@@ -170,7 +179,7 @@ internal static class WintunNative
     private static string ExtractEmbeddedWintunDll(string archFolder)
     {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var targetDir = Path.Combine(localAppData, "GenHub", "overlay", archFolder);
+        var targetDir = Path.Combine(localAppData, OnlineConstants.OverlayInstallDir, OnlineConstants.OverlaySubDir, archFolder);
         Directory.CreateDirectory(targetDir);
         var targetDll = Path.Combine(targetDir, "wintun.dll");
 
@@ -184,7 +193,7 @@ internal static class WintunNative
                 using var fileStream = File.Create(targetDll);
                 resourceStream.CopyTo(fileStream);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Best effort write
             }
