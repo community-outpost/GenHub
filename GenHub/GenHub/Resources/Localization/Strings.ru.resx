@@ -2092,6 +2092,9 @@
   <data name="Online.Member.HostBadge" xml:space="preserve">
     <value>Хост</value>
   </data>
+  <data name="Online.Member.LaunchedBadge" xml:space="preserve">
+    <value>Запущен</value>
+  </data>
   <data name="Online.Nickname.Title" xml:space="preserve">
     <value>Никнейм игрока</value>
   </data>

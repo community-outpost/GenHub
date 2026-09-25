@@ -2092,6 +2092,9 @@
   <data name="Online.Member.HostBadge" xml:space="preserve">
     <value>مضيف</value>
   </data>
+  <data name="Online.Member.LaunchedBadge" xml:space="preserve">
+    <value>تم التشغيل</value>
+  </data>
   <data name="Online.Nickname.Title" xml:space="preserve">
     <value>اسم اللاعب</value>
   </data>

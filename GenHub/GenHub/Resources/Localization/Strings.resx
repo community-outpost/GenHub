@@ -2096,6 +2096,9 @@
   <data name="Online.Member.HostBadge" xml:space="preserve">
     <value>Host</value>
   </data>
+  <data name="Online.Member.LaunchedBadge" xml:space="preserve">
+    <value>Launched</value>
+  </data>
   <data name="Online.Nickname.Title" xml:space="preserve">
     <value>Player nickname</value>
   </data>

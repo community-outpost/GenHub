@@ -500,7 +500,7 @@
                                                     IsVisible="{Binding IsLaunched}"
                                                     Background="{DynamicResource SuccessBrush}"
                                                     VerticalAlignment="Center">
-                                                <TextBlock Text="Launched"
+                                                <TextBlock Text="{localization:Localize Online.Member.LaunchedBadge}"
                                                            FontSize="10"
                                                            FontWeight="SemiBold"
                                                            Foreground="White" />
