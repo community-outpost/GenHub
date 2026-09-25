@@ -10,9 +10,12 @@ GenHub/GenHub/Assets/GenHotkeys/**/*.png export-ignore
 # Ensure C# source files retain LF line endings across all platforms
 *.cs text eol=lf
 
+# Ensure AXAML files retain LF line endings across all platforms
+*.axaml text eol=lf
+
 # Merge localization files key-by-key instead of line-by-line. The driver is
 # scripts/git_merge_resx.py, run automatically by the Resx Auto Merge
 # workflow. Line-based union merging is unsafe here: adjacent insertions
 # from two branches can silently drop a </data> closing tag while reporting
 # success.
-*.resx merge=resx
+*.resx merge=resx text eol=lf

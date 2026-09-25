@@ -156,6 +156,16 @@ public static class ProcessConstants
     /// </summary>
     public const int StderrDrainTimeoutMs = 3000;
 
+    /// <summary>
+    /// Timeout in milliseconds to wait for a target game process to exit after a termination signal.
+    /// </summary>
+    public const int ProcessKillWaitMs = 1_000;
+
+    /// <summary>
+    /// Delay in milliseconds to allow OS file handles to settle after terminating running game processes before swapping proxy files.
+    /// </summary>
+    public const int ProcessKillSettleDelayMs = 500;
+
     /// <summary>Maximum time to await a managed process exit notification after it has exited.</summary>
     public const int TerminationExitNotificationTimeoutMs = 5_000;
 

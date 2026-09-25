@@ -30,7 +30,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -87,8 +89,7 @@ public partial class GameProfileLauncherViewModel(
     private string? _expectedProfileIdForSuccess;
     private bool _isCreatingNewProfile;
 
-    [ObservableProperty]
-    private ObservableCollection<GameProfileItemViewModel> _profiles = [];
+    private ObservableCollection<GameProfileItemViewModel>? _profiles;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LaunchProfileCommand))]
@@ -132,6 +133,52 @@ public partial class GameProfileLauncherViewModel(
     private bool _isHeaderExpanded = true;
 
     /// <summary>
+    /// Gets a value indicating whether profiles have been loaded successfully from storage.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasLoadedProfilesSuccessfully;
+
+    /// <summary>
+    /// Gets a value indicating whether there are no playable game profiles available.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasNoProfiles = true;
+
+    /// <summary>
+    /// Gets a value indicating whether the storefront purchase banner should be displayed.
+    /// Only visible when profiles have been loaded successfully and no playable profiles exist.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property bound to UI elements.")]
+    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && HasNoProfiles;
+
+    partial void OnHasLoadedProfilesSuccessfullyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
+    }
+
+    partial void OnHasNoProfilesChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
+    }
+
+    /// <summary>
+    /// Gets the collection of game profiles.
+    /// </summary>
+    public ObservableCollection<GameProfileItemViewModel> Profiles
+    {
+        get
+        {
+            if (_profiles == null)
+            {
+                _profiles = [];
+                _profiles.CollectionChanged += OnProfilesCollectionChanged;
+            }
+
+            return _profiles;
+        }
+    }
+
+    /// <summary>
     /// Performs asynchronous initialization for the GameProfileLauncherViewModel.
     /// Loads all game profiles and subscribes to process exit events.
     /// </summary>
@@ -141,6 +188,8 @@ public partial class GameProfileLauncherViewModel(
         // On app launch, the header is expanded and persists without auto-collapsing
         IsHeaderExpanded = true;
         _isHovering = false;
+
+        UpdateHasNoProfiles();
 
         try
         {
@@ -176,6 +225,7 @@ public partial class GameProfileLauncherViewModel(
 
             StatusMessage = localizationService["GameProfiles.Status.LoadingProfiles"];
             ErrorMessage = string.Empty;
+            HasLoadedProfilesSuccessfully = false;
             Profiles.Clear();
 
             var profilesResult = await gameProfileManager.GetAllProfilesAsync();
@@ -221,6 +271,7 @@ public partial class GameProfileLauncherViewModel(
                 Profiles.Add(new AddProfileItemViewModel());
 
                 var profileCount = Profiles.Count - 1;
+                HasLoadedProfilesSuccessfully = true;
                 StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
                 logger.LogInformation("Loaded {Count} game profiles", profileCount);
 
@@ -256,6 +307,7 @@ public partial class GameProfileLauncherViewModel(
             }
             else
             {
+                HasLoadedProfilesSuccessfully = false;
                 var errors = string.Join(", ", profilesResult.Errors);
                 StatusMessage = localizationService.GetString("GameProfiles.Status.FailedToLoad", errors);
                 ErrorMessage = errors;
@@ -270,6 +322,7 @@ public partial class GameProfileLauncherViewModel(
         }
         catch (Exception ex)
         {
+            HasLoadedProfilesSuccessfully = false;
             logger.LogError(ex, "Error initializing profiles");
             StatusMessage = localizationService["GameProfiles.Status.ErrorLoadingProfiles"];
             ErrorMessage = ex.Message;
@@ -2243,5 +2296,60 @@ public partial class GameProfileLauncherViewModel(
             var format = localizationService?.GetString("GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat") ?? "Failed to select profile file: {0}";
             notificationService.ShowError(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, ex.Message));
         }
+    }
+
+    /// <summary>
+    /// Gets or sets an optional URL opener delegate for testing purposes.
+    /// Internal use only; intended for test hook injection.
+    /// </summary>
+    internal Action<string>? UrlOpener { get; set; }
+
+    /// <summary>
+    /// Opens the official Steam store page for Command &amp; Conquer Generals and Zero Hour.
+    /// </summary>
+    [RelayCommand]
+    private void OpenSteamStore()
+    {
+        OpenStoreUrl(PublisherInfoConstants.Steam.StoreUrl);
+    }
+
+    /// <summary>
+    /// Opens the official EA App store page for Command &amp; Conquer Generals and Zero Hour.
+    /// </summary>
+    [RelayCommand]
+    private void OpenEaStore()
+    {
+        OpenStoreUrl(PublisherInfoConstants.EaApp.StoreUrl);
+    }
+
+    private void OpenStoreUrl(string url)
+    {
+        try
+        {
+            if (UrlOpener != null)
+            {
+                UrlOpener(url);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to open store URL: {Url}", url);
+            notificationService.ShowError(
+                localizationService["GameProfiles.Notification.Error.Title"],
+                localizationService.GetString("GameProfiles.Storefront.FailedToOpenUrl", url));
+        }
+    }
+
+    private void OnProfilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateHasNoProfiles();
+    }
+
+    private void UpdateHasNoProfiles()
+    {
+        HasNoProfiles = !Profiles.OfType<GameProfileItemViewModel>().Any(p => p.Profile is not GameProfile { IsToolProfile: true });
     }
 }

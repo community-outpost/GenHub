@@ -1078,6 +1078,22 @@
     <value>تم إغلاق نافذة ملف التعريف الجديد</value>
     <comment>Status when new profile window closes</comment>
   </data>
+  <data name="GameProfiles.Storefront.BannerTitle" xml:space="preserve">
+    <value>تبحث عن Command &amp; Conquer Generals؟</value>
+  </data>
+  <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
+    <value>لم يتم العثور على أي ملفات تعريف للعبة. تحتاج إلى نسخة من Command &amp; Conquer Generals و Zero Hour للعب. يمكنك شراء اللعبة رسميًا من Steam أو EA App.</value>
+  </data>
+  <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
+    <value>شراء عبر Steam</value>
+  </data>
+  <data name="GameProfiles.Storefront.EaAppButton" xml:space="preserve">
+    <value>شراء عبر EA App</value>
+  </data>
+  <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
+    <value>فشل في فتح صفحة المتجر: {0}</value>
+    <comment>Error notification shown when opening a storefront URL fails</comment>
+  </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>لم يتم العثور على أي تثبيتات للعبة</value>
     <comment>Message shown when no game installations are detected</comment>

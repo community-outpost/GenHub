@@ -1163,6 +1163,53 @@ public class GameProfileLauncherViewModelTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that HasNoProfiles correctly tracks presence of regular profiles versus empty or add-profile button.
+    /// </summary>
+    [Fact]
+    public void HasNoProfiles_TracksProfileCollectionChanges()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        Assert.True(vm.HasNoProfiles);
+
+        var profileItem = CreateProfileItem("Test Profile");
+        vm.Profiles.Add(profileItem);
+        Assert.False(vm.HasNoProfiles);
+
+        vm.Profiles.Remove(profileItem);
+        Assert.True(vm.HasNoProfiles);
+
+        var toolProfile = new GameProfile
+        {
+            Name = "WorldBuilder",
+            ToolContentId = "tool-manifest-1",
+        };
+        var toolItem = new GameProfileItemViewModel("tool-1", toolProfile, string.Empty, string.Empty);
+        vm.Profiles.Add(toolItem);
+        Assert.True(vm.HasNoProfiles);
+    }
+
+    /// <summary>
+    /// Verifies that storefront commands can execute and open their respective storefront URLs.
+    /// </summary>
+    [Fact]
+    public void StorefrontCommands_Execute_OpensStoreUrls()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        var openedUrls = new List<string>();
+        vm.UrlOpener = url => openedUrls.Add(url);
+
+        Assert.True(vm.OpenSteamStoreCommand.CanExecute(null));
+        Assert.True(vm.OpenEaStoreCommand.CanExecute(null));
+
+        vm.OpenSteamStoreCommand.Execute(null);
+        vm.OpenEaStoreCommand.Execute(null);
+
+        Assert.Equal(2, openedUrls.Count);
+        Assert.Equal(PublisherInfoConstants.Steam.StoreUrl, openedUrls[0]);
+        Assert.Equal(PublisherInfoConstants.EaApp.StoreUrl, openedUrls[1]);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);

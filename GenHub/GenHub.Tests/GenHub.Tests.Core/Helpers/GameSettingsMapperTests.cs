@@ -127,6 +127,30 @@ public class GameSettingsMapperTests
     }
 
     /// <summary>
+    /// Verifies that GeneralsOnline ChatFontSize is clamped between MinChatFontSize and MaxChatFontSize.
+    /// </summary>
+    /// <param name="input">The font size specified in the profile.</param>
+    /// <param name="expected">The expected clamped font size in the settings.</param>
+    [Theory]
+    [InlineData(4, GameSettingsGeneralsOnlineConstants.MinChatFontSize)]
+    [InlineData(8, 8)]
+    [InlineData(16, 16)]
+    [InlineData(24, 24)]
+    [InlineData(32, GameSettingsGeneralsOnlineConstants.MaxChatFontSize)]
+    public void ApplyToGeneralsOnlineSettings_ChatFontSize_IsClamped(int input, int expected)
+    {
+        // Arrange
+        var profile = new GameProfile { GoChatFontSize = input };
+        var settings = new GeneralsOnlineSettings();
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.Equal(expected, settings.ChatFontSize);
+    }
+
+    /// <summary>
     /// Verifies that explicit TheSuperHackers font sizes on the profile are written to Options.ini unchanged.
     /// </summary>
     [Fact]

@@ -49,6 +49,8 @@ public class CsvResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (discoveredItem == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Discovered content item cannot be null.");
@@ -94,7 +96,8 @@ public class CsvResolver(
             var languageStr = GetLanguageString(discoveredItem);
             var version = GetVersionString(discoveredItem);
 
-            var matchingEntries = ParseAndFilterCsv(loadResult.Data.Content, gameTypeStr, languageStr);
+            cancellationToken.ThrowIfCancellationRequested();
+            var matchingEntries = ParseAndFilterCsv(loadResult.Data.Content, gameTypeStr, languageStr, cancellationToken);
             if (matchingEntries.Count == 0)
             {
                 logger.LogWarning(
@@ -117,6 +120,8 @@ public class CsvResolver(
             var manifestFiles = matchingEntries.Select(e => CreateManifestFile(e, isRemote)).ToList();
             var manifest = BuildManifest(discoveredItem, gameTypeStr, version, languageStr, manifestFiles);
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             logger.LogInformation(
                 "Successfully resolved CSV catalog manifest {ManifestId} with {FileCount} files",
                 manifest.Id.Value,
@@ -124,9 +129,13 @@ public class CsvResolver(
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -146,6 +155,11 @@ public class CsvResolver(
 
     private static bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
     {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+
         return exception is HttpRequestException or IOException ||
             (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
@@ -185,16 +199,20 @@ public class CsvResolver(
         return !string.IsNullOrWhiteSpace(item.Version) ? item.Version : "1.0";
     }
 
-    private static List<CsvCatalogEntry> ParseAndFilterCsv(string csvContent, string targetGame, string targetLanguage)
+    private static List<CsvCatalogEntry> ParseAndFilterCsv(
+        string csvContent,
+        string targetGame,
+        string targetLanguage,
+        CancellationToken cancellationToken)
     {
         using var stringReader = new StringReader(csvContent);
         using var csvReader = new CsvReader(stringReader, CsvConfig);
 
-        var records = csvReader.GetRecords<CsvCatalogEntry>().ToList();
         var matchingEntries = new List<CsvCatalogEntry>();
 
-        foreach (var record in records)
+        foreach (var record in csvReader.GetRecords<CsvCatalogEntry>())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (IsUnsafeRelativePath(record.RelativePath))
             {
                 continue;
@@ -212,6 +230,7 @@ public class CsvResolver(
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return matchingEntries;
     }
 
@@ -381,6 +400,8 @@ public class CsvResolver(
 
     private async Task<OperationResult<CsvContentLoadResult>> LoadCsvContentAsync(string sourceUrl, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {

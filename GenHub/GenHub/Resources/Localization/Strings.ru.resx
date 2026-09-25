@@ -1078,6 +1078,22 @@
     <value>Окно нового профиля закрыто</value>
     <comment>Status when new profile window closes</comment>
   </data>
+  <data name="GameProfiles.Storefront.BannerTitle" xml:space="preserve">
+    <value>Ищете Command &amp; Conquer Generals?</value>
+  </data>
+  <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
+    <value>Профили игры не найдены. Для игры требуется копия Command &amp; Conquer Generals и Zero Hour. Вы можете приобрести игру в Steam или EA App.</value>
+  </data>
+  <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
+    <value>Купить в Steam</value>
+  </data>
+  <data name="GameProfiles.Storefront.EaAppButton" xml:space="preserve">
+    <value>Купить в EA App</value>
+  </data>
+  <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
+    <value>Не удалось открыть страницу магазина: {0}</value>
+    <comment>Error notification shown when opening a storefront URL fails</comment>
+  </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>Установленные игры не найдены</value>
     <comment>Message shown when no game installations are detected</comment>
