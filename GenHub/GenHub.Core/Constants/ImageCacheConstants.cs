@@ -59,6 +59,31 @@ public static class ImageCacheConstants
     /// A fixed seed keeps the placeholder stable across cards and sessions.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Stable placeholder image endpoint for content without artwork.")]
+    /// <summary>
+    /// Host name for the Picsum placeholder service.
+    /// </summary>
+    public const string PicsumHost = "picsum.photos";
+
+    /// <summary>
+    /// Checks if the specified URL points to a Picsum placeholder image.
+    /// </summary>
+    /// <param name="url">The URL to test.</param>
+    /// <returns><c>true</c> if the URL is a Picsum URL; otherwise, <c>false</c>.</returns>
+    public static bool IsPicsumUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        return url.Contains(PicsumHost, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Deterministic placeholder image shown when content has no icon or thumbnail.
+    /// A fixed seed keeps the placeholder stable across cards and sessions.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Stable placeholder image endpoint for content without artwork.")]
     public const string DefaultContentImageUrl = "https://picsum.photos/seed/genhub/640/360";
 
     /// <summary>

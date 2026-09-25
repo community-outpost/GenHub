@@ -13504,4 +13504,17 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
     <value>لم يتم العثور على صورة أو ملف أو رابط صورة في الحافظة.</value>
   </data>
+  <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
+    <value>تحديث متوفر لـ {0}</value>
+  </data>
+  <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
+    <value>يتوفر تحديث لـ {0} ({1}).
+
+كيف ترغب في تطبيق هذا التحديث؟</value>
+  </data>
+  <data name="Downloads.UpdateDialog.Message" xml:space="preserve">
+    <value>يتوفر تحديث لـ {0}.
+
+كيف ترغب في تطبيق هذا التحديث؟</value>
+  </data>
 </root>

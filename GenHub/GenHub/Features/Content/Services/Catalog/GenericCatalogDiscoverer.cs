@@ -1316,7 +1316,7 @@ public class GenericCatalogDiscoverer(
             ?? PublisherInfoConstants.GetPublisherLogo(effectiveProviderName, catalog.Publisher?.Id ?? string.Empty);
 
         var itemIcon = !string.IsNullOrWhiteSpace(contentItem.Metadata?.IconUrl) &&
-                       !contentItem.Metadata.IconUrl.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase)
+                       !ImageCacheConstants.IsPicsumUrl(contentItem.Metadata.IconUrl)
             ? contentItem.Metadata.IconUrl
             : null;
 

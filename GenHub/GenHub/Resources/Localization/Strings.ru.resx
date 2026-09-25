@@ -13504,4 +13504,17 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
     <value>В буфере обмена не найдено изображение, файл или URL.</value>
   </data>
+  <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
+    <value>Доступно обновление для {0}</value>
+  </data>
+  <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
+    <value>Для {0} доступно обновление ({1}).
+
+Как применить это обновление?</value>
+  </data>
+  <data name="Downloads.UpdateDialog.Message" xml:space="preserve">
+    <value>Для {0} доступно обновление.
+
+Как применить это обновление?</value>
+  </data>
 </root>

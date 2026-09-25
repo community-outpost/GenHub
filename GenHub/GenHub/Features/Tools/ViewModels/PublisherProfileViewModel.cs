@@ -28,9 +28,10 @@ public partial class PublisherProfileViewModel(
     ILogger logger,
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null,
-    IPublisherSubscriptionStore? subscriptionStore = null) : ObservableValidator
+    IPublisherSubscriptionStore? subscriptionStore = null) : ObservableValidator, IDisposable
 {
     private bool _isSyncing;
+    private CancellationTokenSource? _avatarUploadCts;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -181,8 +182,9 @@ public partial class PublisherProfileViewModel(
     /// Handles drag and drop of an image file or URL for the avatar.
     /// </summary>
     /// <param name="fileOrUrl">The dropped file path or URL string.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task HandleAvatarDropAsync(string fileOrUrl)
+    public async Task HandleAvatarDropAsync(string fileOrUrl, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(fileOrUrl))
         {
@@ -199,7 +201,10 @@ public partial class PublisherProfileViewModel(
 
         if (File.Exists(trimmed))
         {
-            await HandleLocalAvatarFileAsync(trimmed);
+            _avatarUploadCts?.Cancel();
+            _avatarUploadCts?.Dispose();
+            _avatarUploadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            await HandleLocalAvatarFileAsync(trimmed, _avatarUploadCts.Token);
         }
     }
 
@@ -216,7 +221,7 @@ public partial class PublisherProfileViewModel(
             localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUpdatedMessage") ?? "Avatar URL updated successfully.");
     }
 
-    private async Task HandleLocalAvatarFileAsync(string filePath)
+    private async Task HandleLocalAvatarFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
         var provider = parentViewModel?.PublishShareViewModel?.SelectedHostingProvider;
         if (provider == null || !provider.IsAuthenticated)
@@ -228,13 +233,14 @@ public partial class PublisherProfileViewModel(
             return;
         }
 
-        await UploadAvatarFileAsync(provider, filePath);
+        await UploadAvatarFileAsync(provider, filePath, cancellationToken);
     }
 
-    private async Task UploadAvatarFileAsync(IHostingProvider provider, string filePath)
+    private async Task UploadAvatarFileAsync(IHostingProvider provider, string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var infoTitle = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingTitle") ?? "Uploading Avatar";
             var msgFormat = localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadingMessage") ?? "Uploading avatar to {0}...";
             var infoMessage = string.Format(msgFormat, provider.DisplayName);
@@ -242,7 +248,7 @@ public partial class PublisherProfileViewModel(
 
             await using var stream = File.OpenRead(filePath);
             var fileName = Path.GetFileName(filePath);
-            var result = await provider.UploadFileAsync(stream, fileName, folderPath: null);
+            var result = await provider.UploadFileAsync(stream, fileName, folderPath: null, cancellationToken: cancellationToken);
 
             if (result.Success && result.Data != null)
             {
@@ -262,6 +268,10 @@ public partial class PublisherProfileViewModel(
             var errorMessage = result.FirstError ?? "Failed to upload avatar to hosting provider.";
             notificationService?.ShowError(errorTitle, errorMessage);
         }
+        catch (OperationCanceledException)
+        {
+            logger?.LogDebug("Avatar upload was canceled for {Path}", filePath);
+        }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Failed to upload dropped avatar {Path}", filePath);
@@ -269,6 +279,15 @@ public partial class PublisherProfileViewModel(
                 localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Avatar Upload Failed",
                 ex.Message);
         }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _avatarUploadCts?.Cancel();
+        _avatarUploadCts?.Dispose();
+        _avatarUploadCts = null;
+        GC.SuppressFinalize(this);
     }
 
     private void OnProfileFieldChanged()

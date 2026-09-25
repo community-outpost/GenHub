@@ -2662,12 +2662,22 @@ public sealed partial class DownloadsBrowserViewModel(
         UpdateDialogResult? promptResult = null;
         if (dialogService != null)
         {
-            var versionText = !string.IsNullOrWhiteSpace(targetItem.SearchResult?.Version)
-                ? $" ({targetItem.SearchResult.Version})"
-                : string.Empty;
+            var version = targetItem.SearchResult?.Version;
+            var title = _localizationService?.GetString("Downloads.UpdateDialog.Title", targetItem.Name)
+                ?? $"{targetItem.Name} Update Available";
 
-            var title = $"{targetItem.Name} Update Available";
-            var message = $"{targetItem.Name} has an update available{versionText}.\n\nHow do you want to apply this update?";
+            string message;
+            if (!string.IsNullOrWhiteSpace(version))
+            {
+                message = _localizationService?.GetString("Downloads.UpdateDialog.MessageWithVersion", targetItem.Name, version)
+                    ?? $"{targetItem.Name} has an update available ({version}).\n\nHow do you want to apply this update?";
+            }
+            else
+            {
+                message = _localizationService?.GetString("Downloads.UpdateDialog.Message", targetItem.Name)
+                    ?? $"{targetItem.Name} has an update available.\n\nHow do you want to apply this update?";
+            }
+
             promptResult = await dialogService.ShowUpdateOptionDialogAsync(title, message, initialDeleteOldVersions: true);
 
             if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
@@ -2716,8 +2726,8 @@ public sealed partial class DownloadsBrowserViewModel(
                     ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [oldManifestId] = newManifestId }
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                var strategy = promptResult?.Strategy ?? UpdateStrategy.ReplaceCurrent;
-                var shouldDelete = promptResult?.DeleteOldVersions ?? true;
+                var strategy = promptResult?.Strategy ?? UpdateStrategy.KeepBoth;
+                var shouldDelete = promptResult?.DeleteOldVersions ?? false;
 
                 var helperContext = new PublisherReconciliationContext(
                     activeProfileManager,

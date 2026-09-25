@@ -206,7 +206,7 @@ public static partial class ContentCardBadgeHelper
             return screenshot;
         }
 
-        if (IsGenericCatalog(result))
+        if (IsGenericCatalog(result) && !string.IsNullOrWhiteSpace(result.IconUrl))
         {
             return result.IconUrl;
         }
@@ -345,7 +345,7 @@ public static partial class ContentCardBadgeHelper
             }
 
             var pubLogo = PublisherInfoConstants.GetPublisherLogo(result.ProviderName, result.AuthorName);
-            return pubLogo ?? result.IconUrl;
+            return pubLogo;
         }
 
         if (IsTheSuperHackers(result))

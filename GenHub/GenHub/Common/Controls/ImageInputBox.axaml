@@ -5,6 +5,20 @@
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
              x:Class="GenHub.Common.Controls.ImageInputBox"
              x:DataType="local:ImageInputBox">
+        <UserControl.Styles>
+        <Style Selector="Button.glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <TextBox Name="InputTextBox"
                  Grid.Column="0"

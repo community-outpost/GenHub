@@ -414,4 +414,44 @@ public sealed class GameClientEntryDetectorTests : IDisposable
 
         return Directory.CreateDirectory(Path.Combine(contents, "MacOS")).FullName;
     }
+
+    /// <summary>
+    /// Verifies that safe archives return the detected entry executable.
+    /// </summary>
+    [Fact]
+    public void DetectEntryPointFromArchive_SafeArchive_ReturnsEntry()
+    {
+        var zipPath = Path.Combine(_payload, "safe.zip");
+        using (var archive = System.IO.Compression.ZipFile.Open(zipPath, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("bin/generals.exe");
+            using var stream = entry.Open();
+            stream.Write([0x4D, 0x5A]);
+        }
+
+        var entryPoint = GameClientEntryDetector.DetectEntryPointFromArchive(zipPath);
+        Assert.Equal("bin/generals.exe", entryPoint);
+    }
+
+    /// <summary>
+    /// Verifies that entries with path traversal sequences or rooted paths are rejected.
+    /// </summary>
+    [Fact]
+    public void DetectEntryPointFromArchive_ZipSlipOrRootedEntries_AreIgnored()
+    {
+        var zipPath = Path.Combine(_payload, "unsafe.zip");
+        using (var archive = System.IO.Compression.ZipFile.Open(zipPath, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            var entry1 = archive.CreateEntry("../generals.exe");
+            using var stream1 = entry1.Open();
+            stream1.Write([0x4D, 0x5A]);
+
+            var entry2 = archive.CreateEntry("/generals.exe");
+            using var stream2 = entry2.Open();
+            stream2.Write([0x4D, 0x5A]);
+        }
+
+        var entryPoint = GameClientEntryDetector.DetectEntryPointFromArchive(zipPath);
+        Assert.Null(entryPoint);
+    }
 }

@@ -99,7 +99,7 @@ public static class GameClientEntryDetector
         {
             using var zip = System.IO.Compression.ZipFile.OpenRead(archivePath);
             var fileEntries = zip.Entries
-                .Where(e => !string.IsNullOrEmpty(e.Name) && !e.FullName.EndsWith('/'))
+                .Where(e => !string.IsNullOrEmpty(e.Name) && IsSafeArchiveRelativePath(e.FullName))
                 .ToList();
 
             // 1. Look for known game binaries
@@ -109,16 +109,16 @@ public static class GameClientEntryDetector
 
             if (known.Count == 1)
             {
-                return known[0].FullName;
+                return known[0].FullName.Replace('\\', '/');
             }
 
             if (known.Count > 1)
             {
-                var minDepth = known.Min(e => e.FullName.Split('/').Length);
-                var shallow = known.Where(e => e.FullName.Split('/').Length == minDepth).ToList();
+                var minDepth = known.Min(e => e.FullName.Split('/', '\\').Length);
+                var shallow = known.Where(e => e.FullName.Split('/', '\\').Length == minDepth).ToList();
                 if (shallow.Count == 1)
                 {
-                    return shallow[0].FullName;
+                    return shallow[0].FullName.Replace('\\', '/');
                 }
             }
 
@@ -129,22 +129,22 @@ public static class GameClientEntryDetector
 
             if (executables.Count == 1)
             {
-                return executables[0].FullName;
+                return executables[0].FullName.Replace('\\', '/');
             }
 
             if (executables.Count > 1)
             {
-                var minDepth = executables.Min(e => e.FullName.Split('/').Length);
-                var shallow = executables.Where(e => e.FullName.Split('/').Length == minDepth).ToList();
+                var minDepth = executables.Min(e => e.FullName.Split('/', '\\').Length);
+                var shallow = executables.Where(e => e.FullName.Split('/', '\\').Length == minDepth).ToList();
                 if (shallow.Count == 1)
                 {
-                    return shallow[0].FullName;
+                    return shallow[0].FullName.Replace('\\', '/');
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException)
         {
-            // Best effort detection
+            // Expected archive read failure
         }
 
         return null;
@@ -717,5 +717,26 @@ public static class GameClientEntryDetector
     private static string ToRelativePath(string root, string path)
     {
         return Path.GetRelativePath(root, path);
+    }
+    private static bool IsSafeArchiveRelativePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var normalized = path.Replace('\\', '/');
+        if (normalized.StartsWith('/') || normalized.EndsWith('/') || normalized.Contains("//", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (Path.IsPathRooted(path) || path.Contains("..", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var segments = normalized.Split('/');
+        return segments.All(s => !string.IsNullOrWhiteSpace(s) && s != "." && s != "..");
     }
 }

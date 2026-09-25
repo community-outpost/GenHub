@@ -29,7 +29,6 @@ public class PublisherStudioDialogService(
     INotificationService? notificationService = null) : IPublisherStudioDialogService
 {
     private const string AllFilesFilterName = "All Files";
-    private readonly ILogger<PublisherStudioDialogService>? _logger = logger;
 
     /// <inheritdoc/>
     public Func<string, (string Name, string Url, long Size)?>? DuplicateAssetLookup { get; set; }

@@ -21,6 +21,7 @@
         <converters:ReleaseOrderingConverter x:Key="ReleaseOrderingConverter"/>
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
         <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
+        <converters:ValidColorToVisibilityConverter x:Key="ValidColorToVisibilityConverter"/>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -218,7 +219,7 @@
                                                   Foreground="{DynamicResource PendingActionBrush}"/>
                                         <Ellipse Width="6" Height="6"
                                                  Fill="{DynamicResource PendingActionBrush}"
-                                                 Stroke="{DynamicResource SurfaceBackgroundDark}"
+                                                 Stroke="{DynamicResource SurfaceBackgroundDarkBrush}"
                                                  StrokeThickness="1"
                                                  HorizontalAlignment="Right"
                                                  VerticalAlignment="Top"
@@ -450,12 +451,12 @@
                                                     CornerRadius="4"
                                                     Padding="8,2"
                                                     VerticalAlignment="Center"
-                                                    IsVisible="{Binding Metadata.AccentColor, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                    IsVisible="{Binding Metadata.AccentColor, Converter={StaticResource ValidColorToVisibilityConverter}}"
                                                     ToolTip.Tip="{Binding Metadata.AccentColor}">
                                                  <TextBlock Text="{Binding Metadata.AccentColor}"
                                                             FontSize="11"
                                                             FontWeight="Bold"
-                                                            Foreground="White"/>
+                                                            Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                             </Border>
                                         </StackPanel>
                                         <TextBlock FontSize="13" Foreground="{DynamicResource TextSecondary}">

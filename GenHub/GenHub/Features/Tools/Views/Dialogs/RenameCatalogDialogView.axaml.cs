@@ -84,8 +84,16 @@ public partial class RenameCatalogDialogView : UserControl
             return;
         }
 
-        // If the focused control is the CatalogName TextBox, allow default text pasting if clipboard is plain short text (not an image/file)
-        if (topLevel.FocusManager?.GetFocusedElement() is TextBox tb && tb.Name != "InputTextBox")
+        var focusedElement = topLevel.FocusManager?.GetFocusedElement();
+
+        // If the focused control is the ImageInputBox's inner TextBox, let ImageInputBox own paste handling
+        if (focusedElement is TextBox { Name: "InputTextBox" })
+        {
+            return;
+        }
+
+        // If the focused control is the CatalogName TextBox, allow default text pasting if clipboard is plain text
+        if (focusedElement is TextBox)
         {
             var formats = (await topLevel.Clipboard.GetFormatsAsync()) ?? [];
             var hasImage = formats.Any(f => f.Contains("image", System.StringComparison.OrdinalIgnoreCase)
@@ -98,10 +106,10 @@ public partial class RenameCatalogDialogView : UserControl
             }
         }
 
+        e.Handled = true;
         var pathOrUrl = await ClipboardInputHelper.ExtractPastedFileOrImageAsync(topLevel.Clipboard);
         if (!string.IsNullOrWhiteSpace(pathOrUrl))
         {
-            e.Handled = true;
             await vm.HandleIconDropAsync(pathOrUrl);
         }
     }

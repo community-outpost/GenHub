@@ -140,7 +140,15 @@ public partial class ImageInputBox : UserControl
         var clearButton = this.FindControl<Button>("ClearButton");
         if (clearButton != null)
         {
-            clearButton.Click += (s, e) => { Text = string.Empty; };
+            clearButton.Click += (s, e) =>
+            {
+                if (_isProcessingInput)
+                {
+                    return;
+                }
+
+                Text = string.Empty;
+            };
         }
 
         var pasteButton = this.FindControl<Button>("PasteButton");
@@ -152,14 +160,27 @@ public partial class ImageInputBox : UserControl
         var inputTextBox = this.FindControl<TextBox>("InputTextBox");
         if (inputTextBox != null)
         {
-            inputTextBox.PropertyChanged += (s, e) =>
+            inputTextBox.LostFocus += async (s, e) =>
             {
-                if (e.Property == TextBox.TextProperty && !_isProcessingInput)
+                if (!_isProcessingInput && DropHandler != null)
                 {
                     var newText = inputTextBox.Text?.Trim();
-                    if (!string.IsNullOrWhiteSpace(newText) && File.Exists(newText) && DropHandler != null)
+                    if (!string.IsNullOrWhiteSpace(newText) && File.Exists(newText))
                     {
-                        _ = ProcessIncomingInputAsync(newText);
+                        await ProcessIncomingInputAsync(newText);
+                    }
+                }
+            };
+
+            inputTextBox.KeyDown += async (s, e) =>
+            {
+                if (e.Key == Key.Enter && !_isProcessingInput && DropHandler != null)
+                {
+                    var newText = inputTextBox.Text?.Trim();
+                    if (!string.IsNullOrWhiteSpace(newText) && File.Exists(newText))
+                    {
+                        e.Handled = true;
+                        await ProcessIncomingInputAsync(newText);
                     }
                 }
             };
@@ -250,6 +271,34 @@ public partial class ImageInputBox : UserControl
             if (!string.IsNullOrWhiteSpace(result))
             {
                 await ProcessIncomingInputAsync(result);
+            }
+            else
+            {
+                var text = await clipboard.GetTextAsync();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    var inputTextBox = this.FindControl<TextBox>("InputTextBox");
+                    if (inputTextBox != null)
+                    {
+                        var start = inputTextBox.SelectionStart;
+                        var end = inputTextBox.SelectionEnd;
+                        var current = inputTextBox.Text ?? string.Empty;
+                        if (start >= 0 && end >= start && end <= current.Length)
+                        {
+                            inputTextBox.Text = current.Remove(start, end - start).Insert(start, text);
+                            inputTextBox.CaretIndex = start + text.Length;
+                        }
+                        else
+                        {
+                            inputTextBox.Text = text;
+                            inputTextBox.CaretIndex = text.Length;
+                        }
+                    }
+                    else
+                    {
+                        Text = text;
+                    }
+                }
             }
         }
         catch (Exception ex)

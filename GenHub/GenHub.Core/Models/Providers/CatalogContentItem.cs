@@ -34,7 +34,13 @@ public class CatalogContentItem : ObservableObject
     public string Name
     {
         get => _name;
-        set => SetProperty(ref _name, value);
+        set
+        {
+            if (SetProperty(ref _name, value))
+            {
+                OnPropertyChanged(nameof(EffectiveIconUrl));
+            }
+        }
     }
 
     /// <summary>
@@ -184,7 +190,7 @@ public class CatalogContentItem : ObservableObject
         get
         {
             if (!string.IsNullOrWhiteSpace(Metadata?.IconUrl) &&
-                !Metadata.IconUrl.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase))
+                !ImageCacheConstants.IsPicsumUrl(Metadata.IconUrl))
             {
                 return Metadata.IconUrl;
             }
@@ -196,13 +202,13 @@ public class CatalogContentItem : ObservableObject
             }
 
             if (!string.IsNullOrWhiteSpace(CatalogIconUrl) &&
-                !CatalogIconUrl.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase))
+                !ImageCacheConstants.IsPicsumUrl(CatalogIconUrl))
             {
                 return CatalogIconUrl;
             }
 
             if (!string.IsNullOrWhiteSpace(PublisherAvatarUrl) &&
-                !PublisherAvatarUrl.Contains("picsum.photos", StringComparison.OrdinalIgnoreCase))
+                !ImageCacheConstants.IsPicsumUrl(PublisherAvatarUrl))
             {
                 return PublisherAvatarUrl;
             }

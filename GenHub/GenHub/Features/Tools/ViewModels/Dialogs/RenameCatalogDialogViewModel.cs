@@ -67,8 +67,9 @@ public partial class RenameCatalogDialogViewModel(
                 if (!string.IsNullOrWhiteSpace(uploadedUrl))
                 {
                     IconUrl = uploadedUrl;
-                    return;
                 }
+
+                return;
             }
 
             IconUrl = trimmed;

@@ -80,11 +80,14 @@ public partial class ToolDialogWindow : Window
         var workingArea = screen.WorkingArea;
         var scaling = screen.Scaling;
 
-        var maxDipsWidth = (workingArea.Width / scaling) * 0.90;
-        var maxDipsHeight = (workingArea.Height / scaling) * 0.88;
+        var availableWidth = workingArea.Width / scaling;
+        var availableHeight = workingArea.Height / scaling;
 
-        MaxWidth = Math.Max(400, maxDipsWidth);
-        MaxHeight = Math.Max(300, maxDipsHeight);
+        var maxDipsWidth = availableWidth * 0.90;
+        var maxDipsHeight = availableHeight * 0.88;
+
+        MaxWidth = Math.Min(Math.Max(400, maxDipsWidth), availableWidth);
+        MaxHeight = Math.Min(Math.Max(300, maxDipsHeight), availableHeight);
 
         EnsurePositionWithinScreen();
     }
@@ -107,6 +110,11 @@ public partial class ToolDialogWindow : Window
 
         var windowWidth = (int)(Bounds.Width * scaling);
         var windowHeight = (int)(Bounds.Height * scaling);
+
+        if (windowWidth <= 0 || windowHeight <= 0)
+        {
+            return;
+        }
 
         var newX = Position.X;
         var newY = Position.Y;

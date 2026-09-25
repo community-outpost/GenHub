@@ -1651,17 +1651,22 @@ public partial class PublishShareViewModel(
 
     private void DispatchArtifactSizeUpdate(string url, long size)
     {
+        if (!_probingUrls.TryGetValue(url, out var list))
+        {
+            return;
+        }
+
+        HostedArtifactItem[] targets;
+        lock (list)
+        {
+            targets = [.. list];
+        }
+
         void UpdateItems()
         {
-            if (_probingUrls.TryGetValue(url, out var list))
+            foreach (var target in targets)
             {
-                lock (list)
-                {
-                    foreach (var target in list)
-                    {
-                        target.FileSize = size;
-                    }
-                }
+                target.FileSize = size;
             }
         }
 

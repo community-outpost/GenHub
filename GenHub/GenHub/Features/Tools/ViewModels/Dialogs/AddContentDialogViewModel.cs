@@ -137,7 +137,13 @@ public partial class AddContentDialogViewModel(
     private string? _backdropArtwork;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasValidAccentColor))]
     private string? _accentColor;
+
+    /// <summary>
+    /// Gets a value indicating whether <see cref="AccentColor"/> is a valid, parseable color hex code.
+    /// </summary>
+    public bool HasValidAccentColor => ContentCardBadgeHelper.IsValidAccentColor(AccentColor);
 
     [ObservableProperty]
     private string? _videoUrl;
@@ -1634,8 +1640,15 @@ public partial class AddContentDialogViewModel(
             : (allVideos.Count > 0 ? allVideos : (source?.VideoUrls is { } vUrls ? [.. vUrls] : new List<string>()));
         var effectiveVideo = allVideos.FirstOrDefault() ?? (IsEditMode ? null : source?.VideoUrl);
 
+        var hasCarriedFields = source != null && (
+            source.DocumentationUrl != null ||
+            source.Author != null ||
+            source.License != null ||
+            source.Category != null ||
+            source.PlayerCount != null);
+
         if (effectiveIcon == null && effectiveBanner == null && effectiveBackdrop == null && effectiveAccent == null &&
-            effectiveVideos.Count == 0 && effectiveScreenshots.Count == 0 && (IsEditMode || source == null))
+            effectiveVideos.Count == 0 && effectiveScreenshots.Count == 0 && !hasCarriedFields)
         {
             return null;
         }

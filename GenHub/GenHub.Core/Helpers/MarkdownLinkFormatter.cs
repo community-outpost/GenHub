@@ -68,7 +68,7 @@ public static partial class MarkdownLinkFormatter
         return (null, null);
     }
 
-/// <summary>
+    /// <summary>
     /// Preserves single line breaks within descriptions by ensuring regular lines end with two spaces,
     /// enabling Markdown renderers to render newlines without collapsing into single lines.
     /// Code blocks, headers, blockquotes, and lists are preserved untouched.
@@ -92,7 +92,7 @@ public static partial class MarkdownLinkFormatter
             var line = lines[i];
             var trimmed = line.Trim();
 
-            if (trimmed.StartsWith("```", StringComparison.Ordinal))
+            if (trimmed.StartsWith("```", StringComparison.Ordinal) && !trimmed[3..].Contains('`'))
             {
                 inCodeFence = !inCodeFence;
                 builder.Append(line);
@@ -111,7 +111,7 @@ public static partial class MarkdownLinkFormatter
                 trimmed.StartsWith("- ", StringComparison.Ordinal) ||
                 trimmed.StartsWith("* ", StringComparison.Ordinal) ||
                 trimmed.StartsWith("+ ", StringComparison.Ordinal) ||
-                (trimmed.Length > 2 && char.IsDigit(trimmed[0]) && trimmed[1] == '.') ||
+                IsOrderedListMarker(trimmed) ||
                 line.EndsWith("  ", StringComparison.Ordinal) ||
                 line.EndsWith('\\'))
             {
@@ -427,4 +427,16 @@ public static partial class MarkdownLinkFormatter
 
     [GeneratedRegex(@"(?<prev>^[ \t]*[^\s\-*+>#|`].*)\r?\n(?<curr>[ \t]*[-*+][ \t]+)", RegexOptions.Multiline)]
     private static partial Regex ListPrecedingBlankLineRegex();
+    private static bool IsOrderedListMarker(string trimmed)
+    {
+        var i = 0;
+        while (i < trimmed.Length && char.IsDigit(trimmed[i]) && i < 10)
+        {
+            i++;
+        }
+
+        return i > 0 && i < trimmed.Length - 1
+            && (trimmed[i] == '.' || trimmed[i] == ')')
+            && char.IsWhiteSpace(trimmed[i + 1]);
+    }
 }
