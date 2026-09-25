@@ -3241,15 +3241,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "StyleCop.CSharp.OrderingRules",
-        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
-        Justification = "Co-located with subscription commands for cohesion.")]
-    private static bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
-    {
-        return subscription is { TrustLevel: not TrustLevel.Verified };
-    }
-
     /// <summary>
     /// Loads all active publisher subscriptions.
     /// </summary>
@@ -3361,47 +3352,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to remove subscription");
             var removeFailedFallback = _localizationService?.GetString("Settings.Subscriptions.RemoveFailedFallback") ?? "Failed to remove subscription";
             _notificationService.ShowError(SubscriptionErrorTitle, removeFailedFallback);
-        }
-    }
-
-    /// <summary>
-    /// Toggles the trust level for a publisher subscription.
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanToggleSubscriptionTrust))]
-    private async Task ToggleSubscriptionTrustAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
-    {
-        if (subscription == null || _subscriptionStore == null || subscription.TrustLevel == TrustLevel.Verified)
-        {
-            return;
-        }
-
-        try
-        {
-            var newTrust = subscription.TrustLevel == TrustLevel.Trusted
-                ? TrustLevel.Untrusted
-                : TrustLevel.Trusted;
-
-            var result = await _subscriptionStore.UpdateTrustLevelAsync(subscription.PublisherId, newTrust, cancellationToken);
-            if (result.Success)
-            {
-                subscription.TrustLevel = newTrust;
-                ToggleSubscriptionTrustCommand.NotifyCanExecuteChanged();
-            }
-            else
-            {
-                var updateTrustFailedMessage = _localizationService?.GetString("Settings.Subscriptions.UpdateTrustFailedMessage") ?? "Failed to update trust level: {0}";
-                _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, updateTrustFailedMessage, result.FirstError));
-            }
-        }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogInformation(ex, "Toggling trust level was cancelled.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to update trust level");
-            var updateTrustFailedFallback = _localizationService?.GetString("Settings.Subscriptions.UpdateTrustFailedFallback") ?? "Failed to update trust level";
-            _notificationService.ShowError(SubscriptionErrorTitle, updateTrustFailedFallback);
         }
     }
 
