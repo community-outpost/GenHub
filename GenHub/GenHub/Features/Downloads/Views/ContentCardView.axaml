@@ -507,10 +507,11 @@
                                        ToolTip.Tip="{Binding IncludesSummary}" />
                         </StackPanel>
 
-                        <!-- Version badge -->
+                        <!-- Version and size badges -->
                         <StackPanel Orientation="Horizontal" Spacing="6"
-                                    IsVisible="{Binding HasDisplayVersion}">
+                                    IsVisible="{Binding HasVersionOrSize}">
                             <Border Classes="info-chip"
+                                    IsVisible="{Binding HasDisplayVersion}"
                                     ToolTip.Tip="{Binding Version}">
                                 <TextBlock Text="{Binding VersionBadge}"
                                            FontSize="10.5"

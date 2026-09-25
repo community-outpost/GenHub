@@ -350,6 +350,32 @@ public static partial class GameVersionHelper
     }
 
     /// <summary>
+    /// Determines whether a release title carries only version information, such as "1.0.1",
+    /// "v2.3-beta" or the release tag itself, rather than a descriptive name.
+    /// </summary>
+    /// <param name="text">The release title.</param>
+    /// <param name="tagName">The release tag.</param>
+    /// <returns><c>true</c> when the title is blank or only a version; otherwise <c>false</c>.</returns>
+    public static bool IsPureVersionString(string? text, string? tagName)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return true;
+        }
+
+        var trimmed = text.Trim();
+        if (!string.IsNullOrWhiteSpace(tagName) &&
+            (trimmed.Equals(tagName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             trimmed.Equals($"v{tagName.Trim()}", StringComparison.OrdinalIgnoreCase) ||
+             StripVersionPrefix(trimmed).Equals(StripVersionPrefix(tagName), StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return VersionPatternRegex().IsMatch(trimmed);
+    }
+
+    /// <summary>
     /// Formats a numeric manifest version segment into a standard version string.
     /// Handles Generals Online (D6 formatting), date-based versions (preserving YYYYMMDD),
     /// and standard major/minor numeric versions (dividing by 100 when &gt;= 100).
@@ -432,4 +458,7 @@ public static partial class GameVersionHelper
 
     [GeneratedRegex(@"\D")]
     private static partial Regex NonDigitRegex();
+
+    [GeneratedRegex(@"^v?\d+(\.\d+)*(-[a-zA-Z0-9\.\-_]+)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex VersionPatternRegex();
 }

@@ -137,6 +137,40 @@ public sealed class ContentGridItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies an unknown size of zero is hidden, and a real size shows even when the version is hidden.
+    /// </summary>
+    /// <param name="version">The raw version string.</param>
+    /// <param name="downloadSize">The download size in bytes.</param>
+    /// <param name="expectedSizeVisible">Whether the size chip is expected to show.</param>
+    /// <param name="expectedRowVisible">Whether the version and size chip row is expected to show.</param>
+    [Theory]
+    [InlineData("0", 0L, false, false)]
+    [InlineData("", 0L, false, false)]
+    [InlineData("1.0", 0L, false, true)]
+    [InlineData("0", 2048L, true, true)]
+    [InlineData("1.0", 2048L, true, true)]
+    public void DownloadSize_HidesUnknownSizeAndShowsRealSizeWithoutVersion(
+        string version,
+        long downloadSize,
+        bool expectedSizeVisible,
+        bool expectedRowVisible)
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "size-test",
+            Name = "Size Test Map",
+            Version = version,
+            DownloadSize = downloadSize,
+            ProviderName = AODMapsConstants.DiscovererSourceName,
+        };
+
+        var viewModel = CreateViewModel(searchResult);
+
+        Assert.Equal(expectedSizeVisible, viewModel.IsDownloadSizeVisible);
+        Assert.Equal(expectedRowVisible, viewModel.HasVersionOrSize);
+    }
+
+    /// <summary>
     /// Verifies catalog banners win over publisher avatars for card thumbnails.
     /// </summary>
     [Fact]
