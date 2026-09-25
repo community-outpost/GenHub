@@ -1656,7 +1656,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        HostedArtifactItem[] targets;
+        HostedAssetItemViewModel[] targets;
         lock (list)
         {
             targets = [.. list];

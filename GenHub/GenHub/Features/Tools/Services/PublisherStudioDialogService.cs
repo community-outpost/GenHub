@@ -25,7 +25,6 @@ namespace GenHub.Features.Tools.Services;
 public class PublisherStudioDialogService(
     IDialogService dialogService,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
-    ILogger<PublisherStudioDialogService>? logger = null,
     INotificationService? notificationService = null) : IPublisherStudioDialogService
 {
     private const string AllFilesFilterName = "All Files";

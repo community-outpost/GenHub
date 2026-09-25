@@ -2726,7 +2726,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [oldManifestId] = newManifestId }
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                var strategy = promptResult?.Strategy ?? UpdateStrategy.KeepBoth;
+                var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
                 var shouldDelete = promptResult?.DeleteOldVersions ?? false;
 
                 var helperContext = new PublisherReconciliationContext(

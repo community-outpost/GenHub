@@ -209,6 +209,15 @@ public partial class PublisherProfileViewModel(
         }
     }
 
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _avatarUploadCts?.Cancel();
+        _avatarUploadCts?.Dispose();
+        _avatarUploadCts = null;
+        GC.SuppressFinalize(this);
+    }
+
     private static bool IsRemoteUrl(string text) =>
         Uri.TryCreate(text, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
@@ -280,15 +289,6 @@ public partial class PublisherProfileViewModel(
                 localizationService?.GetString("Tools.PublisherStudio.Profile.AvatarUploadFailedTitle") ?? "Avatar Upload Failed",
                 ex.Message);
         }
-    }
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        _avatarUploadCts?.Cancel();
-        _avatarUploadCts?.Dispose();
-        _avatarUploadCts = null;
-        GC.SuppressFinalize(this);
     }
 
     private void OnProfileFieldChanged()
