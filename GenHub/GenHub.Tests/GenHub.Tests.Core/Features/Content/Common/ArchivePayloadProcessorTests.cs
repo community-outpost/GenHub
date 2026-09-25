@@ -1462,6 +1462,37 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.True(File.Exists(tgaPath));
     }
 
+    /// <summary>
+    /// Verifies that single loose map normalization does not move unrelated files like readme.txt or metadata.ini
+    /// into the map folder.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SingleLooseMapWithUnrelatedFile_DoesNotMoveUnrelatedFileIntoMapFolderAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapPath = Path.Combine(_stagingDirectory, "Desert.map");
+        var tgaPath = Path.Combine(_stagingDirectory, "Desert.tga");
+        var readmePath = Path.Combine(_stagingDirectory, "readme.txt");
+        var metadataPath = Path.Combine(_stagingDirectory, "metadata.ini");
+
+        await File.WriteAllTextAsync(mapPath, "map-data");
+        await File.WriteAllTextAsync(tgaPath, "tga-data");
+        await File.WriteAllTextAsync(readmePath, "readme-content");
+        await File.WriteAllTextAsync(metadataPath, "metadata-content");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var mapFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.True(File.Exists(Path.Combine(mapFolder, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(mapFolder, "Desert.tga")));
+        Assert.True(File.Exists(readmePath));
+        Assert.True(File.Exists(metadataPath));
+        Assert.False(File.Exists(Path.Combine(mapFolder, "readme.txt")));
+        Assert.False(File.Exists(Path.Combine(mapFolder, "metadata.ini")));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

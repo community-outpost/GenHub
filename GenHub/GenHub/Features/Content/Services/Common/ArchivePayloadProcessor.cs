@@ -2696,15 +2696,14 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 File.Move(mapFile, targetMapFile);
             }
 
-            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, looseMapFiles.Length);
+            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase);
         }
     }
 
     private void OrganizeLooseCompanionsForMap(
         string extractedDirectory,
         string targetFolder,
-        string mapBase,
-        int totalLooseMaps)
+        string mapBase)
     {
         var looseFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
         foreach (var companion in looseFiles)
@@ -2716,10 +2715,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             var fn = Path.GetFileName(companion);
             var ext = Path.GetExtension(fn);
-            var isCompanion = totalLooseMaps == 1 ||
+            var isCompanion =
                 fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
                 fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
-                fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+                fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
+                fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase);
 
             if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
