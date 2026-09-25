@@ -148,6 +148,7 @@ public partial class GameProfileLauncherViewModel(
     /// Gets a value indicating whether the storefront purchase banner should be displayed.
     /// Only visible when profiles have been loaded successfully and no playable profiles exist.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
     public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && HasNoProfiles;
 
     partial void OnHasLoadedProfilesSuccessfullyChanged(bool value)
