@@ -222,8 +222,7 @@ public partial class GameProfileSettingsViewModel
 
             void AddFilterIfAvailable(ContentType type, string iconData)
             {
-            if (!availableTypes.Contains(SelectedContentType))
-            {
+                if (availableTypes.Contains(type))
                 {
                     newFilters.Add(new FilterTypeInfo(type, type.GetDisplayName(), iconData));
                 }
