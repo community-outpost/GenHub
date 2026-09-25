@@ -962,7 +962,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             }
             else
             {
-                InsertProfileSorted(createdProfile);
+                InsertProfileSorted(AvailableProfiles, createdProfile);
             }
         });
     }
@@ -1199,16 +1199,54 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             : null;
     }
 
-    private void InsertProfileSorted(GameProfile profile)
+    private static string? ResolveInstallationPath(GameInstallation installation, GameType? gameType)
+    {
+        return GetSpecificInstallationPath(installation, gameType)
+            ?? GetGenericInstallationPath(installation);
+    }
+
+    private static async Task<string?> ResolveConfiguredInstallationRootAsync(
+        IGameInstallationService installationService,
+        string installationId,
+        GameType? gameType,
+        CancellationToken cancellationToken)
+    {
+        var installResult = await installationService.GetInstallationAsync(installationId, cancellationToken);
+        if (installResult.Success && installResult.Data is not null)
+        {
+            return ResolveInstallationPath(installResult.Data, gameType);
+        }
+
+        return null;
+    }
+
+    private static async Task<string?> ResolveFallbackInstallationRootAsync(
+        IGameInstallationService installationService,
+        GameType? gameType,
+        CancellationToken cancellationToken)
+    {
+        var allResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+        if (allResult.Success && allResult.Data is not null)
+        {
+            return allResult.Data
+                .Select(inst => ResolveInstallationPath(inst, gameType))
+                .FirstOrDefault(path => path is not null);
+        }
+
+        return null;
+    }
+
+
+    private static void InsertProfileSorted(IList<GameProfile> profiles, GameProfile profile)
     {
         var insertIndex = 0;
-        while (insertIndex < AvailableProfiles.Count &&
-               string.Compare(AvailableProfiles[insertIndex].Name, profile.Name, StringComparison.OrdinalIgnoreCase) < 0)
+        while (insertIndex < profiles.Count &&
+               string.Compare(profiles[insertIndex].Name, profile.Name, StringComparison.OrdinalIgnoreCase) < 0)
         {
             insertIndex++;
         }
 
-        AvailableProfiles.Insert(insertIndex, profile);
+        profiles.Insert(insertIndex, profile);
     }
 
     private void UpdateAvailableProfilesList(GameProfile updatedProfile)
@@ -1226,7 +1264,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             if (!string.Equals(existing.Name, updatedProfile.Name, StringComparison.OrdinalIgnoreCase))
             {
                 AvailableProfiles.RemoveAt(oldIndex);
-                InsertProfileSorted(updatedProfile);
+                InsertProfileSorted(AvailableProfiles, updatedProfile);
             }
             else
             {
@@ -1235,10 +1273,12 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         }
         else if (!updatedProfile.IsToolProfile)
         {
-            InsertProfileSorted(updatedProfile);
+            InsertProfileSorted(AvailableProfiles, updatedProfile);
         }
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates generated MVVM properties Sonar cannot see.")]
+#pragma warning disable S2325
     private void UpdateSelectedProfileReferences(GameProfile updatedProfile)
     {
         var target = updatedProfile.IsToolProfile ? null : updatedProfile;
@@ -1257,6 +1297,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             SelectedHostProfile = target;
         }
     }
+#pragma warning restore S2325
 
     private void ApplyLoadedProfiles(List<GameProfile> sorted)
     {
@@ -2184,41 +2225,22 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         try
         {
+            var gameType = profile.GameClient?.GameType;
             if (!string.IsNullOrWhiteSpace(profile.GameInstallationId))
             {
-                var installResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-                if (installResult.Success && installResult.Data is not null)
+                var configuredRoot = await ResolveConfiguredInstallationRootAsync(
+                    _installationService,
+                    profile.GameInstallationId,
+                    gameType,
+                    cancellationToken);
+                if (configuredRoot is not null)
                 {
-                    var specific = GetSpecificInstallationPath(installResult.Data, profile.GameClient?.GameType);
-                    if (specific is not null)
-                    {
-                        return specific;
-                    }
-
-                    var generic = GetGenericInstallationPath(installResult.Data);
-                    if (generic is not null)
-                    {
-                        return generic;
-                    }
+                    return configuredRoot;
                 }
             }
 
             // Fallback: search all available installations for one matching the game type
-            var allResult = await _installationService.GetAllInstallationsAsync(cancellationToken);
-            if (allResult.Success && allResult.Data is not null)
-            {
-                var specific = allResult.Data
-                    .Select(inst => GetSpecificInstallationPath(inst, profile.GameClient?.GameType))
-                    .FirstOrDefault(path => path is not null);
-                if (specific is not null)
-                {
-                    return specific;
-                }
-
-                return allResult.Data
-                    .Select(GetGenericInstallationPath)
-                    .FirstOrDefault(path => path is not null);
-            }
+            return await ResolveFallbackInstallationRootAsync(_installationService, gameType, cancellationToken);
         }
         catch (OperationCanceledException)
         {
