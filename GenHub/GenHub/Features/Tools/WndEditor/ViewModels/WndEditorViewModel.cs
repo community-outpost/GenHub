@@ -3694,7 +3694,8 @@ public sealed partial class WndEditorViewModel(
         AssetRoots roots,
         string? projectDirectory,
         IReadOnlyList<string> linkedBigs,
-        IReadOnlyList<WndArtItemViewModel> items)
+        IReadOnlyList<WndArtItemViewModel> items,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -3705,18 +3706,22 @@ public sealed partial class WndEditorViewModel(
                 projectDirectory,
                 linkedBigs,
                 roots.IsZeroHour,
-                CancellationToken.None).ConfigureAwait(false);
+                cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success || result.Data == null || result.Data.Count == 0)
+            if (!result.Success || result.Data == null || result.Data.Count == 0 || cancellationToken.IsCancellationRequested)
             {
                 return;
             }
 
             var decoded = DecodeThumbnails(result.Data);
-            if (decoded.Count > 0)
+            if (decoded.Count > 0 && !cancellationToken.IsCancellationRequested)
             {
                 await InvokeOnUIThreadAsync(() => ApplyThumbnailsToItems(decoded, items)).ConfigureAwait(false);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected cancellation
         }
         catch (Exception ex)
         {
@@ -3741,8 +3746,9 @@ public sealed partial class WndEditorViewModel(
         var detectedProjectDir = ResolveProjectDirectory(FilePath, roots) ?? ResolveProjectDirectory(FilesDirectory, roots);
         var projectDirectory = CombineProjectDirectories(LinkedModFolder, detectedProjectDir);
         var linkedBigs = LinkedBigFiles.ToList();
+        var cancellationToken = _previewCts?.Token ?? CancellationToken.None;
 
-        _ = Task.Run(() => LoadThumbnailsBackgroundAsync(missingNames, roots, projectDirectory, linkedBigs, items));
+        _ = Task.Run(() => LoadThumbnailsBackgroundAsync(missingNames, roots, projectDirectory, linkedBigs, items, cancellationToken), cancellationToken);
     }
 
     private string FormatMissingNames(IReadOnlyList<string> missing)
