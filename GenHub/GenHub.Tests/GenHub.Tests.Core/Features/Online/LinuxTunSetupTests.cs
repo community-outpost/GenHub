@@ -75,7 +75,8 @@ public class LinuxTunSetupTests
             "genhub0", IPAddress.Parse("10.42.0.2"), 20, 1400, "mint");
 
         // Assert
-        Assert.StartsWith("sudo ip tuntap add dev genhub0 mode tun user mint", script);
+        Assert.StartsWith("ip link show genhub0 >/dev/null 2>&1 || sudo ip tuntap add mode tun dev genhub0 user \"mint\"", script);
+        Assert.Contains("sudo ip addr flush dev genhub0", script);
         Assert.Contains("sudo ip addr add 10.42.0.2/20 dev genhub0", script);
         Assert.Contains("sudo ip link set dev genhub0 mtu 1400 up", script);
     }
