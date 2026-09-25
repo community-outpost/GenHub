@@ -53,11 +53,23 @@ public partial class AddReleaseDialogViewModel(
     /// <summary>
     /// Gets the placeholder/watermark for the title input, showing the inherited name if blank.
     /// </summary>
-    public string TitlePlaceholder => IsAddonMode
-        ? GetLocalizedString("Tools.PublisherStudio.Release.AddonTitlePlaceholder", "e.g., Russian Localization Patch")
-        : (!string.IsNullOrWhiteSpace(contentItem?.Name)
-            ? $"{contentItem.Name} Version {Version}".Trim()
-            : GetLocalizedString("Tools.PublisherStudio.Release.TitlePlaceholder", "Leave empty to inherit content name and version"));
+    public string TitlePlaceholder
+    {
+        get
+        {
+            if (IsAddonMode)
+            {
+                return GetLocalizedString("Tools.PublisherStudio.Release.AddonTitlePlaceholder", "e.g., Russian Localization Patch");
+            }
+
+            if (!string.IsNullOrWhiteSpace(contentItem?.Name))
+            {
+                return $"{contentItem.Name} Version {Version}".Trim();
+            }
+
+            return GetLocalizedString("Tools.PublisherStudio.Release.TitlePlaceholder", "Leave empty to inherit content name and version");
+        }
+    }
 
     partial void OnVersionChanged(string value)
     {

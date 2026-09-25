@@ -4181,11 +4181,19 @@ public partial class ContentDetailViewModel(
             Description: description,
             FileSectionType: FileSectionType.Downloads);
 
-        var releaseName = !string.IsNullOrWhiteSpace(rel.Title)
-            ? rel.Title
-            : (!string.IsNullOrWhiteSpace(searchResult.Name)
-                ? $"{searchResult.Name} Version {rel.Version}"
-                : $"Version {rel.Version}");
+        string releaseName;
+        if (!string.IsNullOrWhiteSpace(rel.Title))
+        {
+            releaseName = rel.Title;
+        }
+        else if (!string.IsNullOrWhiteSpace(searchResult.Name))
+        {
+            releaseName = $"{searchResult.Name} Version {rel.Version}";
+        }
+        else
+        {
+            releaseName = $"Version {rel.Version}";
+        }
 
         var releaseItem = new ReleaseItemViewModel
         {

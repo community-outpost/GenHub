@@ -1000,6 +1000,7 @@ public class DownloadService(
         throw new InvalidOperationException("Google Drive returned an HTML page instead of the expected file download.");
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private string? TryExtractConfirmationUrl(string html, Uri? requestUri)
     {
         var confirmMatch = Regex.Match(html, "href=\"(/uc\\?export=download[^\"]+confirm=[^\"]+)\"", RegexOptions.IgnoreCase, RegexTimeout);
@@ -1013,6 +1014,7 @@ public class DownloadService(
         return TryExtractFormActionUrl(html);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private string? TryExtractFormActionUrl(string html)
     {
         var actionMatch = Regex.Match(html, "action=\"(https://drive\\.usercontent\\.google\\.com/download[^\"]*)\"", RegexOptions.IgnoreCase, RegexTimeout);

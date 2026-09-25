@@ -2682,11 +2682,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 var newManifestId = targetItem.SearchResult != null
                     ? await contentStateService.GetLocalManifestIdAsync(targetItem.SearchResult, ct)
                     : null;
-                var profileManager = serviceProvider.GetService<IGameProfileManager>();
+                var activeProfileManager = profileManager ?? serviceProvider.GetService<IGameProfileManager>();
 
-                if (profileManager != null && !string.IsNullOrEmpty(newManifestId))
+                if (activeProfileManager != null && !string.IsNullOrEmpty(newManifestId))
                 {
-                    var profiles = await profileManager.GetAllProfilesAsync(ct);
+                    var profiles = await activeProfileManager.GetAllProfilesAsync(ct);
                     if (profiles.Success && profiles.Data != null)
                     {
                         foreach (var prof in profiles.Data)
@@ -2703,7 +2703,7 @@ public sealed partial class DownloadsBrowserViewModel(
                                 {
                                     EnabledContentIds = prof.EnabledContentIds.ToList(),
                                 };
-                                await profileManager.UpdateProfileAsync(prof.Id, updateReq, ct);
+                                await activeProfileManager.UpdateProfileAsync(prof.Id, updateReq, ct);
                             }
                         }
                     }
@@ -2721,8 +2721,8 @@ public sealed partial class DownloadsBrowserViewModel(
             }
         }
 
-        var notificationService = serviceProvider.GetService<INotificationService>();
-        notificationService?.ShowSuccess(
+        var activeNotificationService = notificationService ?? serviceProvider.GetService<INotificationService>();
+        activeNotificationService?.ShowSuccess(
             "Update Completed",
             $"Updated {targetItem.Name} to latest version.",
             NotificationDurations.Medium);

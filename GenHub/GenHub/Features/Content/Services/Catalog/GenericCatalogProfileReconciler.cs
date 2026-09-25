@@ -48,29 +48,14 @@ public class GenericCatalogProfileReconciler(
     {
         try
         {
-            List<GameProfile> profilesToCheck = [];
-            if (!string.IsNullOrEmpty(triggeringProfileId))
+            var profilesToCheck = await GetProfilesToCheckAsync(triggeringProfileId, cancellationToken);
+            if (profilesToCheck.Count == 0)
             {
-                var profileResult = await profileManager.GetProfileAsync(triggeringProfileId, cancellationToken);
-                if (!profileResult.Success || profileResult.Data == null)
-                {
-                    logger.LogWarning("[Catalog Reconciler] Profile {ProfileId} not found, skipping catalog reconciliation", triggeringProfileId);
-                    return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
-                }
-
-                profilesToCheck.Add(profileResult.Data);
-            }
-            else
-            {
-                var allProfilesResult = await profileManager.GetAllProfilesAsync(cancellationToken);
-                if (allProfilesResult.Success && allProfilesResult.Data != null)
-                {
-                    profilesToCheck.AddRange(allProfilesResult.Data);
-                }
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
             var subResult = await subscriptionStore.GetSubscriptionsAsync(cancellationToken);
-            if (!subResult.Success || subResult.Data == null || subResult.Data.Count == 0 || profilesToCheck.Count == 0)
+            if (!subResult.Success || subResult.Data == null || subResult.Data.Count == 0)
             {
                 return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
@@ -99,6 +84,33 @@ public class GenericCatalogProfileReconciler(
             logger.LogError(ex, "[Catalog Reconciler] Failed during check and reconciliation for profile {ProfileId}", triggeringProfileId);
             return OperationResult<PublisherReconciliationResult>.CreateFailure($"Catalog reconciliation error: {ex.Message}");
         }
+    }
+
+    private async Task<List<GameProfile>> GetProfilesToCheckAsync(
+        string triggeringProfileId,
+        CancellationToken cancellationToken)
+    {
+        List<GameProfile> profiles = [];
+        if (!string.IsNullOrEmpty(triggeringProfileId))
+        {
+            var profileResult = await profileManager.GetProfileAsync(triggeringProfileId, cancellationToken);
+            if (!profileResult.Success || profileResult.Data == null)
+            {
+                logger.LogWarning("[Catalog Reconciler] Profile {ProfileId} not found, skipping catalog reconciliation", triggeringProfileId);
+                return profiles;
+            }
+
+            profiles.Add(profileResult.Data);
+            return profiles;
+        }
+
+        var allProfilesResult = await profileManager.GetAllProfilesAsync(cancellationToken);
+        if (allProfilesResult.Success && allProfilesResult.Data != null)
+        {
+            profiles.AddRange(allProfilesResult.Data);
+        }
+
+        return profiles;
     }
 
     private async Task<OperationResult<PublisherReconciliationResult>?> ReconcileSubscriptionAsync(

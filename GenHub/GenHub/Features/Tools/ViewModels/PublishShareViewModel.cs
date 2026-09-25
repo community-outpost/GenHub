@@ -2754,53 +2754,60 @@ public partial class PublishShareViewModel(
 
         if (uploadDefinition)
         {
-            // 4. Generate and upload provider definition
-            CurrentPublishStep = 4;
-            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.GeneratingProviderDefinition", "Generating provider definition...");
-            var definitionGenerated = await GenerateProviderDefinitionAsync();
-
-            var defResult = await UploadProviderDefinitionIfAvailableAsync(cancellationToken);
-
-            // 5. Generate subscription URL (uses definition URL if available)
-            GenerateSubscriptionUrl();
-
-            CurrentPublishStep = 6;
-            PublishCompleted = true;
-            PublishSummary = BuildPublishSummary(CatalogUrl, ProviderDefinitionUrl, SubscriptionUrl);
-            if (defResult != null && !defResult.Success)
-            {
-                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat", "Catalog published, but provider definition upload failed: {0}", defResult.FirstError);
-                NotifyDefinitionStale();
-                if (!suppressNotifications)
-                {
-                    notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
-                }
-            }
-            else if (!definitionGenerated)
-            {
-                NotifyDefinitionStale();
-                if (!suppressNotifications)
-                {
-                    notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
-                }
-            }
-            else
-            {
-                UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishedSuccessfully", "Published successfully!");
-                if (!suppressNotifications)
-                {
-                    notificationService?.ShowSuccess(
-                        GetLocalizedString(PublishSuccessTitleKey, SuccessLiteral),
-                        UploadStatusMessage,
-                        autoDismissMs: 4000);
-                }
-            }
+            await HandlePostPublishDefinitionAsync(cancellationToken, suppressNotifications);
         }
         else
         {
             CurrentPublishStep = 6;
             PublishCompleted = true;
             PublishSummary = BuildPublishSummary(CatalogUrl, ProviderDefinitionUrl, SubscriptionUrl);
+            if (!suppressNotifications)
+            {
+                notificationService?.ShowSuccess(
+                    GetLocalizedString(PublishSuccessTitleKey, SuccessLiteral),
+                    UploadStatusMessage,
+                    autoDismissMs: 4000);
+            }
+        }
+    }
+
+    private async Task HandlePostPublishDefinitionAsync(
+        CancellationToken cancellationToken,
+        bool suppressNotifications)
+    {
+        // 4. Generate and upload provider definition
+        CurrentPublishStep = 4;
+        UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.GeneratingProviderDefinition", "Generating provider definition...");
+        var definitionGenerated = await GenerateProviderDefinitionAsync();
+
+        var defResult = await UploadProviderDefinitionIfAvailableAsync(cancellationToken);
+
+        // 5. Generate subscription URL (uses definition URL if available)
+        GenerateSubscriptionUrl();
+
+        CurrentPublishStep = 6;
+        PublishCompleted = true;
+        PublishSummary = BuildPublishSummary(CatalogUrl, ProviderDefinitionUrl, SubscriptionUrl);
+        if (defResult != null && !defResult.Success)
+        {
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat", "Catalog published, but provider definition upload failed: {0}", defResult.FirstError);
+            NotifyDefinitionStale();
+            if (!suppressNotifications)
+            {
+                notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
+            }
+        }
+        else if (!definitionGenerated)
+        {
+            NotifyDefinitionStale();
+            if (!suppressNotifications)
+            {
+                notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
+            }
+        }
+        else
+        {
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishedSuccessfully", "Published successfully!");
             if (!suppressNotifications)
             {
                 notificationService?.ShowSuccess(
@@ -5882,7 +5889,7 @@ public partial class PublishShareViewModel(
         try
         {
             var publisherId = project.Catalog.Publisher.Id;
-            var subResult = await subscriptionStore.GetSubscriptionAsync(publisherId);
+            var subResult = await subscriptionStore.GetSubscriptionAsync(publisherId, CancellationToken.None);
             if (subResult.Success && subResult.Data != null)
             {
                 var sub = subResult.Data;
@@ -5903,7 +5910,7 @@ public partial class PublishShareViewModel(
 
                 if (updated)
                 {
-                    await subscriptionStore.UpdateSubscriptionAsync(sub);
+                    await subscriptionStore.UpdateSubscriptionAsync(sub, CancellationToken.None);
                     WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(publisherId));
                 }
             }
