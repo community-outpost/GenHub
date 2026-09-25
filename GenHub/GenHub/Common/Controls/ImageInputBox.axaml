@@ -5,7 +5,7 @@
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
              x:Class="GenHub.Common.Controls.ImageInputBox"
              x:DataType="local:ImageInputBox">
-    <Grid ColumnDefinitions="*,Auto,Auto">
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <TextBox Name="InputTextBox"
                  Grid.Column="0"
                  DragDrop.AllowDrop="True"
@@ -13,8 +13,21 @@
                  Watermark="{Binding Watermark, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
                  FontSize="13"
                  Padding="10,8"/>
-        <Button Name="PasteButton"
+        <Button Name="ClearButton"
                 Grid.Column="1"
+                Margin="6,0,0,0"
+                Padding="6"
+                Width="34" Height="34"
+                Classes="glass-btn"
+                VerticalAlignment="Center"
+                IsVisible="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                ToolTip.Tip="{localization:Localize Common.Tooltip.Clear}">
+            <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                      Width="12" Height="12"
+                      Foreground="{DynamicResource TextSecondary}"/>
+        </Button>
+        <Button Name="PasteButton"
+                Grid.Column="2"
                 Margin="6,0,0,0"
                 Padding="6"
                 Width="34" Height="34"
@@ -26,7 +39,7 @@
                       Foreground="{DynamicResource TextSecondary}"/>
         </Button>
         <Border Name="PreviewBorder"
-                Grid.Column="2"
+                Grid.Column="3"
                 Margin="6,0,0,0"
                 Width="34" Height="34"
                 CornerRadius="{Binding PreviewCornerRadius, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"

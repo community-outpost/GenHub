@@ -78,6 +78,23 @@ public readonly struct ManifestId(string value)
     }
 
     /// <summary>
+    /// Attempts to parse a string into a <see cref="ManifestId"/>.
+    /// </summary>
+    /// <param name="value">The string value to parse.</param>
+    /// <param name="manifestId">The parsed manifest id if successful.</param>
+    /// <returns>True if parsing succeeded; otherwise false.</returns>
+    public static bool TryParse(string? value, out ManifestId manifestId)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            manifestId = default;
+            return false;
+        }
+
+        return TryCreate(value, out manifestId);
+    }
+
+    /// <summary>
     /// Attempts to create a <see cref="ManifestId"/> from the specified string value.
     /// </summary>
     /// <param name="value">The string value to attempt to create a <see cref="ManifestId"/> from.</param>

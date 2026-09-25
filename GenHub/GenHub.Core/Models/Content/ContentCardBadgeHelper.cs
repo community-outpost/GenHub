@@ -206,6 +206,11 @@ public static partial class ContentCardBadgeHelper
             return screenshot;
         }
 
+        if (IsGenericCatalog(result))
+        {
+            return result.IconUrl;
+        }
+
         if (IsGeneralsOnline(result))
         {
             return PublisherInfoConstants.GeneralsOnline.LogoSource;
@@ -331,6 +336,17 @@ public static partial class ContentCardBadgeHelper
     public static string? GetPublisherLogoUrl(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+
+        if (IsGenericCatalog(result))
+        {
+            if (!string.IsNullOrWhiteSpace(result.IconUrl))
+            {
+                return result.IconUrl;
+            }
+
+            var pubLogo = PublisherInfoConstants.GetPublisherLogo(result.ProviderName, result.AuthorName);
+            return pubLogo ?? result.IconUrl;
+        }
 
         if (IsTheSuperHackers(result))
         {
@@ -529,6 +545,11 @@ public static partial class ContentCardBadgeHelper
     public static bool IsTheSuperHackers(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        if (IsGenericCatalog(result))
+        {
+            return false;
+        }
+
         return (result.ProviderName?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.AuthorName?.Equals(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true) ||
@@ -542,6 +563,18 @@ public static partial class ContentCardBadgeHelper
     }
 
     /// <summary>
+    /// Checks whether the search result originates from a generic publisher catalog.
+    /// </summary>
+    /// <param name="result">The search result to check.</param>
+    /// <returns>True if the item is from a generic catalog; otherwise false.</returns>
+    public static bool IsGenericCatalog(ContentSearchResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        return string.Equals(result.ResolverId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(result.ProviderName, CatalogConstants.GenericCatalogProviderName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Checks whether the search result belongs to Generals Online publisher.
     /// </summary>
     /// <param name="result">The search result to check.</param>
@@ -549,6 +582,11 @@ public static partial class ContentCardBadgeHelper
     public static bool IsGeneralsOnline(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        if (IsGenericCatalog(result))
+        {
+            return false;
+        }
+
         return (result.ProviderName?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals("Generals Online", StringComparison.OrdinalIgnoreCase) == true) ||
@@ -569,6 +607,11 @@ public static partial class ContentCardBadgeHelper
     public static bool IsCommunityOutpost(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        if (IsGenericCatalog(result))
+        {
+            return false;
+        }
+
         return (result.ProviderName?.Equals(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals("Community-Outpost", StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals("Community Outpost", StringComparison.OrdinalIgnoreCase) == true) ||

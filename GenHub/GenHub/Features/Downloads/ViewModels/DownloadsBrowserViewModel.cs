@@ -2655,7 +2655,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 return false;
             }
 
-            return false;
+            // Fall through if publisher reconciler had no profiles to auto-reconcile, so content can download/update
         }
 
         var dialogService = serviceProvider.GetService<IDialogService>();

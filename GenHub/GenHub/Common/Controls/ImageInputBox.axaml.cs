@@ -137,6 +137,12 @@ public partial class ImageInputBox : UserControl
             previewBorder.PointerPressed += OnPreviewBorderPointerPressed;
         }
 
+        var clearButton = this.FindControl<Button>("ClearButton");
+        if (clearButton != null)
+        {
+            clearButton.Click += (s, e) => { Text = string.Empty; };
+        }
+
         var pasteButton = this.FindControl<Button>("PasteButton");
         if (pasteButton != null)
         {

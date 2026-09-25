@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using System;
 
 namespace GenHub.Features.Tools.Views.Dialogs;
 
@@ -34,6 +36,20 @@ public partial class ToolDialogWindow : Window
     }
 
     /// <inheritdoc/>
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        FitToScreen();
+    }
+
+    /// <inheritdoc/>
+    protected override void OnSizeChanged(SizeChangedEventArgs e)
+    {
+        base.OnSizeChanged(e);
+        EnsurePositionWithinScreen();
+    }
+
+    /// <inheritdoc/>
     /// <param name="e">The key event arguments.</param>
     protected override void OnKeyDown(KeyEventArgs e)
     {
@@ -50,6 +66,74 @@ public partial class ToolDialogWindow : Window
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
             BeginMoveDrag(e);
+        }
+    }
+
+    private void FitToScreen()
+    {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen == null)
+        {
+            return;
+        }
+
+        var workingArea = screen.WorkingArea;
+        var scaling = screen.Scaling;
+
+        var maxDipsWidth = (workingArea.Width / scaling) * 0.90;
+        var maxDipsHeight = (workingArea.Height / scaling) * 0.88;
+
+        MaxWidth = Math.Max(400, maxDipsWidth);
+        MaxHeight = Math.Max(300, maxDipsHeight);
+
+        EnsurePositionWithinScreen();
+    }
+
+    private void EnsurePositionWithinScreen()
+    {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen == null)
+        {
+            return;
+        }
+
+        var workingArea = screen.WorkingArea;
+        var scaling = screen.Scaling;
+
+        var screenLeft = (int)workingArea.X;
+        var screenTop = (int)workingArea.Y;
+        var screenRight = screenLeft + workingArea.Width;
+        var screenBottom = screenTop + workingArea.Height;
+
+        var windowWidth = (int)(Bounds.Width * scaling);
+        var windowHeight = (int)(Bounds.Height * scaling);
+
+        var newX = Position.X;
+        var newY = Position.Y;
+
+        if (newX + windowWidth > screenRight)
+        {
+            newX = Math.Max(screenLeft, screenRight - windowWidth);
+        }
+
+        if (newX < screenLeft)
+        {
+            newX = screenLeft;
+        }
+
+        if (newY + windowHeight > screenBottom)
+        {
+            newY = Math.Max(screenTop, screenBottom - windowHeight);
+        }
+
+        if (newY < screenTop)
+        {
+            newY = screenTop;
+        }
+
+        if (newX != Position.X || newY != Position.Y)
+        {
+            Position = new PixelPoint(newX, newY);
         }
     }
 }

@@ -118,9 +118,14 @@ public partial class GenericCatalogResolver(
                 .WithMetadata(
                     description: contentItem.Description,
                     tags: [.. contentItem.Tags],
-                    iconUrl: contentItem.Metadata?.BannerUrl ?? string.Empty,
+                    iconUrl: contentItem.Metadata?.IconUrl ?? contentItem.Metadata?.BannerUrl ?? string.Empty,
                     screenshotUrls: contentItem.Metadata?.ScreenshotUrls?.ToList(),
                     changelogUrl: contentItem.Metadata?.DocumentationUrl ?? string.Empty);
+
+            if (ManifestId.TryParse(discoveredItem.Id, out var parsedManifestId))
+            {
+                builder.WithId(parsedManifestId);
+            }
 
             var remoteFilesResult = await RegisterRemoteFilesAsync(
                 builder,

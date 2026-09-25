@@ -557,7 +557,7 @@ public partial class ContentDetailViewModel(
     public string FormattedDescription =>
         string.IsNullOrWhiteSpace(Description)
             ? BuildDetailsFallback()
-            : MarkdownLinkFormatter.FormatLinks(Description, searchResult.SourceUrl);
+            : MarkdownLinkFormatter.FormatLinks(MarkdownLinkFormatter.PreserveLineBreaks(Description), searchResult.SourceUrl);
 
     /// <summary>
     /// Gets a value indicating whether repository README markdown was loaded.

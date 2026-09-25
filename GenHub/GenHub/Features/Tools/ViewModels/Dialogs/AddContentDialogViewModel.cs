@@ -1622,48 +1622,33 @@ public partial class AddContentDialogViewModel(
             allVideos.Add(singleVideo);
         }
 
-        if (icon == null && banner == null && backdrop == null && accent == null && allVideos.Count == 0 && allScreenshots.Count == 0 && source == null)
+        var effectiveIcon = IsEditMode ? icon : (icon ?? source?.IconUrl);
+        var effectiveBanner = IsEditMode ? banner : (banner ?? source?.BannerUrl);
+        var effectiveBackdrop = IsEditMode ? backdrop : (backdrop ?? source?.BackdropUrl);
+        var effectiveAccent = IsEditMode ? accent : (accent ?? source?.AccentColor);
+        var effectiveScreenshots = IsEditMode
+            ? allScreenshots
+            : (allScreenshots.Count > 0 ? allScreenshots : (source?.ScreenshotUrls is { } sUrls ? [.. sUrls] : new List<string>()));
+        var effectiveVideos = IsEditMode
+            ? allVideos
+            : (allVideos.Count > 0 ? allVideos : (source?.VideoUrls is { } vUrls ? [.. vUrls] : new List<string>()));
+        var effectiveVideo = allVideos.FirstOrDefault() ?? (IsEditMode ? null : source?.VideoUrl);
+
+        if (effectiveIcon == null && effectiveBanner == null && effectiveBackdrop == null && effectiveAccent == null &&
+            effectiveVideos.Count == 0 && effectiveScreenshots.Count == 0 && (IsEditMode || source == null))
         {
             return null;
         }
 
-        List<string> resolvedScreenshots;
-        if (allScreenshots.Count > 0)
-        {
-            resolvedScreenshots = allScreenshots;
-        }
-        else if (source?.ScreenshotUrls is { } sUrls)
-        {
-            resolvedScreenshots = [.. sUrls];
-        }
-        else
-        {
-            resolvedScreenshots = [];
-        }
-
-        List<string> resolvedVideos;
-        if (allVideos.Count > 0)
-        {
-            resolvedVideos = allVideos;
-        }
-        else if (source?.VideoUrls is { } vUrls)
-        {
-            resolvedVideos = [.. vUrls];
-        }
-        else
-        {
-            resolvedVideos = [];
-        }
-
         return new ContentRichMetadata
         {
-            IconUrl = icon ?? source?.IconUrl,
-            BannerUrl = banner ?? source?.BannerUrl,
-            BackdropUrl = backdrop ?? source?.BackdropUrl,
-            AccentColor = accent ?? source?.AccentColor,
-            ScreenshotUrls = resolvedScreenshots,
-            VideoUrl = allVideos.FirstOrDefault() ?? source?.VideoUrl,
-            VideoUrls = resolvedVideos,
+            IconUrl = effectiveIcon,
+            BannerUrl = effectiveBanner,
+            BackdropUrl = effectiveBackdrop,
+            AccentColor = effectiveAccent,
+            ScreenshotUrls = effectiveScreenshots,
+            VideoUrl = effectiveVideo,
+            VideoUrls = effectiveVideos,
             DocumentationUrl = source?.DocumentationUrl,
             Author = source?.Author,
             License = source?.License,

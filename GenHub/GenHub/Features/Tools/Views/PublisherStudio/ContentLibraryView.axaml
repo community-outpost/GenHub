@@ -20,6 +20,7 @@
         <converters:ArtifactPendingUploadConverter x:Key="ArtifactPendingUploadConverter"/>
         <converters:ReleaseOrderingConverter x:Key="ReleaseOrderingConverter"/>
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
+        <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -444,6 +445,17 @@
                                                             FontSize="11"
                                                             FontWeight="Bold"
                                                             Foreground="{DynamicResource AccentColorBrush}"/>
+                                            </Border>
+                                            <Border Background="{Binding Metadata.AccentColor, Converter={StaticResource AccentColorBrushConverter}}"
+                                                    CornerRadius="4"
+                                                    Padding="8,2"
+                                                    VerticalAlignment="Center"
+                                                    IsVisible="{Binding Metadata.AccentColor, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                    ToolTip.Tip="{Binding Metadata.AccentColor}">
+                                                 <TextBlock Text="{Binding Metadata.AccentColor}"
+                                                            FontSize="11"
+                                                            FontWeight="Bold"
+                                                            Foreground="White"/>
                                             </Border>
                                         </StackPanel>
                                         <TextBlock FontSize="13" Foreground="{DynamicResource TextSecondary}">

@@ -287,7 +287,7 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// Gets the formatted markdown description with clickable links.
     /// </summary>
     public string FormattedFullDescription =>
-        MarkdownLinkFormatter.FormatLinks(FullDescription, DetailsUrl ?? DownloadUrl);
+        MarkdownLinkFormatter.FormatLinks(MarkdownLinkFormatter.PreserveLineBreaks(FullDescription), DetailsUrl ?? DownloadUrl);
 
     /// <summary>
     /// Gets or sets the short summary or description of the item.

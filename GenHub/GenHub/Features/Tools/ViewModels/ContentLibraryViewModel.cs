@@ -713,6 +713,9 @@ public partial class ContentLibraryViewModel(
             target.Tags = edited.Tags;
             target.ExtendsContentId = edited.ExtendsContentId;
             target.Metadata = edited.Metadata;
+            target.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
+            target.PublisherAvatarUrl = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            target.NotifyPresentationChanged();
 
             // Trigger UI update
             RefreshSelectedContent();

@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using System;
@@ -146,6 +147,40 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         vm.SelectAccentColorCommand.Execute("#DC2626");
 
         Assert.Equal("#DC2626", vm.AccentColor);
+    }
+
+    /// <summary>
+    /// Verifies that clearing artwork fields in edit mode does not resurrect previous metadata.
+    /// </summary>
+    [Fact]
+    public void EditMode_ClearingArtwork_DoesNotResurrectOldMetadata()
+    {
+        var existingItem = new CatalogContentItem
+        {
+            Id = "mod-test",
+            Name = "Test Mod",
+            Description = "Initial description that meets length requirements",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            TargetGame = GameType.Generals,
+            Metadata = new ContentRichMetadata
+            {
+                IconUrl = "https://example.com/old_icon.png",
+                BannerUrl = "https://example.com/old_banner.png",
+            },
+        };
+
+        CatalogContentItem? savedItem = null;
+        var vm = new AddContentDialogViewModel(existingItem, item => savedItem = item);
+
+        // Clear the icon in edit mode
+        vm.IconArtwork = string.Empty;
+
+        // Save
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(savedItem);
+        Assert.Null(savedItem.Metadata?.IconUrl);
+        Assert.Equal("https://example.com/old_banner.png", savedItem.Metadata?.BannerUrl);
     }
 
     /// <inheritdoc/>

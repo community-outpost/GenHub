@@ -68,6 +68,69 @@ public static partial class MarkdownLinkFormatter
         return (null, null);
     }
 
+/// <summary>
+    /// Preserves single line breaks within descriptions by ensuring regular lines end with two spaces,
+    /// enabling Markdown renderers to render newlines without collapsing into single lines.
+    /// Code blocks, headers, blockquotes, and lists are preserved untouched.
+    /// </summary>
+    /// <param name="text">The raw description text.</param>
+    /// <returns>Text with hard line breaks preserved for CommonMark rendering.</returns>
+    public static string PreserveLineBreaks(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var normalized = text.Replace("\r\n", "\n").Replace('\r', '\n');
+        var lines = normalized.Split('\n');
+        var builder = new StringBuilder(normalized.Length + (lines.Length * 2));
+        var inCodeFence = false;
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            var trimmed = line.Trim();
+
+            if (trimmed.StartsWith("```", StringComparison.Ordinal))
+            {
+                inCodeFence = !inCodeFence;
+                builder.Append(line);
+                if (i < lines.Length - 1)
+                {
+                    builder.Append('\n');
+                }
+
+                continue;
+            }
+
+            if (inCodeFence || string.IsNullOrWhiteSpace(line) ||
+                trimmed.StartsWith('#') ||
+                trimmed.StartsWith('>') ||
+                trimmed.StartsWith('|') ||
+                trimmed.StartsWith("- ", StringComparison.Ordinal) ||
+                trimmed.StartsWith("* ", StringComparison.Ordinal) ||
+                trimmed.StartsWith("+ ", StringComparison.Ordinal) ||
+                (trimmed.Length > 2 && char.IsDigit(trimmed[0]) && trimmed[1] == '.') ||
+                line.EndsWith("  ", StringComparison.Ordinal) ||
+                line.EndsWith('\\'))
+            {
+                builder.Append(line);
+            }
+            else
+            {
+                builder.Append(line).Append("  ");
+            }
+
+            if (i < lines.Length - 1)
+            {
+                builder.Append('\n');
+            }
+        }
+
+        return builder.ToString();
+    }
+
     private static string ConvertHtmlImagesToMarkdown(string text)
     {
         return HtmlImageRegex().Replace(text, m =>

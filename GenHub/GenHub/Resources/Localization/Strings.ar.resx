@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>تكبير / استعادة</value>
   </data>
+  <data name="Common.Tooltip.Clear" xml:space="preserve">
+    <value>مسح الإدخال</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>لصق صورة أو ملف من الحافظة (Ctrl+V)</value>
   </data>
@@ -12927,7 +12930,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>اختيار مجلد القطعة</value>
   </data>
   <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
-    <value>اختر لونًا جاهزًا أو أدخل لون hex مخصص.</value>
+    <value>يحدد لون شارات البطاقة والحدود المميزة لهذا العنصر في كتالوج التنزيلات.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
     <value>استعراض الملفات...</value>

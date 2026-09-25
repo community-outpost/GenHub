@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>Maximize / Restore</value>
   </data>
+  <data name="Common.Tooltip.Clear" xml:space="preserve">
+    <value>Clear input</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>Paste image or file from clipboard (Ctrl+V)</value>
   </data>
@@ -13025,7 +13028,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Select Artifact Folder</value>
   </data>
   <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
-    <value>Pick a preset or enter a custom hex color.</value>
+    <value>Customizes card badges, borders, and highlight bars for this content item in the downloads catalog.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
     <value>Browse Files...</value>

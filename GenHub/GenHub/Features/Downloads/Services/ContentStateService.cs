@@ -1811,6 +1811,11 @@ public sealed partial class ContentStateService(
             }
         }
 
+        if (ManifestId.TryParse(item.Id, out var parsedManifestId))
+        {
+            return (parsedManifestId.Value, releaseDate, hasRealDate);
+        }
+
         var providerName = SanitizeSegmentForManifest(item.ProviderName, UnknownSegment) ?? UnknownSegment;
         if (IsGitHubPublisher(providerName))
         {

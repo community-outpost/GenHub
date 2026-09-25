@@ -346,4 +346,17 @@ public sealed class MarkdownLinkFormatterTests
         Assert.Contains("```\n• inside code\n  • indented\n```", result);
         Assert.Contains("- outside list", result);
     }
+
+    /// <summary>
+    /// Verifies that PreserveLineBreaks appends two trailing spaces to regular lines while leaving
+    /// headers, blockquotes, code fences, and bullet lists untouched.
+    /// </summary>
+    [Fact]
+    public void PreserveLineBreaks_AppendsTwoTrailingSpacesToRegularLines()
+    {
+        var input = "Line 1\nLine 2\n# Header\n- Bullet 1\nLine 3";
+        var result = MarkdownLinkFormatter.PreserveLineBreaks(input);
+
+        Assert.Equal("Line 1  \nLine 2  \n# Header\n- Bullet 1\nLine 3  ", result);
+    }
 }

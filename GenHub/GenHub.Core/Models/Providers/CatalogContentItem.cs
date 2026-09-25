@@ -13,6 +13,10 @@ namespace GenHub.Core.Models.Providers;
 /// </summary>
 public class CatalogContentItem : ObservableObject
 {
+    private string _name = string.Empty;
+    private string _description = string.Empty;
+    private ContentType _contentType = ContentType.Mod;
+    private ContentRichMetadata? _metadata;
     private string? _catalogIconUrl;
     private string? _publisherAvatarUrl;
 
@@ -27,19 +31,31 @@ public class CatalogContentItem : ObservableObject
     /// Gets or sets the human-readable content name.
     /// </summary>
     [JsonPropertyName("name")]
-    public string Name { get; set; } = string.Empty;
+    public string Name
+    {
+        get => _name;
+        set => SetProperty(ref _name, value);
+    }
 
     /// <summary>
     /// Gets or sets the content description.
     /// </summary>
     [JsonPropertyName("description")]
-    public string Description { get; set; } = string.Empty;
+    public string Description
+    {
+        get => _description;
+        set => SetProperty(ref _description, value);
+    }
 
     /// <summary>
     /// Gets or sets the content type (Mod, Map, Addon, etc.).
     /// </summary>
     [JsonPropertyName("contentType")]
-    public ContentType ContentType { get; set; } = ContentType.Mod;
+    public ContentType ContentType
+    {
+        get => _contentType;
+        set => SetProperty(ref _contentType, value);
+    }
 
     /// <summary>
     /// Gets or sets the target game for this content.
@@ -63,7 +79,17 @@ public class CatalogContentItem : ObservableObject
     /// Gets or sets rich presentation metadata (banners, screenshots, videos).
     /// </summary>
     [JsonPropertyName("metadata")]
-    public ContentRichMetadata? Metadata { get; set; }
+    public ContentRichMetadata? Metadata
+    {
+        get => _metadata;
+        set
+        {
+            if (SetProperty(ref _metadata, value))
+            {
+                OnPropertyChanged(nameof(EffectiveIconUrl));
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets tags for categorization and search.
@@ -198,5 +224,15 @@ public class CatalogContentItem : ObservableObject
 
             return ImageCacheConstants.GetPicsumUrl($"{Id}-icon", 128, 128);
         }
+    }
+
+    /// <summary>
+    /// Explicitly notifies that the presentation properties (such as effective icon, name, or description) have changed.
+    /// </summary>
+    public void NotifyPresentationChanged()
+    {
+        OnPropertyChanged(nameof(EffectiveIconUrl));
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(Description));
     }
 }

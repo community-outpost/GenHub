@@ -144,7 +144,8 @@
                     <TextBox Text="{Binding Description}"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
-                             Height="80"
+                             MinHeight="110"
+                             Height="110"
                              Watermark="{localization:Localize Tools.PublisherStudio.Content.DescriptionPlaceholder}"/>
                 </StackPanel>
 
@@ -220,6 +221,16 @@
                                          Watermark="{localization:Localize Tools.PublisherStudio.Content.AccentColorPlaceholder}"
                                          MaxWidth="200"
                                          VerticalAlignment="Center"/>
+                                <Border Background="{Binding AccentColor, Converter={StaticResource AccentColorBrushConverter}}"
+                                        CornerRadius="6"
+                                        Padding="10,5"
+                                        VerticalAlignment="Center"
+                                        IsVisible="{Binding AccentColor, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <TextBlock Text="Preview Badge"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="White"/>
+                                </Border>
                             </StackPanel>
                             <ItemsControl ItemsSource="{x:Static vm:AddContentDialogViewModel.AccentColorPresets}">
                                 <ItemsControl.ItemsPanel>

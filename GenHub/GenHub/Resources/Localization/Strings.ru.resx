@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>Развернуть / Восстановить</value>
   </data>
+  <data name="Common.Tooltip.Clear" xml:space="preserve">
+    <value>Очистить поле</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>Вставить изображение или файл из буфера обмена (Ctrl+V)</value>
   </data>
@@ -12927,7 +12930,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Выберите папку артефакта</value>
   </data>
   <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
-    <value>Выберите готовый цвет или введите свой hex-код.</value>
+    <value>Настраивает цвет значков карточек, рамок и полос выделения для этого элемента в каталоге загрузок.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
     <value>Выбрать файлы...</value>
