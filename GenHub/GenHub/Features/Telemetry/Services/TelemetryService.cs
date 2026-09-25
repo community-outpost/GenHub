@@ -287,7 +287,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
         try
         {
-            _processingTask.Wait(TimeSpan.FromSeconds(2));
+            _processingTask.Wait(TimeSpan.FromSeconds(2), _cts.Token);
         }
         catch
         {
