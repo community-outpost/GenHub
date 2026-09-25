@@ -56,6 +56,11 @@ public static class MapManagerConstants
     public const string DefaultThumbnailName = "map.tga";
 
     /// <summary>
+    /// Standard per-map rules and scripts filename.
+    /// </summary>
+    public const string MapIniFileName = "map.ini";
+
+    /// <summary>
     /// Maximum directory nesting depth for maps (1 level).
     /// </summary>
     public const int MaxDirectoryDepth = 1;

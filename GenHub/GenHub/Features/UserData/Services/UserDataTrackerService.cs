@@ -90,13 +90,31 @@ public class UserDataTrackerService(
             };
 
             var userDataBasePath = GetUserDataBasePath(targetGame);
+
+            var mapNames = userDataFiles
+                .Where(f => f.InstallTarget == ContentInstallTarget.UserMapsDirectory)
+                .Select(f => StripLeadingDirectory(f.RelativePath.Replace('\\', '/').Trim('/'), GameSettingsConstants.FolderNames.Maps))
+                .Where(p => p.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+                .Select(p =>
+                {
+                    var name = Path.GetFileNameWithoutExtension(p);
+                    return name.EndsWith(".map", StringComparison.OrdinalIgnoreCase)
+                        ? Path.GetFileNameWithoutExtension(name)
+                        : name;
+                })
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            string? singleMapBaseName = mapNames.Count == 1 ? mapNames[0] : null;
+
             var resolvedFiles = new List<(ManifestFile File, string TargetPath)>(userDataFiles.Count);
             foreach (var file in userDataFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    var targetPath = ResolveUserDataTargetPath(file.InstallTarget, file.RelativePath, userDataBasePath);
+                    var targetPath = ResolveUserDataTargetPath(file.InstallTarget, file.RelativePath, userDataBasePath, singleMapBaseName, mapNames);
                     resolvedFiles.Add((file, targetPath));
                 }
                 catch (Exception ex)
@@ -784,13 +802,18 @@ public class UserDataTrackerService(
         }
     }
 
-    private static string ResolveUserDataTargetPath(ContentInstallTarget installTarget, string relativePath, string userDataBasePath)
+    private static string ResolveUserDataTargetPath(
+        ContentInstallTarget installTarget,
+        string relativePath,
+        string userDataBasePath,
+        string? singleMapBaseName = null,
+        IReadOnlyList<string>? candidateMapNames = null)
     {
         var normalizedRelativePath = relativePath.Replace('\\', '/');
         var targetPath = installTarget switch
         {
             ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, normalizedRelativePath),
-            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, ResolveMapRelativePath(normalizedRelativePath)),
+            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, ResolveMapRelativePath(normalizedRelativePath, singleMapBaseName, candidateMapNames)),
             ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(normalizedRelativePath, GameSettingsConstants.FolderNames.Replays)),
             ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(normalizedRelativePath, GameSettingsConstants.FolderNames.Screenshots)),
             _ => Path.Combine(userDataBasePath, normalizedRelativePath),
@@ -811,7 +834,10 @@ public class UserDataTrackerService(
     /// Resolves the relative path for a map file to ensure it conforms to C&amp;C Generals / Zero Hour
     /// map directory requirements (Maps/&lt;MapName&gt;/&lt;MapName&gt;.map, &lt;MapName&gt;.tga).
     /// </summary>
-    private static string ResolveMapRelativePath(string relativePath)
+    private static string ResolveMapRelativePath(
+        string relativePath,
+        string? fallbackMapName = null,
+        IReadOnlyList<string>? candidateMapNames = null)
     {
         var pathUnderMaps = StripLeadingDirectory(relativePath, GameSettingsConstants.FolderNames.Maps);
         var normalized = pathUnderMaps.Replace('\\', '/').Trim('/');
@@ -828,12 +854,50 @@ public class UserDataTrackerService(
             {
                 var baseName = Path.GetFileNameWithoutExtension(normalized);
                 var resolvedFileName = normalized;
-                if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
+
+                var isGenericThumbnail = ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
+                    (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+                     baseName.Equals("preview", StringComparison.OrdinalIgnoreCase) ||
+                     baseName.Equals(Path.GetFileNameWithoutExtension(MapManagerConstants.DefaultThumbnailName), StringComparison.OrdinalIgnoreCase));
+
+                var isGenericIni = ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) &&
+                    baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
+
+                if ((isGenericThumbnail || isGenericIni) && !string.IsNullOrEmpty(fallbackMapName))
+                {
+                    baseName = fallbackMapName;
+                    if (isGenericThumbnail)
+                    {
+                        resolvedFileName = baseName + ".tga";
+                    }
+                    else if (isGenericIni)
+                    {
+                        resolvedFileName = MapManagerConstants.MapIniFileName;
+                    }
+                }
+                else if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
                 {
                     baseName = baseName[..^4];
                     if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase))
                     {
                         resolvedFileName = baseName + ".tga";
+                    }
+                }
+                else if (candidateMapNames != null && candidateMapNames.Count > 0)
+                {
+                    var matchedMap = candidateMapNames.FirstOrDefault(m =>
+                        baseName.Equals(m, StringComparison.OrdinalIgnoreCase) ||
+                        baseName.StartsWith(m + "_", StringComparison.OrdinalIgnoreCase) ||
+                        baseName.StartsWith(m + ".", StringComparison.OrdinalIgnoreCase));
+
+                    if (!string.IsNullOrEmpty(matchedMap))
+                    {
+                        baseName = matchedMap;
+                        if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
+                            baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
+                        {
+                            resolvedFileName = baseName + ".tga";
+                        }
                     }
                 }
 

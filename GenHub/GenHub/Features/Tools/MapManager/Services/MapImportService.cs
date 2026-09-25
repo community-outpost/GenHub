@@ -373,7 +373,7 @@ public sealed class MapImportService(
                                 mapDirName = Path.GetFileNameWithoutExtension(mapDirName);
                             }
 
-                            if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == ".." || mapDirName.Equals("Maps", StringComparison.OrdinalIgnoreCase))
+                            if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == ".." || mapDirName.Equals(MapManagerConstants.MapsSubdirectoryName, StringComparison.OrdinalIgnoreCase))
                             {
                                 mapDirName = Path.GetFileNameWithoutExtension(mapFileName);
                             }
@@ -1151,7 +1151,7 @@ public sealed class MapImportService(
             mapDirName = Path.GetFileNameWithoutExtension(mapDirName);
         }
 
-        if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == ".." || mapDirName.Equals("Maps", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == ".." || mapDirName.Equals(MapManagerConstants.MapsSubdirectoryName, StringComparison.OrdinalIgnoreCase))
         {
             mapDirName = Path.GetFileNameWithoutExtension(mapFileName);
         }

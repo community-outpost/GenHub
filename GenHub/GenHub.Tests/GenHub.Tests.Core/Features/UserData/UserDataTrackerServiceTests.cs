@@ -274,6 +274,60 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that flat generic companions (map.tga, preview.tga, map.ini) are installed
+    /// into the sibling map's folder instead of orphaned Maps/map or Maps/preview directories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_FlatMapWithGenericCompanions_InstallsIntoSiblingMapSubdirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "River.map",
+                Hash = "hash-map-river",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "map.tga",
+                Hash = "hash-tga-thumb",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "map.ini",
+                Hash = "hash-ini-script",
+                Size = 200,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-generic-companions",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.tga");
+        var expectedIniPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "map.ini");
+
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedTgaPath));
+        Assert.True(File.Exists(expectedIniPath));
+
+        Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "map")));
+    }
+
+    /// <summary>
     /// Verifies that installing map files with an _art suffix (e.g. River_art.tga)
     /// normalizes the filename to River.tga inside the map folder so the game recognizes the thumbnail.
     /// </summary>

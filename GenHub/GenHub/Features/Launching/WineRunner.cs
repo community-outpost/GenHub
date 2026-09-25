@@ -128,8 +128,14 @@ public class WineRunner(
     /// <param name="userDirectory">The prefix user profile directory.</param>
     /// <param name="documentsDirectoryName">The shell folder name ("Documents" or "My Documents").</param>
     /// <param name="dataDirectoryName">The game data directory name.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
     /// <returns><c>true</c> when any destination was written or bridged; otherwise, <c>false</c>.</returns>
-    private static bool MirrorOptionsIniToShellFolder(string sourcePath, string userDirectory, string documentsDirectoryName, string dataDirectoryName)
+    private static bool MirrorOptionsIniToShellFolder(
+        string sourcePath,
+        string userDirectory,
+        string documentsDirectoryName,
+        string dataDirectoryName,
+        ILogger? logger = null)
     {
         var userDocuments = Path.Combine(userDirectory, documentsDirectoryName, dataDirectoryName);
         Directory.CreateDirectory(userDocuments);
@@ -142,7 +148,7 @@ public class WineRunner(
             optionsMirrored = true;
         }
 
-        var bridgedAny = BridgeUserDataDirectories(Path.GetDirectoryName(sourcePath), userDocuments);
+        var bridgedAny = BridgeUserDataDirectories(Path.GetDirectoryName(sourcePath), userDocuments, logger);
 
         return optionsMirrored || bridgedAny;
     }
@@ -153,8 +159,9 @@ public class WineRunner(
     /// </summary>
     /// <param name="nativeDataDirectory">The native user data directory path.</param>
     /// <param name="prefixDataDirectory">The Wine prefix user data directory path.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
     /// <returns><c>true</c> if any directory was linked or mirrored; otherwise, <c>false</c>.</returns>
-    private static bool BridgeUserDataDirectories(string? nativeDataDirectory, string prefixDataDirectory)
+    private static bool BridgeUserDataDirectories(string? nativeDataDirectory, string prefixDataDirectory, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(nativeDataDirectory) || !Directory.Exists(nativeDataDirectory))
         {
@@ -192,7 +199,7 @@ public class WineRunner(
                     Directory.CreateDirectory(nativeSubDir);
                 }
 
-                bridgedAny |= BridgeDirectory(nativeSubDir, prefixSubDir);
+                bridgedAny |= BridgeDirectory(nativeSubDir, prefixSubDir, logger);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -206,17 +213,17 @@ public class WineRunner(
     /// <summary>
     /// Bridges an individual subdirectory by creating a symbolic link, or falling back to file synchronization.
     /// </summary>
-    private static bool BridgeDirectory(string nativeSubDir, string prefixSubDir)
+    private static bool BridgeDirectory(string nativeSubDir, string prefixSubDir, ILogger? logger = null)
     {
         if (Directory.Exists(prefixSubDir))
         {
-            return BridgeExistingDirectory(nativeSubDir, prefixSubDir);
+            return BridgeExistingDirectory(nativeSubDir, prefixSubDir, logger);
         }
 
-        return CreateNewBridgeSymlinkOrSync(nativeSubDir, prefixSubDir);
+        return CreateNewBridgeSymlinkOrSync(nativeSubDir, prefixSubDir, logger);
     }
 
-    private static bool BridgeExistingDirectory(string nativeSubDir, string prefixSubDir)
+    private static bool BridgeExistingDirectory(string nativeSubDir, string prefixSubDir, ILogger? logger = null)
     {
         var dirInfo = new DirectoryInfo(prefixSubDir);
         if (dirInfo.LinkTarget != null)
@@ -244,7 +251,7 @@ public class WineRunner(
             }
 
             Directory.CreateDirectory(prefixSubDir);
-            SyncDirectoryFiles(nativeSubDir, prefixSubDir);
+            SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
             return true;
         }
 
@@ -255,7 +262,7 @@ public class WineRunner(
         }
 
         // If non-empty or symlink creation failed, synchronize files in both directions
-        SyncDirectoryFiles(nativeSubDir, prefixSubDir);
+        SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
         return true;
     }
 
@@ -292,7 +299,7 @@ public class WineRunner(
         return false;
     }
 
-    private static bool CreateNewBridgeSymlinkOrSync(string nativeSubDir, string prefixSubDir)
+    private static bool CreateNewBridgeSymlinkOrSync(string nativeSubDir, string prefixSubDir, ILogger? logger = null)
     {
         // Target does not exist yet (or is a broken/dangling symlink): create symlink pointing to native folder
         try
@@ -312,18 +319,18 @@ public class WineRunner(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            SyncDirectoryFiles(nativeSubDir, prefixSubDir);
+            SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
             return true;
         }
     }
 
-    private static void SyncDirectoryFiles(string firstDir, string secondDir)
+    private static void SyncDirectoryFiles(string firstDir, string secondDir, ILogger? logger = null)
     {
-        MirrorDirectoryContent(sourceDir: firstDir, targetDir: secondDir);
-        MirrorDirectoryContent(sourceDir: secondDir, targetDir: firstDir);
+        MirrorDirectoryContent(sourceDir: firstDir, targetDir: secondDir, logger: logger);
+        MirrorDirectoryContent(sourceDir: secondDir, targetDir: firstDir, logger: logger);
     }
 
-    private static void MirrorDirectoryContent(string sourceDir, string targetDir)
+    private static void MirrorDirectoryContent(string sourceDir, string targetDir, ILogger? logger = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -373,19 +380,11 @@ public class WineRunner(
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // Ignore transient copy failures for individual locked or inaccessible files
+                logger?.LogWarning(ex, "[WineRunner] Failed to copy '{Source}' to '{Destination}' during directory sync.", file, destFile);
             }
         }
     }
 
-    /// <summary>
-    /// Determines whether a WINEDLLOVERRIDES value already configures the Direct3D 8 DLL.
-    /// Entries are separated by semicolons, and each entry names one or more comma-separated
-    /// DLLs before the load order, so only an exact DLL-name match counts: a substring check
-    /// would mistake d3d8proxy for d3d8 and leave the wrapper override unset.
-    /// </summary>
-    /// <param name="existingOverrides">The current WINEDLLOVERRIDES value.</param>
-    /// <returns><c>true</c> when an entry already names the Direct3D 8 DLL; otherwise, <c>false</c>.</returns>
     private static bool HasDirect3D8Override(string existingOverrides) =>
         existingOverrides
             .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -443,8 +442,14 @@ public class WineRunner(
     /// <param name="usersRoot">The prefix users directory.</param>
     /// <param name="candidateUsernames">The user profiles to mirror into.</param>
     /// <param name="dataDirectoryName">The game data directory name.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
     /// <returns><c>true</c> when at least one destination was written; otherwise, <c>false</c>.</returns>
-    private static bool MirrorToCandidateUsers(string sourcePath, string usersRoot, HashSet<string> candidateUsernames, string dataDirectoryName)
+    private static bool MirrorToCandidateUsers(
+        string sourcePath,
+        string usersRoot,
+        HashSet<string> candidateUsernames,
+        string dataDirectoryName,
+        ILogger? logger = null)
     {
         var mirroredAny = false;
         foreach (var userName in candidateUsernames)
@@ -452,7 +457,7 @@ public class WineRunner(
             var userDirectory = Path.Combine(usersRoot, userName);
             foreach (var documentsDirectoryName in new[] { WineConstants.DocumentsDirectoryName, WineConstants.MyDocumentsDirectoryName })
             {
-                mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName);
+                mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName, logger);
             }
         }
 
@@ -623,7 +628,7 @@ public class WineRunner(
                 candidateUsernames.Add(WineConstants.ProtonUserName);
             }
 
-            if (MirrorToCandidateUsers(sourcePath, usersRoot, candidateUsernames, dataDirectoryName))
+            if (MirrorToCandidateUsers(sourcePath, usersRoot, candidateUsernames, dataDirectoryName, logger))
             {
                 logger.LogInformation("Mirrored Options.ini and user data into Wine prefix for {GameType}", configuration.GameType);
             }
