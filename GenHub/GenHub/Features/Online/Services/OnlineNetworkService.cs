@@ -371,25 +371,9 @@ public sealed class OnlineNetworkService(
     }
 
     /// <inheritdoc/>
-    public void SetLocalProfileAdvertisement(string fingerprint, string profileName, string displayName = "")
+    public void SetLocalProfileAdvertisement(string fingerprint, string profileName, string displayName = "", bool isLaunched = false)
     {
-        presence.UpdateAdvertisedProfile(fingerprint, profileName, displayName);
-    }
-
-    /// <inheritdoc/>
-    public Task<OperationResult<bool>> ReportMemberAsync(
-        string overlayIp,
-        string reason,
-        CancellationToken cancellationToken = default)
-    {
-        var join = CurrentJoin;
-        if (join is null || string.IsNullOrWhiteSpace(overlayIp) || string.IsNullOrWhiteSpace(reason))
-        {
-            return Task.FromResult(OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable));
-        }
-
-        var url = string.Format(ApiConstants.OnlineReportFormat, Uri.EscapeDataString(join.NetworkId));
-        return SendGrantMutationAsync(join.Grant, url, HttpMethod.Post, new { targetIp = overlayIp, reason }, cancellationToken);
+        presence.UpdateAdvertisedProfile(fingerprint, profileName, displayName, isLaunched);
     }
 
     /// <inheritdoc/>

@@ -469,11 +469,11 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
-    /// Tests that reporting and banning succeed after a join.
+    /// Tests that banning succeeds after a join.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ReportAndBanMemberAsync_AfterJoin_ShouldSucceedAsync()
+    public async Task BanMemberAsync_AfterJoin_ShouldSucceedAsync()
     {
         // Arrange
         var adapter = new Mock<IVirtualLanAdapter>();
@@ -483,12 +483,10 @@ public sealed class OnlineNetworkServiceTests
         await service.JoinNetworkAsync("net-1", "secret");
 
         // Act
-        var report = await service.ReportMemberAsync("10.42.0.8", "Cheating");
         var ban = await service.BanMemberAsync("10.42.0.8");
         var update = await service.UpdateNetworkAsync("New desc", new OnlineExpectedProfile { ExpectedProfileId = "zh-1.04" });
 
         // Assert
-        Assert.True(report.Success);
         Assert.True(ban.Success);
         Assert.True(update.Success);
     }

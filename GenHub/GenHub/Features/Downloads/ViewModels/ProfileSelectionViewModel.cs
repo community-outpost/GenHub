@@ -304,7 +304,7 @@ public sealed partial class ProfileSelectionViewModel(
 
             var warning = profile.GameClient?.GameType != targetGame
                 ? $"This profile is for {profile.GameClient?.GameType.ToString() ?? "Tool"}, content is for {targetGame}"
-                : "Profile game client / patch does not match replay CRC requirements";
+                : "Profile does not match lobby or requirements";
 
             return (false, warning);
         }

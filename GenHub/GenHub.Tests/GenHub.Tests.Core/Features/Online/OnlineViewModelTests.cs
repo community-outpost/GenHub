@@ -672,23 +672,7 @@ public class OnlineViewModelTests
         Assert.Equal("profile-1", vm.ExpectedProfileId);
     }
 
-    /// <summary>
-    /// Tests that reporting without a selection never opens the dialog.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task ReportMemberAsync_WithoutSelection_ShouldNotDialogAsync()
-    {
-        // Arrange
-        var dialogs = new Mock<IDialogService>(MockBehavior.Strict);
-        var vm = CreateViewModel(dialogs: dialogs.Object);
 
-        // Act
-        await vm.ReportMemberAsync();
-
-        // Assert
-        Assert.Null(vm.SelectedMember);
-    }
 
     /// <summary>
     /// Tests that declining the ban confirmation never calls the service.
@@ -775,8 +759,8 @@ public class OnlineViewModelTests
         var generals = ProfileWithClient("profile-2", "Generals", GameType.Generals, "generals-client", "1.08", "mod-a");
         var advertised = new List<string>();
         var vm = CreateViewModelWithDetail(zeroHour, out var network, generals);
-        network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Callback<string, string, string>((fingerprint, _, _) => advertised.Add(fingerprint));
+        network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, string, bool>((fingerprint, _, _, _) => advertised.Add(fingerprint));
         vm.SelectedNetwork = new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" };
         await WaitForAsync(() => vm.SelectedPlayProfile is not null);
         advertised.Clear();
@@ -963,8 +947,8 @@ public class OnlineViewModelTests
         var profile = ProfileWithClient("profile-1", "Zero Hour", GameType.ZeroHour, "zerohour-client", "1.04", "mod-a", "mod-x");
         var advertised = new List<(string Fingerprint, string Name, string DisplayName)>();
         var vm = CreateViewModelWithDetail(profile, out var network);
-        network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Callback<string, string, string>((fingerprint, name, display) => advertised.Add((fingerprint, name, display)));
+        network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, string, bool>((fingerprint, name, display, _) => advertised.Add((fingerprint, name, display)));
         vm.IsJoined = true;
         vm.Nickname = "Ace";
         vm.SelectedPlayProfile = profile;
@@ -1011,8 +995,8 @@ public class OnlineViewModelTests
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0x11111111"));
             var advertised = new List<string>();
             var network = new Mock<IOnlineNetworkService>();
-            network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-                .Callback<string, string, string>((fingerprint, _, _) => advertised.Add(fingerprint));
+            network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Callback<string, string, string, bool>((fingerprint, _, _, _) => advertised.Add(fingerprint));
             var vm = CreateViewModel(network.Object, profiles: profiles.Object, crcCalculator: calculator.Object);
             vm.IsJoined = true;
             vm.SelectedPlayProfile = profile;
@@ -1055,8 +1039,8 @@ public class OnlineViewModelTests
                 .ReturnsAsync(OperationResult<string>.CreateFailure("no ini"));
             var advertised = new List<string>();
             var network = new Mock<IOnlineNetworkService>();
-            network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-                .Callback<string, string, string>((fingerprint, _, _) => advertised.Add(fingerprint));
+            network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Callback<string, string, string, bool>((fingerprint, _, _, _) => advertised.Add(fingerprint));
             var vm = CreateViewModel(network.Object, profiles: profiles.Object, crcCalculator: calculator.Object);
             vm.IsJoined = true;
             vm.SelectedPlayProfile = profile;

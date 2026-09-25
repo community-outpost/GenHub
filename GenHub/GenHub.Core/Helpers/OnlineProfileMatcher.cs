@@ -39,6 +39,9 @@ public static class OnlineProfileMatcher
     {
         ContentType.GameClient => false,
         ContentType.GameInstallation => false,
+        ContentType.Map => false,
+        ContentType.MapPack => false,
+        ContentType.Mission => false,
         ContentType.Mod => true,
         ContentType.Patch => true,
         ContentType.ContentBundle => true,
@@ -89,9 +92,58 @@ public static class OnlineProfileMatcher
     }
 
     /// <summary>
+    /// Determines whether a content ID affects gameplay sync.
+    /// Only genuine gameplay-affecting content (mods, patches, bundles, executables)
+    /// belongs in the fingerprint; maps, map packs, and missions are local assets
+    /// that do not alter the base game rules or engine INI CRC.
+    /// </summary>
+    /// <param name="contentId">The content identifier to test.</param>
+    /// <param name="contentTypes">Optional content type map.</param>
+    /// <returns>True if gameplay affecting; otherwise false.</returns>
+    public static bool IsContentGameplayAffecting(
+        string contentId,
+        IReadOnlyDictionary<string, ContentType>? contentTypes)
+    {
+        if (string.IsNullOrWhiteSpace(contentId))
+        {
+            return false;
+        }
+
+        if (contentTypes != null && contentTypes.TryGetValue(contentId, out var type))
+        {
+            return IsGameplayContent(type);
+        }
+
+        var lower = contentId.ToLowerInvariant();
+        if (lower.Contains(".map.") ||
+            lower.Contains(".mappack.") ||
+            lower.Contains(".mission.") ||
+            lower.Contains(".customasset.") ||
+            lower.EndsWith(".map", StringComparison.Ordinal) ||
+            lower.EndsWith(".mappack", StringComparison.Ordinal) ||
+            lower.Contains("last-stand", StringComparison.Ordinal) ||
+            lower.Contains("mappack", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (lower.Contains(".mod.") ||
+            lower.Contains(".patch.") ||
+            lower.Contains(".contentbundle.") ||
+            lower.Contains(".executable."))
+        {
+            return true;
+        }
+
+        // For backward compatibility with tests or unrecognized content types:
+        // unrecognized non-map content defaults to true to avoid silent desync.
+        return true;
+    }
+
+    /// <summary>
     /// Lists the profile's gameplay content ids in stable order. Content with
     /// an unknown type counts as gameplay: an unrecognized id must surface as
-    /// a mismatch, never as a silent match.
+    /// a mismatch, never as a silent match. Maps and map packs are excluded.
     /// </summary>
     /// <param name="profile">The game profile.</param>
     /// <param name="contentTypes">Manifest id to content type lookup, or null when unavailable.</param>
@@ -104,7 +156,7 @@ public static class OnlineProfileMatcher
 
         return profile.EnabledContentIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Where(id => contentTypes is null || !contentTypes.TryGetValue(id, out var type) || IsGameplayContent(type))
+            .Where(id => IsContentGameplayAffecting(id, contentTypes))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();

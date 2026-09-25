@@ -33,6 +33,7 @@ public sealed class OnlinePresenceService(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
+    private readonly SemaphoreSlim _heartbeatSignal = new(0, 1);
     private readonly object _syncLock = new();
     private readonly byte[] _receiveBuffer = new byte[8192];
 
@@ -45,6 +46,7 @@ public sealed class OnlinePresenceService(
     private string _advertisedFingerprint = string.Empty;
     private string _advertisedProfileName = string.Empty;
     private string _advertisedDisplayName = string.Empty;
+    private bool _advertisedIsLaunched;
     private bool _disposed;
 
     /// <inheritdoc/>
@@ -120,13 +122,26 @@ public sealed class OnlinePresenceService(
     }
 
     /// <inheritdoc/>
-    public void UpdateAdvertisedProfile(string fingerprint, string profileName, string displayName = "")
+    public void UpdateAdvertisedProfile(string fingerprint, string profileName, string displayName = "", bool isLaunched = false)
     {
         lock (_syncLock)
         {
             _advertisedFingerprint = fingerprint ?? string.Empty;
             _advertisedProfileName = profileName ?? string.Empty;
             _advertisedDisplayName = displayName ?? string.Empty;
+            _advertisedIsLaunched = isLaunched;
+        }
+
+        try
+        {
+            if (_heartbeatSignal.CurrentCount == 0)
+            {
+                _heartbeatSignal.Release();
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Shutdown raced
         }
     }
 
@@ -159,6 +174,7 @@ public sealed class OnlinePresenceService(
         }
 
         _stateLock.Dispose();
+        _heartbeatSignal.Dispose();
     }
 
     /// <inheritdoc/>
@@ -185,6 +201,7 @@ public sealed class OnlinePresenceService(
         }
 
         _stateLock.Dispose();
+        _heartbeatSignal.Dispose();
     }
 
     /// <summary>
@@ -499,13 +516,15 @@ public sealed class OnlinePresenceService(
         {
             while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(OnlineConstants.PresenceHeartbeatSeconds), cancellationToken).ConfigureAwait(false);
                 if (socket.State == WebSocketState.Open)
                 {
-                    // Rebuilt every beat: the selected profile can change while joined.
+                    // Rebuilt every beat or when signaled: the selected profile can change while joined.
                     var payload = BuildHeartbeatPayload();
                     await socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
                 }
+
+                // Wait for heartbeat interval, or wake immediately if UpdateAdvertisedProfile signals.
+                await _heartbeatSignal.WaitAsync(TimeSpan.FromSeconds(OnlineConstants.PresenceHeartbeatSeconds), cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -523,21 +542,23 @@ public sealed class OnlinePresenceService(
         string fingerprint;
         string profileName;
         string displayName;
+        bool isLaunched;
         lock (_syncLock)
         {
             fingerprint = _advertisedFingerprint;
             profileName = _advertisedProfileName;
             displayName = _advertisedDisplayName;
+            isLaunched = _advertisedIsLaunched;
         }
 
-        if (string.IsNullOrEmpty(fingerprint) && string.IsNullOrEmpty(profileName) && string.IsNullOrEmpty(displayName))
+        if (string.IsNullOrEmpty(fingerprint) && string.IsNullOrEmpty(profileName) && string.IsNullOrEmpty(displayName) && !isLaunched)
         {
             return Encoding.UTF8.GetBytes(
                 "{\"type\":\"" + OnlineConstants.PresenceMessageHeartbeat + "\"}");
         }
 
         var payload = JsonSerializer.Serialize(
-            new { type = OnlineConstants.PresenceMessageHeartbeat, profileFingerprint = fingerprint, profileName, displayName },
+            new { type = OnlineConstants.PresenceMessageHeartbeat, profileFingerprint = fingerprint, profileName, displayName, isLaunched },
             JsonOptions);
         return Encoding.UTF8.GetBytes(payload);
     }
