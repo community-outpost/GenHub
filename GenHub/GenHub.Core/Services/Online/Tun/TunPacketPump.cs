@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Online;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,9 +18,9 @@ namespace GenHub.Core.Services.Online.Tun;
 /// </summary>
 public sealed class TunPacketPump : IDisposable
 {
-    private const int RelayHeaderLength = 24;
+    private const int RelayHeaderLength = OnlineConstants.RelayHeaderLength;
     private const int MinIpv4HeaderLength = 20;
-    private const int KeepAliveIntervalSeconds = 15;
+    private const int KeepAliveIntervalSeconds = OnlineConstants.KeepAliveIntervalSeconds;
 
     private readonly ITunDevice _device;
     private readonly IPEndPoint _relayEndpoint;
@@ -56,8 +58,8 @@ public sealed class TunPacketPump : IDisposable
         _overlayIp = overlayIp ?? throw new ArgumentNullException(nameof(overlayIp));
         _logger = logger ?? NullLogger.Instance;
 
-        _networkIdBytes = ParseNetworkIdBytes(networkId);
-        _directedBroadcastBytes = CalculateDirectedBroadcast(_overlayIp, prefixLength);
+        _networkIdBytes = VirtualLanFramingHelper.ParseNetworkIdBytes(networkId);
+        _directedBroadcastBytes = VirtualLanFramingHelper.CalculateDirectedBroadcast(_overlayIp, prefixLength);
         _udpClient = new UdpClient();
         _udpClient.Connect(_relayEndpoint);
     }
@@ -117,7 +119,7 @@ public sealed class TunPacketPump : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogTrace(ex, "Exception during TUN packet pump stop");
+            _logger.LogWarning(ex, "Exception during TUN packet pump stop");
         }
         finally
         {
@@ -150,69 +152,15 @@ public sealed class TunPacketPump : IDisposable
         }
     }
 
-    private static byte[] ParseNetworkIdBytes(string networkId)
-    {
-        var bytes = new byte[16];
-
-        // Clean hex (handles both GUID with hyphens and raw 32-char hex in big-endian network order)
-        var cleanHex = networkId.Replace("-", string.Empty);
-        if (cleanHex.Length >= 32)
-        {
-            try
-            {
-                return Convert.FromHexString(cleanHex[..32]);
-            }
-            catch
-            {
-                // Fallback to UTF8 bytes
-            }
-        }
-
-        var utf8 = System.Text.Encoding.UTF8.GetBytes(networkId);
-        Buffer.BlockCopy(utf8, 0, bytes, 0, Math.Min(16, utf8.Length));
-        return bytes;
-    }
-
-    private static byte[] CalculateDirectedBroadcast(IPAddress ip, int prefixLength)
-    {
-        var ipBytes = ip.GetAddressBytes();
-        if (ipBytes.Length != 4)
-        {
-            return [255, 255, 255, 255];
-        }
-
-        if (prefixLength is < 0 or > 32)
-        {
-            prefixLength = 20;
-        }
-
-        uint ipNum = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) | ((uint)ipBytes[2] << 8) | ipBytes[3];
-        uint hostMask = prefixLength == 32 ? 0 : uint.MaxValue >> prefixLength;
-        uint broadcastNum = ipNum | hostMask;
-
-        return
-        [
-            (byte)((broadcastNum >> 24) & 0xFF),
-            (byte)((broadcastNum >> 16) & 0xFF),
-            (byte)((broadcastNum >> 8) & 0xFF),
-            (byte)(broadcastNum & 0xFF),
-        ];
-    }
-
-    private bool IsBroadcastAddress(byte b0, byte b1, byte b2, byte b3)
-    {
-        if (b0 == 255 && b1 == 255 && b2 == 255 && b3 == 255)
-        {
-            return true;
-        }
-
-        return b0 == _directedBroadcastBytes[0] &&
-               b1 == _directedBroadcastBytes[1] &&
-               b2 == _directedBroadcastBytes[2] &&
-               b3 == _directedBroadcastBytes[3];
-    }
-
-    private bool TryBuildOutboundFrame(
+    /// <summary>
+    /// Attempts to build an outbound relay frame from a raw TUN packet.
+    /// </summary>
+    /// <param name="readBuffer">The raw packet buffer read from TUN.</param>
+    /// <param name="length">Length of packet bytes read.</param>
+    /// <param name="overlayBytes">Our local overlay IP address bytes.</param>
+    /// <param name="frame">The resulting framed relay packet buffer, if successful.</param>
+    /// <returns>True if packet is a valid IPv4 frame and successfully framed; false otherwise.</returns>
+    internal bool TryBuildOutboundFrame(
         byte[] readBuffer,
         int length,
         byte[] overlayBytes,
@@ -248,7 +196,13 @@ public sealed class TunPacketPump : IDisposable
         return true;
     }
 
-    private bool IsInboundFrameForUs(byte[] data, byte[] overlayBytes)
+    /// <summary>
+    /// Determines whether an inbound relay packet frame is addressed to this node.
+    /// </summary>
+    /// <param name="data">The raw relay frame data.</param>
+    /// <param name="overlayBytes">Our local overlay IP address bytes.</param>
+    /// <returns>True if the frame belongs to our network and is addressed to us or broadcast; false otherwise.</returns>
+    internal bool IsInboundFrameForUs(byte[] data, byte[] overlayBytes)
     {
         if (data.Length < RelayHeaderLength + MinIpv4HeaderLength)
         {
@@ -269,11 +223,33 @@ public sealed class TunPacketPump : IDisposable
         var targetB2 = data[18];
         var targetB3 = data[19];
 
-        return IsBroadcastAddress(targetB0, targetB1, targetB2, targetB3) ||
-               (targetB0 == overlayBytes[0] &&
-                targetB1 == overlayBytes[1] &&
-                targetB2 == overlayBytes[2] &&
-                targetB3 == overlayBytes[3]);
+        if (IsBroadcastAddress(targetB0, targetB1, targetB2, targetB3))
+        {
+            // Drop self-echo broadcast frames originated by our own overlay IP
+            var isSelfEcho = data[20] == overlayBytes[0] &&
+                             data[21] == overlayBytes[1] &&
+                             data[22] == overlayBytes[2] &&
+                             data[23] == overlayBytes[3];
+            return !isSelfEcho;
+        }
+
+        return targetB0 == overlayBytes[0] &&
+               targetB1 == overlayBytes[1] &&
+               targetB2 == overlayBytes[2] &&
+               targetB3 == overlayBytes[3];
+    }
+
+    private bool IsBroadcastAddress(byte b0, byte b1, byte b2, byte b3)
+    {
+        if (b0 == 255 && b1 == 255 && b2 == 255 && b3 == 255)
+        {
+            return true;
+        }
+
+        return b0 == _directedBroadcastBytes[0] &&
+               b1 == _directedBroadcastBytes[1] &&
+               b2 == _directedBroadcastBytes[2] &&
+               b3 == _directedBroadcastBytes[3];
     }
 
     private async Task OutboundLoopAsync(CancellationToken cancellationToken)
@@ -365,6 +341,7 @@ public sealed class TunPacketPump : IDisposable
                 if (!cancellationToken.IsCancellationRequested)
                 {
                     _logger.LogTrace(ex, "Error sending keepalive ping to relay");
+                    await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
                 }
             }
         }

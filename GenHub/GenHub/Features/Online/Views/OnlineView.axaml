@@ -129,8 +129,8 @@
         </Style>
     </UserControl.Styles>
 
-    <ScrollViewer Padding="24" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch" Margin="24,24,24,64">
             <!-- Header row: Title + Subtitle on Left, Player Nickname on Right -->
             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="page-title" Text="{localization:Localize Online.Title}" />

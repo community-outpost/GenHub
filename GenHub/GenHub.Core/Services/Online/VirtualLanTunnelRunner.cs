@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Services.Online.Tun;
@@ -120,6 +121,12 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                         parsed.RelayEndpoint);
 
                     return OperationResult<bool>.CreateSuccess(true);
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "TUN interface exists but attach failed ({Errors}); falling back to socket proxy.",
+                        linuxResult.AllErrors);
                 }
             }
 
@@ -314,7 +321,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             }
 
             var networkIdStr = ExtractNetworkId(root);
-            var netBytes = ParseNetworkIdBytes(networkIdStr);
+            var netBytes = VirtualLanFramingHelper.ParseNetworkIdBytes(networkIdStr);
 
             var ipStr = ExtractOverlayIpString(root, overlayIp);
             if (!IPAddress.TryParse(ipStr, out var parsedIp))
@@ -324,7 +331,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
             var prefixLength = ExtractPrefixLength(root);
             var ep = await ParseRelayEndpointAsync(root, cancellationToken).ConfigureAwait(false);
-            var broadcastBytes = CalculateDirectedBroadcast(parsedIp, prefixLength);
+            var broadcastBytes = VirtualLanFramingHelper.CalculateDirectedBroadcast(parsedIp, prefixLength);
 
             return (true, new ParsedTunnelConfig(
                 networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep, prefixLength, broadcastBytes));
@@ -375,32 +382,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         return OnlineConstants.TunOverlayPrefixLength;
     }
 
-    private static byte[] CalculateDirectedBroadcast(IPAddress ip, int prefixLength)
-    {
-        var ipBytes = ip.GetAddressBytes();
-        if (ipBytes.Length != 4)
-        {
-            return [255, 255, 255, 255];
-        }
-
-        if (prefixLength is < 0 or > 32)
-        {
-            prefixLength = 20;
-        }
-
-        uint ipNum = ((uint)ipBytes[0] << 24) | ((uint)ipBytes[1] << 16) | ((uint)ipBytes[2] << 8) | ipBytes[3];
-        uint hostMask = prefixLength == 32 ? 0 : uint.MaxValue >> prefixLength;
-        uint broadcastNum = ipNum | hostMask;
-
-        return
-        [
-            (byte)((broadcastNum >> 24) & 0xFF),
-            (byte)((broadcastNum >> 16) & 0xFF),
-            (byte)((broadcastNum >> 8) & 0xFF),
-            (byte)(broadcastNum & 0xFF),
-        ];
-    }
-
     private static string ExtractJson(string adapterConfig)
     {
         try
@@ -412,24 +393,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         {
             return adapterConfig;
         }
-    }
-
-    private static byte[] ParseNetworkIdBytes(string networkIdStr)
-    {
-        var netBytes = new byte[16];
-        if (Guid.TryParse(networkIdStr, out var netGuid))
-        {
-            var guidBytes = netGuid.ToByteArray();
-            Buffer.BlockCopy(guidBytes, 0, netBytes, 0, 16);
-        }
-        else
-        {
-            var rawStrBytes = Encoding.UTF8.GetBytes(networkIdStr);
-            var copyLen = Math.Min(rawStrBytes.Length, 16);
-            Buffer.BlockCopy(rawStrBytes, 0, netBytes, 0, copyLen);
-        }
-
-        return netBytes;
     }
 
     private static async Task<IPEndPoint> ParseRelayEndpointAsync(JsonElement root, CancellationToken cancellationToken)
@@ -678,16 +641,21 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
-                try
+                var client = _relayClient;
+                if (client != null)
                 {
-                    if (_relayClient != null)
+                    try
                     {
-                        await _relayClient.SendAsync(ping, ping.Length).ConfigureAwait(false);
+                        await client.SendAsync(ping, ping.Length).ConfigureAwait(false);
                     }
-                }
-                catch (SocketException ex)
-                {
-                    logger.LogDebug(ex, "Relay keepalive send failed: {Message}", ex.Message);
+                    catch (SocketException ex)
+                    {
+                        logger.LogDebug(ex, "Relay keepalive send failed: {Message}", ex.Message);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        break;
+                    }
                 }
             }
         }
@@ -714,11 +682,14 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                 }
 
                 var payload = new byte[payloadLength];
-                Buffer.BlockCopy(data, 24, payload, 0, payloadLength);
+                Buffer.BlockCopy(data, OnlineConstants.RelayHeaderLength, payload, 0, payloadLength);
 
+                var targetPort = isBroadcast
+                    ? OnlineConstants.ZeroHourDiscoveryPort
+                    : OnlineConstants.ZeroHourGamePort;
                 try
                 {
-                    var targetEp = new IPEndPoint(IPAddress.Loopback, OnlineConstants.ZeroHourDiscoveryPort);
+                    var targetEp = new IPEndPoint(IPAddress.Loopback, targetPort);
                     await _localSender.SendAsync(payload, payload.Length, targetEp).ConfigureAwait(false);
                 }
                 catch (SocketException ex)

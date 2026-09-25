@@ -86,6 +86,19 @@ of failing silently.
    (existing reconciliation) after preselecting the member overlay IP in
    `options.ini` (`GameSpyIPAddress`), so no manual adapter choice is needed.
    With no usable local profile, a warning shows instead of failing silently.
+   Play is blocked while the adapter is down: launching without tunneling
+   only produces a game that cannot see the lobby, so the client toasts the
+   concrete adapter diagnosis instead.
+
+## Windows elevation
+
+Creating the Wintun adapter requires administrator rights. On a non-elevated
+launch the client spawns the bundled `genhub-overlay` sidecar through a UAC
+prompt; accepting it brings tunneling up, while denying (or dismissing) it
+leaves the lobby usable but without tunneling. A failed bring-up preserves
+the adapter error (no teardown wipes it), the Online view maps the
+elevation marker to remediation guidance, and Play stays blocked until the
+user leaves, rejoins, and accepts the prompt (or restarts GenHub elevated).
 
 ## Profile matching
 

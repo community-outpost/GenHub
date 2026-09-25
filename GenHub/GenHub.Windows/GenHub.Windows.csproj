@@ -69,9 +69,31 @@
 
     <Import Project="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.Bundle.targets" />
 
+    <PropertyGroup>
+        <OverlayPublishDir>$(MSBuildProjectDirectory)\..\GenHub.Overlay\bin\Publish\$(Configuration)\</OverlayPublishDir>
+        <OverlayBundleProperties>
+            Configuration=$(Configuration);
+            Platform=AnyCPU;
+            TargetFramework=net8.0;
+            RuntimeIdentifier=win-x64;
+            SelfContained=true;
+            PublishSingleFile=true;
+            IntermediateOutputPath=obj/$(Configuration)/net8.0/win-x64/Overlay/;
+            PublishDir=$(OverlayPublishDir);
+            Version=$(Version);
+            GitShortHash=$(GitShortHash);
+            PullRequestNumber=$(PullRequestNumber);
+            BuildChannel=$(BuildChannel)
+        </OverlayBundleProperties>
+    </PropertyGroup>
+
     <!-- Ensure Overlay is PUBLISHED as SingleFile and copied to build output -->
     <Target Name="BuildOverlay" BeforeTargets="Build">
-        <Exec Command="dotnet publish &quot;..\GenHub.Overlay\GenHub.Overlay.csproj&quot; -c $(Configuration) -f net8.0 -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IntermediateOutputPath=&quot;obj/$(Configuration)/net8.0/win-x64/Overlay/&quot; -p:Version=$(Version) -p:GitShortHash=$(GitShortHash) -p:PullRequestNumber=$(PullRequestNumber) -p:BuildChannel=$(BuildChannel) -o &quot;$(MSBuildProjectDirectory)\..\GenHub.Overlay\bin\Publish\$(Configuration)&quot;" />
+        <MSBuild
+            Projects="$(MSBuildProjectDirectory)\..\GenHub.Overlay\GenHub.Overlay.csproj"
+            Targets="Publish"
+            Properties="$(OverlayBundleProperties)"
+            RemoveProperties="_IsPublishing;DOTNET_CLI_DISABLE_PUBLISH_AND_PACK_RELEASE;_CommandLineDefinedOutputPath;_CommandLineDefinedRuntimeIdentifier;_CommandLineDefinedSelfContained;BaseOutputPath;BaseIntermediateOutputPath" />
     </Target>
 
     <Target Name="CopyOverlay" AfterTargets="Build">

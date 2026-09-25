@@ -210,8 +210,8 @@
                 </Grid>
             </Border>
 
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,20">
-                <StackPanel Spacing="20">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20" Margin="24,20,24,48">
                     <StackPanel IsVisible="{Binding IsLoading}" HorizontalAlignment="Center" Margin="0,64" Spacing="10">
                         <ProgressBar IsIndeterminate="True" Width="220" Foreground="{DynamicResource AccentBrush}" />
                         <TextBlock Text="{localization:Localize Downloads.ProfileSelection.Loading}" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" />

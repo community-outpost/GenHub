@@ -1999,6 +1999,12 @@
   <data name="Online.Play.NoProfileMessage" xml:space="preserve">
     <value>Сеть требует игровой профиль, которого у вас нет. Скачайте или создайте его.</value>
   </data>
+  <data name="Online.Play.NoTunnelTitle" xml:space="preserve">
+    <value>Туннелирование многопользовательской игры недоступно</value>
+  </data>
+  <data name="Online.Play.NoTunnelMessage" xml:space="preserve">
+    <value>Адаптер виртуальной LAN не запущен, поэтому игра не может связаться с участниками лобби. Покиньте лобби и присоединитесь снова, примите запрос администратора, затем попробуйте играть.</value>
+  </data>
   <data name="Online.Play.NoProfileTitle" xml:space="preserve">
     <value>Профиль не найден</value>
   </data>
@@ -11577,6 +11583,12 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Online.Adapter.PendingMessage" xml:space="preserve">
     <value>Туннелирование пока недоступно: участники не появятся в игре. Список и присутствие работают.</value>
+  </data>
+  <data name="Online.Adapter.ElevationTitle" xml:space="preserve">
+    <value>Требуются права администратора</value>
+  </data>
+  <data name="Online.Adapter.ElevationMessage" xml:space="preserve">
+    <value>GenHub не смог создать адаптер виртуальной LAN. Примите запрос администратора при подключении или перезапустите GenHub от имени администратора и присоединитесь к лобби снова.</value>
   </data>
   <data name="Online.Host.ProfileLabel" xml:space="preserve">
     <value>Игровой профиль</value>

@@ -884,8 +884,14 @@ public sealed class OnlineNetworkService(
         var bringUp = await adapter.BringUpAsync(join.AdapterConfig, join.OverlayIp, cancellationToken);
         if (!bringUp.Success)
         {
-            logger.LogWarning("Adapter bring-up failed for network {NetworkId}; staying joined without tunneling.", join.NetworkId);
-            await adapter.TearDownAsync(cancellationToken);
+            // No teardown here: a failed bring-up leaves nothing running (the
+            // sidecar host and the tunnel runner both self-clean on failure),
+            // and tearing down would wipe the adapter's LastError, which the
+            // Online view needs to explain the outage to the user.
+            logger.LogWarning(
+                "Adapter bring-up failed for network {NetworkId}; staying joined without tunneling: {Error}",
+                join.NetworkId,
+                OnlineLogScrubber.Scrub(bringUp.AllErrors));
         }
 
         CurrentJoin = join;

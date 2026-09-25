@@ -18,7 +18,7 @@ internal static class LinuxTunNative
     private const ulong IoctlSetInterface = 0x400454CA;
     private const ulong IoctlSetPersistent = 0x400454CB;
     private const ulong IoctlSetOwner = 0x400454CC;
-    private const int OpenReadWrite = 2;
+    private const int OpenReadWrite = 0x80002; // O_RDWR | O_CLOEXEC
     private const int ErrnoPermission = 1;
     private const int ErrnoAccess = 13;
 
@@ -107,7 +107,7 @@ internal static class LinuxTunNative
     /// <returns>True when the name is usable.</returns>
     internal static bool IsValidInterfaceName([NotNullWhen(true)] string? name)
     {
-        if (string.IsNullOrWhiteSpace(name) || name.Length > MaxInterfaceNameLength)
+        if (string.IsNullOrWhiteSpace(name) || name.Length > MaxInterfaceNameLength || name is "." or "..")
         {
             return false;
         }

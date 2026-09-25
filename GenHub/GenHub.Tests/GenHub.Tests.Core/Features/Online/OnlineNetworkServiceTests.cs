@@ -380,7 +380,8 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
-    /// Tests that adapter failure during join stays joined without tunneling and tears down.
+    /// Tests that adapter failure during join stays joined without tunneling,
+    /// skips teardown so the adapter error survives for the UI, and preserves it.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
@@ -390,9 +391,8 @@ public sealed class OnlineNetworkServiceTests
         var adapter = new Mock<IVirtualLanAdapter>();
         adapter.Setup(a => a.BringUpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateFailure("no driver"));
-        adapter.Setup(a => a.TearDownAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
         adapter.SetupGet(a => a.State).Returns(OnlineAdapterState.Down);
+        adapter.SetupGet(a => a.LastError).Returns("no driver");
         var service = CreateService(CreateFactory(), adapter.Object);
 
         // Act
@@ -402,7 +402,8 @@ public sealed class OnlineNetworkServiceTests
         Assert.True(result.Success);
         Assert.NotNull(service.CurrentJoin);
         Assert.Equal(OnlineAdapterState.Down, service.AdapterState);
-        adapter.Verify(a => a.TearDownAsync(It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal("no driver", service.AdapterError);
+        adapter.Verify(a => a.TearDownAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>

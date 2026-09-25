@@ -51,7 +51,7 @@ public class OverlaySidecarConfigTests
         Assert.NotNull(result.Data);
         var expectedInterface = OperatingSystem.IsWindows()
             ? OnlineConstants.TunDefaultWindowsInterfaceName
-            : OnlineConstants.TunDefaultLinuxInterfaceName;
+            : OnlineConstants.TunDefaultInterfaceName;
         Assert.Equal(expectedInterface, result.Data.InterfaceName);
         Assert.Equal(OnlineConstants.TunOverlayPrefixLength, result.Data.PrefixLength);
         Assert.Equal(OnlineConstants.TunDefaultMtu, result.Data.Mtu);

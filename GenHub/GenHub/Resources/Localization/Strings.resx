@@ -2003,6 +2003,12 @@
   <data name="Online.Play.NoProfileMessage" xml:space="preserve">
     <value>This network expects a game profile you do not have yet. Download or create it first.</value>
   </data>
+  <data name="Online.Play.NoTunnelTitle" xml:space="preserve">
+    <value>Multiplayer tunneling is down</value>
+  </data>
+  <data name="Online.Play.NoTunnelMessage" xml:space="preserve">
+    <value>The virtual LAN adapter is not running, so the game cannot reach lobby members. Leave and rejoin the lobby, accept the administrator prompt, then try playing again.</value>
+  </data>
   <data name="Online.Play.NoProfileTitle" xml:space="preserve">
     <value>Profile not found</value>
   </data>
@@ -11675,6 +11681,12 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   </data>
   <data name="Online.Adapter.PendingMessage" xml:space="preserve">
     <value>Tunneling isn't available yet, so members won't appear in-game. Roster and presence work.</value>
+  </data>
+  <data name="Online.Adapter.ElevationTitle" xml:space="preserve">
+    <value>Administrator rights needed</value>
+  </data>
+  <data name="Online.Adapter.ElevationMessage" xml:space="preserve">
+    <value>GenHub could not create the virtual LAN adapter. Accept the administrator prompt when joining, or restart GenHub as administrator and rejoin the lobby.</value>
   </data>
   <data name="Online.Host.ProfileLabel" xml:space="preserve">
     <value>Game profile</value>

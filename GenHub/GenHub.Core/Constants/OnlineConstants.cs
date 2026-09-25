@@ -172,6 +172,13 @@ public static class OnlineConstants
     public const string ErrorStopFailed = "online.stop-failed";
 
     /// <summary>
+    /// Adapter failure detail reported when creating the virtual LAN network
+    /// adapter requires elevation. The Online view matches this marker to show
+    /// remediation guidance instead of the raw technical detail.
+    /// </summary>
+    public const string AdapterElevationRequired = "Administrator privileges are required to create the network adapter on Windows.";
+
+    /// <summary>
     /// Environment variable overriding the overlay sidecar binary path.
     /// </summary>
     public const string OverlayBinaryEnvVar = "GENHUB_OVERLAY_BIN";
@@ -243,9 +250,20 @@ public static class OnlineConstants
     public const string TunDefaultInterfaceName = "genhub0";
 
     /// <summary>
-    /// Default TUN interface name for the overlay on Linux.
+    /// File extension suffix for the sidecar ready marker file.
     /// </summary>
-    public const string TunDefaultLinuxInterfaceName = "genhub0";
+    public const string SidecarReadyFileSuffix = ".ready";
+
+    /// <summary>
+    /// File extension suffix for the sidecar error marker file.
+    /// </summary>
+    public const string SidecarErrorFileSuffix = ".err";
+
+    /// <summary>
+    /// Length in bytes of the UDP packet relay header.
+    /// Bytes 0..15: NetworkId, Bytes 16..19: Target IP, Bytes 20..23: Source IP.
+    /// </summary>
+    public const int RelayHeaderLength = 24;
 
     /// <summary>
     /// Default TUN interface name for the overlay on Windows.

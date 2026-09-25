@@ -203,8 +203,10 @@ public class OnlineViewModelTests
             .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateSuccess(new OnlinePlayResult("profile-1", "Zero Hour", "Lobby")));
         launch.Setup(l => l.StopAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var network = new Mock<IOnlineNetworkService>();
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
         var notifications = new Mock<INotificationService>();
-        var vm = CreateViewModel(launchService: launch.Object, notifications: notifications.Object);
+        var vm = CreateViewModel(network.Object, notifications.Object, launch.Object);
         vm.IsJoined = true;
         vm.SelectedPlayProfile = new GameProfile { Id = "profile-1", Name = "Zero Hour" };
 
@@ -225,6 +227,78 @@ public class OnlineViewModelTests
         notifications.Verify(
             n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.AtLeast(2));
+    }
+
+    /// <summary>
+    /// Tests that playing while the adapter is down toasts the tunnel outage and never launches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WhenAdapterDown_ShouldToastAndNotLaunchAsync()
+    {
+        // Arrange: strict launch service throws on any call, proving no launch happens.
+        var launch = new Mock<IOnlineLaunchService>(MockBehavior.Strict);
+        var network = new Mock<IOnlineNetworkService>();
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Down);
+        network.SetupGet(n => n.AdapterError).Returns(OnlineConstants.AdapterElevationRequired);
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(network.Object, notifications.Object, launch.Object);
+        vm.IsJoined = true;
+        vm.SelectedPlayProfile = new GameProfile { Id = "profile-1", Name = "Zero Hour" };
+
+        // Act
+        await vm.PlayAsync();
+
+        // Assert
+        Assert.False(vm.IsGameRunning);
+        notifications.Verify(
+            n => n.ShowError("Online.Play.NoTunnelTitle", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that joining with an elevation adapter error shows elevation guidance.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WhenAdapterErrorIsElevation_ShouldShowElevationToastAsync()
+    {
+        // Arrange
+        var join = new OnlineJoinResult
+        {
+            NetworkId = "net-1",
+            Grant = "grant-token",
+            OverlayIp = "10.42.0.7",
+        };
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Down);
+        network.SetupGet(n => n.AdapterError).Returns(OnlineConstants.AdapterElevationRequired);
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(network.Object, notifications.Object);
+        vm.Networks = new ObservableCollection<OnlineNetworkSummary>(
+        [
+            new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+        ]);
+        vm.SelectedNetwork = vm.Networks[0];
+
+        // Act
+        await vm.JoinNetworkAsync();
+
+        // Assert
+        Assert.True(vm.IsJoined);
+        Assert.True(vm.IsLobbyOnly);
+        notifications.Verify(
+            n => n.ShowWarning("Online.Adapter.ElevationTitle", "Online.Adapter.ElevationMessage", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>
@@ -816,7 +890,9 @@ public class OnlineViewModelTests
         var launch = new Mock<IOnlineLaunchService>();
         launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateSuccess(new OnlinePlayResult("profile-1", "Zero Hour", "Lobby")));
-        var vm = CreateViewModel(launchService: launch.Object);
+        var network = new Mock<IOnlineNetworkService>();
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
+        var vm = CreateViewModel(network.Object, launchService: launch.Object);
         vm.IsJoined = true;
         vm.SelectedPlayProfile = new GameProfile { Id = "profile-1", Name = "Zero Hour" };
         vm.Nickname = "Ace";

@@ -27,7 +27,13 @@ public static class Program
         }
 
         var config = parsedConfig!;
-        var overlayIp = IPAddress.Parse(config.OverlayIp);
+        if (!IPAddress.TryParse(config.OverlayIp, out var overlayIp))
+        {
+            const string err = "Invalid overlay IP address.";
+            Console.Error.WriteLine(err);
+            WriteErrorFile(configPath, err);
+            return OnlineConstants.SidecarExitConfigError;
+        }
 
         if (!TryCreateDevice(config, overlayIp, configPath, out var tunDevice, out var attachExitCode))
         {
@@ -35,14 +41,17 @@ public static class Program
         }
 
         using var device = tunDevice!;
-        var relayEndpoint = ResolveRelayEndpoint(config.RelayHost, config.RelayPort);
+        if (!TryResolveRelayEndpoint(config.RelayHost, config.RelayPort, configPath, out var relayEndpoint))
+        {
+            return OnlineConstants.SidecarExitAttachFailed;
+        }
 
-        using var pump = new TunPacketPump(device, relayEndpoint, config.NetworkId, overlayIp);
+        using var pump = new TunPacketPump(device, relayEndpoint, config.NetworkId, overlayIp, prefixLength: config.PrefixLength);
         pump.Start();
 
         Console.WriteLine($"ready interface={device.InterfaceName} ip={config.OverlayIp}");
 
-        var readyPath = !string.IsNullOrEmpty(configPath) ? configPath + ".ready" : null;
+        var readyPath = !string.IsNullOrEmpty(configPath) ? configPath + OnlineConstants.SidecarReadyFileSuffix : null;
         if (!string.IsNullOrEmpty(readyPath))
         {
             try
@@ -202,19 +211,46 @@ public static class Program
 
         try
         {
-            File.WriteAllText(configPath + ".err", message);
+            File.WriteAllText(configPath + OnlineConstants.SidecarErrorFileSuffix, message);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Best effort error reporting
+            Console.Error.WriteLine($"Warning: Could not write error file: {ex.Message}");
         }
     }
 
-    private static IPEndPoint ResolveRelayEndpoint(string relayHost, int relayPort)
+    private static bool TryResolveRelayEndpoint(
+        string relayHost,
+        int relayPort,
+        string? configPath,
+        out IPEndPoint relayEndpoint)
     {
-        var relayIp = IPAddress.TryParse(relayHost, out var parsedRelayIp)
-            ? parsedRelayIp
-            : Dns.GetHostAddresses(relayHost)[0];
-        return new IPEndPoint(relayIp, relayPort);
+        try
+        {
+            if (IPAddress.TryParse(relayHost, out var parsedRelayIp))
+            {
+                relayEndpoint = new IPEndPoint(parsedRelayIp, relayPort);
+                return true;
+            }
+
+            var addresses = Dns.GetHostAddresses(relayHost);
+            var ipv4 = Array.Find(addresses, a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+            var resolvedIp = ipv4 ?? (addresses.Length > 0 ? addresses[0] : null);
+            if (resolvedIp == null)
+            {
+                throw new InvalidOperationException($"DNS returned no addresses for relay host '{relayHost}'.");
+            }
+
+            relayEndpoint = new IPEndPoint(resolvedIp, relayPort);
+            return true;
+        }
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or InvalidOperationException)
+        {
+            var err = $"Failed to resolve relay host '{relayHost}': {ex.Message}";
+            Console.Error.WriteLine(err);
+            WriteErrorFile(configPath, err);
+            relayEndpoint = null!;
+            return false;
+        }
     }
 }

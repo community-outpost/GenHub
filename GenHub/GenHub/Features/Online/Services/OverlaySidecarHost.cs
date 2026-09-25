@@ -77,7 +77,8 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             }
 
             var configPath = await StageConfigAsync(configContents, cancellationToken);
-            var process = CreateProcess(binary, locator.BuildArguments(configPath, overlayIp));
+            var elevatedLaunch = OperatingSystem.IsWindows() && !IsAdministrator();
+            var process = CreateProcess(binary, locator.BuildArguments(configPath, overlayIp), elevatedLaunch);
             var started = false;
             string? startError = null;
             try
@@ -88,7 +89,7 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             {
                 logger.LogWarning(winEx, "Overlay sidecar elevation or start failed.");
                 startError = winEx.NativeErrorCode == 1223
-                    ? "Administrator privileges are required to create the network adapter on Windows."
+                    ? OnlineConstants.AdapterElevationRequired
                     : $"Failed to start overlay sidecar: {winEx.Message}";
             }
             catch (Exception ex) when (ex is InvalidOperationException)
@@ -115,7 +116,7 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             if (!survived)
             {
                 var exit = ReadExitCode(process);
-                var errPath = configPath + ".err";
+                var errPath = configPath + OnlineConstants.SidecarErrorFileSuffix;
                 string? specificError = null;
                 if (File.Exists(errPath))
                 {
@@ -131,9 +132,24 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
                 }
 
                 await StopInternalAsync();
-                var errorMessage = !string.IsNullOrWhiteSpace(specificError)
-                    ? specificError
-                    : $"Overlay sidecar exited during startup (code {exit}).";
+                string errorMessage;
+                if (!string.IsNullOrWhiteSpace(specificError))
+                {
+                    errorMessage = specificError;
+                }
+                else if (elevatedLaunch)
+                {
+                    // An elevated helper that dies without writing its error
+                    // report usually never got to read the staged config (for
+                    // example under over-the-shoulder elevation), so the only
+                    // honest diagnosis left is the elevation handoff itself.
+                    errorMessage = $"Overlay sidecar exited during startup (code {exit}) without an error report. {OnlineConstants.AdapterElevationRequired}";
+                }
+                else
+                {
+                    errorMessage = $"Overlay sidecar exited during startup (code {exit}).";
+                }
+
                 return OperationResult<SidecarInfo>.CreateFailure(errorMessage);
             }
 
@@ -293,7 +309,7 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         }
     }
 
-    private static Process CreateProcess(string binary, string arguments)
+    private static Process CreateProcess(string binary, string arguments, bool elevatedLaunch)
     {
         var psi = new ProcessStartInfo
         {
@@ -302,7 +318,7 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             WorkingDirectory = Path.GetDirectoryName(binary) ?? string.Empty,
         };
 
-        if (OperatingSystem.IsWindows() && !IsAdministrator())
+        if (elevatedLaunch)
         {
             psi.UseShellExecute = true;
             psi.Verb = "runas";
@@ -355,7 +371,7 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
 
     private static async Task<bool> WaitForStartupAsync(Process process, string configPath, CancellationToken cancellationToken)
     {
-        var readyFile = configPath + ".ready";
+        var readyFile = configPath + OnlineConstants.SidecarReadyFileSuffix;
         var maxWaitMs = OnlineConstants.SidecarStartupGraceMs + (OperatingSystem.IsWindows() ? 4000 : 0);
         var deadline = DateTime.UtcNow.AddMilliseconds(maxWaitMs);
 
@@ -490,13 +506,13 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
                 File.Delete(configPath);
             }
 
-            var readyPath = configPath + ".ready";
+            var readyPath = configPath + OnlineConstants.SidecarReadyFileSuffix;
             if (File.Exists(readyPath))
             {
                 File.Delete(readyPath);
             }
 
-            var errPath = configPath + ".err";
+            var errPath = configPath + OnlineConstants.SidecarErrorFileSuffix;
             if (File.Exists(errPath))
             {
                 File.Delete(errPath);
@@ -526,13 +542,13 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
                 File.Delete(configPath);
             }
 
-            var readyPath = configPath + ".ready";
+            var readyPath = configPath + OnlineConstants.SidecarReadyFileSuffix;
             if (File.Exists(readyPath))
             {
                 File.Delete(readyPath);
             }
 
-            var errPath = configPath + ".err";
+            var errPath = configPath + OnlineConstants.SidecarErrorFileSuffix;
             if (File.Exists(errPath))
             {
                 File.Delete(errPath);

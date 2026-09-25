@@ -1999,6 +1999,12 @@
   <data name="Online.Play.NoProfileMessage" xml:space="preserve">
     <value>تتوقع هذه الشبكة ملف لعبة ليس لديك بعد. نزّله أو أنشئه أولاً.</value>
   </data>
+  <data name="Online.Play.NoTunnelTitle" xml:space="preserve">
+    <value>النفق الجماعي متوقف</value>
+  </data>
+  <data name="Online.Play.NoTunnelMessage" xml:space="preserve">
+    <value>محوّل الشبكة المحلية الافتراضية لا يعمل، لذلك لا يمكن للعبة الوصول إلى أعضاء الردهة. غادر الردهة وأعد الانضمام، واقبل مطالبة المسؤول، ثم حاول اللعب مجددًا.</value>
+  </data>
   <data name="Online.Play.NoProfileTitle" xml:space="preserve">
     <value>لم يتم العثور على الملف</value>
   </data>
@@ -11577,6 +11583,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Online.Adapter.PendingMessage" xml:space="preserve">
     <value>النفق غير متاح بعد، لذا لن يظهر الأعضاء داخل اللعبة. قائمة الأعضاء والحضور يعملان.</value>
+  </data>
+  <data name="Online.Adapter.ElevationTitle" xml:space="preserve">
+    <value>يلزم توفر حقوق المسؤول</value>
+  </data>
+  <data name="Online.Adapter.ElevationMessage" xml:space="preserve">
+    <value>تعذّر على GenHub إنشاء محوّل الشبكة المحلية الافتراضية. اقبل مطالبة المسؤول عند الانضمام، أو أعد تشغيل GenHub كمسؤول ثم أعد الانضمام إلى الردهة.</value>
   </data>
   <data name="Online.Host.ProfileLabel" xml:space="preserve">
     <value>ملف اللعبة</value>

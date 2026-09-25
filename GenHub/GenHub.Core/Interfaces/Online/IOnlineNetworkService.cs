@@ -31,6 +31,8 @@ public interface IOnlineNetworkService
 
     /// <summary>
     /// Gets the last error reported by the virtual LAN adapter, or null if healthy.
+    /// A failed bring-up during join preserves this detail (no teardown wipes
+    /// it) so the UI can explain why tunneling is unavailable.
     /// </summary>
     string? AdapterError { get; }
 
@@ -121,7 +123,7 @@ public interface IOnlineNetworkService
 
     /// <summary>
     /// Updates the profile information advertised by the local client.
-    /// If currently joined, sends an immediate presence heartbeat to publish the change.
+    /// Caches the local profile information to be published on the next presence heartbeat.
     /// </summary>
     /// <param name="fingerprint">The local profile fingerprint.</param>
     /// <param name="profileName">The local profile display name.</param>
