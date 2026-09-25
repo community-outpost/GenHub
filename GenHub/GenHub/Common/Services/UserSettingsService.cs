@@ -186,9 +186,8 @@ public class UserSettingsService : IUserSettingsService
             settingsToSave = Get();
         }
 
-        var defaultPath = GetDefaultSettingsFilePath();
-        var pathToSave = !string.IsNullOrWhiteSpace(target.Path) ? target.Path : defaultPath;
-        if (!target.CanWrite && !PathHelper.AreSamePath(pathToSave, defaultPath))
+        var pathToSave = target.Path;
+        if (!target.CanWrite)
         {
             _logger.LogError(
                 "Refusing to save settings to {Path}: the settings held in memory were not read from it, so saving would replace its contents with unrelated values",
@@ -208,11 +207,6 @@ public class UserSettingsService : IUserSettingsService
 
             var json = JsonSerializer.Serialize(settingsToSave, JsonOptions);
             await File.WriteAllTextAsync(pathToSave, json, cancellationToken);
-            lock (_lock)
-            {
-                _target = SettingsFileTarget.Verified(pathToSave);
-            }
-
             _logger.LogInformation("Settings saved successfully to {Path}", pathToSave);
         }
         catch (IOException ex)
@@ -483,19 +477,6 @@ public class UserSettingsService : IUserSettingsService
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            var defPath = GetDefaultSettingsFilePath();
-            if (string.IsNullOrWhiteSpace(_target.Path))
-            {
-                _target = SettingsFileTarget.Verified(defPath);
-            }
-
-            return;
-        }
-
-        var defaultPath = GetDefaultSettingsFilePath();
-        if (PathHelper.AreSamePath(path, defaultPath))
-        {
-            _target = SettingsFileTarget.Verified(path);
             return;
         }
 

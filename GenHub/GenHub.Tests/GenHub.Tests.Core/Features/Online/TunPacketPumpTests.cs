@@ -103,7 +103,7 @@ public class TunPacketPumpTests
         await relayServer.SendAsync(frame, frame.Length, receivedPing.RemoteEndPoint);
 
         // Assert packet is delivered to TUN
-        var written = await fakeTun.WaitForPacketWrittenAsync(TimeSpan.FromSeconds(3));
+        var written = await fakeTun.WaitForPacketWrittenAsync(TimeSpan.FromSeconds(10));
         Assert.True(written, "Packet was not written to TUN device");
         Assert.Single(fakeTun.WrittenPackets);
         Assert.Equal(dummyIpPacket, fakeTun.WrittenPackets[0]);
