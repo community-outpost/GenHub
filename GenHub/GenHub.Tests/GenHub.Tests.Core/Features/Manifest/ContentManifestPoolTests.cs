@@ -114,6 +114,28 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
+    /// Should propagate cancellation from content storage instead of returning a failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithSourceDirectory_WhenStorageCancelled_ThrowsAsync()
+    {
+        // Arrange
+        var manifest = CreateTestManifest();
+        var sourceDirectory = Path.Combine(_tempDirectory, "source");
+        Directory.CreateDirectory(sourceDirectory);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        _storageServiceMock.Setup(x => x.StoreContentAsync(manifest, sourceDirectory, It.IsAny<IProgress<ContentStorageProgress>?>(), cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _manifestPool.AddManifestAsync(manifest, sourceDirectory, null, cts.Token));
+    }
+
+    /// <summary>
     /// Should return manifest when it exists.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

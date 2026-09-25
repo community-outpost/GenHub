@@ -2048,7 +2048,7 @@ public class ProfileLauncherFacade(
                 $"No valid installation found for {profile.GameClient?.GameType}. " +
                 "Please verify your game installation and update the profile settings.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Error resolving installation for profile {ProfileId}", profile.Id);
             return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateFailure(

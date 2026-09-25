@@ -131,7 +131,7 @@ public class CasStorage(
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to store object {Hash} in CAS", hash);
             return null;
@@ -301,10 +301,20 @@ public class CasStorage(
             try
             {
                 var lockStream = new FileStream(lockPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await lockStream.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()), cancellationToken);
-                await lockStream.FlushAsync(cancellationToken);
+                var casLock = new CasLock(lockPath, lockStream);
+                try
+                {
+                    await lockStream.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()), cancellationToken);
+                    await lockStream.FlushAsync(cancellationToken);
+                }
+                catch
+                {
+                    // Release the handle so a cancelled acquisition does not block later writes of this hash.
+                    await casLock.DisposeAsync();
+                    throw;
+                }
 
-                return new CasLock(lockPath, lockStream);
+                return casLock;
             }
             catch (IOException) when (i < 10 - 1)
             {

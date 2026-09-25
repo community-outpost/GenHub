@@ -644,6 +644,55 @@ public class ContentStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that a cancellation raised by the CAS write itself propagates as cancellation, not as a required-file failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WhenCancelledDuringCasWrite_ThrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "CancelledDuringWriteSource");
+        Directory.CreateDirectory(sourceDir);
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "addon.big"), "mock content");
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.cancelled-write"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    Hash = string.Empty,
+                    SourceType = ContentSourceType.ExtractedPackage,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        using var cts = new CancellationTokenSource();
+        _casServiceMock
+            .Setup(c => c.StoreContentAsync(It.IsAny<string>(), ContentType.Addon, null, It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                await cts.CancelAsync();
+                cts.Token.ThrowIfCancellationRequested();
+                return OperationResult<string>.CreateSuccess("unreachable_hash");
+            });
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _service.StoreContentAsync(manifest, sourceDir, null, cts.Token));
+        Assert.False(File.Exists(_service.GetManifestStoragePath(manifest.Id)));
+    }
+
+    /// <summary>
     /// Tests that files carrying a manifest hash are stored through the known-hash path
     /// instead of being hashed a second time.
     /// </summary>

@@ -137,7 +137,7 @@ public class ContentManifestPool(
             logger.LogDebug("Successfully added manifest {ManifestId} to pool", manifest.Id);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to add manifest {ManifestId} with source directory", manifest.Id);
             return OperationResult<bool>.CreateFailure($"Failed to add manifest: {ex.Message}");
