@@ -226,8 +226,7 @@ public class WineRunner(
                 }
                 catch
                 {
-                    SyncDirectoryFiles(nativeSubDir, prefixSubDir);
-                    return true;
+                    return false;
                 }
             }
 
@@ -251,9 +250,19 @@ public class WineRunner(
             return true;
         }
 
-        // Target does not exist yet: create symlink pointing to native folder
+        // Target does not exist yet (or is a broken/dangling symlink): create symlink pointing to native folder
         try
         {
+            var dirInfo = new DirectoryInfo(prefixSubDir);
+            if (dirInfo.LinkTarget != null)
+            {
+                Directory.Delete(prefixSubDir, recursive: false);
+            }
+            else if (File.Exists(prefixSubDir))
+            {
+                File.Delete(prefixSubDir);
+            }
+
             Directory.CreateSymbolicLink(prefixSubDir, nativeSubDir);
             return true;
         }
@@ -264,10 +273,10 @@ public class WineRunner(
         }
     }
 
-    private static void SyncDirectoryFiles(string sourceDir, string targetDir)
+    private static void SyncDirectoryFiles(string firstDir, string secondDir)
     {
-        MirrorDirectoryContent(sourceDir, targetDir);
-        MirrorDirectoryContent(targetDir, sourceDir);
+        MirrorDirectoryContent(sourceDir: firstDir, targetDir: secondDir);
+        MirrorDirectoryContent(sourceDir: secondDir, targetDir: firstDir);
     }
 
     private static void MirrorDirectoryContent(string sourceDir, string targetDir)

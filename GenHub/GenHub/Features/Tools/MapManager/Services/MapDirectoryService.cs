@@ -1,5 +1,7 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
@@ -20,7 +22,8 @@ namespace GenHub.Features.Tools.MapManager.Services;
 /// </summary>
 public sealed class MapDirectoryService(
     MapNameParser mapNameParser,
-    ILogger<MapDirectoryService> logger) : IMapDirectoryService
+    ILogger<MapDirectoryService> logger,
+    IGamePathProvider? pathProvider = null) : IMapDirectoryService
 {
     private const string GeneralsMapFolder = MapManagerConstants.GeneralsDataDirectoryName;
     private const string ZeroHourMapFolder = MapManagerConstants.ZeroHourDataDirectoryName;
@@ -29,6 +32,11 @@ public sealed class MapDirectoryService(
     /// <inheritdoc />
     public string GetMapDirectory(GameType version)
     {
+        if (pathProvider is not null)
+        {
+            return Path.Combine(pathProvider.GetOptionsDirectory(version), MapSubfolder);
+        }
+
         var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var gameFolder = version == GameType.Generals ? GeneralsMapFolder : ZeroHourMapFolder;
         return Path.Combine(documentsPath, gameFolder, MapSubfolder);
@@ -239,12 +247,7 @@ public sealed class MapDirectoryService(
 
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PlatformConstants.WindowsExplorerPath,
-                Arguments = directory,
-                UseShellExecute = true,
-            });
+            PathHelper.OpenInExplorer(directory);
         }
         catch (Exception ex)
         {
@@ -257,12 +260,7 @@ public sealed class MapDirectoryService(
     {
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PlatformConstants.WindowsExplorerPath,
-                Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, map.FullPath),
-                UseShellExecute = true,
-            });
+            PathHelper.RevealInExplorer(map.FullPath);
         }
         catch (Exception ex)
         {

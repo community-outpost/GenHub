@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools.Checksum;
@@ -46,7 +47,8 @@ public sealed class ReplayDirectoryService(
     ICrcMappingRegistry crcMappingRegistry,
     IServiceScopeFactory scopeFactory,
     ILogger<ReplayDirectoryService> logger,
-    IGameCrcCalculatorService? crcCalculator = null) : IReplayDirectoryService
+    IGameCrcCalculatorService? crcCalculator = null,
+    IGamePathProvider? pathProvider = null) : IReplayDirectoryService
 {
     private sealed record ReplayContentResolutionContext(
         IContentManifestPool ManifestPool,
@@ -160,6 +162,11 @@ public sealed class ReplayDirectoryService(
     /// <inheritdoc />
     public string GetReplayDirectory(GameType version)
     {
+        if (pathProvider is not null)
+        {
+            return Path.Combine(pathProvider.GetOptionsDirectory(version), GameSettingsConstants.FolderNames.Replays);
+        }
+
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var gameDataFolder = version switch
         {
@@ -256,33 +263,21 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc />
-    [SuppressMessage("Security", "S4036:Command path should not be passed without validation", Justification = "Windows explorer launcher with absolute path.")]
     public void OpenInExplorer(GameType version)
     {
         var path = GetReplayDirectory(version);
         if (Directory.Exists(path))
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PlatformConstants.WindowsExplorerExecutable,
-                Arguments = path,
-                UseShellExecute = true,
-            });
+            PathHelper.OpenInExplorer(path);
         }
     }
 
     /// <inheritdoc />
-    [SuppressMessage("Security", "S4036:Command path should not be passed without validation", Justification = "Windows explorer selection launcher with absolute file path.")]
     public void RevealInExplorer(ReplayFile replay)
     {
         if (File.Exists(replay.FullPath))
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PlatformConstants.WindowsExplorerExecutable,
-                Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, replay.FullPath),
-                UseShellExecute = true,
-            });
+            PathHelper.RevealInExplorer(replay.FullPath);
         }
     }
 

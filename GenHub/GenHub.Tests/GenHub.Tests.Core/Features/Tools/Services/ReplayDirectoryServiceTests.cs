@@ -3,6 +3,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
@@ -4808,6 +4809,63 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal("1.213262.generalsonline.gameclient.60hz", capturedRequest.GameClientId);
         Assert.NotNull(capturedRequest.GameClient);
         Assert.Equal("1.213262.generalsonline.gameclient.60hz", capturedRequest.GameClient.Id);
+    }
+
+    /// <summary>
+    /// Verifies that GetReplayDirectory uses IGamePathProvider when supplied.
+    /// </summary>
+    /// <param name="gameType">The game type to test.</param>
+    /// <param name="expectedFolder">The expected directory name.</param>
+    [Theory]
+    [InlineData(GameType.Generals, "Command and Conquer Generals Data")]
+    [InlineData(GameType.ZeroHour, "Command and Conquer Generals Zero Hour Data")]
+    public void GetReplayDirectory_WithPathProvider_UsesProvidedOptionsDirectory(GameType gameType, string expectedFolder)
+    {
+        var mockPathProvider = new Mock<IGamePathProvider>();
+        var fakeBasePath = Path.Combine(Path.GetTempPath(), expectedFolder);
+        mockPathProvider
+            .Setup(p => p.GetOptionsDirectory(gameType))
+            .Returns(fakeBasePath);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: mockPathProvider.Object);
+
+        var result = service.GetReplayDirectory(gameType);
+
+        var expectedPath = Path.Combine(fakeBasePath, GameSettingsConstants.FolderNames.Replays);
+        Assert.Equal(expectedPath, result);
+        mockPathProvider.Verify(p => p.GetOptionsDirectory(gameType), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that GetReplayDirectory falls back to SpecialFolder.MyDocuments when pathProvider is null.
+    /// </summary>
+    /// <param name="gameType">The game type to test.</param>
+    /// <param name="folderName">The expected fallback directory name.</param>
+    [Theory]
+    [InlineData(GameType.Generals, GameSettingsConstants.FolderNames.Generals)]
+    [InlineData(GameType.ZeroHour, GameSettingsConstants.FolderNames.ZeroHour)]
+    public void GetReplayDirectory_WithoutPathProvider_FallsBackToMyDocuments(GameType gameType, string folderName)
+    {
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: null);
+
+        var result = service.GetReplayDirectory(gameType);
+
+        var expectedPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            folderName,
+            GameSettingsConstants.FolderNames.Replays);
+
+        Assert.Equal(expectedPath, result);
     }
 
     private static ReplayFile CreateCrcReplayFile(string fileName, uint exeCrc, uint iniCrc, CrcMappingEntry? matchedClient = null) => new()
