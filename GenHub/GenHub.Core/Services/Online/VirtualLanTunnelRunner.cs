@@ -76,6 +76,12 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                     return linuxResult;
                 }
             }
+            else if (OperatingSystem.IsMacOS())
+            {
+                logger.LogWarning("Virtual LAN tunneling is not supported on macOS.");
+                return OperationResult<bool>.CreateFailure(
+                    "Virtual LAN tunneling is currently supported on Windows (Wintun) and Linux (TUN). macOS packet tunneling is not yet supported.");
+            }
 
             // Fallback: in-process UDP socket proxy
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

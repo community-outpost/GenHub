@@ -11,6 +11,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Tools.Checksum;
@@ -21,6 +22,9 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Downloads.ViewModels;
+using GenHub.Features.Downloads.Views;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -28,10 +32,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Features.Downloads.ViewModels;
-using GenHub.Features.Downloads.Views;
-using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -94,6 +94,11 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     /// Gets or sets the debounce delay in milliseconds for nickname edits.
     /// </summary>
     internal int NicknameDebounceMs { get; set; } = 350;
+
+    /// <summary>
+    /// Gets or sets the dialog handler used to display the profile selection dialog.
+    /// </summary>
+    internal Func<ProfileSelectionViewModel, Task<bool>>? ShowProfileSelectionDialogHandler { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OnlineViewModel"/> class.
@@ -749,42 +754,11 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         }
     }
 
-
-
-    internal Func<ProfileSelectionViewModel, Task<bool>>? ShowProfileSelectionDialogHandler { get; set; }
-
-    /// <summary>
-    /// Displays the profile selection dialog.
-    /// </summary>
-    internal async Task<bool> ShowProfileSelectionDialogAsync(ProfileSelectionViewModel viewModel)
-    {
-        if (ShowProfileSelectionDialogHandler != null)
-        {
-            return await ShowProfileSelectionDialogHandler(viewModel);
-        }
-
-        var lifetime = Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var parentWindow = lifetime?.MainWindow;
-        if (parentWindow == null)
-        {
-            _logger.LogWarning("No parent window available for profile selection dialog");
-            return false;
-        }
-
-        var dialog = new ProfileSelectionView
-        {
-            DataContext = viewModel,
-        };
-
-        viewModel.RequestClose += (s, e) => dialog.Close();
-        await dialog.ShowDialog(parentWindow);
-        return viewModel.WasSuccessful;
-    }
-
     /// <summary>
     /// Opens the profile selection modal to select a play profile for online play with lobby compatibility.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
     public async Task OpenProfileSelectionAsync(CancellationToken cancellationToken = default)
     {
@@ -810,10 +784,10 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         var expectedFp = ExpectedProfileFingerprint;
         var expectedClientKey = ExpectedGameClientId;
 
-        if (string.IsNullOrEmpty(expectedFp) && SelectedDetail?.ExpectedProfile != null)
+        if (string.IsNullOrEmpty(expectedFp) && SelectedDetail != null)
         {
-            expectedFp = SelectedDetail.ExpectedProfile.ExpectedProfileFingerprint;
-            expectedClientKey = SelectedDetail.ExpectedProfile.ExpectedGameClientId;
+            expectedFp = SelectedDetail.ExpectedProfileFingerprint;
+            expectedClientKey = SelectedDetail.ExpectedProfileId;
         }
 
         if (!string.IsNullOrEmpty(expectedClientKey))
@@ -1171,6 +1145,36 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         _profileLock.Dispose();
     }
 
+    /// <summary>
+    /// Displays the profile selection dialog.
+    /// </summary>
+    /// <param name="viewModel">The profile selection view model.</param>
+    /// <returns>True if a profile was selected; otherwise false.</returns>
+    internal async Task<bool> ShowProfileSelectionDialogAsync(ProfileSelectionViewModel viewModel)
+    {
+        if (ShowProfileSelectionDialogHandler != null)
+        {
+            return await ShowProfileSelectionDialogHandler(viewModel);
+        }
+
+        var lifetime = Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var parentWindow = lifetime?.MainWindow;
+        if (parentWindow == null)
+        {
+            _logger.LogWarning("No parent window available for profile selection dialog");
+            return false;
+        }
+
+        var dialog = new ProfileSelectionView
+        {
+            DataContext = viewModel,
+        };
+
+        viewModel.RequestClose += (s, e) => dialog.Close();
+        await dialog.ShowDialog(parentWindow);
+        return viewModel.WasSuccessful;
+    }
+
     private static void RunOnUi(Action action)
     {
         if (Dispatcher.UIThread.CheckAccess())
@@ -1302,16 +1306,19 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         CancellationToken cancellationToken)
     {
         var allResult = await installationService.GetAllInstallationsAsync(cancellationToken);
-        if (allResult.Success && allResult.Data is not null)
+        if (!allResult.Success || allResult.Data is null)
         {
-            return allResult.Data
-                .Select(inst => ResolveInstallationPath(inst, gameType))
-                .FirstOrDefault(path => path is not null);
+            return null;
         }
 
-        return null;
+        var installs = allResult.Data;
+        return installs
+                   .Select(inst => GetSpecificInstallationPath(inst, gameType))
+                   .FirstOrDefault(path => path is not null)
+               ?? installs
+                   .Select(GetGenericInstallationPath)
+                   .FirstOrDefault(path => path is not null);
     }
-
 
     private static void InsertProfileSorted(IList<GameProfile> profiles, GameProfile profile)
     {
@@ -1771,8 +1778,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         return string.IsNullOrEmpty(val) || val == key ? fallback : val;
     }
 
-
-
     private async Task LoadDetailAsync(OnlineNetworkSummary network, CancellationToken cancellationToken)
     {
         try
@@ -2093,7 +2098,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     private void UpdateLocalRosterMember(string fingerprint, string profileName, string displayName, bool isLaunched)
     {
-        var localIp = CurrentJoin?.OverlayIp ?? OverlayIp;
+        var localIp = _networkService.CurrentJoin?.OverlayIp ?? OverlayIp;
         if (string.IsNullOrEmpty(localIp))
         {
             return;

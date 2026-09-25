@@ -352,7 +352,7 @@ export class PresenceRoom {
     }
     // Keep host continuity: oldest remaining member becomes host.
     if (!kept.some((m) => m.isHost) && kept.length > 0) {
-      const oldest = kept.reduce((a, b) => (a.lastSeen <= b.lastSeen ? a : b), kept[0]);
+      const oldest = kept.reduce((a, b) => ((a.joinedAt ?? a.lastSeen) <= (b.joinedAt ?? b.lastSeen) ? a : b), kept[0]);
       oldest.isHost = true;
       const meta = await this.loadMeta();
       if (meta !== null) {
@@ -516,6 +516,7 @@ export class PresenceRoom {
       quality: relayHost ? QUALITY_RELAY : QUALITY_DIRECT,
       isHost: true,
       lastSeen: now,
+      joinedAt: now,
       lastIp: typeof body.ip === "string" ? body.ip : "",
       profileFingerprint: typeof body.profileFingerprint === "string" ? body.profileFingerprint.substring(0, 256) : "",
       profileName: typeof body.profileName === "string" ? sanitizeText(body.profileName).substring(0, 64) : "",
@@ -613,6 +614,7 @@ export class PresenceRoom {
         quality: body.preferRelay ? QUALITY_RELAY : QUALITY_DIRECT,
         isHost: false,
         lastSeen: Date.now(),
+        joinedAt: Date.now(),
         lastIp: body.ip,
         profileFingerprint,
         profileName,
@@ -646,7 +648,7 @@ export class PresenceRoom {
     this.closeSocketsFor(body.sub, 4000, "Left network");
     const members = (await this.loadMembers()).filter((m) => m.sub !== body.sub);
     if (!members.some((m) => m.isHost) && members.length > 0) {
-      const oldest = members.reduce((a, b) => (a.lastSeen <= b.lastSeen ? a : b), members[0]);
+      const oldest = members.reduce((a, b) => ((a.joinedAt ?? a.lastSeen) <= (b.joinedAt ?? b.lastSeen) ? a : b), members[0]);
       oldest.isHost = true;
       meta.hostDisplayName = oldest.displayName;
       await this.state.storage.put("meta", meta);

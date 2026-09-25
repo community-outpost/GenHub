@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace GenHub.Core.Services.Online.Tun;
 
@@ -186,10 +187,11 @@ internal static class WintunNative
         var resourceName = $"GenHub.Core.Resources.Wintun.{archFolder}.wintun.dll";
         using var resourceStream = typeof(WintunNative).Assembly.GetManifestResourceStream(resourceName)
             ?? Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-        if (resourceStream != null && ShouldExtractResource(targetDll, resourceStream.Length))
+        if (resourceStream != null && ShouldExtractResource(targetDll, resourceStream))
         {
             try
             {
+                resourceStream.Position = 0;
                 using var fileStream = File.Create(targetDll);
                 resourceStream.CopyTo(fileStream);
             }
@@ -202,7 +204,7 @@ internal static class WintunNative
         return targetDll;
     }
 
-    private static bool ShouldExtractResource(string targetDll, long expectedLength)
+    private static bool ShouldExtractResource(string targetDll, Stream resourceStream)
     {
         if (!File.Exists(targetDll))
         {
@@ -212,7 +214,19 @@ internal static class WintunNative
         try
         {
             var existing = new FileInfo(targetDll);
-            return existing.Length != expectedLength;
+            if (existing.Length != resourceStream.Length)
+            {
+                return true;
+            }
+
+            resourceStream.Position = 0;
+            var expectedHash = SHA256.HashData(resourceStream);
+            resourceStream.Position = 0;
+
+            using var existingStream = File.OpenRead(targetDll);
+            var existingHash = SHA256.HashData(existingStream);
+
+            return !CryptographicOperations.FixedTimeEquals(expectedHash, existingHash);
         }
         catch
         {

@@ -556,6 +556,53 @@ describe("online edge", () => {
     expect(roster.members).toHaveLength(1);
   });
 
+  it("migrates host to the oldest joined member when host leaves", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const guest1 = await session();
+    const joinRes1 = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest1), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password", displayName: "FirstGuest" }),
+    });
+    expect(joinRes1.status).toBe(200);
+    const joined1 = (await joinRes1.json()) as JoinResult;
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const guest2 = await session();
+    const joinRes2 = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest2), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password", displayName: "SecondGuest" }),
+    });
+    expect(joinRes2.status).toBe(200);
+    const joined2 = (await joinRes2.json()) as JoinResult;
+
+    // Second guest heartbeats so lastSeen is newer
+    await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/heartbeat`, {
+      method: "POST",
+      headers: { ...auth(joined2.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    // Host leaves
+    const leaveRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/leave`, {
+      method: "POST",
+      headers: auth(created.grant),
+    });
+    expect(leaveRes.status).toBe(200);
+
+    // FirstGuest should be elected host by joinedAt seniority
+    const membersRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
+      headers: auth(joined1.grant),
+    });
+    expect(membersRes.status).toBe(200);
+    const roster = (await membersRes.json()) as { members: { overlayIp: string; isHost: boolean; displayName: string }[] };
+    const newHost = roster.members.find((m) => m.isHost);
+    expect(newHost?.displayName).toBe("FirstGuest");
+  });
+
   it("expires empty rooms only after the TTL", () => {
     expect(emptyRoomExpired(0, 1_000_000, 300)).toBe(false);
     expect(emptyRoomExpired(1_000_000, 1_000_000 + 299_999, 300)).toBe(false);
