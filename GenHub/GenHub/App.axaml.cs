@@ -156,7 +156,7 @@ public partial class App : Application
                     try
                     {
                         using var crashFlushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                        _telemetryService?.FlushAsync(crashFlushCts.Token).GetAwaiter().GetResult();
+                        Task.Run(async () => await (_telemetryService?.FlushAsync(crashFlushCts.Token) ?? Task.CompletedTask).ConfigureAwait(false)).GetAwaiter().GetResult();
                     }
                     catch
                     {

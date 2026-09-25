@@ -30,6 +30,9 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     private readonly ConcurrentQueue<Breadcrumb> _breadcrumbs = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _processingTask;
+    private readonly object _installationIdLock = new();
+    private string? _cachedInstallationId;
+    private int _inFlightCount;
     private Task? _installationIdSaveTask;
     private bool _disposed;
 
@@ -58,7 +61,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             SingleWriter = false,
         });
 
-        _processingTask = Task.Run(() => ProcessChannelAsync(_cts.Token));
+        _processingTask = Task.Run(() => ProcessChannelAsync(_cts.Token), _cts.Token);
     }
 
     /// <inheritdoc/>
@@ -232,9 +235,9 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     {
         try
         {
-            // Allow queued channel items to drain to sinks before flushing sink buffers
+            // Allow queued channel items and in-flight sink tasks to drain before flushing sink buffers
             var spinCount = 0;
-            while (_channel.Reader.Count > 0 && spinCount < 20 && !cancellationToken.IsCancellationRequested)
+            while ((_channel.Reader.Count > 0 || Volatile.Read(ref _inFlightCount) > 0) && spinCount < 40 && !cancellationToken.IsCancellationRequested)
             {
                 await Task.Delay(25, cancellationToken);
                 spinCount++;
@@ -316,28 +319,43 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             // Suppress background task cancellation exceptions on shutdown
         }
 
-        _cts.Cancel();
+        await _cts.CancelAsync();
         _cts.Dispose();
     }
 
     private string GetOrCreateInstallationId()
     {
-        try
+        if (!string.IsNullOrWhiteSpace(_cachedInstallationId))
         {
-            var settings = _userSettingsService.Get();
-            if (!string.IsNullOrWhiteSpace(settings.AnonymousInstallationId))
+            return _cachedInstallationId;
+        }
+
+        lock (_installationIdLock)
+        {
+            if (!string.IsNullOrWhiteSpace(_cachedInstallationId))
             {
-                return settings.AnonymousInstallationId;
+                return _cachedInstallationId;
             }
 
-            var newId = Guid.NewGuid().ToString("N");
-            _userSettingsService.Update(s => s.AnonymousInstallationId = newId);
-            _installationIdSaveTask = _userSettingsService.SaveAsync(CancellationToken.None);
-            return newId;
-        }
-        catch
-        {
-            return Guid.Empty.ToString("N");
+            try
+            {
+                var settings = _userSettingsService.Get();
+                if (!string.IsNullOrWhiteSpace(settings.AnonymousInstallationId))
+                {
+                    _cachedInstallationId = settings.AnonymousInstallationId;
+                    return _cachedInstallationId;
+                }
+
+                var newId = Guid.NewGuid().ToString("N");
+                _userSettingsService.Update(s => s.AnonymousInstallationId = newId);
+                _installationIdSaveTask = _userSettingsService.SaveAsync(CancellationToken.None);
+                _cachedInstallationId = newId;
+                return newId;
+            }
+            catch
+            {
+                return Guid.Empty.ToString("N");
+            }
         }
     }
 
@@ -354,22 +372,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
                         continue;
                     }
 
-                    foreach (var sink in _sinks)
-                    {
-                        if (!sink.CanHandle(telemetryEvent))
-                        {
-                            continue;
-                        }
-
-                        try
-                        {
-                            await sink.EmitAsync(telemetryEvent, cancellationToken);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogTrace(ex, "Telemetry sink {SinkName} failed emitting event", sink.Name);
-                        }
-                    }
+                    await DispatchToSinksAsync(telemetryEvent, cancellationToken);
                 }
             }
         }
@@ -380,6 +383,34 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         catch (Exception ex)
         {
             _logger.LogTrace(ex, "Unexpected error in telemetry event processing channel");
+        }
+    }
+
+    private async Task DispatchToSinksAsync(TelemetryEvent telemetryEvent, CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _inFlightCount);
+        try
+        {
+            foreach (var sink in _sinks)
+            {
+                if (!sink.CanHandle(telemetryEvent))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await sink.EmitAsync(telemetryEvent, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogTrace(ex, "Telemetry sink {SinkName} failed emitting event", sink.Name);
+                }
+            }
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _inFlightCount);
         }
     }
 }

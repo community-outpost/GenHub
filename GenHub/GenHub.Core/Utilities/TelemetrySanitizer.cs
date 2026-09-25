@@ -24,7 +24,7 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
     [GeneratedRegex(@"github_pat_[A-Za-z0-9_]{20,}", RegexOptions.Compiled)]
     private static partial Regex GitHubFineGrainedTokenRegex();
 
-    [GeneratedRegex(@"(?i)bearer\s+[a-zA-Z0-9_\-\.]{20,}", RegexOptions.Compiled)]
+    [GeneratedRegex(@"(?i)bearer\s+[a-zA-Z0-9_\-\.\+/=]{20,}", RegexOptions.Compiled)]
     private static partial Regex BearerTokenRegex();
 
     [GeneratedRegex(@"[a-zA-Z]:\\(?:Users|Documents and Settings)\\[^\\]+", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
@@ -93,7 +93,7 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
         // Mask exact username if prominent
         if (!string.IsNullOrEmpty(_userName) && _userName.Length > 2 && !_userName.Equals("user", StringComparison.OrdinalIgnoreCase))
         {
-            result = Regex.Replace(result, $@"\b{Regex.Escape(_userName)}\b", "<USER>", RegexOptions.IgnoreCase);
+            result = Regex.Replace(result, $@"\b{Regex.Escape(_userName)}\b", "<USER>", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         }
 
         return result;

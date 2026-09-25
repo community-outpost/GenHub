@@ -31,8 +31,6 @@ public sealed class AnalyticsTelemetrySink(
     };
 
     private readonly ConcurrentQueue<TelemetryEvent> _buffer = new();
-    private string? _endpointUrl = Environment.GetEnvironmentVariable("POSTHOG_CAPTURE_URL") ?? (Environment.GetEnvironmentVariable("POSTHOG_HOST") != null ? $"{Environment.GetEnvironmentVariable("POSTHOG_HOST")?.TrimEnd('/')}/capture/" : TelemetryConstants.DefaultPostHogCaptureEndpoint);
-    private string? _apiKey = Environment.GetEnvironmentVariable("POSTHOG_API_KEY") ?? Environment.GetEnvironmentVariable("GENHUB_POSTHOG_API_KEY") ?? TelemetryConstants.DefaultPostHogApiKey;
 
     /// <inheritdoc/>
     public string Name => "Analytics";
@@ -41,20 +39,12 @@ public sealed class AnalyticsTelemetrySink(
     /// Gets or sets the remote HTTP endpoint URL for analytics ingestion (e.g. PostHog capture endpoint).
     /// When null or empty, defaults to the configured default PostHog capture URL or buffers locally.
     /// </summary>
-    public string? EndpointUrl
-    {
-        get => _endpointUrl;
-        set => _endpointUrl = value;
-    }
+    public string? EndpointUrl { get; set; } = Environment.GetEnvironmentVariable("POSTHOG_CAPTURE_URL") ?? (Environment.GetEnvironmentVariable("POSTHOG_HOST") != null ? $"{Environment.GetEnvironmentVariable("POSTHOG_HOST")?.TrimEnd('/')}/capture/" : TelemetryConstants.DefaultPostHogCaptureEndpoint);
 
     /// <summary>
     /// Gets or sets the analytics project API token / key (e.g. PostHog project token).
     /// </summary>
-    public string? ApiKey
-    {
-        get => _apiKey;
-        set => _apiKey = value;
-    }
+    public string? ApiKey { get; set; } = Environment.GetEnvironmentVariable("POSTHOG_API_KEY") ?? Environment.GetEnvironmentVariable("GENHUB_POSTHOG_API_KEY") ?? TelemetryConstants.DefaultPostHogApiKey;
 
     /// <inheritdoc/>
     public bool CanHandle(TelemetryEvent telemetryEvent)
@@ -144,10 +134,18 @@ public sealed class AnalyticsTelemetrySink(
         var count = _buffer.Count;
         for (var i = 0; i < count && _buffer.TryDequeue(out var ev); i++)
         {
-            var res = await EmitAsync(ev, cancellationToken);
-            if (!res.Success)
+            try
             {
-                failed = true;
+                var res = await EmitAsync(ev, cancellationToken);
+                if (!res.Success)
+                {
+                    failed = true;
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                EnqueueBounded(ev);
+                throw;
             }
         }
 

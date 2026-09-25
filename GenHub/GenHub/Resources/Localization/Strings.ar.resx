@@ -2291,6 +2291,18 @@
     <value>مستوى القياس عن بعد والإبلاغ عن الأعطال</value>
     <comment>Label for telemetry and crash reporting level setting.</comment>
   </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Disabled" xml:space="preserve">
+    <value>معطل</value>
+    <comment>Label for disabled telemetry level option.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.CrashReportsOnly" xml:space="preserve">
+    <value>تقارير الأعطال فقط</value>
+    <comment>Label for crash reports only telemetry level option.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.AnonymousMetrics" xml:space="preserve">
+    <value>مقاييس الاستخدام المجهولة وتقارير الأعطال</value>
+    <comment>Label for anonymous usage metrics and crash reports telemetry level option.</comment>
+  </data>
   <data name="Settings.Download.AllowBackgroundDownloads" xml:space="preserve">
     <value>السماح بالتنزيلات في الخلفية</value>
     <comment>Label for allow background downloads checkbox</comment>

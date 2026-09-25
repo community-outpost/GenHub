@@ -570,7 +570,13 @@
               <ComboBox ItemsSource="{Binding AvailableTelemetryLevels}"
                         SelectedItem="{Binding TelemetryPreference}"
                         HorizontalAlignment="Left"
-                        MinWidth="220" />
+                        MinWidth="280">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource LocalizedTelemetryLevelConverter}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
               <TextBlock Text="{localization:Localize Settings.DiagnosticsPrivacy.TelemetryLevel.Description}"
                          Classes="setting-description" />
             </StackPanel>

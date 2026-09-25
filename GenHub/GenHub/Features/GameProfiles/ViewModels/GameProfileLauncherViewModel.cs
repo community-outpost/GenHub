@@ -1524,7 +1524,6 @@ public partial class GameProfileLauncherViewModel(
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
-                [TelemetryConstants.Properties.ProfileName] = liveProfile.Name,
                 [TelemetryConstants.Properties.GameType] = liveProfile.Profile.GameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.LaunchSource] = "launcher",
             });
@@ -1886,7 +1885,6 @@ public partial class GameProfileLauncherViewModel(
                 telemetryService?.TrackEvent(TelemetryConstants.Events.ProfilePinned, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
-                    [TelemetryConstants.Properties.ProfileName] = profile.Name,
                     [TelemetryConstants.Properties.GameType] = profile.Profile.GameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.ShortcutType] = "desktop",
                 });

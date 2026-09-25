@@ -32,7 +32,6 @@ public sealed class SentryTelemetrySink(
     };
 
     private readonly ConcurrentQueue<TelemetryEvent> _crashBuffer = new();
-    private string? _dsnEndpoint = Environment.GetEnvironmentVariable("SENTRY_DSN") ?? Environment.GetEnvironmentVariable("GENHUB_SENTRY_DSN") ?? TelemetryConstants.DefaultSentryDsn;
 
     /// <inheritdoc/>
     public string Name => "Sentry";
@@ -41,11 +40,7 @@ public sealed class SentryTelemetrySink(
     /// Gets or sets the Sentry DSN or HTTP crash reporting endpoint.
     /// When null or empty, defaults to the configured default Sentry DSN or buffers locally.
     /// </summary>
-    public string? DsnEndpoint
-    {
-        get => _dsnEndpoint;
-        set => _dsnEndpoint = value;
-    }
+    public string? DsnEndpoint { get; set; } = Environment.GetEnvironmentVariable("SENTRY_DSN") ?? Environment.GetEnvironmentVariable("GENHUB_SENTRY_DSN") ?? TelemetryConstants.DefaultSentryDsn;
 
     /// <inheritdoc/>
     public bool CanHandle(TelemetryEvent telemetryEvent)
@@ -125,10 +120,18 @@ public sealed class SentryTelemetrySink(
         var count = _crashBuffer.Count;
         for (var i = 0; i < count && _crashBuffer.TryDequeue(out var ev); i++)
         {
-            var res = await EmitAsync(ev, cancellationToken);
-            if (!res.Success)
+            try
             {
-                failed = true;
+                var res = await EmitAsync(ev, cancellationToken);
+                if (!res.Success)
+                {
+                    failed = true;
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                EnqueueBounded(ev);
+                throw;
             }
         }
 

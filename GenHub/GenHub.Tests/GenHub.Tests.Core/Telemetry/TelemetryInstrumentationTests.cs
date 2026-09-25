@@ -1,12 +1,19 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Telemetry;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.Protected;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -200,66 +207,112 @@ public class TelemetryInstrumentationTests
     }
 
     /// <summary>
-    /// Verifies that content download completed telemetry payload contains download metrics.
+    /// Verifies that content download completed telemetry payload contains download metrics when driven through DownloadService.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public void ContentDownloadCompleted_Event_ContainsRequiredTelemetryProperties()
+    public async Task ContentDownloadCompleted_Event_ContainsRequiredTelemetryPropertiesAsync()
     {
-        var properties = new Dictionary<string, object?>
+        var fileContent = new byte[] { 1, 2, 3, 4, 5 };
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(fileContent),
+            });
+
+        var loggerMock = new Mock<ILogger<DownloadService>>();
+        var httpClient = new HttpClient(handler.Object);
+        var hashProvider = new Sha256HashProvider();
+        var downloadService = new DownloadService(loggerMock.Object, httpClient, hashProvider, telemetryService: _telemetryServiceMock.Object);
+
+        var tempFile = Path.GetTempFileName();
+        try
         {
-            [TelemetryConstants.Properties.ContentName] = "GeneralsOnline-Package.zip",
-            [TelemetryConstants.Properties.FileName] = "GeneralsOnline-Package.zip",
-            [TelemetryConstants.Properties.PublisherId] = "GeneralsOnline",
-            [TelemetryConstants.Properties.ContentType] = "Package",
-            [TelemetryConstants.Properties.FileSizeBytes] = 10485760L,
-            [TelemetryConstants.Properties.DurationSeconds] = 1.25,
-            [TelemetryConstants.Properties.SpeedMbps] = 8.38,
-            [TelemetryConstants.Properties.Success] = true,
-        };
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/file.bin"),
+                DestinationPath = tempFile,
+                OverwriteExisting = true,
+            };
 
-        _telemetryServiceMock.Object.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, properties, TelemetryLevel.AnonymousMetrics);
+            var result = await downloadService.DownloadFileAsync(config);
 
-        _telemetryServiceMock.Verify(
-            t => t.TrackEvent(
-                TelemetryConstants.Events.ContentDownloadCompleted,
-                It.Is<IReadOnlyDictionary<string, object?>?>(p =>
-                    p != null &&
-                    (string?)p[TelemetryConstants.Properties.ContentName] == "GeneralsOnline-Package.zip" &&
-                    (string?)p[TelemetryConstants.Properties.PublisherId] == "GeneralsOnline" &&
-                    (long?)p[TelemetryConstants.Properties.FileSizeBytes] == 10485760L &&
-                    (bool?)p[TelemetryConstants.Properties.Success] == true),
-                It.IsAny<TelemetryLevel>()),
-            Times.Once);
+            Assert.True(result.Success);
+            _telemetryServiceMock.Verify(
+                t => t.TrackEvent(
+                    TelemetryConstants.Events.ContentDownloadCompleted,
+                    It.Is<IReadOnlyDictionary<string, object?>?>(p =>
+                        p != null &&
+                        (string?)p[TelemetryConstants.Properties.FileName] == Path.GetFileName(tempFile) &&
+                        p.ContainsKey(TelemetryConstants.Properties.SizeMb) &&
+                        p.ContainsKey(TelemetryConstants.Properties.DurationSeconds)),
+                    It.IsAny<TelemetryLevel>()),
+                Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
     }
 
     /// <summary>
-    /// Verifies that content download failed telemetry payload contains failure reasons.
+    /// Verifies that content download failed telemetry payload contains failure reasons when driven through DownloadService.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public void ContentDownloadFailed_Event_ContainsRequiredTelemetryProperties()
+    public async Task ContentDownloadFailed_Event_ContainsRequiredTelemetryPropertiesAsync()
     {
-        var properties = new Dictionary<string, object?>
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.NotFound));
+
+        var loggerMock = new Mock<ILogger<DownloadService>>();
+        var httpClient = new HttpClient(handler.Object);
+        var hashProvider = new Sha256HashProvider();
+        var downloadService = new DownloadService(loggerMock.Object, httpClient, hashProvider, telemetryService: _telemetryServiceMock.Object);
+
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        try
         {
-            [TelemetryConstants.Properties.ContentName] = "GeneralsOnline-Package.zip",
-            [TelemetryConstants.Properties.FileName] = "GeneralsOnline-Package.zip",
-            [TelemetryConstants.Properties.PublisherId] = "GeneralsOnline",
-            [TelemetryConstants.Properties.ContentType] = "Package",
-            [TelemetryConstants.Properties.Success] = false,
-            [TelemetryConstants.Properties.ErrorMessage] = "HTTP 404 Not Found",
-        };
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/nonexistent.bin"),
+                DestinationPath = tempFile,
+                OverwriteExisting = true,
+                MaxRetryAttempts = 1,
+            };
 
-        _telemetryServiceMock.Object.TrackEvent(TelemetryConstants.Events.ContentDownloadFailed, properties, TelemetryLevel.AnonymousMetrics);
+            var result = await downloadService.DownloadFileAsync(config);
 
-        _telemetryServiceMock.Verify(
-            t => t.TrackEvent(
-                TelemetryConstants.Events.ContentDownloadFailed,
-                It.Is<IReadOnlyDictionary<string, object?>?>(p =>
-                    p != null &&
-                    (string?)p[TelemetryConstants.Properties.ContentName] == "GeneralsOnline-Package.zip" &&
-                    (string?)p[TelemetryConstants.Properties.PublisherId] == "GeneralsOnline" &&
-                    (bool?)p[TelemetryConstants.Properties.Success] == false &&
-                    (string?)p[TelemetryConstants.Properties.ErrorMessage] == "HTTP 404 Not Found"),
-                It.IsAny<TelemetryLevel>()),
-            Times.Once);
+            Assert.False(result.Success);
+            _telemetryServiceMock.Verify(
+                t => t.TrackEvent(
+                    TelemetryConstants.Events.ContentDownloadFailed,
+                    It.Is<IReadOnlyDictionary<string, object?>?>(p =>
+                        p != null &&
+                        (string?)p[TelemetryConstants.Properties.FileName] == Path.GetFileName(tempFile) &&
+                        p.ContainsKey(TelemetryConstants.Properties.ErrorMessage)),
+                    It.IsAny<TelemetryLevel>()),
+                Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
     }
 }

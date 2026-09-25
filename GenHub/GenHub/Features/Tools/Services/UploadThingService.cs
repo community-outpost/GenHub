@@ -35,8 +35,15 @@ public sealed class UploadThingService(
     {
         if (!File.Exists(filePath))
         {
+            var notFoundMsg = $"File not found: {filePath}";
             logger.LogError("File to upload does not exist: {Path}", filePath);
-            return OperationResult<UploadResult>.CreateFailure($"File not found: {filePath}");
+            telemetryService?.TrackEvent(TelemetryConstants.Events.UploadThingUploadFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FileName] = Path.GetFileName(filePath),
+                [TelemetryConstants.Properties.DurationSeconds] = 0.0,
+                [TelemetryConstants.Properties.ErrorMessage] = notFoundMsg,
+            });
+            return OperationResult<UploadResult>.CreateFailure(notFoundMsg);
         }
 
         var rawFileName = Path.GetFileName(filePath);
@@ -93,8 +100,16 @@ public sealed class UploadThingService(
             var result = await response.Content.ReadFromJsonAsync<DirectUploadResponse>(cancellationToken: ct);
             if (result?.PublicUrl == null || result.FileKey == null || result.DeleteToken == null)
             {
-                logger.LogError("Gateway returned incomplete upload response.");
-                return OperationResult<UploadResult>.CreateFailure("Gateway returned incomplete upload response.");
+                const string incompleteMsg = "Gateway returned incomplete upload response.";
+                logger.LogError(incompleteMsg);
+                telemetryService?.TrackEvent(TelemetryConstants.Events.UploadThingUploadFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.FileName] = rawFileName,
+                    [TelemetryConstants.Properties.SizeMb] = Math.Round(fileLength / (1024.0 * 1024.0), 2),
+                    [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.ErrorMessage] = incompleteMsg,
+                });
+                return OperationResult<UploadResult>.CreateFailure(incompleteMsg);
             }
 
             progress?.Report(1.0);

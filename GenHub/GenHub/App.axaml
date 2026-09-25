@@ -26,6 +26,7 @@
             <local:LocalizedUpdateSortOptionConverter x:Key="LocalizedUpdateSortOptionConverter" />
             <local:LocalizedInfoModuleNameConverter x:Key="LocalizedInfoModuleNameConverter" />
             <local:LocalizedFormatConverter x:Key="LocalizedFormatConverter" />
+            <local:LocalizedTelemetryLevelConverter x:Key="LocalizedTelemetryLevelConverter" />
             <local:ActiveBorderConverter x:Key="ActiveBorderConverter" />
             <local:IndentConverter x:Key="IndentConverter" />
             <local:BoolToColorConverter x:Key="BoolToColorConverter" />

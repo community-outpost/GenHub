@@ -2291,6 +2291,18 @@
     <value>Уровень телеметрии и отчетов о сбоях</value>
     <comment>Label for telemetry and crash reporting level setting.</comment>
   </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Disabled" xml:space="preserve">
+    <value>Отключено</value>
+    <comment>Label for disabled telemetry level option.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.CrashReportsOnly" xml:space="preserve">
+    <value>Только отчеты о сбоях</value>
+    <comment>Label for crash reports only telemetry level option.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.AnonymousMetrics" xml:space="preserve">
+    <value>Анонимная статистика и отчеты о сбоях</value>
+    <comment>Label for anonymous usage metrics and crash reports telemetry level option.</comment>
+  </data>
   <data name="Settings.Download.AllowBackgroundDownloads" xml:space="preserve">
     <value>Разрешить фоновые загрузки</value>
     <comment>Label for allow background downloads checkbox</comment>

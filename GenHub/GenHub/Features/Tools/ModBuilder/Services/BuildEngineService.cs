@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
@@ -37,6 +38,7 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <param name="serviceScopeFactory">The service scope factory for resolving scoped dependencies.</param>
 /// <param name="logger">The logger instance.</param>
 /// <param name="telemetryService">The optional telemetry service.</param>
+[method: SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies for ModBuilder engine pipeline.")]
 public sealed class BuildEngineService(
     IBuildCacheService cacheService,
     IFileConversionService fileConversionService,
@@ -110,6 +112,13 @@ public sealed class BuildEngineService(
         {
             var msg = $"Cannot execute build within the application installation directory: '{project.ProjectDir}'. The project must be located in a user directory.";
             logger.LogError(msg);
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.DurationSeconds] = 0.0,
+                [TelemetryConstants.Properties.ErrorMessage] = msg,
+            });
             return BuildOperationResult.CreateFailure(msg);
         }
 
@@ -136,6 +145,13 @@ public sealed class BuildEngineService(
             {
                 logger.LogError("Invalid bundle configuration: {Error}", duplicateNamesError);
                 sw.Stop();
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                    [TelemetryConstants.Properties.Success] = false,
+                    [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.ErrorMessage] = duplicateNamesError,
+                });
                 return BuildOperationResult.CreateFailure(duplicateNamesError, 0, 0, 0, sw.Elapsed);
             }
 
@@ -155,7 +171,6 @@ public sealed class BuildEngineService(
 
             telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
             {
-                [TelemetryConstants.Properties.ProjectName] = project.Name,
                 [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
                 [TelemetryConstants.Properties.Success] = success,
                 [TelemetryConstants.Properties.FileCount] = _filesProcessed,
@@ -170,6 +185,14 @@ public sealed class BuildEngineService(
         catch (OperationCanceledException)
         {
             sw.Stop();
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.FileCount] = _filesProcessed,
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.ErrorMessage] = "Build cancelled",
+            });
             throw;
         }
         catch (Exception ex)
@@ -178,7 +201,6 @@ public sealed class BuildEngineService(
             sw.Stop();
             telemetryService?.TrackEvent(TelemetryConstants.Events.ModBuilt, new Dictionary<string, object?>
             {
-                [TelemetryConstants.Properties.ProjectName] = project.Name,
                 [TelemetryConstants.Properties.BuildSteps] = buildSteps.ToString(),
                 [TelemetryConstants.Properties.Success] = false,
                 [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,

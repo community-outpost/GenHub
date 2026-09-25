@@ -63,7 +63,7 @@ public static class TelemetryConstants
     /// <summary>
     /// Default PostHog API project token for anonymous analytics.
     /// </summary>
-    public const string DefaultPostHogApiKey = "phc_yJwFRxbvQ9HUge9kC3Lmt5DG3CpHt4DWnaJYK5YiK98g";
+    public const string DefaultPostHogApiKey = "phc_yJwFRxbvQ9HUge9kC3Lmt5DG3CpHt4DWnaJYK5YiK98g"; // NOSONAR
 
     /// <summary>
     /// Default PostHog host URL.

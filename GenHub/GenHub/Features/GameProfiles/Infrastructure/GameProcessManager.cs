@@ -46,7 +46,7 @@ public class GameProcessManager(
 
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
-    private readonly ConcurrentDictionary<int, (string SessionId, DateTime StartTime, string ExecName, string Runner)> _sessionMetadata = new();
+    private readonly ConcurrentDictionary<Process, (string SessionId, DateTime StartTime, string ExecName, string Runner)> _sessionMetadata = new();
 
     /// <summary>
     /// Stderr captures for processes this manager started itself, keyed by process instance.
@@ -724,7 +724,7 @@ public class GameProcessManager(
         // A delayed callback must not remove a new process that reused the same PID.
         _managedProcesses.TryRemove(new KeyValuePair<int, Process>(processId, process));
 
-        if (_sessionMetadata.TryRemove(processId, out var sessionMeta) && telemetryService != null)
+        if (_sessionMetadata.TryRemove(process, out var sessionMeta) && telemetryService != null)
         {
             var duration = (DateTime.UtcNow - sessionMeta.StartTime).TotalSeconds;
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, new Dictionary<string, object?>
@@ -2047,7 +2047,7 @@ public class GameProcessManager(
         var sessionId = Guid.NewGuid().ToString("N");
         var execName = Path.GetFileName(executableName);
         var runner = DetectRunnerEnvironment(envVars);
-        _sessionMetadata[process.Id] = (sessionId, DateTime.UtcNow, execName, runner);
+        _sessionMetadata[process] = (sessionId, DateTime.UtcNow, execName, runner);
 
         if (telemetryService != null)
         {

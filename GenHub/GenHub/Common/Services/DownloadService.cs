@@ -1051,6 +1051,7 @@ public class DownloadService(
 
     private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed)
     {
+        var fileName = Path.GetFileName(configuration.DestinationPath);
         var totalElapsedSeconds = elapsed.TotalSeconds;
         var sizeMb = downloadedBytes / (1024.0 * 1024.0);
         var speedMbps = totalElapsedSeconds > 0 ? (sizeMb * 8.0) / totalElapsedSeconds : 0.0;

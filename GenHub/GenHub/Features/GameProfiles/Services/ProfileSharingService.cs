@@ -332,7 +332,6 @@ public class ProfileSharingService(
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileImported, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = saveResult.Data.Id,
-                [TelemetryConstants.Properties.ProfileName] = saveResult.Data.Name,
                 [TelemetryConstants.Properties.GameType] = saveResult.Data.GameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.Success] = true,
                 [TelemetryConstants.Properties.FileCount] = request.Package.RequiredManifests.Count,

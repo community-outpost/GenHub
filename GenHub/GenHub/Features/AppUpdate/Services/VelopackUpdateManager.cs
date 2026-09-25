@@ -223,7 +223,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateChecked, new Dictionary<string, object?>
         {
-            [TelemetryConstants.Properties.FromVersion] = AppConstants.AppVersion,
+            [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
             [TelemetryConstants.Properties.Channel] = TelemetryChannel,
             [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
         });
@@ -374,15 +374,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogInformation("Update package: {Package}", updateInfo.TargetFullRelease.FileName);
             _logger.LogInformation("Current app will exit and restart with new version");
 
+            _updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
+
             _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateApplied, new Dictionary<string, object?>
             {
-                [TelemetryConstants.Properties.FromVersion] = AppConstants.AppVersion,
+                [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
                 [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
                 [TelemetryConstants.Properties.Channel] = TelemetryChannel,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
             });
-
-            _updateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
 
             // If we reach here, restart might have failed
             _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - this is unexpected");
@@ -399,6 +399,14 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             {
                 _updateManager.ApplyUpdatesAndExit(updateInfo.TargetFullRelease);
                 _logger.LogInformation("Fallback to ApplyUpdatesAndExit succeeded. Please restart the application manually.");
+
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateApplied, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+                    [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
+                    [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+                    [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+                });
             }
             catch (Exception fallbackEx)
             {

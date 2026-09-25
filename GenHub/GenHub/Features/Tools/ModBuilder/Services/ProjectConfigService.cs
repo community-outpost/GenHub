@@ -172,7 +172,6 @@ public sealed class ProjectConfigService(
 
             telemetryService?.TrackEvent(TelemetryConstants.Events.ModProjectCreated, new Dictionary<string, object?>
             {
-                [TelemetryConstants.Properties.ProjectName] = projectName,
                 [TelemetryConstants.Properties.ContentType] = contentType.ToString(),
             });
 

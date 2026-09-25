@@ -246,13 +246,23 @@ public class ActionSetOrchestrator(
         List<string> errors,
         CancellationToken ct)
     {
-        var gameType = installation.HasZeroHour && installation.HasGenerals
-            ? "Both"
-            : installation.HasZeroHour
-                ? "ZeroHour"
-                : installation.HasGenerals
-                    ? "Generals"
-                    : "Unknown";
+        string gameType;
+        if (installation.HasZeroHour && installation.HasGenerals)
+        {
+            gameType = "Both";
+        }
+        else if (installation.HasZeroHour)
+        {
+            gameType = "ZeroHour";
+        }
+        else if (installation.HasGenerals)
+        {
+            gameType = "Generals";
+        }
+        else
+        {
+            gameType = "Unknown";
+        }
 
         try
         {
@@ -262,29 +272,14 @@ public class ActionSetOrchestrator(
             if (result.Success)
             {
                 logger.LogInformation("Successfully applied {Title}", actionSet.Title);
-                telemetryService?.TrackEvent(TelemetryConstants.Events.GenPatcherFixApplied, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.FixId] = actionSet.Id,
-                    [TelemetryConstants.Properties.FixName] = actionSet.Title,
-                    [TelemetryConstants.Properties.GameType] = gameType,
-                    [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
-                    [TelemetryConstants.Properties.Success] = true,
-                });
+                SafeTrackFixApplied(actionSet, gameType, success: true);
                 return ExecutionOutcome.Success;
             }
 
             var errorMessage = result.ErrorMessage ?? "Unknown error";
             logger.LogWarning("Failed to apply {Title}: {Error}", actionSet.Title, errorMessage);
             errors.Add($"{actionSet.Title}: {errorMessage}");
-            telemetryService?.TrackEvent(TelemetryConstants.Events.GenPatcherFixApplied, new Dictionary<string, object?>
-            {
-                [TelemetryConstants.Properties.FixId] = actionSet.Id,
-                [TelemetryConstants.Properties.FixName] = actionSet.Title,
-                [TelemetryConstants.Properties.GameType] = gameType,
-                [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
-                [TelemetryConstants.Properties.Success] = false,
-                [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
-            });
+            SafeTrackFixApplied(actionSet, gameType, success: false, errorMessage);
 
             if (actionSet.IsCrucialFix)
             {
@@ -303,15 +298,7 @@ public class ActionSetOrchestrator(
         {
             logger.LogError(ex, "Unexpected error applying {Title}", actionSet.Title);
             errors.Add($"{actionSet.Title}: {ex.Message}");
-            telemetryService?.TrackEvent(TelemetryConstants.Events.GenPatcherFixApplied, new Dictionary<string, object?>
-            {
-                [TelemetryConstants.Properties.FixId] = actionSet.Id,
-                [TelemetryConstants.Properties.FixName] = actionSet.Title,
-                [TelemetryConstants.Properties.GameType] = gameType,
-                [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
-                [TelemetryConstants.Properties.Success] = false,
-                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
-            });
+            SafeTrackFixApplied(actionSet, gameType, success: false, ex.Message);
 
             if (actionSet.IsCrucialFix)
             {
@@ -321,6 +308,32 @@ public class ActionSetOrchestrator(
             }
 
             return ExecutionOutcome.FailedNonCritical;
+        }
+    }
+
+    private void SafeTrackFixApplied(IActionSet actionSet, string gameType, bool success, string? errorMessage = null)
+    {
+        try
+        {
+            var properties = new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FixId] = actionSet.Id,
+                [TelemetryConstants.Properties.FixName] = actionSet.Title,
+                [TelemetryConstants.Properties.GameType] = gameType,
+                [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
+                [TelemetryConstants.Properties.Success] = success,
+            };
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                properties[TelemetryConstants.Properties.ErrorMessage] = errorMessage;
+            }
+
+            telemetryService?.TrackEvent(TelemetryConstants.Events.GenPatcherFixApplied, properties);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to emit fix telemetry for {Title}", actionSet.Title);
         }
     }
 }
