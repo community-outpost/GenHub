@@ -9,10 +9,8 @@ on:
   push:
     branches: [main, development, 'release/**']
 
-  # Filters on the base branch, so without release/** a PR *into* a release branch gets no
-  # pre-merge CI at all. That is how #343 and #368 merged unbuilt.
+  # Pre-merge CI runs on all pull requests, including stacked PRs targeting feature/fix branches
   pull_request:
-    branches: [main, development, 'release/**']
   workflow_dispatch:
 
 # A release branch is normally the head of an open release PR, so a push to it would otherwise
