@@ -2348,11 +2348,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         Directory.CreateDirectory(configDir);
 
         var manifestPath = Path.Combine(configDir, "TestPack.big.manifest.json");
-        var manifestJson = """{
-  "bigFileName": "TestPack.big",
-  "sha256": "1111222233334444555566667777888899990000aaaaabbbbbcccccdddddeeeee",
-  "entryOrder": [ "Data\\test.txt" ]
-}""";
+        var manifestJson = "{\n  \"bigFileName\": \"TestPack.big\",\n  \"sha256\": \"1111222233334444555566667777888899990000aaaaabbbbbcccccdddddeeeee\",\n  \"entryOrder\": [ \"Data\\\\test.txt\" ]\n}";
         await File.WriteAllTextAsync(manifestPath, manifestJson);
 
         var dataFile = Path.Combine(editedDir, "test.txt");
@@ -2422,6 +2418,7 @@ public sealed class BuildEngineServiceTests : IDisposable
                 {
                     Directory.CreateDirectory(dir);
                 }
+
                 File.WriteAllBytes(target, dummyBigBytes);
             })
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
@@ -2447,11 +2444,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         Directory.CreateDirectory(configDir);
 
         var manifestPath = Path.Combine(configDir, "TestPack.big.manifest.json");
-        var manifestJson = """{
-  "bigFileName": "TestPack.big",
-  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "entryOrder": [ "Data\\test.txt" ]
-}""";
+        var manifestJson = "{\n  \"bigFileName\": \"TestPack.big\",\n  \"sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\",\n  \"entryOrder\": [ \"Data\\\\test.txt\" ]\n}";
         await File.WriteAllTextAsync(manifestPath, manifestJson);
 
         var dataFile = Path.Combine(editedDir, "test.txt");
@@ -2521,6 +2514,7 @@ public sealed class BuildEngineServiceTests : IDisposable
                 {
                     Directory.CreateDirectory(dir);
                 }
+
                 File.WriteAllBytes(target, dummyBigBytes);
             })
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
@@ -2550,11 +2544,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var expectedSha = Convert.ToHexString(sha.ComputeHash(dummyBigBytes)).ToLowerInvariant();
 
         var manifestPath = Path.Combine(configDir, "TestPack.big.manifest.json");
-        var manifestJson = $"""{{
-  "bigFileName": "TestPack.big",
-  "sha256": "{expectedSha}",
-  "entryOrder": [ "Data\\test.txt" ]
-}}""";
+        var manifestJson = "{\n  \"bigFileName\": \"TestPack.big\",\n  \"sha256\": \"" + expectedSha + "\",\n  \"entryOrder\": [ \"Data\\\\test.txt\" ]\n}";
         await File.WriteAllTextAsync(manifestPath, manifestJson);
 
         var dataFile = Path.Combine(editedDir, "test.txt");
@@ -2622,6 +2612,7 @@ public sealed class BuildEngineServiceTests : IDisposable
                 {
                     Directory.CreateDirectory(dir);
                 }
+
                 File.WriteAllBytes(target, dummyBigBytes);
             })
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
@@ -2645,6 +2636,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         {
             Array.Reverse(countBytes);
         }
+
         writer.Write(countBytes);
         writer.Write(16u);
         return ms.ToArray();
