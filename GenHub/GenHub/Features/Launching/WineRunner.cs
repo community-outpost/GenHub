@@ -231,7 +231,14 @@ public class WineRunner(
             }
 
             // Stale symlink pointing to the wrong target - remove and recreate
-            return TryRecreateSymlink(prefixSubDir, nativeSubDir);
+            if (TryRecreateSymlink(prefixSubDir, nativeSubDir))
+            {
+                return true;
+            }
+
+            Directory.CreateDirectory(prefixSubDir);
+            SyncDirectoryFiles(nativeSubDir, prefixSubDir);
+            return true;
         }
 
         // Real directory: if it is empty, we can safely replace it with a symlink

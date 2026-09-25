@@ -504,9 +504,9 @@ public sealed class MapImportService(
 
                                         thumbnailPath = expectedTgaPath;
                                     }
-                                    catch (Exception ex)
+                                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                                     {
-                                        logger.LogDebug(ex, "Failed to copy thumbnail {Source} to {Target}", thumbnailPath, expectedTgaPath);
+                                        logger.LogWarning(ex, "Failed to copy thumbnail {Source} to {Target}", thumbnailPath, expectedTgaPath);
                                     }
                                 }
 
@@ -1213,9 +1213,9 @@ public sealed class MapImportService(
 
                     thumbnailPath = expectedTgaPath;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    logger.LogDebug(ex, "Failed to copy thumbnail {Source} to {Target}", thumbnailPath, expectedTgaPath);
+                    logger.LogWarning(ex, "Failed to copy thumbnail {Source} to {Target}", thumbnailPath, expectedTgaPath);
                 }
             }
 

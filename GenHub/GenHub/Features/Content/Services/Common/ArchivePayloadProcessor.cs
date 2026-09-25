@@ -2600,6 +2600,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     {
                         Directory.Move(innerDir, destDir);
                     }
+                    else
+                    {
+                        logger.LogWarning("Cannot unwrap inner directory {InnerDir} to {DestDir} because destination already exists", innerDir, destDir);
+                    }
                 }
 
                 foreach (var innerFile in Directory.GetFiles(mapsWrapper))
@@ -2609,6 +2613,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     {
                         File.Move(innerFile, destFile);
                     }
+                    else
+                    {
+                        logger.LogWarning("Cannot unwrap inner file {InnerFile} to {DestFile} because destination already exists", innerFile, destFile);
+                    }
                 }
 
                 if (!Directory.EnumerateFileSystemEntries(mapsWrapper).Any())
@@ -2616,7 +2624,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     Directory.Delete(mapsWrapper, recursive: false);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogWarning(ex, "Failed to unwrap inner Maps directory {Wrapper}", mapsWrapper);
             }
@@ -2647,7 +2655,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                             Directory.Move(subDir, targetDir);
                             logger.LogInformation("Renamed map directory {Source} to {Target}", subDir, targetDir);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         {
                             logger.LogWarning(ex, "Failed to rename map directory {Source} to {Target}", subDir, targetDir);
                         }
@@ -2707,7 +2715,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             cancellationToken.ThrowIfCancellationRequested();
             var dirName = Path.GetFileName(folder);
-            var expectedTga = Path.Combine(folder, dirName + ".tga");
+            var mapFiles = Directory.GetFiles(folder, "*.map", SearchOption.TopDirectoryOnly);
+            var mapBaseName = mapFiles.Length == 1
+                ? Path.GetFileNameWithoutExtension(mapFiles[0])
+                : dirName;
+            var expectedTga = Path.Combine(folder, mapBaseName + ".tga");
             if (!File.Exists(expectedTga))
             {
                 var tgaFiles = Directory.GetFiles(folder, "*.tga", SearchOption.TopDirectoryOnly);
@@ -2720,7 +2732,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         File.Copy(candidateTga, expectedTga, overwrite: true);
                         logger.LogInformation("Normalized map preview TGA {Source} to {Target}", candidateTga, expectedTga);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
                         logger.LogWarning(ex, "Failed to copy map preview TGA {Source} to {Target}", candidateTga, expectedTga);
                     }

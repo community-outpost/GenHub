@@ -827,12 +827,17 @@ public class UserDataTrackerService(
                 ext.Equals(".wak", StringComparison.OrdinalIgnoreCase))
             {
                 var baseName = Path.GetFileNameWithoutExtension(normalized);
+                var resolvedFileName = normalized;
                 if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
                 {
                     baseName = baseName[..^4];
+                    if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase))
+                    {
+                        resolvedFileName = baseName + ".tga";
+                    }
                 }
 
-                return Path.Combine(baseName, normalized);
+                return Path.Combine(baseName, resolvedFileName);
             }
 
             return normalized;
@@ -852,7 +857,8 @@ public class UserDataTrackerService(
 
         if (fileExt.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
             (fileBase.Equals("map", StringComparison.OrdinalIgnoreCase) ||
-             fileBase.Equals("preview", StringComparison.OrdinalIgnoreCase)))
+             fileBase.Equals("preview", StringComparison.OrdinalIgnoreCase) ||
+             fileBase.EndsWith("_art", StringComparison.OrdinalIgnoreCase)))
         {
             fileName = folderName + ".tga";
         }

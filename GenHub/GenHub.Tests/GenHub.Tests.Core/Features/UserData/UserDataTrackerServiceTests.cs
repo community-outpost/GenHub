@@ -125,9 +125,6 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Cleans up test resources.
-    /// </summary>
-    /// <summary>
     /// Verifies that installing a map with loose files (e.g. Last Stand_8.tga, Last Stand_8.map)
     /// places both files inside a dedicated subdirectory matching the map name in the Maps folder.
     /// </summary>
@@ -274,6 +271,49 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // Ensure no stray directories were created based on basenames
         Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "Custom")));
+    }
+
+    /// <summary>
+    /// Verifies that installing map files with an _art suffix (e.g. River_art.tga)
+    /// normalizes the filename to River.tga inside the map folder so the game recognizes the thumbnail.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_MapWithArtTga_NormalizesTgaToMapNameAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "River_art.tga",
+                Hash = "hash-tga-art",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "River.map",
+                Hash = "hash-map-river",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-art-tga",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.tga");
+
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedTgaPath));
     }
 
     /// <inheritdoc />
