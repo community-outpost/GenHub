@@ -790,7 +790,7 @@ public class UserDataTrackerService(
         var targetPath = installTarget switch
         {
             ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, normalizedRelativePath),
-            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, StripLeadingDirectory(normalizedRelativePath, "Maps")),
+            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, ResolveMapRelativePath(normalizedRelativePath)),
             ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(normalizedRelativePath, "Replays")),
             ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(normalizedRelativePath, "Screenshots")),
             _ => Path.Combine(userDataBasePath, normalizedRelativePath),
@@ -805,6 +805,83 @@ public class UserDataTrackerService(
         }
 
         return fullPath;
+    }
+
+    /// <summary>
+    /// Resolves the relative path for a map file to ensure it conforms to C&amp;C Generals / Zero Hour
+    /// map directory requirements (Maps/&lt;MapName&gt;/&lt;MapName&gt;.map, &lt;MapName&gt;.tga).
+    /// </summary>
+    private static string ResolveMapRelativePath(string relativePath)
+    {
+        var pathUnderMaps = StripLeadingDirectory(relativePath, GameSettingsConstants.FolderNames.Maps);
+        var normalized = pathUnderMaps.Replace('\\', '/').Trim('/');
+
+        var slashIdx = normalized.LastIndexOf('/');
+        if (slashIdx < 0)
+        {
+            var ext = Path.GetExtension(normalized);
+            if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".str", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".wak", StringComparison.OrdinalIgnoreCase))
+            {
+                var baseName = Path.GetFileNameWithoutExtension(normalized);
+                if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
+                {
+                    baseName = baseName[..^4];
+                }
+
+                return Path.Combine(baseName, normalized);
+            }
+
+            return normalized;
+        }
+
+        var directoryPart = normalized[..slashIdx];
+        var fileName = normalized[(slashIdx + 1)..];
+
+        var folderName = Path.GetFileName(directoryPart);
+        if (folderName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+        {
+            folderName = Path.GetFileNameWithoutExtension(folderName);
+        }
+
+        var fileExt = Path.GetExtension(fileName);
+        var fileBase = Path.GetFileNameWithoutExtension(fileName);
+
+        if (fileExt.Equals(".map", StringComparison.OrdinalIgnoreCase))
+        {
+            folderName = fileBase;
+        }
+        else if (fileExt.Equals(".tga", StringComparison.OrdinalIgnoreCase))
+        {
+            if (fileBase.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+                fileBase.Equals("preview", StringComparison.OrdinalIgnoreCase))
+            {
+                fileName = folderName + ".tga";
+            }
+            else if (fileBase.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
+            {
+                folderName = fileBase[..^4];
+            }
+            else
+            {
+                folderName = fileBase;
+            }
+        }
+        else if (fileExt.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
+                 fileExt.Equals(".str", StringComparison.OrdinalIgnoreCase) ||
+                 fileExt.Equals(".wak", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(fileBase) &&
+                !fileBase.Equals("map", StringComparison.OrdinalIgnoreCase))
+            {
+                folderName = fileBase;
+            }
+        }
+
+        return Path.Combine(folderName, fileName);
     }
 
     /// <summary>

@@ -335,6 +335,77 @@ public sealed class MapImportServiceTests : IDisposable
         Assert.Null(requestedUri);
     }
 
+    /// <summary>
+    /// Verifies that flat ZIP archives (containing .map and .tga at the archive root)
+    /// extract both the map and the preview thumbnail into a folder matching the map name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromZipAsync_FlatZipWithMapAndTga_ExtractsMapAndThumbnailAsync()
+    {
+        var zipPath = Path.Combine(_workingDirectory, "flat_map.zip");
+        CreateZip(
+            zipPath,
+            ("Last Stand_8.map", "map data"),
+            ("Last Stand_8.tga", "tga preview data"));
+
+        var result = await _service.ImportFromZipAsync(zipPath, GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        var imported = Assert.Single(result.ImportedMaps);
+        Assert.Equal("Last Stand_8", imported.DirectoryName);
+        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Last Stand_8", "Last Stand_8.map")));
+        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Last Stand_8", "Last Stand_8.tga")));
+        Assert.NotNull(imported.ThumbnailPath);
+        Assert.True(File.Exists(imported.ThumbnailPath));
+    }
+
+    /// <summary>
+    /// Verifies that archive folders ending in .map have the extension stripped from the directory name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromZipAsync_DirectoryEndingInDotMap_StripsDotMapExtensionAsync()
+    {
+        var zipPath = Path.Combine(_workingDirectory, "dot_map_folder.zip");
+        CreateZip(
+            zipPath,
+            ("Last Stand_8.map/Last Stand_8.map", "map data"),
+            ("Last Stand_8.map/Last Stand_8.tga", "tga preview data"));
+
+        var result = await _service.ImportFromZipAsync(zipPath, GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        var imported = Assert.Single(result.ImportedMaps);
+        Assert.Equal("Last Stand_8", imported.DirectoryName);
+        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Last Stand_8", "Last Stand_8.map")));
+        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Last Stand_8", "Last Stand_8.tga")));
+    }
+
+    /// <summary>
+    /// Verifies that when an archive contains a generic map.tga thumbnail, an engine-compatible
+    /// &lt;MapName&gt;.tga copy is created in the map folder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromZipAsync_MapWithGenericMapTga_CreatesMapDirNamedTgaPreviewAsync()
+    {
+        var zipPath = Path.Combine(_workingDirectory, "generic_thumbnail.zip");
+        CreateZip(
+            zipPath,
+            ("Desert/desert.map", "map data"),
+            ("Desert/map.tga", "generic thumbnail data"));
+
+        var result = await _service.ImportFromZipAsync(zipPath, GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        var imported = Assert.Single(result.ImportedMaps);
+        Assert.Equal("Desert", imported.DirectoryName);
+        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Desert", "desert.map")));
+        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Desert", "map.tga")));
+        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Desert", "Desert.tga")));
+    }
+
     private static Mock<IDownloadUrlValidator> CreateValidator(bool result)
     {
         var validator = new Mock<IDownloadUrlValidator>();

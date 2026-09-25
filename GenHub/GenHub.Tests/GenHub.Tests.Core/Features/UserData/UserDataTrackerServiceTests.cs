@@ -127,6 +127,92 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// <summary>
     /// Cleans up test resources.
     /// </summary>
+    /// <summary>
+    /// Verifies that installing a map with loose files (e.g. Last Stand_8.tga, Last Stand_8.map)
+    /// places both files inside a dedicated subdirectory matching the map name in the Maps folder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_FlatMapAndTga_InstallsIntoDedicatedMapSubdirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Last Stand_8.map",
+                Hash = "hash-map",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Last Stand_8.tga",
+                Hash = "hash-tga",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-flat-map",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8", "Last Stand_8.map");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8", "Last Stand_8.tga");
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedTgaPath));
+    }
+
+    /// <summary>
+    /// Verifies that installing a map from a folder ending in .map normalizes the destination path
+    /// so that .map is stripped from the directory name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_DirectoryEndingInDotMap_StripsDotMapFromDirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Last Stand_8.map/Last Stand_8.map",
+                Hash = "hash-map-nested",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Last Stand_8.map/Last Stand_8.tga",
+                Hash = "hash-tga-nested",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-dot-map-dir",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8", "Last Stand_8.map");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8", "Last Stand_8.tga");
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedTgaPath));
+        Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8.map")));
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         try

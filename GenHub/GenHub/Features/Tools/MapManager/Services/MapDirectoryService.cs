@@ -333,6 +333,24 @@ public sealed class MapDirectoryService(
                             File.Move(map.FullPath, newMapFilePath);
                         }
 
+                        // Also rename companion asset files (e.g. OldName.tga -> NewName.tga, OldName.ini -> NewName.ini)
+                        var oldBaseName = Path.GetFileNameWithoutExtension(map.FileName);
+                        foreach (var assetPath in Directory.GetFiles(currentDirPath, oldBaseName + ".*"))
+                        {
+                            var ext = Path.GetExtension(assetPath);
+                            if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            var newAssetPath = Path.Combine(currentDirPath, newName + ext);
+                            if (!File.Exists(newAssetPath))
+                            {
+                                File.Move(assetPath, newAssetPath);
+                                logger.LogDebug("Renamed companion asset {Old} to {New}", assetPath, newAssetPath);
+                            }
+                        }
+
                         // Then rename the directory
                         Directory.Move(currentDirPath, newDirPath);
 
@@ -376,14 +394,64 @@ public sealed class MapDirectoryService(
     /// <returns>Path to the thumbnail file, or null if none found.</returns>
     private static string? FindThumbnail(FileInfo[] files)
     {
-        // Priority: map.tga > any .tga file
+        if (files.Length == 0)
+        {
+            return null;
+        }
+
+        var dirName = files[0].Directory?.Name;
+        if (!string.IsNullOrEmpty(dirName))
+        {
+            var dirTga = files.FirstOrDefault(f => f.Name.Equals(dirName + ".tga", StringComparison.OrdinalIgnoreCase));
+            if (dirTga != null)
+            {
+                return dirTga.FullName;
+            }
+        }
+
+        // Priority: <dirName>.tga > map.tga > any .tga file
         var mapTga = files.FirstOrDefault(f => f.Name.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase));
         if (mapTga != null)
         {
+            // If <dirName>.tga doesn't exist, ensure one exists for the game engine
+            if (!string.IsNullOrEmpty(dirName) && files[0].Directory != null)
+            {
+                var expectedTgaPath = Path.Combine(files[0].Directory!.FullName, dirName + ".tga");
+                if (!File.Exists(expectedTgaPath))
+                {
+                    try
+                    {
+                        File.Copy(mapTga.FullName, expectedTgaPath, overwrite: true);
+                        return expectedTgaPath;
+                    }
+                    catch
+                    {
+                        // Best effort copy
+                    }
+                }
+            }
+
             return mapTga.FullName;
         }
 
         var anyTga = files.FirstOrDefault(f => f.Extension.Equals(".tga", StringComparison.OrdinalIgnoreCase));
+        if (anyTga != null && !string.IsNullOrEmpty(dirName) && files[0].Directory != null)
+        {
+            var expectedTgaPath = Path.Combine(files[0].Directory!.FullName, dirName + ".tga");
+            if (!File.Exists(expectedTgaPath))
+            {
+                try
+                {
+                    File.Copy(anyTga.FullName, expectedTgaPath, overwrite: true);
+                    return expectedTgaPath;
+                }
+                catch
+                {
+                    // Best effort copy
+                }
+            }
+        }
+
         return anyTga?.FullName;
     }
 

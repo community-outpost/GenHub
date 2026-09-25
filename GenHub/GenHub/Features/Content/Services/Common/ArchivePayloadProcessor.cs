@@ -182,6 +182,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     NormalizeInactiveBigExtensions(extractedDirectory, contentType);
                 }
 
+                // 5b. For map and map pack content, normalize directory structure and preview TGAs
+                if (contentType is ContentType.Map or ContentType.MapPack)
+                {
+                    NormalizeMapPayloadStructure(extractedDirectory, cancellationToken);
+                }
+
                 // 6. Cleanup empty directories
                 CleanupEmptyDirectories(extractedDirectory);
             },
@@ -2575,6 +2581,119 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
+    private void NormalizeMapPayloadStructure(
+        string extractedDirectory,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // 1. Rename any directories ending with .map to strip the extension
+        var subDirs = Directory.GetDirectories(extractedDirectory, "*", SearchOption.AllDirectories);
+        foreach (var subDir in subDirs.OrderByDescending(d => d.Length))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!Directory.Exists(subDir))
+            {
+                continue;
+            }
+
+            var dirName = Path.GetFileName(subDir);
+            if (dirName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+            {
+                var cleanDirName = Path.GetFileNameWithoutExtension(dirName);
+                var parent = Path.GetDirectoryName(subDir);
+                if (!string.IsNullOrEmpty(parent) && !string.IsNullOrWhiteSpace(cleanDirName))
+                {
+                    var targetDir = Path.Combine(parent, cleanDirName);
+                    if (!Directory.Exists(targetDir))
+                    {
+                        try
+                        {
+                            Directory.Move(subDir, targetDir);
+                            logger.LogInformation("Renamed map directory {Source} to {Target}", subDir, targetDir);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Failed to rename map directory {Source} to {Target}", subDir, targetDir);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Organize any loose .map files found directly at root
+        var looseMapFiles = Directory.GetFiles(extractedDirectory, "*.map", SearchOption.TopDirectoryOnly);
+        if (looseMapFiles.Length > 0)
+        {
+            foreach (var mapFile in looseMapFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var mapBase = Path.GetFileNameWithoutExtension(mapFile);
+                var targetFolder = Path.Combine(extractedDirectory, mapBase);
+                Directory.CreateDirectory(targetFolder);
+
+                var targetMapFile = Path.Combine(targetFolder, Path.GetFileName(mapFile));
+                if (!File.Exists(targetMapFile))
+                {
+                    File.Move(mapFile, targetMapFile);
+                }
+
+                // Move companion asset files directly at root matching mapBase or all loose assets if single map
+                var looseFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
+                foreach (var companion in looseFiles)
+                {
+                    if (companion.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var fn = Path.GetFileName(companion);
+                    var ext = Path.GetExtension(fn);
+                    var isCompanion = looseMapFiles.Length == 1 ||
+                        fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
+                        fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
+                        fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+
+                    if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+                    {
+                        var targetAssetFile = Path.Combine(targetFolder, fn);
+                        if (!File.Exists(targetAssetFile))
+                        {
+                            File.Move(companion, targetAssetFile);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. In every map directory, ensure <MapDirName>.tga exists if any .tga preview exists
+        var mapFolders = Directory.GetDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
+        foreach (var folder in mapFolders)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var dirName = Path.GetFileName(folder);
+            var expectedTga = Path.Combine(folder, dirName + ".tga");
+            if (!File.Exists(expectedTga))
+            {
+                var tgaFiles = Directory.GetFiles(folder, "*.tga", SearchOption.TopDirectoryOnly);
+                var candidateTga = tgaFiles.FirstOrDefault(f => Path.GetFileName(f).Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase))
+                                   ?? tgaFiles.FirstOrDefault();
+                if (candidateTga != null && File.Exists(candidateTga))
+                {
+                    try
+                    {
+                        File.Copy(candidateTga, expectedTga, overwrite: true);
+                        logger.LogInformation("Normalized map preview TGA {Source} to {Target}", candidateTga, expectedTga);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to copy map preview TGA {Source} to {Target}", candidateTga, expectedTga);
+                    }
+                }
+            }
+        }
+    }
+
     private void StripSingleWrapperDirectories(
         string extractedDirectory,
         ContentType contentType,
@@ -2606,7 +2725,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             // If the single directory is a canonical game directory (e.g. Data, Art, Window, Maps, Audio),
             // it is already at the game root level (e.g. /Data/INI/...) and should NOT be flattened.
-            if (GameContentConstants.IsRecognizedGameDirectory(dirName))
+            // For map content, 'Maps' is a wrapper that should be flattened to reach the map folder.
+            if (contentType is not (ContentType.Map or ContentType.MapPack) && GameContentConstants.IsRecognizedGameDirectory(dirName))
             {
                 logger.LogInformation("Preserving canonical game root directory: {SingleDir}", singleDir);
                 break;

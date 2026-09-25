@@ -161,6 +161,14 @@ public class WineRunner(
             return false;
         }
 
+        if (string.Equals(
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeDataDirectory)),
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(prefixDataDirectory)),
+            StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         var bridgedAny = false;
         var directoryNames = new HashSet<string>(StandardUserDataDirectories, StringComparer.OrdinalIgnoreCase);
         try
