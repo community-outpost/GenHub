@@ -6,7 +6,10 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Results;
 using GenHub.Features.Content.ViewModels.Catalog;
+using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,6 +17,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -121,7 +125,86 @@ public sealed class AppUrlActivationTests
         Assert.Empty(dialogs);
     }
 
-    private static global::GenHub.App CreateApp()
+    /// <summary>Startup and subsequent activations must never overlap dialogs.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task HandleUrlActivationAsync_WaitsForStartupAndPreviousActivationAsync()
+    {
+        var app = CreateApp();
+        var startupClosed = new TaskCompletionSource<bool>();
+        var activationOpened = new TaskCompletionSource<bool>();
+        var activationClosed = new TaskCompletionSource<bool>();
+        var dialogCount = 0;
+        app.ShowSubscriptionDialogAsync = (_, _) =>
+        {
+            dialogCount++;
+            if (dialogCount == 1)
+            {
+                return startupClosed.Task;
+            }
+
+            if (dialogCount == 2)
+            {
+                activationOpened.SetResult(true);
+                return activationClosed.Task;
+            }
+
+            return Task.FromResult(false);
+        };
+        var link = new Uri($"genhub://subscribe?url={Uri.EscapeDataString(LocalCatalogUrl)}");
+        var startup = app.CompleteWindowStartupAsync([link.OriginalString], new MainWindow());
+        var first = app.HandleUrlActivationAsync(new ProtocolActivatedEventArgs(link));
+        var second = app.HandleUrlActivationAsync(new ProtocolActivatedEventArgs(link));
+        Assert.Equal(1, dialogCount);
+        Assert.False(first.IsCompleted);
+        Assert.False(second.IsCompleted);
+
+        startupClosed.SetResult(false);
+        await startup;
+        await activationOpened.Task;
+        Assert.Equal(2, dialogCount);
+        activationClosed.SetResult(false);
+        await Task.WhenAll(first, second);
+        Assert.Equal(3, dialogCount);
+    }
+
+    /// <summary>Profile activation preserves escaped base64 characters through the import boundary.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task HandleUrlActivationAsync_ProfileImport_PreservesOriginalUriAsync()
+    {
+        const string original = "genhub://profile/import?data=%2B%2F8%3D";
+        var sharing = new Mock<IProfileSharingService>();
+        sharing.Setup(x => x.InspectSharedProfileAsync(original, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<SharedProfileInspectionResult>.CreateFailure("test inspection stop"));
+        var launcher = new GameProfileLauncherViewModel(
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            Mock.Of<INotificationService>(),
+            null!,
+            null!,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            Mock.Of<ILocalizationService>(),
+            profileSharingServiceFactory: () => sharing.Object);
+        var app = CreateApp(launcher);
+        app.MarkMainWindowReady(new MainWindow());
+
+        await app.HandleUrlActivationAsync(new ProtocolActivatedEventArgs(new Uri(original)));
+
+        sharing.Verify(x => x.InspectSharedProfileAsync(original, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private static global::GenHub.App CreateApp(GameProfileLauncherViewModel? launcher = null)
     {
         var httpClientFactory = new Mock<IHttpClientFactory>();
         httpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
@@ -137,6 +220,10 @@ public sealed class AppUrlActivationTests
         services.AddSingleton(Mock.Of<INotificationService>());
         services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
         services.AddLogging();
+        if (launcher != null)
+        {
+            services.AddSingleton(launcher);
+        }
 
         return new global::GenHub.App(services.BuildServiceProvider());
     }

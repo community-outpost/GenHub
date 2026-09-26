@@ -69,6 +69,7 @@ public partial class App : Application
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
     private readonly TaskCompletionSource<MainWindow> _mainWindowReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly SemaphoreSlim _urlActivationLock = new(1, 1);
     private bool _startupArgsHandled;
 
     /// <summary>
@@ -160,8 +161,7 @@ public partial class App : Application
             // Handle startup arguments sequentially once the window is opened and active
             mainWindow.Opened += (_, _) =>
             {
-                SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
-                MarkMainWindowReady(mainWindow);
+                SafeFireAndForget(CompleteWindowStartupAsync(desktop.Args, mainWindow), nameof(CompleteWindowStartupAsync));
             };
 
             // Repair desktop and application shortcuts if application executable has moved/relocated
@@ -263,10 +263,18 @@ public partial class App : Application
         logger?.LogInformation("Received URL activation for {Scheme} link", uri.Scheme);
 
         var mainWindow = await _mainWindowReady.Task;
-        string[] args = [uri.OriginalString];
-        await HandleSubscriptionArgsAsync(args, mainWindow);
-        await HandleImportProfileArgsAsync(args, mainWindow);
-        await HandleToolImportArgsAsync(args, mainWindow);
+        await _urlActivationLock.WaitAsync();
+        try
+        {
+            string[] args = [uri.OriginalString];
+            await HandleSubscriptionArgsAsync(args, mainWindow);
+            await HandleImportProfileArgsAsync(args, mainWindow);
+            await HandleToolImportArgsAsync(args, mainWindow);
+        }
+        finally
+        {
+            _urlActivationLock.Release();
+        }
     }
 
     /// <summary>
@@ -274,6 +282,22 @@ public partial class App : Application
     /// </summary>
     /// <param name="mainWindow">The opened main window.</param>
     internal void MarkMainWindowReady(MainWindow mainWindow) => _mainWindowReady.TrySetResult(mainWindow);
+
+    /// <summary>Completes startup dialogs before releasing queued URL activations.</summary>
+    /// <param name="args">The startup arguments.</param>
+    /// <param name="mainWindow">The opened main window.</param>
+    /// <returns>The asynchronous startup operation.</returns>
+    internal async Task CompleteWindowStartupAsync(string[]? args, MainWindow mainWindow)
+    {
+        try
+        {
+            await HandleStartupArgsAsync(args, mainWindow);
+        }
+        finally
+        {
+            MarkMainWindowReady(mainWindow);
+        }
+    }
 
     private static void UpdateViewModelAfterLaunch(MainWindow mainWindow, string profileId, int processId)
     {
