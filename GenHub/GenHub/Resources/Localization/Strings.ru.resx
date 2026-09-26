@@ -13532,4 +13532,19 @@ GameFilesEdited/Data/INI/**/*.ini</value>
 
 Как применить это обновление?</value>
   </data>
+  <data name="Settings.Profiles.DeleteIncomplete" xml:space="preserve">
+    <value>Удалено профилей: {0}. Не удалось удалить профили ({1}): {2}.</value>
+  </data>
+  <data name="Settings.Profiles.DeleteFailedTitle" xml:space="preserve">
+    <value>Не удалось удалить профили</value>
+  </data>
+  <data name="Settings.Profiles.DeletePartialTitle" xml:space="preserve">
+    <value>Профили удалены частично</value>
+  </data>
+  <data name="Settings.Profiles.DeletedTitle" xml:space="preserve">
+    <value>Профили удалены</value>
+  </data>
+  <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
+    <value>Успешно удалено профилей: {0}.</value>
+  </data>
 </root>

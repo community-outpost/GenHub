@@ -73,6 +73,8 @@ public class GameProfileEndToEndLaunchTests : IDisposable
             _installationServiceMock.Object,
             _manifestPoolMock.Object,
             _gameSettingsServiceMock.Object,
+            _workspaceManagerMock.Object,
+            _profileContentLinkerMock.Object,
             _profileManagerLoggerMock.Object);
 
         _configurationProviderServiceMock.Setup(x => x.GetWorkspacePath()).Returns(_testTempDir);

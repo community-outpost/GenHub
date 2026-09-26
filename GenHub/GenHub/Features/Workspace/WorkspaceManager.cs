@@ -157,42 +157,57 @@ public class WorkspaceManager(
     {
         try
         {
-            var workspacesResult = await GetAllWorkspacesAsync(cancellationToken);
-            if (!workspacesResult.Success)
-            {
-                return OperationResult<bool>.CreateFailure($"Failed to get workspaces for cleanup: {workspacesResult.FirstError}");
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var workspaces = workspacesResult.Data!.ToList();
+            // Keep recorded paths even when their directories are already gone. The listing API
+            // filters these entries, which would lose the evidence needed to release their refs.
+            var workspaces = File.Exists(_workspaceMetadataPath)
+                ? JsonSerializer.Deserialize<List<WorkspaceInfo>>(await File.ReadAllTextAsync(_workspaceMetadataPath, cancellationToken)) ?? []
+                : [];
+            cancellationToken.ThrowIfCancellationRequested();
             var workspace = workspaces.FirstOrDefault(w => w.Id == workspaceId);
 
             if (workspace == null)
             {
-                logger.LogWarning("Workspace {Id} not found for cleanup", workspaceId);
-                return OperationResult<bool>.CreateSuccess(false);
+                return CleanupUnrecordedWorkspace(workspaceId);
             }
 
-            // CRITICAL: Untrack CAS references BEFORE deleting workspace to prevent reference counting leak.
-            // If we delete the directory but leave .refs, GC will think they are still used.
-            logger.LogDebug("[Workspace] Untracking CAS references for workspace {Id}", workspaceId);
-            var untrackResult = await casReferenceTracker.UntrackWorkspaceAsync(workspaceId, cancellationToken);
-            if (!untrackResult.Success)
-            {
-                logger.LogError("[Workspace] Failed to untrack CAS references for workspace {Id}: {Error}. Aborting cleanup to prevent orphan reference leaks.", workspaceId, untrackResult.FirstError);
-                return OperationResult<bool>.CreateFailure($"Failed to untrack CAS references: {untrackResult.FirstError}");
-            }
-
+            // Keep references until deletion succeeds: retained files may still depend on CAS.
             if (FileOperationsService.DeleteDirectoryIfExists(workspace.WorkspacePath))
             {
                 logger.LogInformation("Deleted workspace directory {Path}", workspace.WorkspacePath);
             }
 
+            // A false return can also mean an inaccessible path. Prove absence before untracking.
+            try
+            {
+                _ = File.GetAttributes(workspace.WorkspacePath);
+                return OperationResult<bool>.CreateFailure("Workspace still exists after cleanup.");
+            }
+            catch (FileNotFoundException)
+            {
+                // Confirmed absent.
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // Confirmed absent.
+            }
+
+            // A failed or cancelled untrack leaves metadata and references available for retry.
+            var untrackResult = await casReferenceTracker.UntrackWorkspaceAsync(workspaceId, cancellationToken);
+            if (!untrackResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure($"Failed to untrack CAS references: {untrackResult.FirstError}");
+            }
+
             workspaces.Remove(workspace);
-            await SaveAllWorkspacesAsync(workspaces, cancellationToken);
+
+            // Once references are removed, finish this cleanup even if the caller cancels.
+            await SaveAllWorkspacesAsync(workspaces, CancellationToken.None);
 
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to cleanup workspace {Id}", workspaceId);
             return OperationResult<bool>.CreateFailure($"Failed to cleanup workspace: {ex.Message}");
@@ -287,6 +302,42 @@ public class WorkspaceManager(
             logger.LogError(ex, "[Workspace] Failed to analyze cleanup for workspace {WorkspaceId}", currentWorkspaceId);
             return OperationResult<WorkspaceCleanupConfirmation?>.CreateFailure($"Failed to analyze cleanup: {ex.Message}");
         }
+    }
+
+    private OperationResult<bool> CleanupUnrecordedWorkspace(string workspaceId)
+    {
+        logger.LogDebug("Workspace {Id} has no recorded path; checking the default location", workspaceId);
+        if (string.IsNullOrWhiteSpace(workspaceId))
+        {
+            return OperationResult<bool>.CreateSuccess(false);
+        }
+
+        var root = configurationProvider.GetWorkspacePath();
+        if (string.IsNullOrWhiteSpace(root) || !Path.IsPathFullyQualified(root)
+            || Path.GetFileName(workspaceId) != workspaceId || workspaceId is "." or "..")
+        {
+            return OperationResult<bool>.CreateFailure("Cannot verify the missing workspace's directory.");
+        }
+
+        var orphanPath = Path.Combine(root, workspaceId);
+        try
+        {
+            _ = File.GetAttributes(orphanPath);
+            return OperationResult<bool>.CreateFailure($"Workspace metadata is missing for '{orphanPath}'. Restore its metadata before retrying cleanup.");
+        }
+        catch (FileNotFoundException)
+        {
+            // The default location is absent, but other roots remain unknown.
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // The default location is absent, but other roots remain unknown.
+        }
+
+        // The default root cannot prove absence from installation-specific or historical roots.
+        // Without recorded metadata retain all CAS references; this is a no-op, not an untrack.
+        logger.LogWarning("No recorded path for workspace {Id}; retaining any CAS references", workspaceId);
+        return OperationResult<bool>.CreateSuccess(false);
     }
 
     private async Task SaveAllWorkspacesAsync(IEnumerable<WorkspaceInfo> workspaces, CancellationToken cancellationToken)

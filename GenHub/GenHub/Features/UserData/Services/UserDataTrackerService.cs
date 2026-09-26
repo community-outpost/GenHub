@@ -598,14 +598,26 @@ public class UserDataTrackerService(
 
         try
         {
-            var manifestsResult = await GetProfileUserDataAsync(profileId, cancellationToken);
-            if (!manifestsResult.Success || manifestsResult.Data == null)
+            // Cleanup must inspect every indexed record before deleting anything. The listing
+            // API intentionally omits unreadable records, which is unsafe for destructive cleanup.
+            var index = await LoadIndexAsync(cancellationToken);
+            var manifests = new List<UserDataManifest>();
+            if (index.ProfileInstallations.TryGetValue(profileId, out var installationKeys))
             {
-                return OperationResult<bool>.CreateSuccess(true);
+                foreach (var key in installationKeys)
+                {
+                    var manifest = await LoadUserDataManifestByKeyAsync(key, cancellationToken);
+                    if (manifest == null)
+                    {
+                        return OperationResult<bool>.CreateFailure($"Cannot read indexed user-data manifest '{key}'. Restore it before deleting the profile.");
+                    }
+
+                    manifests.Add(manifest);
+                }
             }
 
             var uninstallErrors = new List<string>();
-            foreach (var manifest in manifestsResult.Data)
+            foreach (var manifest in manifests)
             {
                 var uninstallResult = await UninstallUserDataAsync(manifest.ManifestId, profileId, cancellationToken);
                 if (!uninstallResult.Success)
@@ -626,7 +638,7 @@ public class UserDataTrackerService(
                 return OperationResult<bool>.CreateFailure(uninstallErrors);
             }
 
-            logger.LogInformation("[UserData] Cleaned up {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
+            logger.LogInformation("[UserData] Cleaned up {Count} manifests for profile {ProfileId}", manifests.Count, profileId);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)

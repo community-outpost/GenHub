@@ -5,6 +5,8 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.UserData;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -27,6 +29,8 @@ public class GameProfileManagerTests
     private readonly Mock<IGameInstallationService> _installationServiceMock = new();
     private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
     private readonly Mock<IGameSettingsService> _gameSettingsServiceMock = new();
+    private readonly Mock<IWorkspaceManager> _workspaceManagerMock = new();
+    private readonly Mock<IProfileContentLinker> _profileContentLinkerMock = new();
     private readonly Mock<ILogger<GameProfileManager>> _loggerMock = new();
     private readonly GameProfileManager _profileManager;
 
@@ -35,12 +39,83 @@ public class GameProfileManagerTests
     /// </summary>
     public GameProfileManagerTests()
     {
+        _workspaceManagerMock
+            .Setup(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _profileContentLinkerMock
+            .Setup(x => x.CleanupDeletedProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
         _profileManager = new GameProfileManager(
             _profileRepositoryMock.Object,
             _installationServiceMock.Object,
             _manifestPoolMock.Object,
             _gameSettingsServiceMock.Object,
+            _workspaceManagerMock.Object,
+            _profileContentLinkerMock.Object,
             _loggerMock.Object);
+    }
+
+    /// <summary>Deletion waits for launch registration and honors cancellation while waiting.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_LaunchLockHeld_WaitsWithoutCleanupAsync()
+    {
+        var id = Guid.NewGuid().ToString();
+        var gate = GenHub.Features.Launching.GameLauncher.ProfileLaunchLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
+        try
+        {
+            using var cts = new CancellationTokenSource();
+            var deletion = _profileManager.DeleteProfileAsync(id, cts.Token);
+            Assert.False(deletion.IsCompleted);
+            cts.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => deletion);
+            _profileRepositoryMock.Verify(x => x.LoadProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            _profileContentLinkerMock.Verify(x => x.CleanupDeletedProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            gate.Release();
+            GenHub.Features.Launching.GameLauncher.ProfileLaunchLocks.TryRemove(id, out _);
+            gate.Dispose();
+        }
+    }
+
+    /// <summary>An unreadable profile must retain its deployed data.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_LoadFails_DoesNotCleanUpAsync()
+    {
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("unreadable", default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("invalid profile"));
+
+        var result = await _profileManager.DeleteProfileAsync("unreadable");
+
+        Assert.False(result.Success);
+        Assert.Contains("invalid profile", result.Errors);
+        _profileContentLinkerMock.Verify(x => x.CleanupDeletedProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _workspaceManagerMock.Verify(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _profileRepositoryMock.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>Cancellation reported as a failure by a downstream cleanup still cancels deletion.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_WorkspaceCancels_KeepsProfileAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        _workspaceManagerMock.Setup(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), cts.Token))
+            .Returns(() =>
+            {
+                cts.Cancel();
+                return Task.FromResult(OperationResult<bool>.CreateFailure("cancelled"));
+            });
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("profile", cts.Token))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "profile" }));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _profileManager.DeleteProfileAsync("profile", cts.Token));
+        _profileRepositoryMock.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>

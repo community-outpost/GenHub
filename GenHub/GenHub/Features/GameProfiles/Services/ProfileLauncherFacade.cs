@@ -389,71 +389,53 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<bool>.CreateFailure("Profile ID cannot be empty");
             }
 
-            // Acquire the profile launch lock to ensure we don't delete during launch registration
-            // This uses the same semaphore as launch operations, so deletion waits for launch
-            // to complete its initial registration without polling or timeouts
-            using (await gameLauncher.AcquireProfileLockAsync(profileId, cancellationToken))
+            // The manager owns the shared launch/delete lock, including for direct callers.
+            // Do not acquire it here: the semaphore is deliberately non-reentrant.
+            // Check if the profile is currently running
+            var launches = await launchRegistry.GetAllActiveLaunchesAsync();
+            var activeLaunch = launches.FirstOrDefault(l => l.ProfileId == profileId);
+            if (activeLaunch != null)
             {
-                // Check if the profile is currently running
-                var launches = await launchRegistry.GetAllActiveLaunchesAsync();
-                var activeLaunch = launches.FirstOrDefault(l => l.ProfileId == profileId);
-                if (activeLaunch != null)
+                // Double-check that the process is actually running (not in a transitional state)
+                var isProcessRunning = false;
+                try
                 {
-                    // Double-check that the process is actually running (not in a transitional state)
-                    var isProcessRunning = false;
-                    try
-                    {
-                        var process = Process.GetProcessById(activeLaunch.ProcessInfo.ProcessId);
-                        isProcessRunning = !process.HasExited;
-                        process.Dispose();
-                    }
-                    catch (ArgumentException)
-                    {
-                        // Process doesn't exist - safe to delete
-                        logger.LogDebug("Process {ProcessId} for profile {ProfileId} no longer exists, allowing deletion", activeLaunch.ProcessInfo.ProcessId, profileId);
-                        isProcessRunning = false;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to verify process status for profile {ProfileId}, blocking deletion for safety", profileId);
-                        isProcessRunning = true;
-                    }
-
-                    if (isProcessRunning)
-                    {
-                        logger.LogWarning("Cannot delete profile {ProfileId} - process {ProcessId} is still running", profileId, activeLaunch.ProcessInfo.ProcessId);
-                        return ProfileOperationResult<bool>.CreateFailure(
-                            "Cannot delete a running profile. Please stop the profile before deleting it.");
-                    }
-
-                    // Process has exited but registry hasn't been cleaned up yet - safe to proceed
-                    logger.LogDebug("Profile {ProfileId} launch is in registry but process has exited, allowing deletion", profileId);
+                    var process = Process.GetProcessById(activeLaunch.ProcessInfo.ProcessId);
+                    isProcessRunning = !process.HasExited;
+                    process.Dispose();
+                }
+                catch (ArgumentException)
+                {
+                    // Process doesn't exist - safe to delete
+                    logger.LogDebug("Process {ProcessId} for profile {ProfileId} no longer exists, allowing deletion", activeLaunch.ProcessInfo.ProcessId, profileId);
+                    isProcessRunning = false;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to verify process status for profile {ProfileId}, blocking deletion for safety", profileId);
+                    isProcessRunning = true;
                 }
 
-                // Get profile to check for active workspace before deleting
-                var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-                if (profileResult.Success && profileResult.Data != null && !string.IsNullOrEmpty(profileResult.Data.ActiveWorkspaceId))
+                if (isProcessRunning)
                 {
-                    logger.LogInformation("Cleaning up workspace {WorkspaceId} for profile {ProfileId} before deletion", profileResult.Data.ActiveWorkspaceId, profileId);
-                    var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profileResult.Data.ActiveWorkspaceId, cancellationToken);
-                    if (cleanupResult.Failed)
-                    {
-                        logger.LogWarning("Failed to cleanup workspace {WorkspaceId} for profile {ProfileId}: {Error}", profileResult.Data.ActiveWorkspaceId, profileId, cleanupResult.FirstError);
-
-                        // Continue with profile deletion even if workspace cleanup fails
-                    }
+                    logger.LogWarning("Cannot delete profile {ProfileId} - process {ProcessId} is still running", profileId, activeLaunch.ProcessInfo.ProcessId);
+                    return ProfileOperationResult<bool>.CreateFailure(
+                        "Cannot delete a running profile. Please stop the profile before deleting it.");
                 }
 
-                var deleteResult = await profileManager.DeleteProfileAsync(profileId, cancellationToken);
-                if (deleteResult.Success)
-                {
-                    logger.LogInformation("Successfully deleted profile {ProfileId}", profileId);
-                    return ProfileOperationResult<bool>.CreateSuccess(true);
-                }
-
-                logger.LogError("Failed to delete profile {ProfileId}: {Errors}", profileId, string.Join(", ", deleteResult.Errors));
-                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", deleteResult.Errors));
+                // Process has exited but registry hasn't been cleaned up yet - safe to proceed
+                logger.LogDebug("Profile {ProfileId} launch is in registry but process has exited, allowing deletion", profileId);
             }
+
+            var deleteResult = await profileManager.DeleteProfileAsync(profileId, cancellationToken);
+            if (deleteResult.Success)
+            {
+                logger.LogInformation("Successfully deleted profile {ProfileId}", profileId);
+                return ProfileOperationResult<bool>.CreateSuccess(true);
+            }
+
+            logger.LogError("Failed to delete profile {ProfileId}: {Errors}", profileId, string.Join(", ", deleteResult.Errors));
+            return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", deleteResult.Errors));
         }
         catch (IOException ioEx) when (ioEx.Message.Contains("being used by another process"))
         {
@@ -461,7 +443,7 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure(
                 "Cannot delete profile because workspace files are being used. Please ensure the game is fully stopped before deleting.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "An unexpected error occurred while deleting profile {ProfileId}.", profileId);
             return ProfileOperationResult<bool>.CreateFailure("An unexpected error occurred.");
