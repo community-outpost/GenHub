@@ -3,6 +3,7 @@ using Avalonia.Markup.Xaml;
 using GenHub.Features.Info.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace GenHub.Features.Info.Views;
@@ -25,15 +26,17 @@ public partial class ChangelogsView : UserControl
     /// </summary>
     /// <param name="item">The changelog item.</param>
     /// <returns>The container control if found; otherwise, null.</returns>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses view instance controls")]
     public Control? ContainerFromItem(object item)
     {
-        var container = ReleasesItemsControl?.ContainerFromItem(item);
+        var itemsControl = this.FindControl<ItemsControl>("ReleasesItemsControl") ?? ReleasesItemsControl;
+        var container = itemsControl?.ContainerFromItem(item);
         if (container != null)
         {
             return container;
         }
 
-        if (ReleasesItemsControl?.ItemsSource is IEnumerable<ChangelogItemViewModel> releases)
+        if (itemsControl?.ItemsSource is IEnumerable<ChangelogItemViewModel> releases)
         {
             var releaseList = releases.ToList();
             int index = -1;
@@ -51,7 +54,7 @@ public partial class ChangelogsView : UserControl
 
             if (index >= 0)
             {
-                var indexedContainer = ReleasesItemsControl.ContainerFromIndex(index);
+                var indexedContainer = itemsControl.ContainerFromIndex(index);
                 if (indexedContainer != null)
                 {
                     return indexedContainer;

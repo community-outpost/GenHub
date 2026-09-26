@@ -802,27 +802,24 @@ public partial class GenHubInfoSectionViewModel(
             }
         }
 
-        foreach (var release in Changelogs.Releases)
+        foreach (var release in Changelogs.Releases.Where(r => !section.Cards.Any(c => ReferenceEquals(c.TargetItem, r))))
         {
-            if (!section.Cards.Any(c => ReferenceEquals(c.TargetItem, release)))
-            {
-                var cardVm = new InfoCardViewModel(
-                    new InfoCard
-                    {
-                        Id = "release-" + (release.Release.TagName ?? release.Release.Name ?? Guid.NewGuid().ToString()),
-                        Title = release.Release.Name ?? release.Release.TagName ?? "Release",
-                        Content = release.Release.PublishedAt?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
-                        Type = InfoCardType.Feature,
-                        DetailedContent = release.Release.Body,
-                    },
-                    InfoConstants.SectionChangelogs,
-                    localizationService)
+            var cardVm = new InfoCardViewModel(
+                new InfoCard
                 {
-                    TargetItem = release,
-                    CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
-                };
-                section.Cards.Add(cardVm);
-            }
+                    Id = "release-" + (release.Release.TagName ?? release.Release.Name ?? Guid.NewGuid().ToString()),
+                    Title = release.Release.Name ?? release.Release.TagName ?? "Release",
+                    Content = release.Release.PublishedAt?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    Type = InfoCardType.Feature,
+                    DetailedContent = release.Release.Body,
+                },
+                InfoConstants.SectionChangelogs,
+                localizationService)
+            {
+                TargetItem = release,
+                CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+            };
+            section.Cards.Add(cardVm);
         }
 
         if (SelectedSection?.Id == InfoConstants.SectionChangelogs)
@@ -850,28 +847,25 @@ public partial class GenHubInfoSectionViewModel(
             }
         }
 
-        foreach (var note in GoChangelog.PatchNotes)
+        foreach (var note in GoChangelog.PatchNotes.Where(n => !section.Cards.Any(c => ReferenceEquals(c.TargetItem, n))))
         {
-            if (!section.Cards.Any(c => ReferenceEquals(c.TargetItem, note)))
-            {
-                var cardId = string.IsNullOrEmpty(note.Id) ? (note.Title ?? Guid.NewGuid().ToString()) : note.Id;
-                var cardVm = new InfoCardViewModel(
-                    new InfoCard
-                    {
-                        Id = "go-patch-" + cardId,
-                        Title = note.Title ?? string.Empty,
-                        Content = note.Date ?? string.Empty,
-                        Type = InfoCardType.Feature,
-                        DetailedContent = note.Summary,
-                    },
-                    InfoConstants.SectionGoChangelog,
-                    localizationService)
+            var cardId = string.IsNullOrEmpty(note.Id) ? (note.Title ?? Guid.NewGuid().ToString()) : note.Id;
+            var cardVm = new InfoCardViewModel(
+                new InfoCard
                 {
-                    TargetItem = note,
-                    CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
-                };
-                section.Cards.Add(cardVm);
-            }
+                    Id = "go-patch-" + cardId,
+                    Title = note.Title ?? string.Empty,
+                    Content = note.Date ?? string.Empty,
+                    Type = InfoCardType.Feature,
+                    DetailedContent = note.Summary,
+                },
+                InfoConstants.SectionGoChangelog,
+                localizationService)
+            {
+                TargetItem = note,
+                CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+            };
+            section.Cards.Add(cardVm);
         }
 
         if (SelectedSection?.Id == InfoConstants.SectionGoChangelog)

@@ -297,6 +297,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     /// Synchronizes the active tab with the given info section ID.
     /// </summary>
     /// <param name="sectionId">The target info section ID.</param>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance property SelectedTabIndex")]
     public void SyncTabToSection(string sectionId)
     {
         int targetIndex = sectionId switch
@@ -307,9 +308,9 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
             _ => -1,
         };
 
-        if (targetIndex >= 0 && SelectedTabIndex != targetIndex)
+        if (targetIndex >= 0 && this.SelectedTabIndex != targetIndex)
         {
-            SelectedTabIndex = targetIndex;
+            this.SelectedTabIndex = targetIndex;
         }
     }
 

@@ -341,7 +341,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
 
                     **Spatial Sound & Hardware Mixing:**
                     * **3D Sound & Spatial Falloff:** Calculates sound listener coordinates, simulating realistic distance attenuation, stereo panning, and Doppler frequency shifts (`3DSound = yes`).
-                    * **Audio Channels (DirectSound Buffers):** Number of simultaneous audio sample streams (`AudioChannels = 16-128`). Modern audio hardware handles 64 or 128 channels without sound cutting out during massive 8-player artillery barrages.
+                    * **Audio Channels (DirectSound Buffers):** Number of simultaneous audio sample streams (`NumSounds = 16-64`). Modern audio hardware easily handles 64 channels without sound cutting out during massive 8-player artillery barrages.
                     """,
                 },
                 new InfoCard
