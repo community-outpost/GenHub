@@ -8,8 +8,10 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
+using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -143,15 +145,6 @@ public sealed partial class ToolsViewModel(
 
                 HasTools = InstalledTools.Count > 0;
 
-                if (HasTools)
-                {
-                    // Remember the first tool without selecting it. Selecting would activate
-                    // the tool immediately (loading its ViewModel, views, and data at app
-                    // startup). Activation is deferred until the Tools tab is actually opened,
-                    // where OnTabActivated restores this remembered tool.
-                    _lastOpenedTool = InstalledTools[0];
-                }
-
                 if (_activateOnLoadComplete)
                 {
                     // The Tools tab was opened while tools were still loading and the
@@ -204,11 +197,6 @@ public sealed partial class ToolsViewModel(
             if (matchingTool != null)
             {
                 SelectedTool = matchingTool;
-            }
-            else if (InstalledTools.Count > 0)
-            {
-                _lastOpenedTool = InstalledTools[0];
-                SelectedTool = _lastOpenedTool;
             }
             else
             {
@@ -409,51 +397,14 @@ public sealed partial class ToolsViewModel(
             ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshingTools") ?? "Refreshing tools...", MessageType.Info);
 
             var previousSelectedId = SelectedTool?.Metadata.Id ?? _lastOpenedTool?.Metadata.Id;
-
-            // Deactivate current tool before refresh
-            if (SelectedTool != null)
-            {
-                try
-                {
-                    SelectedTool.OnDeactivated();
-                    CurrentToolControl = null;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error deactivating tool during refresh: {ToolName}", SelectedTool.Metadata.Name);
-                }
-            }
+            DeactivateCurrentTool();
 
             // Load tools from saved settings
             var result = await toolService.LoadSavedToolsAsync();
 
             if (result.Success && result.Data != null)
             {
-                InstalledTools.Clear();
-                foreach (var tool in result.Data)
-                {
-                    InstalledTools.Add(tool);
-                }
-
-                HasTools = InstalledTools.Count > 0;
-
-                if (HasTools)
-                {
-                    // Try to restore previous selection, otherwise select first
-                    var toolToSelect = InstalledTools.FirstOrDefault(t => t.Metadata.Id == previousSelectedId)
-                                      ?? InstalledTools[0];
-                    SelectedTool = toolToSelect;
-
-                    ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedCountSuccess", InstalledTools.Count) ?? $"Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
-                }
-                else
-                {
-                    SelectedTool = null;
-                    _lastOpenedTool = null;
-                    ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedListSuccess") ?? "Refreshed tools list.", MessageType.Success);
-                }
-
-                logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
+                ApplyRefreshedTools(result.Data, previousSelectedId);
             }
             else
             {
@@ -470,6 +421,74 @@ public sealed partial class ToolsViewModel(
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private void DeactivateCurrentTool()
+    {
+        if (SelectedTool == null)
+        {
+            return;
+        }
+
+        try
+        {
+            SelectedTool.OnDeactivated();
+            CurrentToolControl = null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deactivating tool during refresh: {ToolName}", SelectedTool.Metadata.Name);
+        }
+    }
+
+    private void ApplyRefreshedTools(IReadOnlyCollection<IToolPlugin> tools, string? previousSelectedId)
+    {
+        InstalledTools.Clear();
+        foreach (var tool in tools)
+        {
+            InstalledTools.Add(tool);
+        }
+
+        HasTools = InstalledTools.Count > 0;
+
+        if (HasTools)
+        {
+            // Try to restore previous selection if one was previously selected
+            var toolToSelect = previousSelectedId != null
+                ? InstalledTools.FirstOrDefault(t => string.Equals(t.Metadata.Id, previousSelectedId, StringComparison.OrdinalIgnoreCase))
+                : null;
+
+            RestoreSelectedTool(toolToSelect);
+
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedCountSuccess", InstalledTools.Count) ?? $"Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
+        }
+        else
+        {
+            SelectedTool = null;
+            _lastOpenedTool = null;
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedListSuccess") ?? "Refreshed tools list.", MessageType.Success);
+        }
+
+        logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
+    }
+
+    private void RestoreSelectedTool(IToolPlugin? toolToSelect)
+    {
+        if (toolToSelect == null)
+        {
+            SelectedTool = null;
+            _lastOpenedTool = null;
+            return;
+        }
+
+        if (SelectedTool == toolToSelect)
+        {
+            ActivateTool(toolToSelect);
+        }
+        else
+        {
+            SelectedTool = toolToSelect;
         }
     }
 
@@ -562,6 +581,16 @@ public sealed partial class ToolsViewModel(
     {
         IsDetailsDialogOpen = false;
         ToolForDetails = null;
+    }
+
+    /// <summary>
+    /// Navigates to the Info tab and opens the Tools guide section.
+    /// </summary>
+    [RelayCommand]
+    private void OpenToolsInfo()
+    {
+        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Info));
+        WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(InfoConstants.SectionTools));
     }
 
     private void ShowStatusMessage(string message, MessageType type = MessageType.Info)

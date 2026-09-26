@@ -1517,6 +1517,111 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a loose map's .wak, map.ini and map.str companions move into the map folder with it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_LooseMapWithWakIniAndStr_OrganizesAllCompanionsAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "map-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.wak"), "wak-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "map.ini"), "ini-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "map.str"), "str-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var mapFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.Equal("wak-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "Desert.wak")));
+        Assert.Equal("ini-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "map.ini")));
+        Assert.Equal("str-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "map.str")));
+        Assert.Empty(Directory.GetFiles(_stagingDirectory));
+    }
+
+    /// <summary>
+    /// Verifies that shared companions retain their content in every map folder and leave no
+    /// staging-root duplicate, regardless of filename casing.
+    /// </summary>
+    /// <param name="companionName">The shared companion filename.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("map.ini")]
+    [InlineData("MAP.INI")]
+    [InlineData("map.str")]
+    [InlineData("MAP.STR")]
+    [InlineData("map.tga")]
+    [InlineData("MAP.TGA")]
+    public async Task NormalizeDirectoryStructureAsync_SharedCompanionCaseVariants_RemovesRootCopyAsync(string companionName)
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "desert-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Snow.map"), "snow-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, companionName), "shared-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "unrelated.ini"), "unrelated-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        foreach (var mapName in new[] { "Desert", "Snow" })
+        {
+            var targetName = companionName.Equals("map.tga", StringComparison.OrdinalIgnoreCase)
+                ? mapName + Path.GetExtension(companionName)
+                : companionName;
+            Assert.Equal("shared-data", await File.ReadAllTextAsync(Path.Combine(_stagingDirectory, mapName, targetName)));
+        }
+
+        Assert.Equal("unrelated.ini", Path.GetFileName(Assert.Single(Directory.GetFiles(_stagingDirectory))));
+        Assert.Equal("unrelated-data", await File.ReadAllTextAsync(Path.Combine(_stagingDirectory, "unrelated.ini")));
+    }
+
+    /// <summary>
+    /// Shared companions may be deduplicated only when the destination has identical contents.
+    /// Conflicts fail normalization while preserving both versions.
+    /// </summary>
+    /// <param name="companionName">The shared companion filename.</param>
+    /// <param name="identical">Whether source and destination contents match.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("map.ini", false)]
+    [InlineData("map.str", false)]
+    [InlineData("map.tga", false)]
+    [InlineData("MAP.TGA", false)]
+    [InlineData("MAP.INI", false)]
+    [InlineData("MAP.STR", false)]
+    [InlineData("map.ini", true)]
+    [InlineData("map.str", true)]
+    [InlineData("map.tga", true)]
+    [InlineData("MAP.TGA", true)]
+    [InlineData("MAP.INI", true)]
+    [InlineData("MAP.STR", true)]
+    public async Task NormalizeDirectoryStructureAsync_ExistingSharedCompanion_PreservesConflictingContentAsync(string companionName, bool identical)
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapFolder = Directory.CreateDirectory(Path.Combine(_stagingDirectory, "Desert")).FullName;
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "map-data");
+        await File.WriteAllTextAsync(Path.Combine(mapFolder, "Desert.map"), "map-data");
+        var source = Path.Combine(_stagingDirectory, companionName);
+        var destination = Path.Combine(mapFolder, companionName.Equals("map.tga", StringComparison.OrdinalIgnoreCase) ? "Desert.tga" : companionName.ToLowerInvariant());
+        await File.WriteAllTextAsync(source, "incoming");
+        await File.WriteAllTextAsync(destination, identical ? "incoming" : "existing");
+
+        var processor = CreateProcessor();
+        if (identical)
+        {
+            await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+            Assert.False(File.Exists(source));
+        }
+        else
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(() => processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour));
+            Assert.Equal("incoming", await File.ReadAllTextAsync(source));
+        }
+
+        Assert.Equal(identical ? "incoming" : "existing", await File.ReadAllTextAsync(destination));
+    }
+
+    /// <summary>
     /// Verifies that multiple loose maps sharing a root map.tga receive the thumbnail in each respective map folder.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -1638,6 +1743,32 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.Single(Directory.GetFiles(existingDesertDir, "*.map"));
         Assert.Single(Directory.GetFiles(desert1Dir, "*.map"));
         Assert.Single(Directory.GetFiles(desert2Dir, "*.map"));
+    }
+
+    /// <summary>
+    /// Verifies that in a single-map payload, a root generic map.ini is copied to the map folder.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SingleMapPayloadWithGenericMapIni_CopiesGenericIniToMapFolderAsync()
+    {
+        // Arrange: Only Desert.map and generic map.ini
+        Directory.CreateDirectory(_stagingDirectory);
+        var desertMap = Path.Combine(_stagingDirectory, "Desert.map");
+        var genericIni = Path.Combine(_stagingDirectory, "map.ini");
+
+        await File.WriteAllTextAsync(desertMap, "desert-map-data");
+        await File.WriteAllTextAsync(genericIni, "WaterTransparency = 50%");
+
+        // Act
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        // Assert
+        var desertFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.True(Directory.Exists(desertFolder));
+        Assert.True(File.Exists(Path.Combine(desertFolder, "map.ini")));
+        Assert.Equal("WaterTransparency = 50%", await File.ReadAllTextAsync(Path.Combine(desertFolder, "map.ini")));
     }
 
     /// <inheritdoc/>

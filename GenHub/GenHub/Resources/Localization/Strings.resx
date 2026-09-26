@@ -2724,6 +2724,18 @@
     <value>Select a tool from the list</value>
     <comment>Prompt to select a tool from the sidebar</comment>
   </data>
+<data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
+    <value>Select a Tool</value>
+    <comment>Empty state title when no tool is currently selected</comment>
+  </data>
+  <data name="Tools.EmptyState.SelectToolDescription" xml:space="preserve">
+    <value>Select a tool from the sidebar to get started, or read the Info tab to learn more about available tools and utilities.</value>
+    <comment>Empty state description prompting the user to pick a tool or read the info tab</comment>
+  </data>
+  <data name="Tools.Button.ReadInfoTab" xml:space="preserve">
+    <value>Read Info Tab</value>
+    <comment>Button text to navigate to the Info tab from the tools empty state</comment>
+  </data>
   <data name="Tools.Error.ErrorLoadingTool" xml:space="preserve">
     <value>✗ Error loading tool '{0}': {1}</value>
     <comment>Error message when a specific tool fails to load. {0} = tool name, {1} = error</comment>
@@ -8884,6 +8896,18 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
     <value>Import failed: {0}</value>
   </data>
+  <data name="Maps.Error.FolderNotWritable" xml:space="preserve">
+    <value>GenHub could not make the map folder "{0}" writable. Check that your account owns the folder and that it is not locked, then try again.</value>
+  </data>
+  <data name="Maps.Error.DeleteFailed" xml:space="preserve">
+    <value>Could not delete "{0}".</value>
+  </data>
+  <data name="Maps.Error.RenameFailed" xml:space="preserve">
+    <value>Could not rename "{0}".</value>
+  </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>No map files were found to import.</value>
+  </data>
   <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
     <value>Import Error</value>
   </data>
@@ -14391,5 +14415,20 @@ How do you want to apply this update?</value>
     <value>{0} has an update available.
 
 How do you want to apply this update?</value>
+  </data>
+  <data name="Settings.Profiles.DeleteIncomplete" xml:space="preserve">
+    <value>Deleted {0} profile(s). Could not delete {1} profile(s): {2}.</value>
+  </data>
+  <data name="Settings.Profiles.DeleteFailedTitle" xml:space="preserve">
+    <value>Profile Deletion Failed</value>
+  </data>
+  <data name="Settings.Profiles.DeletePartialTitle" xml:space="preserve">
+    <value>Profiles Partially Deleted</value>
+  </data>
+  <data name="Settings.Profiles.DeletedTitle" xml:space="preserve">
+    <value>Profiles Deleted</value>
+  </data>
+  <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
+    <value>Deleted {0} profile(s) successfully.</value>
   </data>
 </root>

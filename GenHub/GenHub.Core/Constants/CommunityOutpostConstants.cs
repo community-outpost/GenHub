@@ -353,6 +353,35 @@ public static class CommunityOutpostConstants
     }
 
     /// <summary>
+    /// Checks whether the specified publisher, ID, or display name represents a Community Outpost or Community Patch identity.
+    /// </summary>
+    /// <param name="publisher">The publisher name or publisher type.</param>
+    /// <param name="id">The client or content identifier.</param>
+    /// <param name="name">The display name or profile name.</param>
+    /// <returns><c>true</c> if the identity belongs to Community Outpost or Community Patch; otherwise, <c>false</c>.</returns>
+    public static bool IsCommunityOutpostIdentity(string? publisher, string? id = null, string? name = null)
+    {
+        if (IsCommunityPatchIdentifier(id) || IsCommunityPatchIdentifier(name))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(publisher) &&
+            (string.Equals(publisher, PublisherType, StringComparison.OrdinalIgnoreCase) ||
+             publisher.Contains(PublisherName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(name) && name.Contains(PublisherName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Checks whether a content search result represents Community Patch content.
     /// </summary>
     /// <param name="result">The search result to check.</param>
@@ -400,9 +429,38 @@ public static class CommunityOutpostConstants
                (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(IsCommunityPatchIdentifier));
     }
 
-    private static bool ContainsCommunityPatchMarker(string value) =>
-        value.Contains(CommunityPatchTag, System.StringComparison.OrdinalIgnoreCase) ||
-        value.Contains(CommunityPatchNonRetCode, System.StringComparison.OrdinalIgnoreCase) ||
-        value.Contains(ContentName, System.StringComparison.OrdinalIgnoreCase) ||
-        value.Equals("CommunityPatch", System.StringComparison.OrdinalIgnoreCase);
+    private static bool ContainsCommunityPatchMarker(string value)
+    {
+        if (IsGeneralsGamePatch2Marker(value))
+        {
+            return false;
+        }
+
+        return value.Contains(CommunityPatchTag, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains(CommunityPatchNonRetCode, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains(ContentName, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("CommunityPatch", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGeneralsGamePatch2Marker(string value)
+    {
+        if (value.Contains(SuperHackersConstants.GeneralsGamePatch2Repo, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var idx = value.IndexOf(SuperHackersConstants.GeneralsGamePatch2DisplayName, System.StringComparison.OrdinalIgnoreCase);
+        while (idx >= 0)
+        {
+            var nextCharIdx = idx + SuperHackersConstants.GeneralsGamePatch2DisplayName.Length;
+            if (nextCharIdx >= value.Length || !char.IsDigit(value[nextCharIdx]))
+            {
+                return true;
+            }
+
+            idx = value.IndexOf(SuperHackersConstants.GeneralsGamePatch2DisplayName, nextCharIdx + 1, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
 }

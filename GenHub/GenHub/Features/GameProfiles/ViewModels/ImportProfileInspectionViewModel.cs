@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -318,9 +319,7 @@ public sealed partial class ImportProfileInspectionViewModel(
         ILocalizationService? localizationService)
     {
         var uncachedSourceless = result.Manifests
-            .Where(m => !m.IsCachedLocally &&
-                        string.IsNullOrWhiteSpace(m.PackageUrl) &&
-                        (m.Files == null || !m.Files.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))))
+            .Where(ProfileSharingService.CannotBeAcquired)
             .ToList();
 
         if (uncachedSourceless.Count > 0)

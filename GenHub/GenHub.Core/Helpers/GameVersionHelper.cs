@@ -77,6 +77,19 @@ public static partial class GameVersionHelper
     }
 
     /// <summary>
+    /// Resolves the numeric version segment of a game installation manifest id for a detected client.
+    /// This matches the version the installation service pools the manifest under, including the
+    /// game-type default when the client reports no usable version.
+    /// </summary>
+    /// <param name="detectedVersion">The version reported by the detected client.</param>
+    /// <param name="gameType">The game type.</param>
+    /// <returns>The normalized version to pass to the installation manifest id generator.</returns>
+    public static int ResolveInstallationManifestVersion(string? detectedVersion, GameType gameType)
+    {
+        return NormalizeVersion(ResolveInstallationVersion(detectedVersion, gameType));
+    }
+
+    /// <summary>
     /// Extracts a numeric version from a version string like "2025-11-07" or "weekly-2025-11-21".
     /// Extracts all digits and returns them as an integer (e.g., "2025-11-07" -> 20251107).
     /// </summary>

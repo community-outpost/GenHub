@@ -15,6 +15,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Events;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
@@ -280,7 +281,11 @@ public class ProfileLauncherFacade(
             }
 
             await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
-            await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+            var rebindResult = await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+            if (rebindResult.Failed)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(rebindResult.FirstError ?? "Could not rebind profile to its game installation");
+            }
 
             // Build list of manifests from enabled content IDs only
             var manifests = new List<ContentManifest>();
@@ -389,71 +394,53 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<bool>.CreateFailure("Profile ID cannot be empty");
             }
 
-            // Acquire the profile launch lock to ensure we don't delete during launch registration
-            // This uses the same semaphore as launch operations, so deletion waits for launch
-            // to complete its initial registration without polling or timeouts
-            using (await gameLauncher.AcquireProfileLockAsync(profileId, cancellationToken))
+            // The manager owns the shared launch/delete lock, including for direct callers.
+            // Do not acquire it here: the semaphore is deliberately non-reentrant.
+            // Check if the profile is currently running
+            var launches = await launchRegistry.GetAllActiveLaunchesAsync();
+            var activeLaunch = launches.FirstOrDefault(l => l.ProfileId == profileId);
+            if (activeLaunch != null)
             {
-                // Check if the profile is currently running
-                var launches = await launchRegistry.GetAllActiveLaunchesAsync();
-                var activeLaunch = launches.FirstOrDefault(l => l.ProfileId == profileId);
-                if (activeLaunch != null)
+                // Double-check that the process is actually running (not in a transitional state)
+                var isProcessRunning = false;
+                try
                 {
-                    // Double-check that the process is actually running (not in a transitional state)
-                    var isProcessRunning = false;
-                    try
-                    {
-                        var process = Process.GetProcessById(activeLaunch.ProcessInfo.ProcessId);
-                        isProcessRunning = !process.HasExited;
-                        process.Dispose();
-                    }
-                    catch (ArgumentException)
-                    {
-                        // Process doesn't exist - safe to delete
-                        logger.LogDebug("Process {ProcessId} for profile {ProfileId} no longer exists, allowing deletion", activeLaunch.ProcessInfo.ProcessId, profileId);
-                        isProcessRunning = false;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to verify process status for profile {ProfileId}, blocking deletion for safety", profileId);
-                        isProcessRunning = true;
-                    }
-
-                    if (isProcessRunning)
-                    {
-                        logger.LogWarning("Cannot delete profile {ProfileId} - process {ProcessId} is still running", profileId, activeLaunch.ProcessInfo.ProcessId);
-                        return ProfileOperationResult<bool>.CreateFailure(
-                            "Cannot delete a running profile. Please stop the profile before deleting it.");
-                    }
-
-                    // Process has exited but registry hasn't been cleaned up yet - safe to proceed
-                    logger.LogDebug("Profile {ProfileId} launch is in registry but process has exited, allowing deletion", profileId);
+                    var process = Process.GetProcessById(activeLaunch.ProcessInfo.ProcessId);
+                    isProcessRunning = !process.HasExited;
+                    process.Dispose();
+                }
+                catch (ArgumentException)
+                {
+                    // Process doesn't exist - safe to delete
+                    logger.LogDebug("Process {ProcessId} for profile {ProfileId} no longer exists, allowing deletion", activeLaunch.ProcessInfo.ProcessId, profileId);
+                    isProcessRunning = false;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to verify process status for profile {ProfileId}, blocking deletion for safety", profileId);
+                    isProcessRunning = true;
                 }
 
-                // Get profile to check for active workspace before deleting
-                var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-                if (profileResult.Success && profileResult.Data != null && !string.IsNullOrEmpty(profileResult.Data.ActiveWorkspaceId))
+                if (isProcessRunning)
                 {
-                    logger.LogInformation("Cleaning up workspace {WorkspaceId} for profile {ProfileId} before deletion", profileResult.Data.ActiveWorkspaceId, profileId);
-                    var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profileResult.Data.ActiveWorkspaceId, cancellationToken);
-                    if (cleanupResult.Failed)
-                    {
-                        logger.LogWarning("Failed to cleanup workspace {WorkspaceId} for profile {ProfileId}: {Error}", profileResult.Data.ActiveWorkspaceId, profileId, cleanupResult.FirstError);
-
-                        // Continue with profile deletion even if workspace cleanup fails
-                    }
+                    logger.LogWarning("Cannot delete profile {ProfileId} - process {ProcessId} is still running", profileId, activeLaunch.ProcessInfo.ProcessId);
+                    return ProfileOperationResult<bool>.CreateFailure(
+                        "Cannot delete a running profile. Please stop the profile before deleting it.");
                 }
 
-                var deleteResult = await profileManager.DeleteProfileAsync(profileId, cancellationToken);
-                if (deleteResult.Success)
-                {
-                    logger.LogInformation("Successfully deleted profile {ProfileId}", profileId);
-                    return ProfileOperationResult<bool>.CreateSuccess(true);
-                }
-
-                logger.LogError("Failed to delete profile {ProfileId}: {Errors}", profileId, string.Join(", ", deleteResult.Errors));
-                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", deleteResult.Errors));
+                // Process has exited but registry hasn't been cleaned up yet - safe to proceed
+                logger.LogDebug("Profile {ProfileId} launch is in registry but process has exited, allowing deletion", profileId);
             }
+
+            var deleteResult = await profileManager.DeleteProfileAsync(profileId, cancellationToken);
+            if (deleteResult.Success)
+            {
+                logger.LogInformation("Successfully deleted profile {ProfileId}", profileId);
+                return ProfileOperationResult<bool>.CreateSuccess(true);
+            }
+
+            logger.LogError("Failed to delete profile {ProfileId}: {Errors}", profileId, string.Join(", ", deleteResult.Errors));
+            return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", deleteResult.Errors));
         }
         catch (IOException ioEx) when (ioEx.Message.Contains("being used by another process"))
         {
@@ -461,7 +448,7 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure(
                 "Cannot delete profile because workspace files are being used. Please ensure the game is fully stopped before deleting.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "An unexpected error occurred while deleting profile {ProfileId}.", profileId);
             return ProfileOperationResult<bool>.CreateFailure("An unexpected error occurred.");
@@ -550,6 +537,26 @@ public class ProfileLauncherFacade(
             IsToolProfile = true,
         });
         return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
+    }
+
+    /// <summary>
+    /// Checks if a profile uses a SuperHackers game client.
+    /// </summary>
+    /// <param name="profile">The profile to check.</param>
+    /// <returns>True if the profile uses SuperHackers, false otherwise.</returns>
+    private static bool IsSuperHackersProfile(GameProfile profile)
+    {
+        return profile.IsTheSuperHackersProfile();
+    }
+
+    /// <summary>
+    /// Checks if a profile uses a Community Outpost game client.
+    /// </summary>
+    /// <param name="profile">The profile to check.</param>
+    /// <returns>True if the profile uses Community Outpost, false otherwise.</returns>
+    private static bool IsCommunityOutpostProfile(GameProfile profile)
+    {
+        return profile.IsCommunityOutpostProfile();
     }
 
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(
@@ -865,8 +872,11 @@ public class ProfileLauncherFacade(
                 resolvedInstallation.Id,
                 resolvedInstallation.InstallationPath);
 
-            // Update the profile with the resolved installation if it changed
-            await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+            var rebindResult = await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+            if (rebindResult.Failed)
+            {
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(rebindResult.FirstError ?? "Could not rebind profile to its game installation");
+            }
 
             // Ensure CAS pool is available before reconciliation may download artifacts
             await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
@@ -880,7 +890,11 @@ public class ProfileLauncherFacade(
 
             profile = reconcileResult.Data ?? profile;
             profileId = profile.Id;
-            await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+            rebindResult = await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
+            if (rebindResult.Failed)
+            {
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(rebindResult.FirstError ?? "Could not rebind profile to its game installation");
+            }
 
             // Validate the profile before launching
             logger.LogDebug("[Launch] Step 3: Validating profile for launch");
@@ -1059,31 +1073,28 @@ public class ProfileLauncherFacade(
         IPublisherReconciler? reconciler = null;
         string? publisherType = profile.GameClient?.PublisherType;
 
-        if (!string.IsNullOrWhiteSpace(publisherType))
+        if (profile.IsCommunityOutpostProfile())
+        {
+            publisherType = CommunityOutpostConstants.PublisherType;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected Community Outpost profile, using reconciler");
+        }
+        else if (profile.IsGeneralsOnlineProfile())
+        {
+            publisherType = PublisherTypeConstants.GeneralsOnline;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
+        }
+        else if (!string.IsNullOrWhiteSpace(publisherType))
         {
             logger.LogDebug("[Launch] Looking up reconciler for publisher: {PublisherType}", publisherType);
             reconciler = reconcilerRegistry.GetReconciler(publisherType);
         }
-        else
+        else if (IsSuperHackersProfile(profile))
         {
-            if (profile.IsGeneralsOnlineProfile())
-            {
-                publisherType = PublisherTypeConstants.GeneralsOnline;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
-            }
-            else if (IsSuperHackersProfile(profile))
-            {
-                publisherType = PublisherTypeConstants.TheSuperHackers;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
-            }
-            else if (IsCommunityOutpostProfile(profile))
-            {
-                publisherType = CommunityOutpostConstants.PublisherType;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy CommunityOutpost profile, using reconciler");
-            }
+            publisherType = PublisherTypeConstants.TheSuperHackers;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
         }
 
         if (reconciler != null && publisherType != null)
@@ -1617,72 +1628,6 @@ public class ProfileLauncherFacade(
     }
 
     /// <summary>
-    /// Checks if a profile uses a SuperHackers game client.
-    /// </summary>
-    /// <param name="profile">The profile to check.</param>
-    /// <returns>True if the profile uses SuperHackers, false otherwise.</returns>
-    private bool IsSuperHackersProfile(GameProfile profile)
-    {
-        if (IsCommunityOutpostProfile(profile))
-        {
-            return false;
-        }
-
-        // Check PublisherType first
-        if (profile.GameClient?.PublisherType?.Equals(
-            PublisherTypeConstants.TheSuperHackers,
-            StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Check if Name contains "SuperHackers"
-        if (profile.GameClient?.Name?.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Final fallback: Check enabled content for SuperHackers manifests
-        if (profile.EnabledContentIds?.Any(id => id.Contains("thesuperhackers", StringComparison.OrdinalIgnoreCase)) == true)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if a profile uses a Community Outpost game client.
-    /// </summary>
-    /// <param name="profile">The profile to check.</param>
-    /// <returns>True if the profile uses Community Outpost, false otherwise.</returns>
-    private bool IsCommunityOutpostProfile(GameProfile profile)
-    {
-        // Check PublisherType
-        if (profile.GameClient?.PublisherType?.Equals(
-            CommunityOutpostConstants.PublisherType,
-            StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Check if Name contains "Community Outpost" or "Community Patch"
-        if (profile.GameClient?.Name?.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) == true ||
-            profile.GameClient?.Name?.Contains("Community Patch", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Fallback: manifests
-        if (profile.EnabledContentIds?.Any(id => id.Contains("communityoutpost", StringComparison.OrdinalIgnoreCase)) == true)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
     /// Validates dependencies between manifests to ensure compatibility.
     /// </summary>
     /// <param name="manifests">The list of manifests to validate.</param>
@@ -2068,7 +2013,7 @@ public class ProfileLauncherFacade(
                 $"No valid installation found for {profile.GameClient?.GameType}. " +
                 "Please verify your game installation and update the profile settings.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Error resolving installation for profile {ProfileId}", profile.Id);
             return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateFailure(
@@ -2227,32 +2172,50 @@ public class ProfileLauncherFacade(
         }
     }
 
-    private async Task TryRebindProfileInstallationAsync(
+    private async Task<OperationResult<bool>> TryRebindProfileInstallationAsync(
         string profileId,
         GameProfile profile,
         GameInstallation resolvedInstallation,
         CancellationToken cancellationToken)
     {
-        if (resolvedInstallation.Id != profile.GameInstallationId)
+        if (resolvedInstallation.Id == profile.GameInstallationId)
         {
-            var updateRequest = new UpdateProfileRequest
-            {
-                GameInstallationId = resolvedInstallation.Id,
-            };
-            var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-            if (updateResult.Success)
-            {
-                profile.GameInstallationId = resolvedInstallation.Id;
-                logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId}", profileId, resolvedInstallation.Id);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "Failed to rebind profile {ProfileId} to installation {InstallationId}: {Error}",
-                    profileId,
-                    resolvedInstallation.Id,
-                    updateResult.FirstError);
-            }
+            return OperationResult<bool>.CreateSuccess(true);
         }
+
+        var previousInstallationId = profile.GameInstallationId;
+        GameClient? reboundClient = null;
+        if (profile.GameClient != null)
+        {
+            reboundClient = profile.GameClient.Clone();
+            reboundClient.InstallationId = resolvedInstallation.Id;
+        }
+
+        var updateRequest = new UpdateProfileRequest
+        {
+            GameInstallationId = resolvedInstallation.Id,
+            GameClient = reboundClient,
+        };
+        var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+        if (updateResult.Failed)
+        {
+            logger.LogError(
+                "Failed to rebind profile {ProfileId} from installation {OldInstallationId} to {InstallationId}: {Error}",
+                profileId,
+                previousInstallationId,
+                resolvedInstallation.Id,
+                updateResult.FirstError);
+            return OperationResult<bool>.CreateFailure(
+                $"Could not rebind profile '{profile.Name}' to the game installation at '{resolvedInstallation.InstallationPath}': {updateResult.FirstError}");
+        }
+
+        profile.GameInstallationId = resolvedInstallation.Id;
+        profile.GameClient = updateResult.Data?.GameClient ?? reboundClient ?? profile.GameClient;
+        logger.LogInformation(
+            "Rebound profile {ProfileId} from installation {OldInstallationId} to {InstallationId}",
+            profileId,
+            previousInstallationId,
+            resolvedInstallation.Id);
+        return OperationResult<bool>.CreateSuccess(true);
     }
 }

@@ -77,6 +77,8 @@ public sealed partial class DownloadsBrowserViewModel(
     IPublisherReconcilerRegistry? reconcilerRegistry = null,
     ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
+    private long _subscriptionRefreshVersion;
+
     /// <summary>
     /// Tracks an in-flight background default browse operation so switching away
     /// allows the fetch to complete into cache, and switching back can attach to it.
@@ -303,6 +305,9 @@ public sealed partial class DownloadsBrowserViewModel(
             WeakReferenceMessenger.Default.Register<DownloadsBrowserViewModel, PublisherSubscriptionsChangedMessage>(
                 this,
                 static (recipient, _) => recipient.OnPublisherSubscriptionsChanged());
+            WeakReferenceMessenger.Default.Register<PublisherSubscriptionRemovedMessage>(
+                this,
+                static (recipient, message) => ((DownloadsBrowserViewModel)recipient).OnPublisherSubscriptionRemoved(message.PublisherId));
             _builtInPublishersInitialized = true;
         }
 
@@ -392,6 +397,7 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(this);
                 WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionsChangedMessage>(this);
+                WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionRemovedMessage>(this);
                 contentStateService.ContentStateChanged -= OnContentStateChanged;
                 if (_localizationService != null)
                 {
@@ -1753,6 +1759,75 @@ public sealed partial class DownloadsBrowserViewModel(
     private void OnPublisherSubscriptionsChanged()
     {
         RunOnUi(() => _ = RefreshSubscribedPublishersAsync());
+    }
+
+    private void OnPublisherSubscriptionRemoved(string publisherId)
+    {
+        Interlocked.Increment(ref _subscriptionRefreshVersion);
+        RunOnUi(() =>
+        {
+            if (!_disposed)
+            {
+                RemoveSubscribedPublisher(publisherId);
+            }
+        });
+    }
+
+    private void RemoveSubscribedPublisher(string publisherId)
+    {
+        var item = Publishers.FirstOrDefault(p =>
+            p.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase)
+            && p.PublisherId.Equals(publisherId, StringComparison.OrdinalIgnoreCase));
+        if (item == null)
+        {
+            return;
+        }
+
+        _subscribedDiscoverers.Remove(publisherId);
+        var isSelected = string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase);
+        if (isSelected)
+        {
+            _searchCts?.Cancel();
+            SelectedContent?.Dispose();
+            SelectedContent = null;
+            foreach (var contentItem in ContentItems)
+            {
+                contentItem.Dispose();
+            }
+
+            ContentItems.Clear();
+
+            // Do not save the removed publisher back into the browse cache on selection change.
+            _lastPopulatedPublisherId = null;
+        }
+
+        lock (_cacheLock)
+        {
+            if (_inFlightOperations.Remove(publisherId, out var inFlight))
+            {
+                inFlight.Cts.Cancel();
+                foreach (var vm in SnapshotInFlight(inFlight))
+                {
+                    vm.Dispose();
+                }
+            }
+
+            if (_browseCache.Remove(publisherId, out var removedState))
+            {
+                removedState.ActiveDetailViewModel?.Dispose();
+                foreach (var vm in removedState.Items)
+                {
+                    vm.Dispose();
+                }
+            }
+        }
+
+        // Remove the bound row after clearing outgoing state: selection bindings may run synchronously.
+        Publishers.Remove(item);
+        if (isSelected)
+        {
+            SelectedPublisher = Publishers.FirstOrDefault();
+        }
     }
 
     private void OnContentLibraryCleared()
@@ -3129,6 +3204,7 @@ public sealed partial class DownloadsBrowserViewModel(
     /// </summary>
     private async Task RefreshSubscribedPublishersAsync()
     {
+        var refreshVersion = Interlocked.Increment(ref _subscriptionRefreshVersion);
         try
         {
             var result = await subscriptionStore.GetSubscriptionsAsync(_vmCts.Token);
@@ -3140,78 +3216,31 @@ public sealed partial class DownloadsBrowserViewModel(
                 return;
             }
 
-            var subscriptions = result.Data.ToList();
-            var subscribedIds = new HashSet<string>(
-                subscriptions.Select(s => s.PublisherId),
-                StringComparer.OrdinalIgnoreCase);
-
-            // Drop sidebar rows / caches for unsubscribed catalogs only
-            var removed = Publishers
-                .Where(p => p.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase)
-                            && !subscribedIds.Contains(p.PublisherId))
-                .ToList();
-
-            foreach (var item in removed)
+            void ApplySubscriptions()
             {
-                RunOnUi(() => Publishers.Remove(item));
-                _subscribedDiscoverers.Remove(item.PublisherId);
-
-                lock (_cacheLock)
+                if (_disposed || refreshVersion != Volatile.Read(ref _subscriptionRefreshVersion))
                 {
-                    if (_inFlightOperations.Remove(item.PublisherId, out var inFlight))
-                    {
-                        inFlight.Cts.Cancel();
-                        var inFlightSnapshot = SnapshotInFlight(inFlight);
-
-                        foreach (var vm in inFlightSnapshot)
-                        {
-                            vm.Dispose();
-                        }
-                    }
+                    return;
                 }
 
-                if (_browseCache.Remove(item.PublisherId, out var removedState))
+                var subscriptions = result.Data.ToList();
+                var subscribedIds = new HashSet<string>(subscriptions.Select(s => s.PublisherId), StringComparer.OrdinalIgnoreCase);
+                var removed = Publishers.Where(p =>
+                    p.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase)
+                    && !subscribedIds.Contains(p.PublisherId)).Select(p => p.PublisherId).ToList();
+                foreach (var publisherId in removed)
                 {
-                    removedState.ActiveDetailViewModel?.Dispose();
-                    removedState.ActiveDetailViewModel = null;
-                    foreach (var oldVm in removedState.Items)
-                    {
-                        oldVm.Dispose();
-                    }
+                    RemoveSubscribedPublisher(publisherId);
                 }
 
-                if (SelectedPublisher?.PublisherId == item.PublisherId)
+                foreach (var subscription in subscriptions)
                 {
-                    var searchCts = Interlocked.Exchange(ref _searchCts, null);
-                    if (searchCts != null)
+                    if (string.IsNullOrWhiteSpace(subscription.PublisherId)
+                        || string.IsNullOrWhiteSpace(subscription.CatalogUrl))
                     {
-                        await searchCts.CancelAsync();
-                        searchCts.Dispose();
+                        continue;
                     }
 
-                    RunOnUi(() =>
-                    {
-                        foreach (var contentItem in ContentItems)
-                        {
-                            contentItem.Dispose();
-                        }
-
-                        ContentItems.Clear();
-                        SelectedPublisher = Publishers.FirstOrDefault();
-                    });
-                }
-            }
-
-            foreach (var subscription in subscriptions)
-            {
-                if (string.IsNullOrWhiteSpace(subscription.PublisherId)
-                    || string.IsNullOrWhiteSpace(subscription.CatalogUrl))
-                {
-                    continue;
-                }
-
-                RunOnUi(() =>
-                {
                     var existing = Publishers.FirstOrDefault(p =>
                         p.PublisherId.Equals(subscription.PublisherId, StringComparison.OrdinalIgnoreCase));
 
@@ -3228,39 +3257,48 @@ public sealed partial class DownloadsBrowserViewModel(
                         existing.DisplayName = subscription.PublisherName;
                         existing.LogoSource = subscription.AvatarUrl;
                     }
-                });
 
-                // Transient discoverer configured for this catalog URL (generic GenHub schema)
-                var discoverer = serviceProvider.GetRequiredService<GenericCatalogDiscoverer>();
-                discoverer.Configure(subscription);
-                _subscribedDiscoverers[subscription.PublisherId] = discoverer;
+                    // Transient discoverer configured for this catalog URL (generic GenHub schema)
+                    var discoverer = serviceProvider.GetRequiredService<GenericCatalogDiscoverer>();
+                    discoverer.Configure(subscription);
+                    _subscribedDiscoverers[subscription.PublisherId] = discoverer;
 
-                if (_browseCache.Remove(subscription.PublisherId, out var oldState))
-                {
-                    var isCurrentlySelected = string.Equals(SelectedPublisher?.PublisherId, subscription.PublisherId, StringComparison.OrdinalIgnoreCase);
-                    if (!isCurrentlySelected)
+                    if (_browseCache.Remove(subscription.PublisherId, out var oldState))
                     {
-                        oldState.ActiveDetailViewModel?.Dispose();
-                        oldState.ActiveDetailViewModel = null;
-                        foreach (var oldVm in oldState.Items)
+                        var isCurrentlySelected = string.Equals(SelectedPublisher?.PublisherId, subscription.PublisherId, StringComparison.OrdinalIgnoreCase);
+                        if (!isCurrentlySelected)
                         {
-                            oldVm.Dispose();
+                            oldState.ActiveDetailViewModel?.Dispose();
+                            oldState.ActiveDetailViewModel = null;
+                            foreach (var oldVm in oldState.Items)
+                            {
+                                oldVm.Dispose();
+                            }
                         }
-                    }
-                    else
-                    {
-                        var activeItemSet = new HashSet<ContentGridItemViewModel>(ContentItems);
-                        foreach (var oldVm in oldState.Items.Where(oldVm => !activeItemSet.Contains(oldVm)))
+                        else
                         {
-                            oldVm.Dispose();
+                            var activeItemSet = new HashSet<ContentGridItemViewModel>(ContentItems);
+                            foreach (var oldVm in oldState.Items.Where(oldVm => !activeItemSet.Contains(oldVm)))
+                            {
+                                oldVm.Dispose();
+                            }
                         }
                     }
                 }
+
+                logger.LogDebug(
+                    "Synced {Count} subscribed publisher(s) into Downloads sidebar",
+                    subscriptions.Count);
             }
 
-            logger.LogDebug(
-                "Synced {Count} subscribed publisher(s) into Downloads sidebar",
-                subscriptions.Count);
+            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+            {
+                ApplySubscriptions();
+            }
+            else
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(ApplySubscriptions);
+            }
         }
         catch (Exception ex)
         {

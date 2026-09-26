@@ -598,14 +598,26 @@ public class UserDataTrackerService(
 
         try
         {
-            var manifestsResult = await GetProfileUserDataAsync(profileId, cancellationToken);
-            if (!manifestsResult.Success || manifestsResult.Data == null)
+            // Cleanup must inspect every indexed record before deleting anything. The listing
+            // API intentionally omits unreadable records, which is unsafe for destructive cleanup.
+            var index = await LoadIndexAsync(cancellationToken);
+            var manifests = new List<UserDataManifest>();
+            if (index.ProfileInstallations.TryGetValue(profileId, out var installationKeys))
             {
-                return OperationResult<bool>.CreateSuccess(true);
+                foreach (var key in installationKeys)
+                {
+                    var manifest = await LoadUserDataManifestByKeyAsync(key, cancellationToken);
+                    if (manifest == null)
+                    {
+                        return OperationResult<bool>.CreateFailure($"Cannot read indexed user-data manifest '{key}'. Restore it before deleting the profile.");
+                    }
+
+                    manifests.Add(manifest);
+                }
             }
 
             var uninstallErrors = new List<string>();
-            foreach (var manifest in manifestsResult.Data)
+            foreach (var manifest in manifests)
             {
                 var uninstallResult = await UninstallUserDataAsync(manifest.ManifestId, profileId, cancellationToken);
                 if (!uninstallResult.Success)
@@ -626,7 +638,7 @@ public class UserDataTrackerService(
                 return OperationResult<bool>.CreateFailure(uninstallErrors);
             }
 
-            logger.LogInformation("[UserData] Cleaned up {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
+            logger.LogInformation("[UserData] Cleaned up {Count} manifests for profile {ProfileId}", manifests.Count, profileId);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)
@@ -886,22 +898,10 @@ public class UserDataTrackerService(
         IReadOnlyList<string>? candidateMapNames)
     {
         var isTga = ext.Equals(".tga", StringComparison.OrdinalIgnoreCase);
-        var isIni = ext.Equals(".ini", StringComparison.OrdinalIgnoreCase);
-
-        var isGenericThumbnail = isTga &&
-            (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
-             baseName.Equals("preview", StringComparison.OrdinalIgnoreCase));
-
-        var isGenericIni = isIni && baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
-
-        if (isGenericThumbnail && !string.IsNullOrEmpty(fallbackMapName))
+        var genericFileName = ResolveGenericMapFileName(baseName, ext, fallbackMapName);
+        if (genericFileName != null && !string.IsNullOrEmpty(fallbackMapName))
         {
-            return (fallbackMapName, fallbackMapName + ".tga");
-        }
-
-        if (isGenericIni && !string.IsNullOrEmpty(fallbackMapName))
-        {
-            return (fallbackMapName, MapManagerConstants.MapIniFileName);
+            return (fallbackMapName, genericFileName);
         }
 
         if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
@@ -920,6 +920,28 @@ public class UserDataTrackerService(
         }
 
         return (baseName, originalFileName);
+    }
+
+    private static string? ResolveGenericMapFileName(string baseName, string ext, string? mapName)
+    {
+        if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
+            (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+             baseName.Equals("preview", StringComparison.OrdinalIgnoreCase)))
+        {
+            return string.IsNullOrEmpty(mapName) ? null : mapName + ".tga";
+        }
+
+        if (!baseName.Equals("map", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return ext.ToLowerInvariant() switch
+        {
+            ".ini" => MapManagerConstants.MapIniFileName,
+            ".str" => MapManagerConstants.MapStrFileName,
+            _ => null,
+        };
     }
 
     private static string? FindMatchingCandidateMap(string baseName, IReadOnlyList<string>? candidateMapNames)
@@ -987,6 +1009,34 @@ public class UserDataTrackerService(
         }
 
         return path;
+    }
+
+    /// <summary>
+    /// Makes the map folder that holds a deployed file writable, so a folder made read-only outside
+    /// GenHub does not block deployment or removal. Only that one map folder is touched.
+    /// </summary>
+    /// <param name="absolutePath">The deployed file path.</param>
+    /// <param name="userDataBasePath">The game's user data directory.</param>
+    /// <exception cref="IOException">The map folder could not be made writable.</exception>
+    private static void EnsureMapFolderWritable(string absolutePath, string userDataBasePath)
+    {
+        var mapsRoot = Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps);
+        var relativePath = Path.GetRelativePath(mapsRoot, absolutePath);
+        var separatorIndex = relativePath.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
+        if (separatorIndex <= 0 || Path.IsPathRooted(relativePath) || relativePath[..separatorIndex] == "..")
+        {
+            return;
+        }
+
+        var mapFolder = Path.Combine(mapsRoot, relativePath[..separatorIndex]);
+        try
+        {
+            WriteAccessHelper.EnsureDirectoryWritable(mapFolder);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            throw new IOException($"Could not make the map folder '{mapFolder}' writable. Check that your account owns the folder and that it is not locked.", ex);
+        }
     }
 
     /// <summary>
@@ -1246,7 +1296,7 @@ public class UserDataTrackerService(
 
         if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
         {
-            success = TryRestoreTrackedFileBackup(file) && success;
+            success = TryRestoreTrackedFileBackup(file, userDataBasePath) && success;
         }
 
         return success;
@@ -1269,6 +1319,7 @@ public class UserDataTrackerService(
 
             if (isMatch)
             {
+                EnsureMapFolderWritable(file.AbsolutePath, userDataBasePath);
                 File.Delete(file.AbsolutePath);
                 CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
             }
@@ -1290,10 +1341,11 @@ public class UserDataTrackerService(
         }
     }
 
-    private bool TryRestoreTrackedFileBackup(UserDataFileEntry file)
+    private bool TryRestoreTrackedFileBackup(UserDataFileEntry file, string userDataBasePath)
     {
         try
         {
+            EnsureMapFolderWritable(file.AbsolutePath, userDataBasePath);
             var targetDir = Path.GetDirectoryName(file.AbsolutePath);
             if (!string.IsNullOrEmpty(targetDir))
             {
@@ -1323,13 +1375,24 @@ public class UserDataTrackerService(
         List<string> supersededBackups,
         CancellationToken cancellationToken)
     {
+        if (File.Exists(file.AbsolutePath) &&
+            await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        try
+        {
+            EnsureMapFolderWritable(file.AbsolutePath, GetUserDataBasePath(manifest.TargetGame));
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "[UserData] Map folder for {Path} is not writable; cannot activate", file.AbsolutePath);
+            return OperationResult<bool>.CreateFailure(ex.Message);
+        }
+
         if (File.Exists(file.AbsolutePath))
         {
-            if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
-            {
-                return OperationResult<bool>.CreateSuccess(true);
-            }
-
             var oldBackup = file.BackupPath;
             var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
             if (string.IsNullOrEmpty(backupPath))
@@ -1441,6 +1504,34 @@ public class UserDataTrackerService(
             }
         }
 
+        if (File.Exists(targetPath) && adoptedEntry != null && !string.IsNullOrEmpty(file.Hash) &&
+            await fileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken))
+        {
+            return OperationResult<UserDataFileEntry>.CreateSuccess(new UserDataFileEntry
+            {
+                RelativePath = file.RelativePath,
+                AbsolutePath = targetPath,
+                SourceHash = file.Hash,
+                FileSize = file.Size,
+                InstallTarget = file.InstallTarget,
+                BackupPath = adoptedEntry.BackupPath,
+                WasOverwritten = adoptedEntry.WasOverwritten,
+                IsHardLink = adoptedEntry.IsHardLink,
+                InstalledAt = DateTime.UtcNow,
+                CasHash = file.Hash,
+            });
+        }
+
+        try
+        {
+            EnsureMapFolderWritable(targetPath, GetUserDataBasePath(targetGame));
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "[UserData] Map folder for {Path} is not writable; aborting installation", targetPath);
+            return OperationResult<UserDataFileEntry>.CreateFailure($"{ex.Message} Installation aborted.");
+        }
+
         var wasOverwritten = false;
         string? backupPath = null;
 
@@ -1448,31 +1539,6 @@ public class UserDataTrackerService(
         {
             if (adoptedEntry != null)
             {
-                wasOverwritten = adoptedEntry.WasOverwritten;
-                backupPath = adoptedEntry.BackupPath;
-
-                if (!string.IsNullOrEmpty(file.Hash))
-                {
-                    var isMatch = await fileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
-                    if (isMatch)
-                    {
-                        logger.LogDebug("[UserData] Reusing existing intact user file for adoption {Path}", targetPath);
-                        return OperationResult<UserDataFileEntry>.CreateSuccess(new UserDataFileEntry
-                        {
-                            RelativePath = file.RelativePath,
-                            AbsolutePath = targetPath,
-                            SourceHash = file.Hash,
-                            FileSize = file.Size,
-                            InstallTarget = file.InstallTarget,
-                            BackupPath = backupPath,
-                            WasOverwritten = wasOverwritten,
-                            IsHardLink = adoptedEntry.IsHardLink,
-                            InstalledAt = DateTime.UtcNow,
-                            CasHash = file.Hash,
-                        });
-                    }
-                }
-
                 // If adopted file on disk does not match expected hash, back up user modifications before deletion
                 var modifiedBackup = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
                 if (string.IsNullOrEmpty(modifiedBackup))
@@ -1635,6 +1701,7 @@ public class UserDataTrackerService(
         {
             try
             {
+                EnsureMapFolderWritable(file.AbsolutePath, userDataBasePath);
                 if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
                 {
                     var targetDir = Path.GetDirectoryName(file.AbsolutePath);
@@ -1736,6 +1803,7 @@ public class UserDataTrackerService(
                     switch (await fileOperations.CheckFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
                     {
                         case FileHashVerification.Match:
+                            EnsureMapFolderWritable(file.AbsolutePath, userDataBasePath);
                             File.Delete(file.AbsolutePath);
                             if (File.Exists(file.AbsolutePath))
                             {
@@ -1750,6 +1818,7 @@ public class UserDataTrackerService(
                             break;
 
                         case FileHashVerification.Mismatch when hasBackup:
+                            EnsureMapFolderWritable(file.AbsolutePath, userDataBasePath);
                             var preservedPath = MoveModifiedFileAside(file.AbsolutePath);
                             logger.LogWarning(
                                 "[UserData] File hash mismatch for {Path}; your modified copy was preserved at {PreservedPath} so the original could be restored",
@@ -1774,6 +1843,7 @@ public class UserDataTrackerService(
 
                 if (restoreNeeded)
                 {
+                    EnsureMapFolderWritable(file.AbsolutePath, userDataBasePath);
                     var targetDir = Path.GetDirectoryName(file.AbsolutePath);
                     if (!string.IsNullOrEmpty(targetDir))
                     {

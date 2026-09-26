@@ -469,6 +469,7 @@ public static class GenLauncherConstants
         }
 
         return KnownArchiveExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase) ||
-               ChecksumExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+               ChecksumExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase) ||
+               InactiveBigExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 }

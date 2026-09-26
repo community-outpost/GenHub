@@ -111,6 +111,11 @@ public static class UriConstants
     public const string GenHubIconMarker = "generalshub-icon";
 
     /// <summary>
+    /// Substring marker for The Super Hackers logo asset.
+    /// </summary>
+    public const string SuperHackersLogoMarker = "thesuperhackers-logo";
+
+    /// <summary>
     /// Filename for Steam platform icon.
     /// </summary>
     public const string SteamIconFilename = "steam-icon.png";
@@ -181,6 +186,11 @@ public static class UriConstants
     /// Substring marker for Zero Hour cover asset.
     /// </summary>
     public const string ZeroHourCoverMarker = "zerohour-cover";
+
+    /// <summary>
+    /// Substring marker for China cover asset.
+    /// </summary>
+    public const string ChinaCoverMarker = "china-cover";
 
     /// <summary>
     /// Filename for China cover.

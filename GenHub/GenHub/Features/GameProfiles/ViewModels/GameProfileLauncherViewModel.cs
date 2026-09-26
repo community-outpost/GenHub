@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -1218,37 +1219,10 @@ public partial class GameProfileLauncherViewModel(
 
             var preferredStrategy = configService.GetDefaultWorkspaceStrategy();
 
-            // Generate the GameInstallation manifest ID
-            string installationManifestId;
-            if (GameVersionHelper.IsUnknownVersion(gameClient.Version))
-            {
-                // For unknown/auto versions, use the default version for the game type (1.04/1.08)
-                // This ensures we match the ID generated during dependency resolution
-                var defaultVersion = gameClient.GameType == GameType.ZeroHour
-                    ? ManifestConstants.ZeroHourManifestVersion
-                    : ManifestConstants.GeneralsManifestVersion;
-
-                var normalizedVersion = GameVersionHelper.NormalizeVersion(defaultVersion);
-                installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, normalizedVersion);
-            }
-            else
-            {
-                try
-                {
-                    // Use string overload which handles normalization (e.g. "1.0" -> "100") consistent with ManifestIdGenerator rules
-                    installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, gameClient.Version);
-                }
-                catch (ArgumentException)
-                {
-                    // If normalization fails (invalid format), fallback to default version
-                    var defaultVersion = gameClient.GameType == GameType.ZeroHour
-                        ? ManifestConstants.ZeroHourManifestVersion
-                        : ManifestConstants.GeneralsManifestVersion;
-
-                    var normalizedVersion = GameVersionHelper.NormalizeVersion(defaultVersion);
-                    installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, normalizedVersion);
-                }
-            }
+            var installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(
+                installation,
+                gameClient.GameType,
+                GameVersionHelper.ResolveInstallationManifestVersion(gameClient.Version, gameClient.GameType));
 
             // Create enabled content list: GameInstallation manifest + GameClient manifest
             var enabledContentIds = new List<string>
@@ -1360,56 +1334,76 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private (string IconPath, string CoverPath) ResolveProfileDisplayPaths(Core.Models.GameProfile.GameProfile profile, string fallbackGameType)
     {
+        var isCommunityOutpost = profile.IsCommunityOutpostProfile();
         var publisherKey = profile.GameClient?.PublisherType ?? profile.GameClient?.Name ?? profile.Name;
 
-        string iconPath;
+        var iconPath = ResolveProfileIconPath(profile, publisherKey, isCommunityOutpost);
+        var coverPath = ResolveProfileCoverPath(profile, publisherKey, fallbackGameType, isCommunityOutpost);
+
+        return (iconPath, coverPath);
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as instance method to adhere to StyleCop SA1204 ordering rules.")]
+    private string ResolveProfileIconPath(Core.Models.GameProfile.GameProfile profile, string? publisherKey, bool isCommunityOutpost)
+    {
+        if (isCommunityOutpost &&
+            (string.IsNullOrEmpty(profile.IconPath) ||
+             profile.IconPath.Contains(UriConstants.GenHubIconMarker) ||
+             profile.IconPath.Contains(UriConstants.ZeroHourIconMarker) ||
+             profile.IconPath.Contains(UriConstants.SuperHackersLogoMarker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return CommunityOutpostConstants.LogoSource;
+        }
+
         if (!string.IsNullOrEmpty(profile.IconPath) &&
             !profile.IconPath.Contains(UriConstants.GenHubIconMarker) &&
             !profile.IconPath.Contains(UriConstants.ZeroHourIconMarker))
         {
-            iconPath = profile.IconPath;
-        }
-        else
-        {
-            var publisherLogo = PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id);
-            if (publisherLogo != null)
-            {
-                iconPath = publisherLogo;
-            }
-            else if (!string.IsNullOrEmpty(profile.IconPath))
-            {
-                iconPath = profile.IconPath;
-            }
-            else
-            {
-                iconPath = UriConstants.DefaultIconUri;
-            }
+            return profile.IconPath;
         }
 
-        string coverPath;
+        var publisherLogo = PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id);
+        if (publisherLogo != null)
+        {
+            return publisherLogo;
+        }
+
+        if (!string.IsNullOrEmpty(profile.IconPath))
+        {
+            return profile.IconPath;
+        }
+
+        return UriConstants.DefaultIconUri;
+    }
+
+    private string ResolveProfileCoverPath(Core.Models.GameProfile.GameProfile profile, string? publisherKey, string fallbackGameType, bool isCommunityOutpost)
+    {
+        if (isCommunityOutpost &&
+            (string.IsNullOrEmpty(profile.CoverPath) ||
+             profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker) ||
+             profile.CoverPath.Contains(UriConstants.ChinaCoverMarker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return CommunityOutpostConstants.CoverSource;
+        }
+
         if (!string.IsNullOrEmpty(profile.CoverPath) &&
             !profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker))
         {
-            coverPath = profile.CoverPath;
-        }
-        else
-        {
-            var publisherCover = PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id);
-            if (publisherCover != null)
-            {
-                coverPath = publisherCover;
-            }
-            else if (!string.IsNullOrEmpty(profile.CoverPath))
-            {
-                coverPath = profile.CoverPath;
-            }
-            else
-            {
-                coverPath = profileResourceService.GetDefaultCoverPath(fallbackGameType);
-            }
+            return profile.CoverPath;
         }
 
-        return (iconPath, coverPath);
+        var publisherCover = PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id);
+        if (publisherCover != null)
+        {
+            return publisherCover;
+        }
+
+        if (!string.IsNullOrEmpty(profile.CoverPath))
+        {
+            return profile.CoverPath;
+        }
+
+        return profileResourceService.GetDefaultCoverPath(fallbackGameType);
     }
 
     /// <summary>

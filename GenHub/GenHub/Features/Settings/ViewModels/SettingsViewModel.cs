@@ -691,6 +691,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 // Cancel any in-flight device flow sign-in; the async command owns its token.
                 SignInWithGitHubCommand.Cancel();
+                DeleteProfilesCommand.Cancel();
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
                 _uploadsLock.Dispose();
@@ -720,7 +721,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
         var activeLogPath = LoggingModule.ActiveLogFilePath;
-        var activeLogFileName = Path.GetFileName(activeLogPath);
+        var currentLogFileName = LoggingModule.GetLogFileName();
+        var currentLogPath = Path.Combine(logsPath, currentLogFileName);
         var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
 
         var deleted = 0;
@@ -729,7 +731,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         foreach (var file in files)
         {
-            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, activeLogFileName, todayUtcLogFileName, logger);
+            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, currentLogPath, todayUtcLogFileName, logger);
             if (fileDeleted)
             {
                 deleted++;
@@ -746,8 +748,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private static (bool Deleted, bool Locked, long FreedBytes) ProcessSingleLogFile(
         string file,
-        string activeLogPath,
-        string activeLogFileName,
+        string? activeLogPath,
+        string currentLogPath,
         string todayUtcLogFileName,
         ILogger logger)
     {
@@ -762,7 +764,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var fileName = Path.GetFileName(file);
             var length = fileInfo.Length;
 
-            var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
+            var isActiveLog = (!string.IsNullOrWhiteSpace(currentLogPath) && string.Equals(Path.GetFullPath(file), Path.GetFullPath(currentLogPath), StringComparison.OrdinalIgnoreCase)) ||
                               string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
                               (!string.IsNullOrWhiteSpace(activeLogPath) && string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase));
 
@@ -2607,7 +2609,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task DeleteProfiles()
+    private async Task DeleteProfiles(CancellationToken cancellationToken)
     {
         try
         {
@@ -2622,7 +2624,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await DeleteProfilesInternalAsync(showToast: true, updateDangerZone: true);
+            await DeleteProfilesInternalAsync(showToast: true, updateDangerZone: true, cancellationToken);
         }
         finally
         {
@@ -2630,35 +2632,41 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task DeleteProfilesInternalAsync(bool showToast, bool updateDangerZone)
+    private async Task DeleteProfilesInternalAsync(bool showToast, bool updateDangerZone, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogWarning("Deleting all profiles");
-            var profilesResult = await _profileManager.GetAllProfilesAsync();
-            if (profilesResult.Success && profilesResult.Data != null)
+            var profilesResult = await _profileManager.GetAllProfilesAsync(cancellationToken);
+            if (!profilesResult.Success || profilesResult.Data == null)
             {
-                var count = profilesResult.Data.Count;
-                foreach (var profile in profilesResult.Data)
-                {
-                    // Copy ID to avoid potential collection modification issues if list is live
-                    string id = profile.Id;
-                    await _profileManager.DeleteProfileAsync(id);
-                }
+                return;
+            }
 
-                if (showToast)
+            var deletedCount = 0;
+            var failedProfileNames = new List<string>();
+            foreach (var profile in profilesResult.Data.ToList())
+            {
+                var deleteResult = await _profileManager.DeleteProfileAsync(profile.Id, cancellationToken);
+                if (deleteResult.Success)
                 {
-                    _notificationService.ShowSuccess("Profiles Deleted", $"Deleted {count} profile(s) successfully.", 3000);
+                    deletedCount++;
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to delete profile {ProfileName} ({ProfileId}): {Error}", profile.Name, profile.Id, deleteResult.FirstError);
+                    failedProfileNames.Add(profile.Name);
                 }
             }
 
-            // Notify listeners that profile list has changed
-            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
-
-            if (updateDangerZone)
+            if (showToast)
             {
-                await UpdateDangerZoneDataAsync();
+                ShowProfileDeletionResult(deletedCount, failedProfileNames);
             }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Profile deletion was cancelled");
         }
         catch (Exception ex)
         {
@@ -2667,6 +2675,48 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete profiles: {ex.Message}", 5000);
             }
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
+            if (updateDangerZone && !_disposed)
+            {
+                await UpdateDangerZoneDataAsync();
+            }
+        }
+    }
+
+    private void ShowProfileDeletionResult(int deletedCount, List<string> failedProfileNames)
+    {
+        if (failedProfileNames.Count > 0)
+        {
+            var message = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService?.GetString("Settings.Profiles.DeleteIncomplete") ?? "Deleted {0} profile(s). Could not delete {1} profile(s): {2}.",
+                deletedCount,
+                failedProfileNames.Count,
+                string.Join(", ", failedProfileNames));
+            if (deletedCount == 0)
+            {
+                _notificationService.ShowError(
+                    _localizationService?.GetString("Settings.Profiles.DeleteFailedTitle") ?? "Profile Deletion Failed",
+                    message,
+                    NotificationDurations.Medium);
+            }
+            else
+            {
+                _notificationService.ShowWarning(
+                    _localizationService?.GetString("Settings.Profiles.DeletePartialTitle") ?? "Profiles Partially Deleted",
+                    message,
+                    NotificationDurations.Medium);
+            }
+        }
+        else
+        {
+            _notificationService.ShowSuccess(
+                _localizationService?.GetString("Settings.Profiles.DeletedTitle") ?? "Profiles Deleted",
+                string.Format(CultureInfo.CurrentCulture, _localizationService?.GetString("Settings.Profiles.DeletedMessage") ?? "Deleted {0} profile(s) successfully.", deletedCount),
+                NotificationDurations.Short);
         }
     }
 
@@ -2916,23 +2966,32 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var logsPath = _configurationProvider.GetLogsPath();
-            if (!Directory.Exists(logsPath))
+            string? targetLogFilePath = null;
+
+            if (!string.IsNullOrWhiteSpace(LoggingModule.ActiveLogFilePath) && File.Exists(LoggingModule.ActiveLogFilePath))
+            {
+                targetLogFilePath = LoggingModule.ActiveLogFilePath;
+            }
+            else if (Directory.Exists(logsPath))
+            {
+                var directoryInfo = new DirectoryInfo(logsPath);
+                var latestLog = directoryInfo.GetFiles("*.log")
+                                             .OrderByDescending(f => f.LastWriteTime)
+                                             .FirstOrDefault();
+                targetLogFilePath = latestLog?.FullName;
+            }
+            else
             {
                 _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
                 return;
             }
 
-            var directoryInfo = new DirectoryInfo(logsPath);
-            var latestLog = directoryInfo.GetFiles("*.log")
-                                         .OrderByDescending(f => f.LastWriteTime)
-                                         .FirstOrDefault();
-
-            if (latestLog != null)
+            if (!string.IsNullOrWhiteSpace(targetLogFilePath) && File.Exists(targetLogFilePath))
             {
                 try
                 {
                     // Read with sharing allowed to prevent "file in use" errors if the app is currently writing to it
-                    using var fileStream = new FileStream(latestLog.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var fileStream = new FileStream(targetLogFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     using var streamReader = new StreamReader(fileStream);
                     string logContent = await streamReader.ReadToEndAsync();
 
@@ -3332,6 +3391,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (result.Success)
             {
                 Subscriptions.Remove(subscription);
+                WeakReferenceMessenger.Default.Send(new PublisherSubscriptionRemovedMessage(subscription.PublisherId));
                 WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(subscription.PublisherId));
                 var removedTitle = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationTitle") ?? CatalogConstants.SubscriptionRemovedNotificationTitle;
                 var removedMessageFormat = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationMessage") ?? "Unsubscribed from {0}";

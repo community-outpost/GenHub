@@ -269,7 +269,7 @@ public class DownloadService(
             {
                 await File.WriteAllTextAsync($"{configuration.DestinationPath}.etag", etag.Trim(), cancellationToken);
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Non-fatal if sidecar cannot be written
             }
@@ -382,7 +382,7 @@ public class DownloadService(
                 File.Delete(path);
             }
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Non-fatal cleanup
         }
@@ -943,7 +943,7 @@ public class DownloadService(
                 return TryParseEntityTag(content, out parsedEtag);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to read ETag sidecar file {FilePath}; treating as stale.", sidecarPath);
             TryDeleteFile(sidecarPath);

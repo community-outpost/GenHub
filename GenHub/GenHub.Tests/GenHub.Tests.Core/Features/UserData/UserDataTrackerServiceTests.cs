@@ -6,6 +6,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.UserData;
 using GenHub.Features.UserData.Services;
+using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -304,6 +305,13 @@ public sealed class UserDataTrackerServiceTests : IDisposable
                 Size = 200,
                 InstallTarget = ContentInstallTarget.UserMapsDirectory,
             },
+            new()
+            {
+                RelativePath = "map.str",
+                Hash = "hash-str-strings",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
         };
 
         var result = await _trackerService.InstallUserDataAsync(
@@ -319,10 +327,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
         var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.tga");
         var expectedIniPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "map.ini");
+        var expectedStrPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "map.str");
 
         Assert.True(File.Exists(expectedMapPath));
         Assert.True(File.Exists(expectedTgaPath));
         Assert.True(File.Exists(expectedIniPath));
+        Assert.True(File.Exists(expectedStrPath));
 
         Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "map")));
     }
@@ -548,6 +558,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         {
             if (Directory.Exists(_tempDir))
             {
+                ReadOnlyFolderFixtures.RestoreWritable(_tempDir);
                 Directory.Delete(_tempDir, recursive: true);
             }
         }
@@ -555,6 +566,118 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         {
             // Ignore test cleanup errors
         }
+    }
+
+    /// <summary>
+    /// Verifies that deploying into an existing map folder made read-only outside GenHub replaces the file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_IntoReadOnlyExistingMapFolder_ReplacesFileAsync()
+    {
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8");
+        var mapPath = Path.Combine(mapDir, "Last Stand_8.map");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(mapPath, "user map");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-readonly-install",
+            GameType.ZeroHour,
+            [CreateMapFile("Last Stand_8.map", "hash-map")],
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal("cas-content-hash-map", await File.ReadAllTextAsync(mapPath));
+    }
+
+    /// <summary>
+    /// Verifies that uninstalling removes deployed maps whose folder was made read-only after deployment.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UninstallUserDataAsync_WithReadOnlyMapFolder_RemovesDeployedMapAsync()
+    {
+        const string profileId = "profile-readonly-uninstall";
+        var install = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            profileId,
+            GameType.ZeroHour,
+            [CreateMapFile("Last Stand_8.map", "hash-map"), CreateMapFile("Last Stand_8.tga", "hash-tga")],
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(install.Success, install.FirstError);
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+
+        var result = await _trackerService.UninstallUserDataAsync(TestManifestId, profileId, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.False(File.Exists(Path.Combine(mapDir, "Last Stand_8.map")));
+        Assert.False(File.Exists(Path.Combine(mapDir, "Last Stand_8.tga")));
+    }
+
+    /// <summary>
+    /// Verifies that deactivating a profile removes deployed maps whose folder was made read-only after deployment.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeactivateProfileUserDataAsync_WithReadOnlyMapFolder_RemovesDeployedMapAsync()
+    {
+        const string profileId = "profile-readonly-deactivate";
+        var install = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            profileId,
+            GameType.ZeroHour,
+            [CreateMapFile("Last Stand_8.map", "hash-map")],
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(install.Success, install.FirstError);
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+
+        var result = await _trackerService.DeactivateProfileUserDataAsync(profileId, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.False(File.Exists(Path.Combine(mapDir, "Last Stand_8.map")));
+    }
+
+    /// <summary>
+    /// Verifies that a deployment into a map folder whose permissions cannot be changed fails with an error naming the folder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_WhenMapFolderCannotBeMadeWritable_ReturnsErrorNamingFolderAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8");
+        var mapPath = Path.Combine(mapDir, "Last Stand_8.map");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(mapPath, "user map");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.LockImmutable(mapDir);
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-immutable-install",
+            GameType.ZeroHour,
+            [CreateMapFile("Last Stand_8.map", "hash-map")],
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains($"'{mapDir}'", result.FirstError);
+        Assert.Equal("user map", await File.ReadAllTextAsync(mapPath));
     }
 
     /// <summary>
@@ -1971,4 +2094,42 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         var backupContent = await File.ReadAllTextAsync(entry.BackupPath);
         Assert.Equal("; existing untracked user map configuration", backupContent);
     }
+
+    /// <summary>Already matching files can be activated without changing immutable directory permissions.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task ActivateProfileUserDataAsync_MatchingImmutableMap_DoesNotRequireWriteAccessAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        const string profileId = "immutable-matching";
+        var installed = await _trackerService.InstallUserDataAsync(TestManifestId, profileId, GameType.ZeroHour, [CreateMapFile("Matching.map", "matching-hash")], TestVersion, TestManifestName, CancellationToken.None);
+        Assert.True(installed.Success, installed.FirstError);
+        var deactivated = await _trackerService.DeactivateProfileUserDataAsync(profileId, CancellationToken.None);
+        Assert.True(deactivated.Success, deactivated.FirstError);
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Matching");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(Path.Combine(mapDir, "Matching.map"), "cas-content-matching-hash");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.LockImmutable(mapDir);
+        _fileOperationsMock.Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), "matching-hash", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var activated = await _trackerService.ActivateProfileUserDataAsync(profileId, CancellationToken.None);
+
+        Assert.True(activated.Success, activated.FirstError);
+        _fileOperationsMock.Verify(f => f.VerifyFileHashAsync(It.IsAny<string>(), "matching-hash", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(mapDir));
+    }
+
+    private static ManifestFile CreateMapFile(string relativePath, string hash) => new()
+    {
+        RelativePath = relativePath,
+        Hash = hash,
+        Size = 100,
+        InstallTarget = ContentInstallTarget.UserMapsDirectory,
+    };
 }

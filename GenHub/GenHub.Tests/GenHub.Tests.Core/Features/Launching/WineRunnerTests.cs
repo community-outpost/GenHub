@@ -961,6 +961,161 @@ public sealed class WineRunnerTests : IDisposable
         Assert.Contains("macOS", result.FirstError);
     }
 
+    /// <summary>
+    /// Verifies that when a prefix user-data subdirectory already exists as a non-empty directory,
+    /// its contents are migrated to the native side and bridged.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithPreExistingNonEmptyPrefixDirectory_MigratesFilesAndBridges()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-migration");
+        var runner = CreateRunner([binDirectory], prefixPath);
+
+        var nativeZeroHourData = CreateDirectory("userdata-migration-zh");
+        var nativeOptionsPath = Path.Combine(nativeZeroHourData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "zh-settings");
+
+        var nativeMapDir = Path.Combine(nativeZeroHourData, GameSettingsConstants.FolderNames.Maps, "NativeMap");
+        Directory.CreateDirectory(nativeMapDir);
+        File.WriteAllText(Path.Combine(nativeMapDir, "NativeMap.map"), "native-map-content");
+
+        // Pre-create non-empty prefix Maps directory
+        var prefixMapsDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            GameSettingsConstants.FolderNames.Maps);
+        var oldPrefixMapDir = Path.Combine(prefixMapsDir, "OldPrefixMap");
+        Directory.CreateDirectory(oldPrefixMapDir);
+        File.WriteAllText(Path.Combine(oldPrefixMapDir, "OldPrefixMap.map"), "prefix-map-content");
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+
+        // Native side must now have the migrated map from prefix
+        var migratedNativeMapPath = Path.Combine(nativeZeroHourData, GameSettingsConstants.FolderNames.Maps, "OldPrefixMap", "OldPrefixMap.map");
+        Assert.True(File.Exists(migratedNativeMapPath), "OldPrefixMap should have migrated to native directory");
+        Assert.Equal("prefix-map-content", File.ReadAllText(migratedNativeMapPath));
+
+        // Native map should still exist
+        var nativeMapPath = Path.Combine(nativeMapDir, "NativeMap.map");
+        Assert.True(File.Exists(nativeMapPath), "NativeMap should still exist in native directory");
+
+        // Both maps must exist in the prefix (either through symlink or sync)
+        Assert.True(File.Exists(Path.Combine(prefixMapsDir, "NativeMap", "NativeMap.map")));
+        Assert.True(File.Exists(Path.Combine(prefixMapsDir, "OldPrefixMap", "OldPrefixMap.map")));
+    }
+
+    /// <summary>
+    /// Verifies that deletions on native or prefix side propagate and are not resurrected on subsequent launches.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithFileDeletions_PropagatesDeletionsWithoutResurrection()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-sync-deletions");
+        var runner = CreateRunner([binDirectory], prefixPath);
+
+        var nativeZeroHourData = CreateDirectory("userdata-deletions-zh");
+        var nativeOptionsPath = Path.Combine(nativeZeroHourData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "zh-settings");
+
+        var mapADir = Path.Combine(nativeZeroHourData, GameSettingsConstants.FolderNames.Maps, "MapA");
+        var mapBDir = Path.Combine(nativeZeroHourData, GameSettingsConstants.FolderNames.Maps, "MapB");
+        Directory.CreateDirectory(mapADir);
+        Directory.CreateDirectory(mapBDir);
+        File.WriteAllText(Path.Combine(mapADir, "MapA.map"), "map-a-content");
+        File.WriteAllText(Path.Combine(mapBDir, "MapB.map"), "map-b-content");
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act 1: Initial launch synchronizes both maps
+        var result1 = runner.ResolveCommand(configuration);
+        Assert.True(result1.Success, result1.AllErrors);
+
+        var prefixMapsDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            GameSettingsConstants.FolderNames.Maps);
+
+        var prefixMapAPath = Path.Combine(prefixMapsDir, "MapA", "MapA.map");
+        var prefixMapBPath = Path.Combine(prefixMapsDir, "MapB", "MapB.map");
+        var nativeMapAPath = Path.Combine(mapADir, "MapA.map");
+        var nativeMapBPath = Path.Combine(mapBDir, "MapB.map");
+
+        Assert.True(File.Exists(prefixMapAPath));
+        Assert.True(File.Exists(prefixMapBPath));
+
+        // Act 2: User deletes MapA from native side
+        Directory.Delete(mapADir, recursive: true);
+        Assert.False(File.Exists(nativeMapAPath));
+
+        var result2 = runner.ResolveCommand(configuration);
+        Assert.True(result2.Success, result2.AllErrors);
+
+        // Assert 2: MapA must not be resurrected on native side, and must be deleted from prefix
+        Assert.False(File.Exists(nativeMapAPath), "MapA should NOT be resurrected on native side");
+        Assert.False(File.Exists(prefixMapAPath), "MapA should be removed from prefix side");
+        Assert.True(File.Exists(nativeMapBPath), "MapB should remain on native side");
+        Assert.True(File.Exists(prefixMapBPath), "MapB should remain on prefix side");
+
+        // Act 3: User deletes MapB from prefix side (in all mirrored shell folders)
+        var prefixMyDocsMapsDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.MyDocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            GameSettingsConstants.FolderNames.Maps);
+
+        var prefixMapBDir = Path.Combine(prefixMapsDir, "MapB");
+        if (Directory.Exists(prefixMapBDir))
+        {
+            Directory.Delete(prefixMapBDir, recursive: true);
+        }
+
+        var prefixMyDocsMapBDir = Path.Combine(prefixMyDocsMapsDir, "MapB");
+        if (Directory.Exists(prefixMyDocsMapBDir))
+        {
+            Directory.Delete(prefixMyDocsMapBDir, recursive: true);
+        }
+
+        var result3 = runner.ResolveCommand(configuration);
+        Assert.True(result3.Success, result3.AllErrors);
+
+        // Assert 3: MapB must not be resurrected on prefix side, and must be deleted from native
+        Assert.False(File.Exists(prefixMapBPath), "MapB should NOT be resurrected on prefix side");
+        Assert.False(File.Exists(nativeMapBPath), "MapB should be removed from native side");
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -1094,8 +1249,13 @@ public sealed class WineRunnerTests : IDisposable
         Assert.True(File.Exists(synchronizedMapFile));
         if (Directory.Exists(loopLink))
         {
-            var loopDirInPrefix = Path.Combine(prefixMapsDir, "RegularMap", "loop");
-            Assert.False(Directory.Exists(loopDirInPrefix));
+            var prefixMapsInfo = new DirectoryInfo(prefixMapsDir);
+            var isSymlink = prefixMapsInfo.LinkTarget != null || (prefixMapsInfo.Attributes & FileAttributes.ReparsePoint) != 0;
+            if (!isSymlink)
+            {
+                var loopDirInPrefix = Path.Combine(prefixMapsDir, "RegularMap", "loop");
+                Assert.False(Directory.Exists(loopDirInPrefix));
+            }
         }
     }
 

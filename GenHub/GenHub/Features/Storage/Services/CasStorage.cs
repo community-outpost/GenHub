@@ -131,7 +131,7 @@ public class CasStorage(
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to store object {Hash} in CAS", hash);
             return null;
@@ -300,11 +300,21 @@ public class CasStorage(
         {
             try
             {
-                var lockStream = new FileStream(lockPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await lockStream.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()), cancellationToken);
-                await lockStream.FlushAsync(cancellationToken);
+                var lockStream = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+                var casLock = new CasLock(lockStream);
+                try
+                {
+                    await lockStream.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()), cancellationToken);
+                    await lockStream.FlushAsync(cancellationToken);
+                }
+                catch
+                {
+                    // Release the handle so a cancelled acquisition does not block later writes of this hash.
+                    await casLock.DisposeAsync();
+                    throw;
+                }
 
-                return new CasLock(lockPath, lockStream);
+                return casLock;
             }
             catch (IOException) when (i < 10 - 1)
             {
@@ -344,25 +354,10 @@ public class CasStorage(
         }
     }
 
-    private class CasLock(string lockPath, FileStream lockStream) : IAsyncDisposable
+    // Keep the lock file: unlinking it after closing permits another writer to acquire
+    // the old inode while a third writer locks a replacement file at the same path.
+    private sealed class CasLock(FileStream lockStream) : IAsyncDisposable
     {
-        private readonly string _lockPath = lockPath;
-        private readonly FileStream _lockStream = lockStream;
-
-        public async ValueTask DisposeAsync()
-        {
-            try
-            {
-                _lockStream?.Dispose();
-                if (File.Exists(_lockPath))
-                {
-                    await Task.Run(() => File.Delete(_lockPath));
-                }
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
-        }
+        public ValueTask DisposeAsync() => lockStream.DisposeAsync();
     }
 }

@@ -1451,7 +1451,7 @@
                             </Button>
 
                             <!-- Update Button (visible when update is available) -->
-                            <Button HorizontalAlignment="Stretch"
+                            <Button x:Name="UpdateButton" HorizontalAlignment="Stretch"
                                     Height="48"
                                     Background="{DynamicResource WarningBrush}"
                                     Foreground="{DynamicResource WarningForegroundBrush}"
@@ -1462,8 +1462,8 @@
                                     IsEnabled="{Binding CanUpdate}"
                                     Command="{Binding UpdateCommand}"
                                     Cursor="Hand"
-                                    Padding="20,0">
-                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.UpdateAvailableTooltip}</ToolTip.Tip>
+                                    Padding="20,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.UpdateAvailableTooltip}">
                                 <Button.Styles>
                                     <Style Selector="Button:pointerover">
                                         <Setter Property="Opacity" Value="0.9" />
@@ -1487,7 +1487,7 @@
                             </Button>
 
                             <!-- Add to Profile Button (visible when downloaded and not update available) -->
-                            <Button HorizontalAlignment="Stretch"
+                            <Button x:Name="AddToProfileButton" HorizontalAlignment="Stretch"
                                     Height="48"
                                     Background="{DynamicResource SuccessBrush}"
                                     Foreground="White"
@@ -1497,8 +1497,8 @@
                                     IsVisible="{Binding ShowAddToProfileButton}"
                                     Command="{Binding AddToProfileCommand}"
                                     Cursor="Hand"
-                                    Padding="20,0">
-                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}</ToolTip.Tip>
+                                    Padding="20,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}">
                                 <Button.Styles>
                                     <Style Selector="Button:pointerover">
                                         <Setter Property="Opacity" Value="0.9" />
@@ -1517,7 +1517,7 @@
                             </Button>
 
                             <!-- Delete Download Button (visible when stored locally) -->
-                            <Button HorizontalAlignment="Stretch"
+                            <Button x:Name="DeleteDownloadButton" HorizontalAlignment="Stretch"
                                     Height="48"
                                     Background="{DynamicResource ErrorBrush}"
                                     Foreground="White"
@@ -1527,8 +1527,8 @@
                                     IsVisible="{Binding ShowDeleteButton}"
                                     Command="{Binding DeleteDownloadCommand}"
                                     Cursor="Hand"
-                                    Padding="20,0">
-                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}</ToolTip.Tip>
+                                    Padding="20,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}">
                                 <Button.Styles>
                                     <Style Selector="Button:pointerover">
                                         <Setter Property="Opacity" Value="0.9" />
@@ -1547,7 +1547,7 @@
                             </Button>
 
                             <!-- View on source website -->
-                            <Button HorizontalAlignment="Stretch"
+                            <Button x:Name="OpenWebsiteButton" HorizontalAlignment="Stretch"
                                     Height="38"
                                     Background="{DynamicResource SurfaceElevatedBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}"
@@ -1558,8 +1558,8 @@
                                     IsVisible="{Binding HasSourceUrl}"
                                     Command="{Binding OpenInBrowserCommand}"
                                     Cursor="Hand"
-                                    Padding="16,0">
-                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.OpenWebsiteTooltip}</ToolTip.Tip>
+                                    Padding="16,0"
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.OpenWebsiteTooltip}">
                                 <Button.Styles>
                                     <Style Selector="Button:pointerover">
                                         <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />

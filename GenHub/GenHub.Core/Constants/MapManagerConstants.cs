@@ -61,6 +61,11 @@ public static class MapManagerConstants
     public const string MapIniFileName = "map.ini";
 
     /// <summary>
+    /// Standard per-map string table filename.
+    /// </summary>
+    public const string MapStrFileName = "map.str";
+
+    /// <summary>
     /// Maximum directory nesting depth for maps (1 level).
     /// </summary>
     public const int MaxDirectoryDepth = 1;
@@ -205,10 +210,34 @@ public static class MapManagerConstants
     /// <summary>Localization key for Invalid Input notification message.</summary>
     public const string InvalidInputMessageKey = "Maps.MapPack.Notification.InvalidInputMessage";
 
+    /// <summary>Localization key for an import containing no maps.</summary>
+    public const string NoMapsFoundMessageKey = "Maps.Import.Notification.NoMapsFound";
+
+    /// <summary>Diagnostic used when no localization service is supplied.</summary>
+    public const string NoMapsFoundFallbackMessage = "No map files were found to import.";
+
+    /// <summary>Localization key for a map folder that could not be made writable. Takes the folder path.</summary>
+    public const string FolderNotWritableMessageKey = "Maps.Error.FolderNotWritable";
+
+    /// <summary>Message used when no localization service is supplied. Takes the folder path.</summary>
+    public const string FolderNotWritableFallbackMessage = "GenHub could not make the map folder \"{0}\" writable. Check that your account owns the folder and that it is not locked, then try again.";
+
+    /// <summary>Localization key for a map that could not be deleted. Takes the map name.</summary>
+    public const string DeleteFailedMessageKey = "Maps.Error.DeleteFailed";
+
+    /// <summary>Message used when no localization service is supplied. Takes the map name.</summary>
+    public const string DeleteFailedFallbackMessage = "Could not delete \"{0}\".";
+
+    /// <summary>Localization key for a map that could not be renamed. Takes the map name.</summary>
+    public const string RenameFailedMessageKey = "Maps.Error.RenameFailed";
+
+    /// <summary>Message used when no localization service is supplied. Takes the map name.</summary>
+    public const string RenameFailedFallbackMessage = "Could not rename \"{0}\".";
+
     /// <summary>
     /// Allowed file extensions for map packages.
     /// </summary>
-    public static readonly string[] AllowedExtensions = [".map", ".tga", ".ini", ".str", ".txt"];
+    public static readonly string[] AllowedExtensions = [".map", ".tga", ".wak", ".ini", ".str", ".txt"];
 
     /// <summary>
     /// Image file extensions that can be used as thumbnails.
