@@ -19,6 +19,11 @@ public class CatalogContentItem : ObservableObject
     private ContentRichMetadata? _metadata;
     private string? _catalogIconUrl;
     private string? _publisherAvatarUrl;
+    private List<ContentRelease> _releases = [];
+    private List<string> _tags = [];
+    private List<CatalogDependency> _bundledItems = [];
+    private List<CatalogDependency> _addons = [];
+    private List<ContentRelease> _addonReleases = [];
 
     /// <summary>
     /// Gets or sets the unique content identifier within this publisher's catalog.
@@ -79,7 +84,11 @@ public class CatalogContentItem : ObservableObject
     /// Gets or sets the list of releases (versions) for this content.
     /// </summary>
     [JsonPropertyName("releases")]
-    public List<ContentRelease> Releases { get; set; } = [];
+    public List<ContentRelease> Releases
+    {
+        get => _releases;
+        set => _releases = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets rich presentation metadata (banners, screenshots, videos).
@@ -101,26 +110,42 @@ public class CatalogContentItem : ObservableObject
     /// Gets or sets tags for categorization and search.
     /// </summary>
     [JsonPropertyName("tags")]
-    public List<string> Tags { get; set; } = [];
+    public List<string> Tags
+    {
+        get => _tags;
+        set => _tags = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets the list of items bundled in this content (for ContentBundle type).
     /// </summary>
     [JsonPropertyName("bundledItems")]
-    public List<CatalogDependency> BundledItems { get; set; } = [];
+    public List<CatalogDependency> BundledItems
+    {
+        get => _bundledItems;
+        set => _bundledItems = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets explicit addons or addon dependencies associated with this content item.
     /// </summary>
     [JsonPropertyName("addons")]
-    public List<CatalogDependency> Addons { get; set; } = [];
+    public List<CatalogDependency> Addons
+    {
+        get => _addons;
+        set => _addons = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets explicit addon releases (e.g., maps, patches, UI changes, AI changes) associated with this content item.
     /// Each addon release behaves like a release with its own version, artifacts, media, and dependencies.
     /// </summary>
     [JsonPropertyName("addonReleases")]
-    public List<ContentRelease> AddonReleases { get; set; } = [];
+    public List<ContentRelease> AddonReleases
+    {
+        get => _addonReleases;
+        set => _addonReleases = value ?? [];
+    }
 
     /// <summary>
     /// Gets the combined number of legacy addons and addon releases for tab badges.

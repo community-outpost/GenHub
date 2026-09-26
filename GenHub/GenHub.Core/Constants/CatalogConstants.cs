@@ -348,17 +348,22 @@ public static class CatalogConstants
             }
 
             if (string.Equals(provider, TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(provider, SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
+                string.Equals(provider, SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase))
             {
                 return TheSuperHackers;
             }
 
-            if (string.Equals(provider, GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(provider, GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
             {
                 return GeneralsOnline;
             }
 
-            if (string.Equals(provider, CommunityOutpost, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(provider, CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
             {
                 return CommunityOutpost;
             }

@@ -199,6 +199,31 @@ public sealed class CatalogBundleComponentBuilderTests
         Assert.Contains("matches constraint", clientComponent.UnavailableReason, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies that HydrateSyntheticBundleReleases handles items with null BundledItems or null Releases safely.
+    /// </summary>
+    [Fact]
+    public void HydrateSyntheticBundleReleases_WithNullBundledItems_DoesNotThrowAndAddsRelease()
+    {
+        var item = new CatalogContentItem
+        {
+            Id = "bundle-null-items",
+            Name = "Bundle with Null Items",
+            ContentType = ContentType.ContentBundle,
+            BundledItems = null!,
+            Releases = null!,
+        };
+
+        CatalogBundleComponentBuilder.HydrateSyntheticBundleReleases([item]);
+
+        Assert.NotNull(item.Releases);
+        var release = Assert.Single(item.Releases);
+        Assert.Equal("1.0.0", release.Version);
+        Assert.True(release.IsLatest);
+        Assert.NotNull(release.Dependencies);
+        Assert.Empty(release.Dependencies);
+    }
+
     private static PublisherCatalog CreateCatalogWithLemonBundle()
     {
         var lemon = new CatalogContentItem
