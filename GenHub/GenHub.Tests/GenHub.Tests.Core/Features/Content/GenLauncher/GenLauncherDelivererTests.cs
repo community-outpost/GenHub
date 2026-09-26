@@ -1,0 +1,434 @@
+using FluentAssertions;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.GenLauncher;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
+
+namespace GenHub.Tests.Core.Features.Content.GenLauncher;
+
+/// <summary>
+/// Unit tests for <see cref="GenLauncherDeliverer"/>.
+/// </summary>
+public sealed class GenLauncherDelivererTests
+{
+    private readonly Mock<IDownloadService> _downloadServiceMock = new();
+    private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
+
+    /// <summary>
+    /// Tests that CanDeliver returns true for GenLauncher manifests.
+    /// </summary>
+    [Fact]
+    public void CanDeliver_WithGenLauncherPublisher_ReturnsTrue()
+    {
+        var deliverer = CreateDeliverer();
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1.genlauncher.mod.test"),
+            Name = "Test Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+        };
+
+        var canDeliver = deliverer.CanDeliver(manifest);
+        canDeliver.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync fails when given an invalid download URL.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithInvalidDownloadUrl_ReturnsFailureAsync()
+    {
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.test"),
+                Name = "Test Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "test.zip",
+                        DownloadUrl = "not-a-valid-uri",
+                        SourceType = ContentSourceType.RemoteDownload,
+                    },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse();
+            result.FirstError.Should().Contain("Invalid download URL");
+            _downloadServiceMock.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<DownloadConfiguration>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync blocks SSRF unsafe URLs (e.g. file:, ftp:, localhost).
+    /// </summary>
+    /// <param name="unsafeUrl">The SSRF unsafe download URL to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("ftp://attacker.com/payload.zip")]
+    [InlineData("http://127.0.0.1/sensitive.zip")]
+    [InlineData("http://localhost:8080/data.zip")]
+    public async Task DeliverContentAsync_WithSsrfUnsafeUrl_RejectsWithoutDownloadingAsync(string unsafeUrl)
+    {
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.ssrf"),
+                Name = "SSRF Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "test.zip",
+                        DownloadUrl = unsafeUrl,
+                        SourceType = ContentSourceType.RemoteDownload,
+                    },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse();
+            result.FirstError.Should().Contain("Invalid download URL");
+            _downloadServiceMock.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<DownloadConfiguration>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync fails when download service fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WhenDownloadFails_ReturnsFailureAsync()
+    {
+        _downloadServiceMock.Setup(d => d.DownloadFileAsync(
+            It.IsAny<DownloadConfiguration>(),
+            It.IsAny<IProgress<DownloadProgress>?>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DownloadResult.CreateFailure("Network timeout"));
+
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.test"),
+                Name = "Test Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "test.zip",
+                        DownloadUrl = "https://example.com/test.zip",
+                        SourceType = ContentSourceType.RemoteDownload,
+                    },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse();
+            result.FirstError.Should().Contain("Network timeout");
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync downloads multiple files concurrently when configured.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithMultipleFiles_DownloadsConcurrentlyAndSucceedsAsync()
+    {
+        var firstFileStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondFileStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var inFlight = 0;
+        var maxInFlight = 0;
+        var lockObj = new object();
+
+        _downloadServiceMock.Setup(d => d.DownloadFileAsync(
+            It.IsAny<DownloadConfiguration>(),
+            It.IsAny<IProgress<DownloadProgress>?>(),
+            It.IsAny<CancellationToken>()))
+            .Returns<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>(async (cfg, _, _) =>
+            {
+                var current = Interlocked.Increment(ref inFlight);
+                lock (lockObj)
+                {
+                    if (current > maxInFlight)
+                    {
+                        maxInFlight = current;
+                    }
+                }
+
+                if (current == 1)
+                {
+                    firstFileStarted.TrySetResult(true);
+                    await Task.WhenAny(secondFileStarted.Task, Task.Delay(2000));
+                }
+                else
+                {
+                    secondFileStarted.TrySetResult(true);
+                }
+
+                Interlocked.Decrement(ref inFlight);
+                var dir = Path.GetDirectoryName(cfg.DestinationPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                await File.WriteAllBytesAsync(cfg.DestinationPath, [1, 2, 3]);
+                return DownloadResult.CreateSuccess(cfg.DestinationPath, 3, TimeSpan.FromMilliseconds(10));
+            });
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(
+            It.IsAny<ContentManifest>(),
+            It.IsAny<string>(),
+            It.IsAny<IProgress<ContentStorageProgress>?>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var configMock = new Mock<IConfigurationProviderService>();
+        configMock.Setup(c => c.GetMaxConcurrentDownloads()).Returns(4);
+
+        var deliverer = CreateDeliverer(configMock.Object);
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.multi"),
+                Name = "Multi Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile { RelativePath = "file1.big", DownloadUrl = "https://example.com/file1.big", Size = 100 },
+                    new ManifestFile { RelativePath = "file2.big", DownloadUrl = "https://example.com/file2.big", Size = 200 },
+                    new ManifestFile { RelativePath = "file3.big", DownloadUrl = "https://example.com/file3.big", Size = 300 },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            maxInFlight.Should().BeGreaterThan(1);
+            _downloadServiceMock.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<DownloadConfiguration>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(3));
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync rejects manifests with duplicate destination paths.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithDuplicateDestinationPaths_ReturnsFailureAsync()
+    {
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.duplicate"),
+                Name = "Duplicate Paths Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile { RelativePath = "data/file.big", DownloadUrl = "https://example.com/file1.big", Size = 100 },
+                    new ManifestFile { RelativePath = "data\\file.big", DownloadUrl = "https://example.com/file2.big", Size = 200 },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse();
+            result.FirstError.Should().Contain("Manifest contains duplicate destination path");
+            _downloadServiceMock.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<DownloadConfiguration>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync passes ETag in DownloadConfiguration headers when available on ManifestFile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithManifestFileETag_PassesETagInDownloadConfigurationAsync()
+    {
+        const string expectedMd5 = "5289df737df57326fcdd22597afb1fac";
+        var content = new byte[] { 1, 2, 3 };
+
+        DownloadConfiguration? capturedConfig = null;
+        _downloadServiceMock.Setup(d => d.DownloadFileAsync(
+            It.IsAny<DownloadConfiguration>(),
+            It.IsAny<IProgress<DownloadProgress>?>(),
+            It.IsAny<CancellationToken>()))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((cfg, _, _) =>
+            {
+                capturedConfig = cfg;
+                File.WriteAllBytes(cfg.DestinationPath, content);
+            })
+            .ReturnsAsync(DownloadResult.CreateSuccess("path", content.Length, TimeSpan.FromMilliseconds(10)));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(
+            It.IsAny<ContentManifest>(),
+            It.IsAny<string>(),
+            It.IsAny<IProgress<ContentStorageProgress>?>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.etag"),
+                Name = "ETag Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "test.big",
+                        DownloadUrl = "https://example.com/test.big",
+                        Size = 3,
+                        ETag = expectedMd5,
+                    },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            capturedConfig.Should().NotBeNull();
+            capturedConfig!.EnableResumption.Should().BeTrue();
+            capturedConfig.Headers.Should().ContainKey("ETag");
+            capturedConfig.Headers["ETag"].Should().Be(expectedMd5);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    private GenLauncherDeliverer CreateDeliverer(IConfigurationProviderService? configurationProvider = null)
+    {
+        var factory = new GenLauncherManifestFactory(
+            Mock.Of<IArchivePayloadProcessor>(),
+            NullLogger<GenLauncherManifestFactory>.Instance);
+
+        return new GenLauncherDeliverer(
+            _downloadServiceMock.Object,
+            _manifestPoolMock.Object,
+            factory,
+            NullLogger<GenLauncherDeliverer>.Instance,
+            configurationProvider);
+    }
+}

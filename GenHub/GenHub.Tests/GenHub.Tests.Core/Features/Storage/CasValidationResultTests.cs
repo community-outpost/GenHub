@@ -85,6 +85,32 @@ public class CasValidationResultTests
     }
 
     /// <summary>
+    /// Verifies that a critical issue (such as an aborted validation run) creates an invalid result.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCriticalIssue_CreatesInvalidResult()
+    {
+        // Arrange
+        var issues = new List<CasValidationIssue>
+        {
+            new()
+            {
+                IssueType = CasValidationIssueType.Critical,
+                Details = "Validation process failed",
+            },
+        };
+
+        // Act
+        var result = new CasValidationResult(issues, 5);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.True(result.HasErrors);
+        Assert.Single(result.Errors);
+        Assert.Contains("Critical: Validation process failed", result.Errors);
+    }
+
+    /// <summary>
     /// Verifies that multiple critical issues are handled correctly.
     /// </summary>
     [Fact]

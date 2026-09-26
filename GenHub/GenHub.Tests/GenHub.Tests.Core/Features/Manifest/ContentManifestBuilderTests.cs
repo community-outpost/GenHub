@@ -1,6 +1,8 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -18,6 +20,28 @@ namespace GenHub.Tests.Core.Features.Manifest;
 public class ContentManifestBuilderTests
 {
     /// <summary>
+    /// Synchronously capturing progress reporter for tests.
+    /// </summary>
+    private sealed class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly object _lock = new();
+
+        /// <summary>
+        /// Gets the captured progress reports.
+        /// </summary>
+        public List<T> Reports { get; } = [];
+
+        /// <inheritdoc/>
+        public void Report(T value)
+        {
+            lock (_lock)
+            {
+                Reports.Add(value);
+            }
+        }
+    }
+
+    /// <summary>
     /// Mock logger for the content manifest builder.
     /// </summary>
     private readonly Mock<ILogger<ContentManifestBuilder>> _loggerMock;
@@ -33,6 +57,16 @@ public class ContentManifestBuilderTests
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
 
     /// <summary>
+    /// Mock for the download service used in the builder.
+    /// </summary>
+    private readonly Mock<IDownloadService> _downloadServiceMock;
+
+    /// <summary>
+    /// Mock for the configuration provider service used in the builder.
+    /// </summary>
+    private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
+
+    /// <summary>
     /// The content manifest builder under test.
     /// </summary>
     private readonly ContentManifestBuilder _builder;
@@ -45,6 +79,8 @@ public class ContentManifestBuilderTests
         _loggerMock = new Mock<ILogger<ContentManifestBuilder>>();
         _hashProviderMock = new Mock<IFileHashProvider>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
+        _downloadServiceMock = new Mock<IDownloadService>();
+        _configProviderServiceMock = new Mock<IConfigurationProviderService>();
 
         // Set up mock to return success for ValidateAndCreateManifestId
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
@@ -62,7 +98,12 @@ public class ContentManifestBuilderTests
                 return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
             });
 
-        _builder = new ContentManifestBuilder(_loggerMock.Object, _hashProviderMock.Object, _manifestIdServiceMock.Object);
+        _builder = new ContentManifestBuilder(
+            _loggerMock.Object,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object);
     }
 
     /// <summary>
@@ -152,6 +193,39 @@ public class ContentManifestBuilderTests
         Assert.True(dependency.IsExclusive);
         Assert.Equal([ManifestId.Create("1.0.genhub.mod.conflict")], dependency.ConflictsWith);
         Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
+        Assert.True(dependency.MinInclusive);
+        Assert.True(dependency.MaxInclusive);
+    }
+
+    /// <summary>
+    /// Tests that AddDependency sets inclusivity flags correctly when specified.
+    /// </summary>
+    [Fact]
+    public void AddDependency_WithInclusivityFlags_SetsFlagsCorrectly()
+    {
+        // Act
+        var result = _builder
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
+            .AddDependency(
+                id: ManifestId.Create("1.0.genhub.mod.exclusivebound"),
+                name: "Exclusive Bound Dependency",
+                dependencyType: ContentType.GameInstallation,
+                installBehavior: DependencyInstallBehavior.AutoInstall,
+                minVersion: "1.0",
+                maxVersion: "2.0",
+                compatibleVersions: null,
+                isExclusive: false,
+                conflictsWith: null,
+                compatibleGameTypes: null,
+                minInclusive: false,
+                maxInclusive: false)
+            .Build();
+
+        // Assert
+        Assert.Single(result.Dependencies);
+        var dependency = result.Dependencies[0];
+        Assert.False(dependency.MinInclusive);
+        Assert.False(dependency.MaxInclusive);
     }
 
     /// <summary>
@@ -191,6 +265,60 @@ public class ContentManifestBuilderTests
     }
 
     /// <summary>
+    /// Tests that WithInstallationInstructions sets the full installation instructions object.
+    /// </summary>
+    [Fact]
+    public void WithInstallationInstructions_SetsCompleteObject()
+    {
+        var instructions = new InstallationInstructions
+        {
+            WorkspaceStrategy = WorkspaceStrategy.FullCopy,
+            DownloadHash = "abc123hash",
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Step 1",
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = "setup.exe",
+                },
+            ],
+        };
+
+        var result = _builder
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
+            .WithInstallationInstructions(instructions)
+            .Build();
+
+        Assert.NotNull(result.InstallationInstructions);
+        Assert.Equal(WorkspaceStrategy.FullCopy, result.InstallationInstructions.WorkspaceStrategy);
+        Assert.Equal("abc123hash", result.InstallationInstructions.DownloadHash);
+        Assert.Single(result.InstallationInstructions.PostInstallSteps);
+        Assert.Equal("Step 1", result.InstallationInstructions.PostInstallSteps[0].Name);
+    }
+
+    /// <summary>
+    /// Tests that AddPostInstallStep adds a structured installation step.
+    /// </summary>
+    [Fact]
+    public void AddPostInstallStep_AddsStepCorrectly()
+    {
+        var result = _builder
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
+            .AddPostInstallStep("EAC Setup", InstallationStepKind.RunVerifiedInstaller, "EasyAntiCheat_EOS_Setup.exe", ["install", "12345"], requiresElevation: true, statusMessage: "Installing AntiCheat")
+            .Build();
+
+        Assert.NotNull(result.InstallationInstructions);
+        var step = Assert.Single(result.InstallationInstructions.PostInstallSteps);
+        Assert.Equal("EAC Setup", step.Name);
+        Assert.Equal(InstallationStepKind.RunVerifiedInstaller, step.Kind);
+        Assert.Equal("EasyAntiCheat_EOS_Setup.exe", step.TargetRelativePath);
+        Assert.True(step.RequiresElevation);
+        Assert.Equal("Installing AntiCheat", step.StatusMessage);
+        Assert.Equal(["install", "12345"], step.Arguments);
+    }
+
+    /// <summary>
     /// Tests that Build returns a valid manifest with minimal configuration.
     /// </summary>
     [Fact]
@@ -211,12 +339,51 @@ public class ContentManifestBuilderTests
         Assert.NotNull(result.RequiredDirectories);
     }
 
+    /// <summary>Cancelled scans stop before inspecting a directory.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task AddFilesFromDirectoryAsync_PreCancelled_StopsBeforeScanAsync()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _builder.AddFilesFromDirectoryAsync("invalid\0directory", ContentSourceType.GameInstallation, cancellationToken: cancellation.Token));
+    }
+
+    /// <summary>Cancellation reaches hashing and prevents the remaining files from being scanned.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task AddFilesFromDirectoryAsync_CancelledDuringHash_StopsScanAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory("GenHub.ManifestCancellation.").FullName;
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory, "first.big"), "data");
+            await File.WriteAllTextAsync(Path.Combine(directory, "second.big"), "data");
+            _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, CancellationToken token) =>
+                {
+                    Assert.True(token.CanBeCanceled);
+                    cancellation.Cancel();
+                    Assert.True(token.IsCancellationRequested);
+                    return Task.FromCanceled<string>(token);
+                });
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _builder.AddFilesFromDirectoryAsync(directory, cancellationToken: cancellation.Token));
+            _hashProviderMock.Verify(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.Is<CancellationToken>(token => token.IsCancellationRequested)), Times.AtLeastOnce);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     /// <summary>
     /// Tests that AddFilesFromDirectoryAsync sets the correct InstallTarget based on file extensions.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AddFilesFromDirectoryAsync_SetsCorrectInstallTargets()
+    public async Task AddFilesFromDirectoryAsync_SetsCorrectInstallTargetsAsync()
     {
         // Arrange
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid());
@@ -271,6 +438,100 @@ public class ContentManifestBuilderTests
         finally
         {
             // Cleanup
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that AddFilesFromDirectoryAsync preserves file enumeration order despite parallel hashing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AddFilesFromDirectoryAsync_PreservesEnumerationOrderAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            for (var i = 0; i < 25; i++)
+            {
+                File.WriteAllText(Path.Combine(tempDir, $"file{i:00}.txt"), $"content-{i}");
+            }
+
+            _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("test-hash");
+
+            // Act
+            var result = await _builder
+                .WithBasicInfo("Test Publisher", "Test Content", "1")
+                .AddFilesFromDirectoryAsync(tempDir) as ContentManifestBuilder;
+
+            var manifest = result!.Build();
+
+            // Assert
+            var expected = Directory.EnumerateFiles(tempDir, "*.*", SearchOption.AllDirectories)
+                .Select(path => Path.GetRelativePath(tempDir, path))
+                .ToList();
+            Assert.Equal(expected, manifest.Files.Select(f => f.RelativePath).ToList());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that AddFilesFromDirectoryAsync reports hashing phase progress for every file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AddFilesFromDirectoryAsync_ReportsHashingProgressAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            const int fileCount = 10;
+            for (var i = 0; i < fileCount; i++)
+            {
+                File.WriteAllText(Path.Combine(tempDir, $"file{i:00}.txt"), $"content-{i}");
+            }
+
+            _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("test-hash");
+
+            var progress = new SynchronousProgress<ContentStorageProgress>();
+
+            // Act
+            var result = await _builder
+                .WithBasicInfo("Test Publisher", "Test Content", "1")
+                .AddFilesFromDirectoryAsync(tempDir, progress: progress) as ContentManifestBuilder;
+
+            _ = result!.Build();
+
+            // Assert
+            Assert.Equal(fileCount, progress.Reports.Count);
+            Assert.All(progress.Reports, report =>
+            {
+                Assert.Equal(ContentStoragePhase.Hashing, report.Phase);
+                Assert.Equal(fileCount, report.TotalCount);
+            });
+            Assert.Equal(
+                Enumerable.Range(1, fileCount),
+                progress.Reports.Select(report => report.ProcessedCount).OrderBy(count => count));
+        }
+        finally
+        {
             if (Directory.Exists(tempDir))
             {
                 Directory.Delete(tempDir, true);

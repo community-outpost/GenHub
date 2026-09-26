@@ -1,55 +1,60 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Security;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace GenHub.Core.Models.GameInstallations;
 
 /// <summary>
 /// Represents a detected or user-registered game installation (Steam, EA App, etc).
 /// </summary>
-public class GameInstallation : IGameInstallation
+/// <param name="installationPath">The installation path.</param>
+/// <param name="installationType">The installation type.</param>
+/// <param name="logger">Optional logger instance.</param>
+public class GameInstallation(
+    string installationPath,
+    GameInstallationType installationType,
+    ILogger<GameInstallation>? logger = null) : IGameInstallation
 {
-    private readonly ILogger<GameInstallation>? _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameInstallation"/> class.
-    /// </summary>
-    /// <param name="installationPath">The installation path.</param>
-    /// <param name="installationType">The installation type.</param>
-    /// <param name="logger">Optional logger instance.</param>
-    public GameInstallation(
-        string installationPath,
-        GameInstallationType installationType,
-        ILogger<GameInstallation>? logger = null)
-    {
-        InstallationPath = installationPath;
-        InstallationType = installationType;
-        DetectedAt = DateTime.UtcNow;
-        AvailableClientsInternal = new List<GameClient>();
-        _logger = logger;
-
-        _logger?.LogDebug(
-            "Created GameInstallation: Path={InstallationPath}, Type={InstallationType}",
-            InstallationPath,
-            InstallationType);
-    }
+    private string? _displayName;
 
     /// <summary>
     /// Gets or sets the unique identifier for this installation.
+    /// Defaults to <see cref="CreateStableId"/> so the same installation keeps its ID across app restarts.
     /// </summary>
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Id { get; set; } = string.IsNullOrWhiteSpace(installationPath)
+        ? Guid.NewGuid().ToString()
+        : CreateStableId(installationType, installationPath);
+
+    /// <summary>
+    /// Gets or sets the display name for this installation.
+    /// If not explicitly set, falls back to the installation type display name.
+    /// </summary>
+    public string DisplayName
+    {
+        get => !string.IsNullOrWhiteSpace(_displayName) ? _displayName : InstallationType.GetDisplayName();
+        set => _displayName = value;
+    }
 
     /// <summary>Gets or sets the installation type.</summary>
-    public GameInstallationType InstallationType { get; set; }
+    public GameInstallationType InstallationType { get; set; } = installationType;
 
     /// <summary>Gets or sets the available game clients for this installation.</summary>
-    public List<GameClient> AvailableGameClients { get; set; } = new List<GameClient>();
+    public List<GameClient> AvailableGameClients { get; set; } = [];
 
     /// <summary>Gets the base installation directory path.</summary>
-    public string InstallationPath { get; private set; } = string.Empty;
+    public string InstallationPath { get; private set; } = installationPath;
 
     /// <summary>Gets or sets a value indicating whether the vanilla game is installed.</summary>
     public bool HasGenerals { get; set; }
@@ -62,6 +67,19 @@ public class GameInstallation : IGameInstallation
 
     /// <summary>Gets or sets the path of the Zero Hour installation.</summary>
     public string ZeroHourPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
+    /// if present and containing retail archives. A present-but-unreadable directory is also
+    /// returned so launch validation reports it rather than treating it as absent.
+    /// </summary>
+    public string? BundledGeneralsPath => InstallationExtensions.GetBundledGeneralsPath(ZeroHourPath);
+
+    /// <summary>
+    /// Gets the effective path to base Generals retail archives, checking <see cref="GeneralsPath"/> first
+    /// and falling back to <see cref="BundledGeneralsPath"/> if present.
+    /// </summary>
+    public string? EffectiveGeneralsArchivePath => InstallationExtensions.GetEffectiveGeneralsArchivePath(GeneralsPath, BundledGeneralsPath);
 
     /// <summary>
     /// Gets or sets the date and time when this installation was detected/registered.
@@ -78,6 +96,12 @@ public class GameInstallation : IGameInstallation
     public bool IsValid =>
         (string.IsNullOrEmpty(GeneralsPath) || Directory.Exists(GeneralsPath)) &&
         (string.IsNullOrEmpty(ZeroHourPath) || Directory.Exists(ZeroHourPath));
+
+    /// <summary>Gets a value indicating whether both games share the same archive directory.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsCombinedDirectory => HasGenerals && HasZeroHour
+        && !string.IsNullOrEmpty(GeneralsPath) && !string.IsNullOrEmpty(ZeroHourPath)
+        && PathHelper.AreSamePath(GeneralsPath, ZeroHourPath);
 
     /// <summary>
     /// Gets the GameClient for the Generals game type if available in the <see cref="AvailableGameClients"/> collection.
@@ -98,28 +122,65 @@ public class GameInstallation : IGameInstallation
     public GameClient? ZeroHourClient => AvailableGameClients.FirstOrDefault(c => c.GameType == GameType.ZeroHour);
 
     /// <summary>Gets the internal list of available game clients for population.</summary>
-    internal List<GameClient> AvailableClientsInternal { get; }
+    internal List<GameClient> AvailableClientsInternal { get; } = [];
+
+    /// <summary>
+    /// Derives a deterministic installation ID from the installation type and normalized path.
+    /// </summary>
+    /// <param name="installationType">The installation type.</param>
+    /// <param name="installationPath">The installation root path.</param>
+    /// <returns>A GUID-formatted ID that is identical for the same type and path in every process.</returns>
+    public static string CreateStableId(GameInstallationType installationType, string installationPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(installationPath);
+
+        string normalizedPath;
+        try
+        {
+            normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installationPath));
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or SecurityException)
+        {
+            normalizedPath = installationPath;
+        }
+
+        if (PathHelper.PathComparison == StringComparison.OrdinalIgnoreCase)
+        {
+            normalizedPath = normalizedPath.ToUpperInvariant();
+        }
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{installationType}|{normalizedPath}"));
+        return new Guid(hash.AsSpan(0, 16)).ToString();
+    }
 
     /// <summary>
     /// Sets the paths for Generals and Zero Hour.
     /// </summary>
     /// <param name="generalsPath">The path to Generals, or null if not present.</param>
     /// <param name="zeroHourPath">The path to Zero Hour, or null if not present.</param>
+    /// <remarks>
+    /// Each game's flag turns on when that game's retail archives are present in its
+    /// directory, not when an executable with a known name is. The executable name was
+    /// only ever a proxy for "the archives are here" — it rejects the canonical native
+    /// deploy, whose binary is extensionless — while the archives are the direct signal
+    /// and the thing a retail root actually has to supply. A combined directory carrying
+    /// both games' archives may legitimately be passed as both paths and sets both flags.
+    /// </remarks>
     public void SetPaths(string? generalsPath, string? zeroHourPath)
     {
         if (!string.IsNullOrEmpty(generalsPath))
         {
-            HasGenerals = Directory.Exists(generalsPath) && HasValidExecutable(generalsPath);
+            HasGenerals = RetailArchiveClassifier.ClassifyArchivesSafely(generalsPath, logger).HasGeneralsArchives;
             GeneralsPath = generalsPath;
         }
 
         if (!string.IsNullOrEmpty(zeroHourPath))
         {
-            HasZeroHour = Directory.Exists(zeroHourPath) && HasValidExecutable(zeroHourPath);
+            HasZeroHour = RetailArchiveClassifier.ClassifyArchivesSafely(zeroHourPath, logger).HasZeroHourArchives;
             ZeroHourPath = zeroHourPath;
         }
 
-        _logger?.LogDebug("Set paths for {InstallationType}: Generals={HasGenerals}, ZeroHour={HasZeroHour}", InstallationType, HasGenerals, HasZeroHour);
+        logger?.LogDebug("Set paths for {InstallationType}: Generals={HasGenerals}, ZeroHour={HasZeroHour}", InstallationType, HasGenerals, HasZeroHour);
     }
 
     /// <summary>
@@ -135,13 +196,13 @@ public class GameInstallation : IGameInstallation
         AvailableGameClients.Clear();
         AvailableGameClients.AddRange(AvailableClientsInternal);
 
-        _logger?.LogInformation("Populated {Count} clients for {Id}", AvailableClientsInternal.Count, Id);
+        logger?.LogInformation("Populated {Count} clients for {Id}", AvailableClientsInternal.Count, Id);
     }
 
     /// <summary>
-    /// Initializes the installation by scanning for game directories and executables.
-    /// This method performs automatic detection of Generals and Zero Hour installations
-    /// within the installation path using standard directory naming conventions.
+    /// Initializes the installation by scanning for each game's retail archives.
+    /// Standard subdirectories are checked first, then the installation root itself,
+    /// which covers flat manual installs and combined directories holding both games.
     /// </summary>
     /// <remarks>
     /// This method is primarily used for testing and initialization purposes.
@@ -151,44 +212,38 @@ public class GameInstallation : IGameInstallation
     {
         try
         {
-            _logger?.LogDebug("Initializing installation scan - Current state: HasGenerals={HasGenerals}, HasZeroHour={HasZeroHour}", HasGenerals, HasZeroHour);
-            _logger?.LogDebug("Fetching game installations for {InstallationPath}", InstallationPath);
+            logger?.LogDebug("Initializing installation scan - Current state: HasGenerals={HasGenerals}, HasZeroHour={HasZeroHour}", HasGenerals, HasZeroHour);
+            logger?.LogDebug("Fetching game installations for {InstallationPath}", InstallationPath);
 
-            // Check for Generals installation
-            var generalsPath = Path.Combine(InstallationPath, "Command and Conquer Generals");
-            if (Directory.Exists(generalsPath))
+            HasGenerals = false;
+            HasZeroHour = false;
+            bool foundGenerals = false;
+            bool foundZeroHour = false;
+
+            // Preserve explicitly configured and valid paths (e.g. from platform detectors or manifests)
+            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && RetailArchiveClassifier.ClassifyArchivesSafely(GeneralsPath, logger).HasGeneralsArchives)
             {
-                var generalsExe = Path.Combine(generalsPath, GameClientConstants.GeneralsExecutable);
-                if (generalsExe.FileExistsCaseInsensitive())
-                {
-                    HasGenerals = true;
-                    GeneralsPath = generalsPath;
-                    _logger?.LogDebug("Found Generals installation at {GeneralsPath}", GeneralsPath);
-                }
-                else
-                {
-                    _logger?.LogWarning("Generals directory found at {GeneralsPath} but {ExecutableName} missing", generalsPath, GameClientConstants.GeneralsExecutable);
-                }
+                HasGenerals = true;
+                foundGenerals = true;
             }
 
-            // Check for Zero Hour installation
-            var zeroHourPath = Path.Combine(InstallationPath, GameClientConstants.ZeroHourDirectoryName);
-            if (Directory.Exists(zeroHourPath))
+            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && RetailArchiveClassifier.ClassifyArchivesSafely(ZeroHourPath, logger).HasZeroHourArchives)
             {
-                var zeroHourExe = Path.Combine(zeroHourPath, GameClientConstants.ZeroHourExecutable);
-                if (zeroHourExe.FileExistsCaseInsensitive())
-                {
-                    HasZeroHour = true;
-                    ZeroHourPath = zeroHourPath;
-                    _logger?.LogDebug("Found Zero Hour installation at {ZeroHourPath}", ZeroHourPath);
-                }
-                else
-                {
-                    _logger?.LogWarning("Zero Hour directory found at {ZeroHourPath} but {ExecutableName} missing", zeroHourPath, GameClientConstants.ZeroHourExecutable);
-                }
+                HasZeroHour = true;
+                foundZeroHour = true;
             }
 
-            _logger?.LogInformation(
+            FetchSubdirectoryInstallations(ref foundGenerals, ref foundZeroHour);
+            CompleteCombinedSubdirectory(ref foundGenerals, ref foundZeroHour);
+            FetchRootInstallation(ref foundGenerals, ref foundZeroHour);
+
+            // Log warnings only if absolutely nothing found
+            if (!foundGenerals && !foundZeroHour)
+            {
+                logger?.LogWarning("No retail game archives found in {InstallationPath} or standard subdirectories", InstallationPath);
+            }
+
+            logger?.LogInformation(
                 "Installation fetch completed for {InstallationPath}: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
                 InstallationPath,
                 HasGenerals,
@@ -196,7 +251,7 @@ public class GameInstallation : IGameInstallation
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to fetch installations for {InstallationPath}", InstallationPath);
+            logger?.LogError(ex, "Failed to fetch installation at {InstallationPath}", InstallationPath);
         }
     }
 
@@ -220,9 +275,111 @@ public class GameInstallation : IGameInstallation
         return Id?.GetHashCode() ?? 0;
     }
 
-    private bool HasValidExecutable(string path)
+    private void FetchSubdirectoryInstallations(ref bool foundGenerals, ref bool foundZeroHour)
     {
-        var possibleExes = new[] { GameClientConstants.GeneralsExecutable, GameClientConstants.ZeroHourExecutable };
-        return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
+        if (!foundGenerals)
+        {
+            ReadOnlySpan<string> generalsSubdirs =
+            [
+                GameClientConstants.GeneralsDirectoryName,
+                GameClientConstants.GeneralsRetailDirectoryName,
+            ];
+
+            if (TryFindSubdirectoryInstallation(generalsSubdirs, GameType.Generals, out var generalsPath))
+            {
+                HasGenerals = true;
+                GeneralsPath = generalsPath;
+                foundGenerals = true;
+                logger?.LogDebug("Found Generals installation at {GeneralsPath}", GeneralsPath);
+            }
+        }
+
+        if (!foundZeroHour)
+        {
+            ReadOnlySpan<string> zhSubdirs =
+            [
+                GameClientConstants.ZeroHourDirectoryName,
+                GameClientConstants.ZeroHourDirectoryNameAmpersandHyphen,
+                GameClientConstants.ZeroHourRetailDirectoryName,
+                GameClientConstants.ZeroHourDirectoryNameAbbreviated,
+                GameClientConstants.ZeroHourDirectoryNameColonVariant,
+            ];
+
+            if (TryFindSubdirectoryInstallation(zhSubdirs, GameType.ZeroHour, out var zeroHourPath))
+            {
+                HasZeroHour = true;
+                ZeroHourPath = zeroHourPath;
+                foundZeroHour = true;
+                logger?.LogDebug("Found Zero Hour installation at {ZeroHourPath}", ZeroHourPath);
+            }
+        }
+    }
+
+    private bool TryFindSubdirectoryInstallation(
+        ReadOnlySpan<string> candidateSubdirectories,
+        GameType gameType,
+        [NotNullWhen(true)] out string? foundPath)
+    {
+        foreach (var subDir in candidateSubdirectories)
+        {
+            if (InstallationPath.TryGetDirectoryCaseInsensitive(subDir, out var subDirPath))
+            {
+                var classification = RetailArchiveClassifier.ClassifyArchivesSafely(subDirPath, logger);
+                var hasGameArchives = gameType switch
+                {
+                    GameType.Generals => classification.HasGeneralsArchives,
+                    GameType.ZeroHour => classification.HasZeroHourArchives,
+                    _ => false,
+                };
+                if (hasGameArchives)
+                {
+                    foundPath = subDirPath;
+                    return true;
+                }
+            }
+        }
+
+        foundPath = null;
+        return false;
+    }
+
+    private void CompleteCombinedSubdirectory(ref bool foundGenerals, ref bool foundZeroHour)
+    {
+        if (!foundGenerals && foundZeroHour && RetailArchiveClassifier.ClassifyArchivesSafely(ZeroHourPath, logger).HasGeneralsArchives)
+        {
+            GeneralsPath = ZeroHourPath;
+            HasGenerals = true;
+            foundGenerals = true;
+        }
+
+        if (!foundZeroHour && foundGenerals && RetailArchiveClassifier.ClassifyArchivesSafely(GeneralsPath, logger).HasZeroHourArchives)
+        {
+            ZeroHourPath = GeneralsPath;
+            HasZeroHour = true;
+            foundZeroHour = true;
+        }
+    }
+
+    private void FetchRootInstallation(ref bool foundGenerals, ref bool foundZeroHour)
+    {
+        if (foundGenerals && foundZeroHour)
+        {
+            return;
+        }
+
+        var classification = RetailArchiveClassifier.ClassifyArchivesSafely(InstallationPath, logger);
+        if (!foundGenerals && classification.HasGeneralsArchives)
+        {
+            HasGenerals = true;
+            GeneralsPath = InstallationPath;
+            foundGenerals = true;
+        }
+
+        if (!foundZeroHour && classification.HasZeroHourArchives)
+        {
+            HasZeroHour = true;
+            ZeroHourPath = InstallationPath;
+            foundZeroHour = true;
+        }
     }
 }

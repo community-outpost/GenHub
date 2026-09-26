@@ -1,8 +1,8 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using System;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -36,6 +36,7 @@ public class InstallationTypeDisplayConverter : IValueConverter
                 GameInstallationType.CDISO => PublisherInfoConstants.CdIso.Name,
                 GameInstallationType.Wine => PublisherInfoConstants.Wine.Name,
                 GameInstallationType.Retail => PublisherInfoConstants.Retail.Name,
+                GameInstallationType.Custom => PublisherInfoConstants.GenHubLocal.Name,
                 GameInstallationType.Unknown => PublisherInfoConstants.Retail.Name, // Default to retail for unknown
                 _ => installationType.ToString(),
             };

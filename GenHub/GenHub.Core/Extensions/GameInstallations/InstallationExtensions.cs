@@ -1,7 +1,13 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 
 namespace GenHub.Core.Extensions.GameInstallations;
 
@@ -10,6 +16,90 @@ namespace GenHub.Core.Extensions.GameInstallations;
 /// </summary>
 public static class InstallationExtensions
 {
+    private static readonly HashSet<string> InstallationIdentifierSet = new(
+        Enum.GetValues<GameInstallationType>().Select(t => t.ToIdentifierString())
+            .Concat(new[] { PublisherInfoConstants.Retail.Name }),
+        StringComparer.OrdinalIgnoreCase);
+
+    private static readonly char[] FileNameWildcards = ['*', '?'];
+
+    private static readonly EnumerationOptions CaseInsensitiveFileSearch = new()
+    {
+        MatchCasing = MatchCasing.CaseInsensitive,
+        RecurseSubdirectories = false,
+        IgnoreInaccessible = true,
+        AttributesToSkip = 0,
+    };
+
+    /// <summary>
+    /// Attempts to find a file in a case-insensitive manner, returning a path to the file if found.
+    /// </summary>
+    /// <param name="filePath">The full file path to check.</param>
+    /// <param name="matchedPath">The on-disk spelling when enumeration succeeds; otherwise the accessible input path, or null if missing.</param>
+    /// <returns>True if the file was found; otherwise false.</returns>
+    public static bool TryGetFileCaseInsensitive(this string filePath, [NotNullWhen(true)] out string? matchedPath)
+    {
+        matchedPath = null;
+        if (string.IsNullOrEmpty(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
+            var fileName = Path.GetFileName(filePath);
+            if (directory.Length == 0)
+            {
+                // Preserve direct access without adding a current-directory case-insensitive search.
+                matchedPath = File.Exists(filePath) ? filePath : null;
+                return matchedPath is not null;
+            }
+
+            if (string.IsNullOrEmpty(fileName))
+            {
+                return false;
+            }
+
+            var candidates = fileName.IndexOfAny(FileNameWildcards) >= 0
+                ? Directory.EnumerateFiles(directory, "*", CaseInsensitiveFileSearch)
+                : Directory.EnumerateFiles(directory, fileName, CaseInsensitiveFileSearch);
+            string? actualName = null;
+            foreach (var candidate in candidates)
+            {
+                var candidateName = Path.GetFileName(candidate);
+                if (string.Equals(candidateName, fileName, StringComparison.Ordinal))
+                {
+                    actualName = candidateName;
+                    break;
+                }
+
+                if (actualName is null && string.Equals(candidateName, fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    actualName = candidateName;
+                }
+            }
+
+            if (actualName is not null)
+            {
+                matchedPath = Path.Combine(directory, actualName);
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // A known file can be accessible even when its directory cannot be listed.
+        }
+
+        if (File.Exists(filePath))
+        {
+            matchedPath = filePath;
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Checks if a file exists in a case-insensitive manner, compatible across platforms.
     /// On Windows (NTFS), this leverages filesystem case-insensitivity.
@@ -19,42 +109,60 @@ public static class InstallationExtensions
     /// <returns>True if the file exists (case-insensitive match).</returns>
     public static bool FileExistsCaseInsensitive(this string filePath)
     {
-        if (string.IsNullOrEmpty(filePath))
+        return File.Exists(filePath) || TryGetFileCaseInsensitive(filePath, out _);
+    }
+
+    /// <summary>
+    /// Checks if a subdirectory exists under a parent path in a case-insensitive manner, returning the matched directory path.
+    /// </summary>
+    /// <param name="parentDirectory">The parent directory to search within.</param>
+    /// <param name="subDirectoryName">The subdirectory name to look for.</param>
+    /// <param name="matchedPath">The actual matched full path if found.</param>
+    /// <returns>True if the subdirectory exists; otherwise false.</returns>
+    public static bool TryGetDirectoryCaseInsensitive(this string parentDirectory, string subDirectoryName, [NotNullWhen(true)] out string? matchedPath)
+    {
+        matchedPath = null;
+        if (string.IsNullOrEmpty(parentDirectory) || string.IsNullOrEmpty(subDirectoryName))
         {
             return false;
         }
 
-        // First try direct filesystem check (efficient on Windows NTFS)
-        if (File.Exists(filePath))
-        {
-            return true;
-        }
-
-        // Fallback: explicit case-insensitive search for case-sensitive filesystems
         try
         {
-            var directory = Path.GetDirectoryName(filePath);
-            var fileName = Path.GetFileName(filePath);
-
-            if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
+            var candidate = Path.Combine(parentDirectory, subDirectoryName);
+            if (Directory.Exists(candidate))
             {
-                return false;
+                matchedPath = candidate;
+                return true;
             }
 
-            var directoryInfo = new DirectoryInfo(directory);
+            var directoryInfo = new DirectoryInfo(parentDirectory);
             if (!directoryInfo.Exists)
             {
                 return false;
             }
 
-            var files = directoryInfo.GetFiles();
-            return files.Any(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
+            var matchingDir = directoryInfo.GetDirectories().FirstOrDefault(d => string.Equals(d.Name, subDirectoryName, StringComparison.OrdinalIgnoreCase));
+            if (matchingDir is not null)
+            {
+                matchedPath = matchingDir.FullName;
+                return true;
+            }
         }
-        catch
+        catch (IOException)
         {
-            // If directory enumeration fails, fall back to false
             return false;
         }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -69,14 +177,20 @@ public static class InstallationExtensions
             "Converting {InstallationType} installation to domain model",
             installation.InstallationType);
 
-        var installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
+        // Use the original InstallationPath from the platform detector
+        // This preserves the library root path (e.g., Steam library folder)
+        // Only fall back to game-specific paths if InstallationPath is not set
+        var installationPath = installation.InstallationPath;
         if (string.IsNullOrEmpty(installationPath))
         {
-            installationPath = installation.InstallationPath;
+            installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
         }
 
-        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>);
-        gameInstallation.Id = installation.Id;
+        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>)
+        {
+            Id = installation.Id,
+            DisplayName = installation.DisplayName,
+        };
         gameInstallation.SetPaths(installation.GeneralsPath, installation.ZeroHourPath);
         gameInstallation.PopulateGameClients(installation.AvailableGameClients);
 
@@ -98,15 +212,27 @@ public static class InstallationExtensions
     {
         return installationType switch
         {
-            GameInstallationType.Steam => "Steam",
-            GameInstallationType.EaApp => "EA App",
-            GameInstallationType.TheFirstDecade => "The First Decade",
-            GameInstallationType.CDISO => "CD/ISO",
-            GameInstallationType.Wine => "Wine/Proton",
-            GameInstallationType.Retail => "Retail",
-            GameInstallationType.Unknown => "Unknown",
+            GameInstallationType.Steam => PublisherInfoConstants.Steam.Name,
+            GameInstallationType.EaApp => PublisherInfoConstants.EaApp.Name,
+            GameInstallationType.TheFirstDecade => PublisherInfoConstants.TheFirstDecade.Name,
+            GameInstallationType.CDISO => PublisherInfoConstants.CdIso.Name,
+            GameInstallationType.Wine => PublisherInfoConstants.Wine.Name,
+            GameInstallationType.Retail => PublisherInfoConstants.Retail.Name,
+            GameInstallationType.Lutris => PublisherInfoConstants.Lutris.Name,
+            GameInstallationType.Custom => PublisherInfoConstants.GenHubLocal.Name,
+            GameInstallationType.Unknown => GameClientConstants.UnknownVersion,
             _ => installationType.ToString(),
         };
+    }
+
+    /// <summary>
+    /// Determines whether the specified identifier matches any known installation type identifier.
+    /// </summary>
+    /// <param name="identifier">The identifier to check.</param>
+    /// <returns>True if the identifier represents an installation source; otherwise, false.</returns>
+    public static bool IsInstallationIdentifier(string? identifier)
+    {
+        return !string.IsNullOrEmpty(identifier) && InstallationIdentifierSet.Contains(identifier);
     }
 
     /// <summary>
@@ -125,6 +251,8 @@ public static class InstallationExtensions
             GameInstallationType.CDISO => "cdiso",
             GameInstallationType.Wine => "wine",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Lutris => "lutris",
+            GameInstallationType.Custom => "genhublocal",
             GameInstallationType.Unknown => "unknown",
             _ => throw new ArgumentOutOfRangeException(nameof(installationType), installationType, "Unknown installation type"),
         };
@@ -144,6 +272,7 @@ public static class InstallationExtensions
             GameInstallationType.Wine => false,
             GameInstallationType.CDISO => false,
             GameInstallationType.Retail => false,
+            GameInstallationType.Custom => false,
             _ => false,
         };
     }
@@ -156,38 +285,6 @@ public static class InstallationExtensions
     public static bool RequiresWineCompatibility(this GameInstallationType installationType)
     {
         return installationType == GameInstallationType.Wine;
-    }
-
-    /// <summary>
-    /// Validates an installation and logs the result.
-    /// </summary>
-    /// <param name="installation">The installation to validate.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <returns>True if the installation is valid.</returns>
-    public static bool ValidateInstallation(
-        this IGameInstallation installation,
-        ILogger? logger = null)
-    {
-        logger?.LogDebug(
-            "Validating installation: {InstallationType} at {InstallationPath}",
-            installation.InstallationType,
-            installation.InstallationPath);
-
-        var hasValidGenerals = !installation.HasGenerals ||
-            (!string.IsNullOrEmpty(installation.GeneralsPath) && System.IO.Directory.Exists(installation.GeneralsPath));
-
-        var hasValidZeroHour = !installation.HasZeroHour ||
-            (!string.IsNullOrEmpty(installation.ZeroHourPath) && System.IO.Directory.Exists(installation.ZeroHourPath));
-
-        var isValid = hasValidGenerals && hasValidZeroHour;
-
-        logger?.LogDebug(
-            "Installation validation result: {IsValid} (Generals: {HasValidGenerals}, ZeroHour: {HasValidZeroHour})",
-            isValid,
-            hasValidGenerals,
-            hasValidZeroHour);
-
-        return isValid;
     }
 
     /// <summary>
@@ -206,6 +303,7 @@ public static class InstallationExtensions
             GameInstallationType.Wine => "wine",
             GameInstallationType.CDISO => "cdiso",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Custom => "genhublocal",
             GameInstallationType.Unknown => "unknown",
             _ => "unknown",
         };
@@ -231,8 +329,66 @@ public static class InstallationExtensions
             GameInstallationType.Wine => "retail",
             GameInstallationType.CDISO => "retail",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Custom => PublisherTypeConstants.GenHubLocal,
             GameInstallationType.Unknown => "unknown",
             _ => "unknown",
         };
     }
+
+    /// <summary>
+    /// Probes for the bundled base Generals assets within a Zero Hour directory (e.g. 'ZH_Generals'),
+    /// returning the path if present and containing at least one retail archive (*.big).
+    /// </summary>
+    /// <remarks>
+    /// A directory that exists but cannot be read is returned rather than treated as absent,
+    /// so launch validation reports it as unreadable and refuses to spawn instead of silently
+    /// starting Zero Hour without its base archives.
+    /// <para>
+    /// The directory name is matched case-insensitively: retail data copied from a disc or a
+    /// Windows machine may carry a case variant the default lookup misses on Linux volumes and on
+    /// case-sensitive APFS. Falling back to the exact-case path preserves the unreadable
+    /// semantics below when the lookup itself cannot inspect the parent.
+    /// </para>
+    /// </remarks>
+    /// <param name="zeroHourPath">The Zero Hour installation path.</param>
+    /// <returns>The path to the bundled base Generals directory if present and populated, or present but unreadable; otherwise <c>null</c>.</returns>
+    public static string? GetBundledGeneralsPath(string? zeroHourPath)
+    {
+        if (string.IsNullOrWhiteSpace(zeroHourPath))
+        {
+            return null;
+        }
+
+        var bundled = zeroHourPath.TryGetDirectoryCaseInsensitive(GameClientConstants.ZhGeneralsDirectory, out var matched)
+            ? matched
+            : Path.Combine(zeroHourPath, GameClientConstants.ZhGeneralsDirectory);
+
+        // The probe is the enumeration itself: Directory.Exists returns false for an
+        // unreadable directory as well as a missing one, which would report a permission
+        // problem as absent content. Only DirectoryNotFoundException means absence.
+        try
+        {
+            return Directory.EnumerateFiles(bundled, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch).Any()
+                ? bundled
+                : null;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return bundled;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the effective path to base Generals retail archives, checking <paramref name="generalsPath"/> first
+    /// and falling back to <paramref name="bundledGeneralsPath"/> if present.
+    /// </summary>
+    /// <param name="generalsPath">The declared Generals path.</param>
+    /// <param name="bundledGeneralsPath">The bundled Generals path.</param>
+    /// <returns>The effective path to base Generals retail archives, or <c>null</c>.</returns>
+    public static string? GetEffectiveGeneralsArchivePath(string? generalsPath, string? bundledGeneralsPath) =>
+        !string.IsNullOrWhiteSpace(generalsPath) ? generalsPath : bundledGeneralsPath;
 }

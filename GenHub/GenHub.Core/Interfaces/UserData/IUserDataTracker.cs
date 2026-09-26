@@ -68,6 +68,18 @@ public interface IUserDataTracker
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Deactivates user data for a profile, optionally removing physical files from disk.
+    /// </summary>
+    /// <param name="profileId">The game profile ID.</param>
+    /// <param name="removeFiles">If true, removes materialized files from disk; if false, marks manifests inactive while preserving files.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if deactivation was successful.</returns>
+    Task<OperationResult<bool>> DeactivateProfileUserDataAsync(
+        string profileId,
+        bool removeFiles,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets all user data manifests for a specific profile.
     /// </summary>
     /// <param name="profileId">The game profile ID.</param>
@@ -137,5 +149,22 @@ public interface IUserDataTracker
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Total bytes used by tracked user data files.</returns>
     Task<OperationResult<long>> GetTotalUserDataSizeAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the profile ID that currently has active user data materialized on disk, if any.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The active profile ID or null if no profile user data is active.</returns>
+    Task<OperationResult<string?>> GetActiveProfileIdAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes ALL tracked user data files, manifests, and indexes.
+    /// This is a destructive operation used for "Delete All Data" functionality.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if deletion was successful.</returns>
+    Task<OperationResult<bool>> DeleteAllUserDataAsync(
         CancellationToken cancellationToken = default);
 }

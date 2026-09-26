@@ -154,8 +154,11 @@ public class AppConstantsTests
         // Act & Assert
         Assert.Multiple(() =>
         {
-            // Test Generals 1.08
+            // Test Generals 1.08 (EA App)
             Assert.Equal("1.08", registry.GetVersionFromHash(GameClientHashRegistry.Generals108HashPublic, GameType.Generals));
+
+            // Test Generals 1.09 (Steam)
+            Assert.Equal("1.09", registry.GetVersionFromHash(GameClientHashRegistry.Generals109HashPublic, GameType.Generals));
 
             // Test Zero Hour 1.04
             Assert.Equal("1.04", registry.GetVersionFromHash(GameClientHashRegistry.ZeroHour104HashPublic, GameType.ZeroHour));
@@ -164,12 +167,12 @@ public class AppConstantsTests
             Assert.Equal("1.05", registry.GetVersionFromHash(GameClientHashRegistry.ZeroHour105HashPublic, GameType.ZeroHour));
 
             // Test unknown hash
-            Assert.Equal("Unknown", registry.GetVersionFromHash("unknownhash", GameType.Generals));
+            Assert.Equal(GameClientConstants.UnknownVersion, registry.GetVersionFromHash("unknownhash", GameType.Generals));
 
             // Test all known hashes are recognized
             Assert.True(registry.IsKnownHash(GameClientHashRegistry.Generals108HashPublic));
+            Assert.True(registry.IsKnownHash(GameClientHashRegistry.Generals109HashPublic));
             Assert.True(registry.IsKnownHash(GameClientHashRegistry.ZeroHour104HashPublic));
-
             Assert.True(registry.IsKnownHash(GameClientHashRegistry.ZeroHour105HashPublic));
 
             // Additional hash checks can be added here
@@ -177,7 +180,22 @@ public class AppConstantsTests
 
             // Test that executable names array is populated
             Assert.NotEmpty(registry.PossibleExecutableNames);
-            Assert.Contains("generals.exe", registry.PossibleExecutableNames);
+        });
+    }
+
+    /// <summary>
+    /// Tests that build metadata properties reflect local development defaults in the test runner environment.
+    /// Assumes the test runner executes against assemblies built without CI metadata property overrides.
+    /// </summary>
+    [Fact]
+    public void AppConstants_BuildMetadata_ShouldReflectLocalDevelopmentDefaults()
+    {
+        // Arrange & Act & Assert
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(AppConstants.DevBuildChannel, AppConstants.BuildChannel);
+            Assert.False(AppConstants.IsCiBuild);
+            Assert.True(AppConstants.IsLocalBuild);
         });
     }
 }

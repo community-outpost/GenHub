@@ -1,9 +1,16 @@
-using System;
-using System.IO;
-using GenHub.Core.Interfaces.Common;
+using GenHub.Common.Services;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
+using System;
+using System.Globalization;
+using System.IO;
+using System.Text.Json;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -12,25 +19,61 @@ namespace GenHub.Infrastructure.DependencyInjection;
 /// </summary>
 public static class LoggingModule
 {
+    private static LoggingLevelSwitch? _levelSwitch;
+    private static string? _activeLogFilePath;
+
+    /// <summary>
+    /// Gets or sets the active log file path for the running application instance.
+    /// </summary>
+    public static string ActiveLogFilePath
+    {
+        get => _activeLogFilePath ??= GetLogFilePath();
+        set => _activeLogFilePath = value;
+    }
+
     /// <summary>
     /// Adds logging configuration to the service collection.
+    /// Reads EnableDetailedLogging from user settings file if available.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddLoggingModule(this IServiceCollection services)
     {
-        var logPath = GetLogFilePath();
+        var logPath = ActiveLogFilePath;
+        var enableDetailedLogging = ReadEnableDetailedLoggingFromSettings();
+        var logLevel = enableDetailedLogging ? LogEventLevel.Debug : LogEventLevel.Information;
+        var minLogLevel = enableDetailedLogging ? LogLevel.Debug : LogLevel.Information;
+
+        // Create a level switch for runtime log level changes
+        _levelSwitch = new LoggingLevelSwitch(logLevel);
 
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
-            builder.AddConsole();
             builder.AddDebug();
-            builder.AddFile(logPath, LogLevel.Information);
-            builder.SetMinimumLevel(LogLevel.Information);
+
+            var logger = new LoggerConfiguration()
+                .MinimumLevel.ControlledBy(_levelSwitch)
+                .WriteTo.Sink(new ResilientFileSink(logPath))
+                .CreateLogger();
+
+            builder.AddSerilog(logger, dispose: true);
+            builder.SetMinimumLevel(minLogLevel);
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// Changes the log level at runtime without requiring a restart.
+    /// </summary>
+    /// <param name="enableDebug">True to enable DEBUG logging, false for INFO level.</param>
+    public static void SetLogLevel(bool enableDebug)
+    {
+        if (_levelSwitch != null)
+        {
+            _levelSwitch.MinimumLevel = enableDebug ? LogEventLevel.Debug : LogEventLevel.Information;
+        }
     }
 
     /// <summary>
@@ -39,23 +82,239 @@ public static class LoggingModule
     /// <returns>An <see cref="ILoggerFactory"/> instance.</returns>
     public static ILoggerFactory CreateBootstrapLoggerFactory()
     {
-        var logPath = GetLogFilePath();
+        var logPath = ActiveLogFilePath;
 
         return LoggerFactory.Create(builder =>
         {
-            builder.AddConsole();
             builder.AddDebug();
-            builder.AddFile(logPath, LogLevel.Debug);
+
+            var logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.Sink(new ResilientFileSink(logPath), restrictedToMinimumLevel: LogEventLevel.Debug)
+                .CreateLogger();
+
+            builder.AddSerilog(logger, dispose: true);
             builder.SetMinimumLevel(LogLevel.Debug);
         });
     }
 
-    private static string GetLogFilePath()
+    /// <summary>
+    /// Gets the standard log file name for the current date and application version/build.
+    /// </summary>
+    /// <returns>The log file name.</returns>
+    public static string GetLogFileName()
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var logDir = Path.Combine(appData, "GenHub", "logs");
-        Directory.CreateDirectory(logDir);
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd");
-        return Path.Combine(logDir, $"genhub-{timestamp}.log");
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var versionSuffix = GetVersionFileSuffix();
+        return $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}-{versionSuffix}.log";
+    }
+
+    /// <summary>
+    /// Gets a safe version suffix for log file naming, including git hash when present.
+    /// </summary>
+    /// <returns>A formatted version suffix (e.g. "v0.0.150" or "v0.0.150-abc1234").</returns>
+    public static string GetVersionFileSuffix()
+    {
+        var version = AppConstants.AppVersion;
+        if (!string.IsNullOrWhiteSpace(AppConstants.GitShortHash))
+        {
+            version = $"{version}-{AppConstants.GitShortHash}";
+        }
+
+        var safeVersion = string.Join("_", version.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+        return safeVersion.StartsWith('v') || safeVersion.StartsWith('V') ? safeVersion : $"v{safeVersion}";
+    }
+
+    /// <summary>
+    /// Gets the path to the current day and build's log file.
+    /// </summary>
+    /// <param name="customDataRoot">Optional custom data root directory.</param>
+    /// <returns>The full path to the log file.</returns>
+    public static string GetLogFilePath(string? customDataRoot = null)
+    {
+        try
+        {
+            string rootDir;
+            if (customDataRoot != null)
+            {
+                rootDir = customDataRoot;
+            }
+            else if (StorageMigrationService.IsCustomInstallRoot())
+            {
+                rootDir = StorageMigrationService.GetSourceRootDirectory();
+                try
+                {
+                    StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
+                }
+                catch (IOException)
+                {
+                    // Non-fatal cleanup
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Non-fatal cleanup
+                }
+                catch (System.Security.SecurityException)
+                {
+                    // Non-fatal cleanup
+                }
+                catch (ArgumentException)
+                {
+                    // Non-fatal cleanup
+                }
+            }
+            else
+            {
+                rootDir = AppDataPathHelper.GetDataRoot();
+            }
+
+            var logDir = Path.Combine(rootDir, DirectoryNames.Logs);
+            Directory.CreateDirectory(logDir);
+            return Path.Combine(logDir, GetLogFileName());
+        }
+        catch (IOException)
+        {
+            return GetFallbackLogFilePath();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return GetFallbackLogFilePath();
+        }
+        catch (System.Security.SecurityException)
+        {
+            return GetFallbackLogFilePath();
+        }
+        catch (ArgumentException)
+        {
+            return GetFallbackLogFilePath();
+        }
+    }
+
+    private static string GetFallbackLogFilePath()
+    {
+        try
+        {
+            var fallbackDir = Path.Combine(AppDataPathHelper.GetDataRoot(), DirectoryNames.Logs);
+            Directory.CreateDirectory(fallbackDir);
+            return Path.Combine(fallbackDir, GetLogFileName());
+        }
+        catch (IOException)
+        {
+            return GetTempLogFilePath();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return GetTempLogFilePath();
+        }
+        catch (System.Security.SecurityException)
+        {
+            return GetTempLogFilePath();
+        }
+        catch (ArgumentException)
+        {
+            return GetTempLogFilePath();
+        }
+    }
+
+    private static string GetTempLogFilePath()
+    {
+        try
+        {
+            var tempLogDir = Path.Combine(Path.GetTempPath(), AppConstants.AppName, DirectoryNames.Logs);
+            Directory.CreateDirectory(tempLogDir);
+            return Path.Combine(tempLogDir, GetLogFileName());
+        }
+        catch (IOException)
+        {
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
+        }
+        catch (System.Security.SecurityException)
+        {
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
+        }
+        catch (ArgumentException)
+        {
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
+        }
+    }
+
+    private static bool ReadEnableDetailedLoggingFromSettings()
+    {
+        try
+        {
+            var settingsPath = GetSettingsFilePath();
+            if (!File.Exists(settingsPath))
+            {
+                return false;
+            }
+
+            var json = File.ReadAllText(settingsPath);
+            using var document = JsonDocument.Parse(json);
+
+            if (document.RootElement.TryGetProperty(nameof(Core.Models.Common.UserSettings.EnableDetailedLogging).ToCamelCase(), out var property))
+            {
+                return property.GetBoolean();
+            }
+
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return false;
+        }
+    }
+
+    private static string GetSettingsFilePath()
+    {
+        try
+        {
+            var rootDir = StorageMigrationService.IsCustomInstallRoot()
+                ? StorageMigrationService.GetSourceRootDirectory()
+                : AppDataPathHelper.GetDataRoot();
+
+            return Path.Combine(rootDir, FileTypes.SettingsFileName);
+        }
+        catch (IOException)
+        {
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
+        }
+        catch (System.Security.SecurityException)
+        {
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
+        }
+        catch (ArgumentException)
+        {
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
+        }
+    }
+
+    private static string ToCamelCase(this string str)
+    {
+        if (string.IsNullOrEmpty(str) || char.IsLower(str[0]))
+        {
+            return str;
+        }
+
+        return char.ToLowerInvariant(str[0]) + str.Substring(1);
     }
 }

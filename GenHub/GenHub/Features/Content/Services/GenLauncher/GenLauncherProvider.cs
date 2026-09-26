@@ -1,0 +1,154 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.ContentProviders;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.Content.Services.GenLauncher;
+
+/// <summary>
+/// Initializes a new instance of the <see cref="GenLauncherProvider"/> class.
+/// Content provider for GenLauncher community mods, patches, and addons.
+/// </summary>
+/// <param name="providerDefinitionLoader">The provider definition loader.</param>
+/// <param name="discoverers">The collection of content discoverers.</param>
+/// <param name="resolvers">The collection of content resolvers.</param>
+/// <param name="deliverers">The collection of content deliverers.</param>
+/// <param name="contentValidator">The content validator.</param>
+/// <param name="installationInstructionsService">The installation instructions service.</param>
+/// <param name="logger">The logger instance.</param>
+public class GenLauncherProvider(
+    IProviderDefinitionLoader providerDefinitionLoader,
+    IEnumerable<IContentDiscoverer> discoverers,
+    IEnumerable<IContentResolver> resolvers,
+    IEnumerable<IContentDeliverer> deliverers,
+    IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
+    ILogger<GenLauncherProvider> logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
+{
+    private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
+        d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException("No GenLauncher discoverer found");
+
+    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
+        r.ResolverId.Equals(GenLauncherConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException($"No GenLauncher resolver found with ResolverId '{GenLauncherConstants.PublisherId}'");
+
+    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
+        d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException("No GenLauncher deliverer found");
+
+    private ProviderDefinition? _cachedProviderDefinition;
+
+    /// <inheritdoc/>
+    public override string SourceName => PublisherTypeConstants.GenLauncher;
+
+    /// <inheritdoc/>
+    public override string Description => GenLauncherConstants.ProviderDescription;
+
+    /// <inheritdoc/>
+    public override ContentSourceCapabilities Capabilities =>
+        ContentSourceCapabilities.RequiresDiscovery |
+        ContentSourceCapabilities.SupportsPackageAcquisition;
+
+    /// <inheritdoc/>
+    public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
+        string contentId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentId))
+        {
+            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
+        }
+
+        Logger.LogInformation("Resolving validated manifest for GenLauncher content: {ContentId}", contentId);
+
+        var discovery = await Discoverer.DiscoverAsync(
+            new ContentSearchQuery { SearchTerm = contentId },
+            cancellationToken).ConfigureAwait(false);
+
+        if (!discovery.Success || discovery.Data == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                discovery.FirstError ?? $"GenLauncher content discovery failed for '{contentId}'");
+        }
+
+        var item = discovery.Data.Items.FirstOrDefault(x =>
+            string.Equals(x.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(x.Name, contentId, StringComparison.OrdinalIgnoreCase));
+
+        if (item == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure($"Content '{contentId}' was not found in GenLauncher catalog");
+        }
+
+        var resolved = await Resolver.ResolveAsync(item, cancellationToken).ConfigureAwait(false);
+        if (!resolved.Success || resolved.Data == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to resolve manifest for '{contentId}': {resolved.FirstError}");
+        }
+
+        var validation = await ContentValidator.ValidateManifestAsync(resolved.Data, cancellationToken).ConfigureAwait(false);
+        if (!validation.IsValid)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(validation.Issues.Select(i => i.Message));
+        }
+
+        return resolved;
+    }
+
+    /// <inheritdoc/>
+    protected override IContentDiscoverer Discoverer => _discoverer;
+
+    /// <inheritdoc/>
+    protected override IContentResolver Resolver => _resolver;
+
+    /// <inheritdoc/>
+    protected override IContentDeliverer Deliverer => _deliverer;
+
+    /// <inheritdoc/>
+    protected override ProviderDefinition? GetProviderDefinition()
+    {
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(GenLauncherConstants.PublisherId);
+        return _cachedProviderDefinition;
+    }
+
+    /// <inheritdoc/>
+    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+        ContentManifest manifest,
+        string workingDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        Logger.LogInformation("Preparing GenLauncher content: {Version}", manifest.Version);
+        var deliveryResult = await Deliverer.DeliverContentAsync(
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!deliveryResult.Success || deliveryResult.Data == null)
+        {
+            return deliveryResult;
+        }
+
+        return OperationResult<ContentManifest>.CreateSuccess(deliveryResult.Data);
+    }
+}

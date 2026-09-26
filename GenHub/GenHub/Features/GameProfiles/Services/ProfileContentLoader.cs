@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -15,7 +11,14 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Services.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -47,33 +50,7 @@ public class ProfileContentLoader(
 
             foreach (var installation in installationsResult.Data)
             {
-                if (installation.AvailableGameClients.Count == 0)
-                {
-                    logger.LogDebug(
-                        "Skipping installation {InstallationId} - no available game clients",
-                        installation.Id);
-                    continue;
-                }
-
-                var uniqueGameTypes = installation.AvailableGameClients
-                    .Select(gc => gc.GameType)
-                    .Distinct();
-
-                foreach (var gameType in uniqueGameTypes)
-                {
-                    var baseClient = GetBaseGameClient(installation, gameType);
-                    if (baseClient is null) continue;
-
-                    var item = CreateInstallationDisplayItem(installation, baseClient, gameType);
-                    result.Add(item);
-
-                    logger.LogDebug(
-                        "Added GameInstallation: {DisplayName} ({Publisher}, {GameType}, {Version})",
-                        item.DisplayName,
-                        item.Publisher,
-                        gameType,
-                        item.Version);
-                }
+                ProcessInstallationGameTypes(installation, result);
             }
 
             logger.LogInformation(
@@ -105,24 +82,7 @@ public class ProfileContentLoader(
                 return result;
             }
 
-            var includedManifestIds = new HashSet<string>();
-
-            foreach (var installation in installationsResult.Data)
-            {
-                foreach (var gameClient in installation.AvailableGameClients)
-                {
-                    var item = CreateGameClientDisplayItem(installation, gameClient);
-                    result.Add(item);
-                    includedManifestIds.Add(gameClient.Id);
-
-                    logger.LogDebug(
-                        "Added GameClient: {DisplayName} ({Publisher})",
-                        item.DisplayName,
-                        item.Publisher);
-                }
-            }
-
-            await AddCasStoredGameClientsAsync(result, includedManifestIds);
+            await AddCasStoredGameClientsAsync(result, []);
 
             logger.LogInformation("Loaded {Count} game client options", result.Count);
         }
@@ -147,7 +107,7 @@ public class ProfileContentLoader(
             return contentType switch
             {
                 ContentType.GameInstallation =>
-                    CloneWithEnabledState(availableGameInstallations, enabledSet),
+                    CloneWithEnabledState(availableGameInstallations.Where(i => i.InstallationType == GameInstallationType.Custom), enabledSet),
                 ContentType.GameClient =>
                     await LoadGameClientsWithEnabledStateAsync(enabledSet),
                 _ =>
@@ -289,7 +249,7 @@ public class ProfileContentLoader(
                 var displayName = !string.IsNullOrEmpty(depManifest.Name)
                     ? depManifest.Name
                     : dependency.Name;
-                var publisher = depManifest.Publisher?.Name ?? depManifest.Publisher?.PublisherType ?? "Unknown";
+                var publisher = depManifest.Publisher?.Name ?? depManifest.Publisher?.PublisherType ?? GameClientConstants.UnknownVersion;
 
                 var item = new ContentDisplayItem
                 {
@@ -300,6 +260,7 @@ public class ProfileContentLoader(
                     ContentType = depManifest.ContentType,
                     GameType = depManifest.TargetGame,
                     Publisher = publisher,
+                    GameClient = CreateGameClientFromManifest(depManifest),
                     IsEnabled = false, // Will be enabled by the caller
                 };
 
@@ -335,6 +296,93 @@ public class ProfileContentLoader(
         }
     }
 
+    /// <inheritdoc/>
+    public ContentDisplayItem CreateManifestDisplayItem(
+        ContentManifest manifest,
+        string? sourceId = null,
+        string? gameClientId = null,
+        bool isEnabled = false)
+    {
+        // Suppress version display for local content - NEVER show version for local content
+        var isLocal = manifest.Publisher?.PublisherType?.Equals(LocalContentService.LocalPublisherType, StringComparison.OrdinalIgnoreCase) == true
+            || !string.IsNullOrEmpty(manifest.SourcePath);
+        var normalizedVersion = isLocal ? string.Empty : displayFormatter.NormalizeVersion(manifest.Version);
+        string displayName;
+        if (manifest.ContentType == ContentType.GameInstallation)
+        {
+            if (displayFormatter.GetInstallationTypeFromManifest(manifest) == GameInstallationType.Custom)
+            {
+                displayName = !string.IsNullOrWhiteSpace(manifest.Name)
+                    ? manifest.Name
+                    : PublisherInfoConstants.GenHubLocal.Name;
+            }
+            else
+            {
+                displayName = displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion);
+            }
+        }
+        else
+        {
+            displayName = displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+        }
+
+        return new ContentDisplayItem
+        {
+            Id = manifest.Id.Value,
+            ManifestId = manifest.Id.Value,
+            DisplayName = displayName,
+            Version = normalizedVersion,
+            ContentType = manifest.ContentType,
+            GameType = manifest.TargetGame,
+            InstallationType = displayFormatter.GetInstallationTypeFromManifest(manifest),
+            Publisher = displayFormatter.GetPublisherFromManifest(manifest),
+            SourceId = sourceId ?? string.Empty,
+            GameClientId = gameClientId ?? string.Empty,
+            GameClient = CreateGameClientFromManifest(manifest),
+            IsEnabled = isEnabled,
+            IsEditable = isLocal,
+            SourcePath = manifest.SourcePath,
+            Manifest = manifest,
+        };
+    }
+
+    /// <summary>
+    /// Creates a <see cref="GameClient"/> model from a <see cref="ContentManifest"/>.
+    /// </summary>
+    /// <param name="manifest">The content manifest to convert.</param>
+    /// <param name="installationId">Optional installation identifier.</param>
+    /// <returns>The constructed game client, or null if manifest content type is not GameClient.</returns>
+    internal static GameClient? CreateGameClientFromManifest(ContentManifest manifest, string? installationId = null)
+    {
+        if (manifest.ContentType != ContentType.GameClient)
+        {
+            return null;
+        }
+
+        var clientName = !string.IsNullOrWhiteSpace(manifest.Name)
+            ? manifest.Name
+            : (manifest.Id.Value ?? string.Empty);
+
+        var clientVersion = !string.IsNullOrWhiteSpace(manifest.Version)
+            ? manifest.Version
+            : string.Empty;
+
+        var (exePath, workingDir) = ClientPathResolver.ResolveClientPaths(manifest.SourcePath, manifest.EntryPoint);
+
+        return new GameClient
+        {
+            Id = manifest.Id.Value ?? string.Empty,
+            Name = clientName,
+            Version = clientVersion,
+            GameType = manifest.TargetGame,
+            SourceType = ContentType.GameClient,
+            PublisherType = manifest.Publisher?.PublisherType,
+            InstallationId = installationId ?? string.Empty,
+            ExecutablePath = exePath ?? string.Empty,
+            WorkingDirectory = workingDir ?? string.Empty,
+        };
+    }
+
     private static GameClient? GetBaseGameClient(GameInstallation installation, GameType gameType)
     {
         return installation.AvailableGameClients
@@ -356,7 +404,7 @@ public class ProfileContentLoader(
     }
 
     private static ObservableCollection<ContentDisplayItem> CloneWithEnabledState(
-        ObservableCollection<ContentDisplayItem> items,
+        IEnumerable<ContentDisplayItem> items,
         HashSet<string> enabledIds)
     {
         return new ObservableCollection<ContentDisplayItem>(
@@ -373,22 +421,23 @@ public class ProfileContentLoader(
                 Publisher = item.Publisher,
                 SourceId = item.SourceId,
                 GameClientId = item.GameClientId,
+                GameClient = item.GameClient?.Clone(),
+                Manifest = item.Manifest,
                 IsEnabled = enabledIds.Contains(item.ManifestId),
+                IsEditable = item.IsEditable,
             }));
     }
 
-    private (string ForManifestId, string ForDisplay) GetVersionStrings(string? detectedVersion)
+    private (string ForManifestId, string ForDisplay) GetVersionStrings(string? detectedVersion, GameType gameType)
     {
-        var isUnknown = string.IsNullOrEmpty(detectedVersion) ||
-            detectedVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
-            detectedVersion.Equals(
-                GameClientConstants.AutoDetectedVersion,
-                StringComparison.OrdinalIgnoreCase);
-
-        if (isUnknown)
+        // GameInstallationService pools the manifest under the game-type default when detection
+        // fails, so the same fallback is needed here or the picker hands the profile an id that
+        // resolves to no manifest. Display stays empty so no version is fabricated in the UI.
+        // CreateEnabledInstallationItem reaches this with a pooled manifest's TargetGame, which can
+        // be a type with no default, so resolve defensively rather than relying on a caller's guard.
+        if (GameVersionHelper.IsUnknownVersion(detectedVersion))
         {
-            var defaultVersion = ManifestConstants.DefaultManifestFormatVersion.ToString();
-            return ("0", displayFormatter.NormalizeVersion(defaultVersion));
+            return (GameVersionHelper.ResolveInstallationVersion(detectedVersion, gameType), string.Empty);
         }
 
         return (detectedVersion!, displayFormatter.NormalizeVersion(detectedVersion!));
@@ -397,14 +446,18 @@ public class ProfileContentLoader(
     private ContentDisplayItem CreateInstallationDisplayItem(
         GameInstallation installation,
         GameClient baseClient,
-        GameType gameType)
+        GameType gameType,
+        bool isEnabled = false)
     {
-        var (versionForManifestId, versionForDisplay) = GetVersionStrings(baseClient.Version);
+        var (versionForManifestId, versionForDisplay) = GetVersionStrings(baseClient.Version, gameType);
         var manifestId = ManifestIdGenerator.GenerateGameInstallationId(
             installation,
             gameType,
             versionForManifestId);
         var publisher = displayFormatter.GetPublisherFromInstallationType(installation.InstallationType);
+        var displayName = installation.InstallationType == GameInstallationType.Custom
+            ? installation.DisplayName
+            : displayFormatter.BuildDisplayName(gameType, versionForDisplay);
 
         return new ContentDisplayItem
         {
@@ -412,13 +465,16 @@ public class ProfileContentLoader(
             ManifestId = manifestId,
             SourceId = installation.Id,
             GameClientId = baseClient.Id,
-            DisplayName = displayFormatter.BuildDisplayName(gameType, versionForDisplay),
+            GameClient = baseClient.Clone(),
+            DisplayName = displayName,
             Description = $"{publisher} - {installation.InstallationType} - {gameType}",
             Version = versionForDisplay,
             ContentType = ContentType.GameInstallation,
             GameType = gameType,
             InstallationType = installation.InstallationType,
             Publisher = publisher,
+            IsEnabled = isEnabled,
+            IsEditable = false,
         };
     }
 
@@ -427,6 +483,16 @@ public class ProfileContentLoader(
         GameClient gameClient,
         bool isEnabled = false)
     {
+        // Skip clients without valid manifest IDs (detected publisher clients)
+        // These clients should prompt users to download verified publisher versions
+        if (string.IsNullOrEmpty(gameClient.Id))
+        {
+            logger.LogDebug(
+                "Skipping GameClient {DisplayName} - no valid manifest ID (detected publisher client)",
+                gameClient.Name);
+            return null!;
+        }
+
         var normalizedVersion = displayFormatter.NormalizeVersion(gameClient.Version);
         var publisher = displayFormatter.GetPublisherFromInstallationType(installation.InstallationType);
 
@@ -436,6 +502,7 @@ public class ProfileContentLoader(
             ManifestId = gameClient.Id,
             SourceId = installation.Id,
             GameClientId = gameClient.Id,
+            GameClient = gameClient.Clone(),
             DisplayName = displayFormatter.BuildDisplayName(
                 gameClient.GameType,
                 normalizedVersion,
@@ -446,33 +513,7 @@ public class ProfileContentLoader(
             Publisher = publisher,
             Version = normalizedVersion,
             IsEnabled = isEnabled,
-        };
-    }
-
-    private ContentDisplayItem CreateManifestDisplayItem(
-        ContentManifest manifest,
-        string? sourceId = null,
-        string? gameClientId = null,
-        bool isEnabled = false)
-    {
-        var normalizedVersion = displayFormatter.NormalizeVersion(manifest.Version);
-        var displayName = manifest.ContentType == ContentType.GameInstallation
-            ? displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion)
-            : displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
-
-        return new ContentDisplayItem
-        {
-            Id = manifest.Id.Value,
-            ManifestId = manifest.Id.Value,
-            DisplayName = displayName,
-            Version = normalizedVersion,
-            ContentType = manifest.ContentType,
-            GameType = manifest.TargetGame,
-            InstallationType = displayFormatter.GetInstallationTypeFromManifest(manifest),
-            Publisher = displayFormatter.GetPublisherFromManifest(manifest),
-            SourceId = sourceId ?? string.Empty,
-            GameClientId = gameClientId ?? string.Empty,
-            IsEnabled = isEnabled,
+            IsEditable = false,
         };
     }
 
@@ -483,18 +524,41 @@ public class ProfileContentLoader(
         var manifestsResult = await contentManifestPool.GetAllManifestsAsync();
         if (!manifestsResult.Success || manifestsResult.Data is null) return;
 
+        logger.LogDebug(
+            "AddCasStoredGameClientsAsync: Total manifests in pool={Count}, ExcludeIds={ExcludeCount}",
+            manifestsResult.Data.Count(),
+            excludeIds.Count);
+
+        logger.LogDebug(
+            "ExcludeIds: {Ids}",
+            string.Join(", ", excludeIds));
+
         var casGameClients = manifestsResult.Data
             .Where(m => m.ContentType == ContentType.GameClient && !excludeIds.Contains(m.Id.Value));
 
         foreach (var manifest in casGameClients)
         {
-            result.Add(CreateManifestDisplayItem(manifest));
+            var candidate = CreateManifestDisplayItem(manifest);
+            if (result.Any(r => r.ManifestId == candidate.ManifestId ||
+                               (r.ContentType == ContentType.GameClient &&
+                                r.GameType == candidate.GameType &&
+                                string.Equals(r.DisplayName, candidate.DisplayName, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(r.Version, candidate.Version, StringComparison.OrdinalIgnoreCase))))
+            {
+                continue;
+            }
+
+            result.Add(candidate);
 
             logger.LogDebug(
                 "Added CAS-stored GameClient: {DisplayName} ({ManifestId})",
-                manifest.Name,
-                manifest.Id.Value);
+                candidate.DisplayName,
+                candidate.ManifestId);
         }
+
+        logger.LogDebug(
+            "AddCasStoredGameClientsAsync: Added {Count} CAS-stored GameClients",
+            casGameClients.Count());
     }
 
     private async Task<ObservableCollection<ContentDisplayItem>> LoadGameClientsWithEnabledStateAsync(
@@ -654,19 +718,22 @@ public class ProfileContentLoader(
         GameInstallation? gameInstallation)
     {
         var gameClient = gameInstallation?.AvailableGameClients?
-            .FirstOrDefault(gc => gc.Id == profile.GameClient.Id);
+            .FirstOrDefault(gc => gc.Id == profile.GameClient?.Id);
 
         if (gameInstallation is not null && gameClient is not null)
         {
             var normalizedVersion = displayFormatter.NormalizeVersion(gameClient.Version);
             var publisher = displayFormatter.GetPublisherFromInstallationType(
                 gameInstallation.InstallationType);
+            var displayName = gameInstallation.InstallationType == GameInstallationType.Custom
+                ? gameInstallation.DisplayName
+                : displayFormatter.BuildDisplayName(gameClient.GameType, normalizedVersion);
 
             return new ContentDisplayItem
             {
                 Id = manifest.Id.Value,
                 ManifestId = manifest.Id.Value,
-                DisplayName = displayFormatter.BuildDisplayName(gameClient.GameType, normalizedVersion),
+                DisplayName = displayName,
                 Version = normalizedVersion,
                 ContentType = ContentType.GameInstallation,
                 GameType = gameClient.GameType,
@@ -674,7 +741,9 @@ public class ProfileContentLoader(
                 Publisher = publisher,
                 SourceId = gameInstallation.Id,
                 GameClientId = gameClient.Id,
+                GameClient = gameClient.Clone(),
                 IsEnabled = true,
+                IsEditable = false,
             };
         }
 
@@ -683,10 +752,62 @@ public class ProfileContentLoader(
             var baseClient = GetBaseGameClient(gameInstallation, manifest.TargetGame);
             if (baseClient is not null)
             {
-                return CreateInstallationDisplayItem(gameInstallation, baseClient, manifest.TargetGame);
+                return CreateInstallationDisplayItem(gameInstallation, baseClient, manifest.TargetGame, isEnabled: true);
             }
         }
 
         return CreateManifestDisplayItem(manifest, isEnabled: true);
+    }
+
+    private void ProcessInstallationGameTypes(GameInstallation installation, ObservableCollection<ContentDisplayItem> result)
+    {
+        if (installation.AvailableGameClients.Count == 0)
+        {
+            logger.LogDebug(
+                "Skipping installation {InstallationId} - no available game clients",
+                installation.Id);
+            return;
+        }
+
+        var uniqueGameTypes = installation.AvailableGameClients
+            .Select(gc => gc.GameType)
+            .Distinct();
+
+        foreach (var gameType in uniqueGameTypes)
+        {
+            if (gameType is not (GameType.Generals or GameType.ZeroHour))
+            {
+                logger.LogDebug(
+                    "Skipping installation {InstallationId} game type {GameType} - unsupported",
+                    installation.Id,
+                    gameType);
+                continue;
+            }
+
+            var baseClient = GetBaseGameClient(installation, gameType);
+            if (baseClient is null)
+            {
+                continue;
+            }
+
+            var item = CreateInstallationDisplayItem(installation, baseClient, gameType);
+            if (result.Any(r => r.ManifestId == item.ManifestId ||
+                               (r.GameType == item.GameType &&
+                                r.InstallationType == item.InstallationType &&
+                                string.Equals(r.DisplayName, item.DisplayName, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(r.Version, item.Version, StringComparison.OrdinalIgnoreCase))))
+            {
+                continue;
+            }
+
+            result.Add(item);
+
+            logger.LogDebug(
+                "Added GameInstallation: {DisplayName} ({Publisher}, {GameType}, {Version})",
+                item.DisplayName,
+                item.Publisher,
+                gameType,
+                item.Version);
+        }
     }
 }

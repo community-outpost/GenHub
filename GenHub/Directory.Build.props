@@ -4,9 +4,17 @@
       Alpha versioning: 0.0.X format
       CI will override with: 0.0.{runNumber} or 0.0.{runNumber}-pr{prNumber}
     -->
-    <Version>0.0.1</Version>
-    <AssemblyVersion>0.0.1.0</AssemblyVersion>
-    <FileVersion>0.0.1.0</FileVersion>
+    <Version Condition="'$(Version)' == ''">0.0.1-dev</Version>
+
+    <!--
+      AssemblyVersion and FileVersion must be strictly numeric (x.y.z.w)
+      Strip any prerelease suffix (e.g., -pr238) from Version for these properties
+    -->
+    <_NumericVersion Condition="$(Version.Contains('-'))">$(Version.Substring(0, $(Version.IndexOf('-'))))</_NumericVersion>
+    <_NumericVersion Condition="!$(Version.Contains('-'))">$(Version)</_NumericVersion>
+    <AssemblyVersion>$(_NumericVersion)</AssemblyVersion>
+    <FileVersion>$(_NumericVersion)</FileVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
 
     <!-- Make version available to source generators / build-time code -->
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
@@ -15,15 +23,27 @@
       Build info for CI - these are overridden by CI workflow via MSBuild properties:
       dotnet build -p:GitShortHash=abc1234 -p:PullRequestNumber=42 -p:BuildChannel=PR
     -->
-    <GitShortHash></GitShortHash>
-    <PullRequestNumber></PullRequestNumber>
-    <BuildChannel>Dev</BuildChannel>
+    <GitShortHash Condition="'$(GitShortHash)' == ''"></GitShortHash>
+    <PullRequestNumber Condition="'$(PullRequestNumber)' == ''"></PullRequestNumber>
+    <BuildChannel Condition="'$(BuildChannel)' == ''">Dev</BuildChannel>
 
     <!--
       Include git hash in InformationalVersion for display
       Results in: "0.0.150+abc1234" for CI builds
     -->
     <InformationalVersion Condition="'$(GitShortHash)' != ''">$(Version)+$(GitShortHash)</InformationalVersion>
+    <InformationalVersion Condition="'$(GitShortHash)' == ''">$(Version)</InformationalVersion>
+
+    <!-- Enforce zero warnings policy across all projects -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!--
+      Never copy the Playwright driver by default. The driver's buildTransitive targets
+      would otherwise copy the build-host driver into every referencing project's output
+      (libraries, tools, tests), leaking foreign-platform binaries into publishes.
+      Each platform head opts back in for Debug only; Release downloads on demand.
+    -->
+    <PlaywrightPlatform>none</PlaywrightPlatform>
   </PropertyGroup>
 
   <!-- Embed build metadata in assembly for runtime access -->
@@ -40,5 +60,10 @@
       <_Parameter1>BuildChannel</_Parameter1>
       <_Parameter2>$(BuildChannel)</_Parameter2>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- StyleCop configuration -->
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)..\stylecop.json" Link="stylecop.json" />
   </ItemGroup>
 </Project>

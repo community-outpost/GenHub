@@ -1,3 +1,4 @@
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 
@@ -12,6 +13,11 @@ public interface IGameInstallation
     /// Gets the unique identifier for this installation.
     /// </summary>
     string Id { get; }
+
+    /// <summary>
+    /// Gets the display name for this installation.
+    /// </summary>
+    string DisplayName => InstallationType.GetDisplayName();
 
     /// <summary>
     /// Gets the type of game installation.
@@ -42,6 +48,19 @@ public interface IGameInstallation
     /// Gets the path to Zero Hour installation within this source.
     /// </summary>
     string ZeroHourPath { get; }
+
+    /// <summary>
+    /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
+    /// if present and containing retail archives. A present-but-unreadable directory is also
+    /// returned so launch validation reports it rather than treating it as absent.
+    /// </summary>
+    string? BundledGeneralsPath => InstallationExtensions.GetBundledGeneralsPath(ZeroHourPath);
+
+    /// <summary>
+    /// Gets the effective path to base Generals retail archives, checking <see cref="GeneralsPath"/> first
+    /// and falling back to <see cref="BundledGeneralsPath"/> if present.
+    /// </summary>
+    string? EffectiveGeneralsArchivePath => InstallationExtensions.GetEffectiveGeneralsArchivePath(GeneralsPath, BundledGeneralsPath);
 
     /// <summary>
     /// Gets the available game clients for this installation.

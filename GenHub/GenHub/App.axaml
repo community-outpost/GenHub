@@ -1,20 +1,62 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:GenHub.Infrastructure.Converters"
-             x:Class="GenHub.App">
-    <Application.Styles>
-        <FluentTheme />
-        <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
-    </Application.Styles>
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             x:Class="GenHub.App"
+             Name="GenHub"
+             RequestedThemeVariant="Dark">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://GenHub/Assets/Styles/ThemeResources.axaml" />
+                <ResourceInclude Source="avares://GenHub/Features/Tools/Views/ToolIcons.axaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <local:StringToImageConverter x:Key="StringToImageConverter" />
+            <local:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+            <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <local:IntToBoolConverter x:Key="IntToBoolConverter" />
+            <local:EqualityConverter x:Key="EqualityConverter" />
+            <local:FirstCharConverter x:Key="FirstCharConverter" />
+            <local:BoolToExpandIconConverter x:Key="BoolToExpandIconConverter" />
+            <local:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
+            <local:FileIconConverter x:Key="FileIconConverter" />
+            <local:LocalizedToolNameConverter x:Key="LocalizedToolNameConverter" />
+            <local:LocalizedToolDescriptionConverter x:Key="LocalizedToolDescriptionConverter" />
+            <local:LocalizedUpdateSortOptionConverter x:Key="LocalizedUpdateSortOptionConverter" />
+            <local:LocalizedInfoModuleNameConverter x:Key="LocalizedInfoModuleNameConverter" />
+            <local:LocalizedFormatConverter x:Key="LocalizedFormatConverter" />
+            <local:ActiveBorderConverter x:Key="ActiveBorderConverter" />
+            <local:IndentConverter x:Key="IndentConverter" />
+            <local:BoolToColorConverter x:Key="BoolToColorConverter" />
+            <local:BoolToTextConverter x:Key="BoolToTextConverter" />
+            <local:BoolToTextConverter x:Key="BoolToStringConverter" />
         </ResourceDictionary>
-        <local:StringToImageConverter x:Key="StringToImageConverter" />
-        <local:ColorToBrushConverter x:Key="ColorToBrushConverter" />
-        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-        <local:IntToBoolConverter x:Key="IntToBoolConverter" />
     </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <material:MaterialIconStyles />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/SidebarStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/ScrollbarStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/ExpanderStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Common/Controls/SidebarLayoutStyles.axaml" />
+
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        </Style>
+
+        <Style Selector="FlyoutPresenter.ModernFlyout">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+        </Style>
+    </Application.Styles>
 </Application>

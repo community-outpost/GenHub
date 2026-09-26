@@ -1,0 +1,97 @@
+# GenHub .editorconfig
+# Enforces code formatting, analyzer rules, and naming conventions aligned with
+# StyleCop, DeepSource, and SonarCloud quality gates.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csx}]
+# Formatting rules
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+csharp_space_between_method_declaration_name_and_open_parenthesis = false
+
+# Code style: Language features
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_constructors = when_on_single_line:suggestion
+csharp_style_expression_bodied_operators = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_indexers = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+csharp_style_expression_bodied_lambdas = true:suggestion
+csharp_style_expression_bodied_local_functions = when_on_single_line:suggestion
+
+# Usings
+csharp_using_directive_placement = outside_namespace:error
+dotnet_sort_system_directives_first = false
+dotnet_separate_import_directive_groups = false
+
+# Nullability & Pattern Matching
+csharp_style_pattern_matching = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggestion
+
+# Naming conventions: Async methods must have 'Async' suffix (resolves DeepSource CS-R1005)
+dotnet_naming_rule.async_methods_must_end_with_async.symbols = async_methods_group
+dotnet_naming_rule.async_methods_must_end_with_async.style = async_method_style
+dotnet_naming_rule.async_methods_must_end_with_async.severity = warning
+
+dotnet_naming_symbols.async_methods_group.applicable_kinds = method
+dotnet_naming_symbols.async_methods_group.applicable_modifiers = async
+dotnet_naming_symbols.async_methods_group.applicable_accessibilities = *
+
+dotnet_naming_style.async_method_style.required_suffix = Async
+dotnet_naming_style.async_method_style.capitalization = pascal_case
+
+# Naming conventions: Interfaces must start with 'I'
+dotnet_naming_rule.interface_should_be_prefixed.symbols = interface_symbols
+dotnet_naming_rule.interface_should_be_prefixed.style = interface_style
+dotnet_naming_rule.interface_should_be_prefixed.severity = warning
+
+dotnet_naming_symbols.interface_symbols.applicable_kinds = interface
+dotnet_naming_symbols.interface_symbols.applicable_accessibilities = *
+
+dotnet_naming_style.interface_style.required_prefix = I
+dotnet_naming_style.interface_style.capitalization = pascal_case
+
+# Common Analyzer Severities (preempts DeepSource & SonarCloud findings)
+dotnet_diagnostic.CA1031.severity = suggestion       # Do not catch generic System.Exception (CS-R1008)
+dotnet_diagnostic.CS0168.severity = warning       # Variable is declared but never used (CS-W1100)
+dotnet_diagnostic.CS0219.severity = warning       # Variable is assigned but its value is never used
+dotnet_diagnostic.IDE0059.severity = warning       # Unnecessary assignment of a value
+dotnet_diagnostic.IDE0060.severity = suggestion    # Remove unused parameter
+dotnet_diagnostic.IDE0063.severity = suggestion    # Use simple 'using' statement
+dotnet_diagnostic.IDE0079.severity = warning       # Remove unnecessary suppression
+dotnet_diagnostic.CA2007.severity = none          # Do not require ConfigureAwait for desktop UI app
+
+# ModBuilder Feature Analyzer Configuration
+[**/ModBuilder/**.cs]
+dotnet_diagnostic.CS1591.severity = none
+dotnet_diagnostic.SA1204.severity = none
+dotnet_diagnostic.SA1413.severity = none
+dotnet_diagnostic.SA1202.severity = none
+dotnet_diagnostic.SA1117.severity = none
+dotnet_diagnostic.SA1116.severity = none
+dotnet_diagnostic.SA1600.severity = none
+dotnet_diagnostic.SA1636.severity = none
+dotnet_diagnostic.SA1203.severity = none
+dotnet_diagnostic.SA1617.severity = none
+dotnet_diagnostic.SA1513.severity = none
+dotnet_diagnostic.SA1108.severity = none
+dotnet_diagnostic.SA1629.severity = none
+dotnet_diagnostic.SA1518.severity = none
+dotnet_diagnostic.SA1210.severity = none

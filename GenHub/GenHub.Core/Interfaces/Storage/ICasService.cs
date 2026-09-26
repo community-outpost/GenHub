@@ -17,6 +17,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -26,6 +27,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentAsync(Stream contentStream, string? expectedHash = null, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -53,22 +55,14 @@ public interface ICasService
     Task<OperationResult<Stream>> OpenContentStreamAsync(string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Runs garbage collection to remove unreferenced content.
-    /// </summary>
-    /// <param name="force">If true, ignores the grace period and deletes all unreferenced objects immediately.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The result of the garbage collection operation.</returns>
-    Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(bool force = false, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Validates the integrity of content in the CAS.
+    /// Validates the integrity of content in the CAS, spanning every configured pool.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The result of the validation operation.</returns>
     Task<CasValidationResult> ValidateIntegrityAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets statistics about the CAS system.
+    /// Gets statistics about the CAS system, aggregated across every configured pool.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>CAS statistics.</returns>
@@ -84,10 +78,28 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentAsync(
         string sourcePath,
         ContentType contentType,
         string? expectedHash = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stores content from a file path in the appropriate CAS pool using a pre-computed hash.
+    /// Unlike the file-path StoreContentAsync overload, the source file is not re-hashed:
+    /// integrity is still verified while the bytes are copied into CAS.
+    /// </summary>
+    /// <param name="sourcePath">The path to the source file.</param>
+    /// <param name="knownHash">The pre-computed content hash of the source file.</param>
+    /// <param name="contentType">The content type for pool routing.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
+    Task<OperationResult<string>> StoreContentWithKnownHashAsync(
+        string sourcePath,
+        string knownHash,
+        ContentType contentType,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -98,6 +110,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentAsync(
         Stream contentStream,
         ContentType contentType,

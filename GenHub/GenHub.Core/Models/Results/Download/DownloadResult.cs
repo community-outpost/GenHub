@@ -67,12 +67,6 @@ public class DownloadResult : ResultBase
     public string FormattedSpeed { get; private set; } = string.Empty;
 
     /// <summary>
-    /// Gets the error message if the download failed.
-    /// </summary>
-    [Obsolete("Use FirstError instead. This property will be removed in a future version.")]
-    public string? ErrorMessage => FirstError;
-
-    /// <summary>
     /// Creates a successful download result.
     /// </summary>
     /// <param name="filePath">The path to the downloaded file.</param>

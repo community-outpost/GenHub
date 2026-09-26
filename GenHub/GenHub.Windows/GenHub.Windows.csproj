@@ -1,4 +1,6 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\Directory.Publish.props" />
+
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0-windows</TargetFramework>
@@ -9,17 +11,27 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!-- Debug ships the Windows Playwright driver next to the binaries. Release keeps
+             the Directory.Build.props default (none): the driver downloads on demand. -->
+        <PlaywrightPlatform Condition="'$(Configuration)' != 'Release'">win-x64</PlaywrightPlatform>
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Tests.Windows" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Avalonia.Desktop" />
+        <PackageReference Include="DotNetEnv" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Include="Avalonia.Diagnostics">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="Microsoft.Playwright" />
         <PackageReference Include="StyleCop.Analyzers" />
+        <PackageReference Include="System.Management" />
         <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     </ItemGroup>
 
@@ -28,8 +40,27 @@
         <EmbeddedResource Include="Resources\update_genhub.ps1" />
     </ItemGroup>
 
+    <!-- Copy .env file to output directory for local debugging if it exists -->
+    <ItemGroup Condition="Exists('..\..\.env')">
+        <None Include="..\..\.env">
+            <Link>.env</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\GenHub\GenHub.csproj" />
         <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+        <!-- Build-order-only: guarantees the proxy binary exists before BuildProxyLauncher packs it. -->
+        <ProjectReference Include="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <Private>false</Private>
+            <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+        </ProjectReference>
+    </ItemGroup>
+
+    <Import Project="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.Bundle.targets" />
 </Project>

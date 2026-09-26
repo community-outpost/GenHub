@@ -12,6 +12,7 @@ contributing to the project.
 - [How to Contribute](#how-to-contribute)
 - [Code of Conduct](#code-of-conduct)
 - [Development Environment](#development-environment)
+- [Testing](#testing)
 - [Coding Style](#coding-style)
 - [Pull Requests](#pull-requests)
 - [Issue Reporting](#issue-reporting)
@@ -23,7 +24,7 @@ contributing to the project.
 
 ## How to Contribute
 
-1. **Fork** the repository and create your branch from `main`.
+1. **Fork** the repository and create your branch from `development`.
 2. **Clone** your fork locally.
 3. **Make your changes** in a logically named branch.
 4. **Test** your changes thoroughly.
@@ -40,9 +41,35 @@ you agree to uphold a welcoming and inclusive environment for all contributors.
 
 ## Development Environment
 
-- **.NET Version**: GenHub targets **.NET 8**. Ensure you have the latest SDK installed.
+- **.NET Version**: GenHub targets **.NET 8**. `global.json` specifies SDK **8.0.400**
+  with `rollForward: latestMajor`, so install **8.0.400 or newer**. Later major SDKs
+  are accepted; older SDKs do not satisfy this requirement.
 - **IDE**: Visual Studio 2022 is recommended. The Community Edition is free and sufficient.
 - **Dependencies**: Restore NuGet packages before building.
+
+---
+
+## Testing
+
+For routine unit tests, exclude both real-engine launches and live-network tests:
+
+```sh
+dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj --filter "Category!=NativeEngine&Category!=LiveNetwork"
+```
+
+Use the same filter when testing other projects or a platform-compatible solution.
+Until the `NativeEngine` traits are available in your checkout, use
+`"FullyQualifiedName!~NativeClient&FullyQualifiedName!~RetailArchiveRoot&FullyQualifiedName!~EngineLaunchSmoke&Category!=LiveNetwork"`.
+
+Run the live-network suite explicitly when you intend to contact real providers and download packages:
+
+```sh
+dotnet test GenHub/GenHub.Tests/GenHub.Tests.Integration/GenHub.Tests.Integration.csproj --filter "Category=LiveNetwork"
+```
+
+The live suite uses temporary application data and CAS storage. External outages can fail these tests;
+keep them separate from unit-test results. Merge the archive-signature fix (#568) before expecting
+all acquisition tests to pass. A direct downloader test does not verify the full application-update flow.
 
 ---
 
@@ -60,7 +87,7 @@ you agree to uphold a welcoming and inclusive environment for all contributors.
 
 ## Pull Requests
 
-- Ensure your branch is up to date with `main`.
+- Ensure your branch is up to date with `development`.
 - Provide a clear, descriptive title and summary.
 - Reference related issues (e.g., `Fixes #123`).
 - Include tests for new features or bug fixes.

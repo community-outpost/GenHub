@@ -5,7 +5,6 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
-
 using GenHub.Features.Validation;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -66,7 +65,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithKnownAddonInManifest_DetectsAddonAsWarning()
+    public async Task ValidateAsync_WithKnownAddonInManifest_DetectsAddonAsWarningAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -105,7 +104,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithUnexpectedFile_DetectsUnexpectedFile()
+    public async Task ValidateAsync_WithUnexpectedFile_DetectsUnexpectedFileAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -140,7 +139,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_ManifestNotFound_AddsIssue()
+    public async Task ValidateAsync_ManifestNotFound_AddsIssueAsync()
     {
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>())).ReturnsAsync((ContentManifest?)null);
         var tempDir = Directory.CreateTempSubdirectory();
@@ -163,7 +162,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_MissingFile_AddsMissingFileIssue()
+    public async Task ValidateAsync_MissingFile_AddsMissingFileIssueAsync()
     {
         var manifest = new ContentManifest { Files = new() { new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty } } };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
@@ -194,7 +193,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_Cancellation_ThrowsOperationCanceledException()
+    public async Task ValidateAsync_Cancellation_ThrowsOperationCanceledExceptionAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory();
         var cts = new CancellationTokenSource();
@@ -209,7 +208,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithMultipleKnownAddons_DetectsAllAddons()
+    public async Task ValidateAsync_WithMultipleKnownAddons_DetectsAllAddonsAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -252,7 +251,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithProgressCallback_ReportsProgress()
+    public async Task ValidateAsync_WithProgressCallback_ReportsProgressAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -285,7 +284,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithHashMismatch_DetectsCorruption()
+    public async Task ValidateAsync_WithHashMismatch_DetectsCorruptionAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -325,7 +324,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithEmptyDirectory_HandlesGracefully()
+    public async Task ValidateAsync_WithEmptyDirectory_HandlesGracefullyAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();

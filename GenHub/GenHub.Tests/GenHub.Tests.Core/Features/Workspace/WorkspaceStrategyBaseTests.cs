@@ -128,8 +128,8 @@ public class WorkspaceStrategyBaseTests : IDisposable
 
         var config = new WorkspaceConfiguration
         {
-            Manifests = new List<ContentManifest>
-            {
+            Manifests =
+            [
                 new()
                 {
                     Files =
@@ -138,7 +138,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
                         new() { RelativePath = "config.ini", Size = 500 },
                     ],
                 },
-            },
+            ],
             GameClient = new GameClient { ExecutablePath = "generals.exe" },
         };
 
@@ -150,6 +150,91 @@ public class WorkspaceStrategyBaseTests : IDisposable
         Assert.Equal(1500L, workspaceInfo.TotalSizeBytes);
         Assert.Equal(Path.Combine(_tempDir, "generals.exe"), workspaceInfo.ExecutablePath);
         Assert.Equal(_tempDir, workspaceInfo.WorkingDirectory);
+    }
+
+    /// <summary>
+    /// Tests that UpdateWorkspaceInfo creates a generals.exe alias when the GameClient entry point is generals.ctr.
+    /// </summary>
+    [Fact]
+    public void UpdateWorkspaceInfo_WithCustomContraExecutable_CreatesGeneralsExeAlias()
+    {
+        // Arrange
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "contra-workspace",
+            WorkspacePath = _tempDir,
+        };
+
+        var contraExePath = Path.Combine(_tempDir, "generals.ctr");
+        File.WriteAllBytes(contraExePath, [0x4D, 0x5A, 0x90, 0x00]);
+
+        var config = new WorkspaceConfiguration
+        {
+            Manifests =
+            [
+                new()
+                {
+                    ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+                    EntryPoint = "generals.ctr",
+                    Files =
+                    [
+                        new() { RelativePath = "generals.ctr", Size = 1000, IsExecutable = true },
+                        new() { RelativePath = "generals.dat", Size = 500 },
+                    ],
+                },
+            ],
+            GameClient = new GameClient { ExecutablePath = "generals.ctr" },
+        };
+
+        // Act
+        _strategy.TestUpdateWorkspaceInfo(workspaceInfo, 2, 1500L, config);
+
+        // Assert
+        var expectedAliasPath = Path.Combine(_tempDir, "generals.exe");
+        Assert.True(File.Exists(expectedAliasPath));
+        Assert.Equal(expectedAliasPath, workspaceInfo.ExecutablePath);
+    }
+
+    /// <summary>
+    /// Tests that UpdateWorkspaceInfo leaves a native engine binary alone: aliasing it to
+    /// generals.exe would make the runner wrap a native binary in Wine.
+    /// </summary>
+    [Fact]
+    public void UpdateWorkspaceInfo_WithNativeExecutable_DoesNotCreateGeneralsExeAlias()
+    {
+        // Arrange
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "native-workspace",
+            WorkspacePath = _tempDir,
+        };
+
+        var nativeExePath = Path.Combine(_tempDir, "generalszh");
+        File.WriteAllBytes(nativeExePath, [0x7F, (byte)'E', (byte)'L', (byte)'F']);
+
+        var config = new WorkspaceConfiguration
+        {
+            Manifests =
+            [
+                new()
+                {
+                    ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+                    EntryPoint = "generalszh",
+                    Files =
+                    [
+                        new() { RelativePath = "generalszh", Size = 1000, IsExecutable = true },
+                    ],
+                },
+            ],
+            GameClient = new GameClient { ExecutablePath = "generalszh" },
+        };
+
+        // Act
+        _strategy.TestUpdateWorkspaceInfo(workspaceInfo, 1, 1000L, config);
+
+        // Assert
+        Assert.False(File.Exists(Path.Combine(_tempDir, "generals.exe")));
+        Assert.Equal(nativeExePath, workspaceInfo.ExecutablePath);
     }
 
     /// <summary>
@@ -195,6 +280,8 @@ public class WorkspaceStrategyBaseTests : IDisposable
         {
             Directory.Delete(_tempDir, true);
         }
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -282,8 +369,21 @@ public class WorkspaceStrategyBaseTests : IDisposable
         /// <returns>The total size in bytes.</returns>
         public long TestCalculateActualTotalSize(WorkspaceConfiguration configuration) => CalculateActualTotalSize(configuration);
 
+        /// <summary>
+        /// Exposes executable materialization for production-path regression tests.
+        /// </summary>
+        /// <param name="file">The manifest file.</param>
+        /// <param name="targetPath">The materialized workspace path.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>A task representing the operation.</returns>
+        public Task TestEnsureExecutableAsync(
+            ManifestFile file,
+            string targetPath,
+            CancellationToken cancellationToken = default) =>
+            EnsureExecutableAsync(file, targetPath, cancellationToken);
+
         /// <inheritdoc/>
-        protected override Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+        protected override Task CreateCasLinkAsync(string hash, string targetPath, GenHub.Core.Models.Enums.ContentType? contentType, CancellationToken cancellationToken)
         {
             // For testing, just simulate a completed task.
             return Task.CompletedTask;

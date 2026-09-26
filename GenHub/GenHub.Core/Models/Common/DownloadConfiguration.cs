@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Common;
 
@@ -23,11 +25,16 @@ public sealed class DownloadConfiguration
         Url = null!;
         DestinationPath = string.Empty;
         OverwriteExisting = true;
+        EnableResumption = true;
+        EnableParallelDownload = true;
+        ParallelConcurrency = DownloadDefaults.DefaultParallelChunkConcurrency;
+        ParallelDownloadThresholdBytes = DownloadDefaults.ParallelDownloadThresholdBytes;
         ProgressReportingInterval = TimeSpan.FromMilliseconds(100);
-        Headers = [];
+        Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         VerifySslCertificate = true;
         MaxRetryAttempts = 3;
         RetryDelay = TimeSpan.FromSeconds(1);
+        ValidateRedirectsManually = false;
     }
 
     /// <summary>Gets or sets the user agent string.</summary>
@@ -51,6 +58,18 @@ public sealed class DownloadConfiguration
     /// <summary>Gets or sets a value indicating whether to overwrite existing files.</summary>
     public bool OverwriteExisting { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether to enable HTTP range-based download resumption.</summary>
+    public bool EnableResumption { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to enable parallel chunk downloading for large files.</summary>
+    public bool EnableParallelDownload { get; set; }
+
+    /// <summary>Gets or sets the concurrency level for parallel chunk downloading.</summary>
+    public int ParallelConcurrency { get; set; }
+
+    /// <summary>Gets or sets the minimum file size threshold in bytes for parallel chunk downloading.</summary>
+    public long ParallelDownloadThresholdBytes { get; set; }
+
     /// <summary>Gets or sets the progress reporting interval.</summary>
     public TimeSpan ProgressReportingInterval { get; set; }
 
@@ -65,4 +84,7 @@ public sealed class DownloadConfiguration
 
     /// <summary>Gets or sets the delay between retry attempts.</summary>
     public TimeSpan RetryDelay { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to validate redirects manually for SSRF safety.</summary>
+    public bool ValidateRedirectsManually { get; set; }
 }

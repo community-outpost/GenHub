@@ -1,3 +1,11 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -6,13 +14,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Extensions.GameInstallations;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Windows.GameInstallations;
 
@@ -30,6 +31,8 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
     /// Gets a value indicating whether this detector can run on the current OS/platform.
     /// </summary>
     public bool CanDetectOnCurrentPlatform => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+    private static readonly GameInstallationType[] PriorityOrder = [GameInstallationType.Steam, GameInstallationType.EaApp, GameInstallationType.CDISO, GameInstallationType.Retail, GameInstallationType.TheFirstDecade];
 
     /// <summary>
     /// Scan for Windows platform installations and return them.
@@ -96,7 +99,9 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
             // Check Retail installations
             logger.LogDebug("Checking Retail installations");
-            var retailInstalls = DetectRetailInstallations();
+            var retailInstalls = DetectRetailInstallations(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86));
             installs.AddRange(retailInstalls);
 
             // Deduplicate installations based on actual game paths to prevent multiple sources claiming the same installation
@@ -118,64 +123,157 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         return Task.FromResult(result);
     }
 
-    private List<GameInstallation> DetectRetailInstallations()
+    /// <summary>Transfers known combined-root coverage to higher-priority partial sources.</summary>
+    /// <param name="installations">All detected sources, before deduplication.</param>
+    private static void CompletePartialDetections(List<GameInstallation> installations)
     {
-        var retailInstalls = new List<GameInstallation>();
-        var possiblePaths = new[]
+        var combinedPaths = installations.Where(i => i.IsCombinedDirectory)
+            .Select(i => Path.TrimEndingDirectorySeparator(Path.GetFullPath(i.GeneralsPath))).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var installation in installations)
         {
-            @"C:\Program Files\EA Games\Command & Conquer Generals",
-            @"C:\Program Files (x86)\EA Games\Command & Conquer Generals",
-        };
-
-        foreach (var basePath in possiblePaths)
-        {
-            if (Directory.Exists(basePath))
+            if (installation.HasGenerals == installation.HasZeroHour)
             {
-                var generalsPath = Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName);
-                var zeroHourPath = Path.Combine(basePath, GameClientConstants.ZeroHourDirectoryName);
+                continue;
+            }
 
-                var hasGenerals = Directory.Exists(generalsPath);
-                var hasZeroHour = Directory.Exists(zeroHourPath);
-
-                if (hasGenerals || hasZeroHour)
-                {
-                    var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
-                    installation.SetPaths(hasGenerals ? generalsPath : null, hasZeroHour ? zeroHourPath : null);
-
-                    retailInstalls.Add(installation);
-                    logger.LogInformation("Detected Retail installation at {BasePath} with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour", basePath, hasGenerals ? 1 : 0, hasZeroHour ? 1 : 0);
-                }
+            var path = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
+            if (!string.IsNullOrEmpty(path) && combinedPaths.Contains(Path.TrimEndingDirectorySeparator(Path.GetFullPath(path))))
+            {
+                installation.GeneralsPath = path;
+                installation.ZeroHourPath = path;
+                installation.HasGenerals = true;
+                installation.HasZeroHour = true;
             }
         }
+    }
+
+    private List<GameInstallation> DetectRetailInstallations(string programFiles, string programFilesX86)
+    {
+        var retailInstalls = new List<GameInstallation>();
+
+        // First check common EA Games parent directories for co-located retail installations
+        var parentFolders = new[]
+        {
+            Path.Combine(programFiles, GameClientConstants.EaGamesParentDirectoryName),
+            Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName),
+        };
+
+        foreach (var parentFolder in parentFolders.Where(Directory.Exists))
+        {
+            var generalsPath = Path.Combine(parentFolder, GameClientConstants.GeneralsRetailDirectoryName);
+            var zeroHourPath = Path.Combine(parentFolder, GameClientConstants.ZeroHourRetailDirectoryName);
+
+            var generalsArchives = RetailArchiveClassifier.ClassifyArchivesSafely(generalsPath, logger);
+            var zeroHourArchives = RetailArchiveClassifier.ClassifyArchivesSafely(zeroHourPath, logger);
+            var fallbackGeneralsPath = zeroHourArchives.HasGeneralsArchives ? zeroHourPath : null;
+            var fallbackZeroHourPath = generalsArchives.HasZeroHourArchives ? generalsPath : null;
+            var detectedGeneralsPath = generalsArchives.HasGeneralsArchives ? generalsPath : fallbackGeneralsPath;
+            var detectedZeroHourPath = zeroHourArchives.HasZeroHourArchives ? zeroHourPath : fallbackZeroHourPath;
+            var hasGenerals = detectedGeneralsPath is not null;
+            var hasZeroHour = detectedZeroHourPath is not null;
+
+            if (hasGenerals || hasZeroHour)
+            {
+                var installation = new GameInstallation(parentFolder, GameInstallationType.Retail, null);
+                installation.SetPaths(detectedGeneralsPath, detectedZeroHourPath);
+                retailInstalls.Add(installation);
+                logger.LogInformation(
+                    "Detected Retail installation at {ParentFolder} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",
+                    parentFolder,
+                    hasGenerals,
+                    hasZeroHour);
+            }
+        }
+
+        var possibleStandalonePaths = new[]
+        {
+            Path.Combine(programFiles, GameClientConstants.GeneralsRetailDirectoryName),
+            Path.Combine(programFilesX86, GameClientConstants.GeneralsRetailDirectoryName),
+            Path.Combine(programFiles, GameClientConstants.ZeroHourRetailDirectoryName),
+            Path.Combine(programFilesX86, GameClientConstants.ZeroHourRetailDirectoryName),
+        };
+
+        AddStandaloneRetailInstallations(retailInstalls, possibleStandalonePaths);
 
         return retailInstalls;
     }
 
+    private void AddStandaloneRetailInstallations(List<GameInstallation> retailInstalls, IEnumerable<string> possibleStandalonePaths)
+    {
+        foreach (var basePath in possibleStandalonePaths.Where(Directory.Exists))
+        {
+            // Skip if already covered by an EA Games parent installation
+            if (retailInstalls.Any(r =>
+                string.Equals(r.GeneralsPath, basePath, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(r.ZeroHourPath, basePath, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
+            installation.Fetch();
+
+            if (installation.HasGenerals || installation.HasZeroHour)
+            {
+                retailInstalls.Add(installation);
+                logger.LogInformation(
+                    "Detected standalone Retail installation at {BasePath} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",
+                    basePath,
+                    installation.HasGenerals,
+                    installation.HasZeroHour);
+            }
+        }
+    }
+
     /// <summary>
     /// Deduplicates installations that point to the same actual game directories.
-    /// Prioritizes installations in this order: Steam > EA App > Retail.
+    /// Keeps complete combined roots ahead of partial detections, then prefers Steam > EA App > Retail.
     /// </summary>
     /// <param name="installations">The list of installations to deduplicate.</param>
     /// <returns>A deduplicated list of installations.</returns>
     private List<GameInstallation> DeduplicateInstallations(List<GameInstallation> installations)
     {
+        CompletePartialDetections(installations);
         var seenGeneralsPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenZeroHourPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var deduplicated = new List<GameInstallation>();
 
-        // Define priority order: Steam > EA App > CDISO > Retail
-        var priorityOrder = new[] { GameInstallationType.Steam, GameInstallationType.EaApp, GameInstallationType.CDISO, GameInstallationType.Retail, GameInstallationType.TheFirstDecade };
-        var orderedInstallations = installations.OrderBy(i => Array.IndexOf(priorityOrder, i.InstallationType)).ToList();
+        // Claim complete combined roots first so a partial source cannot own the same
+        // directory separately. Source priority breaks ties between complete detections.
+        var orderedInstallations = installations.OrderByDescending(i => i.IsCombinedDirectory)
+            .ThenBy(i => Array.IndexOf(PriorityOrder, i.InstallationType)).ToList();
 
         foreach (var installation in orderedInstallations)
         {
+            // A combined directory — both games flagged at the same path — is one unit.
+            // Splitting it across sources by clearing whichever game another source
+            // already claimed would leave the same directory owned by two installations
+            // and scanned twice for clients, so it is kept whole or dropped whole.
+            if (installation.IsCombinedDirectory)
+            {
+                var combinedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.GeneralsPath));
+                if (seenGeneralsPaths.Contains(combinedPath) && seenZeroHourPaths.Contains(combinedPath))
+                {
+                    logger.LogWarning(
+                        "Skipping combined {InstallationType} installation at {CombinedPath} (directory already detected from another source)",
+                        installation.InstallationType,
+                        combinedPath);
+                    continue;
+                }
+
+                seenGeneralsPaths.Add(combinedPath);
+                seenZeroHourPaths.Add(combinedPath);
+                deduplicated.Add(installation);
+                continue;
+            }
+
             var hasUniqueGenerals = false;
             var hasUniqueZeroHour = false;
 
             // Check if Generals path is unique
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
-                var normalizedGeneralsPath = Path.GetFullPath(installation.GeneralsPath);
+                var normalizedGeneralsPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.GeneralsPath));
                 if (seenGeneralsPaths.Add(normalizedGeneralsPath))
                 {
                     hasUniqueGenerals = true;
@@ -192,7 +290,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             // Check if Zero Hour path is unique
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
-                var normalizedZeroHourPath = Path.GetFullPath(installation.ZeroHourPath);
+                var normalizedZeroHourPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.ZeroHourPath));
                 if (seenZeroHourPaths.Add(normalizedZeroHourPath))
                 {
                     hasUniqueZeroHour = true;

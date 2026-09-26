@@ -1,6 +1,6 @@
-namespace GenHub.Core.Models.Enums;
-
 using System.Text.Json.Serialization;
+
+namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Defines the type of content in a manifest.
@@ -61,6 +61,9 @@ public enum ContentType
 
     /// <summary>Screensaver files.</summary>
     Screensaver,
+
+    /// <summary>Standalone executable file.</summary>
+    Executable,
 
     /// <summary>Modding and mapping tools/utilities.</summary>
     ModdingTool,

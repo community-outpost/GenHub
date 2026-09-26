@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
@@ -11,6 +5,13 @@ using GenHub.Core.Models.Storage;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Storage.Services;
 
@@ -19,15 +20,12 @@ namespace GenHub.Features.Storage.Services;
 /// </summary>
 public class CasStorage(
     IOptions<CasConfiguration> config,
-    ILogger<CasStorage> logger,
-    IFileHashProvider hashProvider) : ICasStorage
+    ILogger<CasStorage> logger) : ICasStorage
 {
     private readonly CasConfiguration _config = config.Value;
-    private readonly ILogger<CasStorage> _logger = logger;
     private readonly string _objectsDirectory = Path.Combine(config.Value.CasRootPath, "objects");
     private readonly string _tempDirectory = Path.Combine(config.Value.CasRootPath, "temp");
     private readonly string _lockDirectory = Path.Combine(config.Value.CasRootPath, "locks");
-    private readonly IFileHashProvider _hashProvider = hashProvider;
 
     // Ensure directory structure exists on first use
     private bool _directoriesEnsured = false;
@@ -35,7 +33,6 @@ public class CasStorage(
     /// <inheritdoc/>
     public string GetObjectPath(string hash)
     {
-        EnsureDirectoriesCreated();
         ValidateHashFormat(hash);
         var subDirectory = hash[..2].ToLowerInvariant();
         return Path.Combine(_objectsDirectory, subDirectory, hash.ToLowerInvariant());
@@ -56,7 +53,7 @@ public class CasStorage(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check existence of object {Hash}", hash);
+            logger.LogError(ex, "Failed to check existence of object {Hash}", hash);
             throw;
         }
     }
@@ -82,7 +79,7 @@ public class CasStorage(
                 // Check if object already exists (race condition protection)
                 if (await ObjectExistsAsync(hash, cancellationToken))
                 {
-                    _logger.LogDebug("Object {Hash} already exists in CAS", hash);
+                    logger.LogDebug("Object {Hash} already exists in CAS", hash);
                     return objectPath;
                 }
 
@@ -100,19 +97,17 @@ public class CasStorage(
                         content.Position = 0;
                     }
 
-                    await content.CopyToAsync(tempStream, cancellationToken);
+                    if (_config.VerifyIntegrity)
+                    {
+                        await CopyAndVerifyContentAsync(content, tempStream, hash, cancellationToken);
+                    }
+                    else
+                    {
+                        await content.CopyToAsync(tempStream, cancellationToken);
+                    }
+
                     await tempStream.FlushAsync(cancellationToken);
                 } // tempStream is disposed here
-
-                // Verify integrity if enabled
-                if (_config.VerifyIntegrity)
-                {
-                    var actualHash = await _hashProvider.ComputeFileHashAsync(tempPath, cancellationToken);
-                    if (!string.Equals(actualHash, hash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new InvalidDataException($"Hash mismatch: expected {hash}, got {actualHash}");
-                    }
-                }
 
                 // Ensure target directory exists
                 var targetDirectory = Path.GetDirectoryName(objectPath)!;
@@ -121,7 +116,7 @@ public class CasStorage(
                 // Atomic move to final location
                 File.Move(tempPath, objectPath);
 
-                _logger.LogDebug("Stored object {Hash} in CAS at {Path}", hash, objectPath);
+                logger.LogDebug("Stored object {Hash} in CAS at {Path}", hash, objectPath);
                 return objectPath;
             }
             finally
@@ -132,13 +127,13 @@ public class CasStorage(
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to cleanup temp file {TempPath}", tempPath);
+                    logger.LogWarning(ex, "Failed to cleanup temp file {TempPath}", tempPath);
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "Failed to store object {Hash} in CAS", hash);
+            logger.LogError(ex, "Failed to store object {Hash} in CAS", hash);
             return null;
         }
     }
@@ -152,7 +147,7 @@ public class CasStorage(
 
             if (!await ObjectExistsAsync(hash, cancellationToken))
             {
-                _logger.LogWarning("Object {Hash} not found in CAS", hash);
+                logger.LogWarning("Object {Hash} not found in CAS", hash);
                 return null;
             }
 
@@ -160,7 +155,7 @@ public class CasStorage(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open stream for object {Hash}", hash);
+            logger.LogError(ex, "Failed to open stream for object {Hash}", hash);
             return null;
         }
     }
@@ -181,12 +176,12 @@ public class CasStorage(
             if (await ObjectExistsAsync(hash, cancellationToken))
             {
                 await Task.Run(() => File.Delete(objectPath), cancellationToken);
-                _logger.LogDebug("Deleted object {Hash} from CAS", hash);
+                logger.LogDebug("Deleted object {Hash} from CAS", hash);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete object {Hash} from CAS", hash);
+            logger.LogError(ex, "Failed to delete object {Hash} from CAS", hash);
             throw;
         }
     }
@@ -214,9 +209,13 @@ public class CasStorage(
 
             return hashes;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to enumerate CAS objects");
+            logger.LogError(ex, "Failed to enumerate CAS objects");
             return [];
         }
     }
@@ -234,15 +233,15 @@ public class CasStorage(
             var objectPath = GetObjectPath(hash);
             if (!await ObjectExistsAsync(hash, cancellationToken))
             {
-                _logger.LogWarning("Object {Hash} not found in CAS", hash);
+                logger.LogWarning("Object {Hash} not found in CAS", hash);
                 return null;
             }
 
-            return await Task.Run(() => File.GetCreationTime(objectPath), cancellationToken);
+            return await Task.Run(() => File.GetCreationTimeUtc(objectPath), cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get creation time for object {Hash}", hash);
+            logger.LogError(ex, "Failed to get creation time for object {Hash}", hash);
             return null;
         }
     }
@@ -264,6 +263,30 @@ public class CasStorage(
         return hash.Length == 64 && hash.All(c => char.IsAsciiHexDigit(c));
     }
 
+    /// <summary>
+    /// Copies content into the temporary CAS file while computing its hash, then verifies the hash.
+    /// Hashing during the copy avoids re-reading the temporary file afterwards.
+    /// </summary>
+    /// <param name="content">The content stream to copy.</param>
+    /// <param name="tempStream">The temporary destination stream.</param>
+    /// <param name="expectedHash">The expected content hash.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous copy operation.</returns>
+    private static async Task CopyAndVerifyContentAsync(Stream content, Stream tempStream, string expectedHash, CancellationToken cancellationToken)
+    {
+        using var sha256 = SHA256.Create();
+        await using var hashingStream = new CryptoStream(tempStream, sha256, CryptoStreamMode.Write, leaveOpen: true);
+        await content.CopyToAsync(hashingStream, cancellationToken);
+        await hashingStream.FlushFinalBlockAsync(cancellationToken).ConfigureAwait(false);
+
+        var hashBytes = sha256.Hash ?? throw new InvalidOperationException("Hash computation did not produce a digest.");
+        var actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+        if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Hash mismatch: expected {expectedHash}, got {actualHash}");
+        }
+    }
+
     private static async Task<CasLock> AcquireLockAsync(string lockPath, CancellationToken cancellationToken)
     {
         // Ensure the lock file's directory exists
@@ -277,11 +300,21 @@ public class CasStorage(
         {
             try
             {
-                var lockStream = new FileStream(lockPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                await lockStream.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()), cancellationToken);
-                await lockStream.FlushAsync(cancellationToken);
+                var lockStream = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+                var casLock = new CasLock(lockStream);
+                try
+                {
+                    await lockStream.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()), cancellationToken);
+                    await lockStream.FlushAsync(cancellationToken);
+                }
+                catch
+                {
+                    // Release the handle so a cancelled acquisition does not block later writes of this hash.
+                    await casLock.DisposeAsync();
+                    throw;
+                }
 
-                return new CasLock(lockPath, lockStream);
+                return casLock;
             }
             catch (IOException) when (i < 10 - 1)
             {
@@ -307,7 +340,7 @@ public class CasStorage(
         {
             if (FileOperationsService.EnsureDirectoryExists(directory))
             {
-                _logger.LogDebug("Created CAS directory: {Directory}", directory);
+                logger.LogDebug("Created CAS directory: {Directory}", directory);
             }
         }
     }
@@ -321,25 +354,10 @@ public class CasStorage(
         }
     }
 
-    private class CasLock(string lockPath, FileStream lockStream) : IAsyncDisposable
+    // Keep the lock file: unlinking it after closing permits another writer to acquire
+    // the old inode while a third writer locks a replacement file at the same path.
+    private sealed class CasLock(FileStream lockStream) : IAsyncDisposable
     {
-        private readonly string _lockPath = lockPath;
-        private readonly FileStream _lockStream = lockStream;
-
-        public async ValueTask DisposeAsync()
-        {
-            try
-            {
-                _lockStream?.Dispose();
-                if (File.Exists(_lockPath))
-                {
-                    await Task.Run(() => File.Delete(_lockPath));
-                }
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
-        }
+        public ValueTask DisposeAsync() => lockStream.DisposeAsync();
     }
 }

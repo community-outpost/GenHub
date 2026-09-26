@@ -1,0 +1,29 @@
+namespace GenHub.Core.Constants;
+
+/// <summary>Launch receipt serialization and diagnostic resource constants.</summary>
+public static class LaunchReceiptConstants
+{
+    /// <summary>Localization key for a receipt that could not be revalidated.</summary>
+    public const string RevalidationWarningKey = "GameProfiles.Notification.LaunchChanged.RevalidationFailed";
+
+    /// <summary>Localization key for a manifest that gained platform variants.</summary>
+    public const string VariantsAddedWarningKey = "GameProfiles.Notification.LaunchChanged.VariantsAdded";
+
+    /// <summary>Localization key for a manifest that no longer declares platform variants.</summary>
+    public const string VariantsRemovedWarningKey = "GameProfiles.Notification.LaunchChanged.VariantsRemoved";
+
+    /// <summary>Schema storing environment names without value fingerprints.</summary>
+    public const int CurrentSchemaVersion = 2;
+
+    /// <summary>Display text when an entry point could not be resolved.</summary>
+    public const string UnresolvedEntryPoint = "(unresolved)";
+
+    /// <summary>Previous receipt schema supported for migration.</summary>
+    public const int LegacySchemaVersion = 1;
+
+    /// <summary>Suffix for temporary receipt files.</summary>
+    public const string TemporaryFileExtension = ".tmp";
+
+    /// <summary>Display text for a missing recorded value.</summary>
+    public const string MissingValue = "(none)";
+}

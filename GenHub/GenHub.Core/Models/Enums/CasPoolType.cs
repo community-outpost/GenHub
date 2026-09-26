@@ -1,6 +1,6 @@
-namespace GenHub.Core.Models.Enums;
-
 using System.Text.Json.Serialization;
+
+namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Identifies which CAS (Content-Addressable Storage) pool to use for content storage.

@@ -1,21 +1,34 @@
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
+using GenHub.Core.Models.Theming;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.GitHub.Services;
 using GenHub.Features.Settings.ViewModels;
+using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Globalization;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -27,13 +40,18 @@ public class SettingsViewModelTests
     private readonly Mock<IUserSettingsService> _mockConfigService;
     private readonly Mock<ILogger<SettingsViewModel>> _mockLogger;
     private readonly Mock<ICasService> _mockCasService;
+    private readonly Mock<ICasLifecycleManager> _mockCasLifecycleManager;
     private readonly Mock<IGameProfileManager> _mockProfileManager;
     private readonly Mock<IWorkspaceManager> _mockWorkspaceManager;
     private readonly Mock<IContentManifestPool> _mockManifestPool;
     private readonly Mock<IVelopackUpdateManager> _mockUpdateManager;
     private readonly Mock<INotificationService> _mockNotificationService;
     private readonly Mock<IConfigurationProviderService> _mockConfigurationProvider;
-    private readonly Mock<IGameInstallationService> _mockInstallationService; // Added
+    private readonly Mock<IGameInstallationService> _mockInstallationService;
+    private readonly Mock<IStorageLocationService> _mockStorageLocationService;
+    private readonly Mock<IUserDataTracker> _mockUserDataTracker;
+    private readonly Mock<IDialogService> _mockDialogService;
+    private readonly Mock<IStorageMigrationService> _mockStorageMigrationService;
     private readonly UserSettings _defaultSettings;
 
     /// <summary>
@@ -44,16 +62,27 @@ public class SettingsViewModelTests
         _mockConfigService = new Mock<IUserSettingsService>();
         _mockLogger = new Mock<ILogger<SettingsViewModel>>();
         _mockCasService = new Mock<ICasService>();
+        _mockCasLifecycleManager = new Mock<ICasLifecycleManager>();
+        _mockCasLifecycleManager
+            .Setup(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateSuccess(new GarbageCollectionStats()));
         _mockProfileManager = new Mock<IGameProfileManager>();
         _mockWorkspaceManager = new Mock<IWorkspaceManager>();
         _mockManifestPool = new Mock<IContentManifestPool>();
         _mockUpdateManager = new Mock<IVelopackUpdateManager>();
         _mockNotificationService = new Mock<INotificationService>();
         _mockConfigurationProvider = new Mock<IConfigurationProviderService>();
-        _mockInstallationService = new Mock<IGameInstallationService>(); // Added
+        _mockInstallationService = new Mock<IGameInstallationService>();
+        _mockStorageLocationService = new Mock<IStorageLocationService>();
+        _mockUserDataTracker = new Mock<IUserDataTracker>();
+        _mockDialogService = new Mock<IDialogService>();
+        _mockStorageMigrationService = new Mock<IStorageMigrationService>();
         _defaultSettings = new UserSettings();
 
         _mockConfigService.Setup(x => x.Get()).Returns(_defaultSettings);
+        _mockUserDataTracker
+            .Setup(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
     }
 
     /// <summary>
@@ -65,7 +94,7 @@ public class SettingsViewModelTests
         // Arrange
         var customSettings = new UserSettings
         {
-            Theme = "Light",
+            Theme = "Emerald",
             MaxConcurrentDownloads = 5,
             EnableDetailedLogging = true,
             WorkspacePath = "/custom/path",
@@ -74,20 +103,10 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert
-        Assert.Equal("Light", viewModel.Theme);
+        Assert.Equal("Emerald", viewModel.Theme);
         Assert.Equal(5, viewModel.MaxConcurrentDownloads);
         Assert.True(viewModel.EnableDetailedLogging);
         Assert.Equal("/custom/path", viewModel.WorkspacePath);
@@ -98,31 +117,21 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveSettingsCommand_UpdatesUserSettingsService()
+    public async Task SaveSettingsCommand_UpdatesUserSettingsServiceAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object)
-        {
-            Theme = "Light",
-            MaxConcurrentDownloads = 5,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.Theme = "Emerald";
+        viewModel.MaxConcurrentDownloads = 5;
+
+        _mockConfigService.Invocations.Clear();
 
         // Act
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
 
         // Assert
         _mockConfigService.Verify(x => x.Update(It.IsAny<Action<UserSettings>>()), Times.Once);
-        _mockConfigService.Verify(x => x.SaveAsync(), Times.Once);
+        _mockConfigService.Verify(x => x.SaveAsync(default), Times.Once);
     }
 
     /// <summary>
@@ -130,34 +139,76 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ResetToDefaultsCommand_ResetsAllProperties()
+    public async Task ResetToDefaultsCommand_ResetsAllPropertiesAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object)
-        {
-            Theme = "Light",
-            MaxConcurrentDownloads = 10,
-            EnableDetailedLogging = true,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.Theme = "Emerald";
+        viewModel.MaxConcurrentDownloads = 10;
+        viewModel.EnableDetailedLogging = true;
 
         // Act
         await Task.Run(() => viewModel.ResetToDefaultsCommand.Execute(null));
 
         // Assert
-        Assert.Equal("Dark", viewModel.Theme);
+        Assert.Equal(ThemeConstants.DefaultTheme.Id, viewModel.Theme);
         Assert.Equal(3, viewModel.MaxConcurrentDownloads);
         Assert.False(viewModel.EnableDetailedLogging);
-        Assert.Equal(WorkspaceStrategy.HybridCopySymlink, viewModel.DefaultWorkspaceStrategy);
+        Assert.Equal(WorkspaceConstants.DefaultWorkspaceStrategy, viewModel.DefaultWorkspaceStrategy);
+        Assert.True(viewModel.AutoCheckForUpdatesPeriodically);
+        Assert.Equal(AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes, viewModel.PeriodicUpdateCheckIntervalMinutes);
+    }
+
+    /// <summary>
+    /// Verifies that periodic update settings are correctly loaded from UserSettings.
+    /// </summary>
+    [Fact]
+    public void Constructor_LoadsPeriodicUpdateSettingsFromUserSettingsService()
+    {
+        // Arrange
+        var customSettings = new UserSettings
+        {
+            AutoCheckForUpdatesPeriodically = false,
+            PeriodicUpdateCheckIntervalMinutes = 15,
+        };
+
+        _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
+
+        // Act
+        var viewModel = CreateViewModel();
+
+        // Assert
+        Assert.False(viewModel.AutoCheckForUpdatesPeriodically);
+        Assert.Equal(15, viewModel.PeriodicUpdateCheckIntervalMinutes);
+    }
+
+    /// <summary>
+    /// Verifies that SaveSettingsCommand persists periodic update settings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SaveSettingsCommand_UpdatesPeriodicUpdateSettingsAsync()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        viewModel.AutoCheckForUpdatesPeriodically = false;
+        viewModel.PeriodicUpdateCheckIntervalMinutes = 45;
+
+        UserSettings? capturedSettings = null;
+        _mockConfigService.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action =>
+            {
+                capturedSettings = new UserSettings();
+                action(capturedSettings);
+            });
+
+        // Act
+        await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
+
+        // Assert
+        Assert.NotNull(capturedSettings);
+        Assert.False(capturedSettings.AutoCheckForUpdatesPeriodically);
+        Assert.Equal(45, capturedSettings.PeriodicUpdateCheckIntervalMinutes);
     }
 
     /// <summary>
@@ -167,21 +218,8 @@ public class SettingsViewModelTests
     public void MaxConcurrentDownloads_SetsValueWithinBounds()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object)
-        {
-            // Act & Assert - Test lower bound
-            MaxConcurrentDownloads = 0,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.MaxConcurrentDownloads = 0;
         Assert.Equal(1, viewModel.MaxConcurrentDownloads); // ViewModel clamps to 1
 
         // Act & Assert - Test upper bound
@@ -200,25 +238,15 @@ public class SettingsViewModelTests
     public void AvailableThemes_ReturnsExpectedValues()
     {
         // Arrange
-        _ = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object);
+        var viewModel = CreateViewModel();
 
         // Act
-        var themes = SettingsViewModel.AvailableThemes.ToList();
+        var themes = viewModel.AvailableThemes.Select(t => t.Id).ToList();
 
         // Assert
-        Assert.Contains("Dark", themes);
-        Assert.Contains("Light", themes);
-        Assert.Equal(2, themes.Count);
+        Assert.Contains("Purple", themes);
+        Assert.Contains("Generals", themes);
+        Assert.True(themes.Count >= 12);
     }
 
     /// <summary>
@@ -228,17 +256,7 @@ public class SettingsViewModelTests
     public void AvailableWorkspaceStrategies_ReturnsAllEnumValues()
     {
         // Arrange
-        _ = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object);
+        _ = CreateViewModel();
 
         // Act
         var strategies = SettingsViewModel.AvailableWorkspaceStrategies.ToList();
@@ -254,21 +272,11 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveSettingsCommand_HandlesUserSettingsServiceException()
+    public async Task SaveSettingsCommand_HandlesUserSettingsServiceExceptionAsync()
     {
         // Arrange
-        _mockConfigService.Setup(x => x.SaveAsync()).ThrowsAsync(new IOException("Disk full"));
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object);
+        _mockConfigService.Setup(x => x.SaveAsync(default)).ThrowsAsync(new IOException("Disk full"));
+        var viewModel = CreateViewModel();
 
         // Act
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
@@ -294,17 +302,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Throws(new Exception("Configuration error"));
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert - Should not throw and use defaults
         Assert.Equal("Dark", viewModel.Theme);
@@ -312,11 +310,11 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
-    /// Verifies that DeleteCasStorageCommand calls the service.
+    /// Verifies that DeleteCasStorageCommand calls the lifecycle manager.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DeleteCasStorageCommand_CallsService()
+    public async Task DeleteCasStorageCommand_WhenConfirmed_RunsGarbageCollectionAsync()
     {
         // Arrange
         // Setup stats to return valid data so update method works
@@ -328,24 +326,79 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([]));
         _mockProfileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        _mockCasLifecycleManager
+            .Setup(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateSuccess(new GarbageCollectionStats
+            {
+                ObjectsDeleted = 3,
+                BytesFreed = 1024 * 1024,
+            }));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteCasStorageConfirmationTitle,
+                AppConstants.DeleteCasStorageConfirmationMessage,
+                AppConstants.DeleteCasStorageConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
 
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object);
+        var viewModel = CreateViewModel();
 
         // Act
         await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
 
         // Assert
-        _mockCasService.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockCasLifecycleManager.Verify(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(
+            service => service.ShowSuccess(
+                "CAS Cleared",
+                It.IsAny<string>(),
+                5000,
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteCasStorageCommand reports an in-progress toast when collection is skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteCasStorageCommand_WhenGarbageCollectionSkipped_ShowsInProgressToastAsync()
+    {
+        // Arrange
+        _mockCasService.Setup(x => x.GetStatsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CasStats { ObjectCount = 0, TotalSize = 0 });
+        _mockManifestPool.Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        _mockWorkspaceManager.Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([]));
+        _mockProfileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        _mockCasLifecycleManager
+            .Setup(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateSuccess(GarbageCollectionStats.InProgressResult));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteCasStorageConfirmationTitle,
+                AppConstants.DeleteCasStorageConfirmationMessage,
+                AppConstants.DeleteCasStorageConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            service => service.ShowInfo(
+                It.Is<string>(title => title.Contains("Progress")),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>
@@ -353,25 +406,2091 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task UninstallGenHubCommand_CallsService()
+    public async Task UninstallGenHubCommand_CallsServiceAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object);
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.UninstallGenHubConfirmationTitle,
+                AppConstants.UninstallGenHubConfirmationMessage,
+                AppConstants.UninstallGenHubConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        var viewModel = CreateViewModel();
 
         // Act
         await viewModel.UninstallGenHubCommand.ExecuteAsync(null);
 
         // Assert
         _mockUpdateManager.Verify(x => x.Uninstall(), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that declining the uninstall confirmation cancels the uninstall.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UninstallGenHubCommand_WhenCancelled_DoesNotUninstallAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.UninstallGenHubCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockUpdateManager.Verify(x => x.Uninstall(), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that declining the CAS deletion confirmation does not run garbage collection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteCasStorageCommand_WhenCancelled_DoesNotRunGarbageCollectionAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockCasLifecycleManager.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that accepting the workspace deletion confirmation cleans up workspaces.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteWorkspacesCommand_WhenConfirmed_DeletesWorkspacesAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteWorkspacesConfirmationTitle,
+                AppConstants.DeleteWorkspacesConfirmationMessage,
+                AppConstants.DeleteWorkspacesConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteWorkspacesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync("workspace-to-delete", It.IsAny<CancellationToken>()), Times.Once);
+        _mockInstallationService.Verify(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that declining the workspace deletion confirmation does not delete workspaces.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteWorkspacesCommand_WhenCancelled_DoesNotDeleteWorkspacesAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteWorkspacesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that accepting the manifest deletion confirmation removes all manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenConfirmed_DeletesManifestsAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that Settings "Delete manifests" removes the workspace, workspace CAS references, and user data
+    /// of the profiles it deletes, so a forced garbage collection can free their objects.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenProfileOrphaned_RemovesItsWorkspaceRefsAndUserDataAsync()
+    {
+        // Arrange
+        using var fixture = new ProfileDeletionFixture();
+        await fixture.ArrangeProfileWithDataAsync();
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(ProfileDeletionFixture.MapManifestId),
+            Name = "Test Map Pack",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel(profileManager: fixture.CreateProfileManager());
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        await fixture.AssertProfileAndDataRemovedAsync();
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that deleting manifests scrubs orphaned manifest IDs from existing game profiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenConfirmed_ScrubsDeletedManifestIdsFromProfilesAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(1, 0, [])));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockProfileManager.Verify(
+            x => x.ScrubDeletedManifestReferencesAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that deleting manifests leaves profiles without deleted content IDs untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenConfirmed_DoesNotUpdateUnaffectedProfilesAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockProfileManager.Verify(
+            x => x.ScrubDeletedManifestReferencesAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that deleting manifests tolerates profile scrub failures without failing manifest deletion.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenProfileEnumerationFails_SkipsScrubbingAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateFailure("Profile store unavailable"));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a profile enumeration failure during manifest deletion surfaces a warning notification.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenProfileEnumerationFails_ShowsWarningNotificationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateFailure("Profile store unavailable"));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(
+                "Profile Update Incomplete",
+                It.Is<string>(message => message.Contains("profile list could not be loaded")),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that deleting manifests passes deleted IDs to the profile manager for scrubbing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenConfirmed_ScrubsCaseVariantContentIdsAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(1, 0, [])));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockProfileManager.Verify(
+            x => x.ScrubDeletedManifestReferencesAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a failed profile scrub surfaces a warning notification.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenProfileScrubFails_ShowsWarningNotificationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, ["Test Profile"])));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(
+                "Profile Update Incomplete",
+                It.Is<string>(message => message.Contains("Test Profile")),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a failed profile scrub uses localized strings when a localization service is available.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenScrubFailsAndLocalized_UsesLocalizedStringsAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+        mockLocService
+            .Setup(x => x.GetString("Settings.Manifests.ScrubFailed.Title", It.IsAny<object?[]>()))
+            .Returns("Localized Scrub Title");
+        mockLocService
+            .Setup(x => x.GetString("Settings.Manifests.ScrubFailed.Message", It.IsAny<object?[]>()))
+            .Returns("Localized {0} profiles: {1}.");
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, ["Test Profile"])));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(
+                "Localized Scrub Title",
+                "Localized 1 profiles: Test Profile.",
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that declining the manifest deletion confirmation does not remove manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenCancelled_DoesNotDeleteManifestsAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that cancelling manifest deletion after partial removal scrubs only the removed IDs with an uncancelled token and propagates cancellation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenCancelledMidDeletion_ScrubsRemovedIdsAndPropagatesCancellationAsync()
+    {
+        // Arrange
+        const string removedManifestId = "1.0.test.mod.removed";
+        const string pendingManifestId = "1.0.test.mod.pending";
+        var manifests = new List<ContentManifest>
+        {
+            new ContentManifest { Id = ManifestId.Create(removedManifestId), Name = "Removed Mod" },
+            new ContentManifest { Id = ManifestId.Create(pendingManifestId), Name = "Pending Mod" },
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests));
+
+        _mockManifestPool
+            .SetupSequence(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
+            .ThrowsAsync(new OperationCanceledException());
+
+        IEnumerable<string>? scrubbedIds = null;
+        CancellationToken? scrubToken = null;
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<string>, CancellationToken>((ids, token) =>
+            {
+                scrubbedIds = ids;
+                scrubToken = token;
+            })
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(1, 0, [])));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await Assert.ThrowsAsync<OperationCanceledException>(() => viewModel.DeleteManifestsCommand.ExecuteAsync(null));
+
+        // Assert
+        Assert.True(viewModel.DeleteManifestsCommand.ExecutionTask?.IsCanceled == true);
+        _mockManifestPool.Verify(
+            x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+        _mockProfileManager.Verify(
+            x => x.ScrubDeletedManifestReferencesAsync(
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.NotNull(scrubbedIds);
+        Assert.Contains(removedManifestId, scrubbedIds);
+        Assert.DoesNotContain(pendingManifestId, scrubbedIds);
+        Assert.Equal(CancellationToken.None, scrubToken);
+    }
+
+    /// <summary>
+    /// Verifies that a profile that could not be deleted is reported instead of counted as deleted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfilesCommand_WhenProfileDeleteFails_ReportsItAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-stuck", Name = "Stuck Profile" }]));
+        _mockProfileManager
+            .Setup(x => x.DeleteProfileAsync("profile-stuck", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Failed to remove the profile's user data"));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteProfilesConfirmationTitle,
+                AppConstants.DeleteProfilesConfirmationMessage,
+                AppConstants.DeleteProfilesConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteProfilesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("Stuck Profile")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>Partial cancellation still refreshes profile listeners and danger-zone counts.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteProfilesCommand_CancelledAfterDeletion_RefreshesStateAsync()
+    {
+        SetupDeletableData();
+        _mockCasService.Setup(x => x.GetStatsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new CasStats());
+        var profiles = new List<GameProfile>
+        {
+            new() { Id = "first", Name = "First" },
+            new() { Id = "second", Name = "Second" },
+        };
+        _mockProfileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(profiles.ToList()));
+        _mockDialogService.Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        using var viewModel = CreateViewModel();
+        _mockProfileManager.Setup(x => x.DeleteProfileAsync("first", It.IsAny<CancellationToken>()))
+            .Returns((string id, CancellationToken token) =>
+            {
+                profiles.RemoveAt(0);
+                viewModel.DeleteProfilesCommand.Cancel();
+                return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+            });
+        _mockProfileManager.Setup(x => x.DeleteProfileAsync("second", It.IsAny<CancellationToken>()))
+            .Returns((string id, CancellationToken token) => Task.FromCanceled<OperationResult<bool>>(token));
+        var recipient = new object();
+        var notified = false;
+        WeakReferenceMessenger.Default.Register<ProfileListUpdatedMessage>(recipient, (_, _) => notified = true);
+        try
+        {
+            await viewModel.DeleteProfilesCommand.ExecuteAsync(null);
+            Assert.True(notified);
+            Assert.Equal("1 items", viewModel.ProfilesInfo);
+            _mockProfileManager.Verify(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()), Times.AtLeast(2));
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ProfileListUpdatedMessage>(recipient);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that accepting the profile deletion confirmation removes all profiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfilesCommand_WhenConfirmed_DeletesProfilesAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteProfilesConfirmationTitle,
+                AppConstants.DeleteProfilesConfirmationMessage,
+                AppConstants.DeleteProfilesConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteProfilesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockProfileManager.Verify(x => x.DeleteProfileAsync("profile-to-delete", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that declining the profile deletion confirmation does not delete profiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfilesCommand_WhenCancelled_DoesNotDeleteProfilesAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteProfilesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockProfileManager.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteAllData does not call GetAllInstallationsAsync on IGameInstallationService,
+    /// which would cause expensive file hashing and manifest recreation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_DoesNotCallGetAllInstallationsOnInstallationServiceAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockInstallationService.Verify(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that declining the confirmation prompt leaves every piece of application data alone.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenConfirmationDeclined_DeletesNothingAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockUserDataTracker.Verify(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mockCasLifecycleManager.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockInstallationService.Verify(x => x.InvalidateCache(), Times.Never);
+        _mockProfileManager.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a confirmation prompt that fails to open — no main window, or an Avalonia
+    /// failure — is reported to the user instead of escaping the command unlogged, and that it still
+    /// deletes nothing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenConfirmationThrows_ReportsErrorAndDeletesNothingAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ThrowsAsync(new InvalidOperationException("no main window"));
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _mockUserDataTracker.Verify(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mockProfileManager.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that accepting the confirmation prompt performs the deletion.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenConfirmationAccepted_DeletesAllDataAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockUserDataTracker.Verify(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockCasLifecycleManager.Verify(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()), Times.Once);
+        _mockInstallationService.Verify(x => x.InvalidateCache(), Times.Once);
+        _mockProfileManager.Verify(x => x.DeleteProfileAsync("profile-to-delete", It.IsAny<CancellationToken>()), Times.Once);
+        _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync("workspace-to-delete", It.IsAny<CancellationToken>()), Times.Once);
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that the Delete All Data flow suppresses the scrub-failure warning toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenProfileScrubFails_SuppressesScrubWarningAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Test Profile",
+            EnabledContentIds = [manifestId],
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, ["Test Profile"])));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockProfileManager.Verify(
+            x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning("Profile Update Incomplete", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess("Data Deleted", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a user data deletion that had to keep some data is not followed by a success
+    /// message claiming that data was deleted.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenUserDataPartiallyDeleted_DoesNotClaimSuccessAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        _mockUserDataTracker
+            .Setup(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Your originals were kept at 'backups'."));
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowError("User Data Partially Deleted", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess("Data Deleted", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning("Data Partially Deleted", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when CAS garbage collection fails, DeleteAllData reports that CAS cleanup failed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenCasCleanupFails_ReportsFailedWordingAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        _mockUserDataTracker
+            .Setup(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockCasLifecycleManager
+            .Setup(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateFailure("CAS collection failed"));
+
+        string? capturedWarningMessage = null;
+        _mockNotificationService
+            .Setup(x => x.ShowWarning(
+                "Data Partially Deleted",
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()))
+            .Callback<string, string, int?, bool>((title, message, duration, closable) => capturedWarningMessage = message);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(capturedWarningMessage);
+        Assert.Contains("CAS cleanup failed", capturedWarningMessage);
+    }
+
+    /// <summary>
+    /// Verifies that the confirmation prompt states the action is irreversible and that game data
+    /// backups are discarded, and that it cannot be suppressed by a "do not ask again" preference.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WarnsThatBackupsAreDiscardedAndCannotBeSuppressedAsync()
+    {
+        // Arrange
+        string? capturedMessage = null;
+        string? capturedSessionKey = null;
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, string, string, string?>((title, message, confirmText, cancelText, sessionKey) =>
+            {
+                capturedMessage = message;
+                capturedSessionKey = sessionKey;
+            })
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(AppConstants.DeleteAllDataConfirmationMessage, capturedMessage);
+        Assert.Contains("irreversible", capturedMessage!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("backups", capturedMessage!, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(capturedSessionKey);
+    }
+
+    /// <summary>
+    /// Verifies that ClearLogsCommand clears log files and shows success notification.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenLogsDirectoryHasFiles_ClearsFilesAndShowsSuccessAsync()
+    {
+        // Arrange
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogs_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+        var originalActiveLog = LoggingModule.ActiveLogFilePath;
+
+        try
+        {
+            var todayLogName = $"genhub-{DateTime.UtcNow:yyyy-MM-dd}.log";
+            var pastLogName = $"genhub-{DateTime.UtcNow.AddDays(-1):yyyy-MM-dd}.log";
+            var logFile1 = Path.Combine(tempLogsDir, pastLogName);
+            var logFile2 = Path.Combine(tempLogsDir, todayLogName);
+            await File.WriteAllTextAsync(logFile1, "Sample log content 1");
+            await File.WriteAllTextAsync(logFile2, "Sample log content 2");
+            LoggingModule.ActiveLogFilePath = logFile2;
+
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
+            var viewModel = CreateViewModel();
+
+            // Act
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            // Assert - historical log deleted, active log truncated to preserve logging sink
+            Assert.False(File.Exists(logFile1));
+            Assert.True(File.Exists(logFile2));
+            Assert.Equal(0, new FileInfo(logFile2).Length);
+            _mockNotificationService.Verify(
+                x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("2 log file(s)")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            LoggingModule.ActiveLogFilePath = originalActiveLog;
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ClearLogsCommand reports skipped locked files when some files cannot be cleared.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenSomeFilesAreLocked_ClearsAvailableFilesAndReportsSkippedAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // Exclusive file locks via FileShare.None preventing File.Delete / Truncate are Windows-specific.
+            return;
+        }
+
+        // Arrange
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsLocked_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+
+        try
+        {
+            var logFile1 = Path.Combine(tempLogsDir, "genhub-2025-01-01.log");
+            var logFile2 = Path.Combine(tempLogsDir, "genhub-2025-01-02.log");
+            await File.WriteAllTextAsync(logFile1, "Sample log content 1");
+            await File.WriteAllTextAsync(logFile2, "Sample log content 2");
+
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
+            var viewModel = CreateViewModel();
+
+            // Lock logFile2 exclusively to simulate an in-use file held open during cleanup
+            using var lockStream = new FileStream(logFile2, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
+
+            // Act
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            // Assert
+            Assert.False(File.Exists(logFile1));
+            _mockNotificationService.Verify(
+                x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("1 log file(s)") && s.Contains("1 file(s) skipped")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+            GC.KeepAlive(lockStream);
+        }
+        finally
+        {
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ClearLogsCommand shows info notification when no log files exist.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenNoLogFiles_ShowsInfoNotificationAsync()
+    {
+        // Arrange
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsEmpty_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+
+        try
+        {
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
+            var viewModel = CreateViewModel();
+
+            // Act
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            // Assert
+            _mockNotificationService.Verify(
+                x => x.ShowInfo("Logs Empty", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ClearLogsCommand falls back to ActiveLogFilePath directory when GetLogsPath is null or missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenGetLogsPathMissing_FallsBackToActiveLogDirectoryAsync()
+    {
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsFallback_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+        var originalActiveLog = LoggingModule.ActiveLogFilePath;
+
+        try
+        {
+            var logFile = Path.Combine(tempLogsDir, "fallback.log");
+            await File.WriteAllTextAsync(logFile, "Fallback log content");
+            LoggingModule.ActiveLogFilePath = logFile;
+
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(string.Empty);
+            var viewModel = CreateViewModel();
+
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            Assert.True(File.Exists(logFile));
+            var content = await File.ReadAllTextAsync(logFile);
+            Assert.Empty(content);
+            _mockNotificationService.Verify(
+                x => x.ShowSuccess("Logs Cleared", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            LoggingModule.ActiveLogFilePath = originalActiveLog;
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that SelectColorThemeCommand updates selected theme and saves user settings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SelectColorThemeCommand_UpdatesSelectedThemeAndPersistsAsync()
+    {
+        // Arrange
+        var mockThemeService = new Mock<IThemeService>();
+        mockThemeService.Setup(s => s.AvailableThemes).Returns(ThemeConstants.AllThemes);
+
+        var viewModel = CreateViewModel(mockThemeService.Object);
+
+        // Act
+        await viewModel.SelectColorThemeCommand.ExecuteAsync(ThemeConstants.EmeraldTheme);
+
+        // Assert
+        Assert.Equal("Emerald", viewModel.Theme);
+        Assert.Equal(ThemeConstants.EmeraldTheme, viewModel.SelectedTheme);
+        mockThemeService.Verify(s => s.ApplyTheme(ThemeConstants.EmeraldTheme), Times.Once);
+        _mockConfigService.Verify(s => s.Update(It.IsAny<Action<UserSettings>>()), Times.Once);
+        _mockConfigService.Verify(s => s.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetToDefaultsCommand resets the active theme to default.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResetToDefaultsCommand_ResetsThemeToDefaultThemeAsync()
+    {
+        // Arrange
+        var mockThemeService = new Mock<IThemeService>();
+        mockThemeService.Setup(s => s.AvailableThemes).Returns(ThemeConstants.AllThemes);
+
+        var viewModel = CreateViewModel(mockThemeService.Object);
+        viewModel.Theme = "Emerald";
+
+        // Act
+        await viewModel.ResetToDefaultsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(ThemeConstants.DefaultTheme.Id, viewModel.Theme);
+        Assert.Equal(ThemeConstants.DefaultTheme, viewModel.SelectedTheme);
+        mockThemeService.Verify(s => s.ApplyTheme(ThemeConstants.DefaultTheme), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that LoadCustomInstallationsAsync uses CachedInstallations when available
+    /// without calling GetAllInstallationsAsync.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadCustomInstallationsAsync_WhenCachedInstallationsAvailable_UsesCacheWithoutCallingGetAllInstallationsAsync()
+    {
+        // Arrange
+        var customInstallation = new GameInstallation("C:\\Games\\CustomCC", GameInstallationType.Custom)
+        {
+            Id = "custom-1",
+            DisplayName = "Custom Game",
+        };
+        var eaInstallation = new GameInstallation("C:\\Games\\EACC", GameInstallationType.EaApp)
+        {
+            Id = "ea-1",
+            DisplayName = "EA App Game",
+        };
+
+        _mockInstallationService
+            .Setup(x => x.CachedInstallations)
+            .Returns([customInstallation, eaInstallation]);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.LoadCustomInstallationsAsync();
+
+        // Assert
+        Assert.Single(viewModel.CustomInstallations);
+        Assert.Equal("custom-1", viewModel.CustomInstallations[0].Id);
+        _mockInstallationService.Verify(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that LoadCustomInstallationsAsync falls back to GetAllInstallationsAsync when cache is null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadCustomInstallationsAsync_WhenCacheNull_QueriesGetAllInstallationsAsync()
+    {
+        // Arrange
+        var customInstallation = new GameInstallation("C:\\Games\\CustomCC", GameInstallationType.Custom)
+        {
+            Id = "custom-2",
+            DisplayName = "Custom Game 2",
+        };
+
+        _mockInstallationService
+            .Setup(x => x.CachedInstallations)
+            .Returns((IReadOnlyList<GameInstallation>?)null);
+
+        _mockInstallationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([customInstallation]));
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.LoadCustomInstallationsAsync();
+
+        // Assert
+        Assert.Single(viewModel.CustomInstallations);
+        Assert.Equal("custom-2", viewModel.CustomInstallations[0].Id);
+        _mockInstallationService.Verify(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveCustomInstallationCommand removes the installation when confirmed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RemoveCustomInstallationCommand_WhenConfirmed_RemovesInstallationAsync()
+    {
+        // Arrange
+        var customInstallation = new GameInstallation("C:\\Games\\CustomCC", GameInstallationType.Custom)
+        {
+            Id = "custom-to-remove",
+            DisplayName = "Custom Game",
+        };
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                "Remove Custom Installation",
+                It.IsAny<string>(),
+                "Remove",
+                "Cancel",
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        _mockInstallationService
+            .Setup(x => x.RemoveCustomInstallationAsync("custom-to-remove", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _mockInstallationService
+            .Setup(x => x.CachedInstallations)
+            .Returns([]);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.RemoveCustomInstallationCommand.ExecuteAsync(customInstallation);
+
+        // Assert
+        _mockInstallationService.Verify(x => x.RemoveCustomInstallationAsync("custom-to-remove", It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(x => x.ShowSuccess("Installation Removed", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveCustomInstallationCommand does not remove when dialog is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RemoveCustomInstallationCommand_WhenCancelled_DoesNotRemoveAsync()
+    {
+        // Arrange
+        var customInstallation = new GameInstallation("C:\\Games\\CustomCC", GameInstallationType.Custom)
+        {
+            Id = "custom-to-keep",
+            DisplayName = "Custom Game",
+        };
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                "Remove Custom Installation",
+                It.IsAny<string>(),
+                "Remove",
+                "Cancel",
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.RemoveCustomInstallationCommand.ExecuteAsync(customInstallation);
+
+        // Assert
+        _mockInstallationService.Verify(x => x.RemoveCustomInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that SignInWithGitHubAsync sets the authenticated state when authorization succeeds.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SignInWithGitHubAsync_WhenAuthorized_SetsAuthenticatedStateAsync()
+    {
+        // Arrange
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "WDAS-5678", "https://github.com/login/device", 900, 5);
+        var profile = new GitHubUserProfile("octocat", 1, "Octocat", "https://avatars.example/octocat", "https://github.com/octocat");
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService
+            .Setup(x => x.InitiateLoginAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubDeviceCodeResponse>.CreateSuccess(deviceCode));
+        mockAuthService
+            .Setup(x => x.WaitForAuthorizationAsync(deviceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubUserProfile>.CreateSuccess(profile));
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
+        mockAuthService.SetupGet(x => x.CurrentUser).Returns(profile);
+
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
+
+        // Act
+        await viewModel.SignInWithGitHubCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(viewModel.IsGitHubAuthenticated);
+        Assert.False(viewModel.IsAuthenticating);
+        Assert.False(viewModel.IsGitHubSignedOut);
+        Assert.Equal("@octocat", viewModel.GitHubUserName);
+        Assert.Equal("https://avatars.example/octocat", viewModel.GitHubAvatarUrl);
+        Assert.Empty(viewModel.GitHubUserCode);
+        mockAuthService.Verify(x => x.WaitForAuthorizationAsync(deviceCode, It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.Is<string>(m => m.Contains("@octocat")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that SignInWithGitHubAsync shows an error toast when initiation fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SignInWithGitHubAsync_WhenInitiationFails_ShowsErrorToastAsync()
+    {
+        // Arrange
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService
+            .Setup(x => x.InitiateLoginAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubDeviceCodeResponse>.CreateFailure("No network"));
+
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
+
+        // Act
+        await viewModel.SignInWithGitHubCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.False(viewModel.IsAuthenticating);
+        Assert.True(viewModel.IsGitHubSignedOut);
+        mockAuthService.Verify(
+            x => x.WaitForAuthorizationAsync(It.IsAny<GitHubDeviceCodeResponse>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("No network")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that SignInWithGitHubAsync shows an error toast when authorization is denied.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SignInWithGitHubAsync_WhenAuthorizationDenied_ShowsErrorToastAsync()
+    {
+        // Arrange
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "WDAS-5678", "https://github.com/login/device", 900, 5);
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService
+            .Setup(x => x.InitiateLoginAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubDeviceCodeResponse>.CreateSuccess(deviceCode));
+        mockAuthService
+            .Setup(x => x.WaitForAuthorizationAsync(deviceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubUserProfile>.CreateFailure("access denied"));
+
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
+
+        // Act
+        await viewModel.SignInWithGitHubCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.False(viewModel.IsAuthenticating);
+        Assert.Empty(viewModel.GitHubUserCode);
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("access denied")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that rate limit updates dynamically update GitHubRateLimitText when authenticated.
+    /// </summary>
+    [Fact]
+    public void RateLimitUpdated_WhenAuthenticated_UpdatesRateLimitText()
+    {
+        // Arrange
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
+        var tracker = new GitHubRateLimitTracker(Microsoft.Extensions.Logging.Abstractions.NullLogger<GitHubRateLimitTracker>.Instance);
+        var viewModel = CreateViewModel(
+            gitHubAuthService: mockAuthService.Object,
+            rateLimitTracker: tracker);
+
+        // Act
+        tracker.UpdateFromHeaders(2500, 5000, DateTime.UtcNow.AddHours(1));
+
+        // Assert
+        Assert.Contains("2500 of 5000", viewModel.GitHubRateLimitText);
+    }
+
+    /// <summary>
+    /// Verifies that RefreshUploadsCommand populates active upload items and computes quota percentage.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RefreshUploadsCommand_PopulatesActiveUploadsAndComputesQuotaAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+        var items = new List<UploadHistoryItem>
+        {
+            new(DateTime.UtcNow, 2 * ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "map1.zip"), "DesertStorm.zip"),
+            new(DateTime.UtcNow, 3 * ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "rep1.rep"), "FinalMatch.rep"),
+        };
+
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(items);
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UsageInfo(5 * ConversionConstants.BytesPerMegabyte, 10 * ConversionConstants.BytesPerMegabyte, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = CreateViewModel(uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.RefreshUploadsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(viewModel.HasUploads);
+        Assert.Equal(2, viewModel.ActiveUploads.Count);
+        Assert.Equal(50.0, viewModel.UploadQuotaPercent);
+        Assert.Contains(string.Format(CultureInfo.CurrentCulture, "{0:F1} MB / {1:F1} MB", 5.0, 10.0), viewModel.UploadQuotaText);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteUploadCommand calls RemoveHistoryItemAsync and refreshes the list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteUploadCommand_RemovesItemFromCloudAndRefreshesAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+        var itemToDelete = new UploadHistoryItem(DateTime.UtcNow, ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "map.zip"), "Map.zip");
+
+        mockUploadHistoryService.Setup(s => s.RemoveHistoryItemAsync(itemToDelete.Url, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<UploadHistoryItem>());
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UsageInfo(0, 10 * ConversionConstants.BytesPerMegabyte, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = CreateViewModel(uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.DeleteUploadCommand.ExecuteAsync(itemToDelete);
+
+        // Assert
+        mockUploadHistoryService.Verify(s => s.RemoveHistoryItemAsync(itemToDelete.Url, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.False(viewModel.HasUploads);
+        Assert.Empty(viewModel.ActiveUploads);
+    }
+
+    /// <summary>
+    /// Verifies that ClearAllUploadsCommand calls ClearHistoryAsync and empties the active list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearAllUploadsCommand_PurgesAllUploadsAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+
+        _mockDialogService.Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        mockUploadHistoryService.Setup(s => s.ClearHistoryAsync(It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((1, 0));
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<UploadHistoryItem>());
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UsageInfo(0, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = CreateViewModel(uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.ClearAllUploadsCommand.ExecuteAsync(null);
+
+        // Assert
+        mockUploadHistoryService.Verify(s => s.ClearHistoryAsync(It.IsAny<bool>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.False(viewModel.HasUploads);
+    }
+
+    /// <summary>
+    /// Verifies that CancelSignIn cancels a pending authorization poll.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CancelSignIn_WhenAuthorizationPending_CancelsPollingAsync()
+    {
+        // Arrange
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "WDAS-5678", "https://github.com/login/device", 900, 5);
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService
+            .Setup(x => x.InitiateLoginAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubDeviceCodeResponse>.CreateSuccess(deviceCode));
+        mockAuthService
+            .Setup(x => x.WaitForAuthorizationAsync(It.IsAny<GitHubDeviceCodeResponse>(), It.IsAny<CancellationToken>()))
+            .Returns<GitHubDeviceCodeResponse, CancellationToken>(async (_, cancellationToken) =>
+            {
+                var completion = new TaskCompletionSource();
+                using (cancellationToken.Register(static state => ((TaskCompletionSource)state!).SetResult(), completion))
+                {
+                    await completion.Task;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                return OperationResult<GitHubUserProfile>.CreateFailure("unreachable");
+            });
+
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
+
+        // Act
+        var signInTask = viewModel.SignInWithGitHubCommand.ExecuteAsync(null);
+        for (var i = 0; i < 100 && !viewModel.IsAuthenticating; i++)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.True(viewModel.IsAuthenticating);
+        viewModel.CancelSignInCommand.Execute(null);
+        await signInTask;
+
+        // Assert
+        Assert.False(viewModel.IsAuthenticating);
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.True(viewModel.IsGitHubSignedOut);
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that SignOutFromGitHubAsync clears the authenticated state.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SignOutFromGitHubAsync_ClearsAuthenticatedStateAsync()
+    {
+        // Arrange
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
+        mockAuthService.SetupGet(x => x.CurrentUser).Returns((GitHubUserProfile?)null);
+
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
+
+        // Act
+        await viewModel.SignOutFromGitHubCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.True(viewModel.IsGitHubSignedOut);
+        Assert.Empty(viewModel.GitHubUserName);
+        Assert.Empty(viewModel.GitHubAvatarUrl);
+        mockAuthService.Verify(x => x.SignOutAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that the view model follows AuthStateChanged events from the auth service.
+    /// </summary>
+    [Fact]
+    public void AuthStateChanged_WhenSignOutEventFires_ClearsAuthenticatedState()
+    {
+        // Arrange
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
+        mockAuthService.SetupGet(x => x.CurrentUser).Returns((GitHubUserProfile?)null);
+
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
+
+        // Act
+        mockAuthService.Raise(x => x.AuthStateChanged += null, new GitHubAuthStateChangedEventArgs(false, null));
+
+        // Assert
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.True(viewModel.IsGitHubSignedOut);
+    }
+
+    /// <summary>
+    /// Verifies that available languages are loaded from localization service and selected language matches settings.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithLocalizationService_PopulatesAvailableLanguagesAndSelectedLanguage()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var settings = new UserSettings { Language = "ar-SA" };
+        _mockConfigService.Setup(x => x.Get()).Returns(settings);
+
+        // Act
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+
+        // Assert
+        Assert.Equal(2, viewModel.AvailableLanguages.Count);
+        Assert.Equal("ar-SA", viewModel.SelectedLanguage?.Culture.Name);
+    }
+
+    /// <summary>
+    /// Verifies that changing SelectedLanguage updates the culture on the localization service.
+    /// </summary>
+    [Fact]
+    public void SelectedLanguage_Change_CallsSetCultureOnLocalizationService()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+        var targetOption = viewModel.AvailableLanguages.First(l => l.Culture.Name == "ar-SA");
+
+        // Act
+        viewModel.SelectedLanguage = targetOption;
+
+        // Assert
+        mockLocService.Verify(x => x.SetCulture(arabicCulture), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateSectionFromScroll updates the selected section and notifies bindings.
+    /// </summary>
+    [Fact]
+    public void UpdateSectionFromScroll_UpdatesSelectedSection()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var target = viewModel.Sections.Last();
+
+        // Act
+        Assert.PropertyChanged(viewModel, nameof(SettingsViewModel.SelectedSection), () => viewModel.UpdateSectionFromScroll(target));
+
+        // Assert
+        Assert.Same(target, viewModel.SelectedSection);
+    }
+
+    /// <summary>
+    /// Verifies that Sections contains both Publisher Subscriptions and Cloud Storage &amp; Uploads sections.
+    /// </summary>
+    [Fact]
+    public void Sections_IncludesSubscriptionsAndCloudUploadsSections()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Assert
+        Assert.Contains(viewModel.Sections, s => s.Id == SettingsConstants.SectionSubscriptions);
+        Assert.Contains(viewModel.Sections, s => s.Id == SettingsConstants.SectionCloudUploads);
+    }
+
+    /// <summary>
+    /// Verifies that SaveSettingsCommand persists the selected language to UserSettings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SaveSettingsCommand_PersistsSelectedLanguageAsync()
+    {
+        // Arrange
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        var arabicCulture = new CultureInfo("ar-SA");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture, arabicCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+        var targetOption = viewModel.AvailableLanguages.First(l => l.Culture.Name == "ar-SA");
+        viewModel.SelectedLanguage = targetOption;
+
+        UserSettings? capturedSettings = null;
+        _mockConfigService.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action =>
+            {
+                var s = new UserSettings();
+                action(s);
+                capturedSettings = s;
+            });
+
+        // Act
+        await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
+
+        // Assert
+        Assert.NotNull(capturedSettings);
+        Assert.Equal("ar-SA", capturedSettings.Language);
+    }
+
+    /// <summary>
+    /// Verifies that LoadSubscriptionsCommand populates subscriptions from the store.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task LoadSubscriptionsCommand_PopulatesSubscriptionsFromStoreAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var subs = new List<PublisherSubscription>
+        {
+            new() { PublisherId = "p2", PublisherName = "Beta Publisher", CatalogUrl = "https://example.com/2" },
+            new() { PublisherId = "p1", PublisherName = "Alpha Publisher", CatalogUrl = "https://example.com/1" },
+        };
+        mockSubStore.Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(subs));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        // Act
+        await viewModel.LoadSubscriptionsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(2, viewModel.Subscriptions.Count);
+        Assert.Equal("Alpha Publisher", viewModel.Subscriptions[0].PublisherName);
+        Assert.Equal("Beta Publisher", viewModel.Subscriptions[1].PublisherName);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveSubscriptionCommand removes the subscription and shows notification.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveSubscriptionCommand_RemovesSubscriptionAndNotifiesAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" };
+        mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        viewModel.Subscriptions.Add(sub);
+
+        // Act
+        await viewModel.RemoveSubscriptionCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.DoesNotContain(sub, viewModel.Subscriptions);
+        _mockNotificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveSubscriptionCommand broadcasts the removed publisher so the Downloads sidebar can drop it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveSubscriptionCommand_BroadcastsRemovedPublisherAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" };
+        mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+        viewModel.Subscriptions.Add(sub);
+
+        var recipient = new object();
+        string? broadcastPublisherId = null;
+        var removedBeforeRefresh = false;
+        WeakReferenceMessenger.Default.Register<PublisherSubscriptionRemovedMessage>(recipient, (_, message) => broadcastPublisherId = message.PublisherId);
+
+        WeakReferenceMessenger.Default.Register<PublisherSubscriptionsChangedMessage>(recipient, (_, _) => removedBeforeRefresh = broadcastPublisherId == "pub1");
+
+        try
+        {
+            // Act
+            await viewModel.RemoveSubscriptionCommand.ExecuteAsync(sub);
+
+            // Assert
+            Assert.Equal("pub1", broadcastPublisherId);
+            Assert.True(removedBeforeRefresh, "The final refresh must start after removal invalidates stale reads.");
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionRemovedMessage>(recipient);
+            WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionsChangedMessage>(recipient);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ShowNoSubscriptions accurately reflects subscription list and loading status.
+    /// </summary>
+    [Fact]
+    public void ShowNoSubscriptions_ReflectsLoadingAndCollectionState()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Initially empty and not loading
+        Assert.True(viewModel.ShowNoSubscriptions);
+
+        // While loading, empty message is suppressed
+        viewModel.IsLoadingSubscriptions = true;
+        Assert.False(viewModel.ShowNoSubscriptions);
+
+        viewModel.IsLoadingSubscriptions = false;
+        Assert.True(viewModel.ShowNoSubscriptions);
+
+        // Adding subscription hides message
+        var sub = new PublisherSubscription { PublisherId = "p1", PublisherName = "Publisher 1" };
+        viewModel.Subscriptions.Add(sub);
+        Assert.False(viewModel.ShowNoSubscriptions);
+
+        // Removing subscription restores message
+        viewModel.Subscriptions.Remove(sub);
+        Assert.True(viewModel.ShowNoSubscriptions);
+    }
+
+    /// <summary>
+    /// Verifies that RefreshAllCatalogsCommand invokes catalog refresh service.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RefreshAllCatalogsCommand_InvokesRefreshServiceAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        mockSubStore.Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(new List<PublisherSubscription>()));
+
+        var mockRefresh = new Mock<IPublisherCatalogRefreshService>();
+        mockRefresh.Setup(r => r.RefreshAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object, catalogRefreshService: mockRefresh.Object);
+
+        // Act
+        await viewModel.RefreshAllCatalogsCommand.ExecuteAsync(null);
+
+        // Assert
+        mockRefresh.Verify(r => r.RefreshAllAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteManifestsCommand deletes manifests, scrubs profiles, and broadcasts ContentLibraryClearedMessage.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenConfirmed_DeletesManifestsAndBroadcastsClearedMessageAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.mod.item"),
+            Name = "Test Item",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockManifestPool
+            .Setup(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
+
+        var viewModel = CreateViewModel();
+
+        var messageBroadcasted = false;
+        var recipient = new object();
+        WeakReferenceMessenger.Default.Register<ContentLibraryClearedMessage>(recipient, (_, _) => messageBroadcasted = true);
+
+        try
+        {
+            // Act
+            await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+            // Assert
+            Assert.True(messageBroadcasted);
+            _mockManifestPool.Verify(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockNotificationService.Verify(x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(recipient);
+        }
+    }
+
+    private SettingsViewModel CreateViewModel(
+        IThemeService? themeService = null,
+        IGitHubAuthService? gitHubAuthService = null,
+        GitHubRateLimitTracker? rateLimitTracker = null,
+        IUploadHistoryService? uploadHistoryService = null,
+        IPublisherSubscriptionStore? subscriptionStore = null,
+        IPublisherCatalogRefreshService? catalogRefreshService = null,
+        ILocalizationService? localizationService = null,
+        bool includeUpdateManager = true,
+        IGameProfileManager? profileManager = null) => new(
+        _mockConfigService.Object,
+        _mockLogger.Object,
+        _mockCasService.Object,
+        _mockCasLifecycleManager.Object,
+        profileManager ?? _mockProfileManager.Object,
+        _mockWorkspaceManager.Object,
+        _mockManifestPool.Object,
+        includeUpdateManager ? _mockUpdateManager.Object : null,
+        _mockNotificationService.Object,
+        _mockConfigurationProvider.Object,
+        _mockInstallationService.Object,
+        _mockStorageLocationService.Object,
+        _mockUserDataTracker.Object,
+        _mockDialogService.Object,
+        _mockStorageMigrationService.Object,
+        themeService,
+        gitHubAuthService,
+        rateLimitTracker,
+        uploadHistoryService,
+        subscriptionStore: subscriptionStore,
+        catalogRefreshService: catalogRefreshService,
+        localizationService: localizationService);
+
+    private void SetupDeletableData()
+    {
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-to-delete" }]));
+        _mockProfileManager
+            .Setup(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
+        _mockWorkspaceManager
+            .Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([new WorkspaceInfo { Id = "workspace-to-delete" }]));
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
     }
 }

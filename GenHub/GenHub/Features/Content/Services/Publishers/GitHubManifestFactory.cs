@@ -1,0 +1,157 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Helpers;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.Content.Services.Publishers;
+
+/// <summary>
+/// Manifest factory for generic GitHub content.
+/// Handles extracted content from GitHub releases (e.g., Mod ZIPs).
+/// </summary>
+public class GitHubManifestFactory(
+    ILogger<GitHubManifestFactory> logger,
+    IFileHashProvider hashProvider,
+    IArchivePayloadProcessor archivePayloadProcessor,
+    IControlBarPackageProcessor? controlBarProcessor = null,
+    ILocalizationService? localizationService = null)
+    : IPublisherManifestFactory
+{
+    /// <inheritdoc />
+    public string PublisherId => "github";
+
+    /// <inheritdoc />
+    public bool CanHandle(ContentManifest manifest)
+    {
+        // Handle standard "github" publisher and prefixed variants
+        return manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) == true
+            || manifest.Publisher?.PublisherType?.StartsWith(GitHubConstants.PublisherIdPrefix, StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Creating GitHub manifests from extracted content in: {Directory}", extractedDirectory);
+
+        if (!Directory.Exists(extractedDirectory))
+        {
+            logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
+            return OperationResult<List<ContentManifest>>.CreateFailure($"Extracted directory does not exist: {extractedDirectory}");
+        }
+
+        // Process archive payloads and normalize layout prior to computing hashes and creating CAS manifest
+        await archivePayloadProcessor.ProcessPayloadAsync(
+            extractedDirectory,
+            originalManifest.ContentType,
+            originalManifest.TargetGame,
+            cancellationToken);
+
+        if (controlBarProcessor?.IsControlBarContent(extractedDirectory, originalManifest) == true)
+        {
+            logger.LogInformation("Processing Control Bar content in GitHub extracted payload");
+            await controlBarProcessor.ProcessAndRepackControlBarAsync(
+                extractedDirectory,
+                originalManifest,
+                cancellationToken: cancellationToken);
+        }
+
+        var files = new List<ManifestFile>();
+        var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories);
+
+        logger.LogInformation("Found {FileCount} files in {Directory}", allFiles.Length, extractedDirectory);
+
+        // Parallelize hashing for better performance
+        var fileProcessingTasks = allFiles.Select(async filePath =>
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return null;
+            }
+
+            var relativePath = Path.GetRelativePath(extractedDirectory, filePath);
+            var fileInfo = new FileInfo(filePath);
+
+            // Compute hash for ContentAddressable storage
+            string fileHash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
+
+            // Classify from content: extensionless native binaries count, libraries do not.
+            bool isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, filePath);
+
+            var installTarget = originalManifest.ContentType switch
+            {
+                ContentType.Map => ContentInstallTarget.UserMapsDirectory,
+                ContentType.MapPack => ContentInstallTarget.UserMapsDirectory,
+                ContentType.Replay => ContentInstallTarget.UserReplaysDirectory,
+                _ => ContentInstallTarget.Workspace,
+            };
+
+            return new ManifestFile
+            {
+                RelativePath = relativePath,
+                Size = fileInfo.Length,
+                Hash = fileHash,
+                IsRequired = true,
+                IsExecutable = isExecutable,
+                InstallTarget = installTarget,
+                SourceType = ContentSourceType.ContentAddressable,
+                SourcePath = filePath,
+            };
+        });
+
+        var processedFiles = await Task.WhenAll(fileProcessingTasks);
+        files.AddRange(processedFiles.Where(f => f != null)!);
+
+        // Clone the original manifest but replace files
+        var manifest = new ContentManifest
+        {
+            ManifestVersion = originalManifest.ManifestVersion,
+            Id = originalManifest.Id, // Keep original ID
+            Name = originalManifest.Name,
+            Version = originalManifest.Version,
+            ContentType = originalManifest.ContentType,
+            TargetGame = originalManifest.TargetGame,
+            Publisher = originalManifest.Publisher,
+            Metadata = originalManifest.Metadata,
+            Dependencies = originalManifest.Dependencies,
+            ContentReferences = originalManifest.ContentReferences,
+            KnownAddons = originalManifest.KnownAddons,
+            Files = files,
+            Variants = originalManifest.Variants,
+            EntryPoint = originalManifest.EntryPoint,
+            RequiredDirectories = originalManifest.RequiredDirectories,
+            InstallationInstructions = originalManifest.InstallationInstructions,
+        };
+
+        var entryResult = ManifestEntryPointHelper.BakeEntryPoint(manifest, extractedDirectory, cancellationToken, localizationService);
+        if (!entryResult.Success)
+        {
+            logger.LogWarning("Refusing game client manifest without a launch entry: {Error}", entryResult.FirstError);
+            return OperationResult<List<ContentManifest>>.CreateFailure(entryResult.FirstError ?? "Unable to determine the launch entry.");
+        }
+
+        await ManifestTargetGameApplier.ApplyBinaryTargetGameAsync(logger, manifest, extractedDirectory, cancellationToken);
+
+        return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);
+    }
+
+    /// <inheritdoc />
+    public string GetManifestDirectory(ContentManifest manifest, string extractedDirectory)
+    {
+        return extractedDirectory;
+    }
+}

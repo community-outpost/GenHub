@@ -1,11 +1,6 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
-using System;
-using System.IO;
-using System.Reflection;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -14,6 +9,12 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.IO;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
 
@@ -21,7 +22,7 @@ namespace GenHub.Features.Manifest;
 /// Provides ContentManifest instances by retrieving them from CAS, embedded resources,
 /// or generating them dynamically.
 /// </summary>
-public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifestPool manifestPool, IManifestIdService? manifestIdService = null, IContentManifestBuilder? manifestBuilder = null, ManifestProviderOptions? options = null) : IManifestProvider
+public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifestPool manifestPool, IManifestIdService? manifestIdService = null, Func<IContentManifestBuilder>? manifestBuilderFactory = null, ManifestProviderOptions? options = null) : IManifestProvider
 {
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -31,7 +32,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     private readonly ILogger<ManifestProvider> logger = logger ?? NullLogger<ManifestProvider>.Instance;
     private readonly IContentManifestPool manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
     private readonly IManifestIdService manifestIdService = manifestIdService ?? throw new ArgumentNullException(nameof(manifestIdService));
-    private readonly IContentManifestBuilder manifestBuilder = manifestBuilder ?? throw new ArgumentNullException(nameof(manifestBuilder));
+    private readonly Func<IContentManifestBuilder> manifestBuilderFactory = manifestBuilderFactory ?? throw new ArgumentNullException(nameof(manifestBuilderFactory));
     private readonly ManifestProviderOptions options = options ?? new ManifestProviderOptions();
 
     /// <summary>
@@ -73,6 +74,8 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     // Validate security of parsed manifest
                     ValidateManifestSecurity(manifest);
 
+                    EnsureManifestAccepted(manifest, gameClient.Id);
+
                     // Ensure manifest ID matches the requested id
                     if (!string.Equals(manifest.Id.Value, gameClient.Id, StringComparison.OrdinalIgnoreCase))
                     {
@@ -93,7 +96,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                         embeddedSourceDir = null;
                     }
 
-                    var addResult = await manifestPool.AddManifestAsync(manifest, embeddedSourceDir ?? string.Empty, cancellationToken);
+                    var addResult = await manifestPool.AddManifestAsync(manifest, embeddedSourceDir ?? string.Empty, null, cancellationToken);
                     if (addResult?.Success == true)
                     {
                         return manifest;
@@ -117,8 +120,8 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             logger.LogInformation("Generating fallback manifest for GameClient {Id}", gameClient.Id);
 
             var gameVersionInt = int.TryParse(gameClient.Version, out var parsedVersion) ? parsedVersion : 0;
-            var generated = manifestBuilder
-                .WithBasicInfo("EA Games", gameClient.Name ?? "Unknown", gameVersionInt)
+            var generated = manifestBuilderFactory()
+                .WithBasicInfo("EA Games", gameClient.Name ?? GameClientConstants.UnknownVersion, gameVersionInt)
                 .WithContentType(ContentType.GameClient, gameClient.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
                 .WithMetadata($"Generated manifest for {gameClient.Name}")
@@ -130,11 +133,12 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     IsRequired = true,
                 })
                 .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink)
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy)
                 .Build();
 
             // Validate ID before adding to pool
             ManifestIdValidator.EnsureValid(generated.Id.Value);
+            EnsureManifestAccepted(generated, gameClient.Id);
 
             // Determine a sensible source directory for the generated manifest.
             // Prefer the working directory if present, otherwise fall back to the directory
@@ -151,7 +155,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 gameDir = null;
             }
 
-            var addRes = await manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, cancellationToken);
+            var addRes = await manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, null, cancellationToken);
             if (addRes?.Success != true)
             {
                 logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes?.Errors ?? []));
@@ -166,16 +170,39 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     /// <summary>
     /// Gets or generates a manifest for a <see cref="GameInstallation"/>.
     /// </summary>
-    /// <param name="installation">The installation to get a manifest for.</param>
+    /// <param name="gameInstallation">The installation to get a manifest for.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The manifest if found or generated; otherwise null.</returns>
-    public async Task<ContentManifest?> GetManifestAsync(GameInstallation installation, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// This single-manifest entry point can only surface one game, and it prefers Zero
+    /// Hour when both are flagged — a combined installation carries both games, so a
+    /// caller that relies on this overload never sees a Generals manifest for it. Callers
+    /// that know which game they are asking about must use
+    /// <see cref="GetManifestAsync(GameInstallation, GameType, CancellationToken)"/>.
+    /// </remarks>
+    public Task<ContentManifest?> GetManifestAsync(GameInstallation gameInstallation, CancellationToken cancellationToken = default)
     {
+        var gameType = gameInstallation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+        return GetManifestAsync(gameInstallation, gameType, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets or generates a manifest for one game of a <see cref="GameInstallation"/>.
+    /// </summary>
+    /// <param name="gameInstallation">The installation to get a manifest for.</param>
+    /// <param name="gameType">The game whose manifest is requested.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The manifest if found or generated; otherwise null.</returns>
+    public async Task<ContentManifest?> GetManifestAsync(GameInstallation gameInstallation, GameType gameType, CancellationToken cancellationToken = default)
+    {
+        if (gameType is not (GameType.Generals or GameType.ZeroHour))
+        {
+            throw new ArgumentOutOfRangeException(nameof(gameType), gameType, "A supported game is required.");
+        }
+
         // Prefer a deterministic manifest id for installations so tests and embedded resources can
         // reference stable ids instead of runtime GUIDs. Generate using ManifestIdGenerator.
-        var tempInstallForId = new GameInstallation(installation.InstallationPath, installation.InstallationType, null);
-
-        var gameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+        var tempInstallForId = new GameInstallation(gameInstallation.InstallationPath, gameInstallation.InstallationType, null);
 
         // Use appropriate manifest version for generated installation manifests
         var manifestVersion = gameType == GameType.ZeroHour
@@ -193,85 +220,18 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             return casResult.Data;
         }
 
-        // 2. Try embedded (deterministic id)
-        var manifestName = $"GenHub.Manifests.{deterministicId}.json";
-        var assembly = Assembly.GetExecutingAssembly();
-        using var stream = assembly.GetManifestResourceStream(manifestName);
-        if (stream != null)
+        var embedded = await LoadEmbeddedInstallationManifestAsync(gameInstallation, deterministicId, cancellationToken);
+        if (embedded != null)
         {
-            try
-            {
-                var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, _jsonOptions, cancellationToken);
-                if (manifest != null)
-                {
-                    // For embedded installation manifests, provide the installation path as source when available.
-                    var addRes = await manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, cancellationToken);
-                    if (addRes?.Success != true)
-                        logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? []));
-                    return manifest;
-                }
-            }
-            catch (JsonException ex)
-            {
-                logger.LogError(ex, "Failed to parse embedded manifest {ManifestName}", manifestName);
-                throw new ManifestValidationException(deterministicId, $"JSON parsing failed: {ex.Message}", ex);
-            }
+            return embedded;
         }
 
-        // 3. Generate fallback (optional)
-        if (options.GenerateFallbackManifests)
+        if (!options.GenerateFallbackManifests)
         {
-            logger.LogInformation("Generating fallback manifest for installation {Id}", installation.Id);
-
-            // Determine the correct source path based on the game type
-            var manifestGameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
-            var sourcePath = manifestGameType == GameType.ZeroHour
-                ? (!string.IsNullOrEmpty(installation.ZeroHourPath) ? installation.ZeroHourPath : installation.InstallationPath)
-                : (!string.IsNullOrEmpty(installation.GeneralsPath) ? installation.GeneralsPath : installation.InstallationPath);
-
-            var publisherName = installation.InstallationType.GetDisplayName();
-
-            var builder = manifestBuilder
-                .WithBasicInfo(installation.InstallationType, manifestGameType, manifestVersion)
-                .WithContentType(ContentType.GameInstallation, manifestGameType)
-                .WithPublisher(publisherName, string.Empty)
-                .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
-                .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly);
-
-            // Currently, AddFilesFromDirectoryAsync will skip hash computation for ContentSourceType.GameInstallation
-            // to dramatically improve scan performance. This is acceptable because:
-            // 1. Future implementation will use CSV-based authority from GitHub
-            // 2. CSV will contain file lists specific to EA/Steam installation types and languages
-            // 3. Users don't modify game installation files, so integrity checking via hashes is unnecessary
-            // 4. Hash computation for thousands of files takes significant time during game scanning
-            //
-            // The CSV authority system will be implemented in a future PR and will:
-            // - Download CSV from GitHub based on installation type (EA/Steam), language, and version
-            // - Generate manifest directly from CSV without filesystem scanning
-            // - Only scan filesystem to verify installation completeness
-            //
-            // For now: Manifest files will have Hash=null for GameInstallation source type
-            if (!string.IsNullOrEmpty(sourcePath) && Directory.Exists(sourcePath))
-            {
-                await builder.AddFilesFromDirectoryAsync(sourcePath, ContentSourceType.GameInstallation);
-            }
-
-            var generated = builder.Build();
-
-            // Validate ID before adding to pool
-            ManifestIdValidator.EnsureValid(generated.Id.Value);
-            var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, cancellationToken);
-            if (addRes2?.Success != true)
-            {
-                logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? []));
-            }
-
-            return generated;
+            return null;
         }
 
-        // If fallback generation is disabled (e.g., tests), return null to preserve legacy behavior
-        return null;
+        return await GenerateInstallationManifestAsync(gameInstallation, gameType, manifestVersion, deterministicId, cancellationToken);
     }
 
     private static void ValidateManifestSecurity(ContentManifest manifest)
@@ -293,10 +253,115 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     {
         // Run the same security validations as for embedded manifests
         ValidateManifestSecurity(manifest);
+        EnsureManifestAccepted(manifest, expectedId);
 
         if (!string.Equals(manifest.Id.Value, expectedId, StringComparison.OrdinalIgnoreCase))
         {
             throw new ManifestValidationException(expectedId, $"Manifest ID mismatch: expected '{expectedId}' but manifest contains '{manifest.Id.Value}'");
         }
+    }
+
+    private static void EnsureManifestAccepted(ContentManifest manifest, string requestedId)
+    {
+        if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+        {
+            throw new ManifestValidationException(requestedId, rejectionReason!);
+        }
+    }
+
+    private async Task<ContentManifest> GenerateInstallationManifestAsync(
+        GameInstallation gameInstallation,
+        GameType gameType,
+        string manifestVersion,
+        string deterministicId,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Generating fallback manifest for installation {Id}", gameInstallation.Id);
+
+        // Determine the correct source path based on the game type
+        var gamePath = gameType == GameType.ZeroHour
+            ? gameInstallation.ZeroHourPath
+            : gameInstallation.GeneralsPath;
+        var sourcePath = string.IsNullOrEmpty(gamePath) ? gameInstallation.InstallationPath : gamePath;
+
+        var publisherName = gameInstallation.InstallationType.GetDisplayName();
+
+        var builder = manifestBuilderFactory()
+            .WithBasicInfo(gameInstallation.InstallationType, gameType, manifestVersion)
+            .WithContentType(ContentType.GameInstallation, gameType)
+            .WithPublisher(publisherName, string.Empty)
+            .WithMetadata($"Generated manifest for {gameType} at {sourcePath}")
+            .AddRequiredDirectories("Data", "Maps")
+            .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
+
+        // Currently, AddFilesFromDirectoryAsync will skip hash computation for ContentSourceType.GameInstallation
+        // to dramatically improve scan performance. This is acceptable because:
+        // 1. Future implementation will use CSV-based authority from GitHub
+        // 2. CSV will contain file lists specific to EA/Steam installation types and languages
+        // 3. Users don't modify game installation files, so integrity checking via hashes is unnecessary
+        // 4. Hash computation for thousands of files takes significant time during game scanning
+        //
+        // The CSV authority system will be implemented in a future PR and will:
+        // - Download CSV from GitHub based on installation type (EA/Steam), language, and version
+        // - Generate manifest directly from CSV without filesystem scanning
+        // - Only scan filesystem to verify installation completeness
+        //
+        // For now: Manifest files will have Hash=null for GameInstallation source type
+        if (!string.IsNullOrEmpty(sourcePath) && Directory.Exists(sourcePath))
+        {
+            await builder.AddFilesFromDirectoryAsync(sourcePath, ContentSourceType.GameInstallation, cancellationToken: cancellationToken);
+        }
+
+        var generated = builder.Build();
+
+        // Validate ID before adding to pool
+        ManifestIdValidator.EnsureValid(generated.Id.Value);
+        EnsureManifestAccepted(generated, deterministicId);
+        var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, null, cancellationToken);
+        if (addRes2?.Success != true)
+        {
+            logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? []));
+        }
+
+        return generated;
+    }
+
+    /// <summary>Loads and caches an embedded installation manifest when available.</summary>
+    /// <param name="gameInstallation">The installation used as the content source.</param>
+    /// <param name="deterministicId">The expected manifest identifier.</param>
+    /// <param name="cancellationToken">Cancellation for reading and caching.</param>
+    /// <returns>The embedded manifest, or null if none exists.</returns>
+    private async Task<ContentManifest?> LoadEmbeddedInstallationManifestAsync(GameInstallation gameInstallation, string deterministicId, CancellationToken cancellationToken)
+    {
+        var manifestName = $"GenHub.Manifests.{deterministicId}.json";
+        var assembly = Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream(manifestName);
+        if (stream != null)
+        {
+            try
+            {
+                var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, _jsonOptions, cancellationToken);
+                if (manifest != null)
+                {
+                    ValidateCachedManifest(manifest, deterministicId);
+
+                    // For embedded installation manifests, provide the installation path as source when available.
+                    var addRes = await manifestPool.AddManifestAsync(manifest, gameInstallation.InstallationPath ?? string.Empty, null, cancellationToken);
+                    if (addRes?.Success != true)
+                    {
+                        logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? []));
+                    }
+
+                    return manifest;
+                }
+            }
+            catch (JsonException ex)
+            {
+                logger.LogError(ex, "Failed to parse embedded manifest {ManifestName}", manifestName);
+                throw new ManifestValidationException(deterministicId, $"JSON parsing failed: {ex.Message}", ex);
+            }
+        }
+
+        return null;
     }
 }

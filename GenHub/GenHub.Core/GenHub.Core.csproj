@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -8,9 +8,25 @@
     <ItemGroup>
         <PackageReference Include="StyleCop.Analyzers" />
         <PackageReference Include="Avalonia" />
+        <PackageReference Include="CommunityToolkit.Mvvm" />
+        <PackageReference Include="AngleSharp" />
+        <PackageReference Include="MessagePack" />
+        <PackageReference Include="Microsoft.Playwright" />
         <PackageReference Include="Microsoft.Extensions.Logging" />
+        <PackageReference Include="Microsoft.Extensions.Http" />
         <PackageReference Include="Microsoft.Extensions.Logging.Console" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
         <PackageReference Include="CsvHelper" />
+        <PackageReference Include="YamlDotNet" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="Assets\Manifests\*.csv" />
+        <EmbeddedResource Include="Assets\Registries\*.csv" />
+        <EmbeddedResource Include="Assets\Registries\*.json" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Tests.Core" />
+        <InternalsVisibleTo Include="GenHub.Tests.Windows" />
     </ItemGroup>
 </Project>

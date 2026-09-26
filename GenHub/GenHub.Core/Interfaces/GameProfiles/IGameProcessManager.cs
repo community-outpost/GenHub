@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
+using System.Diagnostics;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -12,6 +13,7 @@ public interface IGameProcessManager
     /// <summary>
     /// Occurs when a managed game process exits.
     /// </summary>
+    /// <remarks>Handlers must return promptly and must not synchronously wait for termination; schedule follow-up work asynchronously.</remarks>
     event EventHandler<GameProcessExitedEventArgs>? ProcessExited;
 
     /// <summary>
@@ -25,7 +27,11 @@ public interface IGameProcessManager
     /// <summary>
     /// Terminates a game process by its process ID.
     /// </summary>
-    /// <param name="processId">The process ID to terminate.</param>
+    /// <remarks>
+    /// Managed processes publish <see cref="ProcessExited"/> with their tracked identity.
+    /// A system-lookup stop of an untracked process does not publish a managed exit event.
+    /// </remarks>
+    /// <param name="processId">The positive process ID to terminate. Zero and negative values are rejected before process access.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result indicating success or failure.</returns>
     Task<OperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default);
@@ -44,4 +50,21 @@ public interface IGameProcessManager
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result containing the list of active processes.</returns>
     Task<OperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveProcessesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Attempts to discover a running process by name and track it as a managed process.
+    /// Useful for games launched via Steam.
+    /// </summary>
+    /// <param name="processName">The name of the process (without extension).</param>
+    /// <param name="workingDirectory">The expected working directory.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A process operation result containing the discovered process info.</returns>
+    Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(string processName, string workingDirectory, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Registers an existing process for tracking.
+    /// </summary>
+    /// <param name="process">The process to track.</param>
+    /// <returns>The tracked identity, or null if the process already exited and ownership remains with the caller.</returns>
+    GameProcessInfo? TrackProcess(Process process);
 }

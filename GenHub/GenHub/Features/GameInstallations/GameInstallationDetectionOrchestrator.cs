@@ -1,13 +1,13 @@
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameInstallations;
 
@@ -72,7 +72,7 @@ public sealed class GameInstallationDetectionOrchestrator(
             detectorCount,
             sw.ElapsedMilliseconds);
 
-        return errors.Any()
+        return errors.Count > 0
              ? DetectionResult<GameInstallation>.CreateFailure(string.Join("; ", errors))
              : DetectionResult<GameInstallation>.CreateSuccess(allGameInstallations, sw.Elapsed);
     }
@@ -82,6 +82,6 @@ public sealed class GameInstallationDetectionOrchestrator(
         CancellationToken cancellationToken = default)
     {
         var result = await DetectAllInstallationsAsync(cancellationToken);
-        return result.Success ? result.Items.ToList() : new List<GameInstallation>();
+        return result.Success ? [.. result.Items] : [];
     }
 }

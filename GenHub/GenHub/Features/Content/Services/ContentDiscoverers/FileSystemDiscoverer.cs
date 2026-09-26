@@ -1,17 +1,19 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
 
@@ -58,7 +60,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         ContentSourceCapabilities.SupportsManifestGeneration;
 
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
         var discoveredItems = new List<ContentSearchResult>();
@@ -72,7 +74,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to discover manifests from content directories");
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Failed to discover manifests {ex.Message}");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Failed to discover manifests {ex.Message}");
         }
 
         foreach (var manifestEntry in discoveredManifests)
@@ -90,9 +92,9 @@ public class FileSystemDiscoverer : IContentDiscoverer
                     ContentType = manifest.ContentType,
                     TargetGame = manifest.TargetGame,
                     ProviderName = SourceName,
-                    AuthorName = manifest.Publisher?.Name ?? "Unknown",
+                    AuthorName = manifest.Publisher?.Name ?? ContentConstants.UnknownAuthorName,
                     IconUrl = manifest.Metadata?.IconUrl ?? string.Empty,
-                    LastUpdated = manifest.Metadata?.ReleaseDate ?? DateTime.Now,
+                    LastUpdated = manifest.Metadata?.ReleaseDate ?? DateTime.UtcNow,
                     DownloadSize = manifest.Files?.Sum(f => f.Size) ?? 0,
 
                     Data = manifest,
@@ -125,7 +127,13 @@ public class FileSystemDiscoverer : IContentDiscoverer
         }
 
         _logger.LogInformation("FileSystemDiscoverer found {Count} manifests matching query", discoveredItems.Count);
-        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(discoveredItems);
+        var result = new ContentDiscoveryResult
+        {
+            Items = discoveredItems,
+            HasMoreItems = false,
+            TotalItems = discoveredItems.Count,
+        };
+        return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
     }
 
     private void InitializeContentDirectories()

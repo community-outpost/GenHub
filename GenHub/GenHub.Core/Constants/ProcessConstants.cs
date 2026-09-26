@@ -1,3 +1,5 @@
+#pragma warning disable SA1310 // Field names should not contain underscore
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -32,8 +34,22 @@ public static class ProcessConstants
     /// </summary>
     public const int ExitCodeAccessDenied = 5;
 
+    /// <summary>
+    /// Exit code indicating success with reboot required (Windows Installer standard).
+    /// </summary>
+    public const int ExitCodeRebootRequired = 3010;
+
+    /// <summary>
+    /// PowerShell executable name.
+    /// </summary>
+    public const string PowerShellExecutable = "powershell.exe";
+
+    /// <summary>
+    /// Error message indicating that the requested process was not found or has already exited.
+    /// </summary>
+    public const string ProcessNotFoundErrorMessage = "Process not found";
+
     // Windows API constants
-#pragma warning disable SA1310 // Field names should not contain underscore
 
     /// <summary>
     /// Windows API constant for restoring a minimized window.
@@ -54,5 +70,115 @@ public static class ProcessConstants
     /// Windows API constant for maximizing a window.
     /// </summary>
     public const int SW_MAXIMIZE = 3;
-#pragma warning restore SA1310 // Field names should not contain underscore
+
+    // Process discovery and timing constants
+
+    /// <summary>
+    /// Historical launcher delay in milliseconds, retained as a cancellation-test baseline.
+    /// </summary>
+    /// <remarks>
+    /// Production launch timing uses <see cref="PostSpawnExitDetectionWindowMs"/>,
+    /// <see cref="SpawnedChildDiscoveryTimeoutMs"/>, and <see cref="SpawnedChildPollIntervalMs"/>.
+    /// This constant no longer imposes a minimum wait before child discovery.
+    /// </remarks>
+    public const int LauncherDetectionDelayMs = 500;
+
+    /// <summary>
+    /// Bounded window in milliseconds during which a just-started game process is watched
+    /// for an early exit before the launch is reported successful.
+    /// </summary>
+    /// <remarks>
+    /// Sized from measurement rather than guessed. The native Zero Hour client aborting
+    /// initialisation in an empty workspace exits 1 after roughly 0.8–0.9 s once warm
+    /// (macOS, Apple Silicon), so three seconds is ~3x the observed abort, absorbing slow
+    /// disks and emulation. The very first run of a freshly copied binary can take 3–5 s
+    /// because macOS validates the new inode before execution; an abort that slow falls
+    /// outside the window and is reported through the process-exited event instead of the
+    /// launch result.
+    /// </remarks>
+    public const int PostSpawnExitDetectionWindowMs = 3000;
+
+    /// <summary>
+    /// Maximum number of attempts to discover a Steam-launched process.
+    /// </summary>
+    public const int SteamProcessDiscoveryMaxAttempts = 240;
+
+    /// <summary>
+    /// Delay in milliseconds between Steam process discovery attempts.
+    /// </summary>
+    public const int SteamProcessDiscoveryDelayMs = 500;
+
+    /// <summary>
+    /// Threshold in seconds to consider a process exit as "early" or "immediate".
+    /// </summary>
+    public const double EarlyExitThresholdSeconds = 10.0;
+
+    /// <summary>
+    /// How many characters of a process name a Unix kernel keeps. Linux stores it in a
+    /// TASK_COMM_LEN buffer and macOS in a MAXCOMLEN one, both of which leave room for fifteen
+    /// characters and a terminator, and the truncated value is what process enumeration matches on.
+    /// </summary>
+    public const int UnixProcessNameMaxLength = 15;
+
+    /// <summary>
+    /// How long to wait for a launcher's expected child process to appear. Measured spawn latency
+    /// for the Easy Anti-Cheat bootstrapper is well under two seconds. Adoption dates a candidate
+    /// against the launcher's own start time rather than <see cref="EarlyExitThresholdSeconds"/>,
+    /// so this may be raised as far as a slow bootstrapper needs.
+    /// </summary>
+    public const int SpawnedChildDiscoveryTimeoutMs = 10_000;
+
+    /// <summary>
+    /// Interval in milliseconds between polls for a launcher's expected child process.
+    /// </summary>
+    public const int SpawnedChildPollIntervalMs = 100;
+
+    /// <summary>
+    /// How long to wait for an abandoned launcher to exit after it is killed. The launcher is
+    /// already being torn down on a cancelled launch, so this only bounds the cleanup.
+    /// </summary>
+    public const int AbandonedLauncherKillWaitMs = 2_000;
+
+    /// <summary>
+    /// How long to wait for a force-killed process to exit before reporting termination failure.
+    /// </summary>
+    public const int ForceKillExitWaitMs = 5_000;
+
+    /// <summary>
+    /// How long to keep polling for the expected child after the launcher itself exits cleanly.
+    /// Covers the race between the child being spawned and becoming enumerable, without waiting
+    /// out <see cref="SpawnedChildDiscoveryTimeoutMs"/> once the launcher is known to be gone.
+    /// </summary>
+    public const int LauncherExitGracePeriodMs = 1_000;
+
+    /// <summary>
+    /// Timeout in milliseconds when waiting for helper or utility process commands (e.g., junction creation).
+    /// </summary>
+    public const int HelperProcessTimeoutMs = 5_000;
+
+    /// <summary>
+    /// How long to wait in milliseconds for redirected standard error handlers to complete after process exit.
+    /// </summary>
+    public const int StderrDrainTimeoutMs = 3000;
+
+    /// <summary>
+    /// Timeout in milliseconds to wait for a target game process to exit after a termination signal.
+    /// </summary>
+    public const int ProcessKillWaitMs = 1_000;
+
+    /// <summary>
+    /// Delay in milliseconds to allow OS file handles to settle after terminating running game processes before swapping proxy files.
+    /// </summary>
+    public const int ProcessKillSettleDelayMs = 500;
+
+    /// <summary>Maximum time to await a managed process exit notification after it has exited.</summary>
+    public const int TerminationExitNotificationTimeoutMs = 5_000;
+
+    /// <summary>
+    /// Timeout in milliseconds when waiting for external package manager or launcher CLI queries (e.g., Lutris, Flatpak, Snap).
+    /// </summary>
+    public const int ExternalCliTimeoutMs = 10_000;
+
+    /// <summary>Error returned when a termination request does not identify one process.</summary>
+    public const string InvalidProcessIdError = "Process ID must be greater than zero.";
 }

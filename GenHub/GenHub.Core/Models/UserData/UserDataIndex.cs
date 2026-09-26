@@ -1,3 +1,7 @@
+using GenHub.Core.Helpers;
+using System;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Models.UserData;
 
 /// <summary>
@@ -20,23 +24,28 @@ public class UserDataIndex
     /// <summary>
     /// Gets or sets the list of all installation keys (manifestId_profileId).
     /// </summary>
-    public List<string> InstallationKeys { get; set; } = new();
+    public List<string> InstallationKeys { get; set; } = [];
 
     /// <summary>
     /// Gets or sets a dictionary mapping absolute file paths to their installation key.
     /// Enables quick conflict detection when installing new content.
     /// </summary>
-    public Dictionary<string, string> FileToInstallationMap { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> FileToInstallationMap { get; set; } = new(PathHelper.PathComparer);
 
     /// <summary>
     /// Gets or sets a dictionary mapping profile IDs to their installation keys.
     /// Enables quick lookup of all content installed for a profile.
     /// </summary>
-    public Dictionary<string, List<string>> ProfileInstallations { get; set; } = new();
+    public Dictionary<string, List<string>> ProfileInstallations { get; set; } = [];
 
     /// <summary>
     /// Gets or sets a dictionary mapping manifest IDs to their installation keys.
     /// Enables quick lookup of all profiles using a manifest.
     /// </summary>
-    public Dictionary<string, List<string>> ManifestInstallations { get; set; } = new();
+    public Dictionary<string, List<string>> ManifestInstallations { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the ID of the currently active profile whose user data is materialized.
+    /// </summary>
+    public string? ActiveProfileId { get; set; }
 }

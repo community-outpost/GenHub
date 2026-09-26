@@ -1,0 +1,346 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.MacOS.GameInstallations;
+
+namespace GenHub.Tests.MacOS.GameInstallations;
+
+/// <summary>
+/// Tests macOS installation detection result semantics.
+/// </summary>
+public class MacOSInstallationDetectorTests
+{
+    /// <summary>Combined named children supply both games while dedicated paths retain precedence.</summary>
+    /// <param name="generalsNamed">Whether the combined child uses the Generals name.</param>
+    /// <param name="separateSibling">Whether the other game has its own named directory.</param>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void InspectRoot_CombinedNamedChild_PreservesBothGames(bool generalsNamed, bool separateSibling)
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.CombinedChild.").FullName;
+        try
+        {
+            var combinedName = generalsNamed ? GameClientConstants.GeneralsDirectoryName : GameClientConstants.ZeroHourDirectoryName;
+            var combined = Directory.CreateDirectory(Path.Combine(root, combinedName)).FullName;
+            File.WriteAllText(Path.Combine(combined, "INI.big"), "archive");
+            File.WriteAllText(Path.Combine(combined, "INIZH.big"), "archive");
+            var sibling = combined;
+            if (separateSibling)
+            {
+                var siblingName = generalsNamed ? GameClientConstants.ZeroHourDirectoryName : GameClientConstants.GeneralsDirectoryName;
+                sibling = Directory.CreateDirectory(Path.Combine(root, siblingName)).FullName;
+                File.WriteAllText(Path.Combine(sibling, generalsNamed ? "INIZH.big" : "INI.big"), "archive");
+            }
+
+            var (installation, denied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.False(denied);
+            Assert.NotNull(installation);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(generalsNamed ? combined : sibling, installation.GeneralsPath);
+            Assert.Equal(generalsNamed ? sibling : combined, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>An unreadable named child makes the scan incomplete even with a readable sibling.</summary>
+    [Fact]
+    public void InspectRoot_UnreadableChild_ReportsAccessDenied()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        var denied = Directory.CreateDirectory(Path.Combine(root, GameClientConstants.GeneralsDirectoryName)).FullName;
+        var mode = File.GetUnixFileMode(denied);
+        try
+        {
+            var readable = Directory.CreateDirectory(Path.Combine(root, GameClientConstants.ZeroHourDirectoryName)).FullName;
+            File.WriteAllText(Path.Combine(readable, "INIZH.big"), "archive");
+            File.SetUnixFileMode(denied, UnixFileMode.None);
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.True(accessDenied);
+            Assert.Null(installation);
+        }
+        finally
+        {
+            File.SetUnixFileMode(denied, mode);
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>An unreadable search root remains a retryable incomplete scan.</summary>
+    [Fact]
+    public void InspectRoot_UnreadableRoot_ReportsAccessDenied()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        var mode = File.GetUnixFileMode(root);
+        try
+        {
+            File.SetUnixFileMode(root, UnixFileMode.None);
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.Null(installation);
+            Assert.True(accessDenied);
+        }
+        finally
+        {
+            File.SetUnixFileMode(root, mode);
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>Loose retail or mod archives do not turn a generic search root into an installation.</summary>
+    /// <param name="archive">A plausible archive downloaded into a generic folder.</param>
+    [Theory]
+    [InlineData("INI.big")]
+    [InlineData("SomeModZH.big")]
+    public void InspectRoot_GenericRootWithLooseArchive_FindsNothing(string archive)
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, archive), "archive");
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.Null(installation);
+            Assert.False(accessDenied);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>A cancelled root scan stops before enumerating the filesystem.</summary>
+    [Fact]
+    public void InspectRoot_Cancelled_ThrowsBeforeFilesystemAccess()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(() => MacOSInstallationDetector.InspectRoot("invalid\0root", cancellation.Token));
+    }
+
+    /// <summary>Unexpected path errors propagate to the logging detection boundary.</summary>
+    [Fact]
+    public void InspectRoot_InvalidPath_DoesNotHideFailure()
+    {
+        Assert.Throws<ArgumentException>(() => MacOSInstallationDetector.InspectRoot("invalid\0root"));
+    }
+
+    /// <summary>A loose archive cannot hide a real installation in a named child.</summary>
+    [Fact]
+    public void InspectRoot_LooseArchiveWithValidChild_PrefersChild()
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, GameClientConstants.GeneralsIniBig), "archive");
+            var child = Directory.CreateDirectory(Path.Combine(root, GameClientConstants.GeneralsDirectoryName)).FullName;
+            File.WriteAllText(Path.Combine(child, GameClientConstants.GeneralsIniBig), "archive");
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+            Assert.False(accessDenied);
+            Assert.NotNull(installation);
+            Assert.Equal(child, installation.GeneralsPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that finding an installation does not turn an incomplete scan into
+    /// a cacheable success.
+    /// </summary>
+    [Fact]
+    public void CreateDetectionResult_WithInstallationAndDeniedRoot_ReturnsFailure()
+    {
+        var installation = new GameInstallation(
+            "/readable",
+            GameInstallationType.Retail,
+            null);
+
+        var result = MacOSInstallationDetector.CreateDetectionResult(
+            [installation],
+            ["/denied"],
+            TimeSpan.FromSeconds(1));
+
+        Assert.False(result.Success);
+        Assert.Empty(result.Items);
+        Assert.Contains("installation detection is incomplete", result.Errors.Single());
+    }
+
+    /// <summary>
+    /// Verifies that a complete scan retains the installations it found.
+    /// </summary>
+    [Fact]
+    public void CreateDetectionResult_WithoutDeniedRoot_ReturnsSuccess()
+    {
+        var installation = new GameInstallation(
+            "/readable",
+            GameInstallationType.Retail,
+            null);
+        var elapsed = TimeSpan.FromSeconds(1);
+
+        var result = MacOSInstallationDetector.CreateDetectionResult(
+            [installation],
+            [],
+            elapsed);
+
+        Assert.True(result.Success);
+        Assert.Same(installation, Assert.Single(result.Items));
+        Assert.Equal(elapsed, result.Elapsed);
+    }
+
+    /// <summary>
+    /// A candidate root that is itself a flat retail tree — the native engine's default
+    /// deploy layout — is detected directly, without being a name-matched child of
+    /// anything. This is the layout the executable-name check made undetectable: its
+    /// binary is extensionless, but its archives are unambiguous.
+    /// </summary>
+    [Fact]
+    public void InspectRoot_FlatCombinedRoot_DetectsBothGamesAtRoot()
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "INI.big"), "archive");
+            File.WriteAllText(Path.Combine(root, "INIZH.big"), "archive");
+
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root, allowFlatRoot: true);
+
+            Assert.False(accessDenied);
+            Assert.NotNull(installation);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(root, installation.GeneralsPath);
+            Assert.Equal(root, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// A flat root holding only Zero Hour archives is a Zero Hour installation alone.
+    /// </summary>
+    [Fact]
+    public void InspectRoot_FlatZeroHourRoot_DetectsZeroHourOnly()
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "INIZH.big"), "archive");
+
+            var (installation, _) = MacOSInstallationDetector.InspectRoot(root, allowFlatRoot: true);
+
+            Assert.NotNull(installation);
+            Assert.True(installation.HasZeroHour);
+            Assert.False(installation.HasGenerals);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// Name-matched children still work for copied retail trees that keep their Windows
+    /// directory names, with the games flagged from the archives each child holds.
+    /// </summary>
+    [Fact]
+    public void InspectRoot_NameMatchedChildren_DetectsGamesFromArchives()
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            var generalsDir = Directory.CreateDirectory(Path.Combine(root, "Command and Conquer Generals")).FullName;
+            File.WriteAllText(Path.Combine(generalsDir, "INI.big"), "archive");
+            var zeroHourDir = Directory.CreateDirectory(Path.Combine(root, "Command and Conquer Generals Zero Hour")).FullName;
+            File.WriteAllText(Path.Combine(zeroHourDir, "INIZH.big"), "archive");
+
+            var (installation, _) = MacOSInstallationDetector.InspectRoot(root);
+
+            Assert.NotNull(installation);
+            Assert.True(installation.HasGenerals);
+            Assert.Equal(generalsDir, installation.GeneralsPath);
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(zeroHourDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// A name-matched child without retail archives is discarded: the right directory
+    /// name proves nothing about content.
+    /// </summary>
+    [Fact]
+    public void InspectRoot_NameMatchedChildWithoutArchives_FindsNothing()
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "Command and Conquer Generals Zero Hour"));
+
+            var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(root);
+
+            Assert.False(accessDenied);
+            Assert.Null(installation);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// A root holding only unrecognised archives — mod content — must not read as a game.
+    /// </summary>
+    [Fact]
+    public void InspectRoot_ModArchivesOnlyRoot_FindsNothing()
+    {
+        var root = Directory.CreateTempSubdirectory("GenHub.MacDetector.").FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "somemod.big"), "archive");
+
+            var (installation, _) = MacOSInstallationDetector.InspectRoot(root, allowFlatRoot: true);
+
+            Assert.Null(installation);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// A nonexistent root finds nothing and is not access-denied.
+    /// </summary>
+    [Fact]
+    public void InspectRoot_NonexistentRoot_FindsNothing()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        var (installation, accessDenied) = MacOSInstallationDetector.InspectRoot(missing);
+
+        Assert.Null(installation);
+        Assert.False(accessDenied);
+    }
+}

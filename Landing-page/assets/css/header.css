@@ -1,0 +1,193 @@
+/* ==========================================================================
+   Header & Navigation Component
+   ========================================================================== */
+
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    background: rgba(10, 6, 20, 0.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--glass-border);
+    transition: all var(--transition-base);
+    padding: 0.85rem 1.5rem;
+}
+
+header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary-light), var(--accent-cyan), transparent);
+    opacity: 0.4;
+}
+
+header.scrolled {
+    background: rgba(10, 6, 20, 0.92);
+    border-bottom-color: rgba(139, 92, 246, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    gap: 1.5rem;
+}
+
+.logo-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--text-main);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+    transition: color var(--transition-fast);
+    white-space: nowrap;
+}
+
+.logo:hover {
+    color: var(--primary-light);
+}
+
+.logo img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.45));
+    transition: transform var(--transition-base);
+}
+
+.logo:hover img {
+    transform: scale(1.06);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 0.45rem 0.85rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all var(--transition-fast);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.nav-links a:hover {
+    color: var(--text-main);
+    background: var(--glass-highlight);
+}
+
+.nav-links a svg,
+.nav-links a i {
+    width: 14px;
+    height: 14px;
+    opacity: 0.75;
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 1rem;
+    border-radius: 0.6rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}
+
+.nav-btn-discord {
+    background: #1e1f4b;
+    border: 1px solid rgba(88, 101, 242, 0.45);
+    color: #e0e7ff;
+}
+
+.nav-btn-discord:hover {
+    background: #272863;
+    color: #ffffff;
+    border-color: #5865f2;
+}
+
+.nav-btn-primary {
+    background: var(--gradient-primary);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.35);
+}
+
+.nav-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 18px rgba(139, 92, 246, 0.55);
+    color: #ffffff;
+}
+
+.mobile-menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm, 0.375rem);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mobile-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--primary-light);
+}
+
+
+@media (max-width: 600px) {
+    .nav-btn-discord {
+        display: none;
+    }
+    .nav-actions {
+        gap: 0.4rem;
+    }
+    .nav-btn {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    .logo span {
+        font-size: 1.05rem;
+    }
+}

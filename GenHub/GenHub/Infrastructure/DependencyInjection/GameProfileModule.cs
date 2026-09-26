@@ -1,14 +1,19 @@
-using System;
-using System.IO;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameSettings;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -33,6 +38,12 @@ public static class GameProfileModule
         });
         services.AddScoped<IGameProfileManager, GameProfileManager>();
         services.AddSingleton<IGameProcessManager, GameProcessManager>();
+
+        // Default launch runner: direct on Windows, Wine elsewhere. Platform hosts
+        // replace this with their explicit runner.
+        services.TryAddSingleton<IGameLaunchRunner>(CreateDefaultRunner);
+        services.AddSingleton<IFlatpakProvisioner, FlatpakProvisioner>();
+
         services.AddScoped<IProfileLauncherFacade, ProfileLauncherFacade>();
         services.AddScoped<IProfileEditorFacade, ProfileEditorFacade>();
         services.AddScoped<IDependencyResolver, DependencyResolver>();
@@ -60,25 +71,52 @@ public static class GameProfileModule
                 logger);
         });
 
+        // Register SetupWizardService
+        services.AddScoped<ISetupWizardService, SetupWizardService>();
+
+        // Register ProfileSharingService
+        services.AddScoped<IProfileSharingService, ProfileSharingService>();
+        services.AddTransient<Func<IProfileSharingService>>(sp => sp.GetRequiredService<IProfileSharingService>);
+
         return services;
+    }
+
+    private static IGameLaunchRunner CreateDefaultRunner(IServiceProvider provider)
+    {
+        var localizationService = provider.GetService<ILocalizationService>();
+        if (OperatingSystem.IsWindows())
+        {
+            return new DirectRunner(provider.GetRequiredService<ILogger<DirectRunner>>(), localizationService);
+        }
+
+        var appDataRoot = provider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath();
+        if (string.IsNullOrWhiteSpace(appDataRoot))
+        {
+            appDataRoot = Path.Combine(Path.GetTempPath(), AppConstants.AppName);
+        }
+
+        var options = OperatingSystem.IsMacOS()
+            ? WineRunnerOptions.MacOS(appDataRoot)
+            : WineRunnerOptions.Linux(appDataRoot);
+        return new WineRunner(options, provider.GetRequiredService<ILogger<WineRunner>>(), localizationService);
     }
 
     private static string GetProfilesDirectory(IConfigurationProviderService configProvider)
     {
         try
         {
-            var appDataPath = configProvider.GetApplicationDataPath();
-            var parentDirectory = Path.GetDirectoryName(appDataPath);
-            if (string.IsNullOrEmpty(parentDirectory))
+            var profilesDirectory = configProvider.GetProfilesPath();
+
+            // Fallback if configuration returns null (e.g. in tests)
+            if (string.IsNullOrEmpty(profilesDirectory))
             {
-                throw new InvalidOperationException($"Unable to determine parent directory for path: {appDataPath}");
+                profilesDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Profiles");
             }
 
-            var profilesDirectory = Path.Combine(parentDirectory, "Profiles");
             Directory.CreateDirectory(profilesDirectory);
             return profilesDirectory;
         }
-        catch (Exception ex) when (ex is not InvalidOperationException)
+        catch (Exception ex)
         {
             throw new InvalidOperationException($"Failed to create profiles directory: {ex.Message}", ex);
         }

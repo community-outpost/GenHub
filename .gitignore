@@ -5,6 +5,13 @@
 .*
 !.github/
 !.gitignore
+!.gitattributes
+!.editorconfig
+!.agents/
+!.claude/
+!.pr_agent.toml
+!.sonarcloud.properties
+!.macroscope/
 
 *.suo
 *.user
@@ -21,6 +28,7 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 
 # Build results
+build.lock
 
 [Dd]ebug/
 [Rr]elease/
@@ -169,5 +177,29 @@ _NCrunch*
 **/.idea/**/modules.xml
 
 # Velopack releases
-/releases/
-/Releases/
+releases/
+Releases/
+
+# SampleCatalogs: machine-specific generated shortcuts. Never commit them.
+GenHub/GenHub/SampleCatalogs/register-genhub-scheme.reg
+GenHub/GenHub/SampleCatalogs/register-genhub-scheme.desktop
+GenHub/GenHub/SampleCatalogs/register-genhub-scheme.app/
+GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.url
+GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.desktop
+GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.command
+GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.webloc
+
+# Landing page build output
+public/
+Landing-page/assets/data/*.json
+__pycache__/
+*.pyc
+
+# Visual Studio metadata (exclude except AI context)
+.vs/*
+!.vs/Project-Overview.md
+!.vs/prompt.md
+
+# ModBuilder cache and serialization files
+*.msgpack
+.modbuilder_cache/

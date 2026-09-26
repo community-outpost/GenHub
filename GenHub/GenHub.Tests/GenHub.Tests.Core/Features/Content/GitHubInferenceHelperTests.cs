@@ -32,6 +32,30 @@ public class GitHubInferenceHelperTests
     }
 
     /// <summary>
+    /// GeneralsGameCode releases must be classified as GameClient explicitly (not inferred),
+    /// so that SuperHackersManifestFactory.CanHandle accepts the resolved manifest.
+    /// </summary>
+    [Fact]
+    public void InferContentType_GeneralsGameCode_ReturnsExplicitGameClient()
+    {
+        var (type, isInferred) = GitHubInferenceHelper.InferContentType("GeneralsGameCode", "weekly-2026-07-24");
+        Assert.Equal(ContentType.GameClient, type);
+        Assert.False(isInferred);
+    }
+
+    /// <summary>
+    /// When no known topic is present the topic lookup returns an inferred Addon guess;
+    /// callers must treat IsInferred == true as "run the name-based fallback".
+    /// </summary>
+    [Fact]
+    public void InferContentTypeFromTopics_UnknownTopics_ReturnsInferredAddon()
+    {
+        var (type, isInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(new[] { "some-unrelated-topic" });
+        Assert.Equal(ContentType.Addon, type);
+        Assert.True(isInferred);
+    }
+
+    /// <summary>
     /// Verifies <see cref="GitHubInferenceHelper.InferTargetGame"/> returns the expected game type and marks it as inferred.
     /// </summary>
     /// <param name="repo">Repository name used for inference.</param>
@@ -40,7 +64,7 @@ public class GitHubInferenceHelperTests
     [Theory]
     [InlineData("repo", "zero hour release", GameType.ZeroHour)]
     [InlineData("repo-zh", "", GameType.ZeroHour)]
-    [InlineData("generals-repo", "", GameType.Generals)]
+    [InlineData("generals-repo", "", GameType.ZeroHour)]
     public void InferTargetGame_ReturnsExpectedGameType(string repo, string? releaseName, GameType expected)
     {
         // Act
@@ -84,12 +108,60 @@ public class GitHubInferenceHelperTests
     /// <param name="expected">Expected boolean result.</param>
     [Theory]
     [InlineData("program.exe", true)]
-    [InlineData("library.dll", true)]
     [InlineData("script.sh", true)]
+
+    // A native game binary has no extension. This previously returned false here while
+    // returning true in ContentManifestBuilder, so the same file was classified
+    // differently depending on which factory built the manifest.
+    [InlineData("generalszh", true)]
+
+    // Changed deliberately: a dynamic library is loadable code, not a runnable file.
+    // dyld and ld.so map libraries with read access, so the execute bit is meaningless,
+    // and under a hard-link workspace setting it would mutate a shared CAS blob.
+    [InlineData("library.dll", false)]
+    [InlineData("libSDL3.dylib", false)]
     [InlineData("readme.txt", false)]
     public void IsExecutableFile_ReturnsExpectedResult(string fileName, bool expected)
     {
         var result = GitHubInferenceHelper.IsExecutableFile(fileName);
         Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Per-asset typing is a downgrade only: strong patch/mod filename signals drop a
+    /// GameClient release to Patch/Mod for that asset.
+    /// </summary>
+    /// <param name="assetName">The asset file name.</param>
+    /// <param name="expected">Expected asset-level content type.</param>
+    [Theory]
+    [InlineData("ZH_Patch_v1.zip", ContentType.Patch)]
+    [InlineData("hotfix-macos.zip", ContentType.Patch)]
+    [InlineData("balance-mod.zip", ContentType.Mod)]
+    [InlineData("addon-pack.zip", ContentType.Mod)]
+    [InlineData("ZeroHour-mac-client.zip", ContentType.GameClient)]
+    [InlineData("generalsonlinezh.exe", ContentType.GameClient)]
+    [InlineData("modern-client.zip", ContentType.GameClient)]
+    [InlineData("prefix-client.zip", ContentType.GameClient)]
+    [InlineData("model-pack.zip", ContentType.GameClient)]
+    [InlineData("dispatch.zip", ContentType.GameClient)]
+    [InlineData("GenPatcher-v1.2.zip", ContentType.GameClient)]
+    [InlineData("community-patch-client.zip", ContentType.GameClient)]
+    [InlineData("patch-v1.4.zip", ContentType.Patch)]
+    public void DowngradeClientTypeForAsset_GameClientRelease_AppliesDowngrade(string assetName, ContentType expected)
+    {
+        var result = GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.GameClient, assetName);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// An asset name can never promote a non-client release into a game client.
+    /// </summary>
+    [Fact]
+    public void DowngradeClientTypeForAsset_NonClientRelease_PassesThroughUnchanged()
+    {
+        Assert.Equal(ContentType.Patch, GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.Patch, "game-client-code.zip"));
+        Assert.Equal(ContentType.Mod, GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.Mod, "generalsonlinezh.zip"));
+        Assert.Equal(ContentType.Addon, GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.Addon, "client.zip"));
+        Assert.Equal(ContentType.GameClient, GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.GameClient, null));
     }
 }

@@ -1,3 +1,5 @@
+using GenHub.Core.Models.Enums;
+
 namespace GenHub.Core.Models.Launching;
 
 /// <summary>Configuration for launching a game instance.</summary>
@@ -8,6 +10,12 @@ public class GameLaunchConfiguration
 
     /// <summary>Gets or sets the working directory.</summary>
     public string? WorkingDirectory { get; set; }
+
+    /// <summary>Gets or sets the game type, used to locate user data inside compatibility prefixes.</summary>
+    public GameType? GameType { get; set; }
+
+    /// <summary>Gets or sets the native Options.ini path mirrored into compatibility prefixes.</summary>
+    public string? NativeOptionsIniPath { get; set; }
 
     /// <summary>Gets or sets the command line arguments as key-value pairs.</summary>
     public Dictionary<string, string>? Arguments { get; set; }
@@ -20,4 +28,19 @@ public class GameLaunchConfiguration
 
     /// <summary>Gets or sets the timeout for waiting.</summary>
     public TimeSpan? Timeout { get; set; }
+
+    /// <summary>
+    /// Gets or sets the process name, without extension, that <see cref="ExecutablePath"/> is
+    /// expected to spawn and hand the session to — the Easy Anti-Cheat bootstrapper being the
+    /// case that needs it. Leave <see langword="null"/> when the started executable *is* the game;
+    /// tracking then follows the started process as before.
+    /// </summary>
+    public string? ExpectedChildProcessName { get; set; }
+
+    /// <summary>
+    /// Gets or sets how long to wait for <see cref="ExpectedChildProcessName"/> to appear before
+    /// failing the launch. Defaults to
+    /// <see cref="GenHub.Core.Constants.ProcessConstants.SpawnedChildDiscoveryTimeoutMs"/>.
+    /// </summary>
+    public TimeSpan? ExpectedChildDiscoveryTimeout { get; set; }
 }

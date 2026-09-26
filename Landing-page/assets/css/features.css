@@ -1,0 +1,137 @@
+/* Features Section */
+.features-section {
+    margin-bottom: 5rem;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.section-header h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+}
+
+.section-header p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+/* Features Grid */
+.features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 5rem;
+}
+
+.card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--blur-md));
+    -webkit-backdrop-filter: blur(var(--blur-md));
+    border: 1px solid var(--glass-border);
+    border-radius: 1.25rem;
+    padding: 2rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--glass-highlight), transparent);
+}
+
+.card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.4), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    border-color: var(--primary);
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.3),
+        0 0 30px rgba(124, 58, 237, 0.25);
+}
+
+.card:hover::after {
+    opacity: 0.3;
+}
+
+.card-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gradient-glow);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+    margin-bottom: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.card-icon i,
+.card-icon svg {
+    width: 24px;
+    height: 24px;
+    color: var(--primary-light);
+    stroke-width: 2;
+}
+
+.card:hover .card-icon {
+    transform: scale(1.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-main);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.card p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* Feature Highlight Cards (for main features) */
+.card-highlight {
+    grid-column: span 2;
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.card-highlight .card-content {
+    flex: 1;
+}
+
+.card-highlight .card-visual {
+    flex: 0 0 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

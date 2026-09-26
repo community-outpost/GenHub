@@ -1,0 +1,137 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        xmlns:models="using:GenHub.Features.Tools.ModBuilder.Models"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectItemPickerDialog"
+        x:DataType="vm:ProjectItemPickerViewModel"
+        Title="Select Project Files &amp; Directories"
+        Icon="/Assets/Icons/generalshub-icon.png"
+        Width="920" Height="700"
+        MinWidth="750" MinHeight="550"
+        MaxWidth="1500" MaxHeight="1050"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="{DynamicResource WindowBackground}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="18">
+    <!-- Header with Search -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+      <StackPanel Grid.Column="0" Spacing="4">
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Header}"
+                   FontSize="17" FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Subtitle}"
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+      </StackPanel>
+      <TextBox Grid.Column="1" Text="{Binding SearchText, Mode=TwoWay}"
+               Watermark="{localization:Localize Tools.ModBuilder.ProjectItemPicker.SearchWatermark}"
+               Width="260" VerticalAlignment="Center"/>
+    </Grid>
+
+    <!-- Project Tree View -->
+    <Grid Grid.Row="1">
+      <Border Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="6">
+        <TreeView ItemsSource="{Binding Nodes}">
+          <TreeView.ItemsPanel>
+            <ItemsPanelTemplate>
+              <VirtualizingStackPanel/>
+            </ItemsPanelTemplate>
+          </TreeView.ItemsPanel>
+          <TreeView.Styles>
+            <Style Selector="TreeViewItem" x:DataType="models:FileTreeNode">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+            </Style>
+          </TreeView.Styles>
+          <TreeView.ItemTemplate>
+            <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
+              <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,2">
+                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                          VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <!-- Icon -->
+                <Path Grid.Column="1" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                      Fill="{DynamicResource AccentBrush}"
+                      Data="{StaticResource IconOpenFolder}"
+                      IsVisible="{Binding IsDirectory}"/>
+                <Path Grid.Column="1" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                      Fill="{DynamicResource TextSecondary}"
+                      Data="{StaticResource IconTextFile}"
+                      IsVisible="{Binding !IsDirectory}"/>
+                <!-- Label -->
+                <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center"
+                           FontSize="12.5" Foreground="{DynamicResource TextPrimary}"
+                           ToolTip.Tip="{Binding RelativePath}"/>
+              </Grid>
+            </TreeDataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
+      </Border>
+
+      <!-- Loading overlay while the tree builds on a background thread -->
+      <Border Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="6"
+              IsVisible="{Binding IsLoading}">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+          <ProgressBar IsIndeterminate="True" Width="220" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.LoadingMessage}"
+                     FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                     HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- Folder Glob Options -->
+    <Border Grid.Row="2" Background="{DynamicResource SurfaceElevatedBrush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            CornerRadius="8" Padding="12" Margin="0,12,0,12">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern}"
+                   FontWeight="SemiBold" FontSize="12"
+                   Foreground="{DynamicResource TextPrimary}"
+                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+        <ComboBox Grid.Column="1" SelectedIndex="{Binding GlobOption, Mode=TwoWay}"
+                  HorizontalAlignment="Stretch">
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobAllFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobIniFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobTgaFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobWndFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobCsfFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobWavFiles}"/>
+        </ComboBox>
+      </Grid>
+    </Border>
+
+    <!-- Footer Controls -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto">
+      <TextBlock Grid.Column="0" Text="{Binding SelectionSummary}"
+                 FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                 VerticalAlignment="Center"/>
+
+      <Button Grid.Column="1" Content="{localization:Localize Common.Button.Cancel}" Click="OnCancelClick"
+              Background="{DynamicResource SurfaceElevatedBrush}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              Padding="16,8" CornerRadius="8" Margin="0,0,8,0" Cursor="Hand"/>
+
+      <Button Grid.Column="2" Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.ButtonApply}" Click="OnConfirmClick"
+              IsEnabled="{Binding !IsLoading}"
+              Background="{DynamicResource AccentBrush}" Foreground="White"
+              FontWeight="SemiBold"
+              Padding="16,8" CornerRadius="8" Cursor="Hand"/>
+    </Grid>
+  </Grid>
+</Window>

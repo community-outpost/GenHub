@@ -1,9 +1,9 @@
+using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.AppUpdate;
-using GenHub.Core.Models.Enums;
 using Velopack;
 
 namespace GenHub.Features.AppUpdate.Interfaces;
@@ -22,19 +22,43 @@ public interface IVelopackUpdateManager
 
     /// <summary>
     /// Checks for available artifact updates from GitHub Actions CI builds.
-    /// Requires a GitHub PAT with repo access.
+    /// Requires GitHub sign-in (OAuth device flow).
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>ArtifactUpdateInfo if an artifact update is available, otherwise null.</returns>
     Task<ArtifactUpdateInfo?> CheckForArtifactUpdatesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a list of available branches from the repository.
+    /// Requires GitHub sign-in (OAuth device flow).
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of branch names.</returns>
+    Task<IReadOnlyList<string>> GetBranchesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets a list of open pull requests with available CI artifacts.
-    /// Requires a GitHub PAT with repo access.
+    /// Requires GitHub sign-in (OAuth device flow).
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of open PRs with artifact info.</returns>
     Task<IReadOnlyList<PullRequestInfo>> GetOpenPullRequestsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a list of all available artifacts for a specific pull request.
+    /// </summary>
+    /// <param name="prNumber">The PR number.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of artifacts for the PR.</returns>
+    Task<IReadOnlyList<ArtifactUpdateInfo>> GetArtifactsForPullRequestAsync(int prNumber, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a list of all available artifacts for a specific branch.
+    /// </summary>
+    /// <param name="branchName">The branch name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of artifacts for the branch.</returns>
+    Task<IReadOnlyList<ArtifactUpdateInfo>> GetArtifactsForBranchAsync(string branchName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Downloads the specified update.
@@ -74,12 +98,7 @@ public interface IVelopackUpdateManager
     string? LatestVersionFromGitHub { get; }
 
     /// <summary>
-    /// Gets or sets the current update channel.
-    /// </summary>
-    UpdateChannel CurrentChannel { get; set; }
-
-    /// <summary>
-    /// Gets a value indicating whether artifact updates are available (requires PAT).
+    /// Gets a value indicating whether artifact updates are available (requires GitHub sign-in).
     /// </summary>
     bool HasArtifactUpdateAvailable { get; }
 
@@ -105,6 +124,15 @@ public interface IVelopackUpdateManager
     bool IsPrMergedOrClosed { get; }
 
     /// <summary>
+    /// Downloads and installs a specific artifact.
+    /// </summary>
+    /// <param name="artifactInfo">The artifact information to install.</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the installation operation.</returns>
+    Task InstallArtifactAsync(ArtifactUpdateInfo artifactInfo, IProgress<UpdateProgress>? progress = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Downloads and installs a PR artifact.
     /// </summary>
     /// <param name="prInfo">The PR information containing the artifact to install.</param>
@@ -117,4 +145,9 @@ public interface IVelopackUpdateManager
     /// Uninstalls the application.
     /// </summary>
     void Uninstall();
+
+    /// <summary>
+    /// Clears all cached update and artifact information.
+    /// </summary>
+    void ClearCache();
 }
