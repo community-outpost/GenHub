@@ -29,6 +29,7 @@ public sealed class CatalogUpstreamIngestionServiceTests
     /// </summary>
     public CatalogUpstreamIngestionServiceTests()
     {
+        CatalogUpstreamIngestionService.ClearReleaseCache();
         _service = new CatalogUpstreamIngestionService(
             _gitHubClientMock.Object,
             NullLogger<CatalogUpstreamIngestionService>.Instance);

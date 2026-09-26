@@ -262,7 +262,8 @@ public sealed partial class PublisherProfileViewModel(
 
             await using var stream = File.OpenRead(filePath);
             var fileName = Path.GetFileName(filePath);
-            var result = await provider.UploadFileAsync(stream, fileName, folderPath: null, cancellationToken: cancellationToken);
+            var folderPath = string.Equals(provider.ProviderId, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) ? "avatars" : null;
+            var result = await provider.UploadFileAsync(stream, fileName, folderPath: folderPath, cancellationToken: cancellationToken);
 
             if (result.Success && result.Data != null)
             {

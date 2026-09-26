@@ -214,7 +214,7 @@ public static class SuperHackersConstants
             int.TryParse(match.Groups[1].Value, out var y) &&
             int.TryParse(match.Groups[2].Value, out var m) &&
             int.TryParse(match.Groups[3].Value, out var d) &&
-            m >= 1 && m <= 12 && d >= 1 && d <= 31)
+            m >= 1 && m <= 12 && d >= 1 && d <= DateTime.DaysInMonth(y, m))
         {
             return new DateTime(y, m, d, 0, 0, 0, DateTimeKind.Utc);
         }
@@ -225,7 +225,7 @@ public static class SuperHackersConstants
             var year = versionNum / 10000;
             var month = (versionNum % 10000) / 100;
             var day = versionNum % 100;
-            if (month is >= 1 and <= 12 && day is >= 1 and <= 31)
+            if (month is >= 1 and <= 12 && day >= 1 && day <= DateTime.DaysInMonth(year, month))
             {
                 return new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
             }

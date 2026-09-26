@@ -100,6 +100,7 @@ public static class CatalogBundleComponentBuilder
                 VariantAxis = a.VariantAxis,
                 Variant = a.Variant,
                 IsDefaultVariant = a.IsDefaultVariant,
+                TargetGame = a.TargetGame,
             }).ToList() ?? [],
             Dependencies = [.. (release.Dependencies ?? []).Select(dependency => new CatalogDependency
             {
@@ -182,8 +183,10 @@ public static class CatalogBundleComponentBuilder
         var isConstraintLatestOrEmpty = string.IsNullOrWhiteSpace(dependency.VersionConstraint) ||
                                         string.Equals(dependency.VersionConstraint.Trim(), CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase);
 
+        var isSyntheticPlaceholder = false;
         if (siblingRelease == null && isConstraintLatestOrEmpty && sibling.UpstreamSync?.AssetRules is { Count: > 0 })
         {
+            isSyntheticPlaceholder = true;
             siblingRelease = new ContentRelease
             {
                 Version = "latest",
@@ -194,12 +197,14 @@ public static class CatalogBundleComponentBuilder
                     Variant = r.Variant,
                     VariantAxis = sibling.UpstreamSync.VariantAxis ?? "variant",
                     IsDefaultVariant = r.IsDefault,
+                    TargetGame = r.TargetGame,
                 }).ToList(),
             };
         }
         else if (siblingRelease == null && isConstraintLatestOrEmpty && (string.Equals(sibling.PublisherType, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                            string.Equals(sibling.UpstreamSync?.Provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase)))
         {
+            isSyntheticPlaceholder = true;
             siblingRelease = new ContentRelease
             {
                 Version = "latest",
@@ -233,6 +238,10 @@ public static class CatalogBundleComponentBuilder
             };
         }
 
+        var hasDownloadableArtifacts = siblingRelease.Artifacts != null && siblingRelease.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
+        var hasAssetRules = sibling.UpstreamSync?.AssetRules is { Count: > 0 };
+        var isComponentAvailable = !isSyntheticPlaceholder || hasDownloadableArtifacts || hasAssetRules;
+
         var contentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
         var name = !string.IsNullOrWhiteSpace(sibling.Name)
             ? sibling.Name
@@ -248,7 +257,8 @@ public static class CatalogBundleComponentBuilder
             ContentType = contentType.ToString(),
             IsOptional = dependency.IsOptional,
             IsBaseGame = false,
-            IsAvailable = true,
+            IsAvailable = isComponentAvailable,
+            UnavailableReason = isComponentAvailable ? null : $"Item '{dependency.ContentId}' upstream releases have not been ingested yet",
             ReleaseVersion = siblingRelease.Version,
             CatalogItemJson = JsonSerializer.Serialize(sibling),
         };
@@ -451,6 +461,7 @@ public static class CatalogBundleComponentBuilder
                 VariantAxis = a.VariantAxis,
                 Variant = a.Variant,
                 IsDefaultVariant = a.IsDefaultVariant,
+                TargetGame = a.TargetGame,
             }).ToList(),
             Dependencies = release.Dependencies,
         };

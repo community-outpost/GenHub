@@ -286,25 +286,30 @@ public partial class ContentLibraryViewModel(
         var importedCount = 0;
         CatalogContentItem? lastCreated = null;
 
-        foreach (var path in validPaths)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var item = await CreateBatchContentItemAsync(path, cancellationToken);
-            if (item == null)
+            foreach (var path in validPaths)
             {
-                continue;
+                cancellationToken.ThrowIfCancellationRequested();
+                var item = await CreateBatchContentItemAsync(path, cancellationToken);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                activeCatalog.Catalog.Content.Add(item);
+                ContentItems.Add(item);
+                lastCreated = item;
+                importedCount++;
+                logger.LogInformation("Batch imported content item '{ContentId}' from '{Path}'", item.Id, path);
             }
-
-            activeCatalog.Catalog.Content.Add(item);
-            ContentItems.Add(item);
-            lastCreated = item;
-            importedCount++;
-            logger.LogInformation("Batch imported content item '{ContentId}' from '{Path}'", item.Id, path);
         }
-
-        if (importedCount > 0)
+        finally
         {
-            await FinalizeBatchImportAsync(importedCount, lastCreated);
+            if (importedCount > 0)
+            {
+                await FinalizeBatchImportAsync(importedCount, lastCreated);
+            }
         }
 
         return importedCount;

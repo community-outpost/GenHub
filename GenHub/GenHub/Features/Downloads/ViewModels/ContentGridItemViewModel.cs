@@ -1323,6 +1323,9 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(EffectiveCurrentState));
         OnPropertyChanged(nameof(EffectiveIsDownloaded));
+        OnPropertyChanged(nameof(IsFeatured));
+        OnPropertyChanged(nameof(HasFeaturedBadge));
+        OnPropertyChanged(nameof(FeaturedBadge));
 
         _ = LoadIconAsync();
     }

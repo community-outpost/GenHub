@@ -2491,7 +2491,7 @@ public sealed partial class DownloadsBrowserViewModel(
             if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
             {
                 ReconcileReleaseUpdateStates(ContentItems);
-                if (ContentItems.Any(ci => ci.IsFeatured))
+                if (ContentItems.Any(ci => ci.IsFeatured || ci.ContentType == ContentType.ContentBundle))
                 {
                     var sorted = ContentItems
                         .OrderByDescending(ci => ci.IsFeatured)
@@ -2572,7 +2572,11 @@ public sealed partial class DownloadsBrowserViewModel(
                     }
 
                     existingState.Items.Clear();
-                    existingState.Items.AddRange(newVms);
+                    var sortedNewVms = newVms
+                        .OrderByDescending(vm => vm.IsFeatured)
+                        .ThenByDescending(vm => vm.ContentType == ContentType.ContentBundle)
+                        .ToList();
+                    existingState.Items.AddRange(sortedNewVms);
                     existingState.CurrentPage = query.Page ?? 1;
                     existingState.CanLoadMore = hasMoreItems;
                 }
@@ -2607,6 +2611,15 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         var defaultVariant = ResolveDefaultVariant(groupItems, primaryItem);
+        if (groupItems.Any(i => i.IsFeatured))
+        {
+            defaultVariant.IsFeatured = true;
+            if (string.IsNullOrWhiteSpace(defaultVariant.FeaturedBadge))
+            {
+                defaultVariant.FeaturedBadge = groupItems.FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.FeaturedBadge))?.FeaturedBadge;
+            }
+        }
+
         var variantVm = CreateBaseGridItemViewModel(defaultVariant);
         try
         {
@@ -3047,7 +3060,7 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             // Best-effort persistence; results were already delivered.
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex)
         {
             logger.LogDebug(ex, "Failed to persist refreshed subscription data for {PublisherId}", publisherId);
         }

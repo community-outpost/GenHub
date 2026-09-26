@@ -226,8 +226,9 @@ public class GenericCatalogDiscoverer(
         {
             var targetGame = query.TargetGame.Value;
             var hasGameVariant = release?.Artifacts?.Any(a =>
-                string.Equals(a.VariantAxis, CatalogConstants.GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase) &&
-                ResolveSiblingTargetGame(GameType.Unknown, a.VariantAxis ?? string.Empty, a.Variant ?? string.Empty) == targetGame) == true;
+                (a.TargetGame != GameType.Unknown && a.TargetGame == targetGame) ||
+                (string.Equals(a.VariantAxis, CatalogConstants.GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase) &&
+                ResolveSiblingTargetGame(GameType.Unknown, a.VariantAxis ?? string.Empty, a.Variant ?? string.Empty) == targetGame)) == true;
 
             if (content.TargetGame != targetGame && !hasGameVariant)
             {
@@ -1226,7 +1227,9 @@ public class GenericCatalogDiscoverer(
             variantLabel = ImplicitFileVariantLabel(artifact, siblingIndex);
         }
 
-        var siblingTargetGame = ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
+        var siblingTargetGame = artifact.TargetGame != GameType.Unknown
+            ? artifact.TargetGame
+            : ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
 
         var (effectiveProviderName, authorName, iconUrl) = ResolvePresentationIdentity(catalog, contentItem);
 

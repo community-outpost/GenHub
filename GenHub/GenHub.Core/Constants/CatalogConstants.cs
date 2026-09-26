@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Providers;
 using System;
 using System.Collections.Generic;
 
@@ -377,5 +378,24 @@ public static class CatalogConstants
         /// <param name="provider">The provider name to check.</param>
         /// <returns><c>true</c> if supported; otherwise <c>false</c>.</returns>
         public static bool IsSupported(string? provider) => Normalize(provider) != null;
+
+        /// <summary>
+        /// Determines whether the specified content item is configured as an upstream-synced source.
+        /// </summary>
+        /// <param name="content">The content item to check.</param>
+        /// <returns><c>true</c> if configured as a supported upstream source; otherwise <c>false</c>.</returns>
+        public static bool IsConfiguredUpstreamSource(CatalogContentItem? content)
+        {
+            if (content?.UpstreamSync == null)
+            {
+                return false;
+            }
+
+            var provider = !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider)
+                ? content.UpstreamSync.Provider
+                : content.PublisherType;
+
+            return IsSupported(provider);
+        }
     }
 }
