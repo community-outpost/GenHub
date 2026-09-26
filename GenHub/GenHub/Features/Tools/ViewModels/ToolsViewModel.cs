@@ -11,6 +11,7 @@ using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -381,56 +382,14 @@ public sealed partial class ToolsViewModel(
             ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshingTools") ?? "Refreshing tools...", MessageType.Info);
 
             var previousSelectedId = SelectedTool?.Metadata.Id ?? _lastOpenedTool?.Metadata.Id;
-
-            // Deactivate current tool before refresh
-            if (SelectedTool != null)
-            {
-                try
-                {
-                    SelectedTool.OnDeactivated();
-                    CurrentToolControl = null;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error deactivating tool during refresh: {ToolName}", SelectedTool.Metadata.Name);
-                }
-            }
+            DeactivateCurrentTool();
 
             // Load tools from saved settings
             var result = await toolService.LoadSavedToolsAsync();
 
             if (result.Success && result.Data != null)
             {
-                InstalledTools.Clear();
-                foreach (var tool in result.Data)
-                {
-                    InstalledTools.Add(tool);
-                }
-
-                HasTools = InstalledTools.Count > 0;
-
-                if (HasTools)
-                {
-                    // Try to restore previous selection if one was previously selected
-                    var toolToSelect = previousSelectedId != null
-                        ? InstalledTools.FirstOrDefault(t => t.Metadata.Id == previousSelectedId)
-                        : null;
-                    SelectedTool = toolToSelect;
-                    if (toolToSelect == null)
-                    {
-                        _lastOpenedTool = null;
-                    }
-
-                    ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedCountSuccess", InstalledTools.Count) ?? $"Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
-                }
-                else
-                {
-                    SelectedTool = null;
-                    _lastOpenedTool = null;
-                    ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedListSuccess") ?? "Refreshed tools list.", MessageType.Success);
-                }
-
-                logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
+                ApplyRefreshedTools(result.Data, previousSelectedId);
             }
             else
             {
@@ -448,6 +407,58 @@ public sealed partial class ToolsViewModel(
         {
             IsLoading = false;
         }
+    }
+
+    private void DeactivateCurrentTool()
+    {
+        if (SelectedTool == null)
+        {
+            return;
+        }
+
+        try
+        {
+            SelectedTool.OnDeactivated();
+            CurrentToolControl = null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deactivating tool during refresh: {ToolName}", SelectedTool.Metadata.Name);
+        }
+    }
+
+    private void ApplyRefreshedTools(IReadOnlyCollection<IToolPlugin> tools, string? previousSelectedId)
+    {
+        InstalledTools.Clear();
+        foreach (var tool in tools)
+        {
+            InstalledTools.Add(tool);
+        }
+
+        HasTools = InstalledTools.Count > 0;
+
+        if (HasTools)
+        {
+            // Try to restore previous selection if one was previously selected
+            var toolToSelect = previousSelectedId != null
+                ? InstalledTools.FirstOrDefault(t => string.Equals(t.Metadata.Id, previousSelectedId, StringComparison.OrdinalIgnoreCase))
+                : null;
+            SelectedTool = toolToSelect;
+            if (toolToSelect == null)
+            {
+                _lastOpenedTool = null;
+            }
+
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedCountSuccess", InstalledTools.Count) ?? $"Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
+        }
+        else
+        {
+            SelectedTool = null;
+            _lastOpenedTool = null;
+            ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedListSuccess") ?? "Refreshed tools list.", MessageType.Success);
+        }
+
+        logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
     }
 
     partial void OnSelectedToolChanged(IToolPlugin? oldValue, IToolPlugin? newValue)

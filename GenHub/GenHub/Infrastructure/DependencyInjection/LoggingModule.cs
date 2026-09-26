@@ -226,19 +226,19 @@ public static class LoggingModule
         }
         catch (IOException)
         {
-            return Path.Combine(Path.GetTempPath(), $"{AppConstants.AppName.ToLowerInvariant()}-{GetVersionFileSuffix()}.log");
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
         }
         catch (UnauthorizedAccessException)
         {
-            return Path.Combine(Path.GetTempPath(), $"{AppConstants.AppName.ToLowerInvariant()}-{GetVersionFileSuffix()}.log");
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
         }
         catch (System.Security.SecurityException)
         {
-            return Path.Combine(Path.GetTempPath(), $"{AppConstants.AppName.ToLowerInvariant()}-{GetVersionFileSuffix()}.log");
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
         }
         catch (ArgumentException)
         {
-            return Path.Combine(Path.GetTempPath(), $"{AppConstants.AppName.ToLowerInvariant()}-{GetVersionFileSuffix()}.log");
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
         }
     }
 

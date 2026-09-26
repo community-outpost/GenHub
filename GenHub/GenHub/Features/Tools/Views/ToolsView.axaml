@@ -80,34 +80,69 @@
       </Setter>
     </Style>
 
-    <Style Selector="Button.dialog-close-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+    <Style Selector="TextBlock.header">
+      <Setter Property="FontSize" Value="24" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <Style Selector="TextBlock.subheader">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
 
     <Style Selector="Border.status-banner">
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="Padding" Value="12,6" />
-      <Setter Property="Margin" Value="10,0,0,0" />
-      <Setter Property="HorizontalAlignment" Value="Right" />
-      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="16,0,0,0" />
     </Style>
 
     <Style Selector="Border.status-banner.success">
-      <Setter Property="Background" Value="{DynamicResource SuccessTintBackgroundBrush}" />
+      <Setter Property="Background" Value="#1510B981" />
       <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
 
     <Style Selector="Border.status-banner.error">
-      <Setter Property="Background" Value="{DynamicResource ErrorTintBackgroundBrush}" />
+      <Setter Property="Background" Value="#20EF4444" />
       <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
 
     <Style Selector="Border.status-banner.info">
-      <Setter Property="Background" Value="{DynamicResource InfoTintBackgroundBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource InfoBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
       <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Button.dialog-close-btn">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+
+    <Style Selector="Button.dialog-close-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
   </UserControl.Styles>
 
