@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.Catalog;
@@ -364,10 +365,11 @@ public sealed class JsonPublisherCatalogParserTests
                 new CatalogContentItem
                 {
                     Id = "item-gh",
-                    Name = "GitHub Item",                    ContentType = ContentType.GameClient,
+                    Name = "GitHub Item",
+                    ContentType = ContentType.GameClient,
                     UpstreamSync = new CatalogUpstreamSync
                     {
-                        Provider = "github-releases",
+                        Provider = CatalogConstants.UpstreamProviders.GitHubReleasesAlias,
                         Repository = invalidRepo,
                     },
                 },
