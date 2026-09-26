@@ -691,6 +691,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 // Cancel any in-flight device flow sign-in; the async command owns its token.
                 SignInWithGitHubCommand.Cancel();
+                DeleteProfilesCommand.Cancel();
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
                 _uploadsLock.Dispose();
@@ -2607,7 +2608,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task DeleteProfiles()
+    private async Task DeleteProfiles(CancellationToken cancellationToken)
     {
         try
         {
@@ -2622,7 +2623,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await DeleteProfilesInternalAsync(showToast: true, updateDangerZone: true);
+            await DeleteProfilesInternalAsync(showToast: true, updateDangerZone: true, cancellationToken);
         }
         finally
         {
@@ -2630,19 +2631,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task DeleteProfilesInternalAsync(bool showToast, bool updateDangerZone)
+    private async Task DeleteProfilesInternalAsync(bool showToast, bool updateDangerZone, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogWarning("Deleting all profiles");
-            var profilesResult = await _profileManager.GetAllProfilesAsync();
+            var profilesResult = await _profileManager.GetAllProfilesAsync(cancellationToken);
             if (profilesResult.Success && profilesResult.Data != null)
             {
                 var deletedCount = 0;
                 var failedProfileNames = new List<string>();
                 foreach (var profile in profilesResult.Data.ToList())
                 {
-                    var deleteResult = await _profileManager.DeleteProfileAsync(profile.Id);
+                    var deleteResult = await _profileManager.DeleteProfileAsync(profile.Id, cancellationToken);
                     if (deleteResult.Success)
                     {
                         deletedCount++;
@@ -2654,35 +2655,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     }
                 }
 
-                if (showToast && failedProfileNames.Count > 0)
+                if (showToast)
                 {
-                    var message = string.Format(
-                        CultureInfo.CurrentCulture,
-                        _localizationService?.GetString("Settings.Profiles.DeleteIncomplete") ?? "Deleted {0} profile(s). Could not delete {1}: {2}.",
-                        deletedCount,
-                        failedProfileNames.Count,
-                        string.Join(", ", failedProfileNames));
-                    if (deletedCount == 0)
-                    {
-                        _notificationService.ShowError(
-                            _localizationService?.GetString("Settings.Profiles.DeleteFailedTitle") ?? "Profile Deletion Failed",
-                            message,
-                            NotificationDurations.Medium);
-                    }
-                    else
-                    {
-                        _notificationService.ShowWarning(
-                            _localizationService?.GetString("Settings.Profiles.DeletePartialTitle") ?? "Profiles Partially Deleted",
-                            message,
-                            NotificationDurations.Medium);
-                    }
-                }
-                else if (showToast)
-                {
-                    _notificationService.ShowSuccess(
-                        _localizationService?.GetString("Settings.Profiles.DeletedTitle") ?? "Profiles Deleted",
-                        string.Format(CultureInfo.CurrentCulture, _localizationService?.GetString("Settings.Profiles.DeletedMessage") ?? "Deleted {0} profile(s) successfully.", deletedCount),
-                        NotificationDurations.Short);
+                    ShowProfileDeletionResult(deletedCount, failedProfileNames);
                 }
             }
 
@@ -2694,6 +2669,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 await UpdateDangerZoneDataAsync();
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Profile deletion was cancelled");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete profiles");
@@ -2701,6 +2680,40 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete profiles: {ex.Message}", 5000);
             }
+        }
+    }
+
+    private void ShowProfileDeletionResult(int deletedCount, List<string> failedProfileNames)
+    {
+        if (failedProfileNames.Count > 0)
+        {
+            var message = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService?.GetString("Settings.Profiles.DeleteIncomplete") ?? "Deleted {0} profile(s). Could not delete {1}: {2}.",
+                deletedCount,
+                failedProfileNames.Count,
+                string.Join(", ", failedProfileNames));
+            if (deletedCount == 0)
+            {
+                _notificationService.ShowError(
+                    _localizationService?.GetString("Settings.Profiles.DeleteFailedTitle") ?? "Profile Deletion Failed",
+                    message,
+                    NotificationDurations.Medium);
+            }
+            else
+            {
+                _notificationService.ShowWarning(
+                    _localizationService?.GetString("Settings.Profiles.DeletePartialTitle") ?? "Profiles Partially Deleted",
+                    message,
+                    NotificationDurations.Medium);
+            }
+        }
+        else
+        {
+            _notificationService.ShowSuccess(
+                _localizationService?.GetString("Settings.Profiles.DeletedTitle") ?? "Profiles Deleted",
+                string.Format(CultureInfo.CurrentCulture, _localizationService?.GetString("Settings.Profiles.DeletedMessage") ?? "Deleted {0} profile(s) successfully.", deletedCount),
+                NotificationDurations.Short);
         }
     }
 

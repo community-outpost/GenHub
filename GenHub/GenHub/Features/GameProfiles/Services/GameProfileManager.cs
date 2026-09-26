@@ -15,6 +15,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -248,13 +249,15 @@ public class GameProfileManager(
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return OperationResult<bool>.CreateFailure("Profile ID cannot be empty");
+        }
+
+        var profileLock = GameLauncher.ProfileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
+        await profileLock.WaitAsync(cancellationToken);
         try
         {
-            if (string.IsNullOrWhiteSpace(profileId))
-            {
-                return OperationResult<bool>.CreateFailure("Profile ID cannot be empty");
-            }
-
             if (await CheckIsProfileRunningAsync(profileId, verifyProcess: true))
             {
                 logger.LogWarning("Refusing to delete profile {ProfileId} because it is running", profileId);
@@ -263,7 +266,12 @@ public class GameProfileManager(
 
             cancellationToken.ThrowIfCancellationRequested();
             var profileResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
-            var profile = profileResult.Success ? profileResult.Data : null;
+            if (!profileResult.Success || profileResult.Data == null)
+            {
+                return OperationResult<bool>.CreateFailure(profileResult.Errors);
+            }
+
+            var profile = profileResult.Data;
             var profileName = profile?.Name ?? string.Empty;
 
             var cleanupErrors = await CleanupProfileDataAsync(profileId, profile?.ActiveWorkspaceId, cancellationToken);
@@ -303,6 +311,10 @@ public class GameProfileManager(
         {
             logger.LogError(ex, "An unexpected error occurred while deleting game profile {ProfileId}.", profileId);
             return OperationResult<bool>.CreateFailure("An unexpected error occurred.");
+        }
+        finally
+        {
+            profileLock.Release();
         }
     }
 

@@ -389,10 +389,8 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<bool>.CreateFailure("Profile ID cannot be empty");
             }
 
-            // Acquire the profile launch lock to ensure we don't delete during launch registration
-            // This uses the same semaphore as launch operations, so deletion waits for launch
-            // to complete its initial registration without polling or timeouts
-            using (await gameLauncher.AcquireProfileLockAsync(profileId, cancellationToken))
+            // The manager owns the shared launch/delete lock, including for direct callers.
+            // Do not acquire it here: the semaphore is deliberately non-reentrant.
             {
                 // Check if the profile is currently running
                 var launches = await launchRegistry.GetAllActiveLaunchesAsync();

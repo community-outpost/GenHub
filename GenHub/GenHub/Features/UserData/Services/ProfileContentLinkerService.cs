@@ -156,6 +156,8 @@ public class ProfileContentLinkerService(
         logger.LogInformation("[ProfileContentLinker] Cleaning up user data for deleted profile {ProfileId}", profileId);
 
         // Every other path holds at most one game lock, so taking them all in a fixed order cannot deadlock.
+        // Keep these locks during cleanup: releasing them before file I/O would let a switch deploy
+        // another profile into files that cleanup is still removing. Unrelated games wait for safety.
         var acquiredLocks = new List<SemaphoreSlim>();
         try
         {
@@ -166,12 +168,18 @@ public class ProfileContentLinkerService(
                 acquiredLocks.Add(gameLock);
             }
 
+            var cleanupResult = await userDataTracker.CleanupProfileAsync(profileId, cancellationToken);
+            if (!cleanupResult.Success)
+            {
+                return cleanupResult;
+            }
+
             foreach (var kvp in _activeProfileByGame.Where(k => string.Equals(k.Value, profileId, StringComparison.OrdinalIgnoreCase)))
             {
                 _activeProfileByGame.TryRemove(KeyValuePair.Create(kvp.Key, kvp.Value));
             }
 
-            return await userDataTracker.CleanupProfileAsync(profileId, cancellationToken);
+            return cleanupResult;
         }
         catch (OperationCanceledException)
         {
