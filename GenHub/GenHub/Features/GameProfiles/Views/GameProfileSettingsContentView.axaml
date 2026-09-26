@@ -715,11 +715,9 @@
             </ScrollViewer>
 
             <!-- Game Settings Tab Panel (Index 2) -->
-            <ScrollViewer IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=2}"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
+            <Panel IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=2}">
                 <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
-            </ScrollViewer>
+            </Panel>
 
         </Grid>
 

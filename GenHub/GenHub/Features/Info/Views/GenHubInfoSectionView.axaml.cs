@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using GenHub.Common.Controls;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Info;
 using GenHub.Features.Info.ViewModels;
 using System;
@@ -15,6 +16,8 @@ namespace GenHub.Features.Info.Views;
 /// </summary>
 public partial class GenHubInfoSectionView : UserControl
 {
+    private readonly Dictionary<string, Vector> _sectionScrollOffsets = new(StringComparer.OrdinalIgnoreCase);
+    private string? _currentSectionId;
     private GenHubInfoSectionViewModel? _boundViewModel;
     private SectionScrollSpy<InfoCardViewModel>? _scrollSpy;
     private ScrollViewer? _contentScrollViewer;
@@ -140,7 +143,8 @@ public partial class GenHubInfoSectionView : UserControl
         UnhookViewModel();
         _boundViewModel = vm;
         _boundViewModel.PropertyChanged += OnViewModelPropertyChanged;
-        _boundViewModel.ScrollToCardRequested += OnScrollToCardRequested;
+        _boundViewModel.ChangelogsLoaded += OnChangelogsLoaded;
+        _currentSectionId = vm.SelectedSection?.Id;
     }
 
     private void UnhookViewModel()
@@ -148,35 +152,52 @@ public partial class GenHubInfoSectionView : UserControl
         if (_boundViewModel != null)
         {
             _boundViewModel.PropertyChanged -= OnViewModelPropertyChanged;
-            _boundViewModel.ScrollToCardRequested -= OnScrollToCardRequested;
+            _boundViewModel.ChangelogsLoaded -= OnChangelogsLoaded;
             _boundViewModel = null;
         }
+    }
+
+    private void OnChangelogsLoaded()
+    {
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                RegisterAllCardContainers();
+            },
+            DispatcherPriority.Loaded);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(GenHubInfoSectionViewModel.SelectedSection))
         {
+            // Save the outgoing section scroll offset
+            if (!string.IsNullOrEmpty(_currentSectionId) && _contentScrollViewer != null)
+            {
+                _sectionScrollOffsets[_currentSectionId] = _contentScrollViewer.Offset;
+            }
+
             _scrollSpy?.ClearSections();
-            _contentScrollViewer?.SetCurrentValue(ScrollViewer.OffsetProperty, new Vector(0, 0));
+
+            var newSectionId = _boundViewModel?.SelectedSection?.Id;
+            _currentSectionId = newSectionId;
+            var targetOffset = (newSectionId != null && _sectionScrollOffsets.TryGetValue(newSectionId, out var savedOffset))
+                ? savedOffset
+                : Vector.Zero;
+
+            _contentScrollViewer?.SetCurrentValue(ScrollViewer.OffsetProperty, targetOffset);
+
             Dispatcher.UIThread.Post(
                 () =>
                 {
                     RegisterAllCardContainers();
+                    _contentScrollViewer?.SetCurrentValue(ScrollViewer.OffsetProperty, targetOffset);
                 },
                 DispatcherPriority.Loaded);
         }
         else if (e.PropertyName == nameof(GenHubInfoSectionViewModel.SelectedCard) && _boundViewModel?.SelectedCard != null && !_syncingSelectionFromScroll)
         {
             ScrollToCard(_boundViewModel.SelectedCard);
-        }
-    }
-
-    private void OnScrollToCardRequested(InfoCardViewModel card)
-    {
-        if (!_syncingSelectionFromScroll)
-        {
-            ScrollToCard(card);
         }
     }
 
@@ -202,6 +223,21 @@ public partial class GenHubInfoSectionView : UserControl
         _scrollSpy.Attach();
     }
 
+    private Control? FindDemoContainer(string cardId) => cardId switch
+    {
+        InfoConstants.CardProfilesDemo => this.FindControl<Control>("ProfilesDemoContainer"),
+        InfoConstants.CardShortcutsDemo => this.FindControl<Control>("ShortcutsDemoContainer"),
+        InfoConstants.CardSteamDemo => this.FindControl<Control>("SteamDemoContainer"),
+        InfoConstants.CardToolsDemo => this.FindControl<Control>("ToolsDemoContainer"),
+        InfoConstants.CardSettingsDemo => this.FindControl<Control>("GameSettingsDemoContainer"),
+        InfoConstants.CardContentDemo => this.FindControl<Control>("GameProfileContentDemoContainer"),
+        InfoConstants.CardLocalContentDemo => this.FindControl<Control>("LocalContentDemoContainer"),
+        InfoConstants.CardScanDemo => this.FindControl<Control>("ScanDemoContainer"),
+        InfoConstants.CardWorkspaceDemo => this.FindControl<Control>("WorkspacesDemoContainer"),
+        InfoConstants.CardUpdatesDemo => this.FindControl<Control>("AppUpdatesDemoContainer"),
+        _ => null,
+    };
+
     private void RegisterAllCardContainers()
     {
         if (_scrollSpy == null)
@@ -220,7 +256,12 @@ public partial class GenHubInfoSectionView : UserControl
         {
             foreach (var card in _boundViewModel.SelectedSection.Cards)
             {
-                if (card.TargetItem is ChangelogItemViewModel chItem && _changelogsView != null)
+                var demoCtrl = FindDemoContainer(card.Id);
+                if (demoCtrl != null)
+                {
+                    _scrollSpy.RegisterSection(card, demoCtrl);
+                }
+                else if (card.TargetItem is ChangelogItemViewModel chItem && _changelogsView != null)
                 {
                     if (_changelogsView.ContainerFromItem(chItem) is Control chControl)
                     {
@@ -322,6 +363,8 @@ public partial class GenHubInfoSectionView : UserControl
             _goChangelogView ??= this.FindControl<GeneralsOnlineChangelogView>("GenHubGoChangelogView");
             container = _goChangelogView?.ContainerFromItem(pnItem);
         }
+
+        container ??= FindDemoContainer(card.Id);
 
         container ??= (_cardsItemsControl?.ContainerFromItem(card)
             ?? _faqLeftItemsControl?.ContainerFromItem(card)

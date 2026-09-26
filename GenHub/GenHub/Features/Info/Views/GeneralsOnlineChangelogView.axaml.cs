@@ -1,4 +1,8 @@
 using Avalonia.Controls;
+using GenHub.Core.Models.Info;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Features.Info.Views;
 
@@ -22,6 +26,23 @@ public partial class GeneralsOnlineChangelogView : UserControl
     /// <returns>The container control if found; otherwise, null.</returns>
     public Control? ContainerFromItem(object item)
     {
-        return PatchNotesItemsControl?.ContainerFromItem(item);
+        var container = PatchNotesItemsControl?.ContainerFromItem(item);
+        if (container != null)
+        {
+            return container;
+        }
+
+        if (item is PatchNote pn && PatchNotesItemsControl?.ItemsSource is IEnumerable<PatchNote> notes)
+        {
+            var matched = notes.FirstOrDefault(n =>
+                (!string.IsNullOrEmpty(n.Id) && string.Equals(n.Id, pn.Id, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(n.Title) && string.Equals(n.Title, pn.Title, StringComparison.OrdinalIgnoreCase)));
+            if (matched != null)
+            {
+                return PatchNotesItemsControl.ContainerFromItem(matched);
+            }
+        }
+
+        return null;
     }
 }

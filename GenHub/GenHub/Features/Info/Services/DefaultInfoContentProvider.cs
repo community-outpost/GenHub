@@ -197,7 +197,19 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
-            (InfoConstants.CardSettingsSandbox,
+            (InfoConstants.CardProfilesDemo,
+             "Interactive Demo: Profile Card",
+             "Live interactive profile card simulation.",
+             InfoCardType.Feature,
+             """
+             **Live Interactive Profile Card:**
+             This interactive card simulates an active game profile in GenHub.
+             * **Play:** Launches the game using the profile's dedicated workspace and configuration.
+             * **Edit (Pencil):** Opens the profile editor to manage active mods, maps, and engine settings.
+             * **Duplicate:** Clones the profile with all settings preserved.
+             * **Shortcuts:** Generates a desktop shortcut with custom icon and command arguments.
+             """),
+            (InfoConstants.CardProfilesSandbox,
              "Your Personal Sandbox",
              "Keep your mods, maps, and game settings isolated and safe.",
              InfoCardType.Concept,
@@ -209,7 +221,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              2. **Multiple Configurations:** Keep separate profiles for vanilla Zero Hour, Rise of the Reds, ShockWave, or custom balance patches, and switch between them instantly.
              3. **Speed:** Workspaces build in milliseconds using file linking, requiring almost zero extra storage on your drive.
              """),
-            (InfoConstants.CardSettingsControls,
+            (InfoConstants.CardProfilesControls,
              "Controls & Window Persistence",
              "Profile card buttons, manifest scrubbing, and window sizing.",
              InfoCardType.HowTo,
@@ -227,7 +239,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              **Window & Layout Persistence:**
              The profile editor remembers window dimensions, sidebar widths, and maximized states across app restarts.
              """),
-            (InfoConstants.CardSettingsAdvancedOptions,
+            (InfoConstants.CardProfilesAdvancedOptions,
              "Advanced Profile Options & Camera Settings",
              "Custom launch arguments, camera height/speed limits, and EA intro movie skipping.",
              InfoCardType.Feature,
@@ -269,66 +281,141 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             [
                 new InfoCard
                 {
-                    Id = InfoConstants.CardDownloadsStandardAv,
-                    Title = "Standard Audio & Video",
-                    Content = "Display and audio settings for the Generals engine (Options.ini).",
+                    Id = InfoConstants.CardSettingsDemo,
+                    Title = "Interactive Demo: Settings Window",
+                    Content = "Live interactive game settings window with category navigation and live controls.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = false,
+                    DetailedContent = """
+                    **Interactive Game Settings Mockup:**
+                    Test and explore all graphics, audio, control, and engine settings directly inside this live interactive window.
+                    * Select any category in the left sidebar to jump directly to its options.
+                    * Adjust resolution, windowed mode, sound channels, or camera heights.
+                    * Toggle community engine extensions from TheSuperHackers and Generals Online.
+                    * Click the top tabs (Content, Profile Settings, Game Settings) to navigate between guides.
+                    """,
+                },
+                new InfoCard
+                {
+                    Id = InfoConstants.CardSettingsVideo,
+                    Title = "Video & Display Architecture",
+                    Content = "Display resolution, windowed mode, graphics quality, LOD, and shadow rendering.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Display Settings:**
-                    * **Resolution:** Select your screen resolution. Supports modern widescreen, 1440p, 4K, and Ultrawide displays.
-                    * **Windowed Mode:** Run in a borderless or standard window for smooth Alt-Tabbing on multi-monitor setups.
-                    * **Anti-Aliasing & Gamma:** Smooth jagged 3D edges and fine-tune in-game brightness.
+                    **Resolution & Window Modes:**
+                    * **Resolution (Width x Height):** Configures display dimensions (Options.ini `Resolution = X Y`). GenHub fully supports modern widescreen, 1440p, 4K, and Ultrawide displays without stretching the HUD.
+                    * **Windowed Mode:** Runs the game in a borderless or standard window (`Windowed = yes` or `-win`). Prevents game crashes and freezes when Alt-Tabbing across multiple monitors.
+                    * **Gamma & Brightness:** Direct3D gamma ramp modifier (`Gamma = 50`) controlling midtone illumination across maps.
 
-                    **Audio & Controls:**
-                    * **Volume Sliders:** Individual controls for Master, Sound Effects, Music, and Voice levels.
-                    * **Sound Channels:** Maximum simultaneous audio channels (supports up to 128 channels on modern systems).
-                    * **Right-Click Attack:** Switch between classic left-click and modern RTS right-click command schemes.
-                    * **Scroll Speed:** Customize camera movement speed at screen borders.
+                    **Graphics Quality & Performance:**
+                    * **Anti-Aliasing (MSAA):** Full-screen multi-sample anti-aliasing (`AntiAliasing = 0-4`) smoothing geometry silhouettes on 3D vehicles and terrain.
+                    * **Dynamic LOD / Static LOD:** Level-of-Detail geometry mesh decimation. At high zoom, lower LOD models preserve high framerates during intensive battles.
+                    * **Max Particle Count:** Limits simultaneous smoke, fire, shockwave, and shrapnel particles (`MaxParticleCount = 5000`) to eliminate framerate drops during superweapon strikes.
+                    * **Texture Quality:** Low, Medium, or High texture resolution mipmap clamping.
+
+                    **Shadows & Advanced Visual Effects:**
+                    * **3D Volumetric Shadows:** High-fidelity real-time shadow projection from vehicles and structures onto uneven terrain.
+                    * **2D Texture Decal Shadows:** Lightweight projected shadow textures under units; recommended for large 8-player matches.
+                    * **Cloud & Light Maps:** Dynamic cloud shadows sweeping across terrain and pre-baked per-vertex lightmaps.
+                    * **Water Edge Smoothing:** Pixel shader alpha-blending at riverbanks and coastlines preventing hard geometric tile clipping.
+                    * **Behind Buildings Occlusion:** Translucent X-ray silhouette rendering when units move behind tall structures.
+                    * **Heat Effects:** Distortion refraction pixel shaders on jet thrusters, rocket trails, and thermal explosions.
+                    * **Trees & Foliage:** Density and draw distance of environmental flora and terrain props.
+                    * **Skip Intro Movies:** Command line `-quickstart` switch bypassing the EA splash movies for fast boot times.
+                    """,
+                },
+                new InfoCard
+                {
+                    Id = InfoConstants.CardSettingsAudio,
+                    Title = "Audio Channels & Sound Physics",
+                    Content = "DirectSound mixing channels, 3D spatial attenuation, and volume mixing.",
+                    Type = InfoCardType.Concept,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Volume Mixing Channels:**
+                    * **Master Volume:** Global DirectSound output attenuation (`Volume = 0-100`).
+                    * **Sound Effects Volume:** Weapon discharges, explosions, jet engines, and mechanical movements (`SoundFXVolume = 0-100`).
+                    * **Music Volume:** Dynamic interactive orchestral score that changes based on combat state (`MusicVolume = 0-100`).
+                    * **Voice & Speech Volume:** Faction EVA battlefield alerts ("Building complete", "Unit lost") and unit confirmation speech (`VoiceVolume = 0-100`).
+
+                    **Spatial Sound & Hardware Mixing:**
+                    * **3D Sound & Spatial Falloff:** Calculates sound listener coordinates, simulating realistic distance attenuation, stereo panning, and Doppler frequency shifts (`3DSound = yes`).
+                    * **Audio Channels (DirectSound Buffers):** Number of simultaneous audio sample streams (`AudioChannels = 16-128`). Modern audio hardware handles 64 or 128 channels without sound cutting out during massive 8-player artillery barrages.
+                    """,
+                },
+                new InfoCard
+                {
+                    Id = InfoConstants.CardSettingsControlsCamera,
+                    Title = "Controls, Camera Physics & Network",
+                    Content = "Scroll speed, alternate mouse schemes, camera altitude, and packet pacing.",
+                    Type = InfoCardType.HowTo,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Mouse & Unit Controls:**
+                    * **Scroll Speed:** Sensitivity of screen-edge mouse panning (`ScrollSpeed = 50`).
+                    * **Alternate Mouse Setup (Right-Click Attack/Move):** Switches from classic 2003 C&C left-click targeting to modern RTS standard right-click move and attack (`AlternateMouseSetup = yes`).
+                    * **Double-Click Attack Move:** Double-clicking an enemy unit orders all matching on-screen units to converge and attack.
+                    * **Unit Auto-Retaliation:** Configures unit guard stance to automatically retaliate against distant enemy fire without breaking formation.
+                    * **Scroll Anchor:** Displays a visual pivot marker on the map when scrolling with the middle mouse button.
+
+                    **Networking & HUD Options:**
+                    * **SendDelay (Packet Pacing):** Paces multiplayer lockstep network turns (`SendDelay = yes`), reducing buffer bloat and sync errors over high-latency connections.
+                    * **Clock Font Size:** Adjusts on-screen match timer font scale for high-resolution displays.
+                    * **Profanity Filter:** Toggles client-side chat profanity masking.
+
+                    **Camera Altitude & Perspective:**
+                    * **Camera Base Altitude & Min/Max Zoom:** Controls vertical viewing distance above terrain for tactical overview.
+                    * **Camera Pitch Angle:** Adjusts camera tilt angle between steep top-down and cinematic oblique perspectives.
                     """,
                 },
                 new InfoCard
                 {
                     Id = InfoConstants.CardDownloadsSuperHackers,
-                    Title = "TheSuperHackers Engine",
-                    Content = "Modern client extensions and stability improvements.",
+                    Title = "TheSuperHackers Engine Extensions",
+                    Content = "Replay archiving, economy HUD, observer mode, and cursor capture.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Community Engine Enhancements:**
-                    TheSuperHackers (TSH) engine is the active community codebase improving Zero Hour stability and modern feature support.
+                    **Engine Enhancements & Stability:**
+                    TheSuperHackers (TSH) engine is the active community codebase modernizing Command & Conquer: Generals and Zero Hour.
 
-                    **Engine Improvements:**
-                    * **Cursor Clip:** Restricts the mouse to the game window during matches to prevent accidental clicks on a second monitor.
-                    * **Windowed Edge Scrolling:** Enables smooth camera scrolling at window edges even in windowed mode.
-                    * **Font Scaling:** Automatically scales in-game text and UI for high-DPI and 4K displays.
+                    **Hardware & Display Integration:**
+                    * **Cursor Clip / Capture:** Hardware-locks the mouse cursor to the game viewport during matches in both fullscreen and windowed modes. Prevents accidental clicks onto secondary monitors during fast micro.
+                    * **Windowed Screen Edge Scrolling:** Enables smooth camera panning simply by moving the cursor to window edges in windowed mode, eliminating the need to drag with the right mouse button.
+                    * **Window Transition Speed Multiplier:** Eliminates artificial menu fade-out delays for instantaneous navigation across lobbies and scoreboards.
 
-                    **In-Game Overlays:**
-                    * **Economy Stats:** Live resources-per-minute income rate display.
-                    * **Performance Metrics:** On-screen clock, FPS counter, and network latency indicators.
-                    * **Replay Archiving:** Automatically saves and structures match replays into categorized folders.
+                    **In-Game Information Overlays:**
+                    * **Money Per Minute (MPM) Economy HUD:** Real-time income tracker displaying resource collection rate, supply truck efficiency, and secondary economy flow.
+                    * **Observer / Spectator Mode:** Grants non-playing referees and tournament casters an uninhibited tactical view of all players without fog-of-war constraints.
+                    * **HUD Font Size Scalers:** Independent font size configuration for system clock, network ping latency, and render FPS counters.
+                    * **Transaction Volume:** Independent volume control for financial sound effects (bounties, cash drops, hacker income).
+                    * **Replay Auto-Archiving:** Automatically timestamps and organizes skirmish and multiplayer replays into dedicated dated directories, preventing LastReplay.rep from being overwritten.
                     """,
                 },
                 new InfoCard
                 {
                     Id = InfoConstants.CardDownloadsGeneralsOnline,
-                    Title = "GeneralsOnline Features",
-                    Content = "Online multiplayer lobby and matchmaking features.",
+                    Title = "Generals Online Modern Client & Network",
+                    Content = "Matchmaking, rank badges, unlocked framerate, and host camera limits.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Modern Multiplayer Integration:**
-                    Generals Online provides dedicated online matchmaking, lobbies, and community rankings for Command & Conquer: Generals and Zero Hour.
+                    **Generals Online Architecture:**
+                    Generals Online (GO) provides modern multiplayer networking, ranked matchmaking, and client extensions replacing discontinued GameSpy services.
 
-                    **Lobby & Networking:**
-                    * **Ping & Ranks:** View player latency and competitive ladder rankings directly in the lobby.
-                    * **Fast Login:** Connect securely using Steam, Discord, or GameReplays authentication.
-                    * **Desktop Notifications:** Receive alerts when friends come online or invite you to matches.
-                    * **Chat Options:** Adjust lobby text size and fade delays to your preference.
+                    **Lobby & Account Features:**
+                    * **Auto-Login & Encrypted Session Tokens:** Securely restores player sessions without re-entering credentials.
+                    * **Player Ranks & Ladder Badges:** Displays competitive MMR rankings, seasonal badges, and disconnect ratings directly in lobby rooms.
+                    * **Social Toast & Sound Notifications:** Customizable audio-visual popups when friends join lobbies, send direct messages, or invite you to matches.
+                    * **Chat Font & Fade Delays:** Customizes lobby chat font size and duration before messages fade from the HUD.
 
-                    **In-Game Camera:**
-                    * **Camera Zoom Height:** Customize maximum camera zoom distance for broader battlefield visibility.
-                    * **Camera Pan Speed:** Tune panning sensitivity during multiplayer matches.
+                    **Graphics & Camera Modernization:**
+                    * **Unlocked Framerate Limiter (Up to 500 FPS):** Uncouples graphics render loop from the 30-tick engine physics rate, delivering buttery-smooth 144Hz, 240Hz, or 360Hz refresh rates.
+                    * **Stats, Ping & FPS Overlay:** In-engine DirectX HUD displaying frame draw times, ping round-trip latency, and packet jitter.
+                    * **Host-Enforced Max Zoom Limits:** Allows game hosts to lock maximum camera zoom height across all connected players to ensure competitive fairness.
+                    * **Camera Move Speed Ratio:** Dynamically scales camera panning speed relative to current zoom altitude for natural mouse feel.
+                    * **GameSpy IP Override & Diagnostics:** Redirects legacy direct-IP connections to community proxy infrastructure and enables verbose packet logs for netcode diagnostics.
                     """,
                 },
             ],
@@ -349,6 +436,21 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Order = 2,
             Cards =
             [
+                new InfoCard
+                {
+                    Id = InfoConstants.CardContentDemo,
+                    Title = "Interactive Demo: Content Editor",
+                    Content = "Live interactive content manager showing mod selection and priority ordering.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = false,
+                    DetailedContent = """
+                    **Live Content Manager Demo:**
+                    Explore how mods, maps, game clients, and tools are structured and ordered inside a profile.
+                    * Browse active mods and toggle addons on or off.
+                    * Reorder items to establish load priority for overriding INI files or Big archives.
+                    * Switch between Content, Profile Settings, and Game Settings using the tabs above.
+                    """,
+                },
                 new InfoCard
                 {
                     Id = InfoConstants.CardProfilesHierarchy,
@@ -438,7 +540,17 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
-            (InfoConstants.CardSettingsHeadless,
+            (InfoConstants.CardShortcutsDemo,
+             "Interactive Demo: Desktop Shortcuts",
+             "Interactive flow showing profile shortcut generation and command line targets.",
+             InfoCardType.Feature,
+             """
+             **Interactive Desktop Shortcut Simulation:**
+             Inspect how GenHub connects desktop shortcut (.lnk) files directly to isolated profile workspaces.
+             * Double-clicking launches the profile in headless mode without keeping the main UI open.
+             * Custom high-DPI icon artwork is extracted and embedded automatically.
+             """),
+            (InfoConstants.CardShortcutsHeadless,
              "Headless Mode Launcher",
              "Launch profiles directly from your desktop.",
              InfoCardType.Concept,
@@ -490,6 +602,14 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
+            (InfoConstants.CardSteamDemo,
+             "Interactive Demo: Steam Integration",
+             "Live preview of Steam overlay hook and launcher integration.",
+             InfoCardType.Feature,
+             """
+             **Live Steam Integration Simulation:**
+             Preview how GenHub injects Steam AppID parameters to enable the official Steam Overlay, friend status, and library playtime tracking for any mod profile.
+             """),
             (InfoConstants.CardSteamAppId,
              "AppID Injection",
              "Use Steam playtime tracking and the overlay with any mod.",
@@ -548,6 +668,20 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Order = 5,
             Cards =
             [
+                new InfoCard
+                {
+                    Id = InfoConstants.CardLocalContentDemo,
+                    Title = "Interactive Demo: Add Local Content",
+                    Content = "Interactive dialog mockup with pre-configured mod, client, tool, and executable presets.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = false,
+                    DetailedContent = """
+                    **Interactive Local Content Importer:**
+                    Test importing folders, archives, and executables into GenHub without touching your disk files.
+                    * Use the preset buttons (Mod, Client, Tool, Executable) to test automatic metadata recognition.
+                    * Inspect how GenLauncher scrambled .gib files are automatically normalized into clean .big archives.
+                    """,
+                },
                 new InfoCard
                 {
                     Id = InfoConstants.CardContentImporting,
@@ -637,6 +771,18 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed, IReadOnlyList<InfoAction>? Actions)[] cardData =
         [
+            (InfoConstants.CardToolsDemo,
+             "Interactive Demo: Tools Suite",
+             "Interactive Replay Manager, Map Manager, and Publisher Studio showcase.",
+             InfoCardType.Feature,
+             """
+             **Interactive Tools Suite:**
+             Explore the built-in Replay Manager, Map Manager, and Publisher Studio directly below.
+             * Test replay inspection, client CRC mapping, and checkpoint takeover.
+             * Preview map thumbnails and create custom map packs.
+             * Learn how Publisher Studio distributes content via 3-tier manifests.
+             """,
+             null),
             (InfoConstants.CardToolsReplayImport,
              "Replay Manager: Import & Header Inspection",
              "Import replays from disk, web links, or match IDs and inspect header metadata.",
@@ -913,6 +1059,16 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
+            (InfoConstants.CardScanDemo,
+             "Interactive Demo: Scan Wizard",
+             "Interactive game scanner simulating discovery across disks and registries.",
+             InfoCardType.Feature,
+             """
+             **Interactive Scan Wizard:**
+             Simulate automatic game discovery across Steam, EA App, CD directories, and custom folders.
+             * Click Start Scan to simulate disk scanning and cryptographic SHA-256 signature verification.
+             * Review discovered game clients before adding them to your library.
+             """),
             (InfoConstants.CardScanAutoDetection,
              "Auto-Detection Across Platforms",
              "Locate Steam, EA App, CD, and Wine/Proton game installations.",
@@ -974,6 +1130,20 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Order = 8,
             Cards =
             [
+                new InfoCard
+                {
+                    Id = InfoConstants.CardWorkspaceDemo,
+                    Title = "Interactive Demo: Filesystem Magic",
+                    Content = "Live filesystem visualizer demonstrating hardlinks, symlinks, and junctions.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = false,
+                    DetailedContent = """
+                    **Interactive Workspace Visualizer:**
+                    See exactly how files are linked when building a profile workspace.
+                    * Toggle between HardLink, SymlinkOnly, HybridCopySymlink, and FullCopy modes.
+                    * Inspect zero-byte pointer mechanics and directory junctions in real time.
+                    """,
+                },
                 new InfoCard
                 {
                     Id = InfoConstants.CardWorkspacesMagicMirror,
@@ -1112,6 +1282,16 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
+            (InfoConstants.CardUpdatesDemo,
+             "Interactive Demo: Updates & CI Builds",
+             "Test update channels, release notes view, and GitHub CI workflow artifacts.",
+             InfoCardType.Feature,
+             """
+             **Interactive Update Notification Sandbox:**
+             Test launcher update mechanics and automated CI build subscriptions.
+             * Inspect release notes and delta update payloads.
+             * Switch to Browse Builds to test subscribing to automated PR and branch builds.
+             """),
             (InfoConstants.CardUpdatesVersionControl,
              "Interactive Update Window & Release Channels",
              "Explore the live update window demo above, with Update and Browse Builds tabs.",

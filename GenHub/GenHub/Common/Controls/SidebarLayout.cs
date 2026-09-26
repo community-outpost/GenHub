@@ -310,6 +310,7 @@ public class SidebarLayout : ContentControl
         {
             _sidebarColumn = _rootGrid is { ColumnDefinitions.Count: >= 1 } ? _rootGrid.ColumnDefinitions[0] : null;
             _splitterColumn = _rootGrid is { ColumnDefinitions.Count: >= 2 } ? _rootGrid.ColumnDefinitions[1] : null;
+            UpdateLayoutState();
             return;
         }
 
