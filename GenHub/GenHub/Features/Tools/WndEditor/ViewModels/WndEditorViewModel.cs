@@ -560,7 +560,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
-        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, roots, FilePath, FilesDirectory);
 
         var mappedNameToApply = await ResolveMappedNameForDroppedPathsAsync(validPaths, projectDirectory, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrEmpty(mappedNameToApply))
@@ -1459,7 +1459,7 @@ public sealed partial class WndEditorViewModel(
         CancellationToken cancellationToken)
     {
         var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
-        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, roots, FilePath, FilesDirectory);
         if (string.IsNullOrWhiteSpace(projectDirectory))
         {
             notificationService.ShowWarning(
@@ -1745,7 +1745,7 @@ public sealed partial class WndEditorViewModel(
     private async Task ImportTexturesWithDialogAsync(CancellationToken cancellationToken = default)
     {
         var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
-        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, roots, FilePath, FilesDirectory);
         if (string.IsNullOrEmpty(projectDirectory))
         {
             notificationService.ShowWarning(
@@ -1837,7 +1837,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         var roots = SelectedAssetInstallation != null ? ResolveAssetRoots(SelectedAssetInstallation) : null;
-        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, SelectedAssetInstallation, roots, FilePath, FilesDirectory);
+        var projectDirectory = ResolveImportProjectDirectory(LinkedModFolder, roots, FilePath, FilesDirectory);
         if (string.IsNullOrEmpty(projectDirectory))
         {
             notificationService.ShowWarning(
@@ -1970,7 +1970,6 @@ public sealed partial class WndEditorViewModel(
 
     private static string? ResolveImportProjectDirectory(
         string? linkedModFolder,
-        GameInstallationOption? selection,
         AssetRoots? roots,
         string? filePath,
         string? filesDirectory)
