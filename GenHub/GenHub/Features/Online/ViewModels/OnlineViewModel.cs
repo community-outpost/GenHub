@@ -80,7 +80,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly SemaphoreSlim _profileLock = new(1, 1);
     private readonly ConcurrentDictionary<string, OnlineProfileSetup> _profileSetupCache = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IReadOnlyDictionary<string, ContentType>> _contentTypeCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, ContentType>> _contentTypeCache = new(StringComparer.Ordinal);
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _nicknameCts;
     private CancellationTokenSource? _detailCts;
@@ -1449,6 +1449,17 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         var compatibleProfileIds = new HashSet<string>(StringComparer.Ordinal);
         await EnsureProfilesLoadedAsync(cancellationToken);
+
+        // Prewarm one content-type map per distinct game client before fanning
+        // out: the cache is shared across the parallel DescribeProfileAsync
+        // tasks, so warming it sequentially keeps cold inserts off the fan-out
+        // and collapses one manifest scan per client instead of one per profile.
+        foreach (var representative in AvailableProfiles
+            .GroupBy(OnlineProfileMatcher.GetGameClientKey, StringComparer.Ordinal)
+            .Select(group => group.First()))
+        {
+            await GetContentTypeMapAsync(representative, cancellationToken);
+        }
 
         var tasks = AvailableProfiles.Select(async profile =>
         {

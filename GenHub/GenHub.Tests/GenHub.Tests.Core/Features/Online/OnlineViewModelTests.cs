@@ -1250,6 +1250,52 @@ public class OnlineViewModelTests
         profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
+    /// <summary>
+    /// Tests that the profile fan-out prewarms one content-type map per distinct
+    /// game client instead of racing one cold scan per profile.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task FindCompatibleProfileIds_PrewarmContentTypeMapOncePerClientAsync()
+    {
+        // Arrange: three profiles sharing one game client, with a delayed content
+        // scan so the fan-out tasks genuinely overlap instead of completing in sequence.
+        var sharedProfiles = new List<GameProfile>
+        {
+            ProfileWithClient("p1", "Profile 1", GameType.ZeroHour, "client-1", "1.04", "mod-a"),
+            ProfileWithClient("p2", "Profile 2", GameType.ZeroHour, "client-1", "1.04", "mod-a"),
+            ProfileWithClient("p3", "Profile 3", GameType.ZeroHour, "client-1", "1.04", "mod-a"),
+        };
+        var manifests = new List<ContentManifest>
+        {
+            new() { Id = new ManifestId("mod-a"), ContentType = GenHub.Core.Models.Enums.ContentType.Mod },
+        };
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(sharedProfiles));
+        profileManager.Setup(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                await Task.Delay(50);
+                return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess(manifests);
+            });
+
+        var vm = CreateViewModel(profiles: profileManager.Object);
+        vm.IsCurrentUserHost = false;
+
+        var expectedFp = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);
+        var method = typeof(OnlineViewModel).GetMethod("FindCompatibleProfileIdsAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+
+        // Act
+        var task = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
+        var result = await task;
+
+        // Assert: one scan for the shared client, not one per profile, with all matches found.
+        Assert.NotNull(result);
+        Assert.Equal(3, result.Count);
+        profileManager.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);

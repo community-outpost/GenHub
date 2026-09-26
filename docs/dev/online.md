@@ -92,6 +92,12 @@ of failing silently.
 
 ## Windows elevation
 
+Release installers exclude the bundled `genhub-overlay` sidecar to keep
+Setup.exe under budget, so a default install falls back to the in-process
+tunnel runner: creating the Wintun adapter then requires running GenHub
+itself elevated, or supplying the sidecar via `GENHUB_OVERLAY_BIN`. Dev and
+Debug builds bundle the sidecar instead.
+
 Creating the Wintun adapter requires administrator rights. On a non-elevated
 launch the client spawns the bundled `genhub-overlay` sidecar through a UAC
 prompt; accepting it brings tunneling up, while denying (or dismissing) it
