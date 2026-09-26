@@ -570,4 +570,47 @@ public class OnlineProfileMatcherTests
             EnabledContentIds = [.. contentIds],
         };
     }
+
+    /// <summary>
+    /// Tests that dot-delimited non-gameplay segments (map, mappack, mission, customasset)
+    /// are excluded from gameplay content IDs.
+    /// </summary>
+    /// <param name="contentId">The non-gameplay content id.</param>
+    [Theory]
+    [InlineData("1.0.0.steam.map.last-stand")]
+    [InlineData("1.0.0.steam.mappack.desert-fury")]
+    [InlineData("1.0.0.steam.mission.defend-base")]
+    [InlineData("1.0.0.steam.customasset.tree-pack")]
+    public void GetGameplayContentIds_WithDelimitedNonGameplaySegment_ShouldExclude(string contentId)
+    {
+        // Arrange
+        var profile = ProfileWith(contentId);
+
+        // Act
+        var ids = OnlineProfileMatcher.GetGameplayContentIds(profile, new Dictionary<string, ContentType>());
+
+        // Assert
+        Assert.DoesNotContain(contentId, ids);
+    }
+
+    /// <summary>
+    /// Tests that mod names embedding mappack or last-stand in compound tokens
+    /// are not mistakenly classified as non-gameplay and remain gameplay affecting.
+    /// </summary>
+    /// <param name="contentId">The gameplay mod content id.</param>
+    [Theory]
+    [InlineData("1.0.0.steam.mappack-rebalance.patch")]
+    [InlineData("1.0.0.steam.last-stand-overhaul")]
+    public void GetGameplayContentIds_WithCompoundNonGameplayWordInMod_ShouldInclude(string contentId)
+    {
+        // Arrange
+        var profile = ProfileWith(contentId);
+
+        // Act
+        var ids = OnlineProfileMatcher.GetGameplayContentIds(profile, new Dictionary<string, ContentType>());
+
+        // Assert
+        Assert.Contains(contentId, ids);
+    }
+
 }

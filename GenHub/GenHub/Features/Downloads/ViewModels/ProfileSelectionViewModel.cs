@@ -10,6 +10,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -43,6 +44,7 @@ public sealed partial class ProfileSelectionViewModel(
     INotificationService notificationService,
     ILocalizationService? localizationService = null) : ObservableObject, IDisposable, IRequestCloseViewModel
 {
+    private readonly ILocalizationService? _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
 
@@ -117,8 +119,25 @@ public sealed partial class ProfileSelectionViewModel(
     [ObservableProperty]
     private string _headerSubtitle = "Choose a profile to add this content to, or create a new one";
 
-    [ObservableProperty]
-    private string _actionBadgeText = "Add";
+    private string? _actionBadgeText;
+
+    /// <summary>
+    /// Gets or sets the action badge text shown on profile cards.
+    /// When unset, defaults to the localized "Add" string.
+    /// </summary>
+    public string ActionBadgeText
+    {
+        get => !string.IsNullOrWhiteSpace(_actionBadgeText)
+            ? _actionBadgeText
+            : (_localizationService?.GetString("Downloads.ProfileSelection.Add") ?? "Add");
+        set
+        {
+            if (SetProperty(ref _actionBadgeText, value))
+            {
+                OnPropertyChanged(nameof(ActionBadgeText));
+            }
+        }
+    }
 
     [ObservableProperty]
     private string _createProfileCardSubtitle = "Pre-configured with this content";
@@ -295,7 +314,7 @@ public sealed partial class ProfileSelectionViewModel(
         _cts.Dispose();
     }
 
-    private static (bool IsMatch, string? WarningMessage) EvaluateCompatibility(
+    private (bool IsMatch, string? WarningMessage) EvaluateCompatibility(
         GameProfile profile,
         GameType targetGame,
         ISet<string>? compatibleProfileIds)
@@ -308,8 +327,8 @@ public sealed partial class ProfileSelectionViewModel(
             }
 
             var warning = profile.GameClient?.GameType != targetGame
-                ? $"This profile is for {profile.GameClient?.GameType.ToString() ?? "Tool"}, content is for {targetGame}"
-                : "Profile does not match lobby or requirements";
+                ? GetIncompatibleGameWarning(profile.GameClient?.GameType, targetGame)
+                : GetIncompatibleLobbyWarning();
 
             return (false, warning);
         }
@@ -319,8 +338,25 @@ public sealed partial class ProfileSelectionViewModel(
             return (true, null);
         }
 
-        var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
-        return (false, $"This profile is for {profileGameType}, content is for {targetGame}");
+        return (false, GetIncompatibleGameWarning(profile.GameClient?.GameType, targetGame));
+    }
+
+    private string GetIncompatibleLobbyWarning()
+    {
+        return _localizationService?.GetString("Downloads.ProfileSelection.IncompatibleLobby")
+            ?? "Profile does not match lobby or requirements";
+    }
+
+    private string GetIncompatibleGameWarning(GameType? profileGameType, GameType targetGame)
+    {
+        var profileGameTypeName = profileGameType?.ToString() ?? "Tool";
+        var template = _localizationService?.GetString("Downloads.ProfileSelection.IncompatibleGameFormat");
+        if (!string.IsNullOrEmpty(template))
+        {
+            return string.Format(template, profileGameTypeName, targetGame);
+        }
+
+        return $"This profile is for {profileGameTypeName}, content is for {targetGame}";
     }
 
     /// <summary>
@@ -394,7 +430,9 @@ public sealed partial class ProfileSelectionViewModel(
             if (!isMatch)
             {
                 option.ShowWarning = true;
-                option.WarningMessage = warningMessage;
+                option.WarningMessage = !string.IsNullOrWhiteSpace(warningMessage)
+                    ? warningMessage
+                    : (_localizationService?.GetString("Downloads.ProfileSelection.Incompatible") ?? "Incompatible");
                 OtherProfiles.Add(option);
             }
             else

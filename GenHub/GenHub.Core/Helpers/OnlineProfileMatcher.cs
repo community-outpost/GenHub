@@ -115,22 +115,19 @@ public static class OnlineProfileMatcher
         }
 
         var lower = contentId.ToLowerInvariant();
-        if (lower.Contains(".map.") ||
-            lower.Contains(".mappack.") ||
-            lower.Contains(".mission.") ||
-            lower.Contains(".customasset.") ||
-            lower.EndsWith(".map", StringComparison.Ordinal) ||
-            lower.EndsWith(".mappack", StringComparison.Ordinal) ||
-            lower.Contains("last-stand", StringComparison.Ordinal) ||
-            lower.Contains("mappack", StringComparison.Ordinal))
+        var segments = lower.Split('.');
+        if (segments.Contains("map") ||
+            segments.Contains("mappack") ||
+            segments.Contains("mission") ||
+            segments.Contains("customasset"))
         {
             return false;
         }
 
-        if (lower.Contains(".mod.") ||
-            lower.Contains(".patch.") ||
-            lower.Contains(".contentbundle.") ||
-            lower.Contains(".executable."))
+        if (segments.Contains("mod") ||
+            segments.Contains("patch") ||
+            segments.Contains("contentbundle") ||
+            segments.Contains("executable"))
         {
             return true;
         }

@@ -27,6 +27,7 @@ using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
@@ -78,6 +79,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly SemaphoreSlim _profileLock = new(1, 1);
+    private readonly ConcurrentDictionary<string, OnlineProfileSetup> _profileSetupCache = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyDictionary<string, ContentType>> _contentTypeCache = new(StringComparer.Ordinal);
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _nicknameCts;
@@ -960,6 +962,8 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return;
         }
 
+        _profileSetupCache.TryRemove(message.Profile.Id, out _);
+
         RunOnUi(() =>
         {
             if (_disposed || !_profilesLoaded)
@@ -997,6 +1001,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         // Catalog or content changes can reclassify gameplay ids; drop the
         // cached map so the next fingerprint reflects the edited profile.
         _contentTypeCache.Clear();
+        _profileSetupCache.TryRemove(message.Profile.Id, out _);
 
         var updatedProfile = message.Profile;
         var updatedId = updatedProfile.Id;
@@ -1040,6 +1045,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         }
 
         var deletedId = message.ProfileId;
+        _profileSetupCache.TryRemove(deletedId, out _);
         RunOnUi(() =>
         {
             if (_disposed)
@@ -1086,6 +1092,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         }
 
         _contentTypeCache.Clear();
+        _profileSetupCache.Clear();
 
         if (_profilesLoaded)
         {
@@ -1442,13 +1449,20 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         var compatibleProfileIds = new HashSet<string>(StringComparer.Ordinal);
         await EnsureProfilesLoadedAsync(cancellationToken);
-        foreach (var profile in AvailableProfiles)
+
+        var tasks = AvailableProfiles.Select(async profile =>
         {
             var setup = await DescribeProfileAsync(profile, cancellationToken, includeCompatibilityCrcs: true);
+            return (profile.Id, setup);
+        });
+
+        var results = await Task.WhenAll(tasks);
+        foreach (var (profileId, setup) in results)
+        {
             var match = OnlineProfileMatcher.Compare(expectedFp, expectedClientKey, setup.Fingerprint, setup.ClientKey);
             if (match == OnlineProfileMatch.Exact)
             {
-                compatibleProfileIds.Add(profile.Id);
+                compatibleProfileIds.Add(profileId);
             }
         }
 
@@ -2337,16 +2351,29 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return new OnlineProfileSetup(string.Empty, string.Empty, []);
         }
 
+        if (includeCompatibilityCrcs && _profileSetupCache.TryGetValue(profile.Id, out var cachedSetup))
+        {
+            return cachedSetup;
+        }
+
         var map = await GetContentTypeMapAsync(profile, cancellationToken);
         var clientKey = OnlineProfileMatcher.GetGameClientKey(profile);
         var gameplayIds = OnlineProfileMatcher.GetGameplayContentIds(profile, map);
         var fingerprint = includeCompatibilityCrcs
             ? await CreateCompatibilityFingerprintAsync(profile, clientKey, gameplayIds, cancellationToken)
             : OnlineProfileMatcher.CreateFingerprint(clientKey, gameplayIds);
-        return new OnlineProfileSetup(
+
+        var setup = new OnlineProfileSetup(
             fingerprint,
             clientKey,
             OnlineProfileMatcher.BoundContentIds(gameplayIds));
+
+        if (includeCompatibilityCrcs)
+        {
+            _profileSetupCache[profile.Id] = setup;
+        }
+
+        return setup;
     }
 
     /// <summary>

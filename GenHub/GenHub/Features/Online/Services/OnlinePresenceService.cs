@@ -130,18 +130,22 @@ public sealed class OnlinePresenceService(
             _advertisedProfileName = profileName ?? string.Empty;
             _advertisedDisplayName = displayName ?? string.Empty;
             _advertisedIsLaunched = isLaunched;
-        }
 
-        try
-        {
-            if (_heartbeatSignal.CurrentCount == 0)
+            try
             {
-                _heartbeatSignal.Release();
+                if (_heartbeatSignal.CurrentCount == 0)
+                {
+                    _heartbeatSignal.Release();
+                }
             }
-        }
-        catch (ObjectDisposedException)
-        {
-            // Shutdown raced
+            catch (ObjectDisposedException)
+            {
+                // Shutdown raced with advertisement update; drop signal
+            }
+            catch (SemaphoreFullException)
+            {
+                // Already signaled concurrently; drop signal
+            }
         }
     }
 
