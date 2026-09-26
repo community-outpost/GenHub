@@ -1041,14 +1041,6 @@ public class GenericCatalogDiscoverer(
                 : VersionPolicy.LatestStableOnly;
 
             var selectedReleases = versionSelector.SelectReleases(contentItem.Releases, policy);
-            if (selectedReleases.Count == 0 && contentItem.Releases.Count > 0)
-            {
-                var fallbackRelease = versionSelector.GetLatest(contentItem.Releases);
-                if (fallbackRelease != null)
-                {
-                    selectedReleases = [fallbackRelease];
-                }
-            }
 
             foreach (var release in selectedReleases)
             {
