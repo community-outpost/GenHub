@@ -44,9 +44,19 @@ public class GameProcessManager(
         public bool TryFinalize() => Interlocked.Exchange(ref _finalized, 1) == 0;
     }
 
+    private sealed record GameSessionMeta(
+        string SessionId,
+        DateTime StartTime,
+        string ExecName,
+        string Runner,
+        string? GameType = null,
+        string? GameClientId = null,
+        string? GameClientName = null,
+        string? GameClientVersion = null);
+
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
-    private readonly ConcurrentDictionary<Process, (string SessionId, DateTime StartTime, string ExecName, string Runner)> _sessionMetadata = new();
+    private readonly ConcurrentDictionary<Process, GameSessionMeta> _sessionMetadata = new();
 
     /// <summary>
     /// Stderr captures for processes this manager started itself, keyed by process instance.
@@ -193,7 +203,7 @@ public class GameProcessManager(
             cancellationToken.ThrowIfCancellationRequested();
             _managedProcesses[process.Id] = process;
             var combinedEnvVars = MergeEnvironmentVariables(configuration.EnvironmentVariables, runnerResult.Data.EnvironmentVariables);
-            RegisterSessionAndEmitStarted(process, configuration.ExecutablePath, combinedEnvVars);
+            RegisterSessionAndEmitStarted(process, configuration.ExecutablePath, combinedEnvVars, configuration);
 
             if (configuration.WaitForExit)
             {
@@ -737,6 +747,10 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.WasGraceful] = exitCode == 0,
                 [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
                 [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
+                [TelemetryConstants.Properties.GameType] = sessionMeta.GameType,
+                [TelemetryConstants.Properties.GameClientId] = sessionMeta.GameClientId,
+                [TelemetryConstants.Properties.GameClientName] = sessionMeta.GameClientName,
+                [TelemetryConstants.Properties.GameClientVersion] = sessionMeta.GameClientVersion,
             });
         }
 
@@ -1544,7 +1558,7 @@ public class GameProcessManager(
         _stderrBuffers.TryRemove(launcherProcess, out _);
         launcherProcess.Dispose();
         _managedProcesses[spawnedProcess.Id] = spawnedProcess;
-        RegisterSessionAndEmitStarted(spawnedProcess, configuration.ExecutablePath, configuration.EnvironmentVariables);
+        RegisterSessionAndEmitStarted(spawnedProcess, configuration.ExecutablePath, configuration.EnvironmentVariables, configuration);
 
         var spawnedProcessInfo = BuildProcessInfo(spawnedProcess, configuration.ExecutablePath);
         RegisterProcessEventHandlers(spawnedProcess);
@@ -1686,7 +1700,7 @@ public class GameProcessManager(
                 if (child != null)
                 {
                     _managedProcesses[child.Id] = child;
-                    RegisterSessionAndEmitStarted(child, expectedName, configuration.EnvironmentVariables);
+                    RegisterSessionAndEmitStarted(child, expectedName, configuration.EnvironmentVariables, configuration);
 
                     var childInfo = BuildProcessInfo(child, configuration.ExecutablePath);
                     RegisterProcessEventHandlers(child);
@@ -2073,12 +2087,29 @@ public class GameProcessManager(
         }
     }
 
-    private void RegisterSessionAndEmitStarted(Process process, string executableName, IReadOnlyDictionary<string, string>? envVars = null)
+    private void RegisterSessionAndEmitStarted(
+        Process process,
+        string executableName,
+        IReadOnlyDictionary<string, string>? envVars = null,
+        GameLaunchConfiguration? config = null)
     {
         var sessionId = Guid.NewGuid().ToString("N");
         var execName = Path.GetFileName(executableName);
         var runner = DetectRunnerEnvironment(envVars);
-        _sessionMetadata[process] = (sessionId, DateTime.UtcNow, execName, runner);
+        var gameType = config?.GameType?.ToString();
+        var gameClientId = config?.GameClientId;
+        var gameClientName = config?.GameClientName;
+        var gameClientVersion = config?.GameClientVersion;
+
+        _sessionMetadata[process] = new GameSessionMeta(
+            sessionId,
+            DateTime.UtcNow,
+            execName,
+            runner,
+            gameType,
+            gameClientId,
+            gameClientName,
+            gameClientVersion);
 
         if (telemetryService != null)
         {
@@ -2098,6 +2129,10 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.ExecutablePath] = execName,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
                 [TelemetryConstants.Properties.Runner] = runner,
+                [TelemetryConstants.Properties.GameType] = gameType,
+                [TelemetryConstants.Properties.GameClientId] = gameClientId,
+                [TelemetryConstants.Properties.GameClientName] = gameClientName,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClientVersion,
             });
         }
     }
@@ -2109,14 +2144,16 @@ public class GameProcessManager(
             return;
         }
 
-        foreach (var (_, (sessionId, startTime, execName, runner)) in _sessionMetadata)
+        foreach (var (_, meta) in _sessionMetadata)
         {
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionHeartbeat, new Dictionary<string, object?>
             {
-                [TelemetryConstants.Properties.SessionId] = sessionId,
-                [TelemetryConstants.Properties.DurationSeconds] = (DateTime.UtcNow - startTime).TotalSeconds,
-                [TelemetryConstants.Properties.ExecutablePath] = execName,
-                [TelemetryConstants.Properties.Runner] = runner,
+                [TelemetryConstants.Properties.SessionId] = meta.SessionId,
+                [TelemetryConstants.Properties.DurationSeconds] = (DateTime.UtcNow - meta.StartTime).TotalSeconds,
+                [TelemetryConstants.Properties.ExecutablePath] = meta.ExecName,
+                [TelemetryConstants.Properties.Runner] = meta.Runner,
+                [TelemetryConstants.Properties.GameType] = meta.GameType,
+                [TelemetryConstants.Properties.GameClientId] = meta.GameClientId,
             });
         }
     }

@@ -1828,6 +1828,9 @@ public class GameLauncher(
             EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
             ExpectedChildProcessName = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath),
             GameType = profile.GameClient?.GameType,
+            GameClientId = profile.GameClient?.Id,
+            GameClientName = profile.GameClient?.Name,
+            GameClientVersion = profile.GameClient?.Version,
             NativeOptionsIniPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType),
         };
     }

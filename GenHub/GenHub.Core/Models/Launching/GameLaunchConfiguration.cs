@@ -1,4 +1,6 @@
 using GenHub.Core.Models.Enums;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Launching;
 
@@ -13,6 +15,15 @@ public class GameLaunchConfiguration
 
     /// <summary>Gets or sets the game type, used to locate user data inside compatibility prefixes.</summary>
     public GameType? GameType { get; set; }
+
+    /// <summary>Gets or sets the game client ID.</summary>
+    public string? GameClientId { get; set; }
+
+    /// <summary>Gets or sets the game client display name.</summary>
+    public string? GameClientName { get; set; }
+
+    /// <summary>Gets or sets the game client version.</summary>
+    public string? GameClientVersion { get; set; }
 
     /// <summary>Gets or sets the native Options.ini path mirrored into compatibility prefixes.</summary>
     public string? NativeOptionsIniPath { get; set; }

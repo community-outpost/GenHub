@@ -225,7 +225,7 @@
         <span>Endpoint: <code>https://us.i.posthog.com/i/v0/e/</code></span>
         <span class="badge badge-green">Pipeline: Dual-Sink</span>
         <span class="badge badge-blue">Dashboards: 4</span>
-        <span class="badge badge-purple">Insight Tiles: 41</span>
+        <span class="badge badge-purple">Insight Tiles: 45</span>
       </div>
     </header>
 
@@ -291,25 +291,31 @@
             <td><strong>Game Process</strong></td>
             <td><code>game_session_started</code></td>
             <td><code>GameProcessManager.cs</code></td>
-            <td><code>session_id</code>, <code>game_type</code>, <code>profile_id</code>, <code>profile_name</code>, <code>runner</code> (Native/Wine/Proton), <code>resolution</code>, <code>executable_path</code></td>
+            <td><code>session_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>runner</code> (Native/Wine/Proton), <code>platform</code>, <code>executable_path</code></td>
           </tr>
           <tr>
             <td><strong>Game Process</strong></td>
             <td><code>game_session_heartbeat</code></td>
             <td><code>GameProcessManager.cs</code></td>
-            <td><code>session_id</code>, <code>duration_seconds</code> (dispatched every 5 minutes while game executes)</td>
+            <td><code>session_id</code>, <code>duration_seconds</code>, <code>game_type</code>, <code>game_client_id</code> (dispatched every 5 minutes while game executes)</td>
           </tr>
           <tr>
             <td><strong>Game Process</strong></td>
             <td><code>game_session_ended</code></td>
             <td><code>GameProcessManager.cs</code></td>
-            <td><code>session_id</code>, <code>game_type</code>, <code>duration_seconds</code>, <code>exit_code</code>, <code>was_graceful</code> (exit_code == 0)</td>
+            <td><code>session_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>runner</code>, <code>duration_seconds</code>, <code>exit_code</code>, <code>was_graceful</code> (exit_code == 0)</td>
           </tr>
           <tr>
             <td><strong>Game Profiles</strong></td>
             <td><code>profile_launched</code></td>
-            <td><code>GameProfileViewModel.cs</code></td>
-            <td><code>profile_id</code>, <code>profile_name</code>, <code>game_type</code>, <code>launch_source</code> (launcher, shortcut, ipc)</td>
+            <td><code>GameProfileLauncherViewModel.cs</code></td>
+            <td><code>profile_id</code>, <code>profile_name</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>launch_source</code>, <code>time_to_launch_ms</code>, <code>duration_seconds</code></td>
+          </tr>
+          <tr>
+            <td><strong>Game Profiles</strong></td>
+            <td><code>profile_launch_failed</code></td>
+            <td><code>GameProfileLauncherViewModel.cs</code></td>
+            <td><code>profile_id</code>, <code>profile_name</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>launch_source</code>, <code>time_to_launch_ms</code>, <code>error_message</code></td>
           </tr>
           <tr>
             <td><strong>Game Profiles</strong></td>
@@ -454,7 +460,7 @@
     </section>
 
     <section>
-      <h2>3. PostHog Dashboards & Insight Tiles (4 Dashboards, 41 Tiles)</h2>
+      <h2>3. PostHog Dashboards & Insight Tiles (4 Dashboards, 45 Tiles)</h2>
       <p>
         Configured via <code>docs/dev/posthog-dashboard-config.json</code> with standardized <code>trendsFilter.display</code> properties.
       </p>
@@ -640,6 +646,38 @@
             <td><code>game_installations_detected</code></td>
             <td>Steam, EA App, The First Decade</td>
           </tr>
+          <tr>
+            <td>24</td>
+            <td>Launch Attempts: Success vs Failure</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>profile_launched</code> vs <code>profile_launch_failed</code> (math: total)</td>
+            <td>Compare successful launches against failure rate</td>
+          </tr>
+          <tr>
+            <td>25</td>
+            <td>Average Time-to-Launch (ms)</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>profile_launched</code> (math: avg <code>time_to_launch_ms</code>)</td>
+            <td>Time taken from user trigger to process initialization</td>
+          </tr>
+          <tr>
+            <td>26</td>
+            <td>Game Sessions by Game Client</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>game_session_started</code> (math: total)</td>
+            <td>Breakdown by <code>game_client_name</code></td>
+          </tr>
+          <tr>
+            <td>27</td>
+            <td>Profile Launch Failure Reasons</td>
+            <td>Trends</td>
+            <td><code>ActionsTable</code></td>
+            <td><code>profile_launch_failed</code> (math: total)</td>
+            <td>Breakdown by <code>error_message</code></td>
+          </tr>
         </tbody>
       </table>
 
@@ -657,7 +695,7 @@
         </thead>
         <tbody>
           <tr>
-            <td>20</td>
+            <td>24</td>
             <td>Publisher Updates by Publisher</td>
             <td>Trends</td>
             <td><code>ActionsBar</code></td>
@@ -665,7 +703,7 @@
             <td>Breakdown: <code>publisher_id</code></td>
           </tr>
           <tr>
-            <td>21</td>
+            <td>25</td>
             <td>Content Updates: Success vs Failure</td>
             <td>Trends</td>
             <td><code>ActionsPie</code></td>
@@ -673,7 +711,7 @@
             <td>Comparative ratio</td>
           </tr>
           <tr>
-            <td>22</td>
+            <td>26</td>
             <td>Content Update Failure Reasons</td>
             <td>Trends</td>
             <td><code>ActionsTable</code></td>
@@ -681,7 +719,7 @@
             <td>Breakdown: <code>error_message</code></td>
           </tr>
           <tr>
-            <td>23</td>
+            <td>27</td>
             <td>Content Downloads by Content Type</td>
             <td>Trends</td>
             <td><code>ActionsPie</code></td>
@@ -689,7 +727,7 @@
             <td>Breakdown: <code>content_type</code> (Mod, Patch, Map)</td>
           </tr>
           <tr>
-            <td>24</td>
+            <td>28</td>
             <td>Content Downloads by Source Provider</td>
             <td>Trends</td>
             <td><code>ActionsBar</code></td>
@@ -697,7 +735,7 @@
             <td>Breakdown: <code>source_provider</code></td>
           </tr>
           <tr>
-            <td>25</td>
+            <td>29</td>
             <td>Download Speed Distribution (Mbps)</td>
             <td>Trends</td>
             <td><code>ActionsLineGraph</code></td>
@@ -705,7 +743,7 @@
             <td>Throughput over time</td>
           </tr>
           <tr>
-            <td>26</td>
+            <td>30</td>
             <td>Content Download Failure Rate &amp; Reasons</td>
             <td>Trends</td>
             <td><code>ActionsTable</code></td>
@@ -713,7 +751,7 @@
             <td>Breakdown: <code>error_message</code></td>
           </tr>
           <tr>
-            <td>27</td>
+            <td>31</td>
             <td>App Update Pipeline Funnel</td>
             <td>Funnel</td>
             <td><code>FunnelViz</code></td>
@@ -721,7 +759,7 @@
             <td>Step-by-step conversion funnel</td>
           </tr>
           <tr>
-            <td>28</td>
+            <td>32</td>
             <td>Velopack App Update Channels &amp; Versions</td>
             <td>Trends</td>
             <td><code>ActionsBar</code></td>
@@ -729,7 +767,7 @@
             <td>Breakdown: <code>to_version</code></td>
           </tr>
           <tr>
-            <td>29</td>
+            <td>33</td>
             <td>UploadThing Uploads: Success vs Failure</td>
             <td>Trends</td>
             <td><code>ActionsPie</code></td>
@@ -737,7 +775,7 @@
             <td>Comparative ratio</td>
           </tr>
           <tr>
-            <td>30</td>
+            <td>34</td>
             <td>UploadThing Uploads by Tool Source</td>
             <td>Trends</td>
             <td><code>ActionsBar</code></td>
@@ -761,7 +799,7 @@
         </thead>
         <tbody>
           <tr>
-            <td>31</td>
+            <td>35</td>
             <td>Workspace Strategy Distribution</td>
             <td>Trends</td>
             <td><code>ActionsPie</code></td>
@@ -769,7 +807,7 @@
             <td>Breakdown: <code>strategy</code> (Hardlink, Symlink, Copy)</td>
           </tr>
           <tr>
-            <td>32</td>
+            <td>36</td>
             <td>Workspace Fast-Path Reuse Rate</td>
             <td>Trends</td>
             <td><code>ActionsBar</code></td>
@@ -777,7 +815,7 @@
             <td>Breakdown: <code>is_reused</code></td>
           </tr>
           <tr>
-            <td>33</td>
+            <td>37</td>
             <td>CAS Reconcile File Count vs Bytes</td>
             <td>Trends</td>
             <td><code>ActionsLineGraph</code></td>
@@ -785,7 +823,7 @@
             <td>Dual series: <code>sum(file_count)</code> &amp; <code>sum(bytes_reconciled)</code></td>
           </tr>
           <tr>
-            <td>34</td>
+            <td>38</td>
             <td>CAS Garbage Collection Objects</td>
             <td>Trends</td>
             <td><code>ActionsBar</code></td>
@@ -793,7 +831,7 @@
             <td>Series: <code>objects_scanned</code> vs <code>objects_deleted</code></td>
           </tr>
           <tr>
-            <td>35</td>
+            <td>39</td>
             <td>CAS Garbage Collection: Bytes Freed</td>
             <td>Trends</td>
             <td><code>BoldNumber</code></td>
@@ -801,7 +839,7 @@
             <td>Cumulative reclaimed storage</td>
           </tr>
           <tr>
-            <td>36</td>
+            <td>40</td>
             <td>Replay Export Volume &amp; Checkpoints</td>
             <td>Trends</td>
             <td><code>ActionsLineGraph</code></td>
@@ -809,7 +847,7 @@
             <td>Community tooling activity</td>
           </tr>
           <tr>
-            <td>37</td>
+            <td>41</td>
             <td>ModBuilder Build Success vs Failure</td>
             <td>Trends</td>
             <td><code>ActionsPie</code></td>
@@ -817,7 +855,7 @@
             <td>Breakdown: <code>success</code></td>
           </tr>
           <tr>
-            <td>38</td>
+            <td>42</td>
             <td>Application Crashes by Context</td>
             <td>Trends</td>
             <td><code>ActionsTable</code></td>
@@ -825,7 +863,7 @@
             <td>Breakdown: <code>context</code></td>
           </tr>
           <tr>
-            <td>39</td>
+            <td>43</td>
             <td>App Version Adoption (DAU by Version)</td>
             <td>Trends</td>
             <td><code>ActionsLineGraph</code></td>
@@ -833,7 +871,7 @@
             <td>Breakdown: <code>app_version</code></td>
           </tr>
           <tr>
-            <td>40</td>
+            <td>44</td>
             <td>Build Channels (Release vs PR vs Dev)</td>
             <td>Trends</td>
             <td><code>ActionsPie</code></td>
@@ -841,7 +879,7 @@
             <td>Breakdown: <code>build_channel</code></td>
           </tr>
           <tr>
-            <td>41</td>
+            <td>45</td>
             <td>Top Exception Types</td>
             <td>Trends</td>
             <td><code>ActionsTable</code></td>

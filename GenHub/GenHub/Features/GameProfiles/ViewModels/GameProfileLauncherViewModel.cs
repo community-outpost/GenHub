@@ -1473,6 +1473,19 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorLaunchingProfile", profile.Name);
                 ErrorMessage = ex.Message;
                 notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchError.Title"], localizationService.GetString("GameProfiles.Notification.LaunchError.Message", profile.Name, ex.Message));
+
+                var gameClient = profile.Profile.GameClient;
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                    [TelemetryConstants.Properties.ProfileName] = profile.Name,
+                    [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                    [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.LaunchSource] = "launcher",
+                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                });
             }
             finally
             {
@@ -1492,8 +1505,12 @@ public partial class GameProfileLauncherViewModel(
     {
         StatusMessage = localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
 
+        var stopwatch = Stopwatch.StartNew();
+
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
         var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);
+        stopwatch.Stop();
+        var timeToLaunchMs = stopwatch.ElapsedMilliseconds;
 
         if (launchResult.Success && launchResult.Data != null)
         {
@@ -1521,11 +1538,18 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
 
+            var gameClient = liveProfile.Profile.GameClient;
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
-                [TelemetryConstants.Properties.GameType] = liveProfile.Profile.GameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.ProfileName] = liveProfile.Name,
+                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                 [TelemetryConstants.Properties.LaunchSource] = "launcher",
+                [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
             });
 
             // Advisory by design: receipt drift never blocks or fails a launch, so it is
@@ -1544,6 +1568,20 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
             ErrorMessage = errors;
             notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
+
+            var gameClient = profile.Profile.GameClient;
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                [TelemetryConstants.Properties.ProfileName] = profile.Name,
+                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.LaunchSource] = "launcher",
+                [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                [TelemetryConstants.Properties.ErrorMessage] = errors,
+            });
         }
     }
 

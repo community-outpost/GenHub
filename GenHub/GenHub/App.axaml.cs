@@ -17,6 +17,8 @@ using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
+using System.Diagnostics;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -713,12 +715,26 @@ public partial class App : Application
     private async Task LaunchProfileByIdAsync(string profileId, MainWindow mainWindow, string launchSource = "shortcut")
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();
+        var profileManager = _serviceProvider.GetService<IGameProfileManager>();
+        GameProfile? profile = null;
+        if (profileManager != null)
+        {
+            var profileResult = await profileManager.GetProfileAsync(profileId);
+            if (profileResult.Success)
+            {
+                profile = profileResult.Data;
+            }
+        }
+        var gameClient = profile?.GameClient;
 
+        var sw = Stopwatch.StartNew();
         try
         {
             logger?.LogInformation("Launching profile {ProfileId}...", profileId);
 
             var launchResult = await _profileLauncherFacade.LaunchProfileAsync(profileId);
+            sw.Stop();
+            var timeToLaunchMs = sw.ElapsedMilliseconds;
 
             if (launchResult.Success && launchResult.Data != null)
             {
@@ -730,13 +746,21 @@ public partial class App : Application
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
+                    [TelemetryConstants.Properties.ProfileName] = profile?.Name,
+                    [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                    [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                     [TelemetryConstants.Properties.LaunchSource] = launchSource,
+                    [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                    [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
                 });
                 if (string.Equals(launchSource, "shortcut", StringComparison.OrdinalIgnoreCase))
                 {
                     _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchedFromShortcut, new Dictionary<string, object?>
                     {
                         [TelemetryConstants.Properties.ProfileId] = profileId,
+                        [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                     });
                 }
 
@@ -751,11 +775,37 @@ public partial class App : Application
                 notificationService?.ShowError(
                     _localizationService["GameProfiles.Notification.LaunchFailed.Title"],
                     _localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profileId, errors));
+
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profileId,
+                    [TelemetryConstants.Properties.ProfileName] = profile?.Name,
+                    [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                    [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.LaunchSource] = launchSource,
+                    [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                    [TelemetryConstants.Properties.ErrorMessage] = errors,
+                });
             }
         }
         catch (Exception ex)
         {
+            sw.Stop();
             logger?.LogError(ex, "Exception while launching profile {ProfileId}", profileId);
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.ProfileName] = profile?.Name,
+                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.LaunchSource] = launchSource,
+                [TelemetryConstants.Properties.TimeToLaunchMs] = sw.ElapsedMilliseconds,
+                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+            });
         }
     }
 

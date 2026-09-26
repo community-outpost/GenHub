@@ -369,6 +369,121 @@
               "display": "ActionsLineGraph"
             }
           }
+        },
+        {
+          "name": "Launch Attempts: Success vs Failure",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_launched",
+                "name": "Successful Launches",
+                "math": "total"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "profile_launch_failed",
+                "name": "Failed Launch Attempts",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsBar"
+            }
+          }
+        },
+        {
+          "name": "Average Time-to-Launch (ms)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_launched",
+                "name": "Avg Time to Launch (ms)",
+                "math": "avg",
+                "math_property": "time_to_launch_ms"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
+          "name": "Game Sessions by Game Client",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_session_started",
+                "name": "Sessions by Client",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "game_client_name"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
+            }
+          }
+        },
+        {
+          "name": "Profile Launch Failure Reasons",
+          "type": "Trends",
+          "display": "ActionsTable",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "profile_launch_failed",
+                "name": "Failures by Error",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "error_message"
+                }
+              ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
+            }
+          }
         }
       ]
     },

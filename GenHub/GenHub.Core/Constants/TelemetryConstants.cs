@@ -97,6 +97,9 @@ public static class TelemetryConstants
         /// <summary>Emitted when a game profile is launched from the UI.</summary>
         public const string ProfileLaunched = "profile_launched";
 
+        /// <summary>Emitted when a game profile fails to launch.</summary>
+        public const string ProfileLaunchFailed = "profile_launch_failed";
+
         /// <summary>Emitted when a game profile is launched directly from a desktop shortcut or command line.</summary>
         public const string ProfileLaunchedFromShortcut = "profile_launched_from_shortcut";
 
@@ -183,6 +186,18 @@ public static class TelemetryConstants
 
         /// <summary>Profile name.</summary>
         public const string ProfileName = "profile_name";
+
+        /// <summary>Game client identifier (e.g. "thesuperhackers.gameclient.zh.106").</summary>
+        public const string GameClientId = "game_client_id";
+
+        /// <summary>Game client display name (e.g. "TheSuperHackers Zero Hour").</summary>
+        public const string GameClientName = "game_client_name";
+
+        /// <summary>Game client version string.</summary>
+        public const string GameClientVersion = "game_client_version";
+
+        /// <summary>Time taken to launch in milliseconds.</summary>
+        public const string TimeToLaunchMs = "time_to_launch_ms";
 
         /// <summary>Launch trigger source (e.g. "launcher", "shortcut", "command_line", "ipc").</summary>
         public const string LaunchSource = "launch_source";
