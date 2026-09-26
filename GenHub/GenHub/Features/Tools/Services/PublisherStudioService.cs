@@ -434,40 +434,49 @@ public class PublisherStudioService(
 
         foreach (var content in catalog.Content)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (string.IsNullOrWhiteSpace(content.Id))
+            var result = ValidateContentItem(content, seenIds, allowPendingArtifacts, cancellationToken);
+            if (!result.Success)
             {
-                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
-            }
-
-            if (!seenIds.Add(content.Id))
-            {
-                return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
-            }
-
-            var isUpstreamTracked = content.UpstreamSync != null ||
-                                    (!string.IsNullOrEmpty(content.PublisherType) && !string.Equals(content.PublisherType, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase));
-            var isBundle = content.ContentType == ContentType.ContentBundle;
-
-            if (content.Releases.Count == 0)
-            {
-                if (!isUpstreamTracked && !isBundle)
-                {
-                    return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
-                }
-
-                continue;
-            }
-
-            var releaseResult = ValidateSingleContentReleases(content, allowPendingArtifacts, isUpstreamTracked || isBundle, cancellationToken);
-            if (!releaseResult.Success)
-            {
-                return releaseResult;
+                return result;
             }
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidateContentItem(
+        CatalogContentItem content,
+        HashSet<string> seenIds,
+        bool allowPendingArtifacts,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(content.Id))
+        {
+            return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
+        }
+
+        if (!seenIds.Add(content.Id))
+        {
+            return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
+        }
+
+        var isUpstreamTracked = content.UpstreamSync != null ||
+                                (!string.IsNullOrEmpty(content.PublisherType) && !string.Equals(content.PublisherType, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase));
+        var isBundle = content.ContentType == ContentType.ContentBundle;
+
+        if (content.Releases.Count == 0)
+        {
+            if (!isUpstreamTracked && !isBundle)
+            {
+                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        return ValidateSingleContentReleases(content, allowPendingArtifacts, isUpstreamTracked || isBundle, cancellationToken);
     }
 
     private static OperationResult<bool> ValidateSingleContentReleases(

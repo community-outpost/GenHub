@@ -43,7 +43,7 @@ public class GenericCatalogDiscoverer(
     IPublisherCatalogParser catalogParser,
     IVersionSelector versionSelector,
     IGitHubApiClient gitHubClient,
-    ICatalogUpstreamIngestionService? upstreamIngestionService = null) : IContentDiscoverer
+    ICatalogUpstreamIngestionService? upstreamIngestionService) : IContentDiscoverer
 {
     private readonly record struct VariantSiblingContext(
         ContentRelease OriginalRelease,

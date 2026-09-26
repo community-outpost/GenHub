@@ -419,75 +419,89 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        foreach (var item in catalog.Content)
+        var candidates = catalog.Content
+            .Where(item => !string.Equals(item.Id, _existingItem?.Id, StringComparison.OrdinalIgnoreCase) &&
+                           item.ContentType != ContentType.ContentBundle);
+
+        foreach (var item in candidates)
         {
-            if (string.Equals(item.Id, _existingItem?.Id, StringComparison.OrdinalIgnoreCase) ||
-                item.ContentType == ContentType.ContentBundle)
-            {
-                continue;
-            }
-
-            var option = new BundleComponentOption
-            {
-                ContentId = item.Id,
-                Name = !string.IsNullOrWhiteSpace(item.Name) ? item.Name : item.Id,
-                ContentType = item.ContentType,
-            };
-
-            var variants = new List<string>();
-            if (item.Releases is { Count: > 0 })
-            {
-                foreach (var rel in item.Releases)
-                {
-                    if (rel.Artifacts is { Count: > 0 })
-                    {
-                        foreach (var art in rel.Artifacts)
-                        {
-                            if (!string.IsNullOrWhiteSpace(art.Variant) && !variants.Contains(art.Variant))
-                            {
-                                variants.Add(art.Variant);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (item.UpstreamSync?.AssetRules is { Count: > 0 })
-            {
-                foreach (var rule in item.UpstreamSync.AssetRules)
-                {
-                    if (!string.IsNullOrWhiteSpace(rule.Variant) && !variants.Contains(rule.Variant))
-                    {
-                        variants.Add(rule.Variant);
-                    }
-                }
-            }
-
-            foreach (var v in variants)
-            {
-                option.AvailableVariants.Add(v);
-            }
-
-            var existingDep = _existingItem?.BundledItems.FirstOrDefault(b => string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase));
-            if (existingDep != null)
-            {
-                option.IsSelected = true;
-                if (!string.IsNullOrWhiteSpace(existingDep.DefaultVariant) && !option.AvailableVariants.Contains(existingDep.DefaultVariant))
-                {
-                    option.AvailableVariants.Add(existingDep.DefaultVariant);
-                }
-
-                option.SelectedVariant = existingDep.DefaultVariant ?? variants.FirstOrDefault();
-            }
-            else
-            {
-                option.SelectedVariant = variants.FirstOrDefault();
-            }
-
-            BundleComponentOptions.Add(option);
+            BundleComponentOptions.Add(CreateBundleComponentOption(item));
         }
 
         PopulateFallbackBundleComponentOptions();
+    }
+
+    private static List<string> CollectItemVariants(CatalogContentItem item)
+    {
+        var variants = new List<string>();
+
+        if (item.Releases is { Count: > 0 })
+        {
+            var releaseVariants = item.Releases
+                .Where(rel => rel.Artifacts is { Count: > 0 })
+                .SelectMany(rel => rel.Artifacts)
+                .Where(art => !string.IsNullOrWhiteSpace(art.Variant))
+                .Select(art => art.Variant!);
+
+            foreach (var v in releaseVariants)
+            {
+                if (!variants.Contains(v, StringComparer.OrdinalIgnoreCase))
+                {
+                    variants.Add(v);
+                }
+            }
+        }
+
+        if (item.UpstreamSync?.AssetRules is { Count: > 0 })
+        {
+            var ruleVariants = item.UpstreamSync.AssetRules
+                .Where(rule => !string.IsNullOrWhiteSpace(rule.Variant))
+                .Select(rule => rule.Variant!);
+
+            foreach (var v in ruleVariants)
+            {
+                if (!variants.Contains(v, StringComparer.OrdinalIgnoreCase))
+                {
+                    variants.Add(v);
+                }
+            }
+        }
+
+        return variants;
+    }
+
+    private BundleComponentOption CreateBundleComponentOption(CatalogContentItem item)
+    {
+        var option = new BundleComponentOption
+        {
+            ContentId = item.Id,
+            Name = !string.IsNullOrWhiteSpace(item.Name) ? item.Name : item.Id,
+            ContentType = item.ContentType,
+        };
+
+        var variants = CollectItemVariants(item);
+        foreach (var v in variants)
+        {
+            option.AvailableVariants.Add(v);
+        }
+
+        var existingDep = _existingItem?.BundledItems.FirstOrDefault(b => string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase));
+        if (existingDep != null)
+        {
+            option.IsSelected = true;
+            if (!string.IsNullOrWhiteSpace(existingDep.DefaultVariant) && !option.AvailableVariants.Contains(existingDep.DefaultVariant))
+            {
+                option.AvailableVariants.Add(existingDep.DefaultVariant);
+            }
+
+            option.SelectedVariant = existingDep.DefaultVariant ?? variants.FirstOrDefault();
+        }
+        else
+        {
+            option.SelectedVariant = variants.FirstOrDefault();
+        }
+
+        return option;
     }
 
     private void PopulateFallbackBundleComponentOptions()
@@ -1765,30 +1779,31 @@ public partial class AddContentDialogViewModel(
         return $"{contentId}-{version}.zip";
     }
 
-    private bool ValidateInitialRelease()
+    private bool ValidateDownloadUrl(out bool hasValidUrl)
     {
-        if (SelectedContentType == ContentType.ContentBundle || IsUpstreamSource)
+        hasValidUrl = false;
+        if (string.IsNullOrWhiteSpace(DownloadUrl))
         {
             return true;
         }
 
-        var hasValidUrl = false;
-        if (!string.IsNullOrWhiteSpace(DownloadUrl))
+        if (!Uri.TryCreate(DownloadUrl.Trim(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            if (!Uri.TryCreate(DownloadUrl.Trim(), UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            {
-                ValidationError = GetLocalizedString(
-                    "Tools.PublisherStudio.Validation.DownloadUrlInvalid",
-                    "Download URL must be a valid HTTP or HTTPS link.");
-                IsValid = false;
-                return false;
-            }
-
-            hasValidUrl = true;
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Validation.DownloadUrlInvalid",
+                "Download URL must be a valid HTTP or HTTPS link.");
+            IsValid = false;
+            return false;
         }
 
-        var hasValidFile = false;
+        hasValidUrl = true;
+        return true;
+    }
+
+    private bool ValidateStagedOrLocalFiles(out bool hasValidFile)
+    {
+        hasValidFile = false;
         if (StagedFiles.Count > 0)
         {
             var missing = StagedFiles.FirstOrDefault(e => !File.Exists(e.LocalPath) && !Directory.Exists(e.LocalPath));
@@ -1804,10 +1819,12 @@ public partial class AddContentDialogViewModel(
             }
 
             hasValidFile = true;
+            return true;
         }
-        else if (!string.IsNullOrWhiteSpace(LocalFilePath))
+
+        if (!string.IsNullOrWhiteSpace(LocalFilePath))
         {
-            if (!System.IO.File.Exists(LocalFilePath) && !System.IO.Directory.Exists(LocalFilePath))
+            if (!File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath))
             {
                 ValidationError = string.Format(
                     GetLocalizedString(
@@ -1819,6 +1836,26 @@ public partial class AddContentDialogViewModel(
             }
 
             hasValidFile = true;
+        }
+
+        return true;
+    }
+
+    private bool ValidateInitialRelease()
+    {
+        if (SelectedContentType == ContentType.ContentBundle || IsUpstreamSource)
+        {
+            return true;
+        }
+
+        if (!ValidateDownloadUrl(out var hasValidUrl))
+        {
+            return false;
+        }
+
+        if (!ValidateStagedOrLocalFiles(out var hasValidFile))
+        {
+            return false;
         }
 
         var hasExistingArtifacts = ReleaseArtifacts.Count > 0;
