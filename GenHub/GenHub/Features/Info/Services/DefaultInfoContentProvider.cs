@@ -1091,7 +1091,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              **Binary Verification:**
              GenHub calculates SHA-256 hashes of generals.exe and game.dat to identify exact game versions and verify file integrity.
              * **Verified:** Matches known official releases (Steam edition, EA App, The First Decade, or v1.04).
-             * **Unverified:** Custom or modified community binaries are flagged as unverified, but remain fully launchable.\r
+             * **Unverified:** Custom or modified community binaries are flagged as unverified, but remain fully launchable.
              """),
             (InfoConstants.CardScanCrossPlatformDetection,
              "Linux & macOS Client Detection",
@@ -1406,6 +1406,17 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
+            (InfoConstants.CardChangelogsDemo,
+             "Interactive Demo: Release Browser",
+             "Live interactive release notes browser with version selection, asset links, and filters.",
+             InfoCardType.Feature,
+             """
+             **Interactive Changelog Viewer:**
+             Browse all official GenHub releases, view release assets, inspect patch notes, and see what's new in each build.
+             * Click any release in the list below to inspect its detailed release notes.
+             * Directly download installers or source assets.
+             * Release items are automatically linked in the right navigation bar.
+             """),
             (InfoConstants.CardChangelogsOverview,
              "Release History & Changelogs",
              "Track all official GenHub desktop releases, patch notes, and engine improvements.",
@@ -1496,7 +1507,17 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
         (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
         [
-            ("go-patch-notes-overview",
+            (InfoConstants.CardGoChangelogDemo,
+             "Interactive Demo: Generals Online Patch Notes",
+             "Live feed of multiplayer service updates, netcode improvements, and balance patches.",
+             InfoCardType.Feature,
+             """
+             **Generals Online Patch Notes Viewer:**
+             Stay informed about multiplayer network changes, matchmaker improvements, balance adjustments, and anti-cheat updates deployed to the Generals Online network.
+             * Select any update from the patch notes list below to view its details.
+             * All updates are indexed and navigable from the right sidebar table of contents.
+             """),
+            (InfoConstants.CardGoChangelogOverview,
              "Generals Online Patch Notes",
              "Latest service updates, lobby fixes, and netcode improvements.",
              InfoCardType.Feature,

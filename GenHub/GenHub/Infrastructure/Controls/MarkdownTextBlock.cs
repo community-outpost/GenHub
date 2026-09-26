@@ -353,9 +353,15 @@ public class MarkdownTextBlock : UserControl
         {
             for (var i = 0; i < lines.Length; i++)
             {
-                if (lines[i].Length >= minIndent)
+                var leadingSpaces = lines[i].Length - lines[i].TrimStart(' ').Length;
+                var spacesToStrip = Math.Min(leadingSpaces, minIndent);
+                if (spacesToStrip > 0)
                 {
-                    lines[i] = lines[i][minIndent..];
+                    lines[i] = lines[i][spacesToStrip..];
+                }
+                else if (string.IsNullOrWhiteSpace(lines[i]))
+                {
+                    lines[i] = string.Empty;
                 }
             }
         }

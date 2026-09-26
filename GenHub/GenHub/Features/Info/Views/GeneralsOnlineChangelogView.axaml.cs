@@ -32,14 +32,29 @@ public partial class GeneralsOnlineChangelogView : UserControl
             return container;
         }
 
-        if (item is PatchNote pn && PatchNotesItemsControl?.ItemsSource is IEnumerable<PatchNote> notes)
+        if (PatchNotesItemsControl?.ItemsSource is IEnumerable<PatchNote> notes)
         {
-            var matched = notes.FirstOrDefault(n =>
-                (!string.IsNullOrEmpty(n.Id) && string.Equals(n.Id, pn.Id, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(n.Title) && string.Equals(n.Title, pn.Title, StringComparison.OrdinalIgnoreCase)));
-            if (matched != null)
+            var noteList = notes.ToList();
+            int index = -1;
+
+            if (item is PatchNote pn)
             {
-                return PatchNotesItemsControl.ContainerFromItem(matched);
+                index = noteList.FindIndex(n =>
+                    (!string.IsNullOrEmpty(n.Id) && string.Equals(n.Id, pn.Id, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(n.Title) && string.Equals(n.Title, pn.Title, StringComparison.OrdinalIgnoreCase)));
+                if (index < 0)
+                {
+                    index = noteList.IndexOf(pn);
+                }
+            }
+
+            if (index >= 0)
+            {
+                var indexedContainer = PatchNotesItemsControl.ContainerFromIndex(index);
+                if (indexedContainer != null)
+                {
+                    return indexedContainer;
+                }
             }
         }
 

@@ -501,6 +501,21 @@ public static class InfoConstants
     public const string CardUpdatesOfflineDownloads = "offline-downloads";
 
     /// <summary>
+    /// Card ID for GenHub Changelogs Interactive Demo.
+    /// </summary>
+    public const string CardChangelogsDemo = "demo-changelogs";
+
+    /// <summary>
+    /// Card ID for Generals Online Changelog Interactive Demo.
+    /// </summary>
+    public const string CardGoChangelogDemo = "demo-go-changelog";
+
+    /// <summary>
+    /// Card ID for Generals Online Changelog Overview.
+    /// </summary>
+    public const string CardGoChangelogOverview = "go-patch-notes-overview";
+
+    /// <summary>
     /// Card ID for Changelog Overview.
     /// </summary>
     public const string CardChangelogsOverview = "changelogs-overview";

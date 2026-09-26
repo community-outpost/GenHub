@@ -13185,9 +13185,7 @@ GenHub не перезаписывает оригинальные INI-файлы
     <value>Управление рабочими пространствами модов, пакетная конвертация текстур и компиляция таблиц строк.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-pipeline.DetailedContent" xml:space="preserve">
-    <value>Эта функция находится в разработке в рамках открытого pull request.
-
-**Проекты рабочих пространств:**
+    <value>**Проекты рабочих пространств:**
 Проекты ModBuilder используют файлы .mbproj (например, Shockwave.mbproj) для отслеживания исходных папок, правил ресурсов и целевых архивов BIG.
 
 **Инструменты конвейера ресурсов:**
@@ -13196,15 +13194,13 @@ GenHub не перезаписывает оригинальные INI-файлы
 * **Аудиокодер:** Перекодирование звуков WAV и MP3 в игровые форматы.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-pipeline.Title" xml:space="preserve">
-    <value>Набор ModBuilder: Конвейеры ресурсов (В разработке)</value>
+    <value>Набор ModBuilder: Конвейеры ресурсов</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-wnd-build.Content" xml:space="preserve">
     <value>Проверка разметки интерфейса, каноническое форматирование и инкрементальная сборка BIG.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-wnd-build.DetailedContent" xml:space="preserve">
-    <value>Эта функция находится в разработке в рамках открытого pull request.
-
-**Редактор интерфейса WND:**
+    <value>**Редактор интерфейса WND:**
 Структурированный редактор файлов разметки интерфейса Command &amp; Conquer (.wnd).
 * Дерево визуальных элементов: просмотр окон, кнопок, ползунков и текстовых полей в виде дерева.
 * Проверка разметки: валидация координат и обнаружение перекрывающихся элементов.
@@ -13215,7 +13211,7 @@ GenHub не перезаписывает оригинальные INI-файлы
 * Поддержка инкрементальной упаковки, при которой обновляются только измененные файлы.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-wnd-build.Title" xml:space="preserve">
-    <value>Набор ModBuilder: Редактор WND и сборка BIG (В разработке)</value>
+    <value>Набор ModBuilder: Редактор WND и сборка BIG</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Content" xml:space="preserve">
     <value>Визуальная библиотека контента, упаковка вариантов, облачная публикация и прямой доступ к студии.</value>
@@ -13259,9 +13255,7 @@ GenHub не перезаписывает оригинальные INI-файлы
     <value>Упаковка архивов перетаскиванием, проверка хэшей и ссылки на подписку.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-library.DetailedContent" xml:space="preserve">
-    <value>Эта функция находится в разработке в рамках открытого pull request.
-
-**Процесс упаковки:**
+    <value>**Процесс упаковки:**
 1. **Перетаскивание:** Перетащите папки мода или ZIP-архивы в библиотеку контента.
 2. **Ввод метаданных:** Задайте отображаемое имя, версию, автора и исполняемые файлы для запуска.
 3. **Разбиение на блоки и хэширование:** GenHub разбивает файлы на блоки с контентной адресацией и вычисляет хэши SHA-256.
@@ -13271,7 +13265,7 @@ GenHub не перезаписывает оригинальные INI-файлы
 Поделитесь ссылкой genhub://subscribe, чтобы пользователи сообщества могли подписаться на ленту вашего каталога в один клик.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-library.Title" xml:space="preserve">
-    <value>Publisher Studio: Упаковка контента (В разработке)</value>
+    <value>Publisher Studio: Упаковка контента</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-pipeline.Content" xml:space="preserve">
     <value>Децентрализованное распространение через определения издателей, каталоги контента и неизменяемые релизные архивы.</value>
@@ -13324,16 +13318,14 @@ GenHub не перезаписывает оригинальные INI-файлы
     <value>Создание, упаковка и распространение контента сообщества без центральных веб-серверов.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-workflow.DetailedContent" xml:space="preserve">
-    <value>Эта функция находится в разработке в рамках открытого pull request.
-
-**Трехуровневая модель распространения:**
+    <value>**Трехуровневая модель распространения:**
 Publisher Studio использует децентрализованную модель каталогов:
 * **Уровень 1 (Определение издателя):** Метаданные автора или команды со ссылкой на размещенную ленту каталога (publisher_definition.json).
 * **Уровень 2 (Лента каталога):** Подписанный список каталога (catalog.json), индексирующий доступные моды, карты, патчи и утилиты.
 * **Уровень 3 (Манифесты контента):** Пакеты с контентной адресацией, хэшами целостности SHA-256 и зеркалами загрузки.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-workflow.Title" xml:space="preserve">
-    <value>Publisher Studio: Децентрализованные каталоги (В разработке)</value>
+    <value>Publisher Studio: Децентрализованные каталоги</value>
   </data>
   <data name="Info.Card.tools.replay-checkpoints-takeover.Content" xml:space="preserve">
     <value>Создавайте сохранения на точных временных метках и берите управление армией игрока прямо в матче.</value>
@@ -13411,4 +13403,4 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Info.Demo.SizeExpanded" xml:space="preserve">
     <value>Расширенный (980x680)</value>
   </data>
-</root>
+<data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve"><value>Главный переключатель для включения или отключения всего игрового звука.</value></data><data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve"><value>Количество каналов микширования DirectSound. Предотвращает прерывание звуков во время масштабных сражений.</value></data><data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve"><value>Ограничивает перемещение курсора мыши окном игры во избежание случайных кликов за его пределами.</value></data><data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve"><value>Включает прокрутку камеры при наведении курсора на край игрового окна.</value></data><data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve"><value>Масштабирует размер шрифта системных часов в игре.</value></data><data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve"><value>Масштабирует размер шрифта отображения задержки сети (пинг).</value></data><data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve"><value>Масштабирует размер шрифта счетчика кадров в секунду (FPS).</value></data><data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve"><value>Корректирует размер шрифтов интерфейса в зависимости от разрешения экрана.</value></data><data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve"><value>Регулирует громкость звуков финансовых операций и наград.</value></data><data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve"><value>Регулирует скорость анимации переходов между меню.</value></data><data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve"><value>Регулирует скорость и отзывчивость перемещения камеры.</value></data><data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve"><value>Задает минимальную высоту камеры при приближении.</value></data><data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve"><value>Ограничивает максимальную высоту камеры для игроков при создании матча хостом.</value></data><data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve"><value>Главный переключатель уведомлений рабочего стола и сообщества.</value></data><data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve"><value>Воспроизводит звуковой сигнал при получении приглашений в друзья или сообщений.</value></data><data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve"><value>Регулирует размер шрифта в чате лобби и матча.</value></data><data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve"><value>Время в секундах до исчезновения сообщений игрового чата.</value></data><data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve"><value>Пользовательский IP-адрес для сетевого обнаружения протокола GameSpy и LAN-маршрутизации.</value></data></root>

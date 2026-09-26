@@ -54,6 +54,14 @@ public partial class GameProfileSettingsViewModel
     }
 
     /// <summary>
+    /// Invoked when a tab is selected via <see cref="SelectTabCommand"/>.
+    /// </summary>
+    /// <param name="tabIndex">The selected tab index.</param>
+    protected virtual void OnTabSelected(int tabIndex)
+    {
+    }
+
+    /// <summary>
     /// Loads the available content items based on current filters.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -1242,6 +1250,7 @@ public partial class GameProfileSettingsViewModel
         {
             SelectedTabIndex = tabIndex;
             _logger?.LogDebug("Tab selected: {TabIndex}", tabIndex);
+            OnTabSelected(tabIndex);
         }
     }
 

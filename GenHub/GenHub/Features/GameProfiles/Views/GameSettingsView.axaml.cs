@@ -43,30 +43,25 @@ public partial class GameSettingsView : UserControl
         _sidebarSynchronizer?.Dispose();
         _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"), ProfileSettingsTab.Game);
 
-        var scrollViewer = this.FindControl<ScrollViewer>("SettingsScrollViewer");
-        if (scrollViewer == null)
-        {
-            return;
-        }
-
-        _scrollSpy?.Dispose();
-        var spy = new SectionScrollSpy<SettingsCategory>(scrollViewer, OnSpySectionActivated);
-        foreach (var (name, category) in SectionDefinitions)
-        {
-            var control = this.FindControl<Control>(name);
-            if (control != null)
-            {
-                spy.RegisterSection(category, control);
-            }
-        }
-
-        spy.Attach();
-        _scrollSpy = spy;
+        SetupScrollSpy();
 
         if (DataContext is GameSettingsViewModel vm)
         {
             vm.ScrollToSectionRequested = OnScrollToSectionRequested;
         }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+
+        if (DataContext is GameSettingsViewModel vm)
+        {
+            vm.ScrollToSectionRequested = OnScrollToSectionRequested;
+        }
+
+        SetupScrollSpy();
     }
 
     /// <summary>
@@ -102,11 +97,39 @@ public partial class GameSettingsView : UserControl
         return null;
     }
 
+    private void SetupScrollSpy()
+    {
+        var scrollViewer = this.FindControl<ScrollViewer>("SettingsScrollViewer");
+        if (scrollViewer == null)
+        {
+            return;
+        }
+
+        _scrollSpy?.Dispose();
+        var spy = new SectionScrollSpy<SettingsCategory>(scrollViewer, OnSpySectionActivated);
+        foreach (var (name, category) in SectionDefinitions)
+        {
+            var control = this.FindControl<Control>(name);
+            if (control != null)
+            {
+                spy.RegisterSection(category, control);
+            }
+        }
+
+        spy.Attach();
+        _scrollSpy = spy;
+    }
+
     private void OnScrollToSectionRequested(string sectionName)
     {
         var category = GetCategory(sectionName);
         if (category.HasValue)
         {
+            if (_scrollSpy == null)
+            {
+                SetupScrollSpy();
+            }
+
             _scrollSpy?.ScrollToSection(category.Value);
         }
     }

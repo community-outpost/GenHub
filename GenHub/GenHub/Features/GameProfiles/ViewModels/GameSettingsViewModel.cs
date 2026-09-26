@@ -232,6 +232,7 @@ public partial class GameSettingsViewModel(
     private void SelectCategory(SettingsCategory category)
     {
         SelectedCategory = category;
+        ScrollToSectionRequested?.Invoke(category.ToString() + "Section");
     }
 
     [ObservableProperty]

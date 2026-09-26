@@ -25,6 +25,7 @@ public partial class InfoCardViewModel : ObservableObject
     private string _content = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IconKind))]
     private InfoCardType _type;
 
     [ObservableProperty]
@@ -40,6 +41,7 @@ public partial class InfoCardViewModel : ObservableObject
     private List<InfoAction> _actions = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IconKind))]
     private Material.Icons.MaterialIconKind? _customIconKind;
 
     /// <summary>

@@ -13185,9 +13185,7 @@ https://example.com/screenshot2.png</value>
     <value>إدارة مساحة عمل التعديل، والتحويل الجماعي للتركيبات، وتجميع جداول النصوص.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-pipeline.DetailedContent" xml:space="preserve">
-    <value>هذه الميزة قيد التطوير حالياً ضمن طلب سحب مفتوح.
-
-**مشاريع مساحة العمل.**
+    <value>**مشاريع مساحة العمل.**
 تستخدم مشاريع ModBuilder ملفات .mbproj (مثل Shockwave.mbproj) لتتبع أدلة المصدر وقواعد الأصول وأرشيفات BIG المستهدفة.
 
 **أدوات معالجة الأصول.**
@@ -13196,15 +13194,13 @@ https://example.com/screenshot2.png</value>
 * **مشفر الصوت:** تحويل صوتيات WAV و MP3 إلى تنسيقات متوافقة مع اللعبة.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-pipeline.Title" xml:space="preserve">
-    <value>مجموعة ModBuilder: خطوط معالجة الأصول (قيد التطوير)</value>
+    <value>مجموعة ModBuilder: خطوط معالجة الأصول</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-wnd-build.Content" xml:space="preserve">
     <value>التحقق من صحة تخطيط واجهة المستخدم، والتنسيق القياسي، وتجميع BIG التزايدي.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-wnd-build.DetailedContent" xml:space="preserve">
-    <value>هذه الميزة قيد التطوير حالياً ضمن طلب سحب مفتوح.
-
-**محرر واجهة WND.**
+    <value>**محرر واجهة WND.**
 محرر منظم لملفات تخطيط واجهة المستخدم الرسومية لـ Command &amp; Conquer (.wnd).
 * شجرة العناصر المرئية: فحص النوافذ والأزرار وأشرطة التمرير وحقول النص في عرض شجري.
 * التحقق من صحة التخطيط: يتحقق من حدود الإحداثيات ويكتشف العناصر المتداخلة.
@@ -13215,7 +13211,7 @@ https://example.com/screenshot2.png</value>
 * يدعم التجميع التزايدي بحيث يتم تحديث الملفات المعدلة فقط.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-wnd-build.Title" xml:space="preserve">
-    <value>مجموعة ModBuilder: محرر WND وبناء BIG (قيد التطوير)</value>
+    <value>مجموعة ModBuilder: محرر WND وبناء BIG</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Content" xml:space="preserve">
     <value>مكتبة محتوى مرئية، وتعبئة المتغيرات، والنشر السحابي، والوصول المباشر إلى الاستوديو.</value>
@@ -13259,9 +13255,7 @@ https://example.com/screenshot2.png</value>
     <value>حزم الأرشيف بالسحب والإفلات، والتحقق من التجزئة، وروابط الاشتراك.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-library.DetailedContent" xml:space="preserve">
-    <value>هذه الميزة قيد التطوير حالياً ضمن طلب سحب مفتوح.
-
-**سير عمل التجميع.**
+    <value>**سير عمل التجميع.**
 1. **السحب والإفلات:** قم بإفلات مجلدات التعديل أو أرشيفات ZIP في مكتبة المحتوى.
 2. **إدخال البيانات الوصفية:** عيّن اسم العرض والإصدار والمؤلف وأهداف التشغيل القابلة للتنفيذ.
 3. **التقطيع والتجزئة:** يقسم GenHub الملفات إلى أجزاء قابلة للعنونة حسب المحتوى ويحسب تجزئات SHA-256.
@@ -13271,7 +13265,7 @@ https://example.com/screenshot2.png</value>
 شارك رابط genhub://subscribe حتى يتمكن أعضاء المجتمع من الاشتراك في موجز الكتالوج الخاص بك بنقرة واحدة.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-library.Title" xml:space="preserve">
-    <value>استوديو النشر: حزم المحتوى (قيد التطوير)</value>
+    <value>استوديو النشر: حزم المحتوى</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-pipeline.Content" xml:space="preserve">
     <value>توزيع لامركزي عبر تعريفات الناشرين وفهارس المحتوى وحزم الإصدار الثابتة.</value>
@@ -13324,16 +13318,14 @@ https://example.com/screenshot2.png</value>
     <value>تأليف وتجميع وتوزيع محتوى المجتمع دون خوادم ويب مركزية.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-workflow.DetailedContent" xml:space="preserve">
-    <value>هذه الميزة قيد التطوير حالياً ضمن طلب سحب مفتوح.
-
-**توزيع ثلاثي المستويات.**
+    <value>**توزيع ثلاثي المستويات.**
 يستخدم استوديو النشر Publisher Studio نموذج كتالوج لامركزي:
 * **المستوى 1 (تعريف الناشر):** يحدد البيانات الوصفية للمؤلف أو الفريق ويشير إلى موجز الكتالوج المستضاف (publisher_definition.json).
 * **المستوى 2 (موجز الكتالوج):** قائمة كتالوج موقعة (catalog.json) تفهرس التعديلات والخرائط والتصحيحات وأدوات العميل المتاحة.
 * **المستوى 3 (بيانات المحتوى):** حزم قابلة للعنونة حسب المحتوى مع تجزئات تكامل SHA-256 وخوادم متطابقة.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-workflow.Title" xml:space="preserve">
-    <value>استوديو النشر: الكتالوجات اللامركزية (قيد التطوير)</value>
+    <value>استوديو النشر: الكتالوجات اللامركزية</value>
   </data>
   <data name="Info.Card.tools.replay-checkpoints-takeover.Content" xml:space="preserve">
     <value>إنشاء حالات حفظ عند طوابع زمنية دقيقة والتحكم في جيوش اللاعبين في منتصف المباراة.</value>
@@ -13411,4 +13403,4 @@ https://example.com/screenshot2.png</value>
   <data name="Info.Demo.SizeExpanded" xml:space="preserve">
     <value>موسع (980x680)</value>
   </data>
-</root>
+<data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve"><value>مفتاح رئيسي لتمكين أو تعطيل كافة مخرجات الصوت في اللعبة.</value></data><data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve"><value>عدد قنوات خلط الصوت المتزامنة. القيم الأعلى تمنع انقطاع الصوت أثناء المعارك الكبيرة.</value></data><data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve"><value>يقيد حركة مؤشر الفأرة داخل حدود نافذة اللعبة لمنع النقر العرضي خارجها.</value></data><data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve"><value>يمكّن تحريك الكاميرا عند تحريك مؤشر الفأرة إلى حافة نافذة اللعبة.</value></data><data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve"><value>يضبط حجم خط ساعة النظام المعروضة داخل اللعبة.</value></data><data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve"><value>يضبط حجم خط عرض زمن استجابة الشبكة (البنج).</value></data><data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve"><value>يضبط حجم خط عداد معدل الإطارات في الثانية.</value></data><data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve"><value>يضبط حجم خط واجهة المستخدم بما يتناسب مع دقة الشاشة.</value></data><data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve"><value>يتحكم في مستوى صوت المعاملات المالية والمكافآت.</value></data><data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve"><value>يضبط سرعة انتقال القوائم وحركات الواجهة.</value></data><data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve"><value>يضبط سرعة استجابة حركة الكاميرا والتحريك البانورامي.</value></data><data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve"><value>يحدد أدنى ارتفاع مسموح به للكاميرا عند التقريب.</value></data><data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve"><value>يفرض حداً أقصى لارتفاع الكاميرا عند استضافة مباراة متعددة اللاعبين.</value></data><data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve"><value>مفتاح رئيسي لتمكين أو تعطيل إشعارات سطح المكتب واللعبة.</value></data><data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve"><value>تشغيل تنبيه صوتي عند تلقي طلبات الصداقة أو الرسائل.</value></data><data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve"><value>يضبط حجم خط الدردشة في الردهة وأثناء المباراة.</value></data><data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve"><value>المدة بالثواني قبل تلاشي رسائل الدردشة داخل اللعبة.</value></data><data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve"><value>عنوان IP مخصص يُستخدم لاكتشاف شبكة بروتوكول GameSpy والتوجيه المحلي.</value></data></root>
