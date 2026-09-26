@@ -504,9 +504,13 @@ public sealed class MapImportServiceTests : IDisposable
     /// <summary>
     /// Keeps named assets apart while distributing shared companions when a folder holds several maps.
     /// </summary>
+    /// <param name="importFormat">The import route to exercise.</param>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
-    public async Task ImportFromFilesAsync_FolderWithTwoMaps_CopiesNamedAndSharedAssetsAsync()
+    [Theory]
+    [InlineData("folder")]
+    [InlineData("zip")]
+    [InlineData("tar")]
+    public async Task ImportFromFilesAsync_FolderWithTwoMaps_CopiesNamedAndSharedAssetsAsync(string importFormat)
     {
         var source = Path.Combine(_workingDirectory, "Source", "Pack");
         Directory.CreateDirectory(source);
@@ -518,11 +522,35 @@ public sealed class MapImportServiceTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(source, "MAP.STR"), "shared strings");
         await File.WriteAllTextAsync(Path.Combine(source, "map.tga"), "shared preview");
 
-        var result = await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
+        var importPath = source;
+        if (importFormat == "zip")
+        {
+            importPath = Path.Combine(_workingDirectory, "pack.zip");
+            ZipFile.CreateFromDirectory(source, importPath);
+        }
+        else if (importFormat == "tar")
+        {
+            importPath = Path.Combine(_workingDirectory, "pack.tar");
+            using var archiveStream = File.Create(importPath);
+            using var writer = new System.Formats.Tar.TarWriter(archiveStream, System.Formats.Tar.TarEntryFormat.Ustar);
+            foreach (var file in Directory.GetFiles(source))
+            {
+                writer.WriteEntry(file, Path.GetFileName(file));
+            }
+        }
+
+        var result = importFormat == "folder"
+            ? await _service.ImportFromFilesAsync([source], GameType.ZeroHour)
+            : await _service.ImportFromZipAsync(importPath, GameType.ZeroHour);
 
         Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.Equal("shared preview", await File.ReadAllTextAsync(Path.Combine(_mapDirectory, "Alpha", "Alpha.tga")));
+        Assert.Equal("beta tga", await File.ReadAllTextAsync(Path.Combine(_mapDirectory, "Beta", "Beta.tga")));
+        Assert.Equal(2, result.ImportedMaps.Count);
+        Assert.Contains(result.ImportedMaps, map => map.ThumbnailPath == Path.Combine(_mapDirectory, "Alpha", "Alpha.tga"));
+        Assert.Contains(result.ImportedMaps, map => map.ThumbnailPath == Path.Combine(_mapDirectory, "Beta", "Beta.tga"));
         Assert.Equal(
-            ["Alpha.map", "Alpha.wak", "MAP.STR", "map.ini", "map.tga"],
+            ["Alpha.map", "Alpha.tga", "Alpha.wak", "MAP.STR", "map.ini", "map.tga"],
             Directory.GetFiles(Path.Combine(_mapDirectory, "Alpha")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Equal(
             ["Beta.map", "Beta.tga", "MAP.STR", "map.ini", "map.tga"],

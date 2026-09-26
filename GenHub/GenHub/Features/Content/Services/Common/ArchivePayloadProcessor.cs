@@ -2796,9 +2796,16 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var targetAssetFile = Path.Combine(targetFolder, targetFileName);
 
                 var isSharedCompanion = isDefaultThumbnail || IsSharedMapCompanion(fn);
-                if (isSharedCompanion && File.Exists(targetAssetFile) && !FilesAreEqual(companion, targetAssetFile))
+                try
                 {
-                    throw new InvalidDataException($"Conflicting shared map companion '{companion}' and '{targetAssetFile}'.");
+                    if (isSharedCompanion && File.Exists(targetAssetFile) && !FilesAreEqual(companion, targetAssetFile))
+                    {
+                        throw new InvalidDataException($"Conflicting shared map companion '{companion}' and '{targetAssetFile}'.");
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    throw new InvalidDataException($"Could not compare shared map companion '{companion}' with '{targetAssetFile}'.", ex);
                 }
 
                 if (!File.Exists(targetAssetFile))

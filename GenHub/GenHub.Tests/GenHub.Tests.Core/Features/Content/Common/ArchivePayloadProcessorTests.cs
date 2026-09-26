@@ -1586,9 +1586,11 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     [InlineData("map.ini", false)]
     [InlineData("map.str", false)]
     [InlineData("map.tga", false)]
+    [InlineData("MAP.TGA", false)]
     [InlineData("map.ini", true)]
     [InlineData("map.str", true)]
     [InlineData("map.tga", true)]
+    [InlineData("MAP.TGA", true)]
     public async Task NormalizeDirectoryStructureAsync_ExistingSharedCompanion_PreservesConflictingContentAsync(string companionName, bool identical)
     {
         Directory.CreateDirectory(_stagingDirectory);
@@ -1596,7 +1598,7 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "map-data");
         await File.WriteAllTextAsync(Path.Combine(mapFolder, "Desert.map"), "map-data");
         var source = Path.Combine(_stagingDirectory, companionName);
-        var destination = Path.Combine(mapFolder, companionName == "map.tga" ? "Desert.tga" : companionName);
+        var destination = Path.Combine(mapFolder, companionName.Equals("map.tga", StringComparison.OrdinalIgnoreCase) ? "Desert" + Path.GetExtension(companionName) : companionName);
         await File.WriteAllTextAsync(source, "incoming");
         await File.WriteAllTextAsync(destination, identical ? "incoming" : "existing");
 

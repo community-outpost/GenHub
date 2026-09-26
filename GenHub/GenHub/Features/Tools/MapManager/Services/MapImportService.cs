@@ -239,9 +239,7 @@ public sealed class MapImportService(
                         {
                             var fileName = Path.GetFileName(f);
                             if (isSingleMapFolder ||
-                                fileName.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase) ||
-                                fileName.Equals(MapManagerConstants.MapStrFileName, StringComparison.OrdinalIgnoreCase) ||
-                                fileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase))
+                                IsSharedMapAsset(fileName))
                             {
                                 return true;
                             }
@@ -275,6 +273,8 @@ public sealed class MapImportService(
                         }
                     }
                 }
+
+                thumbnailPath = NormalizeMapThumbnail(mapDirPath, thumbnailPath, assetFiles);
 
                 var totalSize = fileInfo.Length + assetFiles.Sum(f => new FileInfo(f).Length);
 
@@ -462,7 +462,7 @@ public sealed class MapImportService(
                                     {
                                         return fn.StartsWith(mapBaseName + "_", StringComparison.OrdinalIgnoreCase) ||
                                                fn.StartsWith(mapBaseName + ".", StringComparison.OrdinalIgnoreCase) ||
-                                               fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+                                               IsSharedMapAsset(fn);
                                     }
 
                                     return true;
@@ -516,26 +516,7 @@ public sealed class MapImportService(
                                     }
                                 }
 
-                                // C&C Generals & Zero Hour require <MapDirName>.tga inside the map directory to render the minimap preview
-                                var actualDirName = Path.GetFileName(mapDirPath);
-                                var expectedTgaPath = Path.Combine(mapDirPath, actualDirName + ".tga");
-                                if (!File.Exists(expectedTgaPath) && thumbnailPath != null && File.Exists(thumbnailPath))
-                                {
-                                    try
-                                    {
-                                        File.Copy(thumbnailPath, expectedTgaPath, overwrite: true);
-                                        if (!assetFiles.Contains(expectedTgaPath, StringComparer.OrdinalIgnoreCase))
-                                        {
-                                            assetFiles.Add(expectedTgaPath);
-                                        }
-
-                                        thumbnailPath = expectedTgaPath;
-                                    }
-                                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                                    {
-                                        logger.LogWarning(ex, "Failed to copy thumbnail {Source} to {Target}", thumbnailPath, expectedTgaPath);
-                                    }
-                                }
+                                thumbnailPath = NormalizeMapThumbnail(mapDirPath, thumbnailPath, assetFiles);
 
                                 expandedBytes += mapExpandedBytes;
                             }
@@ -967,6 +948,11 @@ public sealed class MapImportService(
         return path;
     }
 
+    private static bool IsSharedMapAsset(string fileName) =>
+        fileName.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase) ||
+        fileName.Equals(MapManagerConstants.MapStrFileName, StringComparison.OrdinalIgnoreCase) ||
+        fileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+
     private static bool IsAllowedMapFolderFile(string path) =>
         MapManagerConstants.AllowedExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
@@ -992,6 +978,37 @@ public sealed class MapImportService(
         return read >= 6 &&
                buffer[0] == 0x37 && buffer[1] == 0x7A && buffer[2] == 0xBC &&
                buffer[3] == 0xAF && buffer[4] == 0x27 && buffer[5] == 0x1C;
+    }
+
+    private string? NormalizeMapThumbnail(string mapDirPath, string? thumbnailPath, List<string> assetFiles)
+    {
+        // C&C Generals & Zero Hour require <MapDirName>.tga inside the map directory to render the minimap preview
+        var actualDirName = Path.GetFileName(mapDirPath);
+        var expectedTgaPath = Path.Combine(mapDirPath, actualDirName + ".tga");
+        if (File.Exists(expectedTgaPath))
+        {
+            return expectedTgaPath;
+        }
+
+        if (!File.Exists(expectedTgaPath) && thumbnailPath != null && File.Exists(thumbnailPath))
+        {
+            try
+            {
+                File.Copy(thumbnailPath, expectedTgaPath, overwrite: true);
+                if (!assetFiles.Contains(expectedTgaPath, StringComparer.OrdinalIgnoreCase))
+                {
+                    assetFiles.Add(expectedTgaPath);
+                }
+
+                thumbnailPath = expectedTgaPath;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to copy thumbnail {Source} to {Target}", thumbnailPath, expectedTgaPath);
+            }
+        }
+
+        return thumbnailPath;
     }
 
     private async Task<Uri?> ResolveSafeDownloadUriAsync(IDownloadUrlValidator urlValidator, string url, ImportResult result, CancellationToken ct)
@@ -1217,7 +1234,7 @@ public sealed class MapImportService(
                     var fn = Path.GetFileName(e.Key ?? string.Empty);
                     return fn.StartsWith(mapBaseName + "_", StringComparison.OrdinalIgnoreCase) ||
                            fn.StartsWith(mapBaseName + ".", StringComparison.OrdinalIgnoreCase) ||
-                           fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+                           IsSharedMapAsset(fn);
                 }).ToList();
             }
 
@@ -1229,26 +1246,7 @@ public sealed class MapImportService(
                 bytes => mapExpandedBytes += bytes,
                 context.CancellationToken);
 
-            // C&C Generals & Zero Hour require <MapDirName>.tga inside the map directory to render the minimap preview
-            var actualDirName = Path.GetFileName(mapDirPath);
-            var expectedTgaPath = Path.Combine(mapDirPath, actualDirName + ".tga");
-            if (!File.Exists(expectedTgaPath) && thumbnailPath != null && File.Exists(thumbnailPath))
-            {
-                try
-                {
-                    File.Copy(thumbnailPath, expectedTgaPath, overwrite: true);
-                    if (!assetFiles.Contains(expectedTgaPath, StringComparer.OrdinalIgnoreCase))
-                    {
-                        assetFiles.Add(expectedTgaPath);
-                    }
-
-                    thumbnailPath = expectedTgaPath;
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to copy thumbnail {Source} to {Target}", thumbnailPath, expectedTgaPath);
-                }
-            }
+            thumbnailPath = NormalizeMapThumbnail(mapDirPath, thumbnailPath, assetFiles);
 
             context.OnBytesExpanded(mapExpandedBytes);
         }
