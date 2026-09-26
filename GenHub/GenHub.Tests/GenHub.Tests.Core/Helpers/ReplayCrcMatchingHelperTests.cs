@@ -355,6 +355,7 @@ public class ReplayCrcMatchingHelperTests
             Id = "steam",
             Name = "Command & Conquer Generals Zero Hour (Steam)",
             PublisherType = "Steam",
+            Version = "1.04",
             GameType = GameType.ZeroHour,
         };
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(steamClient));
@@ -646,19 +647,19 @@ public class ReplayCrcMatchingHelperTests
     }
 
     /// <summary>
-    /// Verifies that IsRetailCompatibleAsync preserves retail compatibility even when
-    /// game root contains loose files that alter the root INI CRC.
+    /// Verifies that IsRetailCompatibleAsync returns false when the calculated INI CRC is dirty / non-retail,
+    /// ensuring modified game rules or altered INIs are correctly flagged as non-retail compatible.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsRetailCompatibleAsync_PreservesRetailCompatibility_WhenRootIniDirty()
+    public async Task IsRetailCompatibleAsync_WhenRootIniDirty_ReturnsFalse()
     {
         await RunProfileIniCompatibilityScenarioAsync(
             "1.104.steam.gameclient.zerohour",
             "Command & Conquer Generals Zero Hour (Steam)",
             "Steam",
             "0xAC76387F",
-            isRetail => Assert.True(isRetail));
+            isRetail => Assert.False(isRetail));
     }
 
     /// <summary>
@@ -691,6 +692,15 @@ public class ReplayCrcMatchingHelperTests
             };
 
             var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            mockCalculator
+                .Setup(c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
+
             var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
             Assert.True(isRetail);
         }
@@ -739,6 +749,238 @@ public class ReplayCrcMatchingHelperTests
                     It.IsAny<string?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once));
+    }
+
+    /// <summary>
+    /// Verifies that a profile enabling a mod is recognized as non-retail compatible both synchronously and asynchronously.
+    /// (Evidence 1: Mods break INI CRC / game balance and must never show retail compatible).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatible_WithModEnabledInProfile_ReturnsFalse()
+    {
+        var client = new GameClient
+        {
+            Id = "1.104.steam.gameclient.zerohour",
+            Name = "Command & Conquer Generals Zero Hour (Steam)",
+            PublisherType = "Steam",
+            GameType = GameType.ZeroHour,
+            Version = "1.04",
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "test-profile-with-mod",
+            Name = "ZH with Shockwave Mod",
+            GameClient = client,
+            EnabledContentIds = new List<string>
+            {
+                "1.0.moddb.mod.shockwave",
+                "1.104.steam.gameinstallation.zerohour",
+            },
+        };
+
+        // Synchronous check on client + enabled content
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(client, profile.EnabledContentIds));
+
+        // Synchronous check on profile
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(profile));
+
+        // Asynchronous check on profile
+        var mockCalculator = new Mock<IGameCrcCalculatorService>();
+        var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+        Assert.False(isRetail);
+    }
+
+    /// <summary>
+    /// Verifies that an uploaded/local custom Generals executable that does not match retail hashes
+    /// is recognized as non-retail compatible, even if an adjacent Game.dat exists in the folder.
+    /// (Evidence 2: Uploaded generals.exe with non-retail CRC must not falsely match retail or Game.dat).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatible_WithUploadedCustomNonRetailExe_ReturnsFalse()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_CustomExeTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var customExePath = Path.Combine(tempDir, "generals.exe");
+        var adjacentGameDat = Path.Combine(tempDir, "Game.dat");
+        await File.WriteAllTextAsync(customExePath, "custom non-retail uploaded generals.exe binary");
+        await File.WriteAllTextAsync(adjacentGameDat, "steam adjacent game dat");
+
+        try
+        {
+            var client = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh",
+                Name = "Custom Uploaded Zero Hour Client",
+                PublisherType = "Local",
+                GameType = GameType.ZeroHour,
+                Version = "1.0",
+                ExecutablePath = customExePath,
+            };
+
+            var profile = new GameProfile
+            {
+                Id = "test-profile-custom-exe",
+                Name = "Custom Executable Profile",
+                GameClient = client,
+                CustomExecutablePath = customExePath,
+                WorkingDirectory = tempDir,
+            };
+
+            // Synchronous check on client
+            Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(client));
+
+            // Synchronous check on profile
+            Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(profile));
+
+            // Asynchronous check with non-retail INI CRC calculator
+            var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            mockCalculator
+                .Setup(c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
+
+            var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+            Assert.False(isRetail);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a profile specifying an inaccessible or non-existent CustomExecutablePath is rejected as non-retail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatible_WithUnresolvedCustomExecutable_ReturnsFalse()
+    {
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), "GenHub_NonExistent_" + Guid.NewGuid().ToString("N"), "generals.exe");
+        var client = new GameClient
+        {
+            Id = "1.04.ea.game.zerohour",
+            Name = "Zero Hour 1.04",
+            Version = "1.04",
+            PublisherType = PublisherTypeConstants.Ea,
+            GameType = GameType.ZeroHour,
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "profile-unresolved-exe",
+            Name = "Unresolved Custom Exe Profile",
+            GameClient = client,
+            CustomExecutablePath = nonExistentPath,
+        };
+
+        // Synchronous check must fail
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(profile));
+
+        // Asynchronous check must fail without attempting CRC
+        var mockCalculator = new Mock<IGameCrcCalculatorService>();
+        var isRetailAsync = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+        Assert.False(isRetailAsync);
+    }
+
+    /// <summary>
+    /// Verifies that a profile specifying a relative CustomExecutablePath resolves against the working directory.
+    /// </summary>
+    [Fact]
+    public void IsRetailCompatible_WithRelativeCustomExecutable_ResolvesAgainstWorkingDirectory()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_RelCustomExe_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, "custom.exe");
+        File.WriteAllText(exePath, "non retail binary data");
+
+        try
+        {
+            var client = new GameClient
+            {
+                Id = "1.04.ea.game.zerohour",
+                Name = "Zero Hour 1.04",
+                Version = "1.04",
+                PublisherType = PublisherTypeConstants.Ea,
+                GameType = GameType.ZeroHour,
+                WorkingDirectory = tempDir,
+            };
+
+            var profile = new GameProfile
+            {
+                Id = "profile-relative-exe",
+                Name = "Relative Custom Exe Profile",
+                GameClient = client,
+                WorkingDirectory = tempDir,
+                CustomExecutablePath = "custom.exe",
+            };
+
+            // Custom exe exists via relative path but is non-retail binary, so it must return false
+            Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(profile));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an official publisher client with empty version metadata is not assumed to be retail.
+    /// </summary>
+    [Fact]
+    public void IsOfficialBaseClient_WithEmptyVersion_ReturnsFalse()
+    {
+        var client = new GameClient
+        {
+            Id = "client-empty-ver",
+            Name = "Zero Hour Unknown",
+            Version = string.Empty,
+            PublisherType = PublisherTypeConstants.Ea,
+            GameType = GameType.ZeroHour,
+        };
+
+        Assert.False(ReplayCrcMatchingHelper.IsOfficialBaseClient(client));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(client));
+    }
+
+    /// <summary>
+    /// Verifies that HasNonRetailContent correctly identifies mods and non-retail patches while allowing retail addons.
+    /// </summary>
+    [Fact]
+    public void HasNonRetailContent_DetectsModsAndNonRetailPatches()
+    {
+        // 5-segment mod ID
+        Assert.True(ReplayCrcMatchingHelper.HasNonRetailContent(new[] { "1.0.moddb.mod.shockwave", }));
+
+        // .mod. containing ID
+        Assert.True(ReplayCrcMatchingHelper.HasNonRetailContent(new[] { "some.mod.pack", }));
+
+        // Non-retail patch
+        Assert.True(ReplayCrcMatchingHelper.HasNonRetailContent(new[] { "1.06.communityoutpost.patch.nonret", }));
+
+        // Retail addon / map should not be flagged as non-retail
+        Assert.False(ReplayCrcMatchingHelper.HasNonRetailContent(new[]
+        {
+            "1.100.local.addon.improvedmenusenglish",
+            "1.20260701.genericcatalog.addon.competitivehotkeys",
+            "1.103.genericcatalog.addon.l3mcontrolbarresolution1080p",
+        }));
+
+        // Null / empty
+        Assert.False(ReplayCrcMatchingHelper.HasNonRetailContent(null));
+        Assert.False(ReplayCrcMatchingHelper.HasNonRetailContent(Array.Empty<string>()));
     }
 
     private static async Task RunProfileIniCompatibilityScenarioAsync(
