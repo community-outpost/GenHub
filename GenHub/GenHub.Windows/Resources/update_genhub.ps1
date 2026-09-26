@@ -50,7 +50,12 @@ $excluded = @(
     'upload_history.json',
     'MapPacks',
     'mappacks',
-    '.genhub-cas'
+    '.genhub-cas',
+    'PublisherStudio',
+    'Hotkeys',
+    'Artwork',
+    'credentials',
+    '.ghtoken'
 )
 
 try {

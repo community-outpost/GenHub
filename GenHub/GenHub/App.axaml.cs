@@ -174,6 +174,13 @@ public partial class App : Application
             {
                 SafeFireAndForget(conflictService.CheckAndResolveConflictsAsync(), nameof(IInstallationConflictService.CheckAndResolveConflictsAsync));
             }
+
+            // Perform storage maintenance to consolidate caches and clean legacy directories
+            var storageMaintenance = _serviceProvider.GetService<IStorageMaintenanceService>();
+            if (storageMaintenance != null)
+            {
+                SafeFireAndForget(storageMaintenance.RunMaintenanceAsync(), nameof(IStorageMaintenanceService.RunMaintenanceAsync));
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
