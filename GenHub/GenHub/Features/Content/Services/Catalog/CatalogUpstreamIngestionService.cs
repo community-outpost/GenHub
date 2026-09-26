@@ -63,6 +63,93 @@ public class CatalogUpstreamIngestionService(
         CatalogBundleComponentBuilder.HydrateSyntheticBundleReleases(catalog.Content);
     }
 
+    private static string NormalizeReleaseVersion(GitHubRelease release)
+    {
+        var rawVersion = release.TagName;
+        if (string.IsNullOrWhiteSpace(rawVersion))
+        {
+            rawVersion = release.Name ?? "1.0.0";
+        }
+
+        var version = rawVersion;
+        if (version.StartsWith("v", StringComparison.OrdinalIgnoreCase) && version.Length > 1 && char.IsDigit(version[1]))
+        {
+            version = version[1..];
+        }
+
+        return version;
+    }
+
+    private static void PopulateArtifactsFromAssetRules(
+        ContentRelease release,
+        IEnumerable<GitHubReleaseAsset> assets,
+        CatalogUpstreamSync sync,
+        CatalogContentItem item)
+    {
+        foreach (var asset in assets)
+        {
+            var matchedRule = sync.AssetRules.FirstOrDefault(r =>
+                Regex.IsMatch(asset.Name, r.Pattern, RegexOptions.IgnoreCase, RegexTimeout) &&
+                (r.TargetGame == GameType.Unknown || item.TargetGame == GameType.Unknown || r.TargetGame == item.TargetGame));
+
+            if (matchedRule != null)
+            {
+                release.Artifacts.Add(new ReleaseArtifact
+                {
+                    Filename = asset.Name,
+                    DownloadUrl = asset.BrowserDownloadUrl,
+                    Size = asset.Size,
+                    Variant = matchedRule.Variant,
+                    VariantAxis = sync.VariantAxis ?? "game-type",
+                    IsDefaultVariant = matchedRule.IsDefault,
+                    IsPrimary = matchedRule.IsDefault,
+                });
+            }
+        }
+    }
+
+    private static void PopulateDefaultSuperHackersArtifacts(
+        ContentRelease release,
+        IEnumerable<GitHubReleaseAsset> assets)
+    {
+        foreach (var asset in assets)
+        {
+            var isZh = asset.Name.Contains("zh-client", StringComparison.OrdinalIgnoreCase);
+            var isGen = asset.Name.Contains("gen-client", StringComparison.OrdinalIgnoreCase);
+            var isFull = asset.Name.Contains("full-client", StringComparison.OrdinalIgnoreCase);
+
+            if (!isZh && !isGen && !isFull)
+            {
+                continue;
+            }
+
+            string variant;
+            if (isZh)
+            {
+                variant = "Zero Hour";
+            }
+            else if (isGen)
+            {
+                variant = "Generals";
+            }
+            else
+            {
+                variant = "Zero Hour + Generals";
+            }
+
+            release.Artifacts.Add(new ReleaseArtifact
+            {
+                Filename = asset.Name,
+                DownloadUrl = asset.BrowserDownloadUrl,
+                Size = asset.Size,
+                Variant = variant,
+                VariantAxis = "game-type",
+                IsDefaultVariant = isZh,
+                IsPrimary = isZh,
+            });
+        }
+    }
+
     private async Task IngestSingleItemAsync(CatalogContentItem item, CancellationToken cancellationToken)
     {
         var sync = item.UpstreamSync;
@@ -128,81 +215,6 @@ public class CatalogUpstreamIngestionService(
 
         item.Releases.Clear();
         item.Releases.Add(synthesized);
-    }
-
-    private string NormalizeReleaseVersion(GitHubRelease release)
-    {
-        var rawVersion = release.TagName;
-        if (string.IsNullOrWhiteSpace(rawVersion))
-        {
-            rawVersion = release.Name ?? "1.0.0";
-        }
-
-        var version = rawVersion;
-        if (version.StartsWith("v", StringComparison.OrdinalIgnoreCase) && version.Length > 1 && char.IsDigit(version[1]))
-        {
-            version = version[1..];
-        }
-
-        return version;
-    }
-
-    private void PopulateArtifactsFromAssetRules(
-        ContentRelease release,
-        IEnumerable<GitHubReleaseAsset> assets,
-        CatalogUpstreamSync sync,
-        CatalogContentItem item)
-    {
-        foreach (var asset in assets)
-        {
-            var matchedRule = sync.AssetRules.FirstOrDefault(r =>
-                Regex.IsMatch(asset.Name, r.Pattern, RegexOptions.IgnoreCase, RegexTimeout) &&
-                (r.TargetGame == GameType.Unknown || item.TargetGame == GameType.Unknown || r.TargetGame == item.TargetGame));
-
-            if (matchedRule != null)
-            {
-                release.Artifacts.Add(new ReleaseArtifact
-                {
-                    Filename = asset.Name,
-                    DownloadUrl = asset.BrowserDownloadUrl,
-                    Size = asset.Size,
-                    Variant = matchedRule.Variant,
-                    VariantAxis = sync.VariantAxis ?? "game-type",
-                    IsDefaultVariant = matchedRule.IsDefault,
-                    IsPrimary = matchedRule.IsDefault,
-                });
-            }
-        }
-    }
-
-    private void PopulateDefaultSuperHackersArtifacts(
-        ContentRelease release,
-        IEnumerable<GitHubReleaseAsset> assets)
-    {
-        foreach (var asset in assets)
-        {
-            var isZh = asset.Name.Contains("zh-client", StringComparison.OrdinalIgnoreCase);
-            var isGen = asset.Name.Contains("gen-client", StringComparison.OrdinalIgnoreCase);
-            var isFull = asset.Name.Contains("full-client", StringComparison.OrdinalIgnoreCase);
-
-            if (!isZh && !isGen && !isFull)
-            {
-                continue;
-            }
-
-            var variant = isZh ? "Zero Hour" : (isGen ? "Generals" : "Zero Hour + Generals");
-
-            release.Artifacts.Add(new ReleaseArtifact
-            {
-                Filename = asset.Name,
-                DownloadUrl = asset.BrowserDownloadUrl,
-                Size = asset.Size,
-                Variant = variant,
-                VariantAxis = "game-type",
-                IsDefaultVariant = isZh,
-                IsPrimary = isZh,
-            });
-        }
     }
 
     private async Task IngestGeneralsOnlineItemAsync(

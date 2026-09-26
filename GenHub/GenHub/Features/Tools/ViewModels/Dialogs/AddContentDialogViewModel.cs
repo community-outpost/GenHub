@@ -433,41 +433,25 @@ public partial class AddContentDialogViewModel(
 
     private List<string> CollectItemVariants(CatalogContentItem item)
     {
-        var variants = new List<string>();
-
-        if (item.Releases is { Count: > 0 })
-        {
-            var releaseVariants = item.Releases
-                .Where(rel => rel.Artifacts is { Count: > 0 })
+        var releaseVariants = item.Releases != null
+            ? item.Releases
+                .Where(rel => rel.Artifacts != null)
                 .SelectMany(rel => rel.Artifacts)
-                .Where(art => !string.IsNullOrWhiteSpace(art.Variant))
-                .Select(art => art.Variant!);
+                .Select(art => art.Variant)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+            : Enumerable.Empty<string?>();
 
-            foreach (var v in releaseVariants)
-            {
-                if (!variants.Contains(v, StringComparer.OrdinalIgnoreCase))
-                {
-                    variants.Add(v);
-                }
-            }
-        }
+        var ruleVariants = item.UpstreamSync?.AssetRules != null
+            ? item.UpstreamSync.AssetRules
+                .Select(rule => rule.Variant)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+            : Enumerable.Empty<string?>();
 
-        if (item.UpstreamSync?.AssetRules is { Count: > 0 })
-        {
-            var ruleVariants = item.UpstreamSync.AssetRules
-                .Where(rule => !string.IsNullOrWhiteSpace(rule.Variant))
-                .Select(rule => rule.Variant!);
-
-            foreach (var v in ruleVariants)
-            {
-                if (!variants.Contains(v, StringComparer.OrdinalIgnoreCase))
-                {
-                    variants.Add(v);
-                }
-            }
-        }
-
-        return variants;
+        return releaseVariants
+            .Concat(ruleVariants)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private BundleComponentOption CreateBundleComponentOption(CatalogContentItem item)
