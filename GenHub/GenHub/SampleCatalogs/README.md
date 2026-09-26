@@ -159,6 +159,9 @@ xdg-mime default genhub-scheme.desktop x-scheme-handler/genhub
 
 #### macOS
 
+A `GenHub.app` built by `.github/scripts/package-macos-app.sh` claims `genhub://` itself and
+receives links while it is running. The applet below is only needed for unbundled builds.
+
 1. Run `./generate-test-shortcuts.sh`. This builds `register-genhub-scheme.app` (AppleScript
    applet + `CFBundleURLSchemes = genhub`) and refreshes Launch Services.
 2. Open `register-genhub-scheme.app` once so macOS binds `genhub://` to it.
