@@ -104,7 +104,17 @@ public sealed partial class ReplayCheckpointService(
             return customSaveDirectory;
         }
 
-        return Path.Combine(gamePathProvider.GetOptionsDirectory(gameType), ReplayManagerConstants.SaveFolderName);
+        var gameDataDirectory = gamePathProvider.GetOptionsDirectory(gameType);
+        if (string.IsNullOrWhiteSpace(gameDataDirectory) || !Path.IsPathFullyQualified(gameDataDirectory))
+        {
+            // Preserve the checkpoint fallback when the platform's user-data folder is unavailable.
+            var gameFolder = gameType == GameType.ZeroHour
+                ? GameSettingsConstants.FolderNames.ZeroHour
+                : GameSettingsConstants.FolderNames.Generals;
+            gameDataDirectory = Path.Combine(AppContext.BaseDirectory, gameFolder);
+        }
+
+        return Path.Combine(gameDataDirectory, ReplayManagerConstants.SaveFolderName);
     }
 
     /// <inheritdoc/>

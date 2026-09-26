@@ -87,6 +87,24 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         Assert.Equal(Path.Combine(generalsData, ReplayManagerConstants.SaveFolderName), defaultService.GetSaveDirectory(GameType.Generals));
     }
 
+    /// <summary>Unavailable or relative platform directories preserve an absolute checkpoint fallback.</summary>
+    /// <param name="directory">The invalid platform directory.</param>
+    [Theory]
+    [InlineData("")]
+    [InlineData("relative-data")]
+    public void GetSaveDirectory_InvalidProviderDirectory_UsesAbsoluteFallback(string directory)
+    {
+        _mockGamePathProvider.Setup(p => p.GetOptionsDirectory(GameType.ZeroHour)).Returns(directory);
+        using var service = new ReplayCheckpointService(
+            _mockLauncherFacade.Object,
+            _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
+            NullLogger<ReplayCheckpointService>.Instance);
+
+        var expected = Path.Combine(AppContext.BaseDirectory, GameSettingsConstants.FolderNames.ZeroHour, ReplayManagerConstants.SaveFolderName);
+        Assert.Equal(expected, service.GetSaveDirectory(GameType.ZeroHour));
+    }
+
     /// <summary>
     /// Verifies that MintCheckpointAsync returns failure when targetFrame is zero or negative.
     /// </summary>
