@@ -358,6 +358,11 @@ public class ProfileSharingService(
         }
     }
 
+    private static bool MatchesInstallationSource(ContentManifest manifest, GameInstallation installation) =>
+        !string.IsNullOrWhiteSpace(manifest.Metadata?.SourcePath)
+        && Path.IsPathFullyQualified(manifest.Metadata.SourcePath)
+        && PathHelper.AreSamePath(manifest.Metadata.SourcePath, installation.InstallationPath);
+
     private static HttpClient CreateSafeHttpClient()
     {
         var handler = new SocketsHttpHandler
@@ -2018,7 +2023,7 @@ public class ProfileSharingService(
             GameVersionHelper.ResolveInstallationManifestVersion(baseGameClient.Version, gameType));
 
         var expectedResult = await manifestPool.GetManifestAsync(ManifestId.Create(expectedId), cancellationToken);
-        if (expectedResult is { Success: true, Data: not null })
+        if (expectedResult is { Success: true, Data: not null } && MatchesInstallationSource(expectedResult.Data, installation))
         {
             return expectedId;
         }
@@ -2032,9 +2037,7 @@ public class ProfileSharingService(
             ? searchResult.Data
                 .Where(m => m.ContentType == ContentType.GameInstallation && m.TargetGame == gameType
                     && string.Equals(m.Id.Publisher, expectedPublisher, StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrWhiteSpace(m.Metadata?.SourcePath)
-                    && Path.IsPathFullyQualified(m.Metadata.SourcePath)
-                    && PathHelper.AreSamePath(m.Metadata.SourcePath, installation.InstallationPath))
+                    && MatchesInstallationSource(m, installation))
                 .OrderByDescending(m => GameVersionHelper.NormalizeVersion(m.Version))
                 .FirstOrDefault()
             : null;
@@ -2046,6 +2049,11 @@ public class ProfileSharingService(
                 expectedId,
                 pooledManifest.Id.Value);
             return pooledManifest.Id.Value;
+        }
+
+        if (expectedResult is { Success: true, Data: not null })
+        {
+            throw new InvalidOperationException("The pooled installation manifest does not identify the selected installation. Rescan the selected installation before importing.");
         }
 
         return expectedId;

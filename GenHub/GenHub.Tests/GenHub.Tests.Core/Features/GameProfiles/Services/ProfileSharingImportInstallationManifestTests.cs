@@ -154,6 +154,39 @@ public sealed class ProfileSharingImportInstallationManifestTests
         Assert.DoesNotContain(PooledInstallationManifestId, profile.EnabledContentIds);
     }
 
+    /// <summary>A deterministic ID collision cannot attach another installation's manifest.</summary>
+    /// <param name="hasMatchingFallback">Whether a verified fallback is available.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ImportSharedProfileAsync_ExpectedIdBelongsToOtherInstallation_RequiresMatchingSourceAsync(bool hasMatchingFallback)
+    {
+        PoolInstallationManifest(PooledInstallationManifestId, GameInstallationType.Custom, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "other-installation"));
+        if (hasMatchingFallback)
+        {
+            PoolInstallationManifest(UnknownVersionInstallationManifestId, GameInstallationType.Custom);
+        }
+
+        PoolClientManifest();
+        SetUpInstallation("1.04");
+        using var sharingService = CreateSharingService();
+
+        var result = await sharingService.ImportSharedProfileAsync(CreateImportRequest());
+
+        Assert.Equal(hasMatchingFallback, result.Success);
+        if (hasMatchingFallback)
+        {
+            Assert.Contains(UnknownVersionInstallationManifestId, result.Data!.EnabledContentIds);
+            Assert.DoesNotContain(PooledInstallationManifestId, result.Data.EnabledContentIds);
+        }
+        else
+        {
+            Assert.Null(_savedProfile);
+            Assert.Contains("Rescan", result.FirstError);
+        }
+    }
+
     /// <summary>A fallback must not bind an unrelated or unidentified installation.</summary>
     /// <param name="sourcePath">The pooled manifest's source directory.</param>
     /// <returns>The asynchronous test.</returns>
