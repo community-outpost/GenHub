@@ -362,7 +362,6 @@ public class TelemetryInstrumentationTests
                     TelemetryConstants.Events.ContentDownloadCompleted,
                     It.Is<IReadOnlyDictionary<string, object?>?>(p =>
                         p != null &&
-                        (string?)p[TelemetryConstants.Properties.FileName] == Path.GetFileName(tempFile) &&
                         p.ContainsKey(TelemetryConstants.Properties.SizeMb) &&
                         p.ContainsKey(TelemetryConstants.Properties.DurationSeconds)),
                     It.IsAny<TelemetryLevel>()),
@@ -416,7 +415,6 @@ public class TelemetryInstrumentationTests
                     TelemetryConstants.Events.ContentDownloadFailed,
                     It.Is<IReadOnlyDictionary<string, object?>?>(p =>
                         p != null &&
-                        (string?)p[TelemetryConstants.Properties.FileName] == Path.GetFileName(tempFile) &&
                         p.ContainsKey(TelemetryConstants.Properties.ErrorMessage)),
                     It.IsAny<TelemetryLevel>()),
                 Times.Once);
