@@ -1,21 +1,18 @@
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.GitHub;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GitHub;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Providers;
-using GenHub.Core.Models.Results.Content;
-using GenHub.Features.Content.Services.CommunityOutpost;
-using GenHub.Features.Content.Services.GeneralsOnline;
-using GenHub.Features.Content.Services.GitHub;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Catalog;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GitHub;
+using GenHub.Features.Content.Services.CommunityOutpost;
+using GenHub.Features.Content.Services.GeneralsOnline;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Catalog;
 
@@ -28,6 +25,8 @@ public class CatalogUpstreamIngestionService(
     GeneralsOnlineDiscoverer? generalsOnlineDiscoverer = null,
     CommunityOutpostDiscoverer? communityOutpostDiscoverer = null) : ICatalogUpstreamIngestionService
 {
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
+
     /// <inheritdoc />
     public async Task IngestCatalogAsync(PublisherCatalog catalog, CancellationToken cancellationToken = default)
     {
@@ -80,8 +79,6 @@ public class CatalogUpstreamIngestionService(
         }
     }
 
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
-
     private async Task IngestGitHubItemAsync(
         CatalogContentItem item,
         CatalogUpstreamSync? sync,
@@ -129,7 +126,7 @@ public class CatalogUpstreamIngestionService(
         item.Releases.Add(synthesized);
     }
 
-    private static string NormalizeReleaseVersion(GitHubRelease release)
+    private string NormalizeReleaseVersion(GitHubRelease release)
     {
         var rawVersion = release.TagName;
         if (string.IsNullOrWhiteSpace(rawVersion))
@@ -146,7 +143,7 @@ public class CatalogUpstreamIngestionService(
         return version;
     }
 
-    private static void PopulateArtifactsFromAssetRules(
+    private void PopulateArtifactsFromAssetRules(
         ContentRelease release,
         IEnumerable<GitHubReleaseAsset> assets,
         CatalogUpstreamSync sync,
@@ -174,7 +171,7 @@ public class CatalogUpstreamIngestionService(
         }
     }
 
-    private static void PopulateDefaultSuperHackersArtifacts(
+    private void PopulateDefaultSuperHackersArtifacts(
         ContentRelease release,
         IEnumerable<GitHubReleaseAsset> assets)
     {
@@ -202,6 +199,50 @@ public class CatalogUpstreamIngestionService(
                 IsPrimary = isZh,
             });
         }
+    }
+
+    private async Task IngestGeneralsOnlineItemAsync(
+        CatalogContentItem item,
+        CancellationToken cancellationToken)
+    {
+        if (generalsOnlineDiscoverer == null)
+        {
+            return;
+        }
+
+        var discovery = await generalsOnlineDiscoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
+        if (!discovery.Success || discovery.Data?.Items == null)
+        {
+            return;
+        }
+
+        var items = discovery.Data.Items.ToList();
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var matched = items.FirstOrDefault(i =>
+            i.TargetGame == item.TargetGame ||
+            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase)) ?? items[0];
+
+        var synthesized = new ContentRelease
+        {
+            Version = !string.IsNullOrWhiteSpace(matched.Version) ? matched.Version : "1.0.0",
+            ReleaseDate = matched.LastUpdated ?? DateTime.UtcNow,
+            IsLatest = true,
+        };
+
+        synthesized.Artifacts.Add(new ReleaseArtifact
+        {
+            Filename = $"{item.Id}-{synthesized.Version}.zip",
+            DownloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl ?? string.Empty,
+            Size = matched.DownloadSize,
+            IsPrimary = true,
+        });
+
+        item.Releases.Clear();
+        item.Releases.Add(synthesized);
     }
 
     private async Task IngestCommunityOutpostItemAsync(
