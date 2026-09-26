@@ -758,6 +758,425 @@
           </tr>
         </tbody>
       </table>
+      <div style="margin-top: 1.5rem; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+          <div style="font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; color: #f8fafc;">
+            <span>📄 community-competitive-ecosystem.catalog.json</span>
+            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 500;">Direct Test Ready</span>
+          </div>
+          <button id="copyCatalogBtn" type="button" style="background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span id="copyBtnText">Copy Catalog JSON</span>
+          </button>
+        </div>
+        <pre id="catalogJsonBlock" style="margin: 0; padding: 1.25rem; max-height: 520px; overflow-y: auto; background: #0b0f19; color: #e2e8f0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.82rem; line-height: 1.5; white-space: pre;"><code>{
+  &quot;$schemaVersion&quot;: 1,
+  &quot;publisher&quot;: {
+    &quot;id&quot;: &quot;community-competitive-hub&quot;,
+    &quot;name&quot;: &quot;Command &amp; Conquer Community Competitive Hub&quot;,
+    &quot;website&quot;: &quot;https://github.com/community-outpost&quot;,
+    &quot;avatarUrl&quot;: &quot;avares://GenHub/Assets/Logos/communityoutpost-logo.png&quot;,
+    &quot;supportUrl&quot;: &quot;https://github.com/community-outpost/GenHub/issues&quot;,
+    &quot;contactEmail&quot;: &quot;competitive@genhub.community&quot;
+  },
+  &quot;content&quot;: [
+    {
+      &quot;id&quot;: &quot;thesuperhackers-client&quot;,
+      &quot;name&quot;: &quot;TheSuperHackers Engine Game Code&quot;,
+      &quot;description&quot;: &quot;Continuous weekly builds of the open-source Command &amp; Conquer Generals and Zero Hour game engine from TheSuperHackers.\n\nIncludes 60FPS physics updates, high-refresh rate support, and anti-cheat fixes.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;thesuperhackers&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;GitHubReleases&quot;,
+        &quot;repository&quot;: &quot;TheSuperHackers/GeneralsGameCode&quot;,
+        &quot;variantAxis&quot;: &quot;game-type&quot;,
+        &quot;assetRules&quot;: [
+          {
+            &quot;pattern&quot;: &quot;generalszh-.*\\.zip$&quot;,
+            &quot;variant&quot;: &quot;Zero Hour&quot;,
+            &quot;isDefault&quot;: true,
+            &quot;targetGame&quot;: 1
+          },
+          {
+            &quot;pattern&quot;: &quot;generals-.*\\.zip$&quot;,
+            &quot;variant&quot;: &quot;Generals&quot;,
+            &quot;isDefault&quot;: false,
+            &quot;targetGame&quot;: 0
+          }
+        ]
+      },
+      &quot;tags&quot;: [&quot;engine&quot;, &quot;thesuperhackers&quot;, &quot;gameclient&quot;, &quot;dynamic-upstream&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;TheSuperHackers&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/TheSuperHackers/GeneralsGameCode&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;generalsonline-client&quot;,
+      &quot;name&quot;: &quot;Generals Online 60Hz Client&quot;,
+      &quot;description&quot;: &quot;Modern multiplayer ladder client for C&amp;C Generals Zero Hour featuring built-in matchmaker, instant replay synchronization, and 60Hz tickrate engine.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;generalsonline&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;GeneralsOnline&quot;,
+        &quot;channel&quot;: &quot;stable&quot;
+      },
+      &quot;tags&quot;: [&quot;ladder&quot;, &quot;multiplayer&quot;, &quot;generalsonline&quot;, &quot;gameclient&quot;, &quot;dynamic-upstream&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Generals Online Team&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://generals-online.com&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;communityoutpost-client&quot;,
+      &quot;name&quot;: &quot;Community Outpost GenPatcher Client&quot;,
+      &quot;description&quot;: &quot;The standardized community competitive client baseline curated by Community Outpost with GenPatcher and GenTool integrated.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;communityoutpost&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;CommunityOutpost&quot;,
+        &quot;channel&quot;: &quot;release&quot;
+      },
+      &quot;tags&quot;: [&quot;gentool&quot;, &quot;genpatcher&quot;, &quot;communityoutpost&quot;, &quot;gameclient&quot;, &quot;dynamic-upstream&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Outpost&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;l3m-controlbar&quot;,
+      &quot;name&quot;: &quot;L3M Modern HD Control Bar&quot;,
+      &quot;description&quot;: &quot;Clean, high-definition competitive control bar overlay designed by L3M. Supports multiple display resolutions with pixel-perfect mini-map scaling and unit command cards.&quot;,
+      &quot;contentType&quot;: &quot;ControlBar&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [&quot;controlbar&quot;, &quot;hd&quot;, &quot;ui&quot;, &quot;l3m&quot;, &quot;resolutions&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;L3M&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/L3M/Generals-HD-ControlBar&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;2.4.0&quot;,
+          &quot;releaseDate&quot;: &quot;2026-06-15T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Added 1440p and 4K ultra-wide aspect ratio support with improved radar contrast.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;L3M_ControlBar_1080p.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3M/Generals-HD-ControlBar/releases/download/v2.4.0/L3M_ControlBar_1080p.big&quot;,
+              &quot;size&quot;: 14680064,
+              &quot;sha256&quot;: &quot;4c9d81f26a1b2c3d4e5f60718293a4b5c6d7e8f9001020304a5b6c7d8e9f0a1b&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1080p&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;L3M_ControlBar_1440p.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3M/Generals-HD-ControlBar/releases/download/v2.4.0/L3M_ControlBar_1440p.big&quot;,
+              &quot;size&quot;: 22020096,
+              &quot;sha256&quot;: &quot;5d0e92037b2c3d4e5f60718293a4b5c6d7e8f9001020304a5b6c7d8e9f0a2c&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1440p&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;L3M_ControlBar_4K.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3M/Generals-HD-ControlBar/releases/download/v2.4.0/L3M_ControlBar_4K.big&quot;,
+              &quot;size&quot;: 44040192,
+              &quot;sha256&quot;: &quot;6e1f03148c3d4e5f60718293a4b5c6d7e8f9001020304a5b6c7d8e9f0a3d&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;4K&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;eliorata-menus&quot;,
+      &quot;name&quot;: &quot;Eliorata Improved Menus&quot;,
+      &quot;description&quot;: &quot;Modernized user interface navigation, high-contrast lobby fonts, and localized in-game menus crafted by Eliorata.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [&quot;ui&quot;, &quot;menus&quot;, &quot;localization&quot;, &quot;eliorata&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Eliorata&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/Eliorata/ImprovedMenus&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;1.8.0&quot;,
+          &quot;releaseDate&quot;: &quot;2026-05-10T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Localized menus with improved high DPI font rendering.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Eliorata_Menus_EN.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/Eliorata/ImprovedMenus/releases/download/v1.8.0/Eliorata_Menus_EN.big&quot;,
+              &quot;size&quot;: 6291456,
+              &quot;sha256&quot;: &quot;7f2a14259d4e5f60718293a4b5c6d7e8f9001020304a5b6c7d8e9f0a4e&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;English&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;Eliorata_Menus_DE.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/Eliorata/ImprovedMenus/releases/download/v1.8.0/Eliorata_Menus_DE.big&quot;,
+              &quot;size&quot;: 6340000,
+              &quot;sha256&quot;: &quot;803b25360e5f60718293a4b5c6d7e8f9001020304a5b6c7d8e9f0a5f&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;German&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;Eliorata_Menus_FR.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/Eliorata/ImprovedMenus/releases/download/v1.8.0/Eliorata_Menus_FR.big&quot;,
+              &quot;size&quot;: 6350000,
+              &quot;sha256&quot;: &quot;914c36471f60718293a4b5c6d7e8f9001020304a5b6c7d8e9f0a6a&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;French&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;leikeze-hotkeys&quot;,
+      &quot;name&quot;: &quot;Leikeze Pro Competitive Hotkeys&quot;,
+      &quot;description&quot;: &quot;Optimized ergonomic hotkey layouts built for rapid unit production, ability triggers, and building placement without hand strain.&quot;,
+      &quot;contentType&quot;: &quot;Hotkeys&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [&quot;hotkeys&quot;, &quot;competitive&quot;, &quot;ergonomics&quot;, &quot;leikeze&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Leikeze&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/Leikeze/ProHotkeys&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;3.1.0&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-01T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Full support for standard QWERTY, European QWERTZ, and universal Grid layouts.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Leikeze_Hotkeys_QWERTY.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/Leikeze/ProHotkeys/releases/download/v3.1.0/Leikeze_Hotkeys_QWERTY.big&quot;,
+              &quot;size&quot;: 262144,
+              &quot;sha256&quot;: &quot;a25d475820718293a4b5c6d7e8f9001020304a5b6c7d8e9f0a7b&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;layout&quot;,
+              &quot;variant&quot;: &quot;QWERTY&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;Leikeze_Hotkeys_QWERTZ.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/Leikeze/ProHotkeys/releases/download/v3.1.0/Leikeze_Hotkeys_QWERTZ.big&quot;,
+              &quot;size&quot;: 262144,
+              &quot;sha256&quot;: &quot;b36e5869318293a4b5c6d7e8f9001020304a5b6c7d8e9f0a8c&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;layout&quot;,
+              &quot;variant&quot;: &quot;QWERTZ&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;Leikeze_Hotkeys_Grid.big&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/Leikeze/ProHotkeys/releases/download/v3.1.0/Leikeze_Hotkeys_Grid.big&quot;,
+              &quot;size&quot;: 262144,
+              &quot;sha256&quot;: &quot;c47f69704293a4b5c6d7e8f9001020304a5b6c7d8e9f0a9d&quot;,
+              &quot;contentType&quot;: &quot;application/octet-stream&quot;,
+              &quot;variantAxis&quot;: &quot;layout&quot;,
+              &quot;variant&quot;: &quot;Grid&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;thesuperhackers-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;TheSuperHackers Pro Competitive Suite&quot;,
+      &quot;description&quot;: &quot;Complete all-in-one suite featuring the latest TheSuperHackers game engine, L3M HD Control Bar, Eliorata Menus, and Leikeze Pro Hotkeys.\n\nFully customizable with per-component variant selection for screen resolution, menu language, and keyboard layout.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [&quot;bundle&quot;, &quot;featured&quot;, &quot;thesuperhackers&quot;, &quot;l3m&quot;, &quot;eliorata&quot;, &quot;leikeze&quot;, &quot;competitive&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;★ PRO COMPETITIVE SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/thesuperhackers&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;thesuperhackers-client&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;Zero Hour&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;game-type&quot;]
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2.4.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;resolution&quot;]
+        },
+        {
+          &quot;contentId&quot;: &quot;eliorata-menus&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.8.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;English&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;language&quot;]
+        },
+        {
+          &quot;contentId&quot;: &quot;leikeze-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 3.1.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;QWERTY&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;layout&quot;]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;generalsonline-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;Generals Online Matchmaking Pro Suite&quot;,
+      &quot;description&quot;: &quot;The official Generals Online ladder bundle with 60Hz high-tick client, L3M HD Control Bar, Eliorata localized menus, and Leikeze competitive hotkeys.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [&quot;bundle&quot;, &quot;featured&quot;, &quot;generalsonline&quot;, &quot;ladder&quot;, &quot;60hz&quot;, &quot;l3m&quot;, &quot;eliorata&quot;, &quot;leikeze&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;★ LADDER 60HZ SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/generalsonline&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;generalsonline-client&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2.4.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;resolution&quot;]
+        },
+        {
+          &quot;contentId&quot;: &quot;eliorata-menus&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.8.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;English&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;language&quot;]
+        },
+        {
+          &quot;contentId&quot;: &quot;leikeze-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 3.1.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;QWERTY&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;layout&quot;]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;communityoutpost-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;Community Outpost Standardized Tournament Suite&quot;,
+      &quot;description&quot;: &quot;Standard tournament-ready package containing the GenPatcher client, L3M HD Control Bar, Eliorata Menus, and Leikeze Pro Hotkeys.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [&quot;bundle&quot;, &quot;featured&quot;, &quot;communityoutpost&quot;, &quot;tournament&quot;, &quot;gentool&quot;, &quot;l3m&quot;, &quot;eliorata&quot;, &quot;leikeze&quot;],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;★ TOURNAMENT SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/tournament&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;communityoutpost-client&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2.4.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;resolution&quot;]
+        },
+        {
+          &quot;contentId&quot;: &quot;eliorata-menus&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.8.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;English&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;language&quot;]
+        },
+        {
+          &quot;contentId&quot;: &quot;leikeze-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 3.1.0&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;QWERTY&quot;,
+          &quot;allowedVariantAxes&quot;: [&quot;layout&quot;]
+        }
+      ]
+    }
+  ]
+}
+</code></pre>
+      </div>
+      <script>
+        document.getElementById("copyCatalogBtn")?.addEventListener("click", () => {
+          const text = document.getElementById("catalogJsonBlock").innerText;
+          navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById("copyBtnText");
+            const original = btn.innerText;
+            btn.innerText = "Copied to Clipboard!";
+            setTimeout(() => { btn.innerText = original; }, 2500);
+          }).catch(err => {
+            console.error("Clipboard copy failed:", err);
+          });
+        });
+      </script>
     </section>
 
     <!-- SECTION 5: IMPLEMENTATION PHASING -->
