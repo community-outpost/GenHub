@@ -7,18 +7,20 @@
   <style>
     :root {
       --bg: #000000;
-      --surface: #0c0c0c;
+      --surface: #0a0a0a;
       --surface-2: #141414;
-      --border: #222222;
-      --border-accent: #333333;
+      --surface-3: #1f1f1f;
+      --border: #262626;
+      --border-accent: #3b82f6;
       --text-main: #f0f0f0;
-      --text-muted: #888888;
+      --text-muted: #8c8c8c;
       --accent-blue: #3b82f6;
       --accent-green: #10b981;
       --accent-amber: #f59e0b;
       --accent-red: #ef4444;
       --accent-purple: #8b5cf6;
-      --code-bg: #161616;
+      --accent-cyan: #06b6d4;
+      --code-bg: #111111;
     }
     * {
       box-sizing: border-box;
@@ -29,38 +31,45 @@
       background: var(--bg);
       color: var(--text-main);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.5;
-      padding: 24px 16px;
+      padding: 20px 16px;
     }
     .container {
-      max-width: 1200px;
+      max-width: 1280px;
       margin: 0 auto;
     }
     header {
       border-bottom: 1px solid var(--border);
-      padding-bottom: 20px;
-      margin-bottom: 24px;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 10px;
     }
     h1 {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 700;
       color: #ffffff;
       letter-spacing: -0.02em;
-      margin-bottom: 8px;
     }
     .meta-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      font-size: 12px;
+      gap: 10px;
+      font-size: 11px;
       color: var(--text-muted);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
     .badge {
       display: inline-flex;
       align-items: center;
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
@@ -72,43 +81,118 @@
     .badge-blue { border-color: rgba(59, 130, 246, 0.4); color: #60a5fa; }
     .badge-amber { border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; }
     .badge-purple { border-color: rgba(139, 92, 246, 0.4); color: #a78bfa; }
+    .badge-cyan { border-color: rgba(6, 182, 212, 0.4); color: #22d3ee; }
 
-    section {
-      margin-bottom: 32px;
+    /* Quick jump bar */
+    .quick-jump-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
     }
+    .quick-jump-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .quick-jump-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .quick-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: #cccccc;
+      text-decoration: none;
+      font-size: 11px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .quick-link:hover {
+      border-color: var(--accent-blue);
+      color: #ffffff;
+      background: var(--surface-3);
+    }
+    .quick-link.master-link {
+      border-color: rgba(245, 158, 11, 0.6);
+      color: #fbbf24;
+      font-weight: 600;
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    /* Tabs */
+    .nav-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+    .tab-btn.active {
+      color: #ffffff;
+      border-bottom-color: var(--accent-blue);
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Common Components */
     h2 {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: #ffffff;
       margin-bottom: 12px;
       border-left: 3px solid var(--accent-blue);
       padding-left: 8px;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    h3 {
-      font-size: 14px;
-      font-weight: 600;
-      color: #e5e5e5;
-      margin: 16px 0 8px 0;
+      letter-spacing: 0.04em;
     }
     p {
       color: #b0b0b0;
       margin-bottom: 12px;
-      font-size: 13px;
+      font-size: 12px;
     }
     a {
-      color: var(--accent-blue);
+      color: #60a5fa;
       text-decoration: none;
     }
     a:hover {
       text-decoration: underline;
     }
+
+    /* Grid & Cards */
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 12px;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
     .card {
       background: var(--surface);
@@ -116,45 +200,65 @@
       border-radius: 6px;
       padding: 14px;
     }
-    .card-title {
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 6px;
+    .card:hover {
+      border-color: #333333;
     }
-    .card-val {
-      font-size: 18px;
-      font-weight: 700;
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
       color: #ffffff;
+    }
+    .card-count {
+      font-size: 11px;
+      color: var(--text-muted);
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
     .card-desc {
       font-size: 11px;
-      color: #888888;
-      margin-top: 4px;
+      color: #999999;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .card-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--accent-blue);
+      font-weight: 600;
     }
 
+    /* Table */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      margin-bottom: 24px;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
+      text-align: left;
       font-size: 12px;
-      margin-bottom: 16px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
     }
     th {
       background: var(--surface-2);
-      color: #aaaaaa;
+      color: #a0a0a0;
       font-weight: 600;
       text-align: left;
       padding: 8px 12px;
       border-bottom: 1px solid var(--border);
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     td {
       padding: 8px 12px;
@@ -180,18 +284,32 @@
     .code-accent {
       color: #60a5fa;
     }
-    .spec-box {
+    .search-bar {
+      margin-bottom: 12px;
+      display: flex;
+      gap: 8px;
+    }
+    .search-input {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 16px;
-      margin-bottom: 16px;
+      border-radius: 4px;
+      padding: 6px 12px;
+      color: #ffffff;
+      font-size: 12px;
+      width: 100%;
+      max-width: 400px;
     }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    /* Diagram */
     .pipeline-diagram {
       background: #050505;
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 16px;
+      padding: 14px;
       margin-bottom: 16px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 11px;
@@ -201,8 +319,8 @@
     }
     .pipeline-step {
       display: inline-block;
-      padding: 4px 8px;
-      border: 1px solid var(--border-accent);
+      padding: 3px 7px;
+      border: 1px solid #333333;
       background: var(--surface);
       color: #ffffff;
       border-radius: 4px;
@@ -212,689 +330,932 @@
       color: var(--accent-blue);
       font-weight: bold;
     }
+
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .tile-card {
+      background: #0c0c0c;
+      border: 1px solid #1f1f1f;
+      border-radius: 4px;
+      padding: 10px 12px;
+    }
+    .tile-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e5e5e5;
+      margin-bottom: 4px;
+    }
+    .tile-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>GenHub Telemetry & PostHog Analytics Architecture Post-Plan</h1>
+      <div class="title-row">
+        <div>
+          <h1>GenHub Telemetry & PostHog Analytics Architecture Post-Plan</h1>
+          <p style="margin: 4px 0 0 0; color: #888888; font-size: 12px;">Complete Ecosystem Observability across Game Runtime, Content Distribution, CAS Storage, and Application Forensics.</p>
+        </div>
+        <div style="text-align: right;">
+          <a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-amber" style="text-decoration:none; padding: 4px 10px; font-size: 12px;">Launch Master Command Center &#x2197;</a>
+        </div>
+      </div>
       <div class="meta-bar">
-        <span>PR: <a href="https://github.com/community-outpost/GenHub/pull/408" target="_blank" rel="noopener noreferrer">#408 (feat/telemetry-sentry-posthog)</a></span>
-        <span>Branch: <code>feat/telemetry-sentry-posthog</code></span>
-        <span>PostHog Project: <code>567732</code></span>
-        <span>Endpoint: <code>https://us.i.posthog.com/i/v0/e/</code></span>
-        <span class="badge badge-green">Pipeline: Dual-Sink</span>
-        <span class="badge badge-blue">Dashboards: 8</span>
-        <span class="badge badge-purple">Insight Tiles: 45</span>
+        <span>PR: <a href="https://github.com/community-outpost/GenHub/pull/408">#408 (feat/telemetry-sentry-posthog)</a></span>
+        <span>PostHog Project: <code>567732</code> (US Cloud)</span>
+        <span class="badge badge-green">Events: 28/28 (100% Tracked)</span>
+        <span class="badge badge-blue">Dashboards: 10 Active</span>
+        <span class="badge badge-purple">Insight Tiles: 70 Live</span>
+        <span class="badge badge-cyan">Quality Gate: OK (0 Smells)</span>
       </div>
     </header>
 
-    <section>
-      <h2>1. Ingestion Pipeline & Privacy Architecture</h2>
+    <!-- Quick Jump Bar -->
+    <div class="quick-jump-bar">
+      <div class="quick-jump-title">Single-Click PostHog Dashboard Directory (Direct Deep-Links)</div>
+      <div class="quick-jump-links">
+        <a href="https://us.posthog.com/project/567732/dashboard/2139397" class="quick-link master-link">&#x2605; Master Command Center (Unified)</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2137643" class="quick-link">Executive Overview &amp; DAU</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2137644" class="quick-link">Game Launch &amp; Sessions</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2139396" class="quick-link">App Health &amp; Crashes</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2137645" class="quick-link">Profile Sharing &amp; Social</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2137646" class="quick-link">Content Distribution</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2137647" class="quick-link">GenPatcher &amp; ModBuilder</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2137706" class="quick-link">Storage &amp; CAS Lifecycle</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2137707" class="quick-link">Workspace Engine</a>
+        <a href="https://us.posthog.com/project/567732/dashboard/2137708" class="quick-link">Game Installations &amp; Replays</a>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="cockpit">Unified Command Center</button>
+      <button class="tab-btn" data-tab="dashboards">All 10 Dashboards &amp; Tiles (70)</button>
+      <button class="tab-btn" data-tab="events">28-Event Telemetry Catalog</button>
+      <button class="tab-btn" data-tab="pipeline">Dual-Sink Pipeline &amp; Privacy</button>
+    </div>
+
+    <!-- Tab 1: Cockpit -->
+    <div id="cockpit" class="tab-panel active">
+      <h2>Unified Command Center Overview</h2>
       <p>
-        The telemetry subsystem provides production observability across runtime game processes, content delivery, publisher updates, and client health without capturing personally identifiable information.
+        To avoid opening multiple dashboards one by one, PostHog Dashboard <code>2139397</code> (GenHub - Master Command Center) consolidates the primary health and activity indicators from every domain into a single screen. Below is the multi-domain breakdown:
       </p>
 
+      <div class="grid">
+        <div class="card" style="border-color: rgba(245, 158, 11, 0.4);">
+          <div class="card-header">
+            <span class="card-title">GenHub - Master Command Center (Unified Overview)</span>
+            <span class="badge badge-amber">12 tiles</span>
+          </div>
+          <div class="card-desc">Consolidated single-pane view of GenHub vital health indicators across all 9 domains: engagement, launch reliability, stability, downloads, updates, CAS, workspaces, and replays.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2139397</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2139397" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - Executive Overview &amp; Engagement</span>
+            <span class="badge badge-blue">9 tiles</span>
+          </div>
+          <div class="card-desc">High-level engagement metrics including active users, game launches, updates, downloads, and sharing volume.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2137643</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2137643" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - Game Launch &amp; Session Dynamics</span>
+            <span class="badge badge-blue">8 tiles</span>
+          </div>
+          <div class="card-desc">Deep-dive into game sessions, game variants (Zero Hour vs Generals), runners (Wine, Proton, Native), and session length.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2015936</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - Profile Sharing &amp; Social Ecosystem</span>
+            <span class="badge badge-blue">3 tiles</span>
+          </div>
+          <div class="card-desc">Lifecycle analysis of profile creation, pinning, sharing via URIs/files, and importing from other players.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2015936</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - Content Distribution &amp; Publishers</span>
+            <span class="badge badge-blue">5 tiles</span>
+          </div>
+          <div class="card-desc">Metrics on content deliveries, download speeds, file sizes, and top content publishers.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2015936</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - GenPatcher Fixes &amp; ModBuilder Usage</span>
+            <span class="badge badge-blue">5 tiles</span>
+          </div>
+          <div class="card-desc">Observability into GenPatcher compatibility fixes and ModBuilder creator pipelines.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2015936</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - Storage &amp; CAS Lifecycle</span>
+            <span class="badge badge-blue">5 tiles</span>
+          </div>
+          <div class="card-desc">Observability into Content Addressed Storage (CAS) garbage collection, storage optimization, bytes freed, and cleanup execution.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2015936</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - Workspace Engine &amp; Strategy Performance</span>
+            <span class="badge badge-blue">4 tiles</span>
+          </div>
+          <div class="card-desc">Observability into workspace generation, preparation strategies (Symlink, Hardlink, Copy), reuse rate, and manifest volume.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2137707</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2137707" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - Game Installations &amp; Replay Ecosystem</span>
+            <span class="badge badge-blue">6 tiles</span>
+          </div>
+          <div class="card-desc">Observability into detected game installations across Steam, EA App, and The First Decade, plus Replay ZIP exports and checkpoint minting.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2015936</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+        <div class="card" style="">
+          <div class="card-header">
+            <span class="card-title">GenHub - Application Health &amp; Crash Forensics</span>
+            <span class="badge badge-blue">6 tiles</span>
+          </div>
+          <div class="card-desc">Observability into unhandled application exceptions, fatal crashes, crash rate per session, platform distribution, and error context.</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="card-count">ID: 2139396</span>
+            <a href="https://us.posthog.com/project/567732/dashboard/2139396" class="card-action">Open in PostHog &#x2197;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: All Dashboards & Tiles -->
+    <div id="dashboards" class="tab-panel">
+      <h2>All 10 Production Dashboards &amp; 70 Insight Tiles</h2>
+      <p>Comprehensive breakdown of each configured PostHog dashboard, its insight tiles, visualization models, and event triggers.</p>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Master Command Center (Unified Overview)</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Consolidated single-pane view of GenHub vital health indicators across all 9 domains: engagement, launch reliability, stability, downloads, updates, CAS, workspaces, and replays.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2139397 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">Master: Daily Active Game Launchers (DAU)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>dau</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_started</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Total Game Sessions Started</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_started</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Launch Attempts: Success vs Failure</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_launched, profile_launch_failed</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Unhandled Application Crashes</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_unhandled_crash</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Active Concurrent Gaming Sessions (Hourly Pulse)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_heartbeat</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Downloads by Publisher</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">content_download_completed</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Content Updates Applied</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">content_update_applied</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: GenPatcher Compatibility Fixes Applied</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">genpatcher_fix_applied</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Workspaces Prepared by Strategy</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">workspace_prepared</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Total Storage Bytes Freed by CAS GC</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>sum</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">cas_garbage_collected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Game Installation Detections Performed</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_installations_detected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Master: Replay Checkpoints Minted by Game Type</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">replay_checkpoint_minted</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Executive Overview &amp; Engagement</h3>
+            <span style="font-size:11px; color:var(--text-muted);">High-level engagement metrics including active users, game launches, updates, downloads, and sharing volume.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2137643 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">Daily Active Game Launchers (DAU)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>dau</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_started</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Total Game Sessions Started</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_started</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Profile Launches: Launcher UI vs Shortcut / Pinned</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_launched</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Profiles Pinned to Desktop</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_pinned</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">App Updates Served Funnel (Check -&gt; Download -&gt; Apply)</div>
+            <div class="tile-meta">Type: <code>FunnelViz</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_update_checked, app_update_downloaded, app_update_applied</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Active Installations by Full Build Version</div>
+            <div class="tile-meta">Type: <code>ActionsTable</code> | Math: <code>dau</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_started</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Updates Applied Breakdown (From Version -&gt; To Version)</div>
+            <div class="tile-meta">Type: <code>ActionsTable</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_update_applied</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Publisher Content Downloads Completed</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">content_download_completed</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">UploadThing Files Uploaded</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">uploadthing_upload_completed, uploadthing_upload_failed</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Game Launch &amp; Session Dynamics</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Deep-dive into game sessions, game variants (Zero Hour vs Generals), runners (Wine, Proton, Native), and session length.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2015936 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">Game Sessions by Game Type</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_started</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Runner Environments (Linux / Wine / Proton / Native)</div>
+            <div class="tile-meta">Type: <code>ActionsBarValue</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_started</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Average Session Duration (Seconds)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>avg</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_ended</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Session Exit Gracefulness Rate</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_ended</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Launch Attempts: Success vs Failure</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_launched, profile_launch_failed</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Average Time-to-Launch (ms)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>avg</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_launched</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Game Sessions by Game Client</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_session_started</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Profile Launch Failure Reasons</div>
+            <div class="tile-meta">Type: <code>ActionsTable</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_launch_failed</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Profile Sharing &amp; Social Ecosystem</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Lifecycle analysis of profile creation, pinning, sharing via URIs/files, and importing from other players.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2015936 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">Profile Sharing Volume by Format (URI vs File vs JSON)</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_shared</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Profile Import Success Rate</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_imported</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Shortcut Adoption (Pinned vs Launched from Shortcut)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">profile_pinned, profile_launched_from_shortcut</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Content Distribution &amp; Publishers</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Metrics on content deliveries, download speeds, file sizes, and top content publishers.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2015936 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">Total Downloads</div>
+            <div class="tile-meta">Type: <code>ActionsTable</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">content_download_completed</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Average Download Speed (Mbps)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>avg</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">content_download_completed</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Total Data Transferred (MB)</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>sum</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">content_download_completed</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Content Updates Applied by Publisher</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">content_update_applied</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Download Success vs Failure Rate</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">content_download_completed, content_download_failed</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - GenPatcher Fixes &amp; ModBuilder Usage</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Observability into GenPatcher compatibility fixes and ModBuilder creator pipelines.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2015936 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">GenPatcher Fixes Applied by Fix Name</div>
+            <div class="tile-meta">Type: <code>ActionsTable</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">genpatcher_fix_applied</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">GenPatcher Fix Success Rate</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">genpatcher_fix_applied</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">ModBuilder Projects Created by Content Type</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">modbuilder_project_created</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">ModBuilder Mods Built (Success vs Failed)</div>
+            <div class="tile-meta">Type: <code>ActionsBarValue</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">modbuilder_mod_built</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Average ModBuilder Build Duration (Seconds)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>avg</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">modbuilder_mod_built</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Storage &amp; CAS Lifecycle</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Observability into Content Addressed Storage (CAS) garbage collection, storage optimization, bytes freed, and cleanup execution.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2015936 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">CAS Garbage Collections Executed</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">cas_garbage_collected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Total Storage Bytes Freed by CAS GC</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>sum</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">cas_garbage_collected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Objects Scanned vs Deleted in CAS GC</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>sum</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">cas_garbage_collected, cas_garbage_collected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">CAS GC Average Duration (Seconds)</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>avg</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">cas_garbage_collected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">CAS GC Success vs Failure</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">cas_garbage_collected</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Workspace Engine &amp; Strategy Performance</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Observability into workspace generation, preparation strategies (Symlink, Hardlink, Copy), reuse rate, and manifest volume.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2137707" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2137707 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">Total Workspaces Prepared</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">workspace_prepared</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Workspaces Prepared by Strategy (Hardlink, Symlink, Copy)</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">workspace_prepared</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Workspace Fast-Path Reuse Rate</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">workspace_prepared</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Workspace Preparation Success vs Failure</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">workspace_prepared</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Game Installations &amp; Replay Ecosystem</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Observability into detected game installations across Steam, EA App, and The First Decade, plus Replay ZIP exports and checkpoint minting.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2015936" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2015936 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">Game Installation Detections Performed</div>
+            <div class="tile-meta">Type: <code>ActionsLineGraph</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_installations_detected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Steam Installation Presence</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_installations_detected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">EA App Installation Presence</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_installations_detected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">The First Decade Installation Presence</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">game_installations_detected</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Replays Exported to ZIP (Total)</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">replay_exported_zip</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Replay Checkpoints Minted by Game Type</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">replay_checkpoint_minted</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+          <div>
+            <h3 style="font-size:14px; color:#ffffff; margin:0;">GenHub - Application Health &amp; Crash Forensics</h3>
+            <span style="font-size:11px; color:var(--text-muted);">Observability into unhandled application exceptions, fatal crashes, crash rate per session, platform distribution, and error context.</span>
+          </div>
+          <a href="https://us.posthog.com/project/567732/dashboard/2139396" class="badge badge-blue" style="text-decoration:none;">Open Dashboard 2139396 &#x2197;</a>
+        </div>
+        <div class="tile-grid">
+          <div class="tile-card">
+            <div class="tile-name">Total Unhandled Application Crashes</div>
+            <div class="tile-meta">Type: <code>BoldNumber</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_unhandled_crash</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Crashes by Platform (Windows / Linux / macOS)</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_unhandled_crash</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Fatal vs Non-Fatal Application Exceptions</div>
+            <div class="tile-meta">Type: <code>ActionsPie</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_unhandled_crash</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Top Exception Types</div>
+            <div class="tile-meta">Type: <code>ActionsTable</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_unhandled_crash</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Crashes by Subsystem Context</div>
+            <div class="tile-meta">Type: <code>ActionsBar</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_unhandled_crash</span></div>
+          </div>
+          <div class="tile-card">
+            <div class="tile-name">Crashes by App Version / Build Channel</div>
+            <div class="tile-meta">Type: <code>ActionsTable</code> | Math: <code>total</code></div>
+            <div class="tile-meta" style="margin-top:2px;">Event: <span style="color:#60a5fa;">app_unhandled_crash</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Events Catalog -->
+    <div id="events" class="tab-panel">
+      <h2>Complete 28 Telemetry Events Catalog</h2>
+      <p>Every event tracked in GenHub, its originating C# source component, key properties, and mapped dashboard tiles.</p>
+
+      <div class="search-bar">
+        <input type="text" id="eventSearch" class="search-input" placeholder="Filter events by name, domain, or property...">
+      </div>
+
+      <div class="table-container">
+        <table id="eventsTable">
+          <thead>
+            <tr>
+              <th>Event Key</th>
+              <th>Domain / Subsystem</th>
+              <th>C# Component Emitter</th>
+              <th>Key Properties</th>
+              <th>Dashboard Representation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>app_unhandled_crash</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Crash Forensics</span></td>
+              <td><code>TelemetryCrashListener.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">exception_type, is_fatal, context, platform, app_version</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/2139396" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Application Health &amp; Crash Forensics</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>app_update_applied</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Velopack Updates</span></td>
+              <td><code>VelopackUpdateManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">from_version, to_version, channel, restart_duration_ms</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a></td>
+            </tr>
+            <tr>
+              <td><code>app_update_checked</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Velopack Updates</span></td>
+              <td><code>VelopackUpdateManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">channel, is_update_available</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a></td>
+            </tr>
+            <tr>
+              <td><code>app_update_downloaded</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Velopack Updates</span></td>
+              <td><code>VelopackUpdateManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">channel, to_version, size_mb</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a></td>
+            </tr>
+            <tr>
+              <td><code>cas_garbage_collected</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Storage &amp; CAS Engine</span></td>
+              <td><code>CasLifecycleManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">objects_scanned, objects_deleted, bytes_freed, success</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Storage &amp; CAS Lifecycle</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>cas_reconcile_completed</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Storage &amp; CAS Engine</span></td>
+              <td><code>CasLifecycleManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">file_count, bytes_reconciled, cache_hit_rate, success</span></td>
+              <td><span class="badge badge-amber">Unmapped</span></td>
+            </tr>
+            <tr>
+              <td><code>content_download_completed</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Content Distribution</span></td>
+              <td><code>DownloadService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">publisher_id, content_id, size_mb, speed_mbps</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Content Distribution &amp; Publishers</a><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>content_download_failed</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Content Distribution</span></td>
+              <td><code>DownloadService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">publisher_id, content_id, error_category, retry_count</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Content Distribution &amp; Publishers</a></td>
+            </tr>
+            <tr>
+              <td><code>content_update_applied</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Publisher Updates</span></td>
+              <td><code>ContentUpdateManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">publisher_id, content_id, strategy, profiles_updated</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Content Distribution &amp; Publishers</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>content_update_failed</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Publisher Updates</span></td>
+              <td><code>ContentUpdateManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">publisher_id, content_id, error_category</span></td>
+              <td><span class="badge badge-amber">Unmapped</span></td>
+            </tr>
+            <tr>
+              <td><code>game_installations_detected</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Ecosystem Detection</span></td>
+              <td><code>GameInstallationService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">installation_count, has_steam, has_ea_app, has_the_first_decade</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Game Installations &amp; Replay Ecosystem</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>game_session_ended</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Game Launching &amp; Runtime</span></td>
+              <td><code>GameProcessManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">duration_seconds, exit_code, was_graceful</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Game Launch &amp; Session Dynamics</a></td>
+            </tr>
+            <tr>
+              <td><code>game_session_heartbeat</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Game Launching &amp; Runtime</span></td>
+              <td><code>GameProcessManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">duration_seconds, platform, runner</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>game_session_started</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Game Launching &amp; Runtime</span></td>
+              <td><code>GameProcessManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">game_type, runner, resolution, game_client_id</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Game Launch &amp; Session Dynamics</a><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>genpatcher_fix_applied</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Community Tools</span></td>
+              <td><code>GenPatcherService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">fix_name, success</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">GenPatcher Fixes &amp; ModBuilder Usage</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>modbuilder_mod_built</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">ModBuilder</span></td>
+              <td><code>ModBuilderService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">project_name, duration_seconds, success</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">GenPatcher Fixes &amp; ModBuilder Usage</a></td>
+            </tr>
+            <tr>
+              <td><code>modbuilder_project_created</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">ModBuilder</span></td>
+              <td><code>ModBuilderService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">project_name, content_type</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">GenPatcher Fixes &amp; ModBuilder Usage</a></td>
+            </tr>
+            <tr>
+              <td><code>profile_imported</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Profile Management</span></td>
+              <td><code>ProfileImportService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">success, source_provider</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Profile Sharing &amp; Social Ecosystem</a></td>
+            </tr>
+            <tr>
+              <td><code>profile_launch_failed</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Game Launching &amp; Runtime</span></td>
+              <td><code>GameProfileLauncherViewModel.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">profile_id, game_type, error_category, time_to_launch_ms</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Game Launch &amp; Session Dynamics</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>profile_launched</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Game Launching &amp; Runtime</span></td>
+              <td><code>GameProfileLauncherViewModel.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">profile_id, game_type, launch_source, time_to_launch_ms</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Game Launch &amp; Session Dynamics</a><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>profile_launched_from_shortcut</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Game Launching &amp; Runtime</span></td>
+              <td><code>App.axaml.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">profile_id, game_type, launch_source</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Profile Sharing &amp; Social Ecosystem</a></td>
+            </tr>
+            <tr>
+              <td><code>profile_pinned</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Profile Management</span></td>
+              <td><code>GameProfileLauncherViewModel.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">profile_id, game_type</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Profile Sharing &amp; Social Ecosystem</a><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a></td>
+            </tr>
+            <tr>
+              <td><code>profile_shared</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Profile Management</span></td>
+              <td><code>ProfileSharingService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">profile_id, source_provider (URI/File/JSON)</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Profile Sharing &amp; Social Ecosystem</a></td>
+            </tr>
+            <tr>
+              <td><code>replay_checkpoint_minted</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Replay Manager</span></td>
+              <td><code>ReplayCheckpointService.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">target_frame, game_type, success</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Game Installations &amp; Replay Ecosystem</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+            <tr>
+              <td><code>replay_exported_zip</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Replay Manager</span></td>
+              <td><code>ReplayManagerViewModel.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">replay_count, success</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Game Installations &amp; Replay Ecosystem</a></td>
+            </tr>
+            <tr>
+              <td><code>uploadthing_upload_completed</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Storage &amp; Uploads</span></td>
+              <td><code>UploadThingPublisherGateway.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">tool_source, file_size_bytes</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a></td>
+            </tr>
+            <tr>
+              <td><code>uploadthing_upload_failed</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Storage &amp; Uploads</span></td>
+              <td><code>UploadThingPublisherGateway.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">tool_source, error_category</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/2137643" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Executive Overview &amp; Engagement</a></td>
+            </tr>
+            <tr>
+              <td><code>workspace_prepared</code></td>
+              <td><span style="color:#e5e5e5; font-weight:600;">Workspace Engine</span></td>
+              <td><code>WorkspaceManager.cs</code></td>
+              <td><span style="color:#aaaaaa; font-size:11px;">workspace_id, strategy, is_reused, manifest_count, success</span></td>
+              <td><a href="https://us.posthog.com/project/567732/dashboard/2137707" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Workspace Engine &amp; Strategy Performance</a><a href="https://us.posthog.com/project/567732/dashboard/2139397" class="badge badge-blue" style="margin:1px 2px; text-decoration:none;">Master Command Center (Unified Overview)</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 4: Pipeline & Privacy -->
+    <div id="pipeline" class="tab-panel">
+      <h2>Dual-Sink Ingestion Pipeline &amp; Privacy Safeguards</h2>
+      
       <div class="pipeline-diagram">
-        <span class="pipeline-step">Engine / UI / CLI Action</span> 
+        <span class="pipeline-step">UI / Engine / Lifecycle Action</span> 
         <span class="arrow">&rarr;</span> 
         <span class="pipeline-step">TelemetryService.TrackAsync()</span> 
         <span class="arrow">&rarr;</span> 
-        <span class="pipeline-step">Channel&lt;TelemetryEvent&gt; (Bounded: 500)</span> 
+        <span class="pipeline-step">Channel&lt;TelemetryEvent&gt; (Bounded: 500, DropOldest)</span> 
         <span class="arrow">&rarr;</span> 
         <span class="pipeline-step">TelemetrySanitizer (DAG Cycle-Safe Recursion)</span> 
         <span class="arrow">&rarr;</span> 
-        <span class="pipeline-step">AnalyticsTelemetrySink (PostHog /i/v0/e/) &amp; SentryTelemetrySink</span>
+        <span class="pipeline-step">PostHog Analytics Sink (us.i.posthog.com) &amp; Sentry Crash Sink</span>
       </div>
 
       <div class="grid">
         <div class="card">
-          <div class="card-title">Sanitization Invariant</div>
-          <div class="card-val">Zero PII</div>
-          <div class="card-desc">User directories, Wine prefixes, and private tokens masked via regex passes before dispatch.</div>
+          <div class="card-title" style="margin-bottom:6px;">GDPR &amp; Anonymity Guarantees</div>
+          <p class="card-desc">
+            Absolute client IP masking ($ip: null, ip: false), zero hardware fingerprinting, and zero personal data collection. Only anonymous installation GUIDs are used.
+          </p>
         </div>
         <div class="card">
-          <div class="card-title">Batch Delivery</div>
-          <div class="card-val">30s / 500 Events</div>
-          <div class="card-desc">Bounded channel with drop-oldest backpressure protects UI thread and client memory.</div>
+          <div class="card-title" style="margin-bottom:6px;">Local Path &amp; Secret Scrubbing</div>
+          <p class="card-desc">
+            Local filesystem paths (C:\Users\..., /home/...) are stripped to basenames. Query parameters, tokens, and authorization headers are proactively scrubbed.
+          </p>
         </div>
         <div class="card">
-          <div class="card-title">Fail-Safe Isolation</div>
-          <div class="card-val">Zero Disruptions</div>
-          <div class="card-desc">Telemetry recording is non-blocking. Sinks run in background tasks with try/catch isolation.</div>
+          <div class="card-title" style="margin-bottom:6px;">Crash Forensics (Sentry + PostHog)</div>
+          <p class="card-desc">
+            Unhandled crashes emit structured <code>app_unhandled_crash</code> events to PostHog and stack traces to Sentry. Stack frames are sanitized to hide private file paths.
+          </p>
         </div>
         <div class="card">
-          <div class="card-title">Threadpool Offload</div>
-          <div class="card-val">Deadlock-Free</div>
-          <div class="card-desc">Synchronous restart handlers (Velopack) offload flush operations to Task.Run with ConfigureAwait(false).</div>
+          <div class="card-title" style="margin-bottom:6px;">Bounded Channel &amp; Backpressure</div>
+          <p class="card-desc">
+            In-memory <code>Channel&lt;TelemetryEvent&gt;</code> bounded to 500 entries with <code>BoundedChannelFullMode.DropOldest</code> guarantees zero UI stutter or memory leaks.
+          </p>
         </div>
       </div>
-    </section>
+    </div>
 
-    <section>
-      <h2>2. Complete Inventory of Tracked Events</h2>
-      <p>
-        27 of the 28 events defined in <code>TelemetryConstants.Events</code> with their triggering domains, code locations, and emitted payloads. <code>cas_reconcile_completed</code> is defined but not yet emitted by any call site.
-      </p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Domain</th>
-            <th>Event Name</th>
-            <th>Trigger Location</th>
-            <th>Primary Payload Properties</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Game Process</strong></td>
-            <td><code>game_session_started</code></td>
-            <td><code>GameProcessManager.cs</code></td>
-            <td><code>session_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>runner</code> (Native/Wine/Proton), <code>platform</code>, <code>executable_path</code></td>
-          </tr>
-          <tr>
-            <td><strong>Game Process</strong></td>
-            <td><code>game_session_heartbeat</code></td>
-            <td><code>GameProcessManager.cs</code></td>
-            <td><code>session_id</code>, <code>duration_seconds</code>, <code>game_type</code>, <code>game_client_id</code> (dispatched every 5 minutes while game executes)</td>
-          </tr>
-          <tr>
-            <td><strong>Game Process</strong></td>
-            <td><code>game_session_ended</code></td>
-            <td><code>GameProcessManager.cs</code></td>
-            <td><code>session_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>runner</code>, <code>duration_seconds</code>, <code>exit_code</code>, <code>was_graceful</code> (both omitted when the exit code is unknown)</td>
-          </tr>
-          <tr>
-            <td><strong>Game Profiles</strong></td>
-            <td><code>profile_launched</code></td>
-            <td><code>GameProfileLauncherViewModel.cs</code></td>
-            <td><code>profile_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>launch_source</code>, <code>time_to_launch_ms</code></td>
-          </tr>
-          <tr>
-            <td><strong>Game Profiles</strong></td>
-            <td><code>profile_launch_failed</code></td>
-            <td><code>GameProfileLauncherViewModel.cs</code></td>
-            <td><code>profile_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>launch_source</code>, <code>time_to_launch_ms</code>, <code>error_category</code></td>
-          </tr>
-          <tr>
-            <td><strong>Game Profiles</strong></td>
-            <td><code>profile_launched_from_shortcut</code></td>
-            <td><code>App.axaml.cs</code></td>
-            <td><code>profile_id</code>, <code>launch_source</code> (shortcut)</td>
-          </tr>
-          <tr>
-            <td><strong>Game Profiles</strong></td>
-            <td><code>profile_pinned</code></td>
-            <td><code>ProfileManagementService.cs</code></td>
-            <td><code>profile_id</code>, <code>profile_name</code>, <code>shortcut_type</code> (desktop, start_menu)</td>
-          </tr>
-          <tr>
-            <td><strong>Game Profiles</strong></td>
-            <td><code>profile_shared</code></td>
-            <td><code>ProfileSharingService.cs</code></td>
-            <td><code>profile_id</code>, <code>profile_name</code>, <code>share_format</code> (uri, file, json), <code>file_size_bytes</code> (accurate UTF-8 byte count)</td>
-          </tr>
-          <tr>
-            <td><strong>Game Profiles</strong></td>
-            <td><code>profile_imported</code></td>
-            <td><code>ProfileSharingService.cs</code></td>
-            <td><code>profile_id</code>, <code>import_source</code> (uri, file, json), <code>success</code>, <code>error_message</code></td>
-          </tr>
-          <tr>
-            <td><strong>Content Delivery</strong></td>
-            <td><code>content_download_completed</code></td>
-            <td><code>DownloadService.cs</code></td>
-            <td><code>content_id</code>, <code>content_name</code>, <code>content_type</code> (Mod/Patch/Map), <code>source_provider</code>, <code>size_mb</code>, <code>duration_seconds</code>, <code>speed_mbps</code></td>
-          </tr>
-          <tr>
-            <td><strong>Content Delivery</strong></td>
-            <td><code>content_download_failed</code></td>
-            <td><code>DownloadService.cs</code></td>
-            <td><code>content_id</code>, <code>content_name</code>, <code>content_type</code>, <code>source_provider</code>, <code>error_message</code>, <code>retry_count</code></td>
-          </tr>
-          <tr>
-            <td><strong>Publisher Updates</strong></td>
-            <td><code>content_update_applied</code></td>
-            <td><code>ContentManager.cs</code></td>
-            <td><code>publisher_id</code> (GeneralsOnline, TheSuperHackers), <code>manifest_id</code>, <code>content_type</code>, <code>strategy</code>, <code>profiles_updated</code>, <code>duration_seconds</code></td>
-          </tr>
-          <tr>
-            <td><strong>Publisher Updates</strong></td>
-            <td><code>content_update_failed</code></td>
-            <td><code>ContentManager.cs</code></td>
-            <td><code>publisher_id</code>, <code>manifest_id</code>, <code>content_type</code>, <code>error_message</code></td>
-          </tr>
-          <tr>
-            <td><strong>App Updates</strong></td>
-            <td><code>app_update_checked</code></td>
-            <td><code>VelopackUpdateManager.cs</code></td>
-            <td><code>from_version</code>, <code>full_display_version</code>, <code>build_channel</code>, <code>channel</code>, <code>platform</code></td>
-          </tr>
-          <tr>
-            <td><strong>App Updates</strong></td>
-            <td><code>app_update_downloaded</code></td>
-            <td><code>VelopackUpdateManager.cs</code></td>
-            <td><code>channel</code>, <code>from_version</code>, <code>to_version</code>, <code>size_mb</code>, <code>duration_seconds</code>, <code>speed_mbps</code></td>
-          </tr>
-          <tr>
-            <td><strong>App Updates</strong></td>
-            <td><code>app_update_applied</code></td>
-            <td><code>VelopackUpdateManager.cs</code></td>
-            <td><code>channel</code>, <code>from_version</code>, <code>to_version</code>, <code>restart_duration_ms</code></td>
-          </tr>
-          <tr>
-            <td><strong>Community Tools</strong></td>
-            <td><code>uploadthing_upload_completed</code></td>
-            <td><code>UploadThingService.cs</code></td>
-            <td><code>tool_source</code>, <code>file_name</code>, <code>file_size_bytes</code>, <code>duration_seconds</code>, <code>speed_mbps</code></td>
-          </tr>
-          <tr>
-            <td><strong>Community Tools</strong></td>
-            <td><code>uploadthing_upload_failed</code></td>
-            <td><code>UploadThingService.cs</code></td>
-            <td><code>tool_source</code>, <code>file_name</code>, <code>file_size_bytes</code>, <code>error_message</code></td>
-          </tr>
-          <tr>
-            <td><strong>GenPatcher</strong></td>
-            <td><code>genpatcher_fix_applied</code></td>
-            <td><code>GenPatcherService.cs</code></td>
-            <td><code>fix_id</code>, <code>fix_name</code>, <code>is_crucial</code>, <code>success</code>, <code>error_message</code></td>
-          </tr>
-          <tr>
-            <td><strong>ModBuilder</strong></td>
-            <td><code>modbuilder_project_created</code></td>
-            <td><code>ModBuilderService.cs</code></td>
-            <td><code>project_name</code>, <code>game_type</code></td>
-          </tr>
-          <tr>
-            <td><strong>ModBuilder</strong></td>
-            <td><code>modbuilder_mod_built</code></td>
-            <td><code>ModBuilderService.cs</code></td>
-            <td><code>project_name</code>, <code>game_type</code>, <code>build_steps</code>, <code>success</code>, <code>duration_seconds</code>, <code>file_size_bytes</code></td>
-          </tr>
-          <tr>
-            <td><strong>Replay Manager</strong></td>
-            <td><code>replay_exported_zip</code></td>
-            <td><code>ReplayManagerViewModel.cs</code></td>
-            <td><code>replay_count</code>, <code>duration_seconds</code>, <code>success</code> (<code>error_message</code> on failure)</td>
-          </tr>
-          <tr>
-            <td><strong>Replay Manager</strong></td>
-            <td><code>replay_checkpoint_minted</code></td>
-            <td><code>ReplayManagerViewModel.cs</code></td>
-            <td><code>game_type</code>, <code>target_frame</code>, <code>profile_id</code>, <code>success</code> (<code>error_message</code> on failure)</td>
-          </tr>
-          <tr>
-            <td><strong>CAS Storage</strong></td>
-            <td><code>cas_garbage_collected</code></td>
-            <td><code>CasLifecycleManager.cs</code></td>
-            <td><code>objects_scanned</code>, <code>objects_referenced</code>, <code>objects_deleted</code>, <code>bytes_freed</code>, <code>duration_seconds</code></td>
-          </tr>
-          <tr>
-            <td><strong>Workspaces</strong></td>
-            <td><code>workspace_prepared</code></td>
-            <td><code>WorkspaceManager.cs</code></td>
-            <td><code>workspace_id</code>, <code>strategy</code> (Hardlink/Symlink/Copy), <code>manifest_count</code>, <code>is_reused</code>, <code>success</code> (<code>error_message</code> on failure)</td>
-          </tr>
-          <tr>
-            <td><strong>Installation</strong></td>
-            <td><code>game_installations_detected</code></td>
-            <td><code>InstallationDetector.cs</code></td>
-            <td><code>installation_count</code>, <code>has_steam</code>, <code>has_ea_app</code>, <code>has_the_first_decade</code>, <code>has_generals</code>, <code>has_zero_hour</code></td>
-          </tr>
-          <tr>
-            <td><strong>Forensics</strong></td>
-            <td><code>app_unhandled_crash</code></td>
-            <td><code>App.axaml.cs</code></td>
-            <td><code>exception_type</code>, <code>exception_message</code>, <code>stack_trace</code>, <code>is_fatal</code>, <code>context</code></td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section>
-      <h2>3. PostHog Dashboards & Insight Tiles (8 Modular Dashboards, 45 Insight Tiles)</h2>
-      <p>
-        Configured via <code>docs/dev/posthog-dashboard-config.json</code> with standardized <code>trendsFilter.display</code> properties across 8 modular production dashboards (with 45 insight tiles covering executive overviews, game sessions, profile sharing, content delivery, GenPatcher/ModBuilder, CAS storage, workspace engine, and replay forensics).
-      </p>
-
-      <h3>Dashboard 1: Executive Overview & Community Engagement (ID: genhub-executive-overview)</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Insight Name</th>
-            <th>Type</th>
-            <th>Display Mode</th>
-            <th>Series Event &amp; Math</th>
-            <th>Grouping / Filters</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>1</td>
-            <td>Daily Active Game Launchers (DAU)</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>game_session_started</code> (math: dau)</td>
-            <td>Daily interval, last 30d</td>
-          </tr>
-          <tr>
-            <td>2</td>
-            <td>Total Game Sessions Started</td>
-            <td>Trends</td>
-            <td><code>BoldNumber</code></td>
-            <td><code>game_session_started</code> (math: total)</td>
-            <td>Last 30d total</td>
-          </tr>
-          <tr>
-            <td>3</td>
-            <td>Profile Launches: Launcher UI vs Shortcut / Pinned</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>profile_launched</code> (math: total)</td>
-            <td>Breakdown: <code>launch_source</code></td>
-          </tr>
-          <tr>
-            <td>4</td>
-            <td>Profiles Pinned to Desktop</td>
-            <td>Trends</td>
-            <td><code>BoldNumber</code></td>
-            <td><code>profile_pinned</code> (math: total)</td>
-            <td>Last 30d total</td>
-          </tr>
-          <tr>
-            <td>5</td>
-            <td>Profiles Shared &amp; Exported</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>profile_shared</code> (math: total)</td>
-            <td>Breakdown: <code>share_format</code></td>
-          </tr>
-          <tr>
-            <td>6</td>
-            <td>Profiles Imported</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>profile_imported</code> (math: total)</td>
-            <td>Breakdown: <code>import_source</code></td>
-          </tr>
-          <tr>
-            <td>7</td>
-            <td>Publisher Content Updates Applied</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>content_update_applied</code> (math: total)</td>
-            <td>Breakdown: <code>publisher_id</code></td>
-          </tr>
-          <tr>
-            <td>8</td>
-            <td>ModBuilder Mods Built</td>
-            <td>Trends</td>
-            <td><code>BoldNumber</code></td>
-            <td><code>modbuilder_mod_built</code> (math: total)</td>
-            <td>Last 30d total</td>
-          </tr>
-          <tr>
-            <td>9</td>
-            <td>GenPatcher Fixes Applied</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>genpatcher_fix_applied</code> (math: total)</td>
-            <td>Breakdown: <code>fix_name</code></td>
-          </tr>
-          <tr>
-            <td>10</td>
-            <td>Total Content Download Volume (MB)</td>
-            <td>Trends</td>
-            <td><code>BoldNumber</code></td>
-            <td><code>content_download_completed</code> (math: sum(size_mb))</td>
-            <td>Last 30d total megabytes</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h3>Dashboard 2: Game Runtime, Profiles & Hardware Ecosystem (ID: genhub-game-launch-sessions)</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Insight Name</th>
-            <th>Type</th>
-            <th>Display Mode</th>
-            <th>Series Event &amp; Math</th>
-            <th>Grouping / Filters</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>11</td>
-            <td>Game Launches by Game Type</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>game_session_started</code> (math: total)</td>
-            <td>Breakdown: <code>game_type</code></td>
-          </tr>
-          <tr>
-            <td>12</td>
-            <td>Launches by Runner (Native vs Wine/Proton)</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>game_session_started</code> (math: total)</td>
-            <td>Breakdown: <code>runner</code></td>
-          </tr>
-          <tr>
-            <td>13</td>
-            <td>Average Session Duration (Minutes)</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td>HogQL: <code>avg(properties.duration_seconds) / 60</code></td>
-            <td>Event: <code>game_session_ended</code></td>
-          </tr>
-          <tr>
-            <td>14</td>
-            <td>Average Session Duration (Seconds)</td>
-            <td>Trends</td>
-            <td><code>BoldNumber</code></td>
-            <td><code>game_session_ended</code> (math: avg(duration_seconds))</td>
-            <td>Last 30d average seconds</td>
-          </tr>
-          <tr>
-            <td>15</td>
-            <td>Graceful vs Crash Game Exits</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>game_session_ended</code> (math: total)</td>
-            <td>Breakdown: <code>was_graceful</code></td>
-          </tr>
-          <tr>
-            <td>16</td>
-            <td>Game Session Heartbeats</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>game_session_heartbeat</code> (math: total)</td>
-            <td>Active concurrency indicator</td>
-          </tr>
-          <tr>
-            <td>17</td>
-            <td>Top Game Profiles Launched</td>
-            <td>Trends</td>
-            <td><code>ActionsTable</code></td>
-            <td><code>profile_launched</code> (math: total)</td>
-            <td>Breakdown: <code>profile_name</code></td>
-          </tr>
-          <tr>
-            <td>18</td>
-            <td>Screen Resolution Distribution</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>game_session_started</code> (math: total)</td>
-            <td>Breakdown: <code>resolution</code></td>
-          </tr>
-          <tr>
-            <td>19</td>
-            <td>Game Installations Detected by Source</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>game_installations_detected</code></td>
-            <td>Steam, EA App, The First Decade</td>
-          </tr>
-          <tr>
-            <td>24</td>
-            <td>Launch Attempts: Success vs Failure</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>profile_launched</code> vs <code>profile_launch_failed</code> (math: total)</td>
-            <td>Compare successful launches against failure rate</td>
-          </tr>
-          <tr>
-            <td>25</td>
-            <td>Average Time-to-Launch (ms)</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>profile_launched</code> (math: avg <code>time_to_launch_ms</code>)</td>
-            <td>Time taken from user trigger to process initialization</td>
-          </tr>
-          <tr>
-            <td>26</td>
-            <td>Game Sessions by Game Client</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>game_session_started</code> (math: total)</td>
-            <td>Breakdown by <code>game_client_name</code></td>
-          </tr>
-          <tr>
-            <td>27</td>
-            <td>Profile Launch Failure Reasons</td>
-            <td>Trends</td>
-            <td><code>ActionsTable</code></td>
-            <td><code>profile_launch_failed</code> (math: total)</td>
-            <td>Breakdown by <code>error_category</code></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h3>Dashboard 3: Content Distribution, Publishers & App Updates (ID: genhub-content-downloads-updates)</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Insight Name</th>
-            <th>Type</th>
-            <th>Display Mode</th>
-            <th>Series Event &amp; Math</th>
-            <th>Grouping / Filters</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>24</td>
-            <td>Publisher Updates by Publisher</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>content_update_applied</code> (math: total)</td>
-            <td>Breakdown: <code>publisher_id</code></td>
-          </tr>
-          <tr>
-            <td>25</td>
-            <td>Content Updates: Success vs Failure</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>content_update_applied</code> vs <code>content_update_failed</code></td>
-            <td>Comparative ratio</td>
-          </tr>
-          <tr>
-            <td>26</td>
-            <td>Content Update Failure Reasons</td>
-            <td>Trends</td>
-            <td><code>ActionsTable</code></td>
-            <td><code>content_update_failed</code> (math: total)</td>
-            <td>Breakdown: <code>error_message</code></td>
-          </tr>
-          <tr>
-            <td>27</td>
-            <td>Content Downloads by Content Type</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>content_download_completed</code> (math: total)</td>
-            <td>Breakdown: <code>content_type</code> (Mod, Patch, Map)</td>
-          </tr>
-          <tr>
-            <td>28</td>
-            <td>Content Downloads by Source Provider</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>content_download_completed</code> (math: total)</td>
-            <td>Breakdown: <code>source_provider</code></td>
-          </tr>
-          <tr>
-            <td>29</td>
-            <td>Download Speed Distribution (Mbps)</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>content_download_completed</code> (math: avg(speed_mbps))</td>
-            <td>Throughput over time</td>
-          </tr>
-          <tr>
-            <td>30</td>
-            <td>Content Download Failure Rate &amp; Reasons</td>
-            <td>Trends</td>
-            <td><code>ActionsTable</code></td>
-            <td><code>content_download_failed</code> (math: total)</td>
-            <td>Breakdown: <code>error_message</code></td>
-          </tr>
-          <tr>
-            <td>31</td>
-            <td>App Update Pipeline Funnel</td>
-            <td>Funnel</td>
-            <td><code>FunnelViz</code></td>
-            <td><code>app_update_checked</code> &rarr; <code>downloaded</code> &rarr; <code>applied</code></td>
-            <td>Step-by-step conversion funnel</td>
-          </tr>
-          <tr>
-            <td>32</td>
-            <td>Velopack App Update Channels &amp; Versions</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>app_update_applied</code> (math: total)</td>
-            <td>Breakdown: <code>to_version</code></td>
-          </tr>
-          <tr>
-            <td>33</td>
-            <td>UploadThing Uploads: Success vs Failure</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>uploadthing_upload_completed</code> vs <code>failed</code></td>
-            <td>Comparative ratio</td>
-          </tr>
-          <tr>
-            <td>34</td>
-            <td>UploadThing Uploads by Tool Source</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>uploadthing_upload_completed</code> (math: total)</td>
-            <td>Breakdown: <code>tool_source</code></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h3>Dashboard 4: Infrastructure, Workspaces & Developer Health (ID: genhub-storage-workspaces-developer)</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Insight Name</th>
-            <th>Type</th>
-            <th>Display Mode</th>
-            <th>Series Event &amp; Math</th>
-            <th>Grouping / Filters</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>35</td>
-            <td>Workspace Strategy Distribution</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>workspace_prepared</code> (math: total)</td>
-            <td>Breakdown: <code>strategy</code> (Hardlink, Symlink, Copy)</td>
-          </tr>
-          <tr>
-            <td>36</td>
-            <td>Workspace Fast-Path Reuse Rate</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>workspace_prepared</code> (math: total)</td>
-            <td>Breakdown: <code>is_reused</code></td>
-          </tr>
-          <tr>
-            <td>37</td>
-            <td>CAS Reconcile File Count vs Bytes</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>cas_reconcile_completed</code></td>
-            <td>Dual series: <code>sum(file_count)</code> &amp; <code>sum(bytes_reconciled)</code></td>
-          </tr>
-          <tr>
-            <td>38</td>
-            <td>CAS Garbage Collection Objects</td>
-            <td>Trends</td>
-            <td><code>ActionsBar</code></td>
-            <td><code>cas_garbage_collected</code></td>
-            <td>Series: <code>objects_scanned</code> vs <code>objects_deleted</code></td>
-          </tr>
-          <tr>
-            <td>39</td>
-            <td>CAS Garbage Collection: Bytes Freed</td>
-            <td>Trends</td>
-            <td><code>BoldNumber</code></td>
-            <td><code>cas_garbage_collected</code> (math: sum(bytes_freed))</td>
-            <td>Cumulative reclaimed storage</td>
-          </tr>
-          <tr>
-            <td>40</td>
-            <td>Replay Export Volume &amp; Checkpoints</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>replay_exported_zip</code> &amp; <code>checkpoint_minted</code></td>
-            <td>Community tooling activity</td>
-          </tr>
-          <tr>
-            <td>41</td>
-            <td>ModBuilder Build Success vs Failure</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>modbuilder_mod_built</code> (math: total)</td>
-            <td>Breakdown: <code>success</code></td>
-          </tr>
-          <tr>
-            <td>42</td>
-            <td>Application Crashes by Context</td>
-            <td>Trends</td>
-            <td><code>ActionsTable</code></td>
-            <td><code>app_unhandled_crash</code> (math: total)</td>
-            <td>Breakdown: <code>context</code></td>
-          </tr>
-          <tr>
-            <td>43</td>
-            <td>App Version Adoption (DAU by Version)</td>
-            <td>Trends</td>
-            <td><code>ActionsLineGraph</code></td>
-            <td><code>game_session_started</code> (math: dau)</td>
-            <td>Breakdown: <code>app_version</code></td>
-          </tr>
-          <tr>
-            <td>44</td>
-            <td>Build Channels (Release vs PR vs Dev)</td>
-            <td>Trends</td>
-            <td><code>ActionsPie</code></td>
-            <td><code>game_session_started</code> (math: total)</td>
-            <td>Breakdown: <code>build_channel</code></td>
-          </tr>
-          <tr>
-            <td>45</td>
-            <td>Top Exception Types</td>
-            <td>Trends</td>
-            <td><code>ActionsTable</code></td>
-            <td><code>app_unhandled_crash</code> (math: total)</td>
-            <td>Breakdown: <code>exception_type</code></td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section>
-      <h2>4. Post-Deployment Operational Plan</h2>
-      <div class="spec-box">
-        <h3>Live Event Validation &amp; Auditing</h3>
-        <p>
-          1. <strong>Path Masking Verification:</strong> Inspect live PostHog ingest stream (Project 567732) to confirm zero raw user directories exist across <code>executable_path</code>, <code>error_message</code>, or <code>stack_trace</code>.<br>
-          2. <strong>Heartbeat Reliability:</strong> Verify active game sessions produce heartbeats every 300 seconds and conclude with <code>game_session_ended</code> containing accurate <code>was_graceful</code> booleans.<br>
-          3. <strong>Failure Ratio Alerts:</strong> Configure PostHog action alerts for <code>content_download_failed / (content_download_completed + content_download_failed) > 0.05</code> and Sentry alerts for fatal <code>app_unhandled_crash</code> occurrences.
-        </p>
-      </div>
-    </section>
   </div>
+
+  <script>
+    // Tab switching logic
+    var tabBtns = document.querySelectorAll('.tab-btn');
+    var tabPanels = document.querySelectorAll('.tab-panel');
+
+    for (var i = 0; i < tabBtns.length; i++) {
+      tabBtns[i].addEventListener('click', function() {
+        for (var j = 0; j < tabBtns.length; j++) {
+          tabBtns[j].classList.remove('active');
+          tabPanels[j].classList.remove('active');
+        }
+        this.classList.add('active');
+        var targetId = this.getAttribute('data-tab');
+        var targetPanel = document.getElementById(targetId);
+        if (targetPanel) {
+          targetPanel.classList.add('active');
+        }
+      });
+    }
+
+    // Event filtering logic
+    var searchInput = document.getElementById('eventSearch');
+    var eventsTable = document.getElementById('eventsTable');
+    if (searchInput && eventsTable) {
+      searchInput.addEventListener('input', function() {
+        var query = this.value.toLowerCase();
+        var rows = eventsTable.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+        for (var k = 0; k < rows.length; k++) {
+          var rowText = rows[k].textContent.toLowerCase();
+          rows[k].style.display = rowText.indexOf(query) > -1 ? '' : 'none';
+        }
+      });
+    }
+  </script>
 </body>
 </html>
