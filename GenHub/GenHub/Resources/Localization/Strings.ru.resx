@@ -8160,6 +8160,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
     <value>Сбой импорта: {0}</value>
   </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>Не найдены файлы карт для импорта.</value>
+  </data>
   <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
     <value>Ошибка импорта</value>
   </data>
@@ -10328,8 +10331,5 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>«{0}» успешно запущен</value>
-  </data>
-  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
-    <value>Не найдены файлы карт для импорта.</value>
   </data>
 </root>
