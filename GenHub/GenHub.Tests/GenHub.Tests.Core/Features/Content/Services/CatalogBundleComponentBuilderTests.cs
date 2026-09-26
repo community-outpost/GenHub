@@ -158,7 +158,7 @@ public sealed class CatalogBundleComponentBuilderTests
                 VariantAxis = "variant",
                 AssetRules =
                 [
-                    new CatalogAssetRule { Pattern = ".*\\.zip", Variant = "Default", IsDefault = true },
+                    new CatalogUpstreamAssetRule { Pattern = @".*\.zip", Variant = "Default", IsDefault = true },
                 ],
             },
         };
