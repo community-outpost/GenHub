@@ -110,13 +110,16 @@ public sealed class InstallationRestartRebindTests : IDisposable
     /// A profile saved before installation IDs were stable still carries a random ID. Preparing
     /// its workspace rebinds it to the current installation and keeps the local game client.
     /// </summary>
+    /// <param name="staleClientInstallationId">Whether the client references a different stale installation.</param>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
-    public async Task LegacyRandomIdProfile_PrepareWorkspace_RebindsAndKeepsLocalClientAsync()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LegacyRandomIdProfile_PrepareWorkspace_RebindsAndKeepsLocalClientAsync(bool staleClientInstallationId)
     {
         _persistedSettings.CustomInstallationDirectories.Add(Path.GetFullPath(_installDir));
         var legacyId = Guid.NewGuid().ToString();
-        await SaveProfileAsync(legacyId, CreateLocalClient(GameType.ZeroHour, legacyId));
+        await SaveProfileAsync(legacyId, CreateLocalClient(GameType.ZeroHour, staleClientInstallationId ? Guid.NewGuid().ToString() : legacyId));
 
         using var installationService = CreateInstallationService();
         var repository = CreateRepository();

@@ -2235,11 +2235,7 @@ public class ProfileLauncherFacade(
         if (profile.GameClient != null)
         {
             reboundClient = profile.GameClient.Clone();
-            if (string.IsNullOrEmpty(reboundClient.InstallationId) ||
-                string.Equals(reboundClient.InstallationId, previousInstallationId, StringComparison.OrdinalIgnoreCase))
-            {
-                reboundClient.InstallationId = resolvedInstallation.Id;
-            }
+            reboundClient.InstallationId = resolvedInstallation.Id;
         }
 
         var updateRequest = new UpdateProfileRequest
