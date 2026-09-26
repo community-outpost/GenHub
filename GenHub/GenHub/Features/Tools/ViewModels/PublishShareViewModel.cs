@@ -688,33 +688,46 @@ public partial class PublishShareViewModel(
                 CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == c.Id)?.NeedsPublish ?? true).ToList();
 
             var totalCatalogs = catalogsToPublish.Count;
-            var currentCatalog = 0;
-            var publishedAny = false;
-            foreach (var catalog in catalogsToPublish)
+            var (succeededCount, failedCatalogs) = await PublishCatalogsAsync(catalogsToPublish, cancellationToken);
+
+            if (totalCatalogs > 0 && succeededCount == 0)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                currentCatalog++;
-                var (success, error) = await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs, cancellationToken, uploadDefinition: false);
-                if (!success)
-                {
-                    logger.LogWarning("Catalog publish failed during cascading definition upload: {CatalogName} - {Error}", catalog.Name, error);
-                }
-                else
-                {
-                    publishedAny = true;
-                }
+                UploadStatusMessage = BuildAllCatalogsFailedMessage(failedCatalogs);
+                NotifyDefinitionStale();
+                notificationService?.ShowError(
+                    GetLocalizedString(PublishFailedTitleKey, UploadFailedDefaultMessage),
+                    UploadStatusMessage);
+                return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
             }
 
-            if (publishedAny && totalCatalogs > 0)
+            if (failedCatalogs.Count > 0)
+            {
+                var partialDefinitionResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
+                if (partialDefinitionResult.Success)
+                {
+                    await SyncLocalSubscriptionMetadataAsync();
+                }
+
+                UploadStatusMessage = BuildPartialPublishMessage(
+                    succeededCount,
+                    totalCatalogs,
+                    failedCatalogs,
+                    partialDefinitionResult.Success ? null : GetDefinitionError(partialDefinitionResult));
+                NotifyDefinitionStale();
+                notificationService?.ShowWarning(
+                    GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
+                    UploadStatusMessage,
+                    NotificationDurations.Long);
+                return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
+            }
+
+            if (totalCatalogs > 0)
             {
                 notificationService?.ShowSuccess(
                     GetLocalizedString("Tools.PublisherStudio.Publish.CatalogsPublishedTitle", "Catalogs Published"),
-                    FormatLocalizedString("Tools.PublisherStudio.Publish.CatalogsPublishedMessageFormat", "Successfully published {0} catalog(s).", totalCatalogs),
+                    FormatLocalizedString("Tools.PublisherStudio.Publish.CatalogsPublishedMessageFormat", "Successfully published {0} catalog(s).", succeededCount),
                     NotificationDurations.Short);
             }
-
-            // Regenerate provider definition now that catalogs and content items have updated URLs
-            await GenerateProviderDefinitionAsync();
 
             var result = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false);
             if (result.Success)
@@ -2613,6 +2626,9 @@ public partial class PublishShareViewModel(
                 return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
             }
 
+            // An attempted upload can change remote state even if its response is lost.
+            NotifyDefinitionStale();
+
             // 1. Upload Pending Artifacts and Artwork
             CurrentPublishStep = 1;
             var pendingUploadResult = await UploadPendingContentAsync(SelectedHostingProvider, cancellationToken, suppressNotifications);
@@ -2785,7 +2801,9 @@ public partial class PublishShareViewModel(
         UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.GeneratingProviderDefinition", "Generating provider definition...");
         var definitionGenerated = await GenerateProviderDefinitionAsync();
 
-        var defResult = await UploadProviderDefinitionIfAvailableAsync(cancellationToken);
+        var defResult = definitionGenerated
+            ? await UploadProviderDefinitionIfAvailableAsync(cancellationToken)
+            : null;
 
         // 5. Generate subscription URL (uses definition URL if available)
         GenerateSubscriptionUrl();
@@ -3908,11 +3926,14 @@ public partial class PublishShareViewModel(
             return OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
         }
 
-        // Regenerate to ensure latest values
-        await GenerateProviderDefinitionAsync();
-
-        if (string.IsNullOrWhiteSpace(ProviderDefinitionJson))
+        var definitionGenerated = await GenerateProviderDefinitionAsync();
+        if (!definitionGenerated || string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
+            if (!definitionGenerated)
+            {
+                NotifyDefinitionStale();
+            }
+
             var msg = !string.IsNullOrWhiteSpace(UploadStatusMessage)
                 ? UploadStatusMessage
                 : GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogsPublishedPublishFirst", "No catalogs have been published yet. Please publish a catalog first.");
@@ -3929,7 +3950,7 @@ public partial class PublishShareViewModel(
         return null;
     }
 
-    private async Task HandleProviderDefinitionUploadSuccessAsync(HostingUploadResult uploadResult, CancellationToken ct)
+    private async Task HandleProviderDefinitionUploadSuccessAsync(HostingUploadResult uploadResult, bool suppressNotifications, CancellationToken ct)
     {
         ProviderDefinitionUrl = uploadResult.DirectDownloadUrl;
         if (!string.IsNullOrEmpty(project.ProjectPath) && SelectedHostingProvider != null)
@@ -3957,10 +3978,13 @@ public partial class PublishShareViewModel(
         NotifyDefinitionUploaded();
         UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploaded", "Provider definition uploaded successfully.");
         logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
-        notificationService?.ShowSuccess(
-            GetLocalizedString(PublishSuccessTitleKey, SuccessLiteral),
-            GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage", "Provider definition uploaded successfully."),
-            autoDismissMs: 4000);
+        if (!suppressNotifications)
+        {
+            notificationService?.ShowSuccess(
+                GetLocalizedString(PublishSuccessTitleKey, SuccessLiteral),
+                GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage", "Provider definition uploaded successfully."),
+                autoDismissMs: 4000);
+        }
     }
 
     private async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionCoreAsync(
@@ -4000,7 +4024,7 @@ public partial class PublishShareViewModel(
 
             if (result.Success && result.Data != null)
             {
-                await HandleProviderDefinitionUploadSuccessAsync(result.Data, cancellationToken);
+                await HandleProviderDefinitionUploadSuccessAsync(result.Data, suppressNotifications, cancellationToken);
                 return result;
             }
 
@@ -4015,7 +4039,12 @@ public partial class PublishShareViewModel(
 
             return result;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            NotifyDefinitionStale();
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat", "Error uploading definition: {0}", ex.Message);
             logger.LogError(ex, "Error uploading provider definition");
@@ -4422,8 +4451,6 @@ public partial class PublishShareViewModel(
 
         var cancellationToken = cts.Token;
         PublishCompleted = false;
-        var publishedAny = false;
-        var succeededCount = 0;
         using var progressToast = BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
             FormatLocalizedString(
@@ -4434,39 +4461,17 @@ public partial class PublishShareViewModel(
 
         try
         {
-            var totalCatalogs = project.Catalogs.Count;
-            var currentCatalog = 0;
-            var failedCatalogs = new List<(string Name, string Error)>();
+            var catalogs = project.Catalogs.ToList();
+            var totalCatalogs = catalogs.Count;
+            var (succeededCount, failedCatalogs) = await PublishCatalogsAsync(catalogs, cancellationToken);
 
-            foreach (var catalog in project.Catalogs)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                currentCatalog++;
-                var (success, error) = await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs, cancellationToken, uploadDefinition: false);
-                if (success)
-                {
-                    publishedAny = true;
-                    succeededCount++;
-                }
-                else
-                {
-                    failedCatalogs.Add((catalog.Name, error ?? GetLocalizedString("Tools.PublisherStudio.Publish.UploadFailedShort", "Upload failed")));
-                }
-            }
-
-            if (publishedAny)
+            if (succeededCount > 0)
             {
                 await FinalizePublishAllSuccessAsync(succeededCount, totalCatalogs, failedCatalogs, cancellationToken);
             }
             else
             {
-                var distinctErrors = failedCatalogs.Select(f => f.Error).Distinct().ToList();
-                var combinedError = distinctErrors.Count == 1
-                    ? distinctErrors[0]
-                    : string.Join(Environment.NewLine, failedCatalogs.Select(f => $"{f.Name}: {f.Error}"));
-                UploadStatusMessage = string.IsNullOrWhiteSpace(combinedError)
-                    ? GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllFailed", "Publishing all catalogs failed.")
-                    : combinedError;
+                UploadStatusMessage = BuildAllCatalogsFailedMessage(failedCatalogs);
                 notificationService?.ShowError(
                     GetLocalizedString(PublishFailedTitleKey, UploadFailedDefaultMessage),
                     UploadStatusMessage);
@@ -4490,6 +4495,71 @@ public partial class PublishShareViewModel(
     private bool CanPublishAllCatalogs()
     {
         return !IsUploading;
+    }
+
+    private async Task<(int SucceededCount, List<(string Name, string Error)> FailedCatalogs)> PublishCatalogsAsync(
+        IReadOnlyList<NamedCatalog> catalogs,
+        CancellationToken cancellationToken)
+    {
+        var succeededCount = 0;
+        var failedCatalogs = new List<(string Name, string Error)>();
+        for (var i = 0; i < catalogs.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var catalog = catalogs[i];
+
+            var (success, error) = await PublishCatalogItemAsync(catalog, i + 1, catalogs.Count, cancellationToken, uploadDefinition: false);
+            if (success)
+            {
+                succeededCount++;
+            }
+            else
+            {
+                logger.LogWarning("Catalog publish failed: {CatalogName} - {Error}", catalog.Name, error);
+                failedCatalogs.Add((catalog.Name, error ?? GetLocalizedString("Tools.PublisherStudio.Publish.UploadFailedShort", "Upload failed")));
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return (succeededCount, failedCatalogs);
+    }
+
+    private string BuildAllCatalogsFailedMessage(List<(string Name, string Error)> failedCatalogs)
+    {
+        var combinedError = string.Join(Environment.NewLine, failedCatalogs.Select(f => $"{f.Name}: {f.Error}"));
+        return string.IsNullOrWhiteSpace(combinedError)
+            ? GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllFailed", "Publishing all catalogs failed.")
+            : combinedError;
+    }
+
+    private string BuildPartialPublishMessage(
+        int succeededCount,
+        int totalCatalogs,
+        List<(string Name, string Error)> failedCatalogs,
+        string? definitionError)
+    {
+        var failedDetails = string.Join("; ", failedCatalogs.Select(f => $"{f.Name}: {f.Error}"));
+        return string.IsNullOrWhiteSpace(definitionError)
+            ? FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.PublishAllPartialFormat",
+                "Published {0} of {1} catalog(s). Failed: {2}",
+                succeededCount,
+                totalCatalogs,
+                failedDetails)
+            : FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat",
+                "Published {0} of {1} catalog(s). Failed: {2}. Provider definition failed: {3}",
+                succeededCount,
+                totalCatalogs,
+                failedDetails,
+                definitionError);
+    }
+
+    private string GetDefinitionError(OperationResult<HostingUploadResult> definitionResult)
+    {
+        return !string.IsNullOrWhiteSpace(definitionResult.FirstError)
+            ? definitionResult.FirstError
+            : GetLocalizedString("Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage", "Failed to upload provider definition.");
     }
 
     private async Task<(bool Success, string? Error)> PublishCatalogItemAsync(
@@ -4531,20 +4601,11 @@ public partial class PublishShareViewModel(
         List<(string Name, string Error)> failedCatalogs,
         CancellationToken cancellationToken)
     {
-        // Generate provider definition with all catalogs
-        var definitionGenerated = await GenerateProviderDefinitionAsync();
-        var definitionProblem = !definitionGenerated;
-        string? defError = null;
-
-        // Upload definition
-        if (!string.IsNullOrWhiteSpace(ProviderDefinitionJson))
+        var defResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
+        var defError = defResult.Success ? null : GetDefinitionError(defResult);
+        if (defResult.Success)
         {
-            var defResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
-            if (defResult != null && !defResult.Success)
-            {
-                definitionProblem = true;
-                defError = defResult.FirstError;
-            }
+            await SyncLocalSubscriptionMetadataAsync();
         }
 
         GenerateSubscriptionUrl();
@@ -4554,40 +4615,20 @@ public partial class PublishShareViewModel(
 
         if (failedCatalogs.Count > 0)
         {
-            var failedDetails = string.Join("; ", failedCatalogs.Select(f => $"{f.Name}: {f.Error}"));
-            if (definitionProblem && !string.IsNullOrWhiteSpace(defError))
-            {
-                UploadStatusMessage = FormatLocalizedString(
-                    "Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat",
-                    "Published {0} of {1} catalog(s). Failed: {2}. Provider definition failed: {3}",
-                    succeededCount,
-                    totalCatalogs,
-                    failedDetails,
-                    defError);
-                NotifyDefinitionStale();
-            }
-            else
-            {
-                UploadStatusMessage = FormatLocalizedString(
-                    "Tools.PublisherStudio.Publish.PublishAllPartialFormat",
-                    "Published {0} of {1} catalog(s). Failed: {2}",
-                    succeededCount,
-                    totalCatalogs,
-                    failedDetails);
-            }
-
+            UploadStatusMessage = BuildPartialPublishMessage(succeededCount, totalCatalogs, failedCatalogs, defError);
+            NotifyDefinitionStale();
             notificationService?.ShowWarning(
                 GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
                 UploadStatusMessage,
                 NotificationDurations.Long);
         }
-        else if (definitionProblem)
+        else if (defError != null)
         {
             UploadStatusMessage = FormatLocalizedString(
                 "Tools.PublisherStudio.Publish.PublishAllSuccessDefinitionFailedFormat",
                 "Successfully published all {0} catalog(s), but provider definition upload failed: {1}",
                 totalCatalogs,
-                defError ?? UploadStatusMessage);
+                defError);
             NotifyDefinitionStale();
             notificationService?.ShowWarning(
                 GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
@@ -5259,6 +5300,7 @@ public partial class PublishShareViewModel(
 
     private void NotifyDefinitionUploaded()
     {
+        HasDefinitionChanges = false;
         try
         {
             DefinitionUploadedCallback?.Invoke();
