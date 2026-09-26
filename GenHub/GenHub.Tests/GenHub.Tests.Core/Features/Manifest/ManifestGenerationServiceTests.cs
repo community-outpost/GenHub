@@ -270,6 +270,29 @@ public class ManifestGenerationServiceTests : IDisposable
         Assert.Contains(manifest.Files, f => f.RelativePath == "binkw32.dll");
     }
 
+    /// <summary>Cancellation during native library hashing aborts manifest generation.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task CreateGameClientManifestAsync_CancelDuringLibraryHash_PropagatesAsync()
+    {
+        var executable = Path.Combine(_tempDirectory, "generalszh");
+        var library = Path.Combine(_tempDirectory, "libtest.dylib");
+        await File.WriteAllBytesAsync(executable, MachOHeader);
+        await File.WriteAllTextAsync(library, "library");
+        using var cts = new CancellationTokenSource();
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(library, cts.Token))
+            .Returns((string path, CancellationToken token) =>
+            {
+                cts.Cancel();
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult("unreachable");
+            });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _service.CreateGameClientManifestAsync(
+            _tempDirectory, GameType.ZeroHour, "Native", "1.04", executable, publisherInfo: null, cancellationToken: cts.Token));
+        _hashProviderMock.Verify(x => x.ComputeFileHashAsync(library, cts.Token), Times.Once);
+    }
+
     /// <summary>
     /// A native macOS client loads its dylibs from <c>@executable_path</c>, so the client
     /// manifest must carry every dylib beside the Mach-O binary at the workspace root.

@@ -600,7 +600,7 @@ public class ManifestGenerationService(
                 .WithContentType(ContentType.GameClient, gameType)
                 .WithEntryPoint(Path.GetFileName(executablePath));
 
-            await AddClientFilesToManifest(builder, installationPath, gameType, executablePath, publisher.Name);
+            await AddClientFilesToManifest(builder, installationPath, gameType, executablePath, publisher.Name, cancellationToken);
 
             logger.LogInformation("Created GameClient manifest for {ClientName} (Publisher: {PublisherName})", clientName, publisher.Name);
 
@@ -1863,8 +1863,9 @@ public class ManifestGenerationService(
     /// <param name="gameType">The game type.</param>
     /// <param name="executablePath">The full path to the game executable.</param>
     /// <param name="publisherName">The publisher name (for publisher-specific logic).</param>
+    /// <param name="cancellationToken">Cancels native library collection.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task AddClientFilesToManifest(IContentManifestBuilder builder, string installationPath, GameType gameType, string executablePath, string publisherName)
+    private async Task AddClientFilesToManifest(IContentManifestBuilder builder, string installationPath, GameType gameType, string executablePath, string publisherName, CancellationToken cancellationToken)
     {
         try
         {
@@ -1929,7 +1930,7 @@ public class ManifestGenerationService(
                     }
                 }
 
-                await AddNativeSharedLibrariesAsync(builder, executablePath, executableDirectory);
+                await AddNativeSharedLibrariesAsync(builder, executablePath, executableDirectory, cancellationToken);
             }
 
             // Add client-specific configuration files
@@ -2000,9 +2001,11 @@ public class ManifestGenerationService(
     /// <param name="builder">The manifest builder.</param>
     /// <param name="executablePath">The full path to the game executable.</param>
     /// <param name="executableDirectory">The directory that holds the executable.</param>
+    /// <param name="cancellationToken">Cancels collection and hashing of shared libraries.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task AddNativeSharedLibrariesAsync(IContentManifestBuilder builder, string executablePath, string executableDirectory)
+    private async Task AddNativeSharedLibrariesAsync(IContentManifestBuilder builder, string executablePath, string executableDirectory, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var platform = ExecutableFileClassifier.DetectPlatform(executablePath);
         if (platform is not (ExecutablePlatform.MacOS or ExecutablePlatform.Linux))
         {
@@ -2015,6 +2018,7 @@ public class ManifestGenerationService(
 
         foreach (var libraryPath in libraries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!IsResolvableFile(libraryPath))
             {
                 logger.LogWarning("Skipping shared library {LibraryPath} because it does not resolve to a file", libraryPath);
@@ -2022,7 +2026,12 @@ public class ManifestGenerationService(
             }
 
             var libraryName = Path.GetFileName(libraryPath);
-            await builder.AddGameInstallationFileAsync(libraryName, libraryPath);
+
+            // Supply both metadata values so the builder does not repeat hashing without the token.
+            var size = new FileInfo(libraryPath).Length;
+            var hash = await hashProvider.ComputeFileHashAsync(libraryPath, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            await builder.AddGameInstallationFileAsync(libraryName, libraryPath, hash: hash, size: size);
             logger.LogDebug("Added native shared library {LibraryName} to GameClient manifest", libraryName);
         }
     }
