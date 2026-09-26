@@ -1059,6 +1059,15 @@ public static class WndConstants
     }
 
     /// <summary>
+    /// Mod project root marker directories probed by FindModRoot.
+    /// </summary>
+    public static class ModRoots
+    {
+        /// <summary>Window definition folder name in mod projects.</summary>
+        public const string WindowFolder = "Window";
+    }
+
+    /// <summary>
     /// Game ControlBarScheme INI constants.
     /// </summary>
     public static class ControlBarScheme
@@ -1134,6 +1143,33 @@ public static class WndConstants
 
         /// <summary>Standard main menu ruler image name.</summary>
         public const string MainMenuRulerImageName = "MainMenuRuler";
+
+        /// <summary>Standard right HUD fallback image name.</summary>
+        public const string DefaultRightHudImageName = "SALogo";
+
+        /// <summary>Standard options button fallback image name.</summary>
+        public const string DefaultButtonOptionsImageName = "SAOptions";
+
+        /// <summary>Standard idle worker button fallback image name.</summary>
+        public const string DefaultButtonIdleWorkerImageName = "SAWorker";
+
+        /// <summary>Standard chat button fallback image name.</summary>
+        public const string DefaultButtonChatImageName = "SAChat";
+
+        /// <summary>Standard place beacon button fallback image name.</summary>
+        public const string DefaultButtonPlaceBeaconImageName = "SABeacon";
+
+        /// <summary>Standard general button fallback image name.</summary>
+        public const string DefaultButtonGeneralImageName = "SAGeneral";
+
+        /// <summary>Standard under-attack button fallback image name.</summary>
+        public const string DefaultButtonUAttackImageName = "SAUAttackI";
+
+        /// <summary>Standard experience bar foreground fallback image name.</summary>
+        public const string DefaultExpBarForegroundImageName = "SAExpBar";
+
+        /// <summary>Standard queue button fallback image name.</summary>
+        public const string DefaultQueueButtonImageName = "SCBigButton";
 
         /// <summary>Override key name for shell menu backdrop image.</summary>
         public const string ShellMenuBackdropKey = "ShellMenuBackdrop";

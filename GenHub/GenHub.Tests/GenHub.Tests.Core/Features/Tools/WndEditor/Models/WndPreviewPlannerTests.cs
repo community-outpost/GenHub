@@ -427,6 +427,64 @@ public sealed class WndPreviewPlannerTests
     }
 
     /// <summary>
+    /// Tests that scheme fallback image names resolve through centralized constants.
+    /// </summary>
+    [Fact]
+    public void Plan_SchemeFallbackImageNames_MatchCentralizedConstants()
+    {
+        // Assert
+        WndConstants.ControlBarScheme.DefaultRightHudImageName.Should().Be("SALogo");
+        WndConstants.ControlBarScheme.DefaultButtonOptionsImageName.Should().Be("SAOptions");
+        WndConstants.ControlBarScheme.DefaultButtonIdleWorkerImageName.Should().Be("SAWorker");
+        WndConstants.ControlBarScheme.DefaultButtonChatImageName.Should().Be("SAChat");
+        WndConstants.ControlBarScheme.DefaultButtonPlaceBeaconImageName.Should().Be("SABeacon");
+        WndConstants.ControlBarScheme.DefaultButtonGeneralImageName.Should().Be("SAGeneral");
+        WndConstants.ControlBarScheme.DefaultButtonUAttackImageName.Should().Be("SAUAttackI");
+        WndConstants.ControlBarScheme.DefaultExpBarForegroundImageName.Should().Be("SAExpBar");
+        WndConstants.ControlBarScheme.DefaultQueueButtonImageName.Should().Be("SCBigButton");
+    }
+
+    /// <summary>
+    /// Tests that a RightHUD window without draw data plans the centralized fallback image.
+    /// </summary>
+    [Fact]
+    public void Plan_RightHudName_PlansCentralizedFallbackImage()
+    {
+        // Arrange
+        var window = new WndWindow
+        {
+            ControlTypeName = WndConstants.ControlTypes.User,
+        };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "ControlBar.wnd:RightHUD");
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be(WndConstants.ControlBarScheme.DefaultRightHudImageName);
+    }
+
+    /// <summary>
+    /// Tests that a ButtonOptions window without draw data plans the centralized fallback image.
+    /// </summary>
+    [Fact]
+    public void Plan_ButtonOptionsName_PlansCentralizedFallbackImage()
+    {
+        // Arrange
+        var window = new WndWindow
+        {
+            ControlTypeName = WndConstants.ControlTypes.User,
+        };
+        window.SetProperty(WndConstants.PropertyKeys.Name, "ControlBar.wnd:ButtonOptions");
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be(WndConstants.ControlBarScheme.DefaultButtonOptionsImageName);
+    }
+
+    /// <summary>
     /// Tests that MainMenuRuler does not inject MainMenuBackdrop by default to avoid forcing Generals assets onto Zero Hour screens.
     /// </summary>
     [Fact]
