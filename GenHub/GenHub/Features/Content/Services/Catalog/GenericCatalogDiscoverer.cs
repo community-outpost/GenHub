@@ -174,7 +174,7 @@ public class GenericCatalogDiscoverer(
             }
 
             // Ensure bundle items with empty releases have a synthetic release so versionSelector includes them
-            CatalogBundleComponentBuilder.HydrateSyntheticBundleReleases(catalog.Content);
+            CatalogBundleComponentBuilder.HydrateSyntheticBundleReleases(catalog.Content ?? []);
 
             // Convert catalog items to search results
             var searchResults = ConvertCatalogToSearchResults(catalog, query).ToList();

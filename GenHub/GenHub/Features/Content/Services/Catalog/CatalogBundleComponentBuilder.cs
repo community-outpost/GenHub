@@ -125,14 +125,15 @@ public static class CatalogBundleComponentBuilder
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        foreach (var item in items.Where(i => (i.ContentType == ContentType.ContentBundle || i.BundledItems.Count > 0) && i.Releases.Count == 0))
+        foreach (var item in items.Where(i => (i.ContentType == ContentType.ContentBundle || i.BundledItems is { Count: > 0 }) && (i.Releases == null || i.Releases.Count == 0)))
         {
+            item.Releases ??= [];
             var bundleRelease = new ContentRelease
             {
                 Version = "1.0.0",
                 ReleaseDate = DateTime.UtcNow,
                 IsLatest = true,
-                Dependencies = [.. item.BundledItems],
+                Dependencies = item.BundledItems != null ? [.. item.BundledItems] : [],
             };
             item.Releases.Add(bundleRelease);
         }
