@@ -51,6 +51,9 @@ public class UserSettings
     /// <summary>Gets or sets the ID of the last used game profile.</summary>
     public string? LastUsedProfileId { get; set; }
 
+    /// <summary>Gets or sets the sorting mode for game profiles on the launcher screen.</summary>
+    public ProfileSortMode ProfileSortMode { get; set; } = ProfileSortMode.LastPlayed;
+
     /// <summary>Gets or sets the last selected navigation tab.</summary>
     public NavigationTab LastSelectedTab { get; set; } = NavigationTab.Home;
 
@@ -238,6 +241,7 @@ public class UserSettings
             ProfileSettingsGameSidebarWidth = ProfileSettingsGameSidebarWidth,
             WorkspacePath = WorkspacePath,
             LastUsedProfileId = LastUsedProfileId,
+            ProfileSortMode = ProfileSortMode,
             LastSelectedTab = LastSelectedTab,
             MaxConcurrentDownloads = MaxConcurrentDownloads,
             AllowBackgroundDownloads = AllowBackgroundDownloads,

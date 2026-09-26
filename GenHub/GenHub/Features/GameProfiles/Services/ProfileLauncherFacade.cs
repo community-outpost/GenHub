@@ -130,12 +130,32 @@ public class ProfileLauncherFacade(
                 }
             }
 
+                        ProfileOperationResult<GameLaunchInfo> launchResult;
             if (profile.IsToolProfile)
             {
-                return await LaunchToolProfileAsync(profile, profileId, cancellationToken);
+                launchResult = await LaunchToolProfileAsync(profile, profileId, cancellationToken);
+            }
+            else
+            {
+                launchResult = await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
             }
 
-            return await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
+            if (launchResult.Success)
+            {
+                try
+                {
+                    await profileManager.UpdateProfileAsync(
+                        profileId,
+                        new UpdateProfileRequest { LastPlayedAt = DateTime.UtcNow },
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "[Launch] Failed to update LastPlayedAt for profile {ProfileId}", profileId);
+                }
+            }
+
+            return launchResult;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

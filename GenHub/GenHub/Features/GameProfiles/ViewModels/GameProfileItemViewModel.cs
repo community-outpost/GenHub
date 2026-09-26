@@ -446,6 +446,78 @@ public partial class GameProfileItemViewModel : ViewModelBase
     public bool IsDemoModeActive => IsDemoSteamHighlightVisible || IsDemoShortcutHighlightVisible;
 
     /// <summary>
+    /// Gets or sets the display order.
+    /// </summary>
+    [ObservableProperty]
+    private int _displayOrder;
+
+    /// <summary>
+    /// Gets or sets the creation timestamp.
+    /// </summary>
+    [ObservableProperty]
+    private DateTime _createdAt;
+
+    /// <summary>
+    /// Gets or sets the last played timestamp.
+    /// </summary>
+    [ObservableProperty]
+    private DateTime? _lastPlayedAt;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether free reorder mode is active.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isFreeReorderMode;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the profile can be moved left.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(MoveLeftCommand))]
+    private bool _canMoveLeft;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the profile can be moved right.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(MoveRightCommand))]
+    private bool _canMoveRight;
+
+    /// <summary>
+    /// Gets or sets the action to move the profile left.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? MoveLeftAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to move the profile right.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? MoveRightAction { get; set; }
+
+    /// <summary>
+    /// Moves the profile left in free reorder mode.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanMoveLeft))]
+    private async Task MoveLeft()
+    {
+        if (MoveLeftAction != null)
+        {
+            await MoveLeftAction(this);
+        }
+    }
+
+    /// <summary>
+    /// Moves the profile right in free reorder mode.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanMoveRight))]
+    private async Task MoveRight()
+    {
+        if (MoveRightAction != null)
+        {
+            await MoveRightAction(this);
+        }
+    }
+
+    /// <summary>
     /// Gets the underlying game profile.
     /// </summary>
     public IGameProfile Profile { get; }
@@ -473,6 +545,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
         _name = profile.Name;
         _version = profile.Version;
         _executablePath = profile.ExecutablePath;
+        _displayOrder = profile.DisplayOrder;
+        _createdAt = profile.CreatedAt;
+        _lastPlayedAt = profile.LastPlayedAt;
 
         // Handle icon path with fallback
         _iconPath = !string.IsNullOrEmpty(iconPath)
@@ -612,6 +687,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
         Name = updatedProfile.Name;
         Version = updatedProfile.Version;
         ExecutablePath = updatedProfile.ExecutablePath;
+        DisplayOrder = updatedProfile.DisplayOrder;
+        CreatedAt = updatedProfile.CreatedAt;
+        LastPlayedAt = updatedProfile.LastPlayedAt;
 
         // Re-extract version, branding and publisher info from updated profile
         if (updatedProfile is GameProfile gameProfile)
