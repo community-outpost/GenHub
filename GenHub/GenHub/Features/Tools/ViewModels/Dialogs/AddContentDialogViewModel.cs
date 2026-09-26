@@ -1969,12 +1969,9 @@ public partial class AddContentDialogViewModel(
     private List<string> CollectAllScreenshots()
     {
         var allScreenshots = new List<string>(Screenshots);
-        if (!IsEditMode)
+        foreach (var s in ParseUrls(ScreenshotUrlsInput).Where(s => !allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase)))
         {
-            foreach (var s in ParseUrls(ScreenshotUrlsInput).Where(s => !allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase)))
-            {
-                allScreenshots.Add(s);
-            }
+            allScreenshots.Add(s);
         }
 
         return allScreenshots;
