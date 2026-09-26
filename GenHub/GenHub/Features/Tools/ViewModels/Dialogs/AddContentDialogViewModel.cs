@@ -451,7 +451,8 @@ public partial class AddContentDialogViewModel(
                     }
                 }
             }
-            else if (item.UpstreamSync?.AssetRules is { Count: > 0 })
+
+            if (item.UpstreamSync?.AssetRules is { Count: > 0 })
             {
                 foreach (var rule in item.UpstreamSync.AssetRules)
                 {
@@ -471,6 +472,11 @@ public partial class AddContentDialogViewModel(
             if (existingDep != null)
             {
                 option.IsSelected = true;
+                if (!string.IsNullOrWhiteSpace(existingDep.DefaultVariant) && !option.AvailableVariants.Contains(existingDep.DefaultVariant))
+                {
+                    option.AvailableVariants.Add(existingDep.DefaultVariant);
+                }
+
                 option.SelectedVariant = existingDep.DefaultVariant ?? variants.FirstOrDefault();
             }
             else
