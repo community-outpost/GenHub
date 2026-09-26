@@ -453,6 +453,26 @@
                     <!-- Tint Darken on Hover -->
                     <Border Background="#30000000" CornerRadius="16" />
 
+                    <!-- Top Left Reorder Controls (Visible in Free Reorder Mode) -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8"
+                                IsVisible="{Binding IsFreeReorderMode}">
+                        <!-- Move Left -->
+                        <Button Classes="tool-button"
+                                Command="{Binding MoveLeftCommand}"
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.MoveLeft}"
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.MoveLeft}">
+                            <PathIcon Data="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" Width="14" Height="14" />
+                        </Button>
+
+                        <!-- Move Right -->
+                        <Button Classes="tool-button"
+                                Command="{Binding MoveRightCommand}"
+                                ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.MoveRight}"
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.MoveRight}">
+                            <PathIcon Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" Width="14" Height="14" />
+                        </Button>
+                    </StackPanel>
+
                     <!-- Launch Button Center -->
                     <Button Classes="launch-button"
                             Command="{Binding LaunchProfileCommand}"

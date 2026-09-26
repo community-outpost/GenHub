@@ -481,7 +481,7 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets a value indicating whether the content has a source page to open.
     /// </summary>
-    public bool HasSourceUrl => !string.IsNullOrEmpty(searchResult.SourceUrl);
+    public bool HasSourceUrl => !string.IsNullOrEmpty(ResolveEffectiveSourceUrl());
 
     /// <summary>
     /// Gets a value indicating whether files are available.
@@ -2994,13 +2994,44 @@ public partial class ContentDetailViewModel(
         closeAction?.Invoke();
     }
 
+    private string? ResolveEffectiveSourceUrl()
+    {
+        var url = searchResult.SourceUrl;
+        if (!string.IsNullOrEmpty(url) && !GenLauncherConstants.IsYamlDescriptorPath(url))
+        {
+            return url;
+        }
+
+        if (searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.NewsLinkMetadataKey, out var newsLink) &&
+            !string.IsNullOrWhiteSpace(newsLink) &&
+            !GenLauncherConstants.IsYamlDescriptorPath(newsLink))
+        {
+            return newsLink;
+        }
+
+        if (searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.ModDbLinkMetadataKey, out var modDbLink) &&
+            !string.IsNullOrWhiteSpace(modDbLink) &&
+            !GenLauncherConstants.IsYamlDescriptorPath(modDbLink))
+        {
+            return modDbLink;
+        }
+
+        if (searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.DiscordLinkMetadataKey, out var discordLink) &&
+            !string.IsNullOrWhiteSpace(discordLink))
+        {
+            return discordLink;
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Opens the content's source page in the system browser.
     /// </summary>
     [RelayCommand]
     private void OpenInBrowser()
     {
-        var url = searchResult.SourceUrl;
+        var url = ResolveEffectiveSourceUrl();
         if (string.IsNullOrEmpty(url))
         {
             return;

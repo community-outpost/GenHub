@@ -1081,8 +1081,9 @@ public partial class GameProfileSettingsViewModel
                 [
                     new Avalonia.Platform.Storage.FilePickerFileType("Image Files")
                     {
-                        Patterns = [ "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.ico" ],
+                        Patterns = [ "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.ico", "*.webp", "*.gif", "*.tif", "*.tiff", "*.*" ],
                     },
+                    Avalonia.Platform.Storage.FilePickerFileTypes.All,
                 ],
             };
 
@@ -1126,8 +1127,9 @@ public partial class GameProfileSettingsViewModel
                 [
                     new Avalonia.Platform.Storage.FilePickerFileType("Image Files")
                     {
-                        Patterns = [ "*.png", "*.jpg", "*.jpeg", "*.bmp" ],
+                        Patterns = [ "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.ico", "*.webp", "*.gif", "*.tif", "*.tiff", "*.*" ],
                     },
+                    Avalonia.Platform.Storage.FilePickerFileTypes.All,
                 ],
             };
 
@@ -1499,6 +1501,97 @@ public partial class GameProfileSettingsViewModel
         finally
         {
             _shareDialogSemaphore.Release();
+        }
+    }
+    /// <summary>
+    /// Imports dropped files or directories directly into the Add Local Content flow.
+    /// </summary>
+    /// <param name="paths">The paths to the dropped files or directories.</param>
+    /// <param name="suggestedContentType">Optional suggested content type based on binary detection.</param>
+    /// <param name="suggestedGameType">Optional suggested game type based on binary detection.</param>
+    /// <param name="owner">Optional window owner for modal dialogs.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task ImportDroppedFilesAsync(
+        IReadOnlyList<string> paths,
+        ContentType? suggestedContentType = null,
+        GameType? suggestedGameType = null,
+        Avalonia.Controls.Window? owner = null)
+    {
+        try
+        {
+            if (_localContentService == null || _contentStorageService == null)
+            {
+                StatusMessage = "Content services unavailable";
+                return;
+            }
+
+            var dialogOwner = owner ?? (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null);
+
+            if (dialogOwner == null)
+            {
+                return;
+            }
+
+            using var vm = new AddLocalContentViewModel(
+                _localContentService,
+                _contentStorageService,
+                _genLauncherNormalizationService,
+                _dialogService,
+                _archivePayloadProcessor);
+
+            if (suggestedContentType.HasValue)
+            {
+                vm.SelectedContentType = suggestedContentType.Value;
+            }
+
+            if (suggestedGameType.HasValue)
+            {
+                vm.SelectedGameType = suggestedGameType.Value;
+            }
+
+            foreach (var p in paths)
+            {
+                if (System.IO.File.Exists(p) || System.IO.Directory.Exists(p))
+                {
+                    await vm.ImportContentAsync(p);
+                }
+            }
+
+            var window = new Views.AddLocalContentWindow
+            {
+                DataContext = vm,
+            };
+
+            var result = await window.ShowDialog<bool>(dialogOwner);
+
+            if (result && vm.CreatedContentItem != null)
+            {
+                var contentItem = vm.CreatedContentItem;
+
+                if (AvailableContent.All(a => a.ManifestId.Value != contentItem.ManifestId.Value))
+                {
+                    AvailableContent.Add(contentItem);
+                }
+
+                _logger?.LogInformation("Added dropped local content via dialog: {Name}", contentItem.DisplayName);
+
+                StatusMessage = $"Added {contentItem.DisplayName}";
+                await EnableContentInternal(contentItem, bypassLoadingGuard: true);
+
+                await RefreshFiltersAndContentAsync();
+                LoadAvailableIconsAndCovers(GameType);
+
+                _localNotificationService?.ShowSuccess(
+                     "Content Added",
+                     $"\"{contentItem.DisplayName}\" has been added successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error importing dropped files into Add Local Content dialog");
+            StatusMessage = "Error importing dropped files";
         }
     }
 }

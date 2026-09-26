@@ -214,8 +214,9 @@ public class GameProfileManager(
                 }
             }
 
-            var fallbackResult = await ResolveFallbackGameClientAsync(profile, request, cancellationToken);
+var fallbackResult = await ResolveFallbackGameClientAsync(profile, request, cancellationToken);
             if (fallbackResult != null)
+
             {
                 return fallbackResult;
             }
@@ -1048,6 +1049,16 @@ public class GameProfileManager(
         if (request.ActiveWorkspaceId != null)
         {
             profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
+        }
+
+        if (request.LastPlayedAt.HasValue)
+        {
+            profile.LastPlayedAt = request.LastPlayedAt.Value;
+        }
+
+        if (request.DisplayOrder.HasValue)
+        {
+            profile.DisplayOrder = request.DisplayOrder.Value;
         }
     }
 

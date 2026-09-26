@@ -55,16 +55,34 @@ public partial class GameProfileLauncherView : UserControl
         var files = e.Data.GetFiles();
         if (files != null)
         {
+            var profilePaths = new System.Collections.Generic.List<string>();
+            var otherPaths = new System.Collections.Generic.List<string>();
+
             foreach (var file in files)
             {
-                if (file?.Path?.LocalPath is { } path &&
-                    (path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
-                     path.EndsWith(FileTypes.JsonFileExtension, StringComparison.OrdinalIgnoreCase)))
+                if (file?.Path?.LocalPath is { } path)
                 {
-                    e.Handled = true;
-                    await vm.ImportProfileFromFileOrUriAsync(path);
-                    break;
+                    if (path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                        path.EndsWith(FileTypes.JsonFileExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        profilePaths.Add(path);
+                    }
+                    else
+                    {
+                        otherPaths.Add(path);
+                    }
                 }
+            }
+
+            if (profilePaths.Count > 0)
+            {
+                e.Handled = true;
+                await vm.ImportProfileFromFileOrUriAsync(profilePaths[0]);
+            }
+            else if (otherPaths.Count > 0)
+            {
+                e.Handled = true;
+                await vm.HandleDroppedContentAsync(otherPaths);
             }
         }
     }

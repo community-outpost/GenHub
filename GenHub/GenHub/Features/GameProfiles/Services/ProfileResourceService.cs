@@ -116,7 +116,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
     private void LoadBuiltInResources()
     {
         // Load icons
-        var iconFiles = new[]
+        var iconFiles = new (string FileName, string DisplayName, string? GameType)[]
         {
             ("generals-icon.png", "Generals Icon", "Generals"),
             ("zerohour-icon.png", "Zero Hour Icon", "ZeroHour"),
@@ -124,6 +124,17 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
             ("steam-icon.png", "Steam Icon", null),
             ("eaapp-icon.png", "EA App Icon", null),
             ("origin-icon.png", "Origin Icon", null),
+            ("genpatcher-icon.png", "GenPatcher Icon", null),
+            ("modbuilder-icon.png", "ModBuilder Icon", null),
+            ("publisherstudio-icon.png", "Publisher Studio Icon", null),
+            ("hotkeyseditor-icon.png", "Hotkeys Editor Icon", null),
+            ("mapmanager-icon.png", "Map Manager Icon", null),
+            ("replaymanager-icon.png", "Replay Manager Icon", null),
+            ("gameprofilesettings-icon.png", "Profile Settings Icon", null),
+            ("settings-icon.png", "Settings Icon", null),
+            ("Factions/china.png", "China Faction Icon", null),
+            ("Factions/gla.png", "GLA Faction Icon", null),
+            ("Factions/usa.png", "USA Faction Icon", null),
         };
 
         foreach (var (fileName, displayName, gameType) in iconFiles)
@@ -147,6 +158,11 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
             ("cnclabs-logo.png", "CNC Labs Logo"),
             ("communityoutpost-logo.png", "Community Outpost Logo"),
             ("moddb-logo.png", "ModDB Logo"),
+            ("genlauncher-logo.png", "GenLauncher Logo"),
+            ("genpatcher-logo.png", "GenPatcher Logo"),
+            ("dominator-logo.png", "Dominator Logo"),
+            ("aodmaps-logo.png", "AoD Maps Logo"),
+            ("github-logo.png", "GitHub Logo"),
         };
 
         foreach (var (fileName, displayName) in logoFiles)
@@ -158,6 +174,25 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
                 DisplayName = displayName,
                 IsBuiltIn = true,
                 GameType = null,
+            });
+        }
+
+        // Load game images as icons
+        var imageFiles = new (string FileName, string DisplayName, string? GameType)[]
+        {
+            ("zero-hour-logo.png", "Zero Hour Logo", "ZeroHour"),
+            ("generals-logo.png", "Generals Logo", "Generals"),
+        };
+
+        foreach (var (fileName, displayName, gameType) in imageFiles)
+        {
+            _icons.Add(new ProfileResourceItem
+            {
+                Id = Path.GetFileNameWithoutExtension(fileName),
+                Path = $"{ImagesPath}/{fileName}",
+                DisplayName = displayName,
+                IsBuiltIn = true,
+                GameType = gameType,
             });
         }
 
@@ -200,6 +235,16 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
                 GameType = gameType,
             });
         }
+
+        // Add default background cover
+        _covers.Add(new ProfileResourceItem
+        {
+            Id = "background",
+            Path = "/Assets/background.jpg",
+            DisplayName = "Default Background",
+            IsBuiltIn = true,
+            GameType = null,
+        });
 
         logger.LogDebug(
             "Loaded {IconCount} built-in icons and {CoverCount} built-in covers",
