@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -12,7 +13,8 @@ namespace GenHub.Features.GameProfiles.Services;
 /// </summary>
 internal static class ClientPathResolver
 {
-    private static readonly ConcurrentDictionary<string, (string? ExecutablePath, string? WorkingDirectory)> ResolvedPathsCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<(string SourcePath, string? EntryPoint), (string? ExecutablePath, string? WorkingDirectory)> ResolvedPathsCache =
+        new(ClientPathKeyComparer.Instance);
 
     /// <summary>
     /// Clears the cached client path resolutions.
@@ -32,7 +34,7 @@ internal static class ClientPathResolver
             return (null, null);
         }
 
-        var cacheKey = string.IsNullOrEmpty(entryPoint) ? sourcePath : $"{sourcePath}|{entryPoint}";
+        var cacheKey = (sourcePath, entryPoint);
         if (ResolvedPathsCache.TryGetValue(cacheKey, out var cached))
         {
             return cached;
@@ -79,5 +81,23 @@ internal static class ClientPathResolver
                    string.Equals(extension, archiveExt, StringComparison.OrdinalIgnoreCase)) ||
                ContentFormatConstants.GuidedRejectionExtensions.Any(pkgExt =>
                    string.Equals(extension, pkgExt, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private sealed class ClientPathKeyComparer : IEqualityComparer<(string SourcePath, string? EntryPoint)>
+    {
+        public static readonly ClientPathKeyComparer Instance = new();
+
+        public bool Equals((string SourcePath, string? EntryPoint) x, (string SourcePath, string? EntryPoint) y)
+        {
+            return PathHelper.PathComparer.Equals(x.SourcePath, y.SourcePath) &&
+                   PathHelper.PathComparer.Equals(x.EntryPoint, y.EntryPoint);
+        }
+
+        public int GetHashCode((string SourcePath, string? EntryPoint) obj)
+        {
+            return HashCode.Combine(
+                PathHelper.PathComparer.GetHashCode(obj.SourcePath),
+                obj.EntryPoint != null ? PathHelper.PathComparer.GetHashCode(obj.EntryPoint) : 0);
+        }
     }
 }
