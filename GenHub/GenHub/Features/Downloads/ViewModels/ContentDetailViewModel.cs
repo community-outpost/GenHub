@@ -5098,79 +5098,28 @@ public partial class ContentDetailViewModel(
 
         if (profileManager != null && !string.IsNullOrEmpty(oldManifestId))
         {
+            bool profilesUpdated;
             try
             {
-                var profilesResult = await profileManager.GetAllProfilesAsync(cancellationToken);
-                if (profilesResult.Success && profilesResult.Data != null)
-                {
-                    foreach (var profile in profilesResult.Data)
-                    {
-                        var isGameClientMatch = profile.GameClient != null &&
-                            string.Equals(profile.GameClient.Id, oldManifestId, StringComparison.OrdinalIgnoreCase);
-                        var hasContentMatch = profile.EnabledContentIds.Contains(oldManifestId, StringComparer.OrdinalIgnoreCase);
-
-                        if (!isGameClientMatch && !hasContentMatch)
-                        {
-                            continue;
-                        }
-
-                        GameClient? updatedClient = profile.GameClient;
-                        if (isGameClientMatch)
-                        {
-                            updatedClient = new GameClient
-                            {
-                                Id = newManifest.Id.Value,
-                                Name = newManifest.Name,
-                                Version = newManifest.Version ?? string.Empty,
-                                GameType = newManifest.TargetGame,
-                                SourceType = newManifest.ContentType,
-                                PublisherType = newManifest.Publisher?.PublisherType,
-                                InstallationId = profile.GameClient?.InstallationId,
-                            };
-                        }
-
-                        var updatedContentIds = profile.EnabledContentIds
-                            .Select(id => string.Equals(id, oldManifestId, StringComparison.OrdinalIgnoreCase) ? newManifestId : id)
-                            .Distinct(StringComparer.OrdinalIgnoreCase)
-                            .ToList();
-
-                        if (promptResult.Strategy == UpdateStrategy.ReplaceCurrent)
-                        {
-                            var updateRequest = new UpdateProfileRequest
-                            {
-                                Name = profile.Name,
-                                Description = profile.Description,
-                                WorkspaceStrategy = profile.WorkspaceStrategy,
-                                EnabledContentIds = updatedContentIds,
-                                GameClient = updatedClient,
-                            };
-
-                            await profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
-                        }
-                        else if (promptResult.Strategy == UpdateStrategy.CreateNewProfile)
-                        {
-                            var versionText = !string.IsNullOrWhiteSpace(newManifest.Version)
-                                ? newManifest.Version
-                                : (!string.IsNullOrWhiteSpace(target.Version) ? target.Version : "Updated");
-
-                            var createRequest = new CreateProfileRequest
-                            {
-                                Name = $"{profile.Name} ({versionText})",
-                                Description = profile.Description,
-                                GameInstallationId = profile.GameInstallationId,
-                                WorkspaceStrategy = profile.WorkspaceStrategy,
-                                EnabledContentIds = updatedContentIds,
-                                GameClient = updatedClient,
-                            };
-
-                            await profileManager.CreateProfileAsync(createRequest, cancellationToken);
-                        }
-                    }
-                }
+                profilesUpdated = await ApplyBundleProfileUpdatesAsync(target, oldManifestId, newManifest, promptResult, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
+                return;
+            }
+
+            if (!profilesUpdated)
+            {
+                logger.LogWarning(
+                    "Skipping deletion of old manifest {OldManifestId} for bundle component {Name} because one or more profile updates failed",
+                    oldManifestId,
+                    target.Name);
+                return;
             }
         }
 
@@ -5200,6 +5149,146 @@ public partial class ContentDetailViewModel(
                 logger.LogWarning(ex, "Failed to delete old manifest {OldManifestId} for bundle component {Name}", oldManifestId, target.Name);
             }
         }
+    }
+
+    /// <summary>
+    /// Applies the bundle update strategy to every profile referencing the old manifest.
+    /// </summary>
+    /// <returns>True when all referencing profiles were updated, false when any update failed.</returns>
+    private async Task<bool> ApplyBundleProfileUpdatesAsync(
+        ContentSearchResult target,
+        string oldManifestId,
+        ContentManifest newManifest,
+        UpdateDialogResult promptResult,
+        CancellationToken cancellationToken)
+    {
+        var profilesResult = await profileManager.GetAllProfilesAsync(cancellationToken);
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            logger.LogWarning(
+                "Failed to list profiles for bundle component {Name}: {Error}. Keeping old manifest {OldManifestId}",
+                target.Name,
+                profilesResult.FirstError,
+                oldManifestId);
+            return false;
+        }
+
+        var allUpdated = true;
+        foreach (var profile in profilesResult.Data)
+        {
+            var updated = await ApplyBundleProfileUpdateAsync(profile, target, oldManifestId, newManifest, promptResult, cancellationToken);
+            if (!updated)
+            {
+                allUpdated = false;
+            }
+        }
+
+        return allUpdated;
+    }
+
+    /// <summary>
+    /// Applies the bundle update strategy to a single profile when it references the old manifest.
+    /// </summary>
+    /// <returns>True when the profile did not reference the old manifest or was updated, false on failure.</returns>
+    private async Task<bool> ApplyBundleProfileUpdateAsync(
+        GameProfile profile,
+        ContentSearchResult target,
+        string oldManifestId,
+        ContentManifest newManifest,
+        UpdateDialogResult promptResult,
+        CancellationToken cancellationToken)
+    {
+        var newManifestId = newManifest.Id.Value;
+        var isGameClientMatch = profile.GameClient != null &&
+            string.Equals(profile.GameClient.Id, oldManifestId, StringComparison.OrdinalIgnoreCase);
+        var hasContentMatch = profile.EnabledContentIds.Contains(oldManifestId, StringComparer.OrdinalIgnoreCase);
+
+        if (!isGameClientMatch && !hasContentMatch)
+        {
+            return true;
+        }
+
+        GameClient? updatedClient = profile.GameClient;
+        if (isGameClientMatch)
+        {
+            updatedClient = new GameClient
+            {
+                Id = newManifest.Id.Value,
+                Name = newManifest.Name,
+                Version = newManifest.Version ?? string.Empty,
+                GameType = newManifest.TargetGame,
+                SourceType = newManifest.ContentType,
+                PublisherType = newManifest.Publisher?.PublisherType,
+                InstallationId = profile.GameClient?.InstallationId,
+            };
+        }
+
+        var updatedContentIds = profile.EnabledContentIds
+            .Select(id => string.Equals(id, oldManifestId, StringComparison.OrdinalIgnoreCase) ? newManifestId : id)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (promptResult.Strategy == UpdateStrategy.ReplaceCurrent)
+        {
+            var updateRequest = new UpdateProfileRequest
+            {
+                Name = profile.Name,
+                Description = profile.Description,
+                WorkspaceStrategy = profile.WorkspaceStrategy,
+                EnabledContentIds = updatedContentIds,
+                GameClient = updatedClient,
+            };
+
+            var updateResult = await profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
+            if (!updateResult.Success)
+            {
+                logger.LogWarning(
+                    "Failed to update profile {ProfileName} for bundle component {Name}: {Error}",
+                    profile.Name,
+                    target.Name,
+                    updateResult.FirstError);
+                return false;
+            }
+
+            return true;
+        }
+
+        if (promptResult.Strategy == UpdateStrategy.CreateNewProfile)
+        {
+            var versionText = "Updated";
+            if (!string.IsNullOrWhiteSpace(newManifest.Version))
+            {
+                versionText = newManifest.Version;
+            }
+            else if (!string.IsNullOrWhiteSpace(target.Version))
+            {
+                versionText = target.Version;
+            }
+
+            var createRequest = new CreateProfileRequest
+            {
+                Name = $"{profile.Name} ({versionText})",
+                Description = profile.Description,
+                GameInstallationId = profile.GameInstallationId,
+                WorkspaceStrategy = profile.WorkspaceStrategy,
+                EnabledContentIds = updatedContentIds,
+                GameClient = updatedClient,
+            };
+
+            var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
+            if (!createResult.Success)
+            {
+                logger.LogWarning(
+                    "Failed to create profile for bundle component {Name}: {Error}",
+                    target.Name,
+                    createResult.FirstError);
+                return false;
+            }
+
+            return true;
+        }
+
+        return true;
     }
 
     /// <summary>
