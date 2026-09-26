@@ -534,6 +534,26 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
     }
 
+    /// <summary>
+    /// Checks if a profile uses a SuperHackers game client.
+    /// </summary>
+    /// <param name="profile">The profile to check.</param>
+    /// <returns>True if the profile uses SuperHackers, false otherwise.</returns>
+    private static bool IsSuperHackersProfile(GameProfile profile)
+    {
+        return profile.IsTheSuperHackersProfile();
+    }
+
+    /// <summary>
+    /// Checks if a profile uses a Community Outpost game client.
+    /// </summary>
+    /// <param name="profile">The profile to check.</param>
+    /// <returns>True if the profile uses Community Outpost, false otherwise.</returns>
+    private static bool IsCommunityOutpostProfile(GameProfile profile)
+    {
+        return profile.IsCommunityOutpostProfile();
+    }
+
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(
         GameProfile profile,
         string profileId,
@@ -1593,26 +1613,6 @@ public class ProfileLauncherFacade(
         }
 
         return parts.Count > 0 ? $"({string.Join(" and ", parts)})" : string.Empty;
-    }
-
-    /// <summary>
-    /// Checks if a profile uses a SuperHackers game client.
-    /// </summary>
-    /// <param name="profile">The profile to check.</param>
-    /// <returns>True if the profile uses SuperHackers, false otherwise.</returns>
-    private static bool IsSuperHackersProfile(GameProfile profile)
-    {
-        return profile.IsTheSuperHackersProfile();
-    }
-
-    /// <summary>
-    /// Checks if a profile uses a Community Outpost game client.
-    /// </summary>
-    /// <param name="profile">The profile to check.</param>
-    /// <returns>True if the profile uses Community Outpost, false otherwise.</returns>
-    private static bool IsCommunityOutpostProfile(GameProfile profile)
-    {
-        return profile.IsCommunityOutpostProfile();
     }
 
     /// <summary>
