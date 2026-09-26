@@ -68,6 +68,7 @@ public class ToolsViewModelTests
         // Assert
         Assert.Equal(plugin2, _viewModel.SelectedTool);
         Assert.NotNull(_viewModel.CurrentToolControl);
+        Assert.NotNull(_viewModel.CurrentToolControl);
     }
 
     /// <summary>

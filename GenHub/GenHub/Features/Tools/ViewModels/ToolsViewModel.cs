@@ -443,11 +443,8 @@ public sealed partial class ToolsViewModel(
             var toolToSelect = previousSelectedId != null
                 ? InstalledTools.FirstOrDefault(t => string.Equals(t.Metadata.Id, previousSelectedId, StringComparison.OrdinalIgnoreCase))
                 : null;
-            SelectedTool = toolToSelect;
-            if (toolToSelect == null)
-            {
-                _lastOpenedTool = null;
-            }
+
+            RestoreSelectedTool(toolToSelect);
 
             ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedCountSuccess", InstalledTools.Count) ?? $"Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
         }
@@ -459,6 +456,25 @@ public sealed partial class ToolsViewModel(
         }
 
         logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
+    }
+
+    private void RestoreSelectedTool(IToolPlugin? toolToSelect)
+    {
+        if (toolToSelect == null)
+        {
+            SelectedTool = null;
+            _lastOpenedTool = null;
+            return;
+        }
+
+        if (SelectedTool == toolToSelect)
+        {
+            ActivateTool(toolToSelect);
+        }
+        else
+        {
+            SelectedTool = toolToSelect;
+        }
     }
 
     partial void OnSelectedToolChanged(IToolPlugin? oldValue, IToolPlugin? newValue)
