@@ -1,6 +1,7 @@
 using Avalonia.Media.Imaging;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -13,6 +14,7 @@ namespace GenHub.Core.Models.Tools.MapManager;
 public class MapFile : INotifyPropertyChanged
 {
     private Bitmap? _thumbnailBitmap;
+    private int? _playerCount;
 
     /// <summary>
     /// Event for property change notifications.
@@ -69,6 +71,33 @@ public class MapFile : INotifyPropertyChanged
     /// Gets or sets the display name for this map (parsed from file or directory).
     /// </summary>
     public string? DisplayName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of players supported by this map.
+    /// </summary>
+    public int? PlayerCount
+    {
+        get => _playerCount;
+        set
+        {
+            if (_playerCount != value)
+            {
+                _playerCount = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(FormattedPlayerCount));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the formatted display text for the number of players.
+    /// </summary>
+    public string FormattedPlayerCount => PlayerCount is > 0 ? PlayerCount.Value.ToString() : "-";
+
+    /// <summary>
+    /// Gets the display text for the map format or type.
+    /// </summary>
+    public string MapTypeDisplay => !IsDirectory && FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? "Archive" : (IsDirectory ? "Directory" : "Map");
 
     /// <summary>
     /// Gets or sets the path to the thumbnail image file (.tga).

@@ -1400,6 +1400,9 @@
   <data name="Maps.Column.Size" xml:space="preserve">
     <value>Размер</value>
   </data>
+  <data name="Maps.Column.Players" xml:space="preserve">
+    <value>Количество игроков</value>
+  </data>
   <data name="Maps.Column.Type" xml:space="preserve">
     <value>Тип</value>
   </data>
@@ -5013,6 +5016,9 @@
   </data>
   <data name="Tools.ReplayManager.Column.Map" xml:space="preserve">
     <value>Карта</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Players" xml:space="preserve">
+    <value>Количество игроков</value>
   </data>
   <data name="Tools.ReplayManager.Column.ClientBuild" xml:space="preserve">
     <value>Клиент / Сборка</value>

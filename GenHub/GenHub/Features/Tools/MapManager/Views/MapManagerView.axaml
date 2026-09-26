@@ -106,12 +106,13 @@
                   SelectionMode="Extended"
                   HeadersVisibility="Column"
                   CanUserResizeColumns="True"
+                  CanUserSortColumns="True"
                   GridLinesVisibility="Horizontal"
                   BorderThickness="0"
                   RowHeight="48"
                   IsReadOnly="True">
           <DataGrid.Columns>
-            <DataGridTemplateColumn Header="" Width="48">
+            <DataGridTemplateColumn Header="" Width="48" CanUserSort="False">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate x:DataType="models:MapFile">
                   <Image Source="{Binding ThumbnailBitmap}"
@@ -123,18 +124,28 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="{localization:Localize Maps.Column.Name}" Binding="{Binding DisplayName}" Width="*" MinWidth="180" />
-            <DataGridTextColumn Header="{localization:Localize Maps.Column.Size}" Width="Auto" MinWidth="95">
+            <DataGridTextColumn Header="{localization:Localize Maps.Column.Name}" Binding="{Binding DisplayName}" Width="*" MinWidth="180" SortMemberPath="DisplayName" />
+            <DataGridTemplateColumn Header="{localization:Localize Maps.Column.Players}" Width="Auto" MinWidth="85" SortMemberPath="PlayerCount">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="models:MapFile">
+                  <TextBlock Text="{Binding FormattedPlayerCount}"
+                             VerticalAlignment="Center"
+                             HorizontalAlignment="Center"
+                             Margin="4,0"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="{localization:Localize Maps.Column.Size}" Width="Auto" MinWidth="95" SortMemberPath="SizeBytes">
               <DataGridTextColumn.Binding>
                 <Binding Path="SizeBytes" Converter="{StaticResource FileSizeConverter}" Mode="OneWay" />
               </DataGridTextColumn.Binding>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="{localization:Localize Maps.Column.Type}" Width="Auto" MinWidth="130">
+            <DataGridTextColumn Header="{localization:Localize Maps.Column.Type}" Width="Auto" MinWidth="130" SortMemberPath="MapTypeDisplay">
               <DataGridTextColumn.Binding>
                 <Binding Path="." Converter="{StaticResource MapTypeDisplayConverter}" Mode="OneWay" />
               </DataGridTextColumn.Binding>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="{localization:Localize Maps.Column.Modified}" Binding="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="Auto" MinWidth="180" />
+            <DataGridTextColumn Header="{localization:Localize Maps.Column.Modified}" Binding="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="Auto" MinWidth="180" SortMemberPath="LastModified" />
           </DataGrid.Columns>
         </DataGrid>
       </Border>

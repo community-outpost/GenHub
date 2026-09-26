@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace GenHub.Core.Models.Tools.ReplayManager;
 
@@ -53,6 +54,30 @@ public sealed class ReplayFile : IExportableFile
     /// Gets the INI configuration CRC from the replay metadata, if available.
     /// </summary>
     public uint? IniCrc => Metadata?.IniCrc;
+
+    /// <summary>
+    /// Gets the map name from the replay metadata, if available.
+    /// </summary>
+    public string MapName => Metadata?.MapName ?? string.Empty;
+
+    /// <summary>
+    /// Gets the number of players in the replay match.
+    /// </summary>
+    public int PlayerCount => Metadata?.Players?.Count ?? Metadata?.Slots?.Count ?? 0;
+
+    /// <summary>
+    /// Gets the formatted display text for the number of players.
+    /// </summary>
+    public string FormattedPlayerCount => PlayerCount > 0 ? PlayerCount.ToString() : "-";
+
+    /// <summary>
+    /// Gets a comma-separated list of player names in the replay match.
+    /// </summary>
+    public string PlayerNamesDisplay => Metadata?.Players is { Count: > 0 } players
+        ? string.Join(", ", players)
+        : (Metadata?.Slots is { Count: > 0 } slots
+            ? string.Join(", ", slots.Select(s => s.PlayerName))
+            : string.Empty);
 
     /// <summary>
     /// Gets or sets the compatibility status against known and installed game clients.
