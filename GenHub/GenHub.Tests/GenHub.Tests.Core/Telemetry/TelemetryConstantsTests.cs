@@ -24,6 +24,8 @@ public class TelemetryConstantsTests
         Assert.StartsWith("phc_", TelemetryConstants.DefaultPostHogApiKey);
         Assert.Equal("https://us.i.posthog.com", TelemetryConstants.DefaultPostHogHost);
         Assert.Equal("https://us.i.posthog.com/i/v0/e/", TelemetryConstants.DefaultPostHogCaptureEndpoint);
+        Assert.Equal("/i/v0/e/", TelemetryConstants.DefaultPostHogCapturePath);
+        Assert.Equal("PR-", TelemetryConstants.PullRequestChannelPrefix);
         Assert.Equal("567732", TelemetryConstants.DefaultPostHogProjectId);
     }
 
@@ -98,6 +100,7 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.IsCrucial,
             TelemetryConstants.Properties.Success,
             TelemetryConstants.Properties.ErrorMessage,
+            TelemetryConstants.Properties.ErrorCategory,
             TelemetryConstants.Properties.ProjectName,
             TelemetryConstants.Properties.BuildSteps,
             TelemetryConstants.Properties.ToolSource,

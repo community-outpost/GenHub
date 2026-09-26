@@ -24,7 +24,8 @@ Telemetry strictly honors user choice and local regulations:
 
 | Event Name | Constant | Emitted When | Key Properties |
 |---|---|---|---|
-| `profile_launched` | `Events.ProfileLaunched` | A game profile is launched | `profile_id`, `profile_name`, `game_type`, `launch_source` ("launcher" \| "shortcut") |
+| `profile_launched` | `Events.ProfileLaunched` | A game profile is launched | `profile_id`, `game_type`, `launch_source` ("launcher" \| "shortcut" \| "ipc"), `time_to_launch_ms` |
+| `profile_launch_failed` | `Events.ProfileLaunchFailed` | A game profile fails to launch | `profile_id`, `game_type`, `launch_source`, `time_to_launch_ms`, `error_category` |
 | `profile_launched_from_shortcut` | `Events.ProfileLaunchedFromShortcut` | A game profile is launched via OS shortcut or IPC URI | `profile_id` |
 | `profile_pinned` | `Events.ProfilePinned` | A game profile is pinned to desktop or launcher shortcuts | `profile_id`, `profile_name`, `game_type`, `shortcut_type` ("desktop") |
 | `profile_shared` | `Events.ProfileShared` | A profile is exported/shared to URI, JSON, or `.ghprofile` file | `profile_id`, `share_format` ("uri" \| "file" \| "json"), `file_size_bytes` |
@@ -32,11 +33,11 @@ Telemetry strictly honors user choice and local regulations:
 | `game_session_started` | `Events.GameSessionStarted` | Game executable process starts | `game_type`, `runner`, `installation_type`, `is_custom_runner`, `is_direct_play` |
 | `game_session_ended` | `Events.GameSessionEnded` | Game executable process exits | `game_type`, `runner`, `duration_seconds`, `exit_code`, `was_graceful` |
 | `game_session_heartbeat` | `Events.GameSessionHeartbeat` | Periodic alive signal while in-game (5 min) | `game_type`, `duration_seconds` |
-| `app_update_checked` | `Events.AppUpdateChecked` | Velopack checks for application updates | `current_version`, `channel` |
+| `app_update_checked` | `Events.AppUpdateChecked` | Velopack checks for application updates | `from_version`, `full_display_version`, `build_channel`, `channel`, `platform` |
 | `app_update_downloaded` | `Events.AppUpdateDownloaded` | Velopack finishes downloading an update package | `from_version`, `to_version` |
 | `app_update_applied` | `Events.AppUpdateApplied` | Application update is applied and app restarts | `from_version`, `to_version` |
-| `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `content_id`, `content_name`, `file_name`, `publisher_id`, `content_type`, `size_mb`, `speed_mbps`, `duration_seconds` |
-| `content_download_failed` | `Events.ContentDownloadFailed` | Content download fails | `content_id`, `content_name`, `file_name`, `publisher_id`, `content_type`, `error_message`, `duration_seconds` |
+| `content_download_completed` | `Events.ContentDownloadCompleted` | Content download finishes | `content_type` ("Package"), `size_mb`, `speed_mbps`, `duration_seconds` |
+| `content_download_failed` | `Events.ContentDownloadFailed` | Content download fails | `content_type` ("Package"), `error_message`, `duration_seconds` |
 | `content_update_applied` | `Events.ContentUpdateApplied` | Publisher content update (GeneralsOnline, SuperHackers, CommunityOutpost) successfully applied | `publisher_id`, `content_name`, `from_version`, `to_version`, `strategy`, `profiles_updated`, `success` |
 | `content_update_failed` | `Events.ContentUpdateFailed` | Publisher content update fails | `publisher_id`, `content_name`, `from_version`, `to_version`, `strategy`, `error_message` |
 | `uploadthing_upload_completed` | `Events.UploadThingUploadCompleted` | User upload to UploadThing gateway succeeds | `file_name`, `size_mb`, `file_size_bytes`, `duration_seconds` |

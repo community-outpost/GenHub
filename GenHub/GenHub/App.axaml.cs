@@ -648,7 +648,7 @@ public partial class App : Application
             logger?.LogInformation("Received IPC launch command for profile: {ProfileId}", profileId);
 
             // Handle the profile launch
-            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow, "ipc"), nameof(LaunchProfileByIdAsync));
+            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow, TelemetryConstants.LaunchSources.Ipc), nameof(LaunchProfileByIdAsync));
         }
         else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -789,25 +789,26 @@ public partial class App : Application
             TaskContinuationOptions.OnlyOnFaulted);
     }
 
-    private async Task LaunchProfileByIdAsync(string profileId, MainWindow mainWindow, string launchSource = "shortcut")
+    private async Task LaunchProfileByIdAsync(string profileId, MainWindow mainWindow, string launchSource = TelemetryConstants.LaunchSources.Shortcut)
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();
         var profileManager = _serviceProvider.GetService<IGameProfileManager>();
-        GameProfile? profile = null;
-        if (profileManager != null)
-        {
-            var profileResult = await profileManager.GetProfileAsync(profileId);
-            if (profileResult.Success)
-            {
-                profile = profileResult.Data;
-            }
-        }
-
-        var gameClient = profile?.GameClient;
 
         var sw = Stopwatch.StartNew();
         try
         {
+            GameProfile? profile = null;
+            if (profileManager != null)
+            {
+                var profileResult = await profileManager.GetProfileAsync(profileId);
+                if (profileResult.Success)
+                {
+                    profile = profileResult.Data;
+                }
+            }
+
+            var gameClient = profile?.GameClient;
+
             logger?.LogInformation("Launching profile {ProfileId}...", profileId);
 
             var launchResult = await _profileLauncherFacade.LaunchProfileAsync(profileId);
@@ -824,16 +825,14 @@ public partial class App : Application
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
-                    [TelemetryConstants.Properties.ProfileName] = profile?.Name,
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                     [TelemetryConstants.Properties.LaunchSource] = launchSource,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
-                    [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
                 });
-                if (string.Equals(launchSource, "shortcut", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(launchSource, TelemetryConstants.LaunchSources.Shortcut, StringComparison.OrdinalIgnoreCase))
                 {
                     _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchedFromShortcut, new Dictionary<string, object?>
                     {
@@ -857,14 +856,13 @@ public partial class App : Application
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
-                    [TelemetryConstants.Properties.ProfileName] = profile?.Name,
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                     [TelemetryConstants.Properties.LaunchSource] = launchSource,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
-                    [TelemetryConstants.Properties.ErrorMessage] = errors,
+                    [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
                 });
             }
         }
@@ -875,14 +873,9 @@ public partial class App : Application
             _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = profileId,
-                [TelemetryConstants.Properties.ProfileName] = profile?.Name,
-                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
-                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
-                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
-                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                 [TelemetryConstants.Properties.LaunchSource] = launchSource,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = sw.ElapsedMilliseconds,
-                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                [TelemetryConstants.Properties.ErrorCategory] = ex.GetType().Name,
             });
         }
     }

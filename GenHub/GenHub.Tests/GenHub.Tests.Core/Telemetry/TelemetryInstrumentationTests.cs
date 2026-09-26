@@ -229,6 +229,9 @@ public class TelemetryInstrumentationTests
         reconciliationServiceMock
             .Setup(x => x.OrchestrateBulkUpdateAsync(It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(1, 0)));
+        reconciliationServiceMock
+            .Setup(x => x.ScheduleGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
 
         var reconciler = new CommunityOutpostProfileReconciler(
             NullLogger<CommunityOutpostProfileReconciler>.Instance,

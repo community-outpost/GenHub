@@ -84,18 +84,25 @@ public sealed class GameInstallationDetectionOrchestrator(
         var hasGenerals = allGameInstallations.Any(i => i.HasGenerals);
         var hasZeroHour = allGameInstallations.Any(i => i.HasZeroHour);
 
-        telemetryService?.TrackEvent(TelemetryConstants.Events.GameInstallationsDetected, new Dictionary<string, object?>
+        try
         {
-            [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
-            [TelemetryConstants.Properties.InstallationCount] = allGameInstallations.Count,
-            [TelemetryConstants.Properties.HasSteam] = hasSteam,
-            [TelemetryConstants.Properties.HasEaApp] = hasEaApp,
-            [TelemetryConstants.Properties.HasTheFirstDecade] = hasTheFirstDecade,
-            [TelemetryConstants.Properties.HasGenerals] = hasGenerals,
-            [TelemetryConstants.Properties.HasZeroHour] = hasZeroHour,
-            [TelemetryConstants.Properties.Success] = errors.Count == 0,
-            [TelemetryConstants.Properties.ErrorMessage] = errors.Count > 0 ? string.Join("; ", errors) : null,
-        });
+            telemetryService?.TrackEvent(TelemetryConstants.Events.GameInstallationsDetected, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.InstallationCount] = allGameInstallations.Count,
+                [TelemetryConstants.Properties.HasSteam] = hasSteam,
+                [TelemetryConstants.Properties.HasEaApp] = hasEaApp,
+                [TelemetryConstants.Properties.HasTheFirstDecade] = hasTheFirstDecade,
+                [TelemetryConstants.Properties.HasGenerals] = hasGenerals,
+                [TelemetryConstants.Properties.HasZeroHour] = hasZeroHour,
+                [TelemetryConstants.Properties.Success] = errors.Count == 0,
+                [TelemetryConstants.Properties.ErrorMessage] = errors.Count > 0 ? string.Join("; ", errors) : null,
+            });
+        }
+        catch (Exception teleEx)
+        {
+            logger.LogWarning(teleEx, "Failed to track game installation detection telemetry");
+        }
 
         return errors.Count > 0
              ? DetectionResult<GameInstallation>.CreateFailure(string.Join("; ", errors))

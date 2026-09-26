@@ -739,19 +739,26 @@ public class GameProcessManager(
         if (_sessionMetadata.TryRemove(process, out var sessionMeta) && telemetryService != null)
         {
             var duration = (DateTime.UtcNow - sessionMeta.StartTime).TotalSeconds;
-            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, new Dictionary<string, object?>
+            var endProperties = new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
                 [TelemetryConstants.Properties.DurationSeconds] = duration,
-                [TelemetryConstants.Properties.ExitCode] = exitCode,
-                [TelemetryConstants.Properties.WasGraceful] = exitCode == 0,
                 [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
                 [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
                 [TelemetryConstants.Properties.GameType] = sessionMeta.GameType,
                 [TelemetryConstants.Properties.GameClientId] = sessionMeta.GameClientId,
                 [TelemetryConstants.Properties.GameClientName] = sessionMeta.GameClientName,
                 [TelemetryConstants.Properties.GameClientVersion] = sessionMeta.GameClientVersion,
-            });
+            };
+
+            // An unknown exit code is not a crash; omit both properties instead of reporting failure.
+            if (exitCode is int knownExitCode)
+            {
+                endProperties[TelemetryConstants.Properties.ExitCode] = knownExitCode;
+                endProperties[TelemetryConstants.Properties.WasGraceful] = knownExitCode == ProcessConstants.ExitCodeSuccess;
+            }
+
+            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, endProperties);
         }
 
         var terminationRequested = _requestedTerminations.TryRemove(process, out _);

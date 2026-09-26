@@ -225,7 +225,7 @@
         <span>Endpoint: <code>https://us.i.posthog.com/i/v0/e/</code></span>
         <span class="badge badge-green">Pipeline: Dual-Sink</span>
         <span class="badge badge-blue">Dashboards: 8</span>
-        <span class="badge badge-purple">Insight Tiles: 46</span>
+        <span class="badge badge-purple">Insight Tiles: 45</span>
       </div>
     </header>
 
@@ -274,7 +274,7 @@
     <section>
       <h2>2. Complete Inventory of Tracked Events</h2>
       <p>
-        All 28 discrete events defined in <code>TelemetryConstants.Events</code> with their triggering domains, code locations, and emitted payloads.
+        27 of the 28 events defined in <code>TelemetryConstants.Events</code> with their triggering domains, code locations, and emitted payloads. <code>cas_reconcile_completed</code> is defined but not yet emitted by any call site.
       </p>
 
       <table>
@@ -303,19 +303,19 @@
             <td><strong>Game Process</strong></td>
             <td><code>game_session_ended</code></td>
             <td><code>GameProcessManager.cs</code></td>
-            <td><code>session_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>runner</code>, <code>duration_seconds</code>, <code>exit_code</code>, <code>was_graceful</code> (exit_code == 0)</td>
+            <td><code>session_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>runner</code>, <code>duration_seconds</code>, <code>exit_code</code>, <code>was_graceful</code> (both omitted when the exit code is unknown)</td>
           </tr>
           <tr>
             <td><strong>Game Profiles</strong></td>
             <td><code>profile_launched</code></td>
             <td><code>GameProfileLauncherViewModel.cs</code></td>
-            <td><code>profile_id</code>, <code>profile_name</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>launch_source</code>, <code>time_to_launch_ms</code>, <code>duration_seconds</code></td>
+            <td><code>profile_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>launch_source</code>, <code>time_to_launch_ms</code></td>
           </tr>
           <tr>
             <td><strong>Game Profiles</strong></td>
             <td><code>profile_launch_failed</code></td>
             <td><code>GameProfileLauncherViewModel.cs</code></td>
-            <td><code>profile_id</code>, <code>profile_name</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>launch_source</code>, <code>time_to_launch_ms</code>, <code>error_message</code></td>
+            <td><code>profile_id</code>, <code>game_type</code>, <code>game_client_id</code>, <code>game_client_name</code>, <code>game_client_version</code>, <code>launch_source</code>, <code>time_to_launch_ms</code>, <code>error_category</code></td>
           </tr>
           <tr>
             <td><strong>Game Profiles</strong></td>
@@ -369,7 +369,7 @@
             <td><strong>App Updates</strong></td>
             <td><code>app_update_checked</code></td>
             <td><code>VelopackUpdateManager.cs</code></td>
-            <td><code>channel</code>, <code>from_version</code>, <code>to_version</code>, <code>success</code></td>
+            <td><code>from_version</code>, <code>full_display_version</code>, <code>build_channel</code>, <code>channel</code>, <code>platform</code></td>
           </tr>
           <tr>
             <td><strong>App Updates</strong></td>
@@ -417,19 +417,13 @@
             <td><strong>Replay Manager</strong></td>
             <td><code>replay_exported_zip</code></td>
             <td><code>ReplayManagerViewModel.cs</code></td>
-            <td><code>replay_count</code>, <code>file_size_bytes</code>, <code>duration_seconds</code></td>
+            <td><code>replay_count</code>, <code>duration_seconds</code>, <code>success</code> (<code>error_message</code> on failure)</td>
           </tr>
           <tr>
             <td><strong>Replay Manager</strong></td>
             <td><code>replay_checkpoint_minted</code></td>
             <td><code>ReplayManagerViewModel.cs</code></td>
-            <td><code>target_frame</code>, <code>duration_seconds</code></td>
-          </tr>
-          <tr>
-            <td><strong>CAS Storage</strong></td>
-            <td><code>cas_reconcile_completed</code></td>
-            <td><code>CasLifecycleManager.cs</code></td>
-            <td><code>file_count</code>, <code>bytes_reconciled</code>, <code>cache_hit_rate</code>, <code>duration_seconds</code></td>
+            <td><code>game_type</code>, <code>target_frame</code>, <code>profile_id</code>, <code>success</code> (<code>error_message</code> on failure)</td>
           </tr>
           <tr>
             <td><strong>CAS Storage</strong></td>
@@ -441,7 +435,7 @@
             <td><strong>Workspaces</strong></td>
             <td><code>workspace_prepared</code></td>
             <td><code>WorkspaceManager.cs</code></td>
-            <td><code>workspace_id</code>, <code>strategy</code> (Hardlink/Symlink/Copy), <code>manifest_count</code>, <code>is_reused</code>, <code>duration_seconds</code></td>
+            <td><code>workspace_id</code>, <code>strategy</code> (Hardlink/Symlink/Copy), <code>manifest_count</code>, <code>is_reused</code>, <code>success</code> (<code>error_message</code> on failure)</td>
           </tr>
           <tr>
             <td><strong>Installation</strong></td>
@@ -460,9 +454,9 @@
     </section>
 
     <section>
-      <h2>3. PostHog Dashboards & Insight Tiles (8 Modular Dashboards, 46 Insight Tiles)</h2>
+      <h2>3. PostHog Dashboards & Insight Tiles (8 Modular Dashboards, 45 Insight Tiles)</h2>
       <p>
-        Configured via <code>docs/dev/posthog-dashboard-config.json</code> with standardized <code>trendsFilter.display</code> properties across 8 modular production dashboards (with 46 insight tiles covering executive overviews, game sessions, profile sharing, content delivery, GenPatcher/ModBuilder, CAS storage, workspace engine, and replay forensics).
+        Configured via <code>docs/dev/posthog-dashboard-config.json</code> with standardized <code>trendsFilter.display</code> properties across 8 modular production dashboards (with 45 insight tiles covering executive overviews, game sessions, profile sharing, content delivery, GenPatcher/ModBuilder, CAS storage, workspace engine, and replay forensics).
       </p>
 
       <h3>Dashboard 1: Executive Overview & Community Engagement (ID: genhub-executive-overview)</h3>
@@ -676,7 +670,7 @@
             <td>Trends</td>
             <td><code>ActionsTable</code></td>
             <td><code>profile_launch_failed</code> (math: total)</td>
-            <td>Breakdown by <code>error_message</code></td>
+            <td>Breakdown by <code>error_category</code></td>
           </tr>
         </tbody>
       </table>

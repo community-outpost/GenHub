@@ -140,6 +140,24 @@ public sealed class SentryTelemetrySink(
             : OperationResult<bool>.CreateSuccess(true);
     }
 
+    private static bool IsValidSentryEventId(string? eventId)
+    {
+        if (string.IsNullOrEmpty(eventId) || eventId.Length != 32)
+        {
+            return false;
+        }
+
+        foreach (var c in eventId)
+        {
+            if (!Uri.IsHexDigit(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static Dictionary<string, object?> BuildSentryPayload(TelemetryEvent telemetryEvent)
     {
         var extra = new Dictionary<string, object?>(telemetryEvent.Properties ?? new Dictionary<string, object?>());
@@ -171,7 +189,7 @@ public sealed class SentryTelemetrySink(
 
         var payload = new Dictionary<string, object?>
         {
-            ["event_id"] = telemetryEvent.EventId,
+            ["event_id"] = IsValidSentryEventId(telemetryEvent.EventId) ? telemetryEvent.EventId : Guid.NewGuid().ToString("N"),
             ["timestamp"] = telemetryEvent.Timestamp.ToString("o"),
             ["platform"] = "csharp",
             ["level"] = isFatal ? "fatal" : "error",

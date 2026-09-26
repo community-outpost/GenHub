@@ -476,7 +476,7 @@
               "breakdowns": [
                 {
                   "type": "event",
-                  "property": "error_message"
+                  "property": "error_category"
                 }
               ]
             },
@@ -590,7 +590,7 @@
       "pinned": false,
       "tiles": [
         {
-          "name": "Downloads by Publisher",
+          "name": "Total Downloads",
           "type": "Trends",
           "display": "ActionsTable",
           "query": {
@@ -605,14 +605,6 @@
             ],
             "dateRange": {
               "date_from": "-30d"
-            },
-            "breakdownFilter": {
-              "breakdowns": [
-                {
-                  "type": "event",
-                  "property": "publisher_id"
-                }
-              ]
             },
             "trendsFilter": {
               "display": "ActionsTable"
@@ -636,14 +628,6 @@
             ],
             "dateRange": {
               "date_from": "-30d"
-            },
-            "breakdownFilter": {
-              "breakdowns": [
-                {
-                  "type": "event",
-                  "property": "source_provider"
-                }
-              ]
             },
             "trendsFilter": {
               "display": "ActionsLineGraph"
@@ -700,36 +684,6 @@
             },
             "trendsFilter": {
               "display": "ActionsBar"
-            }
-          }
-        },
-        {
-          "name": "Top Content & Packages Downloaded",
-          "type": "Trends",
-          "display": "ActionsTable",
-          "query": {
-            "kind": "TrendsQuery",
-            "series": [
-              {
-                "kind": "EventsNode",
-                "event": "content_download_completed",
-                "name": "Downloads",
-                "math": "total"
-              }
-            ],
-            "dateRange": {
-              "date_from": "-30d"
-            },
-            "breakdownFilter": {
-              "breakdowns": [
-                {
-                  "type": "event",
-                  "property": "content_name"
-                }
-              ]
-            },
-            "trendsFilter": {
-              "display": "ActionsTable"
             }
           }
         },
@@ -1067,7 +1021,15 @@
                 "kind": "EventsNode",
                 "event": "workspace_prepared",
                 "name": "Workspaces Prepared",
-                "math": "total"
+                "math": "total",
+                "properties": [
+                  {
+                    "key": "success",
+                    "value": ["true"],
+                    "operator": "exact",
+                    "type": "event"
+                  }
+                ]
               }
             ],
             "dateRange": {

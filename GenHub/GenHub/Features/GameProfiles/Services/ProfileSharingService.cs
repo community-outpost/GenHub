@@ -164,7 +164,7 @@ public class ProfileSharingService(
             {
                 [TelemetryConstants.Properties.ProfileId] = profileId,
                 [TelemetryConstants.Properties.ShareFormat] = "file",
-                [TelemetryConstants.Properties.FileSizeBytes] = new FileInfo(destinationPath).Length,
+                [TelemetryConstants.Properties.FileSizeBytes] = Encoding.UTF8.GetByteCount(json),
             });
             return OperationResult<string>.CreateSuccess(destinationPath);
         }

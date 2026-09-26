@@ -2284,7 +2284,7 @@
     <comment>Title for file picker dialog when selecting settings file location</comment>
   </data>
   <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Description" xml:space="preserve">
-    <value>اختر مقاييس الاستخدام المجهولة وتشخيصات الأعطال التي تريد مشاركتها للمساعدة في تحسين GenHub. يتم تطهير جميع المسارات والمعرفات الشخصية قبل الإرسال.</value>
+    <value>اختر مقاييس الاستخدام المجهولة وتشخيصات الأعطال التي تريد مشاركتها للمساعدة في تحسين GenHub. تتم إزالة المسارات والمعرفات الشخصية التي يتعرف عليها نظام التطهير قبل الإرسال.</value>
     <comment>Description for telemetry and crash reporting level setting.</comment>
   </data>
   <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Label" xml:space="preserve">

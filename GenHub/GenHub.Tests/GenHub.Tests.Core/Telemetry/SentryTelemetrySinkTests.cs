@@ -145,6 +145,87 @@ public class SentryTelemetrySinkTests
     }
 
     /// <summary>
+    /// Verifies EmitAsync regenerates out-of-spec event identifiers into Sentry-compliant 32-character hex ids.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task EmitAsync_WhenEventIdInvalid_RegeneratesSentryCompliantIdAsync()
+    {
+        string? capturedBody = null;
+        var handler = new TestHandler(async request =>
+        {
+            if (request.Content != null)
+            {
+                capturedBody = await request.Content.ReadAsStringAsync();
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var client = new HttpClient(handler);
+        var sink = new SentryTelemetrySink(_loggerMock.Object, client)
+        {
+            DsnEndpoint = "https://testkey@sentry.example.com/1234",
+        };
+
+        var ev = new TelemetryEvent
+        {
+            EventId = "not-valid",
+            EventName = TelemetryConstants.Events.AppCrash,
+            Level = TelemetryLevel.CrashReportsOnly,
+        };
+
+        var result = await sink.EmitAsync(ev);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedBody);
+        using var jsonDoc = JsonDocument.Parse(capturedBody);
+        var eventId = jsonDoc.RootElement.GetProperty("event_id").GetString();
+        Assert.NotNull(eventId);
+        Assert.Equal(32, eventId.Length);
+        Assert.Matches("^[0-9a-fA-F]{32}$", eventId);
+    }
+
+    /// <summary>
+    /// Verifies EmitAsync preserves caller-supplied event identifiers that already meet the Sentry format.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task EmitAsync_WhenEventIdValid_PreservesCallerSuppliedIdAsync()
+    {
+        string? capturedBody = null;
+        var handler = new TestHandler(async request =>
+        {
+            if (request.Content != null)
+            {
+                capturedBody = await request.Content.ReadAsStringAsync();
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        using var client = new HttpClient(handler);
+        var sink = new SentryTelemetrySink(_loggerMock.Object, client)
+        {
+            DsnEndpoint = "https://testkey@sentry.example.com/1234",
+        };
+
+        var ev = new TelemetryEvent
+        {
+            EventId = "0123456789abcdef0123456789abcdef",
+            EventName = TelemetryConstants.Events.AppCrash,
+            Level = TelemetryLevel.CrashReportsOnly,
+        };
+
+        var result = await sink.EmitAsync(ev);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedBody);
+        using var jsonDoc = JsonDocument.Parse(capturedBody);
+        Assert.Equal("0123456789abcdef0123456789abcdef", jsonDoc.RootElement.GetProperty("event_id").GetString());
+    }
+
+    /// <summary>
     /// Verifies EmitAsync handles endpoint failure gracefully by buffering and returning failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

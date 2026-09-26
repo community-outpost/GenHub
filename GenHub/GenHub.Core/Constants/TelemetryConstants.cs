@@ -71,6 +71,16 @@ public static class TelemetryConstants
     public const string DefaultPostHogHost = "https://us.i.posthog.com";
 
     /// <summary>
+    /// Default PostHog event capture path, derived from the default capture endpoint.
+    /// </summary>
+    public const string DefaultPostHogCapturePath = "/i/v0/e/";
+
+    /// <summary>
+    /// Prefix for pull-request update channels (e.g. "PR-123").
+    /// </summary>
+    public const string PullRequestChannelPrefix = "PR-";
+
+    /// <summary>
     /// Default PostHog event capture endpoint.
     /// </summary>
     public const string DefaultPostHogCaptureEndpoint = "https://us.i.posthog.com/i/v0/e/";
@@ -225,6 +235,9 @@ public static class TelemetryConstants
 
         /// <summary>Error message describing the failure.</summary>
         public const string ErrorMessage = "error_message";
+
+        /// <summary>Fixed error category describing the failure without free-form text.</summary>
+        public const string ErrorCategory = "error_category";
 
         /// <summary>ModBuilder project name.</summary>
         public const string ProjectName = "project_name";
@@ -393,5 +406,29 @@ public static class TelemetryConstants
 
         /// <summary>Target frame number for replay checkpoint.</summary>
         public const string TargetFrame = "target_frame";
+    }
+
+    /// <summary>
+    /// Launch trigger sources for profile launch telemetry.
+    /// </summary>
+    public static class LaunchSources
+    {
+        /// <summary>Launched from the in-app profile launcher.</summary>
+        public const string Launcher = "launcher";
+
+        /// <summary>Launched from a desktop shortcut or command line.</summary>
+        public const string Shortcut = "shortcut";
+
+        /// <summary>Launched through single-instance IPC.</summary>
+        public const string Ipc = "ipc";
+    }
+
+    /// <summary>
+    /// Fixed error categories for launch failure telemetry.
+    /// </summary>
+    public static class ErrorCategories
+    {
+        /// <summary>Profile launch reported failure without an exception.</summary>
+        public const string LaunchFailed = "launch_failed";
     }
 }

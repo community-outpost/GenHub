@@ -1484,9 +1484,9 @@ public partial class GameProfileLauncherViewModel(
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
-                    [TelemetryConstants.Properties.LaunchSource] = "launcher",
+                    [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = stopwatch.ElapsedMilliseconds,
-                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                    [TelemetryConstants.Properties.ErrorCategory] = ex.GetType().Name,
                 });
             }
             finally
@@ -1548,9 +1548,8 @@ public partial class GameProfileLauncherViewModel(
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
-                [TelemetryConstants.Properties.LaunchSource] = "launcher",
+                [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
-                [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
             });
 
             // Advisory by design: receipt drift never blocks or fails a launch, so it is
@@ -1578,9 +1577,9 @@ public partial class GameProfileLauncherViewModel(
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
-                [TelemetryConstants.Properties.LaunchSource] = "launcher",
+                [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
-                [TelemetryConstants.Properties.ErrorMessage] = errors,
+                [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
             });
         }
     }

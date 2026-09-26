@@ -1052,26 +1052,16 @@ public class DownloadService(
 
     private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed)
     {
-        var fileName = Path.GetFileName(configuration.DestinationPath);
         var totalElapsedSeconds = elapsed.TotalSeconds;
         var sizeMb = downloadedBytes / (1024.0 * 1024.0);
         var speedMbps = totalElapsedSeconds > 0 ? (sizeMb * 8.0) / totalElapsedSeconds : 0.0;
-
-        var contentName = !string.IsNullOrWhiteSpace(configuration.ContentName) ? configuration.ContentName : fileName;
-        var contentId = !string.IsNullOrWhiteSpace(configuration.ContentId) ? configuration.ContentId : fileName;
-        var publisherId = !string.IsNullOrWhiteSpace(configuration.PublisherId) ? configuration.PublisherId : configuration.Url.Host;
-        var contentType = !string.IsNullOrWhiteSpace(configuration.ContentType) ? configuration.ContentType : "Package";
 
         var downloadProperties = new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
             [TelemetryConstants.Properties.DurationSeconds] = Math.Round(totalElapsedSeconds, 2),
             [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
-            [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
-            [TelemetryConstants.Properties.ContentName] = contentName,
-            [TelemetryConstants.Properties.ContentId] = contentId,
-            [TelemetryConstants.Properties.PublisherId] = publisherId,
-            [TelemetryConstants.Properties.ContentType] = contentType,
+            [TelemetryConstants.Properties.ContentType] = "Package",
         };
 
         telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, downloadProperties);
@@ -1079,19 +1069,9 @@ public class DownloadService(
 
     private void TrackDownloadFailure(DownloadConfiguration configuration, string errorMessage, TimeSpan? elapsed = null)
     {
-        var fileName = Path.GetFileName(configuration.DestinationPath);
-        var contentName = !string.IsNullOrWhiteSpace(configuration.ContentName) ? configuration.ContentName : fileName;
-        var contentId = !string.IsNullOrWhiteSpace(configuration.ContentId) ? configuration.ContentId : fileName;
-        var publisherId = !string.IsNullOrWhiteSpace(configuration.PublisherId) ? configuration.PublisherId : configuration.Url.Host;
-        var contentType = !string.IsNullOrWhiteSpace(configuration.ContentType) ? configuration.ContentType : "Package";
-
         var properties = new Dictionary<string, object?>
         {
-            [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
-            [TelemetryConstants.Properties.ContentName] = contentName,
-            [TelemetryConstants.Properties.ContentId] = contentId,
-            [TelemetryConstants.Properties.PublisherId] = publisherId,
-            [TelemetryConstants.Properties.ContentType] = contentType,
+            [TelemetryConstants.Properties.ContentType] = "Package",
             [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
         };
 

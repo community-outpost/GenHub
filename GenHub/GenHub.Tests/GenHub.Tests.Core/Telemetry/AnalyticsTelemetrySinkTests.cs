@@ -64,6 +64,35 @@ public class AnalyticsTelemetrySinkTests
     }
 
     /// <summary>
+    /// Verifies an empty POSTHOG_HOST falls back to the default capture endpoint instead of a relative URL.
+    /// </summary>
+    [Fact]
+    public void EndpointUrl_WhenPostHogHostEmpty_FallsBackToDefaultCaptureEndpoint()
+    {
+        var previousCaptureUrl = Environment.GetEnvironmentVariable("POSTHOG_CAPTURE_URL");
+        var previousHost = Environment.GetEnvironmentVariable("POSTHOG_HOST");
+        try
+        {
+            Environment.SetEnvironmentVariable("POSTHOG_CAPTURE_URL", null);
+            Environment.SetEnvironmentVariable("POSTHOG_HOST", string.Empty);
+
+            var sink = new AnalyticsTelemetrySink(_loggerMock.Object);
+
+            Assert.Equal(TelemetryConstants.DefaultPostHogCaptureEndpoint, sink.EndpointUrl);
+
+            Environment.SetEnvironmentVariable("POSTHOG_HOST", "https://eu.i.posthog.com/");
+            var hostSink = new AnalyticsTelemetrySink(_loggerMock.Object);
+
+            Assert.Equal("https://eu.i.posthog.com/i/v0/e/", hostSink.EndpointUrl);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("POSTHOG_CAPTURE_URL", previousCaptureUrl);
+            Environment.SetEnvironmentVariable("POSTHOG_HOST", previousHost);
+        }
+    }
+
+    /// <summary>
     /// Verifies EmitAsync succeeds and buffers locally when no HTTP client is configured.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

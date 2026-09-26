@@ -138,27 +138,22 @@ GROUP BY graceful
 
 ### HogQL & Trends Queries
 
-#### Top Content Downloads by Publisher
+#### Total Content Downloads
 ```sql
 SELECT
-    properties.publisher_id AS publisher,
     count() AS total_downloads,
     round(sum(toFloat64OrNull(properties.size_mb)) / 1024, 2) AS total_gigabytes
 FROM events
 WHERE event = 'content_download_completed'
-GROUP BY publisher
-ORDER BY total_downloads DESC
 ```
 
-#### Download Speeds by Source Provider
+#### Download Speeds
 ```sql
 SELECT
-    properties.source_provider AS provider,
     round(avg(toFloat64OrNull(properties.speed_mbps)), 2) AS avg_mbps,
     round(quantile(0.95)(toFloat64OrNull(properties.speed_mbps)), 2) AS p95_mbps
 FROM events
 WHERE event = 'content_download_completed'
-GROUP BY provider
 ```
 
 #### Content Updates Applied by Publisher & Version
@@ -176,30 +171,17 @@ ORDER BY total_updates DESC
 ```
 
 #### Specific Content & Mod Downloads Clean Tracking
-```sql
-SELECT
-    properties.publisher_id AS publisher,
-    properties.content_name AS content,
-    properties.file_name AS file,
-    count() AS download_count,
-    round(sum(toFloat64OrNull(properties.size_mb)) / 1024, 2) AS total_gb
-FROM events
-WHERE event = 'content_download_completed'
-GROUP BY publisher, content, file
-ORDER BY download_count DESC
-LIMIT 50
-```
+
+Per-download attribution (`publisher_id`, `content_name`, `file_name`) was removed from `content_download_completed` for privacy; use the total and speed queries above for download volume.
 
 #### Download Failures & Errors
 ```sql
 SELECT
-    properties.publisher_id AS publisher,
-    properties.content_name AS content,
     properties.error_message AS error,
     count() AS failure_count
 FROM events
 WHERE event = 'content_download_failed'
-GROUP BY publisher, content, error
+GROUP BY error
 ORDER BY failure_count DESC
 ```
 

@@ -42,6 +42,9 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
     [GeneratedRegex(@"\b((?:password|secret|apikey|api_key|client_secret)\s*[:=]\s*)[^\s,;]+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex KeyValueSecretRegex();
 
+    [GeneratedRegex(@"(?<=[a-zA-Z][a-zA-Z0-9+.\-]*://)[^\s/@]+(?=@)", RegexOptions.Compiled)]
+    private static partial Regex UriUserInfoRegex();
+
     private const int MaxSanitizeDepth = 10;
     private readonly string? _userProfilePath;
     private readonly string? _userName;
@@ -76,10 +79,11 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
         // Mask Wine prefix paths
         result = WinePrefixRegex().Replace(result, TelemetryConstants.WinePrefixMask);
 
-        // Mask exact user profile path if available
+        // Mask exact user profile path if available, requiring a separator boundary
+        // so /home/john never masks the prefix of /home/johnson.
         if (!string.IsNullOrEmpty(_userProfilePath) && _userProfilePath.Length > 2)
         {
-            result = result.Replace(_userProfilePath, TelemetryConstants.UserDirectoryMask, StringComparison.OrdinalIgnoreCase);
+            result = Regex.Replace(result, $@"(?<![^\\/]){Regex.Escape(_userProfilePath)}(?=$|[\\/])", TelemetryConstants.UserDirectoryMask, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         }
 
         // Mask generic Windows user directory patterns (e.g. C:\Users\john)
@@ -95,6 +99,9 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
 
         // Mask query string secrets (e.g. ?access_token=..., &api_key=...)
         result = QuerySecretRegex().Replace(result, "$1" + TelemetryConstants.SecretTokenMask);
+
+        // Mask URI userinfo credentials (e.g. https://user:pass@host/...)
+        result = UriUserInfoRegex().Replace(result, TelemetryConstants.SecretTokenMask);
 
         // Mask key-value credentials (e.g. password=..., secret: ...)
         result = KeyValueSecretRegex().Replace(result, "$1" + TelemetryConstants.SecretTokenMask);
@@ -136,11 +143,20 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
 
         foreach (var (key, val) in properties)
         {
-            var sanitizedKey = SanitizeString(key);
-            sanitized[sanitizedKey] = SanitizeValue(val, visited, 0);
+            AddSanitizedEntry(sanitized, SanitizeString(key), key, SanitizeValue(val, visited, 0));
         }
 
         return sanitized;
+    }
+
+    private static void AddSanitizedEntry(Dictionary<string, object?> target, string sanitizedKey, string originalKey, object? value)
+    {
+        if (!target.TryAdd(sanitizedKey, value))
+        {
+            // Distinct keys can sanitize to the same value; keep the original
+            // key so no entry is silently dropped.
+            target.TryAdd(originalKey, value);
+        }
     }
 
     private object? SanitizeValue(object? value, HashSet<object> visited, int depth)
@@ -215,7 +231,7 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
         var newDict = new Dictionary<string, object?>(nestedDict.Count);
         foreach (var (k, v) in nestedDict)
         {
-            newDict[SanitizeString(k) ?? string.Empty] = SanitizeValue(v, visited, depth + 1);
+            AddSanitizedEntry(newDict, SanitizeString(k) ?? string.Empty, k, SanitizeValue(v, visited, depth + 1));
         }
 
         return newDict;
@@ -229,8 +245,8 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
         var newDict = new Dictionary<string, object?>(dict.Count);
         foreach (System.Collections.DictionaryEntry entry in dict)
         {
-            var key = SanitizeString(entry.Key?.ToString()) ?? string.Empty;
-            newDict[key] = SanitizeValue(entry.Value, visited, depth + 1);
+            var originalKey = entry.Key?.ToString() ?? string.Empty;
+            AddSanitizedEntry(newDict, SanitizeString(entry.Key?.ToString()) ?? string.Empty, originalKey, SanitizeValue(entry.Value, visited, depth + 1));
         }
 
         return newDict;

@@ -1036,6 +1036,7 @@ public partial class ReplayManagerViewModel(
         StatusMessage = zipStatusMsg;
         var sw = Stopwatch.StartNew();
 
+        string? exportedZipPath;
         try
         {
             var directory = directoryService.GetReplayDirectory(SelectedTab);
@@ -1047,7 +1048,7 @@ public partial class ReplayManagerViewModel(
                 StatusMessage = zipStatusMsg;
             });
 
-            var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
+            exportedZipPath = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
             sw.Stop();
 
             try
@@ -1056,35 +1057,12 @@ public partial class ReplayManagerViewModel(
                 {
                     [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
                     [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
-                    [TelemetryConstants.Properties.Success] = result != null,
+                    [TelemetryConstants.Properties.Success] = exportedZipPath != null,
                 });
             }
             catch (Exception teleEx)
             {
                 logger.LogWarning(teleEx, "Failed to track replay ZIP export telemetry");
-            }
-
-            if (result != null)
-            {
-                var zipTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedTitle") ?? "Zip Created";
-                var zipDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedDesc") ?? "Created {0} in replay folder.";
-                var zipStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipCreated") ?? "ZIP created successfully.";
-                notificationService.ShowSuccess(zipTitle, string.Format(zipDesc, Path.GetFileName(result)));
-                StatusMessage = zipStatus;
-
-                // Reload replays to show the new ZIP
-                await LoadReplaysAsync();
-
-                // Reveal in Explorer
-                PathHelper.RevealInExplorer(result);
-            }
-            else
-            {
-                var zipFailTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedTitle") ?? "Zip Failed";
-                var zipFailDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedDesc") ?? "Failed to create ZIP archive.";
-                var zipFailStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipFailed") ?? "ZIP creation failed.";
-                notificationService.ShowError(zipFailTitle, zipFailDesc);
-                StatusMessage = zipFailStatus;
             }
         }
         catch (Exception ex)
@@ -1095,7 +1073,6 @@ public partial class ReplayManagerViewModel(
                 TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
-                    [TelemetryConstants.Properties.FileName] = null,
                     [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
                     [TelemetryConstants.Properties.Success] = false,
                     [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
@@ -1111,11 +1088,42 @@ public partial class ReplayManagerViewModel(
             var exportErrorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ExportError") ?? "Export error.";
             notificationService.ShowError(exportErrorTitle, ex.Message);
             StatusMessage = exportErrorStatus;
+            return;
         }
         finally
         {
             IsBusy = false;
             Progress = 0;
+        }
+
+        if (exportedZipPath == null)
+        {
+            var zipFailTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedTitle") ?? "Zip Failed";
+            var zipFailDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedDesc") ?? "Failed to create ZIP archive.";
+            var zipFailStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipFailed") ?? "ZIP creation failed.";
+            notificationService.ShowError(zipFailTitle, zipFailDesc);
+            StatusMessage = zipFailStatus;
+            return;
+        }
+
+        var zipTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedTitle") ?? "Zip Created";
+        var zipDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedDesc") ?? "Created {0} in replay folder.";
+        var zipStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipCreated") ?? "ZIP created successfully.";
+        notificationService.ShowSuccess(zipTitle, string.Format(zipDesc, Path.GetFileName(exportedZipPath)));
+        StatusMessage = zipStatus;
+
+        try
+        {
+            // Reload replays to show the new ZIP
+            await LoadReplaysAsync();
+
+            // Reveal in Explorer
+            PathHelper.RevealInExplorer(exportedZipPath);
+        }
+        catch (Exception ex)
+        {
+            // Post-export refresh is best-effort; the export itself already succeeded and was tracked.
+            logger.LogWarning(ex, "Post-export replay refresh failed after successful ZIP export");
         }
     }
 
@@ -2304,8 +2312,16 @@ public partial class ReplayManagerViewModel(
                 SelectedCompatibleProfile,
                 TargetCheckpointFrame);
 
-            TrackCheckpointMintedTelemetry(result);
-            HandleCheckpointResult(result);
+            if (!result.Success && string.Equals(result.FirstError, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal))
+            {
+                // Deliberate user cancels are not failures; report them like other cancels without telemetry.
+                HandleCheckpointCanceled();
+            }
+            else
+            {
+                TrackCheckpointMintedTelemetry(result.Success, result.FirstError);
+                HandleCheckpointResult(result);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -2313,6 +2329,7 @@ public partial class ReplayManagerViewModel(
         }
         catch (Exception ex)
         {
+            TrackCheckpointMintedTelemetry(false, ex.Message);
             logger.LogError(ex, "Failed to create checkpoint at frame {Frame}", TargetCheckpointFrame);
             var errTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintErrorTitle") ?? "Checkpoint Creation Error";
             notificationService.ShowError(errTitle, ex.Message);
@@ -2324,7 +2341,7 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private void TrackCheckpointMintedTelemetry(ProfileOperationResult<ReplayCheckpointInfo> result)
+    private void TrackCheckpointMintedTelemetry(bool success, string? errorMessage)
     {
         try
         {
@@ -2333,8 +2350,8 @@ public partial class ReplayManagerViewModel(
                 [TelemetryConstants.Properties.GameType] = ActiveCheckpointReplay?.GameVersion.ToString(),
                 [TelemetryConstants.Properties.TargetFrame] = TargetCheckpointFrame,
                 [TelemetryConstants.Properties.ProfileId] = SelectedCompatibleProfile?.Id,
-                [TelemetryConstants.Properties.Success] = result.Success,
-                [TelemetryConstants.Properties.ErrorMessage] = result.FirstError,
+                [TelemetryConstants.Properties.Success] = success,
+                [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
             });
         }
         catch (Exception teleEx)

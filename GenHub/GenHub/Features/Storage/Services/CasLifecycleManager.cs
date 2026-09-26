@@ -180,6 +180,7 @@ public class CasLifecycleManager(
         if (!await _gcLock.WaitAsync(timeout, cancellationToken))
         {
             logger.LogWarning("GC already in progress, skipping");
+            TrackGarbageCollected(false, "Skipped: garbage collection already in progress.");
 
             // Return InProgressResult which has InProgress=true and Skipped=true
             return OperationResult<GarbageCollectionStats>.CreateSuccess(GarbageCollectionStats.InProgressResult);
@@ -195,8 +196,9 @@ public class CasLifecycleManager(
             if (force && !writeFence.TryAcquireCollectionLease(TimeSpan.Zero, out collectionLease))
             {
                 logger.LogWarning("Forced garbage collection refused: content is being imported into CAS");
-                return OperationResult<GarbageCollectionStats>.CreateFailure(
-                    "Cannot clean CAS storage while content is being imported. Try again when the import finishes.");
+                const string refusedMessage = "Cannot clean CAS storage while content is being imported. Try again when the import finishes.";
+                TrackGarbageCollected(false, refusedMessage);
+                return OperationResult<GarbageCollectionStats>.CreateFailure(refusedMessage);
             }
 
             logger.LogInformation("Starting garbage collection (force={Force})", force);
@@ -441,6 +443,22 @@ public class CasLifecycleManager(
         {
             logger.LogWarning(ex, "GC failed to delete unreferenced object {Hash}; keeping it", hash);
             return (false, 0);
+        }
+    }
+
+    private void TrackGarbageCollected(bool success, string? errorMessage)
+    {
+        try
+        {
+            telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.Success] = success,
+                [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
+            });
+        }
+        catch (Exception teleEx)
+        {
+            logger.LogWarning(teleEx, "Failed to track CAS garbage collection telemetry");
         }
     }
 }

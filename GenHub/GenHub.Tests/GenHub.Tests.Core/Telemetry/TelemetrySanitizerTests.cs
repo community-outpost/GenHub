@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Utilities;
+using System;
 using System.Collections.Generic;
 using Xunit;
 
@@ -172,5 +173,56 @@ public class TelemetrySanitizerTests
         Assert.NotNull(sanitized);
         Assert.True(sanitized.ContainsKey("self"));
         Assert.Equal("[CircularReference]", sanitized["self"]);
+    }
+
+    /// <summary>
+    /// Verifies that URI userinfo credentials are masked while the host is preserved.
+    /// </summary>
+    [Fact]
+    public void SanitizeString_UriUserInfo_MasksCredentials()
+    {
+        var input = "Failed to reach https://deploy:secret-token-123@example.com/ingest for upload.";
+        var result = _sanitizer.SanitizeString(input);
+
+        Assert.DoesNotContain("deploy:secret-token-123", result);
+        Assert.Contains(TelemetryConstants.SecretTokenMask, result);
+        Assert.Contains("example.com", result);
+    }
+
+    /// <summary>
+    /// Verifies that the exact profile path requires a separator boundary and never masks a longer name prefix.
+    /// </summary>
+    [Fact]
+    public void SanitizeString_ProfilePathPrefixOfLongerName_DoesNotMaskPartialName()
+    {
+        var profilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        Assert.True(!string.IsNullOrEmpty(profilePath) && profilePath.Length > 2);
+
+        var partialResult = _sanitizer.SanitizeString(profilePath + "son/save");
+
+        Assert.DoesNotContain(TelemetryConstants.UserDirectoryMask + "son", partialResult);
+
+        var exactResult = _sanitizer.SanitizeString(profilePath + "/save");
+
+        Assert.Contains(TelemetryConstants.UserDirectoryMask, exactResult);
+    }
+
+    /// <summary>
+    /// Verifies that distinct keys sanitizing to the same value do not silently drop entries.
+    /// </summary>
+    [Fact]
+    public void SanitizeProperties_CollidingMaskedKeys_PreservesBothEntries()
+    {
+        var properties = new Dictionary<string, object?>
+        {
+            ["10.0.0.1"] = "first",
+            ["192.168.0.1"] = "second",
+        };
+
+        var sanitized = _sanitizer.SanitizeProperties(properties);
+
+        Assert.Equal(2, sanitized.Count);
+        Assert.Contains(sanitized.Values, v => string.Equals(v as string, "first"));
+        Assert.Contains(sanitized.Values, v => string.Equals(v as string, "second"));
     }
 }

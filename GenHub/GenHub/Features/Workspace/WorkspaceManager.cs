@@ -67,6 +67,7 @@ public class WorkspaceManager(
         var configError = await ValidateConfigurationPrerequisitesAsync(configuration, cancellationToken);
         if (configError != null)
         {
+            TrackWorkspacePrepared(configuration.Id, configuration.Strategy.ToString(), configuration.Manifests?.Count ?? 0, false, false, configError);
             return OperationResult<WorkspaceInfo>.CreateFailure(configError);
         }
 
@@ -82,6 +83,7 @@ public class WorkspaceManager(
         var strategyError = await ValidateSelectedStrategyAsync(strategy, configuration, cancellationToken);
         if (strategyError != null)
         {
+            TrackWorkspacePrepared(configuration.Id, configuration.Strategy.ToString(), configuration.Manifests?.Count ?? 0, false, false, strategyError);
             return OperationResult<WorkspaceInfo>.CreateFailure(strategyError);
         }
 
@@ -107,15 +109,7 @@ public class WorkspaceManager(
             var errorMessage = string.Join(", ", messages);
             logger.LogError("[Workspace] Strategy preparation failed: {Errors}", errorMessage);
 
-            telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, new Dictionary<string, object?>
-            {
-                [TelemetryConstants.Properties.WorkspaceId] = configuration.Id,
-                [TelemetryConstants.Properties.Strategy] = configuration.Strategy.ToString(),
-                [TelemetryConstants.Properties.ManifestCount] = configuration.Manifests?.Count ?? 0,
-                [TelemetryConstants.Properties.IsReused] = false,
-                [TelemetryConstants.Properties.Success] = false,
-                [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
-            });
+            TrackWorkspacePrepared(configuration.Id, configuration.Strategy.ToString(), configuration.Manifests?.Count ?? 0, false, false, errorMessage);
 
             return OperationResult<WorkspaceInfo>.CreateFailure(errorMessage);
         }
@@ -558,14 +552,7 @@ public class WorkspaceManager(
                         "[Workspace] Reusing existing workspace {Id} for fast launch",
                         configuration.Id);
 
-                    telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, new Dictionary<string, object?>
-                    {
-                        [TelemetryConstants.Properties.WorkspaceId] = workspace.Id,
-                        [TelemetryConstants.Properties.Strategy] = workspace.Strategy.ToString(),
-                        [TelemetryConstants.Properties.ManifestCount] = configuration.Manifests?.Count ?? 0,
-                        [TelemetryConstants.Properties.IsReused] = true,
-                        [TelemetryConstants.Properties.Success] = true,
-                    });
+                    TrackWorkspacePrepared(workspace.Id, workspace.Strategy.ToString(), configuration.Manifests?.Count ?? 0, true, true);
 
                     return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
                 }
@@ -696,7 +683,9 @@ public class WorkspaceManager(
             {
                 var errors = validationResult.Data!.Issues.Where(i => i.Severity == ValidationSeverity.Error).Select(i => i.Message);
                 logger.LogError("[Workspace] Post-preparation validation failed: {Errors}", string.Join(", ", errors));
-                return OperationResult<WorkspaceInfo>.CreateFailure($"Workspace validation failed: {string.Join(", ", errors)}");
+                var validationError = $"Workspace validation failed: {string.Join(", ", errors)}";
+                TrackWorkspacePrepared(workspaceInfo.Id, workspaceInfo.Strategy.ToString(), configuration.Manifests?.Count ?? 0, false, false, validationError);
+                return OperationResult<WorkspaceInfo>.CreateFailure(validationError);
             }
 
             logger.LogDebug("[Workspace] Post-preparation validation passed");
@@ -721,7 +710,9 @@ public class WorkspaceManager(
         if (!trackResult.Success)
         {
             logger.LogError("[Workspace] Failed to track CAS references for workspace {Id}: {Error}", configuration.Id, trackResult.FirstError);
-            return OperationResult<WorkspaceInfo>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+            var trackError = $"Failed to track CAS references: {trackResult.FirstError}";
+            TrackWorkspacePrepared(workspaceInfo.Id, workspaceInfo.Strategy.ToString(), configuration.Manifests?.Count ?? 0, false, false, trackError);
+            return OperationResult<WorkspaceInfo>.CreateFailure(trackError);
         }
 
         logger.LogDebug("[Workspace] Saving workspace metadata");
@@ -729,15 +720,34 @@ public class WorkspaceManager(
 
         logger.LogInformation("[Workspace] === Workspace {Id} prepared successfully at {Path} ===", workspaceInfo.Id, workspaceInfo.WorkspacePath);
 
-        telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, new Dictionary<string, object?>
-        {
-            [TelemetryConstants.Properties.WorkspaceId] = workspaceInfo.Id,
-            [TelemetryConstants.Properties.Strategy] = workspaceInfo.Strategy.ToString(),
-            [TelemetryConstants.Properties.ManifestCount] = configuration.Manifests?.Count ?? 0,
-            [TelemetryConstants.Properties.IsReused] = false,
-            [TelemetryConstants.Properties.Success] = true,
-        });
+        TrackWorkspacePrepared(workspaceInfo.Id, workspaceInfo.Strategy.ToString(), configuration.Manifests?.Count ?? 0, false, true);
 
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
+    }
+
+    private void TrackWorkspacePrepared(string workspaceId, string strategy, int manifestCount, bool isReused, bool success, string? errorMessage = null)
+    {
+        try
+        {
+            var properties = new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.WorkspaceId] = workspaceId,
+                [TelemetryConstants.Properties.Strategy] = strategy,
+                [TelemetryConstants.Properties.ManifestCount] = manifestCount,
+                [TelemetryConstants.Properties.IsReused] = isReused,
+                [TelemetryConstants.Properties.Success] = success,
+            };
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                properties[TelemetryConstants.Properties.ErrorMessage] = errorMessage;
+            }
+
+            telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, properties);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to track workspace preparation telemetry");
+        }
     }
 }

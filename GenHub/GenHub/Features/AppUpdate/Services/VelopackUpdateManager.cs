@@ -197,7 +197,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     }
 
     private string TelemetryChannel =>
-        _subscribedPrNumber.HasValue ? $"PR-{_subscribedPrNumber}" : _subscribedBranch ?? "Release";
+        _subscribedPrNumber.HasValue ? $"{TelemetryConstants.PullRequestChannelPrefix}{_subscribedPrNumber}" : _subscribedBranch ?? "Release";
 
     /// <inheritdoc/>
     public async Task<UpdateInfo?> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
@@ -942,7 +942,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 string artifactChannel;
                 if (artifactInfo.PullRequestNumber.HasValue)
                 {
-                    artifactChannel = $"pr-{artifactInfo.PullRequestNumber.Value}";
+                    artifactChannel = $"{TelemetryConstants.PullRequestChannelPrefix}{artifactInfo.PullRequestNumber.Value}";
                 }
                 else if (!string.IsNullOrEmpty(artifactInfo.ArtifactName))
                 {

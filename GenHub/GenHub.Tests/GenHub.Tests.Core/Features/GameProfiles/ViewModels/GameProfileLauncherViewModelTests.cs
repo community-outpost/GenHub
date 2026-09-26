@@ -734,7 +734,7 @@ public class GameProfileLauncherViewModelTests
                     (string?)props[TelemetryConstants.Properties.GameClientId] == "thesuperhackers.zh" &&
                     (string?)props[TelemetryConstants.Properties.GameClientName] == "TheSuperHackers Zero Hour" &&
                     props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs)),
-                It.IsAny<TelemetryLevel>()),
+                TelemetryLevel.AnonymousMetrics),
             Times.Once);
     }
 
@@ -764,9 +764,9 @@ public class GameProfileLauncherViewModelTests
                 It.Is<IReadOnlyDictionary<string, object?>>(props =>
                     (string?)props[TelemetryConstants.Properties.ProfileId] == "profile-1" &&
                     (string?)props[TelemetryConstants.Properties.GameClientId] == "thesuperhackers.zh" &&
-                    ((string?)props[TelemetryConstants.Properties.ErrorMessage])!.Contains("Process start failed") &&
+                    (string?)props[TelemetryConstants.Properties.ErrorCategory] == TelemetryConstants.ErrorCategories.LaunchFailed &&
                     props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs)),
-                It.IsAny<TelemetryLevel>()),
+                TelemetryLevel.AnonymousMetrics),
             Times.Once);
     }
 
