@@ -1640,6 +1640,73 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.Single(Directory.GetFiles(desert2Dir, "*.map"));
     }
 
+    /// <summary>
+    /// Verifies that in a multi-map payload, a root generic map.ini is not copied to any map directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_MultiMapPayloadWithGenericMapIni_DoesNotCopyGenericIniToMapFoldersAsync()
+    {
+        // Arrange: Desert.map, Snow.map, generic map.ini, and generic map.tga
+        Directory.CreateDirectory(_stagingDirectory);
+        var desertMap = Path.Combine(_stagingDirectory, "Desert.map");
+        var snowMap = Path.Combine(_stagingDirectory, "Snow.map");
+        var genericIni = Path.Combine(_stagingDirectory, "map.ini");
+        var genericTga = Path.Combine(_stagingDirectory, "map.tga");
+
+        await File.WriteAllTextAsync(desertMap, "desert-map-data");
+        await File.WriteAllTextAsync(snowMap, "snow-map-data");
+        await File.WriteAllTextAsync(genericIni, "WaterTransparency = 50%");
+        await File.WriteAllTextAsync(genericTga, "thumbnail-data");
+
+        // Act
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        // Assert
+        var desertFolder = Path.Combine(_stagingDirectory, "Desert");
+        var snowFolder = Path.Combine(_stagingDirectory, "Snow");
+
+        Assert.True(Directory.Exists(desertFolder));
+        Assert.True(Directory.Exists(snowFolder));
+
+        // Generic map.tga should still be copied/shared to each map folder
+        Assert.True(File.Exists(Path.Combine(desertFolder, "Desert.tga")));
+        Assert.True(File.Exists(Path.Combine(snowFolder, "Snow.tga")));
+
+        // Generic map.ini must NOT be copied into either map folder for multi-map payloads
+        Assert.False(File.Exists(Path.Combine(desertFolder, "map.ini")));
+        Assert.False(File.Exists(Path.Combine(snowFolder, "map.ini")));
+        Assert.False(File.Exists(Path.Combine(desertFolder, "Desert.ini")));
+        Assert.False(File.Exists(Path.Combine(snowFolder, "Snow.ini")));
+    }
+
+    /// <summary>
+    /// Verifies that in a single-map payload, a root generic map.ini is copied to the map folder.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SingleMapPayloadWithGenericMapIni_CopiesGenericIniToMapFolderAsync()
+    {
+        // Arrange: Only Desert.map and generic map.ini
+        Directory.CreateDirectory(_stagingDirectory);
+        var desertMap = Path.Combine(_stagingDirectory, "Desert.map");
+        var genericIni = Path.Combine(_stagingDirectory, "map.ini");
+
+        await File.WriteAllTextAsync(desertMap, "desert-map-data");
+        await File.WriteAllTextAsync(genericIni, "WaterTransparency = 50%");
+
+        // Act
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        // Assert
+        var desertFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.True(Directory.Exists(desertFolder));
+        Assert.True(File.Exists(Path.Combine(desertFolder, "map.ini")));
+        Assert.Equal("WaterTransparency = 50%", await File.ReadAllTextAsync(Path.Combine(desertFolder, "map.ini")));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

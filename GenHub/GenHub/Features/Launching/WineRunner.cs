@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 namespace GenHub.Features.Launching;
 
@@ -23,6 +24,11 @@ public class WineRunner(
     ILogger<WineRunner> logger,
     ILocalizationService? localizationService = null) : IGameLaunchRunner
 {
+    /// <summary>
+    /// File name used to track the synchronization manifest across launches.
+    /// </summary>
+    private const string SyncStateFileName = ".genhub-sync.json";
+
     /// <summary>
     /// Standard user data subdirectories bridged into the Wine prefix.
     /// </summary>
@@ -255,13 +261,13 @@ public class WineRunner(
             return true;
         }
 
-        // Real directory: if it is empty, we can safely replace it with a symlink
-        if (TryReplaceEmptyDirectoryWithSymlink(prefixSubDir, nativeSubDir))
+        // Real directory: convert it to a symlink (migrating existing files first)
+        if (TryConvertDirectoryToSymlink(prefixSubDir, nativeSubDir, logger))
         {
             return true;
         }
 
-        // If non-empty or symlink creation failed, synchronize files in both directions
+        // If symlink creation failed, synchronize files with deletion propagation
         SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
         return true;
     }
@@ -280,23 +286,72 @@ public class WineRunner(
         }
     }
 
-    private static bool TryReplaceEmptyDirectoryWithSymlink(string dirPath, string targetPath)
+    private static bool TryConvertDirectoryToSymlink(string dirPath, string targetPath, ILogger? logger = null)
     {
         try
         {
+            // Probe whether symlink creation is supported in this environment before touching or moving any files.
+            var probeSymlink = dirPath + ".symlink_probe_" + Guid.NewGuid().ToString("N");
+            try
+            {
+                Directory.CreateSymbolicLink(probeSymlink, targetPath);
+                Directory.Delete(probeSymlink, recursive: false);
+            }
+            catch (Exception probeEx) when (probeEx is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                return false;
+            }
+
             if (!Directory.EnumerateFileSystemEntries(dirPath).Any())
             {
                 Directory.Delete(dirPath, recursive: false);
                 Directory.CreateSymbolicLink(dirPath, targetPath);
                 return true;
             }
+
+            // Pre-existing non-empty directory (e.g. from a prior plain-Wine installation).
+            // First migrate files from prefix to native directory to prevent data loss.
+            MirrorDirectoryContent(sourceDir: dirPath, targetDir: targetPath, logger: logger);
+
+            var tempDir = dirPath + ".symlink_tmp_" + Guid.NewGuid().ToString("N");
+            Directory.Move(dirPath, tempDir);
+            try
+            {
+                Directory.CreateSymbolicLink(dirPath, targetPath);
+                try
+                {
+                    Directory.Delete(tempDir, recursive: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger?.LogWarning(ex, "[WineRunner] Created symlink for '{DirPath}' but failed to clean up temporary directory '{TempDir}'.", dirPath, tempDir);
+                }
+
+                return true;
+            }
+            catch
+            {
+                try
+                {
+                    if (Directory.Exists(dirPath))
+                    {
+                        Directory.Delete(dirPath, recursive: false);
+                    }
+
+                    Directory.Move(tempDir, dirPath);
+                }
+                catch (Exception restoreEx)
+                {
+                    logger?.LogError(restoreEx, "[WineRunner] Failed to restore '{DirPath}' from '{TempDir}' after failed symlink conversion.", dirPath, tempDir);
+                }
+
+                throw;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            // Fall back to mirroring
+            return false;
         }
-
-        return false;
     }
 
     private static bool CreateNewBridgeSymlinkOrSync(string nativeSubDir, string prefixSubDir, ILogger? logger = null)
@@ -324,10 +379,193 @@ public class WineRunner(
         }
     }
 
-    private static void SyncDirectoryFiles(string firstDir, string secondDir, ILogger? logger = null)
+    private static void SyncDirectoryFiles(string nativeDir, string prefixDir, ILogger? logger = null)
     {
-        MirrorDirectoryContent(sourceDir: firstDir, targetDir: secondDir, logger: logger);
-        MirrorDirectoryContent(sourceDir: secondDir, targetDir: firstDir, logger: logger);
+        if (!Directory.Exists(nativeDir) && !Directory.Exists(prefixDir))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(nativeDir);
+        Directory.CreateDirectory(prefixDir);
+
+        var normalizedNative = Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeDir)) + Path.DirectorySeparatorChar;
+        var normalizedPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(prefixDir)) + Path.DirectorySeparatorChar;
+
+        if (string.Equals(normalizedNative, normalizedPrefix, PathHelper.PathComparison))
+        {
+            return;
+        }
+
+        var stateFilePath = Path.Combine(prefixDir, SyncStateFileName);
+        HashSet<string>? previousSyncedFiles = null;
+        if (File.Exists(stateFilePath))
+        {
+            try
+            {
+                var json = File.ReadAllText(stateFilePath);
+                previousSyncedFiles = JsonSerializer.Deserialize<HashSet<string>>(json);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                logger?.LogWarning(ex, "[WineRunner] Failed to read sync state from '{StateFile}'.", stateFilePath);
+            }
+        }
+
+        var nativeFiles = EnumerateFilesRelative(nativeDir);
+        var prefixFiles = EnumerateFilesRelative(prefixDir);
+
+        if (previousSyncedFiles != null)
+        {
+            foreach (var relPath in previousSyncedFiles)
+            {
+                var inNative = nativeFiles.ContainsKey(relPath);
+                var inPrefix = prefixFiles.ContainsKey(relPath);
+
+                if (!inNative && inPrefix)
+                {
+                    // Deleted on native side (e.g. via GenHub Map Manager) -> propagate deletion to prefix
+                    try
+                    {
+                        File.Delete(prefixFiles[relPath].FullName);
+                        prefixFiles.Remove(relPath);
+                        logger?.LogInformation("[WineRunner] Propagated native deletion of '{RelativePath}' to Wine prefix.", relPath);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from prefix during deletion propagation.", relPath);
+                    }
+                }
+                else if (inNative && !inPrefix)
+                {
+                    // Deleted on prefix side (e.g. deleted in-game) -> propagate deletion to native
+                    try
+                    {
+                        File.Delete(nativeFiles[relPath].FullName);
+                        nativeFiles.Remove(relPath);
+                        logger?.LogInformation("[WineRunner] Propagated Wine prefix deletion of '{RelativePath}' to native documents.", relPath);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from native directory during deletion propagation.", relPath);
+                    }
+                }
+            }
+        }
+
+        // Copy new or newer files from native to prefix
+        foreach (var (relPath, nativeFileInfo) in nativeFiles)
+        {
+            var destFile = Path.Combine(prefixDir, relPath);
+            if (!prefixFiles.TryGetValue(relPath, out var prefixFileInfo))
+            {
+                CopySyncFile(nativeFileInfo.FullName, destFile, logger);
+            }
+            else if (nativeFileInfo.LastWriteTimeUtc > prefixFileInfo.LastWriteTimeUtc)
+            {
+                CopySyncFile(nativeFileInfo.FullName, destFile, logger);
+            }
+        }
+
+        // Copy new or newer files from prefix to native
+        foreach (var (relPath, prefixFileInfo) in prefixFiles)
+        {
+            var destFile = Path.Combine(nativeDir, relPath);
+            if (!nativeFiles.TryGetValue(relPath, out var nativeFileInfo))
+            {
+                CopySyncFile(prefixFileInfo.FullName, destFile, logger);
+            }
+            else if (prefixFileInfo.LastWriteTimeUtc > nativeFileInfo.LastWriteTimeUtc)
+            {
+                CopySyncFile(prefixFileInfo.FullName, destFile, logger);
+            }
+        }
+
+        CleanEmptySubdirectories(nativeDir);
+        CleanEmptySubdirectories(prefixDir);
+
+        try
+        {
+            var updatedFiles = EnumerateFilesRelative(prefixDir).Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var json = JsonSerializer.Serialize(updatedFiles);
+            File.WriteAllText(stateFilePath, json);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to write sync state to '{StateFile}'.", stateFilePath);
+        }
+    }
+
+    private static void CopySyncFile(string sourceFile, string destFile, ILogger? logger = null)
+    {
+        try
+        {
+            var destDir = Path.GetDirectoryName(destFile);
+            if (!string.IsNullOrEmpty(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            File.Copy(sourceFile, destFile, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to copy '{Source}' to '{Destination}' during directory sync.", sourceFile, destFile);
+        }
+    }
+
+    private static Dictionary<string, FileInfo> EnumerateFilesRelative(string rootDir)
+    {
+        var result = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+        if (!Directory.Exists(rootDir))
+        {
+            return result;
+        }
+
+        var enumerationOptions = new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+
+        foreach (var file in Directory.EnumerateFiles(rootDir, "*", enumerationOptions))
+        {
+            var fileName = Path.GetFileName(file);
+            if (string.Equals(fileName, SyncStateFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var relPath = Path.GetRelativePath(rootDir, file);
+            result[relPath] = new FileInfo(file);
+        }
+
+        return result;
+    }
+
+    private static void CleanEmptySubdirectories(string dir)
+    {
+        try
+        {
+            if (!Directory.Exists(dir))
+            {
+                return;
+            }
+
+            foreach (var subDir in Directory.EnumerateDirectories(dir))
+            {
+                CleanEmptySubdirectories(subDir);
+                if (!Directory.EnumerateFileSystemEntries(subDir).Any())
+                {
+                    Directory.Delete(subDir, recursive: false);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Ignore directory cleanup failure
+        }
     }
 
     private static void MirrorDirectoryContent(string sourceDir, string targetDir, ILogger? logger = null)
@@ -356,6 +594,11 @@ public class WineRunner(
 
         foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
         {
+            if (string.Equals(Path.GetFileName(file), SyncStateFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var fullFilePath = Path.GetFullPath(file);
             if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
             {
