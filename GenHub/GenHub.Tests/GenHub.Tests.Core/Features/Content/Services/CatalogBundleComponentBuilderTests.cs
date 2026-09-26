@@ -151,14 +151,14 @@ public sealed class CatalogBundleComponentBuilderTests
             Id = "upstream-client",
             Name = "Upstream Client",
             ContentType = ContentType.GameClient,
-            UpstreamSync = new UpstreamSyncConfig
+            UpstreamSync = new CatalogUpstreamSync
             {
                 Provider = "GitHubReleases",
                 Repository = "Test/TestRepo",
                 VariantAxis = "variant",
                 AssetRules =
                 [
-                    new UpstreamAssetRule { Pattern = ".*\\.zip", Variant = "Default", IsDefault = true },
+                    new CatalogAssetRule { Pattern = ".*\\.zip", Variant = "Default", IsDefault = true },
                 ],
             },
         };
