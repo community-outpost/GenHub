@@ -582,14 +582,15 @@ public sealed class ReplayDirectoryService(
 
         var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
         var replayPublisher = replay.MatchedClient?.Publisher ?? string.Empty;
-        var isRetailReplay = IsRetailClient(replayPublisher, clientManifestId);
+        var replayExeCrc = replay.MatchedClient?.ExeCrc ?? replay.Metadata?.FormattedExeCrc;
+        var isRetailReplay = replay.MatchedClient != null
+            ? IsRetailClient(replayPublisher, clientManifestId)
+            : !string.IsNullOrEmpty(replayExeCrc) && ReplayCrcMatchingHelper.IsRetailExeCrc(replayExeCrc, replay.GameVersion);
         var isGeneralsOnlineReplay = string.Equals(replayPublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
                                      clientManifestId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase);
         var isSuperHackersReplay = string.Equals(replayPublisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                    string.Equals(replayPublisher, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                    clientManifestId.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
-
-        var replayExeCrc = replay.MatchedClient?.ExeCrc ?? replay.Metadata?.FormattedExeCrc;
         var recoveryCandidates = profiles.Where(p =>
         {
             if (p.GameClient?.GameType != replay.GameVersion)
@@ -602,7 +603,7 @@ public sealed class ReplayDirectoryService(
                 return false;
             }
 
-            if (!IsRecoveryExeCrcCompatible(p, replayExeCrc, replay.GameVersion, logger))
+            if (!IsRecoveryExeCrcCompatible(p, replayExeCrc, replay.GameVersion, isRetailReplay, logger))
             {
                 return false;
             }
@@ -622,6 +623,17 @@ public sealed class ReplayDirectoryService(
             .ThenBy(x => x.Profile.Id, StringComparer.OrdinalIgnoreCase)
             .Select(x => x.Profile)
             .ToList();
+    }
+
+    /// <summary>
+    /// Determines whether the given game profile has recovery/checkpoint capability.
+    /// </summary>
+    /// <param name="profile">The game profile to check.</param>
+    /// <returns><see langword="true"/> if the profile has checkpoint capability; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasCheckpointCapability(GameProfile profile)
+    {
+        return HasClientCheckpointCapability(profile.GameClient) ||
+               HasEnabledContentCheckpointCapability(profile.EnabledContentIds);
     }
 
     /// <summary>
@@ -1134,8 +1146,12 @@ public sealed class ReplayDirectoryService(
         if (recoveryProfiles.Count > 0)
         {
             replay.SupportsCheckpoints = true;
-            replay.RecoveryProfileId = recoveryProfiles[0].Id;
-            replay.RecoveryProfileName = recoveryProfiles[0].Name;
+            var existingProfile = !string.IsNullOrEmpty(replay.RecoveryProfileId)
+                ? recoveryProfiles.FirstOrDefault(p => string.Equals(p.Id, replay.RecoveryProfileId, StringComparison.OrdinalIgnoreCase))
+                : null;
+            var chosenProfile = existingProfile ?? recoveryProfiles[0];
+            replay.RecoveryProfileId = chosenProfile.Id;
+            replay.RecoveryProfileName = chosenProfile.Name;
         }
         else if (replay.MatchedClient?.SupportsCheckpoints == true)
         {
@@ -1380,12 +1396,6 @@ public sealed class ReplayDirectoryService(
         return false;
     }
 
-    private static bool HasCheckpointCapability(GameProfile profile)
-    {
-        return HasClientCheckpointCapability(profile.GameClient) ||
-               HasEnabledContentCheckpointCapability(profile.EnabledContentIds);
-    }
-
     private static bool HasClientCheckpointCapability(GameClient? client)
     {
         if (client == null)
@@ -1432,18 +1442,25 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
-    /// Determines whether a candidate recovery profile runs the same executable build as the replay.
-    /// Checkpoint minting re-simulates the replay frame by frame, so unlike play matching (which
-    /// trusts retail provenance for retail replays) it requires the exact engine build: a verifiably
-    /// different build would desynchronize and produce invalid checkpoints. Profiles whose executable
+    /// Determines whether a candidate recovery profile runs an executable build compatible with the replay.
+    /// Checkpoint minting re-simulates the replay frame by frame. For non-retail replays (e.g. GeneralsOnline),
+    /// strict engine CRC equivalence is required to prevent desynchronization. For retail replays, custom recovery
+    /// binaries (such as community MP recovery builds) are trusted if they possess checkpoint capabilities, as they
+    /// are specifically modified to simulate retail gameplay and mint valid checkpoints. Profiles whose executable
     /// cannot be verified (missing file or cold CRC cache) are allowed through to preserve existing behavior.
     /// </summary>
     /// <param name="profile">The candidate game profile.</param>
     /// <param name="replayExeCrc">The replay executable CRC, if known.</param>
     /// <param name="gameVersion">The game version required by the replay.</param>
+    /// <param name="isRetailReplay">Whether the replay originates from retail provenance.</param>
     /// <param name="logger">Optional logger for diagnostic messages.</param>
     /// <returns><c>true</c> if the profile build matches or cannot be verified; otherwise, <c>false</c>.</returns>
-    private static bool IsRecoveryExeCrcCompatible(GameProfile profile, string? replayExeCrc, GameType gameVersion, ILogger? logger)
+    private static bool IsRecoveryExeCrcCompatible(
+        GameProfile profile,
+        string? replayExeCrc,
+        GameType gameVersion,
+        bool isRetailReplay,
+        ILogger? logger)
     {
         if (string.IsNullOrEmpty(replayExeCrc))
         {
@@ -1465,16 +1482,26 @@ public sealed class ReplayDirectoryService(
             }
 
             var equivalent = ReplayCrcMatchingHelper.AreExeCrcsEquivalent(cachedCrc, replayExeCrc, gameVersion);
-            if (!equivalent)
+            if (equivalent)
             {
-                logger?.LogDebug(
-                    "[ReplayManager] Excluding recovery profile '{ProfileName}' for replay executable CRC {ReplayCrc}: profile executable CRC is {ProfileCrc}",
-                    profile.Name,
-                    replayExeCrc,
-                    cachedCrc);
+                return true;
             }
 
-            return equivalent;
+            // For retail replays, recovery-capable game clients use custom modified binaries (e.g. MP recovery builds)
+            // whose CRC will not match stock retail CRCs, but are specifically compiled to simulate and mint checkpoints
+            // for retail replays.
+            if (isRetailReplay && HasCheckpointCapability(profile))
+            {
+                return true;
+            }
+
+            logger?.LogDebug(
+                "[ReplayManager] Excluding recovery profile '{ProfileName}' for replay executable CRC {ReplayCrc}: profile executable CRC is {ProfileCrc}",
+                profile.Name,
+                replayExeCrc,
+                cachedCrc);
+
+            return false;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

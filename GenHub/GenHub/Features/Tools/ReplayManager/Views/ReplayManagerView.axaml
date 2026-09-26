@@ -200,6 +200,13 @@
                             CommandParameter="{Binding}"
                             IsVisible="{Binding SupportsCheckpoints}"
                             ToolTip.Tip="{Binding Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}, ConverterParameter='Takeover'}">
+                      <Button.ContextFlyout>
+                        <MenuFlyout>
+                          <MenuItem Header="{localization:Localize Tools.ReplayManager.Action.SelectRecoveryProfile}"
+                                    Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).SelectRecoveryProfileCommand}"
+                                    CommandParameter="{Binding}" />
+                        </MenuFlyout>
+                      </Button.ContextFlyout>
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="11" Height="11" VerticalAlignment="Center"/>
                         <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Recovery}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -493,7 +500,14 @@
                         HorizontalAlignment="Stretch">
                 <ComboBox.ItemTemplate>
                   <DataTemplate>
-                    <TextBlock Text="{Binding Name}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding Name}" FontWeight="Medium" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding GameClient.Name, StringFormat='({0})'}"
+                                 FontSize="11"
+                                 Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center"
+                                 IsVisible="{Binding GameClient, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </StackPanel>
                   </DataTemplate>
                 </ComboBox.ItemTemplate>
               </ComboBox>

@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -366,6 +367,8 @@ public class ProfileContentLoader(
             ? manifest.Version
             : string.Empty;
 
+        var (exePath, workingDir) = GenHub.Features.GameProfiles.ViewModels.GameProfileClientResolutionHelper.ResolveClientPaths(manifest.SourcePath, manifest.EntryPoint);
+
         return new GameClient
         {
             Id = manifest.Id.Value ?? string.Empty,
@@ -375,6 +378,8 @@ public class ProfileContentLoader(
             SourceType = ContentType.GameClient,
             PublisherType = manifest.Publisher?.PublisherType,
             InstallationId = installationId ?? string.Empty,
+            ExecutablePath = exePath ?? string.Empty,
+            WorkingDirectory = workingDir ?? string.Empty,
         };
     }
 

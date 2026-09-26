@@ -10,6 +10,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -221,6 +222,81 @@ public class ProfileContentLoaderManifestIdTests
         // The addon follows the installation in the list, so it only survives if the installation
         // item did not throw and abandon the loop.
         Assert.Contains(items, item => string.Equals(item.ManifestId, addonId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that ResolveClientPaths resolves executable path and working directory for regular executable files.
+    /// </summary>
+    [Fact]
+    public void ResolveClientPaths_WithExecutableFile_ReturnsPathAndDirectory()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), "test_client_" + Guid.NewGuid().ToString("N") + ".exe");
+        try
+        {
+            File.WriteAllText(tempFile, "fake exe");
+            var (exePath, workingDir) = GameProfileClientResolutionHelper.ResolveClientPaths(tempFile);
+            Assert.Equal(tempFile, exePath);
+            Assert.Equal(Path.GetDirectoryName(tempFile), workingDir);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ResolveClientPaths supports non-Windows extensionless binaries.
+    /// </summary>
+    [Fact]
+    public void ResolveClientPaths_WithExtensionlessBinary_ReturnsPathAndDirectory()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), "GeneralsOnlineZH_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            File.WriteAllText(tempFile, "fake binary");
+            var (exePath, workingDir) = GameProfileClientResolutionHelper.ResolveClientPaths(tempFile);
+            Assert.Equal(tempFile, exePath);
+            Assert.Equal(Path.GetDirectoryName(tempFile), workingDir);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ResolveClientPaths rejects archive and package files from being used as client executables.
+    /// </summary>
+    /// <param name="ext">The archive extension.</param>
+    [Theory]
+    [InlineData(".zip")]
+    [InlineData(".7z")]
+    [InlineData(".rar")]
+    [InlineData(".tar")]
+    [InlineData(".gz")]
+    public void ResolveClientPaths_WithArchiveFile_ReturnsNull(string ext)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), "archive_" + Guid.NewGuid().ToString("N") + ext);
+        try
+        {
+            File.WriteAllText(tempFile, "fake archive");
+            var (exePath, workingDir) = GameProfileClientResolutionHelper.ResolveClientPaths(tempFile);
+            Assert.Null(exePath);
+            Assert.Null(workingDir);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
     }
 
     private static GameInstallation BuildInstallation(GameType gameType, string clientVersion)

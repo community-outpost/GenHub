@@ -4984,6 +4984,9 @@
   <data name="Tools.ReplayManager.Action.SelectProfile" xml:space="preserve">
     <value>Выбрать профиль для запуска...</value>
   </data>
+  <data name="Tools.ReplayManager.Action.SelectRecoveryProfile" xml:space="preserve">
+    <value>Выбрать профиль восстановления...</value>
+  </data>
   <data name="Tools.ReplayManager.Action.SelectClient" xml:space="preserve">
     <value>Выбрать игровой клиент и создать профиль...</value>
   </data>
@@ -8441,6 +8444,18 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Выберите доступный клиент игры для создания нового профиля</value>
+  </data>
+  <data name="Tools.ReplayManager.RecoveryProfileSelection.DialogTitleFormat" xml:space="preserve">
+    <value>Выбрать профиль восстановления — {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.RecoveryProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Выбор профиля восстановления</value>
+  </data>
+  <data name="Tools.ReplayManager.RecoveryProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Выберите профиль с поддержкой восстановления для создания чекпоинтов и восстановления этого реплея</value>
+  </data>
+  <data name="Tools.ReplayManager.RecoveryProfileSelection.ActionBadge" xml:space="preserve">
+    <value>Восстановить</value>
   </data>
   <data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
     <value>Поделиться профилем...</value>

@@ -6,6 +6,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Services;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -112,6 +113,8 @@ internal static class GameProfileClientResolutionHelper
         var publisherType = ExtractPublisherType(segments, item.Publisher);
         var version = ExtractClientVersion(item.Version, segments, publisherType);
 
+        var (exePath, workingDir) = ResolveClientPaths(item.SourcePath);
+
         return new GameClient
         {
             Id = manifestIdValue,
@@ -121,6 +124,8 @@ internal static class GameProfileClientResolutionHelper
             SourceType = ContentType.GameClient,
             PublisherType = publisherType,
             InstallationId = installationId,
+            ExecutablePath = exePath ?? string.Empty,
+            WorkingDirectory = workingDir ?? string.Empty,
         };
     }
 
@@ -176,6 +181,66 @@ internal static class GameProfileClientResolutionHelper
     }
 
     /// <summary>
+    /// Attempts to resolve the executable path and working directory for a game client from its source path and entry point.
+    /// </summary>
+    /// <param name="sourcePath">The manifest or display item source path.</param>
+    /// <param name="entryPoint">Optional entry point relative to directory source paths.</param>
+    /// <returns>A tuple containing the resolved executable path and working directory, or nulls if unresolvable.</returns>
+    internal static (string? ExecutablePath, string? WorkingDirectory) ResolveClientPaths(string? sourcePath, string? entryPoint = null)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            return (null, null);
+        }
+
+        if (File.Exists(sourcePath))
+        {
+            var ext = Path.GetExtension(sourcePath);
+            if (!IsArchiveOrPackageExtension(ext))
+            {
+                return (sourcePath, Path.GetDirectoryName(sourcePath));
+            }
+        }
+        else if (Directory.Exists(sourcePath) && !string.IsNullOrWhiteSpace(entryPoint))
+        {
+            var combined = Path.Combine(sourcePath, entryPoint);
+            if (File.Exists(combined))
+            {
+                return (combined, sourcePath);
+            }
+        }
+
+        return (null, null);
+    }
+
+    /// <summary>
+    /// Stamps the installation source ID onto the resolved client if compatible with the game type.
+    /// </summary>
+    /// <param name="resolvedClient">The resolved game client.</param>
+    /// <param name="selectedInstallation">The selected installation item.</param>
+    private static void ApplyInstallationIdIfCompatible(GameClient resolvedClient, ContentDisplayItem? selectedInstallation)
+    {
+        if (selectedInstallation == null)
+        {
+            return;
+        }
+
+        var isInstallationMatch = selectedInstallation.GameType == GameType.Unknown ||
+            resolvedClient.GameType == selectedInstallation.GameType;
+        var isClientMatch = selectedInstallation.GameClient == null ||
+            resolvedClient.GameType == selectedInstallation.GameClient.GameType;
+
+        if (isInstallationMatch && isClientMatch)
+        {
+            var installationSourceId = selectedInstallation.SourceId ?? selectedInstallation.GameClient?.InstallationId;
+            if (!string.IsNullOrEmpty(installationSourceId))
+            {
+                resolvedClient.InstallationId = installationSourceId;
+            }
+        }
+    }
+
+    /// <summary>
     /// Resolves a game client from an enabled content display item if present.
     /// </summary>
     /// <param name="item">The enabled content display item.</param>
@@ -215,29 +280,20 @@ internal static class GameProfileClientResolutionHelper
     }
 
     /// <summary>
-    /// Stamps the installation source ID onto the resolved client if compatible with the game type.
+    /// Determines whether the given file extension corresponds to an archive or package format.
     /// </summary>
-    /// <param name="resolvedClient">The resolved game client.</param>
-    /// <param name="selectedInstallation">The selected installation item.</param>
-    private static void ApplyInstallationIdIfCompatible(GameClient resolvedClient, ContentDisplayItem? selectedInstallation)
+    /// <param name="extension">The file extension including the leading dot.</param>
+    /// <returns>True if the extension is an archive or package; otherwise, false.</returns>
+    private static bool IsArchiveOrPackageExtension(string extension)
     {
-        if (selectedInstallation == null)
+        if (string.IsNullOrEmpty(extension))
         {
-            return;
+            return false;
         }
 
-        var isInstallationMatch = selectedInstallation.GameType == GameType.Unknown ||
-            resolvedClient.GameType == selectedInstallation.GameType;
-        var isClientMatch = selectedInstallation.GameClient == null ||
-            resolvedClient.GameType == selectedInstallation.GameClient.GameType;
-
-        if (isInstallationMatch && isClientMatch)
-        {
-            var installationSourceId = selectedInstallation.SourceId ?? selectedInstallation.GameClient?.InstallationId;
-            if (!string.IsNullOrEmpty(installationSourceId))
-            {
-                resolvedClient.InstallationId = installationSourceId;
-            }
-        }
+        return ContentFormatConstants.UnderstoodArchiveExtensions.Any(archiveExt =>
+                   string.Equals(extension, archiveExt, StringComparison.OrdinalIgnoreCase)) ||
+               ContentFormatConstants.GuidedRejectionExtensions.Any(pkgExt =>
+                   string.Equals(extension, pkgExt, StringComparison.OrdinalIgnoreCase));
     }
 }
