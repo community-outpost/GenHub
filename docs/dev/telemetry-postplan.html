@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GenHub Telemetry & PostHog Analytics Specification</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0c0c0c;
+      --surface-2: #141414;
+      --border: #222222;
+      --border-accent: #333333;
+      --text-main: #f0f0f0;
+      --text-muted: #888888;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-purple: #8b5cf6;
+      --code-bg: #161616;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 24px 16px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+    .badge-green { border-color: rgba(16, 185, 129, 0.4); color: #34d399; }
+    .badge-blue { border-color: rgba(59, 130, 246, 0.4); color: #60a5fa; }
+    .badge-amber { border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; }
+    .badge-purple { border-color: rgba(139, 92, 246, 0.4); color: #a78bfa; }
+
+    section {
+      margin-bottom: 32px;
+    }
+    h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 12px;
+      border-left: 3px solid var(--accent-blue);
+      padding-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e5e5e5;
+      margin: 16px 0 8px 0;
+    }
+    p {
+      color: #b0b0b0;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    a {
+      color: var(--accent-blue);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .card-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .card-desc {
+      font-size: 11px;
+      color: #888888;
+      margin-top: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    th {
+      background: var(--surface-2);
+      color: #aaaaaa;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: #cccccc;
+      vertical-align: top;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      background: var(--code-bg);
+      padding: 2px 5px;
+      border-radius: 3px;
+      border: 1px solid #222;
+      color: #e5e5e5;
+    }
+    .code-accent {
+      color: #60a5fa;
+    }
+    .spec-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .pipeline-diagram {
+      background: #050505;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      color: #999999;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+    .pipeline-step {
+      display: inline-block;
+      padding: 4px 8px;
+      border: 1px solid var(--border-accent);
+      background: var(--surface);
+      color: #ffffff;
+      border-radius: 4px;
+      margin: 2px 0;
+    }
+    .arrow {
+      color: var(--accent-blue);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>GenHub Telemetry & PostHog Analytics Architecture Post-Plan</h1>
+      <div class="meta-bar">
+        <span>PR: <a href="https://github.com/community-outpost/GenHub/pull/408" target="_blank" rel="noopener noreferrer">#408 (feat/telemetry-sentry-posthog)</a></span>
+        <span>Branch: <code>feat/telemetry-sentry-posthog</code></span>
+        <span>PostHog Project: <code>567732</code></span>
+        <span>Endpoint: <code>https://us.i.posthog.com/i/v0/e/</code></span>
+        <span class="badge badge-green">Pipeline: Dual-Sink</span>
+        <span class="badge badge-blue">Dashboards: 4</span>
+        <span class="badge badge-purple">Insight Tiles: 41</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>1. Ingestion Pipeline & Privacy Architecture</h2>
+      <p>
+        The telemetry subsystem provides production observability across runtime game processes, content delivery, publisher updates, and client health without capturing personally identifiable information.
+      </p>
+
+      <div class="pipeline-diagram">
+        <span class="pipeline-step">Engine / UI / CLI Action</span> 
+        <span class="arrow">&rarr;</span> 
+        <span class="pipeline-step">TelemetryService.TrackAsync()</span> 
+        <span class="arrow">&rarr;</span> 
+        <span class="pipeline-step">Channel&lt;TelemetryEvent&gt; (Bounded: 500)</span> 
+        <span class="arrow">&rarr;</span> 
+        <span class="pipeline-step">TelemetrySanitizer (DAG Cycle-Safe Recursion)</span> 
+        <span class="arrow">&rarr;</span> 
+        <span class="pipeline-step">AnalyticsTelemetrySink (PostHog /i/v0/e/) &amp; SentryTelemetrySink</span>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="card-title">Sanitization Invariant</div>
+          <div class="card-val">Zero PII</div>
+          <div class="card-desc">User directories, Wine prefixes, and private tokens masked via regex passes before dispatch.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Batch Delivery</div>
+          <div class="card-val">30s / 500 Events</div>
+          <div class="card-desc">Bounded channel with drop-oldest backpressure protects UI thread and client memory.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Fail-Safe Isolation</div>
+          <div class="card-val">Zero Disruptions</div>
+          <div class="card-desc">Telemetry recording is non-blocking. Sinks run in background tasks with try/catch isolation.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Threadpool Offload</div>
+          <div class="card-val">Deadlock-Free</div>
+          <div class="card-desc">Synchronous restart handlers (Velopack) offload flush operations to Task.Run with ConfigureAwait(false).</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Complete Inventory of Tracked Events</h2>
+      <p>
+        All 24 discrete events defined in <code>TelemetryConstants.Events</code> with their triggering domains, code locations, and emitted payloads.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Domain</th>
+            <th>Event Name</th>
+            <th>Trigger Location</th>
+            <th>Primary Payload Properties</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Game Process</strong></td>
+            <td><code>game_session_started</code></td>
+            <td><code>GameProcessManager.cs</code></td>
+            <td><code>session_id</code>, <code>game_type</code>, <code>profile_id</code>, <code>profile_name</code>, <code>runner</code> (Native/Wine/Proton), <code>resolution</code>, <code>executable_path</code></td>
+          </tr>
+          <tr>
+            <td><strong>Game Process</strong></td>
+            <td><code>game_session_heartbeat</code></td>
+            <td><code>GameProcessManager.cs</code></td>
+            <td><code>session_id</code>, <code>duration_seconds</code> (dispatched every 5 minutes while game executes)</td>
+          </tr>
+          <tr>
+            <td><strong>Game Process</strong></td>
+            <td><code>game_session_ended</code></td>
+            <td><code>GameProcessManager.cs</code></td>
+            <td><code>session_id</code>, <code>game_type</code>, <code>duration_seconds</code>, <code>exit_code</code>, <code>was_graceful</code> (exit_code == 0)</td>
+          </tr>
+          <tr>
+            <td><strong>Game Profiles</strong></td>
+            <td><code>profile_launched</code></td>
+            <td><code>GameProfileViewModel.cs</code></td>
+            <td><code>profile_id</code>, <code>profile_name</code>, <code>game_type</code>, <code>launch_source</code> (launcher, shortcut, ipc)</td>
+          </tr>
+          <tr>
+            <td><strong>Game Profiles</strong></td>
+            <td><code>profile_launched_from_shortcut</code></td>
+            <td><code>App.axaml.cs</code></td>
+            <td><code>profile_id</code>, <code>launch_source</code> (shortcut)</td>
+          </tr>
+          <tr>
+            <td><strong>Game Profiles</strong></td>
+            <td><code>profile_pinned</code></td>
+            <td><code>ProfileManagementService.cs</code></td>
+            <td><code>profile_id</code>, <code>profile_name</code>, <code>shortcut_type</code> (desktop, start_menu)</td>
+          </tr>
+          <tr>
+            <td><strong>Game Profiles</strong></td>
+            <td><code>profile_shared</code></td>
+            <td><code>ProfileSharingService.cs</code></td>
+            <td><code>profile_id</code>, <code>profile_name</code>, <code>share_format</code> (uri, file, json), <code>file_size_bytes</code> (accurate UTF-8 byte count)</td>
+          </tr>
+          <tr>
+            <td><strong>Game Profiles</strong></td>
+            <td><code>profile_imported</code></td>
+            <td><code>ProfileSharingService.cs</code></td>
+            <td><code>profile_id</code>, <code>import_source</code> (uri, file, json), <code>success</code>, <code>error_message</code></td>
+          </tr>
+          <tr>
+            <td><strong>Content Delivery</strong></td>
+            <td><code>content_download_completed</code></td>
+            <td><code>DownloadService.cs</code></td>
+            <td><code>content_id</code>, <code>content_name</code>, <code>content_type</code> (Mod/Patch/Map), <code>source_provider</code>, <code>size_mb</code>, <code>duration_seconds</code>, <code>speed_mbps</code></td>
+          </tr>
+          <tr>
+            <td><strong>Content Delivery</strong></td>
+            <td><code>content_download_failed</code></td>
+            <td><code>DownloadService.cs</code></td>
+            <td><code>content_id</code>, <code>content_name</code>, <code>content_type</code>, <code>source_provider</code>, <code>error_message</code>, <code>retry_count</code></td>
+          </tr>
+          <tr>
+            <td><strong>Publisher Updates</strong></td>
+            <td><code>content_update_applied</code></td>
+            <td><code>ContentManager.cs</code></td>
+            <td><code>publisher_id</code> (GeneralsOnline, TheSuperHackers), <code>manifest_id</code>, <code>content_type</code>, <code>strategy</code>, <code>profiles_updated</code>, <code>duration_seconds</code></td>
+          </tr>
+          <tr>
+            <td><strong>Publisher Updates</strong></td>
+            <td><code>content_update_failed</code></td>
+            <td><code>ContentManager.cs</code></td>
+            <td><code>publisher_id</code>, <code>manifest_id</code>, <code>content_type</code>, <code>error_message</code></td>
+          </tr>
+          <tr>
+            <td><strong>App Updates</strong></td>
+            <td><code>app_update_checked</code></td>
+            <td><code>VelopackUpdateManager.cs</code></td>
+            <td><code>channel</code>, <code>from_version</code>, <code>to_version</code>, <code>success</code></td>
+          </tr>
+          <tr>
+            <td><strong>App Updates</strong></td>
+            <td><code>app_update_downloaded</code></td>
+            <td><code>VelopackUpdateManager.cs</code></td>
+            <td><code>channel</code>, <code>from_version</code>, <code>to_version</code>, <code>size_mb</code>, <code>duration_seconds</code>, <code>speed_mbps</code></td>
+          </tr>
+          <tr>
+            <td><strong>App Updates</strong></td>
+            <td><code>app_update_applied</code></td>
+            <td><code>VelopackUpdateManager.cs</code></td>
+            <td><code>channel</code>, <code>from_version</code>, <code>to_version</code>, <code>restart_duration_ms</code></td>
+          </tr>
+          <tr>
+            <td><strong>Community Tools</strong></td>
+            <td><code>uploadthing_upload_completed</code></td>
+            <td><code>UploadThingService.cs</code></td>
+            <td><code>tool_source</code>, <code>file_name</code>, <code>file_size_bytes</code>, <code>duration_seconds</code>, <code>speed_mbps</code></td>
+          </tr>
+          <tr>
+            <td><strong>Community Tools</strong></td>
+            <td><code>uploadthing_upload_failed</code></td>
+            <td><code>UploadThingService.cs</code></td>
+            <td><code>tool_source</code>, <code>file_name</code>, <code>file_size_bytes</code>, <code>error_message</code></td>
+          </tr>
+          <tr>
+            <td><strong>GenPatcher</strong></td>
+            <td><code>genpatcher_fix_applied</code></td>
+            <td><code>GenPatcherService.cs</code></td>
+            <td><code>fix_id</code>, <code>fix_name</code>, <code>is_crucial</code>, <code>success</code>, <code>error_message</code></td>
+          </tr>
+          <tr>
+            <td><strong>ModBuilder</strong></td>
+            <td><code>modbuilder_project_created</code></td>
+            <td><code>ModBuilderService.cs</code></td>
+            <td><code>project_name</code>, <code>game_type</code></td>
+          </tr>
+          <tr>
+            <td><strong>ModBuilder</strong></td>
+            <td><code>modbuilder_mod_built</code></td>
+            <td><code>ModBuilderService.cs</code></td>
+            <td><code>project_name</code>, <code>game_type</code>, <code>build_steps</code>, <code>success</code>, <code>duration_seconds</code>, <code>file_size_bytes</code></td>
+          </tr>
+          <tr>
+            <td><strong>Replay Manager</strong></td>
+            <td><code>replay_exported_zip</code></td>
+            <td><code>ReplayManagerViewModel.cs</code></td>
+            <td><code>replay_count</code>, <code>file_size_bytes</code>, <code>duration_seconds</code></td>
+          </tr>
+          <tr>
+            <td><strong>Replay Manager</strong></td>
+            <td><code>replay_checkpoint_minted</code></td>
+            <td><code>ReplayManagerViewModel.cs</code></td>
+            <td><code>target_frame</code>, <code>duration_seconds</code></td>
+          </tr>
+          <tr>
+            <td><strong>CAS Storage</strong></td>
+            <td><code>cas_reconcile_completed</code></td>
+            <td><code>CasLifecycleManager.cs</code></td>
+            <td><code>file_count</code>, <code>bytes_reconciled</code>, <code>cache_hit_rate</code>, <code>duration_seconds</code></td>
+          </tr>
+          <tr>
+            <td><strong>CAS Storage</strong></td>
+            <td><code>cas_garbage_collected</code></td>
+            <td><code>CasLifecycleManager.cs</code></td>
+            <td><code>objects_scanned</code>, <code>objects_referenced</code>, <code>objects_deleted</code>, <code>bytes_freed</code>, <code>duration_seconds</code></td>
+          </tr>
+          <tr>
+            <td><strong>Workspaces</strong></td>
+            <td><code>workspace_prepared</code></td>
+            <td><code>WorkspaceManager.cs</code></td>
+            <td><code>workspace_id</code>, <code>strategy</code> (Hardlink/Symlink/Copy), <code>manifest_count</code>, <code>is_reused</code>, <code>duration_seconds</code></td>
+          </tr>
+          <tr>
+            <td><strong>Installation</strong></td>
+            <td><code>game_installations_detected</code></td>
+            <td><code>InstallationDetector.cs</code></td>
+            <td><code>installation_count</code>, <code>has_steam</code>, <code>has_ea_app</code>, <code>has_the_first_decade</code>, <code>has_generals</code>, <code>has_zero_hour</code></td>
+          </tr>
+          <tr>
+            <td><strong>Forensics</strong></td>
+            <td><code>app_unhandled_crash</code></td>
+            <td><code>App.axaml.cs</code></td>
+            <td><code>exception_type</code>, <code>exception_message</code>, <code>stack_trace</code>, <code>is_fatal</code>, <code>context</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>3. PostHog Dashboards & Insight Tiles (4 Dashboards, 41 Tiles)</h2>
+      <p>
+        Configured via <code>docs/dev/posthog-dashboard-config.json</code> with standardized <code>trendsFilter.display</code> properties.
+      </p>
+
+      <h3>Dashboard 1: Executive Overview & Community Engagement (ID: genhub-executive-overview)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Insight Name</th>
+            <th>Type</th>
+            <th>Display Mode</th>
+            <th>Series Event &amp; Math</th>
+            <th>Grouping / Filters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Daily Active Game Launchers (DAU)</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>game_session_started</code> (math: dau)</td>
+            <td>Daily interval, last 30d</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Total Game Sessions Started</td>
+            <td>Trends</td>
+            <td><code>BoldNumber</code></td>
+            <td><code>game_session_started</code> (math: total)</td>
+            <td>Last 30d total</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Profile Launches: Launcher UI vs Shortcut / Pinned</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>profile_launched</code> (math: total)</td>
+            <td>Breakdown: <code>launch_source</code></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Profiles Pinned to Desktop</td>
+            <td>Trends</td>
+            <td><code>BoldNumber</code></td>
+            <td><code>profile_pinned</code> (math: total)</td>
+            <td>Last 30d total</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Profiles Shared &amp; Exported</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>profile_shared</code> (math: total)</td>
+            <td>Breakdown: <code>share_format</code></td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Profiles Imported</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>profile_imported</code> (math: total)</td>
+            <td>Breakdown: <code>import_source</code></td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>Publisher Content Updates Applied</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>content_update_applied</code> (math: total)</td>
+            <td>Breakdown: <code>publisher_id</code></td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>ModBuilder Mods Built</td>
+            <td>Trends</td>
+            <td><code>BoldNumber</code></td>
+            <td><code>modbuilder_mod_built</code> (math: total)</td>
+            <td>Last 30d total</td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td>GenPatcher Fixes Applied</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>genpatcher_fix_applied</code> (math: total)</td>
+            <td>Breakdown: <code>fix_name</code></td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td>Total Content Download Volume (MB)</td>
+            <td>Trends</td>
+            <td><code>BoldNumber</code></td>
+            <td><code>content_download_completed</code> (math: sum(size_mb))</td>
+            <td>Last 30d total megabytes</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Dashboard 2: Game Runtime, Profiles & Hardware Ecosystem (ID: genhub-game-launch-sessions)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Insight Name</th>
+            <th>Type</th>
+            <th>Display Mode</th>
+            <th>Series Event &amp; Math</th>
+            <th>Grouping / Filters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>11</td>
+            <td>Game Launches by Game Type</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>game_session_started</code> (math: total)</td>
+            <td>Breakdown: <code>game_type</code></td>
+          </tr>
+          <tr>
+            <td>12</td>
+            <td>Launches by Runner (Native vs Wine/Proton)</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>game_session_started</code> (math: total)</td>
+            <td>Breakdown: <code>runner</code></td>
+          </tr>
+          <tr>
+            <td>13</td>
+            <td>Average Session Duration (Minutes)</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td>HogQL: <code>avg(properties.duration_seconds) / 60</code></td>
+            <td>Event: <code>game_session_ended</code></td>
+          </tr>
+          <tr>
+            <td>14</td>
+            <td>Average Session Duration (Seconds)</td>
+            <td>Trends</td>
+            <td><code>BoldNumber</code></td>
+            <td><code>game_session_ended</code> (math: avg(duration_seconds))</td>
+            <td>Last 30d average seconds</td>
+          </tr>
+          <tr>
+            <td>15</td>
+            <td>Graceful vs Crash Game Exits</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>game_session_ended</code> (math: total)</td>
+            <td>Breakdown: <code>was_graceful</code></td>
+          </tr>
+          <tr>
+            <td>16</td>
+            <td>Game Session Heartbeats</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>game_session_heartbeat</code> (math: total)</td>
+            <td>Active concurrency indicator</td>
+          </tr>
+          <tr>
+            <td>17</td>
+            <td>Top Game Profiles Launched</td>
+            <td>Trends</td>
+            <td><code>ActionsTable</code></td>
+            <td><code>profile_launched</code> (math: total)</td>
+            <td>Breakdown: <code>profile_name</code></td>
+          </tr>
+          <tr>
+            <td>18</td>
+            <td>Screen Resolution Distribution</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>game_session_started</code> (math: total)</td>
+            <td>Breakdown: <code>resolution</code></td>
+          </tr>
+          <tr>
+            <td>19</td>
+            <td>Game Installations Detected by Source</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>game_installations_detected</code></td>
+            <td>Steam, EA App, The First Decade</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Dashboard 3: Content Distribution, Publishers & App Updates (ID: genhub-content-downloads-updates)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Insight Name</th>
+            <th>Type</th>
+            <th>Display Mode</th>
+            <th>Series Event &amp; Math</th>
+            <th>Grouping / Filters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>20</td>
+            <td>Publisher Updates by Publisher</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>content_update_applied</code> (math: total)</td>
+            <td>Breakdown: <code>publisher_id</code></td>
+          </tr>
+          <tr>
+            <td>21</td>
+            <td>Content Updates: Success vs Failure</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>content_update_applied</code> vs <code>content_update_failed</code></td>
+            <td>Comparative ratio</td>
+          </tr>
+          <tr>
+            <td>22</td>
+            <td>Content Update Failure Reasons</td>
+            <td>Trends</td>
+            <td><code>ActionsTable</code></td>
+            <td><code>content_update_failed</code> (math: total)</td>
+            <td>Breakdown: <code>error_message</code></td>
+          </tr>
+          <tr>
+            <td>23</td>
+            <td>Content Downloads by Content Type</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>content_download_completed</code> (math: total)</td>
+            <td>Breakdown: <code>content_type</code> (Mod, Patch, Map)</td>
+          </tr>
+          <tr>
+            <td>24</td>
+            <td>Content Downloads by Source Provider</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>content_download_completed</code> (math: total)</td>
+            <td>Breakdown: <code>source_provider</code></td>
+          </tr>
+          <tr>
+            <td>25</td>
+            <td>Download Speed Distribution (Mbps)</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>content_download_completed</code> (math: avg(speed_mbps))</td>
+            <td>Throughput over time</td>
+          </tr>
+          <tr>
+            <td>26</td>
+            <td>Content Download Failure Rate &amp; Reasons</td>
+            <td>Trends</td>
+            <td><code>ActionsTable</code></td>
+            <td><code>content_download_failed</code> (math: total)</td>
+            <td>Breakdown: <code>error_message</code></td>
+          </tr>
+          <tr>
+            <td>27</td>
+            <td>App Update Pipeline Funnel</td>
+            <td>Funnel</td>
+            <td><code>FunnelViz</code></td>
+            <td><code>app_update_checked</code> &rarr; <code>downloaded</code> &rarr; <code>applied</code></td>
+            <td>Step-by-step conversion funnel</td>
+          </tr>
+          <tr>
+            <td>28</td>
+            <td>Velopack App Update Channels &amp; Versions</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>app_update_applied</code> (math: total)</td>
+            <td>Breakdown: <code>to_version</code></td>
+          </tr>
+          <tr>
+            <td>29</td>
+            <td>UploadThing Uploads: Success vs Failure</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>uploadthing_upload_completed</code> vs <code>failed</code></td>
+            <td>Comparative ratio</td>
+          </tr>
+          <tr>
+            <td>30</td>
+            <td>UploadThing Uploads by Tool Source</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>uploadthing_upload_completed</code> (math: total)</td>
+            <td>Breakdown: <code>tool_source</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Dashboard 4: Infrastructure, Workspaces & Developer Health (ID: genhub-storage-workspaces-developer)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Insight Name</th>
+            <th>Type</th>
+            <th>Display Mode</th>
+            <th>Series Event &amp; Math</th>
+            <th>Grouping / Filters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>31</td>
+            <td>Workspace Strategy Distribution</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>workspace_prepared</code> (math: total)</td>
+            <td>Breakdown: <code>strategy</code> (Hardlink, Symlink, Copy)</td>
+          </tr>
+          <tr>
+            <td>32</td>
+            <td>Workspace Fast-Path Reuse Rate</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>workspace_prepared</code> (math: total)</td>
+            <td>Breakdown: <code>is_reused</code></td>
+          </tr>
+          <tr>
+            <td>33</td>
+            <td>CAS Reconcile File Count vs Bytes</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>cas_reconcile_completed</code></td>
+            <td>Dual series: <code>sum(file_count)</code> &amp; <code>sum(bytes_reconciled)</code></td>
+          </tr>
+          <tr>
+            <td>34</td>
+            <td>CAS Garbage Collection Objects</td>
+            <td>Trends</td>
+            <td><code>ActionsBar</code></td>
+            <td><code>cas_garbage_collected</code></td>
+            <td>Series: <code>objects_scanned</code> vs <code>objects_deleted</code></td>
+          </tr>
+          <tr>
+            <td>35</td>
+            <td>CAS Garbage Collection: Bytes Freed</td>
+            <td>Trends</td>
+            <td><code>BoldNumber</code></td>
+            <td><code>cas_garbage_collected</code> (math: sum(bytes_freed))</td>
+            <td>Cumulative reclaimed storage</td>
+          </tr>
+          <tr>
+            <td>36</td>
+            <td>Replay Export Volume &amp; Checkpoints</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>replay_exported_zip</code> &amp; <code>checkpoint_minted</code></td>
+            <td>Community tooling activity</td>
+          </tr>
+          <tr>
+            <td>37</td>
+            <td>ModBuilder Build Success vs Failure</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>modbuilder_mod_built</code> (math: total)</td>
+            <td>Breakdown: <code>success</code></td>
+          </tr>
+          <tr>
+            <td>38</td>
+            <td>Application Crashes by Context</td>
+            <td>Trends</td>
+            <td><code>ActionsTable</code></td>
+            <td><code>app_unhandled_crash</code> (math: total)</td>
+            <td>Breakdown: <code>context</code></td>
+          </tr>
+          <tr>
+            <td>39</td>
+            <td>App Version Adoption (DAU by Version)</td>
+            <td>Trends</td>
+            <td><code>ActionsLineGraph</code></td>
+            <td><code>game_session_started</code> (math: dau)</td>
+            <td>Breakdown: <code>app_version</code></td>
+          </tr>
+          <tr>
+            <td>40</td>
+            <td>Build Channels (Release vs PR vs Dev)</td>
+            <td>Trends</td>
+            <td><code>ActionsPie</code></td>
+            <td><code>game_session_started</code> (math: total)</td>
+            <td>Breakdown: <code>build_channel</code></td>
+          </tr>
+          <tr>
+            <td>41</td>
+            <td>Top Exception Types</td>
+            <td>Trends</td>
+            <td><code>ActionsTable</code></td>
+            <td><code>app_unhandled_crash</code> (math: total)</td>
+            <td>Breakdown: <code>exception_type</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>4. Post-Deployment Operational Plan</h2>
+      <div class="spec-box">
+        <h3>Live Event Validation &amp; Auditing</h3>
+        <p>
+          1. <strong>Path Masking Verification:</strong> Inspect live PostHog ingest stream (Project 567732) to confirm zero raw user directories exist across <code>executable_path</code>, <code>error_message</code>, or <code>stack_trace</code>.<br>
+          2. <strong>Heartbeat Reliability:</strong> Verify active game sessions produce heartbeats every 300 seconds and conclude with <code>game_session_ended</code> containing accurate <code>was_graceful</code> booleans.<br>
+          3. <strong>Failure Ratio Alerts:</strong> Configure PostHog action alerts for <code>content_download_failed / (content_download_completed + content_download_failed) > 0.05</code> and Sentry alerts for fatal <code>app_unhandled_crash</code> occurrences.
+        </p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
