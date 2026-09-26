@@ -9748,6 +9748,21 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.Launcher.Notify.ImportErrorFormat" xml:space="preserve">
     <value>Произошла ошибка во время импорта профиля: {0}</value>
   </data>
+  <data name="GameProfiles.Resources.IconFormat" xml:space="preserve">
+    <value>Значок {0}</value>
+  </data>
+  <data name="GameProfiles.Resources.LogoFormat" xml:space="preserve">
+    <value>Логотип {0}</value>
+  </data>
+  <data name="GameProfiles.Resources.CoverFormat" xml:space="preserve">
+    <value>Обложка {0}</value>
+  </data>
+  <data name="GameProfiles.Resources.CoverAltFormat" xml:space="preserve">
+    <value>Обложка {0} (альт.)</value>
+  </data>
+  <data name="GameProfiles.Resources.DefaultBackground" xml:space="preserve">
+    <value>Фон по умолчанию</value>
+  </data>
   <data name="GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat" xml:space="preserve">
     <value>Не удалось выбрать файл профиля: {0}</value>
   </data>

@@ -1,6 +1,8 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.GameProfile;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,7 +12,7 @@ namespace GenHub.Features.GameProfiles.Services;
 /// <summary>
 /// Service for managing profile resources like icons and covers.
 /// </summary>
-public class ProfileResourceService(ILogger<ProfileResourceService> logger)
+public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILocalizationService localizationService)
 {
     private const string IconsPath = "/Assets/Icons";
     private const string CoversPath = "/Assets/Covers";
@@ -18,11 +20,17 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
     private const string ImagesPath = "/Assets/Images";
     private const string GeneralsGameType = "Generals";
     private const string ZeroHourGameType = "ZeroHour";
+    private const string IconFormatKey = "GameProfiles.Resources.IconFormat";
+    private const string LogoFormatKey = "GameProfiles.Resources.LogoFormat";
+    private const string CoverFormatKey = "GameProfiles.Resources.CoverFormat";
+    private const string CoverAltFormatKey = "GameProfiles.Resources.CoverAltFormat";
+    private const string DefaultBackgroundKey = "GameProfiles.Resources.DefaultBackground";
 
     private readonly object _initLock = new();
     private readonly List<ProfileResourceItem> _icons = [];
     private readonly List<ProfileResourceItem> _covers = [];
     private bool _initialized = false;
+    private string? _resolvedCultureName;
 
     /// <summary>
     /// Gets all available icons.
@@ -91,18 +99,23 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
     }
 
     /// <summary>
-    /// Ensures resources are initialized (thread-safe).
+    /// Ensures resources are initialized (thread-safe), rebuilding display names when the UI culture changed.
     /// </summary>
     private void EnsureInitialized()
     {
-        if (!_initialized)
+        var cultureName = localizationService.CurrentCulture.Name;
+        if (!_initialized || !string.Equals(_resolvedCultureName, cultureName, StringComparison.Ordinal))
         {
             lock (_initLock)
             {
-                if (!_initialized)
+                cultureName = localizationService.CurrentCulture.Name;
+                if (!_initialized || !string.Equals(_resolvedCultureName, cultureName, StringComparison.Ordinal))
                 {
+                    _icons.Clear();
+                    _covers.Clear();
                     LoadBuiltInResources();
                     _initialized = true;
+                    _resolvedCultureName = cultureName;
                     logger.LogInformation(
                         "ProfileResourceService initialized with {IconCount} icons and {CoverCount} covers",
                         _icons.Count,
@@ -114,38 +127,39 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
 
     /// <summary>
     /// Loads built-in icons and covers from Assets.
+    /// Display names resolve through localized format keys so pickers localize with the rest of the UI.
     /// </summary>
     private void LoadBuiltInResources()
     {
         // Load icons
-        var iconFiles = new (string FileName, string DisplayName, string? GameType)[]
+        var iconFiles = new (string FileName, string BaseName, string? GameType)[]
         {
-            ("generals-icon.png", "Generals Icon", GeneralsGameType),
-            ("zerohour-icon.png", "Zero Hour Icon", ZeroHourGameType),
-            ("generalshub-icon.png", "GenHub Icon", null),
-            ("steam-icon.png", "Steam Icon", null),
-            ("eaapp-icon.png", "EA App Icon", null),
-            ("origin-icon.png", "Origin Icon", null),
-            ("genpatcher-icon.png", "GenPatcher Icon", null),
-            ("modbuilder-icon.png", "ModBuilder Icon", null),
-            ("publisherstudio-icon.png", "Publisher Studio Icon", null),
-            ("hotkeyseditor-icon.png", "Hotkeys Editor Icon", null),
-            ("mapmanager-icon.png", "Map Manager Icon", null),
-            ("replaymanager-icon.png", "Replay Manager Icon", null),
-            ("gameprofilesettings-icon.png", "Profile Settings Icon", null),
-            ("settings-icon.png", "Settings Icon", null),
-            ("Factions/china.png", "China Faction Icon", null),
-            ("Factions/gla.png", "GLA Faction Icon", null),
-            ("Factions/usa.png", "USA Faction Icon", null),
+            ("generals-icon.png", "Generals", GeneralsGameType),
+            ("zerohour-icon.png", "Zero Hour", ZeroHourGameType),
+            ("generalshub-icon.png", "GenHub", null),
+            ("steam-icon.png", "Steam", null),
+            ("eaapp-icon.png", "EA App", null),
+            ("origin-icon.png", "Origin", null),
+            ("genpatcher-icon.png", "GenPatcher", null),
+            ("modbuilder-icon.png", "ModBuilder", null),
+            ("publisherstudio-icon.png", "Publisher Studio", null),
+            ("hotkeyseditor-icon.png", "Hotkeys Editor", null),
+            ("mapmanager-icon.png", "Map Manager", null),
+            ("replaymanager-icon.png", "Replay Manager", null),
+            ("gameprofilesettings-icon.png", "Profile Settings", null),
+            ("settings-icon.png", "Settings", null),
+            ("Factions/china.png", "China Faction", null),
+            ("Factions/gla.png", "GLA Faction", null),
+            ("Factions/usa.png", "USA Faction", null),
         };
 
-        foreach (var (fileName, displayName, gameType) in iconFiles)
+        foreach (var (fileName, baseName, gameType) in iconFiles)
         {
             _icons.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{IconsPath}/{fileName}",
-                DisplayName = displayName,
+                DisplayName = localizationService.GetString(IconFormatKey, baseName),
                 IsBuiltIn = true,
                 GameType = gameType,
             });
@@ -154,45 +168,45 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
         // Load logos as additional icons
         var logoFiles = new[]
         {
-            ("generalshub-logo.png", "GenHub Logo"),
-            ("generalsonline-logo.png", "Generals Online Logo"),
-            ("thesuperhackers-logo.png", "The Super Hackers Logo"),
-            ("cnclabs-logo.png", "CNC Labs Logo"),
-            ("communityoutpost-logo.png", "Community Outpost Logo"),
-            ("moddb-logo.png", "ModDB Logo"),
-            ("genlauncher-logo.png", "GenLauncher Logo"),
-            ("genpatcher-logo.png", "GenPatcher Logo"),
-            ("dominator-logo.png", "Dominator Logo"),
-            ("aodmaps-logo.png", "AoD Maps Logo"),
-            ("github-logo.png", "GitHub Logo"),
+            ("generalshub-logo.png", "GenHub"),
+            ("generalsonline-logo.png", "Generals Online"),
+            ("thesuperhackers-logo.png", "The Super Hackers"),
+            ("cnclabs-logo.png", "CNC Labs"),
+            ("communityoutpost-logo.png", "Community Outpost"),
+            ("moddb-logo.png", "ModDB"),
+            ("genlauncher-logo.png", "GenLauncher"),
+            ("genpatcher-logo.png", "GenPatcher"),
+            ("dominator-logo.png", "Dominator"),
+            ("aodmaps-logo.png", "AoD Maps"),
+            ("github-logo.png", "GitHub"),
         };
 
-        foreach (var (fileName, displayName) in logoFiles)
+        foreach (var (fileName, baseName) in logoFiles)
         {
             _icons.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{LogosPath}/{fileName}",
-                DisplayName = displayName,
+                DisplayName = localizationService.GetString(LogoFormatKey, baseName),
                 IsBuiltIn = true,
                 GameType = null,
             });
         }
 
         // Load game images as icons
-        var imageFiles = new (string FileName, string DisplayName, string? GameType)[]
+        var imageFiles = new (string FileName, string BaseName, string? GameType)[]
         {
-            ("zero-hour-logo.png", "Zero Hour Logo", ZeroHourGameType),
-            ("generals-logo.png", "Generals Logo", GeneralsGameType),
+            ("zero-hour-logo.png", "Zero Hour", ZeroHourGameType),
+            ("generals-logo.png", "Generals", GeneralsGameType),
         };
 
-        foreach (var (fileName, displayName, gameType) in imageFiles)
+        foreach (var (fileName, baseName, gameType) in imageFiles)
         {
             _icons.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{ImagesPath}/{fileName}",
-                DisplayName = displayName,
+                DisplayName = localizationService.GetString(LogoFormatKey, baseName),
                 IsBuiltIn = true,
                 GameType = gameType,
             });
@@ -201,38 +215,38 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
         // Load covers
         var coverFiles = new[]
         {
-            ("generals-cover.png", "Generals Cover", "Generals"),
-            ("generals-cover-2.png", "Generals Cover (Alt)", "Generals"),
-            ("zerohour-cover.png", "Zero Hour Cover", "ZeroHour"),
+            ("generals-cover.png", "Generals", CoverFormatKey, "Generals"),
+            ("generals-cover-2.png", "Generals", CoverAltFormatKey, "Generals"),
+            ("zerohour-cover.png", "Zero Hour", CoverFormatKey, "ZeroHour"),
         };
 
-        foreach (var (fileName, displayName, gameType) in coverFiles)
+        foreach (var (fileName, baseName, formatKey, gameType) in coverFiles)
         {
             _covers.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{CoversPath}/{fileName}",
-                DisplayName = displayName,
+                DisplayName = localizationService.GetString(formatKey, baseName),
                 IsBuiltIn = true,
                 GameType = gameType,
             });
         }
 
         // Load faction covers
-        var factionCoverFiles = new (string, string, string?)[]
+        var factionCoverFiles = new (string FileName, string BaseName, string? GameType)[]
         {
-            (UriConstants.ChinaCoverFilename, "China Cover", null),
-            (UriConstants.GlaCoverFilename, "GLA Cover", null),
-            (UriConstants.UsaCoverFilename, "USA Cover", null),
+            (UriConstants.ChinaCoverFilename, "China", null),
+            (UriConstants.GlaCoverFilename, "GLA", null),
+            (UriConstants.UsaCoverFilename, "USA", null),
         };
 
-        foreach (var (fileName, displayName, gameType) in factionCoverFiles)
+        foreach (var (fileName, baseName, gameType) in factionCoverFiles)
         {
             _covers.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{CoversPath}/{fileName}",
-                DisplayName = displayName,
+                DisplayName = localizationService.GetString(CoverFormatKey, baseName),
                 IsBuiltIn = true,
                 GameType = gameType,
             });
@@ -243,7 +257,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
         {
             Id = "background",
             Path = "/Assets/background.jpg",
-            DisplayName = "Default Background",
+            DisplayName = localizationService.GetString(DefaultBackgroundKey),
             IsBuiltIn = true,
             GameType = null,
         });

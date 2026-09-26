@@ -441,7 +441,11 @@ public class MainViewModelTests
 
     private static ProfileResourceService CreateProfileResourceService()
     {
-        return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(m => m.CurrentCulture).Returns(System.Globalization.CultureInfo.InvariantCulture);
+        localizationMock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, args) => args != null && args.Length > 0 ? $"{args[0]}" : key);
+        return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance, localizationMock.Object);
     }
 
     private static NotificationFeedViewModel CreateNotificationFeedViewModel(INotificationService notificationService)

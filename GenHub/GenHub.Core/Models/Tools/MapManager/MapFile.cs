@@ -16,6 +16,10 @@ public class MapFile : INotifyPropertyChanged
 {
     private Bitmap? _thumbnailBitmap;
     private int? _playerCount;
+    private string _fileName = string.Empty;
+    private bool _isDirectory;
+    private List<string> _assetFiles = [];
+    private IReadOnlyList<string>? _mapTypeParts;
 
     /// <summary>
     /// Event for property change notifications.
@@ -25,7 +29,15 @@ public class MapFile : INotifyPropertyChanged
     /// <summary>
     /// Gets or sets the file name of the map.
     /// </summary>
-    public required string FileName { get; set; }
+    public required string FileName
+    {
+        get => _fileName;
+        set
+        {
+            _fileName = value;
+            InvalidateMapTypeParts();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the full path to the map file.
@@ -56,12 +68,28 @@ public class MapFile : INotifyPropertyChanged
     /// Gets or sets a value indicating whether this map is stored in a directory with assets.
     /// All maps should be directory-based after migration.
     /// </summary>
-    public bool IsDirectory { get; set; }
+    public bool IsDirectory
+    {
+        get => _isDirectory;
+        set
+        {
+            _isDirectory = value;
+            InvalidateMapTypeParts();
+        }
+    }
 
     /// <summary>
     /// Gets or sets the list of asset file paths associated with this map (.tga, .ini, .str, .txt).
     /// </summary>
-    public List<string> AssetFiles { get; set; } = [];
+    public List<string> AssetFiles
+    {
+        get => _assetFiles;
+        set
+        {
+            _assetFiles = value;
+            InvalidateMapTypeParts();
+        }
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether the map directory is expanded in the UI.
@@ -98,59 +126,15 @@ public class MapFile : INotifyPropertyChanged
     /// <summary>
     /// Gets the invariant asset-type parts classifying this map (e.g. Map, Ini, Tga, or Archive).
     /// This is the single classification source shared by display and sorting.
+    /// The value is computed once and cached; assigning <see cref="FileName"/>,
+    /// <see cref="IsDirectory"/>, or <see cref="AssetFiles"/> invalidates the cache.
     /// </summary>
-    public IReadOnlyList<string> MapTypeParts
-    {
-        get
-        {
-            if (!IsDirectory && FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            {
-                return ["Archive"];
-            }
-
-            var parts = new List<string> { "Map" };
-            if (AssetFiles != null)
-            {
-                if (AssetFiles.Any(f => f.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)))
-                {
-                    parts.Add("Ini");
-                }
-
-                if (AssetFiles.Any(f => f.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
-                {
-                    parts.Add("Tga");
-                }
-
-                if (AssetFiles.Any(f => f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)))
-                {
-                    parts.Add("Txt");
-                }
-            }
-
-            return parts;
-        }
-    }
+    public IReadOnlyList<string> MapTypeParts => _mapTypeParts ??= ComputeMapTypeParts();
 
     /// <summary>
     /// Gets the sort key matching the displayed map type classification.
     /// </summary>
     public string MapTypeSortKey => string.Join(" + ", MapTypeParts);
-
-    /// <summary>
-    /// Gets the display text for the map format or type.
-    /// </summary>
-    public string MapTypeDisplay
-    {
-        get
-        {
-            if (!IsDirectory && FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Archive";
-            }
-
-            return IsDirectory ? "Directory" : "Map";
-        }
-    }
 
     /// <summary>
     /// Gets or sets the path to the thumbnail image file (.tga).
@@ -180,5 +164,36 @@ public class MapFile : INotifyPropertyChanged
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private IReadOnlyList<string> ComputeMapTypeParts()
+    {
+        if (!IsDirectory && FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return ["Archive"];
+        }
+
+        var parts = new List<string> { "Map" };
+        if (AssetFiles.Any(f => f.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)))
+        {
+            parts.Add("Ini");
+        }
+
+        if (AssetFiles.Any(f => f.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
+        {
+            parts.Add("Tga");
+        }
+
+        if (AssetFiles.Any(f => f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)))
+        {
+            parts.Add("Txt");
+        }
+
+        return parts;
+    }
+
+    private void InvalidateMapTypeParts()
+    {
+        _mapTypeParts = null;
     }
 }

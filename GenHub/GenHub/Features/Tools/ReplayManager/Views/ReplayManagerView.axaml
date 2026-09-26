@@ -123,10 +123,10 @@
             <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Map}" Width="120" MaxWidth="160" SortMemberPath="MapName">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding Metadata.MapName}"
+                  <TextBlock Text="{Binding MapName}"
                              VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis"
-                             ToolTip.Tip="{Binding Metadata.MapName}"
+                             ToolTip.Tip="{Binding MapName}"
                              Margin="4,0"/>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
@@ -155,7 +155,7 @@
             </DataGridTemplateColumn>
             <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.ExeCrc}" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" SortMemberPath="ExeCrc" />
             <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.IniCrc}" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" SortMemberPath="IniCrc" />
-            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Compatibility}" Width="Auto" MinWidth="120" SortMemberPath="CompatibilityBadgeText">
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Compatibility}" Width="Auto" MinWidth="120" SortMemberPath="CompatibilityStatus">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"

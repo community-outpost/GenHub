@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -60,16 +61,19 @@ public partial class GameProfileSettingsViewModel
     /// <param name="suggestedContentType">Optional suggested content type based on binary detection.</param>
     /// <param name="suggestedGameType">Optional suggested game type based on binary detection.</param>
     /// <param name="owner">Optional window owner for modal dialogs.</param>
+    /// <param name="cancellationToken">Token to cancel staging of the dropped paths.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task ImportDroppedFilesAsync(
         IReadOnlyList<string> paths,
         ContentType? suggestedContentType = null,
         GameType? suggestedGameType = null,
-        Avalonia.Controls.Window? owner = null)
+        Avalonia.Controls.Window? owner = null,
+        CancellationToken cancellationToken = default)
     {
         IsDropImportInProgress = true;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (_localContentService == null || _contentStorageService == null)
             {
                 StatusMessage = _localizationService?["GameProfiles.Status.ContentServicesUnavailable"] ?? "Content services unavailable";
@@ -104,6 +108,7 @@ public partial class GameProfileSettingsViewModel
 
             foreach (var p in paths.Where(p => System.IO.File.Exists(p) || System.IO.Directory.Exists(p)))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await vm.ImportContentAsync(p);
             }
 
@@ -131,10 +136,18 @@ public partial class GameProfileSettingsViewModel
                 await RefreshFiltersAndContentAsync();
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger?.LogInformation("Dropped file import was cancelled.");
+        }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error importing dropped files into Add Local Content dialog");
-            StatusMessage = _localizationService?.GetString("GameProfiles.Settings.LocalContent.ImportError") ?? "Error importing dropped files";
+            var importErrorMessage = _localizationService?.GetString("GameProfiles.Settings.LocalContent.ImportError") ?? "Error importing dropped files";
+            StatusMessage = importErrorMessage;
+            _localNotificationService.ShowError(
+                _localizationService?.GetString("GameProfiles.Notification.Error.Title") ?? "Error",
+                importErrorMessage);
         }
         finally
         {
@@ -1295,13 +1308,22 @@ public partial class GameProfileSettingsViewModel
     /// <returns>The path when it is a supported image; otherwise null after notifying the user.</returns>
     private string? ValidateCustomImagePath(string? localPath)
     {
-        if (!string.IsNullOrEmpty(localPath) && MediaFileHelper.IsImageFile(localPath) && MediaFileHelper.HasImageContent(localPath))
+        if (!string.IsNullOrEmpty(localPath) && MediaFileHelper.IsImageFile(localPath))
         {
-            return localPath;
+            if (MediaFileHelper.HasImageContent(localPath))
+            {
+                return localPath;
+            }
+
+            _logger?.LogWarning("Rejected custom profile image with unreadable or mismatched content: {Path}", localPath);
+        }
+        else
+        {
+            _logger?.LogWarning("Rejected custom profile image with unsupported extension: {Path}", localPath);
         }
 
-        _logger?.LogWarning("Rejected custom profile image with unsupported extension: {Path}", localPath);
-        _notificationService?.ShowError(
+        INotificationService notifier = _notificationService ?? _localNotificationService;
+        notifier.ShowError(
             _localizationService?.GetString(InvalidCustomImageTitleKey) ?? DefaultInvalidCustomImageTitle,
             _localizationService?.GetString(InvalidCustomImageMessageKey) ?? DefaultInvalidCustomImageMessage);
         return null;

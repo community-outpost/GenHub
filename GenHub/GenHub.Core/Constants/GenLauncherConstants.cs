@@ -439,6 +439,18 @@ public static class GenLauncherConstants
     /// <returns>The resolved valid URL, or string.Empty if none found.</returns>
     public static string ResolveEffectiveSourceUrl(params string?[] candidateUrls)
     {
+        return ResolveAllowedSourceUrl(null, candidateUrls);
+    }
+
+    /// <summary>
+    /// Chooses the first valid HTTP or HTTPS news, ModDB, or Discord link that is not a YAML descriptor
+    /// and satisfies an additional caller-supplied allow check (for example host-safety validation).
+    /// </summary>
+    /// <param name="isUrlAllowed">Optional predicate a candidate must satisfy; null allows any well-formed URL.</param>
+    /// <param name="candidateUrls">Candidate URLs in priority order (e.g. NewsLink, ModDBLink, DiscordLink).</param>
+    /// <returns>The resolved valid URL, or string.Empty if none found.</returns>
+    public static string ResolveAllowedSourceUrl(Func<string, bool>? isUrlAllowed, params string?[] candidateUrls)
+    {
         if (candidateUrls == null)
         {
             return string.Empty;
@@ -459,6 +471,11 @@ public static class GenLauncherConstants
             }
 
             if (IsYamlDescriptorPath(uri.AbsolutePath))
+            {
+                continue;
+            }
+
+            if (isUrlAllowed != null && !isUrlAllowed(trimmed))
             {
                 continue;
             }

@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Interfaces.Telemetry;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameClients;
@@ -28,6 +29,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Collections.Specialized;
+using System.Reflection;
 using System.Resources;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
@@ -128,6 +130,66 @@ public class GameProfileLauncherViewModelTests
         await vm.InitializeAsync();
 
         Assert.Empty(vm.Profiles); // No profiles returned by mock
+    }
+
+    /// <summary>
+    /// Verifies that an out-of-range saved sort mode falls back to last-played ordering.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_OutOfRangeSortMode_FallsBackToLastPlayedAsync()
+    {
+        var settingsService = new Mock<IUserSettingsService>();
+        settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = (ProfileSortMode)99 });
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        var vm = new GameProfileLauncherViewModel(
+            new Mock<IGameInstallationService>().Object,
+            profileManager.Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ISetupWizardService>().Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService(),
+            userSettingsService: settingsService.Object);
+
+        await vm.InitializeAsync();
+
+        Assert.Equal(ProfileSortMode.LastPlayed, vm.SelectedSortMode);
+        Assert.Equal(ProfileSortMode.LastPlayed, vm.SelectedSortModeItem?.Mode);
+    }
+
+    /// <summary>
+    /// Verifies that archive-name game inference detects Generals mods like directory names do.
+    /// </summary>
+    /// <param name="fileName">The archive file name to classify.</param>
+    /// <param name="expected">The expected inferred game type.</param>
+    [Theory]
+    [InlineData("generals_mod.zip", GameType.Generals)]
+    [InlineData("GeneralsZeroHour.big", GameType.ZeroHour)]
+    [InlineData("shockwave_mod.zip", GameType.Unknown)]
+    public void InferGameTypeFromArchiveName_ClassifiesExpectedGame(string fileName, GameType expected)
+    {
+        var method = typeof(GameProfileLauncherViewModel).GetMethod(
+            "InferGameTypeFromArchiveName",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+
+        var actual = (GameType)method.Invoke(null, [fileName, GameType.Unknown])!;
+
+        Assert.Equal(expected, actual);
     }
 
     /// <summary>
@@ -1512,6 +1574,110 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// Last-played sorting breaks timestamp ties by creation date and keeps unplayed profiles last.
+    /// </summary>
+    [Fact]
+    public void ApplySorting_LastPlayed_BreaksTiesByCreationDate()
+    {
+        var vm = CreateViewModel();
+        var stamp = new DateTime(2026, 1, 10, 12, 0, 0, DateTimeKind.Utc);
+        var olderTie = CreateProfileItem("OlderTie");
+        olderTie.LastPlayedAt = stamp;
+        olderTie.CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var newerTie = CreateProfileItem("NewerTie");
+        newerTie.LastPlayedAt = stamp;
+        newerTie.CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var newerNever = CreateProfileItem("NewerNever");
+        newerNever.CreatedAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var olderNever = CreateProfileItem("OlderNever");
+        olderNever.CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        vm.Profiles.Add(olderNever);
+        vm.Profiles.Add(olderTie);
+        vm.Profiles.Add(newerNever);
+        vm.Profiles.Add(newerTie);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.LastPlayed;
+        vm.ApplySorting();
+
+        Assert.Equal("NewerTie", vm.Profiles[0].Name);
+        Assert.Equal("OlderTie", vm.Profiles[1].Name);
+        Assert.Equal("NewerNever", vm.Profiles[2].Name);
+        Assert.Equal("OlderNever", vm.Profiles[3].Name);
+        Assert.IsType<AddProfileItemViewModel>(vm.Profiles[4]);
+    }
+
+    /// <summary>
+    /// Rapid sort mode changes persist the final selection once earlier requests go stale.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SelectedSortMode_RapidChanges_PersistsFinalSelectionAsync()
+    {
+        var savedModes = new List<ProfileSortMode>();
+        var settingsService = new Mock<IUserSettingsService>();
+        settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = ProfileSortMode.LastPlayed });
+        settingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Callback<Func<UserSettings, bool>>(apply =>
+            {
+                var settings = new UserSettings();
+                if (apply(settings))
+                {
+                    lock (savedModes)
+                    {
+                        savedModes.Add(settings.ProfileSortMode);
+                    }
+                }
+            })
+            .ReturnsAsync(true);
+        var vm = new GameProfileLauncherViewModel(
+            new Mock<IGameInstallationService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ISetupWizardService>().Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService(),
+            userSettingsService: settingsService.Object);
+
+        vm.SelectedSortMode = ProfileSortMode.Alphabetical;
+        vm.SelectedSortMode = ProfileSortMode.DateCreated;
+
+        for (var attempt = 0; attempt < 200; attempt++)
+        {
+            lock (savedModes)
+            {
+                if (savedModes.Contains(ProfileSortMode.DateCreated))
+                {
+                    break;
+                }
+            }
+
+            await Task.Delay(20);
+        }
+
+        await Task.Delay(200);
+
+        lock (savedModes)
+        {
+            Assert.NotEmpty(savedModes);
+            Assert.Equal(ProfileSortMode.DateCreated, savedModes[^1]);
+        }
+    }
+
+    /// <summary>
     /// The sort dropdown starts closed so the header collapse guard is inactive initially.
     /// </summary>
     [Fact]
@@ -1631,7 +1797,7 @@ public class GameProfileLauncherViewModelTests
 
     private static ProfileResourceService CreateProfileResourceService()
     {
-        return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
+        return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance, CreateLocalizationService());
     }
 
     private static SuperHackersProvider CreateSuperHackersProvider()
@@ -1834,6 +2000,7 @@ public class GameProfileLauncherViewModelTests
     {
         var resourceManager = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GenHub.Common.Services.LocalizationService).Assembly);
         var mock = new Mock<ILocalizationService>();
+        mock.Setup(m => m.CurrentCulture).Returns(System.Globalization.CultureInfo.InvariantCulture);
         mock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
             .Returns<string, object?[]>((key, args) =>
             {

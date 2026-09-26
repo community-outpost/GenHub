@@ -3000,7 +3000,8 @@ public partial class ContentDetailViewModel(
         searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.ModDbLinkMetadataKey, out var modDbLink);
         searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.DiscordLinkMetadataKey, out var discordLink);
 
-        var resolved = GenLauncherConstants.ResolveEffectiveSourceUrl(
+        var resolved = GenLauncherConstants.ResolveAllowedSourceUrl(
+            static url => ImageCacheService.IsSafeRemoteUrl(url, out _),
             searchResult.SourceUrl,
             newsLink,
             modDbLink,
@@ -3243,6 +3244,7 @@ public partial class ContentDetailViewModel(
                 await RunOnUiThreadAsync(() =>
                 {
                     LoadRichContent();
+                    _basicContentLoaded = true;
                     loaded = true;
                 });
                 return;

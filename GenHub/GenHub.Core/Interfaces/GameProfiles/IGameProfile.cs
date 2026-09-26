@@ -23,7 +23,7 @@ public interface IGameProfile
     /// <summary>
     /// Gets the description of the profile.
     /// </summary>
-    string Description { get; }
+    string Description => string.Empty;
 
     /// <summary>
     /// Gets the version of the profile.

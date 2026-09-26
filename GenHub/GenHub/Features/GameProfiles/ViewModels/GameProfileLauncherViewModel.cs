@@ -353,7 +353,14 @@ public partial class GameProfileLauncherViewModel(
                 {
                     _isLoadingSortMode = true;
                     var settings = userSettingsService.Get();
-                    SelectedSortMode = settings.ProfileSortMode;
+                    var savedSortMode = settings.ProfileSortMode;
+                    if (!Enum.IsDefined(savedSortMode))
+                    {
+                        logger.LogWarning("Ignoring out-of-range saved profile sort mode {SortMode}", (int)savedSortMode);
+                        savedSortMode = ProfileSortMode.LastPlayed;
+                    }
+
+                    SelectedSortMode = savedSortMode;
                     SelectedSortModeItem = AvailableSortModes.FirstOrDefault(o => o.Mode == SelectedSortMode);
                 }
                 catch (Exception ex)
@@ -788,17 +795,29 @@ public partial class GameProfileLauncherViewModel(
     /// Handles dropped content files or folders by inspecting them and opening the new profile creation flow with the content pre-staged.
     /// </summary>
     /// <param name="paths">The paths of dropped files or directories.</param>
+    /// <param name="cancellationToken">Token to cancel binary inspection of the dropped paths.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task HandleDroppedContentAsync(IReadOnlyList<string> paths)
+    public async Task HandleDroppedContentAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken = default)
     {
         if (paths == null || paths.Count == 0)
         {
             return;
         }
 
+        var dialogLockAcquired = false;
         try
         {
-            var (detectedGameType, detectedContentType) = await DetectContentTypeAndGameTypeAsync(paths);
+            if (!await _importDialogSemaphore.WaitAsync(0, cancellationToken))
+            {
+                logger.LogWarning("A profile import is already in progress. Ignoring concurrent drop.");
+                notificationService.ShowWarning(
+                    localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressTitle") ?? "Import In Progress",
+                    localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressMsg") ?? "A profile import dialog is already open.");
+                return;
+            }
+
+            dialogLockAcquired = true;
+            var (detectedGameType, detectedContentType) = await DetectContentTypeAndGameTypeAsync(paths, cancellationToken);
 
             await settingsViewModel.InitializeForNewProfileAsync();
             if (detectedGameType != GameType.Unknown)
@@ -834,9 +853,21 @@ public partial class GameProfileLauncherViewModel(
                 try
                 {
                     await settingsWindow.ShowDialog(mainWindow);
-                    StatusMessage = _lastOperationSuccess
+                    var outcomeMessage = _lastOperationSuccess
                         ? localizationService["GameProfiles.Status.ProfileCreatedSuccess"]
                         : localizationService["GameProfiles.Status.ProfileCreationCancelled"];
+                    StatusMessage = outcomeMessage;
+                    if (_lastOperationSuccess)
+                    {
+                        notificationService.ShowSuccess(
+                            localizationService["Messages.Success.ProfileCreated"],
+                            outcomeMessage,
+                            NotificationDurations.Medium);
+                    }
+                    else
+                    {
+                        notificationService.ShowInfo(outcomeMessage, outcomeMessage, NotificationDurations.Medium);
+                    }
                 }
                 finally
                 {
@@ -845,8 +876,18 @@ public partial class GameProfileLauncherViewModel(
             }
             else
             {
-                StatusMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
+                var mainWindowMissingMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
+                StatusMessage = mainWindowMissingMessage;
+                notificationService.ShowError(
+                    localizationService[NotificationErrorTitleKey],
+                    mainWindowMissingMessage,
+                    NotificationDurations.Long);
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation("Dropped content inspection was cancelled.");
+            StatusMessage = localizationService["GameProfiles.Status.ProfileCreationCancelled"];
         }
         catch (Exception ex)
         {
@@ -855,6 +896,13 @@ public partial class GameProfileLauncherViewModel(
             notificationService.ShowError(
                 localizationService[NotificationErrorTitleKey],
                 localizationService.GetString("GameProfiles.Notification.OpenNewProfileError.Message", ex.Message));
+        }
+        finally
+        {
+            if (dialogLockAcquired)
+            {
+                _importDialogSemaphore.Release();
+            }
         }
     }
 
@@ -1032,10 +1080,10 @@ public partial class GameProfileLauncherViewModel(
                 .OrderByDescending(p => p.CreatedAt)
                 .ToList(),
             ProfileSortMode.Alphabetical => profileItems
-                .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList(),
             ProfileSortMode.AlphabeticalDesc => profileItems
-                .OrderByDescending(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList(),
             _ => profileItems
                 .OrderBy(p => p.DisplayOrder)
@@ -1158,6 +1206,11 @@ public partial class GameProfileLauncherViewModel(
             filename.Contains("zerohour", StringComparison.OrdinalIgnoreCase))
         {
             return GameType.ZeroHour;
+        }
+
+        if (filename.Contains("generals", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameType.Generals;
         }
 
         return current;
@@ -1290,18 +1343,20 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     /// <param name="profileItems">The reordered profile items.</param>
     /// <param name="originalOrders">The display orders before the reorder.</param>
+    /// <param name="cancellationToken">Token to cancel the persist.</param>
     /// <returns>Whether all persists succeeded, along with the saved indexes for rollback.</returns>
-    private async Task<(bool Succeeded, List<int> SavedIndexes)> PersistChangedOrdersAsync(List<GameProfileItemViewModel> profileItems, List<int> originalOrders)
+    private async Task<(bool Succeeded, List<int> SavedIndexes)> PersistChangedOrdersAsync(List<GameProfileItemViewModel> profileItems, List<int> originalOrders, CancellationToken cancellationToken = default)
     {
         var savedIndexes = new List<int>();
         for (int i = 0; i < profileItems.Count; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (originalOrders[i] == i)
             {
                 continue;
             }
 
-            if (!await PersistSingleOrderAsync(profileItems[i], i))
+            if (!await PersistSingleOrderAsync(profileItems[i], i, cancellationToken))
             {
                 return (false, savedIndexes);
             }
@@ -1317,12 +1372,13 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     /// <param name="item">The profile item.</param>
     /// <param name="displayOrder">The display order to persist.</param>
+    /// <param name="cancellationToken">Token to cancel the persist.</param>
     /// <returns>True when the persist succeeded; otherwise false.</returns>
-    private async Task<bool> PersistSingleOrderAsync(GameProfileItemViewModel item, int displayOrder)
+    private async Task<bool> PersistSingleOrderAsync(GameProfileItemViewModel item, int displayOrder, CancellationToken cancellationToken = default)
     {
         try
         {
-            var updateResult = await gameProfileManager.UpdateProfileAsync(item.ProfileId, new UpdateProfileRequest { DisplayOrder = displayOrder });
+            var updateResult = await gameProfileManager.UpdateProfileAsync(item.ProfileId, new UpdateProfileRequest { DisplayOrder = displayOrder }, cancellationToken);
             if (updateResult.Success)
             {
                 return true;
@@ -1330,6 +1386,10 @@ public partial class GameProfileLauncherViewModel(
 
             logger.LogWarning("Failed to persist new DisplayOrder for profile {ProfileId}: {Errors}", item.ProfileId, string.Join(", ", updateResult.Errors));
             return false;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -1342,17 +1402,18 @@ public partial class GameProfileLauncherViewModel(
     /// Classifies a single dropped path, returning a definitive game and content type when found.
     /// </summary>
     /// <param name="path">The dropped file or directory path.</param>
+    /// <param name="cancellationToken">Token to cancel binary inspection.</param>
     /// <returns>The classified types, or null when detection should continue with other paths.</returns>
-    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDroppedPathAsync(string path)
+    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDroppedPathAsync(string path, CancellationToken cancellationToken)
     {
         if (File.Exists(path))
         {
-            return await ClassifyExecutableFileAsync(path);
+            return await ClassifyExecutableFileAsync(path, cancellationToken);
         }
 
         if (Directory.Exists(path))
         {
-            return await ClassifyDirectoryExecutableAsync(path);
+            return await ClassifyDirectoryExecutableAsync(path, cancellationToken);
         }
 
         return null;
@@ -1362,15 +1423,16 @@ public partial class GameProfileLauncherViewModel(
     /// Classifies a single dropped file by inspecting executable candidates.
     /// </summary>
     /// <param name="path">The dropped file path.</param>
+    /// <param name="cancellationToken">Token to cancel binary inspection.</param>
     /// <returns>The classified types, or null when the file is not a recognized executable.</returns>
-    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyExecutableFileAsync(string path)
+    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyExecutableFileAsync(string path, CancellationToken cancellationToken)
     {
         if (!IsExecutableCandidate(path))
         {
             return null;
         }
 
-        var result = await InspectExecutableAsync(path);
+        var result = await InspectExecutableAsync(path, cancellationToken);
         if (!result.HasValue)
         {
             return null;
@@ -1384,8 +1446,9 @@ public partial class GameProfileLauncherViewModel(
     /// so game and tool folders are detected instead of falling back to the directory name.
     /// </summary>
     /// <param name="directoryPath">The dropped directory path.</param>
+    /// <param name="cancellationToken">Token to cancel binary inspection.</param>
     /// <returns>The classified types, or null when no executable is recognized.</returns>
-    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDirectoryExecutableAsync(string directoryPath)
+    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDirectoryExecutableAsync(string directoryPath, CancellationToken cancellationToken)
     {
         List<string> candidates;
         try
@@ -1403,7 +1466,8 @@ public partial class GameProfileLauncherViewModel(
 
         foreach (var candidate in candidates)
         {
-            var classified = await ClassifyExecutableFileAsync(candidate);
+            cancellationToken.ThrowIfCancellationRequested();
+            var classified = await ClassifyExecutableFileAsync(candidate, cancellationToken);
             if (classified.HasValue)
             {
                 return classified;
@@ -3099,16 +3163,21 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     /// <param name="profileId">The profile identifier.</param>
     /// <param name="displayOrder">The assigned display order.</param>
-    private async Task PersistDisplayOrderAsync(string profileId, int displayOrder)
+    /// <param name="cancellationToken">Token to cancel the persist.</param>
+    private async Task PersistDisplayOrderAsync(string profileId, int displayOrder, CancellationToken cancellationToken = default)
     {
-        await _reorderLock.WaitAsync();
+        await _reorderLock.WaitAsync(cancellationToken);
         try
         {
-            var updateResult = await gameProfileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { DisplayOrder = displayOrder });
+            var updateResult = await gameProfileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { DisplayOrder = displayOrder }, cancellationToken);
             if (!updateResult.Success)
             {
                 logger.LogWarning("Failed to persist display order for profile {ProfileId}: {Errors}", profileId, string.Join(", ", updateResult.Errors));
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -3126,29 +3195,30 @@ public partial class GameProfileLauncherViewModel(
     /// <param name="profileItems">The reordered profile items.</param>
     /// <param name="originalOrders">The display orders before the reorder.</param>
     /// <param name="savedIndexes">The indexes that were already persisted.</param>
-    private async Task RestoreSavedDisplayOrdersAsync(List<GameProfileItemViewModel> profileItems, List<int> originalOrders, List<int> savedIndexes)
+    /// <param name="cancellationToken">Token to cancel the restore.</param>
+    private async Task RestoreSavedDisplayOrdersAsync(List<GameProfileItemViewModel> profileItems, List<int> originalOrders, List<int> savedIndexes, CancellationToken cancellationToken = default)
     {
         foreach (var i in savedIndexes)
         {
             try
             {
-                await gameProfileManager.UpdateProfileAsync(profileItems[i].ProfileId, new UpdateProfileRequest { DisplayOrder = originalOrders[i] });
+                await gameProfileManager.UpdateProfileAsync(profileItems[i].ProfileId, new UpdateProfileRequest { DisplayOrder = originalOrders[i] }, cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogWarning(ex, "Failed to restore display order for profile {ProfileId}", profileItems[i].ProfileId);
             }
         }
     }
 
-    private async Task MoveProfileRelativeAsync(GameProfileItemViewModel item, int delta)
+    private async Task MoveProfileRelativeAsync(GameProfileItemViewModel item, int delta, CancellationToken cancellationToken = default)
     {
         if (SelectedSortMode != ProfileSortMode.Free)
         {
             return;
         }
 
-        await _reorderLock.WaitAsync();
+        await _reorderLock.WaitAsync(cancellationToken);
         try
         {
             var profileItems = Profiles.OfType<GameProfileItemViewModel>().Where(p => p is not AddProfileItemViewModel).ToList();
@@ -3160,10 +3230,10 @@ public partial class GameProfileLauncherViewModel(
             var originalOrders = profileItems.Select(p => p.DisplayOrder).ToList();
             AssignDisplayOrders(profileItems);
 
-            var (persistSucceeded, savedIndexes) = await PersistChangedOrdersAsync(profileItems, originalOrders);
+            var (persistSucceeded, savedIndexes) = await PersistChangedOrdersAsync(profileItems, originalOrders, cancellationToken);
             if (!persistSucceeded)
             {
-                await RestoreSavedDisplayOrdersAsync(profileItems, originalOrders, savedIndexes);
+                await RestoreSavedDisplayOrdersAsync(profileItems, originalOrders, savedIndexes, cancellationToken);
                 RestoreInMemoryOrders(profileItems, originalOrders);
                 notificationService.ShowWarning(localizationService[ReorderFailedTitleKey], localizationService[ReorderFailedMessageKey]);
             }
@@ -3176,19 +3246,20 @@ public partial class GameProfileLauncherViewModel(
         }
     }
 
-    private async Task<(GameType GameType, ContentType ContentType)> DetectContentTypeAndGameTypeAsync(IReadOnlyList<string> paths)
+    private async Task<(GameType GameType, ContentType ContentType)> DetectContentTypeAndGameTypeAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken)
     {
         var targetGameType = GameType.Unknown;
         var targetContentType = ContentType.Mod;
 
         foreach (var path in paths)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(path))
             {
                 continue;
             }
 
-            var classified = await ClassifyDroppedPathAsync(path);
+            var classified = await ClassifyDroppedPathAsync(path, cancellationToken);
             if (classified.HasValue)
             {
                 return classified.Value;
@@ -3205,11 +3276,11 @@ public partial class GameProfileLauncherViewModel(
         return (targetGameType, targetContentType);
     }
 
-    private async Task<(GameType? GameType, ContentType ContentType)?> InspectExecutableAsync(string path)
+    private async Task<(GameType? GameType, ContentType ContentType)?> InspectExecutableAsync(string path, CancellationToken cancellationToken)
     {
         try
         {
-            var verdict = await GameBinaryInspector.InspectAsync(path);
+            var verdict = await GameBinaryInspector.InspectAsync(path, cancellationToken);
             if (verdict.Success && verdict.Data != null && verdict.Data.Role != GameBinaryRole.NotExecutable)
             {
                 var role = verdict.Data.Role switch
@@ -3221,7 +3292,7 @@ public partial class GameProfileLauncherViewModel(
                 return (verdict.Data.GameType, role);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             logger.LogDebug(ex, "GameBinaryInspector inspection failed for {Path}", path);
         }

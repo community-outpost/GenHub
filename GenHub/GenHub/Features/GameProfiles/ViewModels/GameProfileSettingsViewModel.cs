@@ -59,6 +59,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private const string ContentLockedMessage = "This content item is locked and cannot be modified";
     private const string ContentLockedTitle = "Content Locked";
     private const string LiveSyncFailedTitle = "Live Sync Failed";
+    private const string ContentResourceIconFormatKey = "GameProfiles.Resources.IconFormat";
+    private const string ContentResourceCoverFormatKey = "GameProfiles.Resources.CoverFormat";
 
     private readonly IGameProfileManager? _gameProfileManager;
     private readonly IConfigurationProviderService? _configurationProvider;
@@ -1993,14 +1995,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                         icons,
                         $"content-icon-{content.Id}",
                         content.Manifest?.Metadata?.IconUrl,
-                        $"{content.DisplayName} Icon",
+                        _localizationService?.GetString(ContentResourceIconFormatKey, content.DisplayName) ?? $"{content.DisplayName} Icon",
                         gameTypeStr);
 
                     AppendContentResource(
                         covers,
                         $"content-cover-{content.Id}",
                         content.Manifest?.Metadata?.CoverUrl,
-                        $"{content.DisplayName} Cover",
+                        _localizationService?.GetString(ContentResourceCoverFormatKey, content.DisplayName) ?? $"{content.DisplayName} Cover",
                         gameTypeStr);
                 }
             }

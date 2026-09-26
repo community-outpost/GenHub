@@ -78,6 +78,7 @@ public sealed class MapDirectoryService(
 
                 foreach (var mapFilePath in allMapFiles)
                 {
+                    ct.ThrowIfCancellationRequested();
                     try
                     {
                         var fileInfo = new FileInfo(mapFilePath);
@@ -111,9 +112,8 @@ public sealed class MapDirectoryService(
                             // Find thumbnail TGA file
                             var thumbnailPath = FindThumbnail(allFilesInDir);
 
-                            // Parse display name and player count
-                            var displayName = mapNameParser.ParseMapName(primaryMap.FullName);
-                            var playerCount = mapNameParser.ParsePlayerCount(primaryMap.FullName, displayName);
+                            // Parse display name and player count in a single pass
+                            var (displayName, playerCount) = mapNameParser.ParseMapDetails(primaryMap.FullName, ct);
 
                             mapFiles.Add(new MapFile
                             {
@@ -135,8 +135,7 @@ public sealed class MapDirectoryService(
                         else if (!isInSubdirectory)
                         {
                             // This is a standalone .map file in the root Maps directory
-                            var displayName = mapNameParser.ParseMapName(fileInfo.FullName);
-                            var playerCount = mapNameParser.ParsePlayerCount(fileInfo.FullName, displayName);
+                            var (displayName, playerCount) = mapNameParser.ParseMapDetails(fileInfo.FullName, ct);
 
                             mapFiles.Add(new MapFile
                             {
@@ -156,6 +155,10 @@ public sealed class MapDirectoryService(
                             });
                         }
                     }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         logger.LogWarning(ex, "Failed to read map file: {File}", mapFilePath);
@@ -168,6 +171,7 @@ public sealed class MapDirectoryService(
                     var zipFiles = Directory.GetFiles(directory, MapManagerConstants.ZipFilePattern, SearchOption.TopDirectoryOnly);
                     foreach (var zipPath in zipFiles)
                     {
+                        ct.ThrowIfCancellationRequested();
                         try
                         {
                             var fileInfo = new FileInfo(zipPath);
@@ -194,6 +198,10 @@ public sealed class MapDirectoryService(
                             logger.LogWarning(ex, "Failed to read zip file: {File}", zipPath);
                         }
                     }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {

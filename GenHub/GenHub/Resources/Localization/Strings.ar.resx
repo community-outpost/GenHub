@@ -9748,6 +9748,21 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="GameProfiles.Launcher.Notify.ImportErrorFormat" xml:space="preserve">
     <value>حدث خطأ أثناء استيراد ملف التعريف: {0}</value>
   </data>
+  <data name="GameProfiles.Resources.IconFormat" xml:space="preserve">
+    <value>أيقونة {0}</value>
+  </data>
+  <data name="GameProfiles.Resources.LogoFormat" xml:space="preserve">
+    <value>شعار {0}</value>
+  </data>
+  <data name="GameProfiles.Resources.CoverFormat" xml:space="preserve">
+    <value>غلاف {0}</value>
+  </data>
+  <data name="GameProfiles.Resources.CoverAltFormat" xml:space="preserve">
+    <value>غلاف {0} (بديل)</value>
+  </data>
+  <data name="GameProfiles.Resources.DefaultBackground" xml:space="preserve">
+    <value>الخلفية الافتراضية</value>
+  </data>
   <data name="GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat" xml:space="preserve">
     <value>فشل تحديد ملف التعريف: {0}</value>
   </data>

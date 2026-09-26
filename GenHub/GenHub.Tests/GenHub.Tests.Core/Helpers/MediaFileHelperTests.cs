@@ -30,7 +30,7 @@ public sealed class MediaFileHelperTests : IDisposable
             {
                 Directory.Delete(_tempDirectory, true);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Best-effort cleanup
             }
@@ -47,7 +47,7 @@ public sealed class MediaFileHelperTests : IDisposable
     [InlineData(".jpg", "FFD8FFE000104A464946")]
     [InlineData(".jpeg", "FFD8FF")]
     [InlineData(".gif", "474946383961")]
-    [InlineData(".bmp", "424D4600000000")]
+    [InlineData(".bmp", "424D46000000000000003600000028000000")]
     [InlineData(".ico", "00000100")]
     [InlineData(".webp", "524946460000000057454250")]
     public void HasImageContent_MatchingHeader_ReturnsTrue(string extension, string hexHeader)
@@ -91,6 +91,34 @@ public sealed class MediaFileHelperTests : IDisposable
     {
         Assert.False(MediaFileHelper.HasImageContent(path));
         Assert.False(MediaFileHelper.HasImageContent(Path.Combine(_tempDirectory, "missing.png")));
+    }
+
+    /// <summary>
+    /// Verifies that truncated headers are rejected instead of accepted on a short read.
+    /// </summary>
+    /// <param name="extension">The file extension to test.</param>
+    /// <param name="hexHeader">The truncated hexadecimal file header bytes.</param>
+    [Theory]
+    [InlineData(".png", "")]
+    [InlineData(".png", "89504E47")]
+    [InlineData(".webp", "52494646")]
+    [InlineData(".bmp", "424D")]
+    public void HasImageContent_TruncatedHeader_ReturnsFalse(string extension, string hexHeader)
+    {
+        var path = WriteTempFile("partial" + extension, Convert.FromHexString(hexHeader));
+
+        Assert.False(MediaFileHelper.HasImageContent(path));
+    }
+
+    /// <summary>
+    /// Verifies that text files starting with BM are rejected as BMP images.
+    /// </summary>
+    [Fact]
+    public void HasImageContent_BmPrefixedText_ReturnsFalse()
+    {
+        var path = WriteTempFile("notes.bmp", "BMW is not a bitmap image."u8.ToArray());
+
+        Assert.False(MediaFileHelper.HasImageContent(path));
     }
 
     private string WriteTempFile(string fileName, byte[] content)

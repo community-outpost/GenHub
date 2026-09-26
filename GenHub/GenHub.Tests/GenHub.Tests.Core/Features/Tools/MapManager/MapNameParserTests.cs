@@ -37,7 +37,7 @@ public sealed class MapNameParserTests : IDisposable
             {
                 Directory.Delete(_tempDirectory, true);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Best-effort cleanup
             }
@@ -79,6 +79,9 @@ public sealed class MapNameParserTests : IDisposable
     [InlineData("Tournament Desert")]
     [InlineData("Defcon 6")]
     [InlineData("Area 51")]
+    [InlineData("Abc2p")]
+    [InlineData("A2px")]
+    [InlineData("Map4playersX")]
     public void ExtractPlayerCountFromString_WithNoPlayerPattern_ReturnsNull(string? input)
     {
         var result = MapNameParser.ExtractPlayerCountFromString(input);
@@ -166,7 +169,112 @@ public sealed class MapNameParserTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="MapFile"/> exposes player count formatting and map type display.
+    /// Verifies that file markers match case-insensitively.
+    /// </summary>
+    /// <param name="fileBody">The map file body to scan.</param>
+    /// <param name="expected">The expected player count.</param>
+    [Theory]
+    [InlineData("Map\n  NUMPLAYERS = 4\nEnd\n", 4)]
+    [InlineData("Map\n  NumPlayers=2\nEnd\n", 2)]
+    [InlineData("Objects\n  Waypoint\n    name = player_2_start\n  End\nEnd\n", 2)]
+    [InlineData("Objects\n  Waypoint\n    name = PLAYER_5_START\n  End\nEnd\n", 5)]
+    public void ParsePlayerCount_CaseInsensitiveFileMarkers_ReturnsCount(string fileBody, int expected)
+    {
+        var mapFile = Path.Combine(_tempDirectory, $"case_{Guid.NewGuid():N}.map");
+        File.WriteAllText(mapFile, fileBody);
+
+        var result = _parser.ParsePlayerCount(mapFile);
+
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that an out-of-range numPlayers declaration falls through to name heuristics.
+    /// </summary>
+    [Fact]
+    public void ParsePlayerCount_OutOfRangeDeclaration_FallsThroughToName()
+    {
+        var mapFile = Path.Combine(_tempDirectory, "oversized.map");
+        var content = """
+            Map
+              displayName = "Arena [4]"
+              numPlayers = 9
+            End
+            """;
+        File.WriteAllText(mapFile, content);
+
+        var result = _parser.ParsePlayerCount(mapFile, "Arena [4]");
+
+        Assert.Equal(4, result);
+    }
+
+    /// <summary>
+    /// Verifies that file waypoints win over a conflicting bracketed display name.
+    /// </summary>
+    [Fact]
+    public void ParsePlayerCount_FileWaypointsBeatBracketedName_ReturnsWaypointCount()
+    {
+        var mapFile = Path.Combine(_tempDirectory, "bracket_conflict.map");
+        var content = """
+            Map
+              displayName = "Arena [6]"
+            End
+            Objects
+              Waypoint
+                name = Player_1_Start
+              End
+              Waypoint
+                name = Player_2_Start
+              End
+              Waypoint
+                name = Player_3_Start
+              End
+            End
+            """;
+        File.WriteAllText(mapFile, content);
+
+        var result = _parser.ParsePlayerCount(mapFile, "Arena [6]");
+
+        Assert.Equal(3, result);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="MapNameParser.ParseMapDetails"/> resolves the name and count in one call.
+    /// </summary>
+    [Fact]
+    public void ParseMapDetails_WithFileMarkers_ReturnsNameAndCount()
+    {
+        var mapFile = Path.Combine(_tempDirectory, "details_map.map");
+        var content = """
+            Map
+              displayName = "Custom Tournament"
+              numPlayers = 4
+            End
+            """;
+        File.WriteAllText(mapFile, content);
+
+        var (displayName, playerCount) = _parser.ParseMapDetails(mapFile);
+
+        Assert.Equal("Custom Tournament", displayName);
+        Assert.Equal(4, playerCount);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="MapNameParser.ParseMapDetails"/> honors a cancelled token.
+    /// </summary>
+    [Fact]
+    public void ParseMapDetails_CancelledToken_Throws()
+    {
+        var mapFile = Path.Combine(_tempDirectory, "cancelled_map.map");
+        File.WriteAllText(mapFile, "Map\nEnd\n");
+        using var cts = new System.Threading.CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => _parser.ParseMapDetails(mapFile, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="MapFile"/> exposes player count formatting and type classification parts.
     /// </summary>
     [Fact]
     public void MapFile_PlayerCountAndFormatting_WorksCorrectly()
@@ -184,13 +292,14 @@ public sealed class MapNameParserTests : IDisposable
 
         Assert.Equal(4, map.PlayerCount);
         Assert.Equal("4", map.FormattedPlayerCount);
-        Assert.Equal("Map", map.MapTypeDisplay);
+        Assert.Equal(new[] { "Map" }, map.MapTypeParts);
+        Assert.Equal("Map", map.MapTypeSortKey);
 
         map.PlayerCount = null;
         Assert.Equal("-", map.FormattedPlayerCount);
 
         map.IsDirectory = true;
-        Assert.Equal("Directory", map.MapTypeDisplay);
+        Assert.Equal(new[] { "Map" }, map.MapTypeParts);
 
         var zipMap = new MapFile
         {
@@ -201,7 +310,33 @@ public sealed class MapNameParserTests : IDisposable
             LastModified = DateTime.UtcNow,
             IsDirectory = false,
         };
-        Assert.Equal("Archive", zipMap.MapTypeDisplay);
+        Assert.Equal(new[] { "Archive" }, zipMap.MapTypeParts);
+        Assert.Equal("Archive", zipMap.MapTypeSortKey);
+    }
+
+    /// <summary>
+    /// Verifies that assigning <see cref="MapFile.AssetFiles"/> invalidates the cached type parts.
+    /// </summary>
+    [Fact]
+    public void MapFile_AssetFilesReassigned_RefreshesTypeParts()
+    {
+        var map = new MapFile
+        {
+            FileName = "TestMap",
+            FullPath = "/test/TestMap",
+            SizeBytes = 1024,
+            GameType = GameType.ZeroHour,
+            LastModified = DateTime.UtcNow,
+            IsDirectory = true,
+            AssetFiles = [],
+        };
+
+        Assert.Equal(new[] { "Map" }, map.MapTypeParts);
+
+        map.AssetFiles = ["/test/TestMap/map.ini"];
+
+        Assert.Equal(new[] { "Map", "Ini" }, map.MapTypeParts);
+        Assert.Equal("Map + Ini", map.MapTypeSortKey);
     }
 
     /// <summary>
@@ -282,11 +417,42 @@ public sealed class MapNameParserTests : IDisposable
             Metadata = null,
         };
 
-        Assert.Empty(replay.MapName);
+        Assert.Null(replay.MapName);
         Assert.Equal(0, replay.PlayerCount);
         Assert.Equal("-", replay.FormattedPlayerCount);
-        Assert.Empty(replay.PlayerNamesDisplay);
+        Assert.Null(replay.PlayerNamesDisplay);
         Assert.Null(replay.ExeCrc);
         Assert.Null(replay.IniCrc);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="ReplayFile.PlayerCount"/> prefers seat-accurate slots over the deduplicated name list.
+    /// </summary>
+    [Fact]
+    public void ReplayFile_SharedSlotNames_CountsSeats()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "shared_names.rep",
+            FullPath = "/test/shared_names.rep",
+            SizeInBytes = 5000,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                MapName = "Tournament Desert",
+                Players = new List<string> { "Bob", "Alice" },
+                Slots = new List<ReplaySlotInfo>
+                {
+                    new(0, "Bob", true),
+                    new(1, "bob", true),
+                    new(2, "Alice", true),
+                },
+            },
+        };
+
+        Assert.Equal(3, replay.PlayerCount);
+        Assert.Equal("3", replay.FormattedPlayerCount);
+        Assert.Equal("Bob, Alice", replay.PlayerNamesDisplay);
     }
 }

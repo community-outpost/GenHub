@@ -146,4 +146,24 @@ public class GenLauncherConstantsTests
         GenLauncherConstants.ResolveEffectiveSourceUrl(null, string.Empty, "   ", "ftp://example.com", "manifest.yaml").Should().BeEmpty();
         GenLauncherConstants.ResolveEffectiveSourceUrl().Should().BeEmpty();
     }
+
+    /// <summary>
+    /// Verifies that <see cref="GenLauncherConstants.ResolveAllowedSourceUrl"/> skips candidates
+    /// rejected by the allow predicate, such as unsafe loopback hosts.
+    /// </summary>
+    [Fact]
+    public void ResolveAllowedSourceUrl_WithRejectingPredicate_ShouldSkipUnsafeCandidate()
+    {
+        // Arrange
+        static bool AllowPublicOnly(string url) => !url.Contains("127.0.0.1") && !url.Contains("localhost");
+
+        // Act
+        var result = GenLauncherConstants.ResolveAllowedSourceUrl(
+            AllowPublicOnly,
+            "http://127.0.0.1/admin",
+            "https://discord.gg/generals");
+
+        // Assert
+        result.Should().Be("https://discord.gg/generals");
+    }
 }

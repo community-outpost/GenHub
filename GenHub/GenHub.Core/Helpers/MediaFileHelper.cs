@@ -9,6 +9,8 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class MediaFileHelper
 {
+    private const int HeaderReadSize = 24;
+
     /// <summary>
     /// Gets the collection of supported preview image file extensions.
     /// </summary>
@@ -58,12 +60,16 @@ public static class MediaFileHelper
         }
 
         var extension = GetExtension(path);
-        Span<byte> header = stackalloc byte[12];
-        int read;
+        Span<byte> header = stackalloc byte[HeaderReadSize];
+        var read = 0;
         try
         {
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            read = stream.Read(header);
+            int chunk;
+            while (read < header.Length && (chunk = stream.Read(header[read..])) > 0)
+            {
+                read += chunk;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -75,7 +81,7 @@ public static class MediaFileHelper
             ".PNG" => HasPrefix(header, read, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
             ".JPG" or ".JPEG" => HasPrefix(header, read, [0xFF, 0xD8, 0xFF]),
             ".GIF" => HasPrefix(header, read, [0x47, 0x49, 0x46, 0x38]),
-            ".BMP" => HasPrefix(header, read, [0x42, 0x4D]),
+            ".BMP" => HasPrefix(header, read, [0x42, 0x4D]) && HasValidBmpDibSize(header, read),
             ".ICO" => HasPrefix(header, read, [0x00, 0x00, 0x01, 0x00]),
             ".WEBP" => HasPrefixAt(header, read, 0, [0x52, 0x49, 0x46, 0x46]) &&
                 HasPrefixAt(header, read, 8, [0x57, 0x45, 0x42, 0x50]),
@@ -91,6 +97,18 @@ public static class MediaFileHelper
     private static bool HasPrefixAt(ReadOnlySpan<byte> header, int read, int offset, ReadOnlySpan<byte> prefix)
     {
         return read >= offset + prefix.Length && header.Slice(offset, prefix.Length).SequenceEqual(prefix);
+    }
+
+    private static bool HasValidBmpDibSize(ReadOnlySpan<byte> header, int read)
+    {
+        // The DIB header size is a little-endian 32-bit value at offset 14.
+        if (read < 18)
+        {
+            return false;
+        }
+
+        var dibSize = header[14] | (header[15] << 8) | (header[16] << 16) | (header[17] << 24);
+        return dibSize is 12 or 40 or 52 or 56 or 64 or 108 or 124;
     }
 
     private static string GetExtension(string path)

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace GenHub.Features.Tools.MapManager.Services;
 
@@ -14,15 +15,23 @@ namespace GenHub.Features.Tools.MapManager.Services;
 public partial class MapNameParser(ILogger<MapNameParser> logger)
 {
     /// <summary>
-    /// Mutable scan state for player count file parsing.
+    /// Mutable scan state for single-pass map file parsing.
     /// </summary>
-    private sealed class PlayerCountScanState
+    private sealed class MapFileScanState
     {
         public bool InMapSection { get; set; }
+
+        public bool DisplayNameSearchComplete { get; set; }
+
+        public string? DisplayName { get; set; }
+
+        public int? NumPlayers { get; set; }
 
         public int MaxWaypointSlot { get; set; }
 
         public int LinesRead { get; set; }
+
+        public long BytesScanned { get; set; }
     }
 
     private const string PlayersGroupName = "players";
@@ -75,22 +84,12 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
     /// Parses the display name for a map from its file path.
     /// </summary>
     /// <param name="mapFilePath">Path to the .map file.</param>
+    /// <param name="cancellationToken">Token to cancel the file scan.</param>
     /// <returns>The parsed display name.</returns>
-    public string ParseMapName(string mapFilePath)
+    public string ParseMapName(string mapFilePath, CancellationToken cancellationToken = default)
     {
-        var nameFromFile = TryParseFromMapFile(mapFilePath);
-        if (!string.IsNullOrWhiteSpace(nameFromFile))
-        {
-            return nameFromFile;
-        }
-
-        var nameFromDirectory = FallbackToDirectoryName(mapFilePath);
-        if (!string.IsNullOrWhiteSpace(nameFromDirectory))
-        {
-            return nameFromDirectory;
-        }
-
-        return CleanMapName(Path.GetFileNameWithoutExtension(mapFilePath));
+        var scan = TryScanMapFile(mapFilePath, cancellationToken);
+        return ResolveDisplayName(mapFilePath, scan?.DisplayName);
     }
 
     /// <summary>
@@ -98,28 +97,54 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
     /// </summary>
     /// <param name="mapFilePath">Path to the .map file.</param>
     /// <param name="displayName">Optional parsed display name for heuristic fallback.</param>
+    /// <param name="cancellationToken">Token to cancel the file scan.</param>
     /// <returns>The parsed number of players, or null if undetermined.</returns>
-    public int? ParsePlayerCount(string mapFilePath, string? displayName = null)
+    public int? ParsePlayerCount(string mapFilePath, string? displayName = null, CancellationToken cancellationToken = default)
     {
         // 1. Check file contents first: an authoritative numPlayers declaration or
         // Player_N_Start waypoints win over conflicting name heuristics.
-        var countFromFile = TryParsePlayerCountFromFile(mapFilePath);
-        if (countFromFile.HasValue)
+        var scan = TryScanMapFile(mapFilePath, cancellationToken);
+        if (scan?.NumPlayers is { } numPlayers)
         {
-            return countFromFile.Value;
+            return numPlayers;
         }
 
-        // 2. Check display name for an explicit bracketed indicator like "(2) MapName" or "MapName [4]"
-        if (!string.IsNullOrWhiteSpace(displayName))
+        if (scan is { MaxWaypointSlot: > 0 })
         {
-            var bracketMatch = BracketedPlayerCountRegex().Match(displayName);
-            if (bracketMatch.Success && int.TryParse(bracketMatch.Groups[PlayersGroupName].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) && count is >= 1 and <= 8)
-            {
-                return count;
-            }
+            return scan.MaxWaypointSlot;
         }
 
-        // 3. Fallback to display name string matching
+        // 2. Fallback to display name, filename, and directory string matching.
+        return ResolvePlayerCountFromNames(mapFilePath, displayName);
+    }
+
+    /// <summary>
+    /// Parses the display name and player count for a map in a single file pass.
+    /// Prefer this over calling <see cref="ParseMapName"/> and <see cref="ParsePlayerCount"/>
+    /// separately, which would open and scan the file twice.
+    /// </summary>
+    /// <param name="mapFilePath">Path to the .map file.</param>
+    /// <param name="cancellationToken">Token to cancel the file scan.</param>
+    /// <returns>The parsed display name and player count (null when undetermined).</returns>
+    public (string DisplayName, int? PlayerCount) ParseMapDetails(string mapFilePath, CancellationToken cancellationToken = default)
+    {
+        var scan = TryScanMapFile(mapFilePath, cancellationToken);
+        var displayName = ResolveDisplayName(mapFilePath, scan?.DisplayName);
+
+        int? playerCount = scan?.NumPlayers;
+        if (!playerCount.HasValue && scan is { MaxWaypointSlot: > 0 })
+        {
+            playerCount = scan.MaxWaypointSlot;
+        }
+
+        playerCount ??= ResolvePlayerCountFromNames(mapFilePath, displayName);
+        return (displayName, playerCount);
+    }
+
+    private static int? ResolvePlayerCountFromNames(string mapFilePath, string? displayName)
+    {
+        // 2. Fallback to display name string matching. Its first priority covers
+        // explicit bracketed indicators like "(2) MapName" or "MapName [4]".
         if (!string.IsNullOrWhiteSpace(displayName))
         {
             var countFromName = ExtractPlayerCountFromString(displayName);
@@ -129,7 +154,7 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
             }
         }
 
-        // 4. Fallback to filename
+        // 3. Fallback to filename
         var fileName = Path.GetFileNameWithoutExtension(mapFilePath);
         var countFromFileName = ExtractPlayerCountFromString(fileName);
         if (countFromFileName.HasValue)
@@ -137,7 +162,7 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
             return countFromFileName.Value;
         }
 
-        // 5. Fallback to directory name
+        // 4. Fallback to directory name
         var dirName = Path.GetFileName(Path.GetDirectoryName(mapFilePath));
         if (!string.IsNullOrWhiteSpace(dirName))
         {
@@ -188,7 +213,7 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
     [GeneratedRegex(@"(?:\((?<players>[1-8])\)|\[(?<players>[1-8])\])", RegexOptions.CultureInvariant)]
     private static partial Regex BracketedPlayerCountRegex();
 
-    [GeneratedRegex(@"\b(?<players>[1-8])\s*(?:players?|player)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\b(?<players>[1-8])\s*players?\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex KeywordPlayerCountRegex();
 
     [GeneratedRegex(@"\b(?<players>[1-8])\s*-\s*players?\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
@@ -204,58 +229,88 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
     private static partial Regex NumPlayersRegex();
 
     /// <summary>
-    /// Processes a single map file line for player count markers.
+    /// Processes a single map file line for display name and player count markers.
     /// </summary>
     /// <param name="line">The raw file line.</param>
     /// <param name="scanState">The mutable scan state.</param>
-    /// <returns>The declared player count when a numPlayers line is found; otherwise null.</returns>
-    private static int? ProcessPlayerCountLine(string line, PlayerCountScanState scanState)
+    private static void ProcessMapFileLine(string line, MapFileScanState scanState)
     {
         var trimmedLine = line.Trim();
 
         if (trimmedLine.Equals("Map", StringComparison.OrdinalIgnoreCase))
         {
             scanState.InMapSection = true;
-            return null;
+            return;
         }
 
-        if (scanState.InMapSection && TryParseMapSectionPlayerCount(trimmedLine, scanState) is { } num)
+        if (scanState.InMapSection)
         {
-            return num;
+            if (trimmedLine.StartsWith("End", StringComparison.OrdinalIgnoreCase))
+            {
+                scanState.InMapSection = false;
+                scanState.DisplayNameSearchComplete = true;
+                return;
+            }
+
+            if (!scanState.DisplayNameSearchComplete && scanState.DisplayName == null)
+            {
+                scanState.DisplayName = TryParseDisplayNameLine(trimmedLine);
+            }
+
+            if (!scanState.NumPlayers.HasValue)
+            {
+                scanState.NumPlayers = TryParseNumPlayers(trimmedLine);
+            }
         }
 
         if (TryParseWaypointSlot(line) is { } slot && slot > scanState.MaxWaypointSlot)
         {
             scanState.MaxWaypointSlot = slot;
         }
-
-        return null;
     }
 
-    /// <summary>
-    /// Parses a line inside the Map section for the end marker or a numPlayers declaration.
-    /// </summary>
-    /// <param name="trimmedLine">The trimmed file line.</param>
-    /// <param name="scanState">The mutable scan state.</param>
-    /// <returns>The declared player count when found; otherwise null.</returns>
-    private static int? TryParseMapSectionPlayerCount(string trimmedLine, PlayerCountScanState scanState)
+    private static string? TryParseDisplayNameLine(string trimmedLine)
     {
-        if (trimmedLine.StartsWith("End", StringComparison.OrdinalIgnoreCase))
+        if (!trimmedLine.StartsWith("displayName", StringComparison.OrdinalIgnoreCase))
         {
-            scanState.InMapSection = false;
             return null;
         }
 
-        return TryParseNumPlayers(trimmedLine);
+        var parts = trimmedLine.Split('=', 2);
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+
+        var displayName = parts[1].Trim().Trim('"', '\'');
+        return string.IsNullOrWhiteSpace(displayName) ? null : displayName;
+    }
+
+    private string ResolveDisplayName(string mapFilePath, string? nameFromFile)
+    {
+        if (!string.IsNullOrWhiteSpace(nameFromFile))
+        {
+            return nameFromFile;
+        }
+
+        var nameFromDirectory = FallbackToDirectoryName(mapFilePath);
+        if (!string.IsNullOrWhiteSpace(nameFromDirectory))
+        {
+            return nameFromDirectory;
+        }
+
+        return CleanMapName(Path.GetFileNameWithoutExtension(mapFilePath));
     }
 
     /// <summary>
-    /// Attempts to parse the map name from the .map file contents.
+    /// Scans a .map file once for its display name, numPlayers declaration, and waypoint markers.
     /// </summary>
     /// <param name="mapFilePath">Path to the .map file.</param>
-    /// <returns>The map name if found, otherwise null.</returns>
-    private string? TryParseFromMapFile(string mapFilePath)
+    /// <param name="cancellationToken">Token to cancel the file scan.</param>
+    /// <returns>The scan state, or null when the file cannot be scanned.</returns>
+    private MapFileScanState? TryScanMapFile(string mapFilePath, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             if (!File.Exists(mapFilePath))
@@ -263,105 +318,66 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
                 return null;
             }
 
-            using var reader = new StreamReader(mapFilePath, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-            string? line;
-            var inMapSection = false;
-
-            while ((line = reader.ReadLine()) != null)
-            {
-                var trimmedLine = line.Trim();
-
-                if (trimmedLine.Equals("Map", StringComparison.OrdinalIgnoreCase))
-                {
-                    inMapSection = true;
-                    continue;
-                }
-
-                if (inMapSection && trimmedLine.StartsWith("End", StringComparison.OrdinalIgnoreCase))
-                {
-                    break;
-                }
-
-                if (inMapSection && trimmedLine.StartsWith("displayName", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = trimmedLine.Split('=', 2);
-                    if (parts.Length == 2)
-                    {
-                        var displayName = parts[1].Trim().Trim('"', '\'');
-                        if (!string.IsNullOrWhiteSpace(displayName))
-                        {
-                            logger.LogDebug("Parsed map name from file: {Name}", displayName);
-                            return displayName;
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to parse map name from file: {Path}", mapFilePath);
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Attempts to parse the player count from the .map file contents.
-    /// </summary>
-    /// <param name="mapFilePath">Path to the .map file.</param>
-    /// <returns>The player count if found, otherwise null.</returns>
-    private int? TryParsePlayerCountFromFile(string mapFilePath)
-    {
-        try
-        {
-            if (!File.Exists(mapFilePath))
-            {
-                return null;
-            }
-
-            if (new FileInfo(mapFilePath).Length > MapManagerConstants.MaxMapSizeBytes)
+            if (new FileInfo(mapFilePath).Length > MapManagerConstants.MaxPlayerCountScanBytes)
             {
                 return null;
             }
 
             using var reader = new StreamReader(mapFilePath, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-            return ScanReaderForPlayerCount(reader);
+            return ScanReaderForMapDetails(reader, mapFilePath, cancellationToken);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning(ex, "Failed to parse player count from file: {Path}", mapFilePath);
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            logger.LogWarning(ex, "Failed to scan map file: {Path}", mapFilePath);
             return null;
         }
     }
 
     /// <summary>
-    /// Scans map file lines for an authoritative player count declaration or waypoint markers.
+    /// Scans map file lines for the display name, an authoritative player count declaration, and waypoint markers.
+    /// Waypoint lists sit near the end of real .map files, so the scan covers the whole admitted file
+    /// instead of stopping at a line cap; the scan is bounded by bytes and cancellable.
     /// </summary>
     /// <param name="reader">The file reader.</param>
-    /// <returns>The player count if found, otherwise null.</returns>
-    private int? ScanReaderForPlayerCount(StreamReader reader)
+    /// <param name="mapFilePath">Path to the file being scanned, for diagnostics.</param>
+    /// <param name="cancellationToken">Token to cancel the file scan.</param>
+    /// <returns>The accumulated scan state.</returns>
+    private MapFileScanState ScanReaderForMapDetails(StreamReader reader, string mapFilePath, CancellationToken cancellationToken)
     {
-        var scanState = new PlayerCountScanState();
+        var scanState = new MapFileScanState();
         string? line;
 
-        // Cap line reads to prevent reading gigantic binary/compressed streams indefinitely
-        while ((line = reader.ReadLine()) != null && scanState.LinesRead++ < MapManagerConstants.MaxPlayerCountScanLines)
+        while ((line = reader.ReadLine()) != null)
         {
-            if (ProcessPlayerCountLine(line, scanState) is { } num)
+            scanState.LinesRead++;
+            scanState.BytesScanned += Encoding.UTF8.GetByteCount(line);
+            if (scanState.BytesScanned > MapManagerConstants.MaxPlayerCountScanBytes)
             {
-                logger.LogDebug("Parsed numPlayers from Map section: {Count}", num);
-                return num;
+                logger.LogDebug(
+                    "Map scan byte cap exhausted for {Path} after {LinesRead} lines; waypoint markers past this point are ignored",
+                    mapFilePath,
+                    scanState.LinesRead);
+                break;
             }
+
+            if (scanState.LinesRead % 1024 == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            ProcessMapFileLine(line, scanState);
         }
 
-        if (scanState.MaxWaypointSlot > 0)
-        {
-            logger.LogDebug("Resolved player count from waypoint markers: {Count}", scanState.MaxWaypointSlot);
-            return scanState.MaxWaypointSlot;
-        }
-
-        return null;
+        logger.LogDebug(
+            "Scanned map file {Path}: {LinesRead} lines, {BytesScanned} bytes",
+            mapFilePath,
+            scanState.LinesRead,
+            scanState.BytesScanned);
+        return scanState;
     }
 
     /// <summary>

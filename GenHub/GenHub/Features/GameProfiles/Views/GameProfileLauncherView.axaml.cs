@@ -5,6 +5,7 @@ using GenHub.Features.GameProfiles.ViewModels;
 using System;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Text.Json;
 
 namespace GenHub.Features.GameProfiles.Views;
@@ -57,7 +58,7 @@ public partial class GameProfileLauncherView : UserControl
 
             return false;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or NotSupportedException or SecurityException or ArgumentException)
         {
             return false;
         }

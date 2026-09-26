@@ -70,6 +70,7 @@ public static class VariantSwap
             RequiresResolution = source.RequiresResolution,
             ResolverId = source.ResolverId,
             SourceUrl = source.SourceUrl,
+            SkipAutomaticWebParsing = source.SkipAutomaticWebParsing,
             SelectedDownloadUrl = source.SelectedDownloadUrl,
             Data = source.Data,
             ParsedPageData = source.ParsedPageData,
@@ -178,6 +179,7 @@ public static class VariantSwap
         target.TargetGame = source.TargetGame;
         target.SelectedDownloadUrl = source.SelectedDownloadUrl;
         target.SourceUrl = source.SourceUrl;
+        target.SkipAutomaticWebParsing = source.SkipAutomaticWebParsing;
         target.DownloadSize = source.DownloadSize;
         target.LastUpdated = source.LastUpdated;
 

@@ -9846,6 +9846,21 @@ Do you want to download and inspect this profile package?</value>
   <data name="GameProfiles.Launcher.Notify.ImportErrorFormat" xml:space="preserve">
     <value>An error occurred during profile import: {0}</value>
   </data>
+  <data name="GameProfiles.Resources.IconFormat" xml:space="preserve">
+    <value>{0} Icon</value>
+  </data>
+  <data name="GameProfiles.Resources.LogoFormat" xml:space="preserve">
+    <value>{0} Logo</value>
+  </data>
+  <data name="GameProfiles.Resources.CoverFormat" xml:space="preserve">
+    <value>{0} Cover</value>
+  </data>
+  <data name="GameProfiles.Resources.CoverAltFormat" xml:space="preserve">
+    <value>{0} Cover (Alt)</value>
+  </data>
+  <data name="GameProfiles.Resources.DefaultBackground" xml:space="preserve">
+    <value>Default Background</value>
+  </data>
   <data name="GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat" xml:space="preserve">
     <value>Failed to select profile file: {0}</value>
   </data>

@@ -259,7 +259,7 @@ public class GenLauncherDiscoverer(
 
     private static string ResolveSourceUrl(string? modLink, string? parentManifestUrl)
     {
-        return GenLauncherConstants.ResolveEffectiveSourceUrl(modLink, parentManifestUrl);
+        return GenLauncherConstants.ResolveAllowedSourceUrl(static url => IsValidHttpUrl(url, out _), modLink, parentManifestUrl);
     }
 
     private static string? ResolveFileDownloadUrl(string? simpleDownloadLink, string? fallbackUrl)
@@ -387,7 +387,8 @@ public class GenLauncherDiscoverer(
     private static void ApplyManifestSourceUrlFallback(ContentSearchResult result, GenLauncherVersionManifest manifest)
     {
         var previousSourceUrl = result.SourceUrl;
-        result.SourceUrl = GenLauncherConstants.ResolveEffectiveSourceUrl(
+        result.SourceUrl = GenLauncherConstants.ResolveAllowedSourceUrl(
+            static url => IsValidHttpUrl(url, out _),
             manifest.NewsLink,
             manifest.ModDBLink,
             manifest.DiscordLink,
@@ -965,19 +966,21 @@ public class GenLauncherDiscoverer(
             TargetGame = context.Game,
             ProviderName = PublisherTypeConstants.GenLauncher,
             ResolverId = GenLauncherConstants.PublisherId,
-            SourceUrl = GenLauncherConstants.ResolveEffectiveSourceUrl(
+            SourceUrl = GenLauncherConstants.ResolveAllowedSourceUrl(
+                static url => IsValidHttpUrl(url, out _),
                 versionManifest.NewsLink,
                 versionManifest.ModDBLink,
                 versionManifest.DiscordLink),
-
-            // The version manifest is the canonical data source; the resolved link above is an
-            // external page kept for browser navigation and must not replace manifest file rows.
-            SkipAutomaticWebParsing = true,
             IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, context.ParentIconUrl),
             RequiresResolution = true,
             VariantGroupId = $"{context.Game.ToString().ToLowerInvariant()}-{context.ParentModSlug}",
             VariantFamilyName = context.ParentModName,
         };
+
+        // The version manifest is the canonical data source; the resolved link above is an
+        // external page kept for browser navigation and must not replace manifest file rows.
+        // Only assert the parsing skip when a safe link was actually resolved.
+        result.SkipAutomaticWebParsing = !string.IsNullOrEmpty(result.SourceUrl);
 
         result.Tags.Add("genlauncher");
         result.Tags.Add(actualType.ToString().ToLowerInvariant());

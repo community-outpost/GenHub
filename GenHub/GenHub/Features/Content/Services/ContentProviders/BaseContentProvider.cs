@@ -450,6 +450,7 @@ public abstract class BaseContentProvider : IContentProvider
             DownloadSize = manifest.Files?.Sum(f => f.Size) ?? discovered.DownloadSize,
             RequiresResolution = false,
             SourceUrl = discovered.SourceUrl,
+            SkipAutomaticWebParsing = discovered.SkipAutomaticWebParsing,
         };
 
         // Copy screenshots and tags
