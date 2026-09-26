@@ -132,8 +132,14 @@ public sealed class ImageCacheService : IImageCacheService
                     : AppDataPathHelper.GetDataRoot();
             }
 
-            cacheDirectory = Path.Combine(appDataPath, "Images");
+            cacheDirectory = Path.Combine(appDataPath, DirectoryNames.Cache, "Images");
             Directory.CreateDirectory(cacheDirectory);
+
+            var legacyDir = Path.Combine(appDataPath, "Images");
+            if (Directory.Exists(legacyDir))
+            {
+                MigrateLegacyCache(legacyDir, cacheDirectory);
+            }
         }
         catch (Exception ex)
         {
@@ -878,6 +884,34 @@ public sealed class ImageCacheService : IImageCacheService
         {
             TryDeleteFile(tempPath);
             logger?.LogWarning(ex, "Failed to write disk cache file '{Path}'", diskPath);
+        }
+    }
+
+    private void MigrateLegacyCache(string legacyDir, string targetDir)
+    {
+        try
+        {
+            foreach (var file in Directory.GetFiles(legacyDir, "*", SearchOption.TopDirectoryOnly))
+            {
+                var dest = Path.Combine(targetDir, Path.GetFileName(file));
+                if (!File.Exists(dest))
+                {
+                    File.Move(file, dest);
+                }
+                else
+                {
+                    File.Delete(file);
+                }
+            }
+
+            if (!Directory.EnumerateFileSystemEntries(legacyDir).Any())
+            {
+                Directory.Delete(legacyDir, recursive: false);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            this.logger?.LogDebug(ex, "Failed to migrate legacy image disk cache from {LegacyDir}", legacyDir);
         }
     }
 

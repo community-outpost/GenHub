@@ -18,6 +18,7 @@ public static class StorageMigrationModule
     public static IServiceCollection AddStorageMigrationServices(this IServiceCollection services)
     {
         services.TryAddSingleton<IStorageMigrationService, StorageMigrationService>();
+        services.TryAddSingleton<IStorageMaintenanceService, StorageMaintenanceService>();
         services.TryAddSingleton<IInstallationLocationTracker, FileInstallationLocationTracker>();
         services.TryAddSingleton<IInstallationConflictService, InstallationConflictService>();
         return services;
