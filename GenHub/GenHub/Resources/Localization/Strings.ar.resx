@@ -1878,6 +1878,42 @@
   <data name="Online.Title" xml:space="preserve">
     <value>عبر الإنترنت</value>
   </data>
+  <data name="Online.Sidebar.Title" xml:space="preserve">
+    <value>عبر الإنترنت</value>
+  </data>
+  <data name="Online.Sections.Networks.Title" xml:space="preserve">
+    <value>الشبكات</value>
+  </data>
+  <data name="Online.Sections.Networks.Description" xml:space="preserve">
+    <value>ردهات الشبكة المحلية الافتراضية من GenHub</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Title" xml:space="preserve">
+    <value>GeneralsOnline</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Description" xml:space="preserve">
+    <value>قريبًا</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Badge" xml:space="preserve">
+    <value>قريبًا</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Title" xml:space="preserve">
+    <value>GeneralsOnline قادم قريبًا</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Description" xml:space="preserve">
+    <value>ستتوفر هنا السلالم المصنفة والمطابقة وردهات المجتمع مع فحوصات التوافق التلقائية.</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Lobbies" xml:space="preserve">
+    <value>تصفح ردهات المجتمع</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Compatibility" xml:space="preserve">
+    <value>فحوصات تلقائية لتوافق الإعداد</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Launch" xml:space="preserve">
+    <value>تشغيل الملف الشخصي وتسجيل الدخول بنقرة واحدة</value>
+  </data>
+  <data name="Online.Search.Clear" xml:space="preserve">
+    <value>مسح البحث</value>
+  </data>
   <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
     <value>مسح كل السجل</value>
   </data>

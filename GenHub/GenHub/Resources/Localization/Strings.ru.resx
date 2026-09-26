@@ -1878,6 +1878,42 @@
   <data name="Online.Title" xml:space="preserve">
     <value>Сеть</value>
   </data>
+  <data name="Online.Sidebar.Title" xml:space="preserve">
+    <value>Сеть</value>
+  </data>
+  <data name="Online.Sections.Networks.Title" xml:space="preserve">
+    <value>Сети</value>
+  </data>
+  <data name="Online.Sections.Networks.Description" xml:space="preserve">
+    <value>Лобби виртуальной LAN GenHub</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Title" xml:space="preserve">
+    <value>GeneralsOnline</value>
+  </data>
+  <data name="Online.Sections.GeneralsOnline.Description" xml:space="preserve">
+    <value>Скоро</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Badge" xml:space="preserve">
+    <value>Скоро</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Title" xml:space="preserve">
+    <value>GeneralsOnline скоро появится</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Description" xml:space="preserve">
+    <value>Здесь появятся рейтинговые ладдеры, подбор матчей и лобби сообщества с автоматической проверкой совместимости.</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Lobbies" xml:space="preserve">
+    <value>Просмотр лобби сообщества</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Compatibility" xml:space="preserve">
+    <value>Автоматическая проверка совместимости сборки</value>
+  </data>
+  <data name="Online.GeneralsOnline.ComingSoon.Feature.Launch" xml:space="preserve">
+    <value>Запуск профиля и вход в один клик</value>
+  </data>
+  <data name="Online.Search.Clear" xml:space="preserve">
+    <value>Очистить поиск</value>
+  </data>
   <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
     <value>Очистить всю историю</value>
   </data>

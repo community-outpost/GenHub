@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Online.ViewModels"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.Online.Views.GeneralsOnlinePlaceholderView"
+             x:DataType="vm:OnlineViewModel"
+             Background="Transparent">
+
+    <!-- Temporary placeholder for the GeneralsOnline section. The stacked
+         GeneralsOnline change replaces this control with the real lobbies
+         view (lobby browser, ini CRC joinability, profile launch, login). -->
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24,48,24,64" HorizontalAlignment="Center">
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="40,32"
+                    MaxWidth="520"
+                    HorizontalAlignment="Center">
+                <StackPanel Spacing="16" HorizontalAlignment="Center">
+                    <Border Width="64"
+                            Height="64"
+                            CornerRadius="32"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                            BorderThickness="1"
+                            HorizontalAlignment="Center">
+                        <material:MaterialIcon Kind="GamepadVariantOutline"
+                                               Width="32"
+                                               Height="32"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                    </Border>
+                    <Border CornerRadius="10"
+                            Padding="8,2"
+                            Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                            BorderBrush="{DynamicResource AccentBadgeForegroundBrush}"
+                            BorderThickness="1"
+                            HorizontalAlignment="Center">
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.ComingSoon.Badge}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}" />
+                    </Border>
+                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.ComingSoon.Title}"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimary}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.ComingSoon.Description}"
+                               FontSize="14"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource TextSecondary}"
+                               HorizontalAlignment="Center"
+                               LineHeight="20" />
+                    <StackPanel Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                            <material:MaterialIcon Kind="Check" Width="16" Height="16"
+                                                   Foreground="{DynamicResource SuccessBrush}"
+                                                   VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize Online.GeneralsOnline.ComingSoon.Feature.Lobbies}"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                            <material:MaterialIcon Kind="Check" Width="16" Height="16"
+                                                   Foreground="{DynamicResource SuccessBrush}"
+                                                   VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize Online.GeneralsOnline.ComingSoon.Feature.Compatibility}"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left">
+                            <material:MaterialIcon Kind="Check" Width="16" Height="16"
+                                                   Foreground="{DynamicResource SuccessBrush}"
+                                                   VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize Online.GeneralsOnline.ComingSoon.Feature.Launch}"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

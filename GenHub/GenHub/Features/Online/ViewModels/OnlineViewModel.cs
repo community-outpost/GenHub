@@ -30,6 +30,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -135,6 +136,14 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this);
         WeakReferenceMessenger.Default.Register<ProfileDeletedMessage>(this);
         WeakReferenceMessenger.Default.Register<ProfileListUpdatedMessage>(this);
+
+        InitializeSections();
+
+        var localizationService = _dependencies?.LocalizationService;
+        if (localizationService is not null)
+        {
+            localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
     }
 
     [ObservableProperty]
@@ -282,6 +291,23 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     private bool _isHostPanelOpen;
 
     /// <summary>
+    /// Gets the sidebar sections for switching between Networks and GeneralsOnline.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<OnlineSectionItem> _sections = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNetworksSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGeneralsOnlineSelected))]
+    private OnlineSectionItem? _selectedSection;
+
+    [ObservableProperty]
+    private bool _isPaneOpen = true;
+
+    [ObservableProperty]
+    private double _openPaneLength = SidebarConstants.DefaultOpenPaneLength;
+
+    /// <summary>
     /// Gets a value indicating whether the detail card is visible: a loaded
     /// detail, or the loading state while one is being fetched. Hidden while
     /// joined so browsing the directory cannot clobber the live lobby state;
@@ -289,6 +315,18 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
     public bool IsDetailVisible => !IsJoined && (SelectedDetail is not null || DetailLoading);
+
+    /// <summary>
+    /// Gets a value indicating whether the Networks section is selected.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
+    public bool IsNetworksSelected => string.Equals(SelectedSection?.Id, OnlineConstants.SectionNetworks, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Gets a value indicating whether the GeneralsOnline section is selected.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
+    public bool IsGeneralsOnlineSelected => string.Equals(SelectedSection?.Id, OnlineConstants.SectionGeneralsOnline, StringComparison.Ordinal);
 
     /// <summary>
     /// Initializes the view model by subscribing to roster updates.
@@ -951,6 +989,15 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     }
 
     /// <summary>
+    /// Clears the network search text, restoring the full directory.
+    /// </summary>
+    [RelayCommand]
+    public void ClearSearch()
+    {
+        SearchText = string.Empty;
+    }
+
+    /// <summary>
     /// Receives game profile creation notifications so newly added profiles appear
     /// in the profile picker dropdowns immediately.
     /// </summary>
@@ -1113,6 +1160,12 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         WeakReferenceMessenger.Default.Unregister<ProfileUpdatedMessage>(this);
         WeakReferenceMessenger.Default.Unregister<ProfileDeletedMessage>(this);
         WeakReferenceMessenger.Default.Unregister<ProfileListUpdatedMessage>(this);
+        var localizationService = _dependencies?.LocalizationService;
+        if (localizationService is not null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+        }
+
         _networkService.RosterChanged -= OnRosterChanged;
         _networkService.ConnectionLost -= OnConnectionLost;
         _networkService.ExpectedProfileChanged -= OnExpectedProfileChanged;
@@ -1856,6 +1909,39 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     {
         var val = _dependencies?.LocalizationService?.GetString(key);
         return string.IsNullOrEmpty(val) || val == key ? fallback : val;
+    }
+
+    private void InitializeSections()
+    {
+        var currentSelectedId = SelectedSection?.Id;
+        Sections =
+        [
+            new(
+                OnlineConstants.SectionNetworks,
+                GetLocalizedString("Online.Sections.Networks.Title", "Networks"),
+                GetLocalizedString("Online.Sections.Networks.Description", "GenHub virtual LAN lobbies"),
+                "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.05,19.44 4,16.08 4,12C4,11.38 4.08,10.79 4.21,10.21L9,15V16A2,2 0 0,0 11,18V19.93M17.9,17.39C17.64,16.58 16.9,16 16,16H15V13A1,1 0 0,0 14,12H8V10H10A1,1 0 0,0 11,9V7H13A2,2 0 0,0 15,5V4.59C17.93,5.78 20,8.65 20,12C20,14.08 19.2,15.97 17.9,17.39Z"),
+            new(
+                OnlineConstants.SectionGeneralsOnline,
+                GetLocalizedString("Online.Sections.GeneralsOnline.Title", "GeneralsOnline"),
+                GetLocalizedString("Online.Sections.GeneralsOnline.Description", "Coming soon"),
+                "M17,6H7C4.79,6 3,7.79 3,10V14C3,16.21 4.79,18 7,18H17C19.21,18 21,16.21 21,14V10C21,7.79 19.21,6 17,6M6,13V11H8V9H10V11H12V13H10V15H8V13H6M16.5,14A1.5,1.5 0 0,1 15,12.5A1.5,1.5 0 0,1 16.5,11A1.5,1.5 0 0,1 18,12.5A1.5,1.5 0 0,1 16.5,14M18.5,11A1.5,1.5 0 0,1 17,9.5A1.5,1.5 0 0,1 18.5,8A1.5,1.5 0 0,1 20,9.5A1.5,1.5 0 0,1 18.5,11Z"),
+        ];
+
+        SelectedSection = Sections.FirstOrDefault(s => s.Id == currentSelectedId) ?? Sections.FirstOrDefault();
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
+        {
+            InitializeSections();
+        }
     }
 
     private async Task LoadDetailAsync(OnlineNetworkSummary network, CancellationToken cancellationToken)

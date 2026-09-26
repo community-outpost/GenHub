@@ -3,9 +3,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Online.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.Online.Views"
              xmlns:models="clr-namespace:GenHub.Core.Models.Online;assembly=GenHub.Core"
              xmlns:profiles="clr-namespace:GenHub.Core.Models.GameProfile;assembly=GenHub.Core"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             xmlns:controls="clr-namespace:GenHub.Common.Controls"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="800"
@@ -55,6 +57,10 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12,8" />
+        </Style>
+
+        <Style Selector="TextBox.field:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
         </Style>
 
         <Style Selector="Button.toolbar-btn">
@@ -129,7 +135,56 @@
         </Style>
     </UserControl.Styles>
 
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <controls:SidebarLayout PaneTitle="{localization:Localize Online.Sidebar.Title}"
+                            ItemsSource="{Binding Sections}"
+                            SelectedItem="{Binding SelectedSection, Mode=TwoWay}"
+                            IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                            OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}"
+                            ItemTemplate="{StaticResource OnlineSectionTemplate}">
+
+        <controls:SidebarLayout.Resources>
+            <DataTemplate x:Key="OnlineSectionTemplate" DataType="vm:OnlineSectionItem">
+                <Grid ColumnDefinitions="Auto,*" Margin="4,2">
+                    <PathIcon Grid.Column="0" Data="{Binding IconData}" Width="15" Height="15"
+                              Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}"
+                                   FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}"
+                                   FontSize="11" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Grid>
+            </DataTemplate>
+        </controls:SidebarLayout.Resources>
+
+        <controls:SidebarLayout.PaneFooter>
+            <Border Classes="card" Padding="12,8" IsVisible="{Binding IsJoined}">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Ellipse Width="8" Height="8"
+                                 VerticalAlignment="Center"
+                                 Fill="{Binding ConnectionQuality, Converter={StaticResource OnlineQualityBrushConverter}}" />
+                        <TextBlock Text="{Binding CurrentNetworkName}"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Button Classes="toolbar-btn"
+                            Content="{localization:Localize Online.Action.Leave}"
+                            Command="{Binding LeaveNetworkCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            FontSize="12"
+                            AutomationProperties.Name="{localization:Localize Online.Action.Leave}" />
+                </StackPanel>
+            </Border>
+        </controls:SidebarLayout.PaneFooter>
+
+        <Grid>
+            <!-- Networks section: virtual LAN lobby browser and overview. -->
+            <ScrollViewer IsVisible="{Binding IsNetworksSelected}"
+                          HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch" Margin="24,24,24,64">
             <!-- Header row: Title + Subtitle on Left, Player Nickname on Right -->
             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
@@ -266,13 +321,28 @@
                          AutomationProperties.Name="{localization:Localize Online.Search.Watermark}"
                          Width="280" />
                 <Button Classes="toolbar-btn"
-                        Content="{localization:Localize Online.Action.Refresh}"
-                        Command="{Binding RefreshNetworksCommand}"
-                        AutomationProperties.Name="{localization:Localize Online.Action.Refresh}" />
+                        Command="{Binding ClearSearchCommand}"
+                        Padding="8"
+                        ToolTip.Tip="{localization:Localize Online.Search.Clear}"
+                        AutomationProperties.Name="{localization:Localize Online.Search.Clear}">
+                    <material:MaterialIcon Kind="Close" Width="16" Height="16" VerticalAlignment="Center" />
+                </Button>
                 <Button Classes="toolbar-btn"
-                        Content="{localization:Localize Online.Action.Create}"
+                        Command="{Binding RefreshNetworksCommand}"
+                        AutomationProperties.Name="{localization:Localize Online.Action.Refresh}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <material:MaterialIcon Kind="Refresh" Width="16" Height="16" VerticalAlignment="Center" />
+                        <TextBlock Text="{localization:Localize Online.Action.Refresh}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="toolbar-btn"
                         Command="{Binding ToggleCreatePanelCommand}"
-                        AutomationProperties.Name="{localization:Localize Online.Action.Create}" />
+                        AutomationProperties.Name="{localization:Localize Online.Action.Create}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <material:MaterialIcon Kind="Plus" Width="16" Height="16" VerticalAlignment="Center" />
+                        <TextBlock Text="{localization:Localize Online.Action.Create}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
             <!-- Create panel -->
@@ -331,21 +401,70 @@
                 <!-- Network list -->
                 <Border Grid.Column="0" Classes="card">
                     <StackPanel Spacing="8">
-                        <TextBlock Classes="section-title" Text="{localization:Localize Online.List.Title}" />
-                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsRefreshingDirectory}" />
-                        <TextBlock Text="{localization:Localize Online.List.Empty}"
-                                   Foreground="{DynamicResource TextMuted}"
-                                   TextWrapping="Wrap"
-                                   IsVisible="{Binding DirectoryEmpty}" />
-                        <StackPanel Spacing="8" IsVisible="{Binding DirectoryFailed}">
-                            <TextBlock Text="{localization:Localize Online.List.Failed}"
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="section-title"
+                                       Text="{localization:Localize Online.List.Title}"
+                                       VerticalAlignment="Center" />
+                            <Border Classes="badge"
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding Networks.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}">
+                                <TextBlock Text="{Binding Networks.Count}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TextSecondary}" />
+                            </Border>
+                            <ProgressBar IsIndeterminate="True" Width="60"
+                                         IsVisible="{Binding IsRefreshingDirectory}"
+                                         VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Spacing="12"
+                                    IsVisible="{Binding DirectoryEmpty}"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,24">
+                            <Border Width="56" Height="56"
+                                    CornerRadius="28"
+                                    Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    HorizontalAlignment="Center">
+                                <material:MaterialIcon Kind="Magnify" Width="28" Height="28"
+                                                       Foreground="{DynamicResource TextMuted}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="{localization:Localize Online.List.Empty}"
                                        Foreground="{DynamicResource TextSecondary}"
-                                       TextWrapping="Wrap" />
+                                       TextWrapping="Wrap"
+                                       TextAlignment="Center"
+                                       HorizontalAlignment="Center" />
                             <Button Classes="toolbar-btn"
-                                    Content="{localization:Localize Online.Action.Retry}"
+                                    Command="{Binding ToggleCreatePanelCommand}"
+                                    HorizontalAlignment="Center"
+                                    AutomationProperties.Name="{localization:Localize Online.Action.Create}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <material:MaterialIcon Kind="Plus" Width="16" Height="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="{localization:Localize Online.Action.Create}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel Spacing="8" IsVisible="{Binding DirectoryFailed}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <material:MaterialIcon Kind="AlertCircleOutline" Width="16" Height="16"
+                                                       Foreground="{DynamicResource WarningBrush}"
+                                                       VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.List.Failed}"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Button Classes="toolbar-btn"
                                     Command="{Binding RefreshNetworksCommand}"
                                     HorizontalAlignment="Left"
-                                    AutomationProperties.Name="{localization:Localize Online.Action.Retry}" />
+                                    AutomationProperties.Name="{localization:Localize Online.Action.Retry}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <material:MaterialIcon Kind="Refresh" Width="16" Height="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="{localization:Localize Online.Action.Retry}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                         <ListBox ItemsSource="{Binding Networks}"
                                  SelectedItem="{Binding SelectedNetwork, Mode=TwoWay}"
@@ -354,29 +473,43 @@
                                  AutomationProperties.Name="{localization:Localize Online.List.Title}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="models:OnlineNetworkSummary">
-                                    <StackPanel Spacing="2" Margin="0,6">
+                                    <StackPanel Spacing="4" Margin="0,6">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                                <material:MaterialIcon Kind="Lock" Width="12" Height="12"
+                                                                       Foreground="{DynamicResource TextMuted}"
+                                                                       VerticalAlignment="Center"
+                                                                       IsVisible="{Binding RequiresPassword}" />
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextPrimary}"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                                                <TextBlock Foreground="{DynamicResource TextSecondary}"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center">
+                                                    <Run Text="{Binding SlotsUsed}" /><Run Text="/" /><Run Text="{Binding SlotsMax}" />
+                                                </TextBlock>
+                                                <Ellipse Width="8" Height="8"
+                                                         VerticalAlignment="Center"
+                                                         Fill="{Binding Quality, Converter={StaticResource OnlineQualityBrushConverter}}"
+                                                         ToolTip.Tip="{Binding Quality, Converter={StaticResource OnlineQualityTextConverter}}" />
+                                            </StackPanel>
+                                        </Grid>
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <material:MaterialIcon Kind="Lock" Width="12" Height="12"
-                                                                   Foreground="{DynamicResource TextMuted}"
-                                                                   VerticalAlignment="Center"
-                                                                   IsVisible="{Binding RequiresPassword}" />
-                                            <TextBlock Text="{Binding Name}"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextPrimary}"
-                                                       VerticalAlignment="Center" />
-                                            <Ellipse Width="8" Height="8"
-                                                     VerticalAlignment="Center"
-                                                     Fill="{Binding Quality, Converter={StaticResource OnlineQualityBrushConverter}}" />
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="{Binding SlotsUsed}"
-                                                       Foreground="{DynamicResource TextSecondary}" />
-                                            <TextBlock Text="/"
-                                                       Foreground="{DynamicResource TextSecondary}" />
-                                            <TextBlock Text="{Binding SlotsMax}"
-                                                       Foreground="{DynamicResource TextSecondary}" />
                                             <TextBlock Text="{Binding HostDisplayName}"
+                                                       FontSize="12"
                                                        Foreground="{DynamicResource TextMuted}" />
+                                            <TextBlock Text="•"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextMuted}"
+                                                       IsVisible="{Binding Region, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                            <TextBlock Text="{Binding Region}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextMuted}"
+                                                       IsVisible="{Binding Region, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                         </StackPanel>
                                     </StackPanel>
                                 </DataTemplate>
@@ -475,7 +608,12 @@
                     <Border Classes="card" IsVisible="{Binding IsJoined}">
                         <StackPanel Spacing="8">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Classes="section-title" Text="{localization:Localize Online.Roster.Title}" />
+                                <TextBlock Classes="section-title"
+                                           Text="{localization:Localize Online.Roster.Title}"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Members.Count, StringFormat='({0})'}"
+                                           Foreground="{DynamicResource TextMuted}"
+                                           VerticalAlignment="Center" />
                             </StackPanel>
                             <ListBox ItemsSource="{Binding Members}"
                                      SelectedItem="{Binding SelectedMember, Mode=TwoWay}"
@@ -580,5 +718,11 @@
                 </StackPanel>
             </Grid>
         </StackPanel>
-    </ScrollViewer>
+            </ScrollViewer>
+
+            <!-- GeneralsOnline section. The stacked GeneralsOnline change
+                 replaces this placeholder with the real lobbies view. -->
+            <views:GeneralsOnlinePlaceholderView IsVisible="{Binding IsGeneralsOnlineSelected}" />
+        </Grid>
+    </controls:SidebarLayout>
 </UserControl>

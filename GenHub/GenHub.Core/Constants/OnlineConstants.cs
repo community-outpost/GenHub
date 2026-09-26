@@ -17,6 +17,17 @@ public static class OnlineConstants
     public const string EnabledEnvVar = "GENHUB_ONLINE_ENABLED";
 
     /// <summary>
+    /// Sidebar section id for GenHub virtual LAN networks.
+    /// </summary>
+    public const string SectionNetworks = "networks";
+
+    /// <summary>
+    /// Sidebar section id for the GeneralsOnline service. The shell ships
+    /// first; the stacked GeneralsOnline change plugs its lobbies into it.
+    /// </summary>
+    public const string SectionGeneralsOnline = "generals-online";
+
+    /// <summary>
     /// Default slot cap for newly created networks.
     /// </summary>
     public const int DefaultSlotCap = 8;

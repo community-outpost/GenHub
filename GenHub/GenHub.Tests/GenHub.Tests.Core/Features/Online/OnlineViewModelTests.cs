@@ -27,6 +27,58 @@ namespace GenHub.Tests.Core.Features.Online;
 public class OnlineViewModelTests
 {
     /// <summary>
+    /// Tests that the sidebar defaults to the Networks section.
+    /// </summary>
+    [Fact]
+    public void Constructor_ShouldDefaultToNetworksSection()
+    {
+        // Arrange & Act
+        using var vm = CreateViewModel();
+
+        // Assert
+        Assert.Equal(2, vm.Sections.Count);
+        Assert.Equal(OnlineConstants.SectionNetworks, vm.SelectedSection?.Id);
+        Assert.True(vm.IsNetworksSelected);
+        Assert.False(vm.IsGeneralsOnlineSelected);
+        Assert.True(vm.IsPaneOpen);
+    }
+
+    /// <summary>
+    /// Tests that selecting the GeneralsOnline section flips the visibility flags.
+    /// </summary>
+    [Fact]
+    public void SelectedSection_WhenGeneralsOnline_ShouldToggleVisibilityFlags()
+    {
+        // Arrange
+        using var vm = CreateViewModel();
+
+        // Act
+        vm.SelectedSection = vm.Sections[1];
+
+        // Assert
+        Assert.Equal(OnlineConstants.SectionGeneralsOnline, vm.SelectedSection?.Id);
+        Assert.False(vm.IsNetworksSelected);
+        Assert.True(vm.IsGeneralsOnlineSelected);
+    }
+
+    /// <summary>
+    /// Tests that clearing the search resets the search text.
+    /// </summary>
+    [Fact]
+    public void ClearSearch_WithSearchText_ShouldResetSearchText()
+    {
+        // Arrange
+        using var vm = CreateViewModel();
+        vm.SearchText = "lobby";
+
+        // Act
+        vm.ClearSearch();
+
+        // Assert
+        Assert.Equal(string.Empty, vm.SearchText);
+    }
+
+    /// <summary>
     /// Tests that refreshing populates the directory.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
