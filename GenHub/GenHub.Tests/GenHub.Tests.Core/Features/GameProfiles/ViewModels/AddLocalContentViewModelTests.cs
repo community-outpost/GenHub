@@ -1207,11 +1207,11 @@ public class AddLocalContentViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that a cancelled caller token stops ImportContentAsync without error.
+    /// Verifies that a cancelled caller token propagates out of ImportContentAsync so callers stop processing.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ImportContentAsync_WhenCallerTokenCancelled_SetsStatusToImportCancelledWithoutError()
+    public async Task ImportContentAsync_WhenCallerTokenCancelled_ThrowsToCaller()
     {
         var tempDir = CreateTempDirectory();
         File.WriteAllText(Path.Combine(tempDir, "file.txt"), "data");
@@ -1220,10 +1220,7 @@ public class AddLocalContentViewModelTests : IDisposable
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await vm.ImportContentAsync(tempDir, cts.Token);
-
-        Assert.Equal("Import cancelled.", vm.StatusMessage);
-        Assert.DoesNotContain("Import Error:", vm.StatusMessage);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => vm.ImportContentAsync(tempDir, cts.Token));
     }
 
     /// <summary>

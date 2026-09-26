@@ -387,6 +387,10 @@ public partial class AddLocalContentViewModel(
 
             Validate();
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (OperationCanceledException ex)
         {
             StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusImportCancelled", "Import cancelled.");
@@ -873,7 +877,8 @@ public partial class AddLocalContentViewModel(
             var path = await BrowseFolderAction();
             if (!string.IsNullOrEmpty(path))
             {
-                await ImportContentAsync(path);
+                // Dialog cancellation flows through the view model's own source; no caller token applies.
+                await ImportContentAsync(path, CancellationToken.None);
             }
         }
     }
@@ -888,7 +893,8 @@ public partial class AddLocalContentViewModel(
             {
                 foreach (var path in paths)
                 {
-                    await ImportContentAsync(path);
+                    // Dialog cancellation flows through the view model's own source; no caller token applies.
+                    await ImportContentAsync(path, CancellationToken.None);
                 }
             }
         }

@@ -27,8 +27,8 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
     private const string DefaultBackgroundKey = "GameProfiles.Resources.DefaultBackground";
 
     private readonly object _initLock = new();
-    private readonly List<ProfileResourceItem> _icons = [];
-    private readonly List<ProfileResourceItem> _covers = [];
+    private IReadOnlyList<ProfileResourceItem> _icons = [];
+    private IReadOnlyList<ProfileResourceItem> _covers = [];
     private bool _initialized = false;
     private string? _resolvedCultureName;
 
@@ -39,7 +39,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
     public IReadOnlyList<ProfileResourceItem> GetAvailableIcons()
     {
         EnsureInitialized();
-        return _icons.AsReadOnly();
+        return _icons;
     }
 
     /// <summary>
@@ -49,7 +49,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
     public IReadOnlyList<ProfileResourceItem> GetAvailableCovers()
     {
         EnsureInitialized();
-        return _covers.AsReadOnly();
+        return _covers;
     }
 
     /// <summary>
@@ -100,6 +100,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
 
     /// <summary>
     /// Ensures resources are initialized (thread-safe), rebuilding display names when the UI culture changed.
+    /// Rebuilds publish a new immutable snapshot so readers never observe a partially rebuilt collection.
     /// </summary>
     private void EnsureInitialized()
     {
@@ -111,15 +112,15 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
                 cultureName = localizationService.CurrentCulture.Name;
                 if (!_initialized || !string.Equals(_resolvedCultureName, cultureName, StringComparison.Ordinal))
                 {
-                    _icons.Clear();
-                    _covers.Clear();
-                    LoadBuiltInResources();
+                    var (icons, covers) = LoadBuiltInResources();
+                    _icons = icons;
+                    _covers = covers;
                     _initialized = true;
                     _resolvedCultureName = cultureName;
                     logger.LogInformation(
                         "ProfileResourceService initialized with {IconCount} icons and {CoverCount} covers",
-                        _icons.Count,
-                        _covers.Count);
+                        icons.Count,
+                        covers.Count);
                 }
             }
         }
@@ -129,8 +130,12 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
     /// Loads built-in icons and covers from Assets.
     /// Display names resolve through localized format keys so pickers localize with the rest of the UI.
     /// </summary>
-    private void LoadBuiltInResources()
+    /// <returns>The loaded icons and covers.</returns>
+    private (IReadOnlyList<ProfileResourceItem> Icons, IReadOnlyList<ProfileResourceItem> Covers) LoadBuiltInResources()
     {
+        var icons = new List<ProfileResourceItem>();
+        var covers = new List<ProfileResourceItem>();
+
         // Load icons
         var iconFiles = new (string FileName, string BaseName, string? GameType)[]
         {
@@ -155,7 +160,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
 
         foreach (var (fileName, baseName, gameType) in iconFiles)
         {
-            _icons.Add(new ProfileResourceItem
+            icons.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{IconsPath}/{fileName}",
@@ -183,7 +188,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
 
         foreach (var (fileName, baseName) in logoFiles)
         {
-            _icons.Add(new ProfileResourceItem
+            icons.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{LogosPath}/{fileName}",
@@ -202,7 +207,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
 
         foreach (var (fileName, baseName, gameType) in imageFiles)
         {
-            _icons.Add(new ProfileResourceItem
+            icons.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{ImagesPath}/{fileName}",
@@ -222,7 +227,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
 
         foreach (var (fileName, baseName, formatKey, gameType) in coverFiles)
         {
-            _covers.Add(new ProfileResourceItem
+            covers.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{CoversPath}/{fileName}",
@@ -242,7 +247,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
 
         foreach (var (fileName, baseName, gameType) in factionCoverFiles)
         {
-            _covers.Add(new ProfileResourceItem
+            covers.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
                 Path = $"{CoversPath}/{fileName}",
@@ -253,7 +258,7 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
         }
 
         // Add default background cover
-        _covers.Add(new ProfileResourceItem
+        covers.Add(new ProfileResourceItem
         {
             Id = "background",
             Path = "/Assets/background.jpg",
@@ -264,7 +269,8 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
 
         logger.LogDebug(
             "Loaded {IconCount} built-in icons and {CoverCount} built-in covers",
-            _icons.Count,
-            _covers.Count);
+            icons.Count,
+            covers.Count);
+        return (icons, covers);
     }
 }
