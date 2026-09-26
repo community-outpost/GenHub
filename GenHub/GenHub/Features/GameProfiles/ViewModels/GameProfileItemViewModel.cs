@@ -1099,7 +1099,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             return;
         }
 
-        var isRetail = ReplayCrcMatchingHelper.IsRetailCompatible(profile.GameClient, profile.EnabledContentIds);
+        var isRetail = ReplayCrcMatchingHelper.IsRetailCompatible(profile);
         ApplyCompatibilityBadge(profile, isRetail);
         ScheduleIniCompatibilityVerification(profile);
     }
