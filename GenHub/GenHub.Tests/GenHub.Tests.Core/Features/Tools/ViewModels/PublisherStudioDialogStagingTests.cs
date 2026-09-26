@@ -183,6 +183,52 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         Assert.Equal("https://example.com/old_banner.png", savedItem.Metadata?.BannerUrl);
     }
 
+    /// <summary>
+    /// Editing a ContentBundle when catalog is null must populate bundle component options
+    /// from existing bundled items so existing configurations are retained upon saving.
+    /// </summary>
+    [Fact]
+    public void EditContentBundle_WithoutCatalog_PopulatesAndRetainsBundledItems()
+    {
+        var existingBundle = new CatalogContentItem
+        {
+            Id = "competitive-pack",
+            Name = "Competitive Pack",
+            Description = "A complete competitive package for Zero Hour.",
+            ContentType = GenHub.Core.Models.Enums.ContentType.ContentBundle,
+            BundledItems =
+            [
+                new CatalogDependency
+                {
+                    ContentId = "thesuperhackers-zh",
+                    DefaultVariant = "Gentool",
+                    ContentType = nameof(GenHub.Core.Models.Enums.ContentType.GameClient),
+                },
+                new CatalogDependency
+                {
+                    ContentId = "zh-community-patch",
+                    DefaultVariant = "1.06",
+                    ContentType = nameof(GenHub.Core.Models.Enums.ContentType.Patch),
+                },
+            ],
+        };
+
+        CatalogContentItem? savedItem = null;
+        var vm = new AddContentDialogViewModel(existingBundle, item => savedItem = item);
+
+        Assert.Equal(2, vm.BundleComponentOptions.Count);
+        Assert.All(vm.BundleComponentOptions, opt => Assert.True(opt.IsSelected));
+        Assert.Contains(vm.BundleComponentOptions, opt => opt.ContentId == "thesuperhackers-zh" && opt.SelectedVariant == "Gentool");
+        Assert.Contains(vm.BundleComponentOptions, opt => opt.ContentId == "zh-community-patch" && opt.SelectedVariant == "1.06");
+
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(savedItem);
+        Assert.Equal(2, savedItem.BundledItems.Count);
+        Assert.Contains(savedItem.BundledItems, b => b.ContentId == "thesuperhackers-zh" && b.DefaultVariant == "Gentool");
+        Assert.Contains(savedItem.BundledItems, b => b.ContentId == "zh-community-patch" && b.DefaultVariant == "1.06");
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

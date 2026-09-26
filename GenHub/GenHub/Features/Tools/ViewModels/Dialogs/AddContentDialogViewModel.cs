@@ -415,6 +415,7 @@ public partial class AddContentDialogViewModel(
         BundleComponentOptions.Clear();
         if (catalog?.Content == null)
         {
+            PopulateFallbackBundleComponentOptions();
             return;
         }
 
@@ -475,6 +476,40 @@ public partial class AddContentDialogViewModel(
             else
             {
                 option.SelectedVariant = variants.FirstOrDefault();
+            }
+
+            BundleComponentOptions.Add(option);
+        }
+
+        PopulateFallbackBundleComponentOptions();
+    }
+
+    private void PopulateFallbackBundleComponentOptions()
+    {
+        if (_existingItem?.BundledItems is not { Count: > 0 })
+        {
+            return;
+        }
+
+        foreach (var bundledItem in _existingItem.BundledItems)
+        {
+            if (BundleComponentOptions.Any(o => string.Equals(o.ContentId, bundledItem.ContentId, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var option = new BundleComponentOption
+            {
+                ContentId = bundledItem.ContentId,
+                Name = bundledItem.ContentId,
+                ContentType = Enum.TryParse<ContentType>(bundledItem.ContentType, out var ct) ? ct : ContentType.Addon,
+                IsSelected = true,
+                SelectedVariant = bundledItem.DefaultVariant,
+            };
+
+            if (!string.IsNullOrWhiteSpace(bundledItem.DefaultVariant))
+            {
+                option.AvailableVariants.Add(bundledItem.DefaultVariant);
             }
 
             BundleComponentOptions.Add(option);
@@ -2085,9 +2120,12 @@ public partial class AddContentDialogViewModel(
             contentItem.Releases.Add(CloneRelease(release));
         }
 
-        foreach (var dependency in _existingItem.BundledItems)
+        if (contentItem.ContentType != ContentType.ContentBundle)
         {
-            contentItem.BundledItems.Add(CloneDependency(dependency));
+            foreach (var dependency in _existingItem.BundledItems)
+            {
+                contentItem.BundledItems.Add(CloneDependency(dependency));
+            }
         }
 
         foreach (var addon in _existingItem.Addons)
