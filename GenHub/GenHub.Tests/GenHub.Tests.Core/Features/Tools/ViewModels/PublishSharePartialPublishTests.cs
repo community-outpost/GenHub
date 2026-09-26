@@ -54,6 +54,8 @@ public class PublishSharePartialPublishTests
         Assert.Contains("Published 2 of 3 catalog(s). Failed: Beta", vm.UploadStatusMessage);
         Assert.True(vm.HasDefinitionChanges);
         Assert.True(vm.CatalogStatuses.Single(s => s.Catalog.Name == "Beta").NeedsPublish);
+        Assert.False(vm.CatalogStatuses.Single(s => s.Catalog.Name == "Alpha").NeedsPublish);
+        Assert.False(vm.CatalogStatuses.Single(s => s.Catalog.Name == "Gamma").NeedsPublish);
         Assert.False(vm.IsUploading);
         _mockNotificationService.Verify(
             n => n.ShowWarning(It.IsAny<string>(), It.Is<string>(m => m.Contains("Published 2 of 3 catalog(s)")), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -161,6 +163,7 @@ public class PublishSharePartialPublishTests
 
         Assert.True(result.Success);
         Assert.Single(_definitionUploads);
+        _mockSubscriptionStore.Verify(store => store.GetSubscriptionAsync("publisher-test", It.IsAny<CancellationToken>()), Times.Once);
         Assert.False(vm.HasDefinitionChanges);
         Assert.False(vm.IsUploading);
         _mockNotificationService.Verify(
@@ -213,6 +216,7 @@ public class PublishSharePartialPublishTests
     public async Task UploadProviderDefinitionAsync_PartialAndDefinitionFailure_ReportsBothAsync()
     {
         var vm = CreateViewModel(["catalog-b.json"], failDefinitionUpload: true);
+        vm.HasDefinitionChanges = false;
 
         var result = await vm.UploadProviderDefinitionAsync();
 
@@ -228,6 +232,91 @@ public class PublishSharePartialPublishTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Cancellation after any catalog upload preserves the pending definition state.
+    /// </summary>
+    /// <param name="publishAll">Whether to use Publish All.</param>
+    /// <param name="cancelAfter">Number of successful uploads before cancellation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(false, 3)]
+    [InlineData(true, 1)]
+    [InlineData(true, 3)]
+    public async Task CatalogUploadCanceled_PreservesStaleStateAsync(bool publishAll, int cancelAfter)
+    {
+        PublishShareViewModel? vm = null;
+        var uploadedCount = 0;
+        vm = CreateViewModel([], catalogUploaded: () =>
+        {
+            if (++uploadedCount == cancelAfter)
+            {
+                vm!.CancelUploadCommand.Execute(null);
+            }
+        });
+        vm.HasDefinitionChanges = false;
+
+        if (publishAll)
+        {
+            await vm.PublishAllCatalogsCommand.ExecuteAsync(null);
+        }
+        else
+        {
+            Assert.False((await vm.UploadProviderDefinitionAsync()).Success);
+        }
+
+        Assert.Equal(cancelAfter, uploadedCount);
+        Assert.True(vm.HasDefinitionChanges);
+        Assert.Empty(_definitionUploads);
+        Assert.False(vm.IsUploading);
+        Assert.Contains("cancel", vm.UploadStatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Both entrypoints retain unpublished state when every catalog attempt fails.
+    /// </summary>
+    /// <param name="publishAll">Whether to use Publish All.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AllCatalogsFail_MarksDefinitionStaleAsync(bool publishAll)
+    {
+        var vm = CreateViewModel(["catalog-a.json", "catalog-b.json", "catalog-c.json"]);
+        vm.HasDefinitionChanges = false;
+
+        if (publishAll)
+        {
+            await vm.PublishAllCatalogsCommand.ExecuteAsync(null);
+        }
+        else
+        {
+            Assert.False((await vm.UploadProviderDefinitionAsync()).Success);
+        }
+
+        Assert.True(vm.HasDefinitionChanges);
+        Assert.Empty(_definitionUploads);
+    }
+
+    /// <summary>
+    /// Publish All synchronizes local subscription metadata only after definition success.
+    /// </summary>
+    /// <param name="definitionFails">Whether definition upload fails.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PublishAll_SyncsSubscriptionOnlyOnDefinitionSuccessAsync(bool definitionFails)
+    {
+        var vm = CreateViewModel([], failDefinitionUpload: definitionFails);
+
+        await vm.PublishAllCatalogsCommand.ExecuteAsync(null);
+
+        _mockSubscriptionStore.Verify(
+            store => store.GetSubscriptionAsync("publisher-test", It.IsAny<CancellationToken>()),
+            definitionFails ? Times.Never() : Times.Once());
+    }
+
     private static NamedCatalog CreateCatalog(string id, string name) => new()
     {
         Id = id,
@@ -236,7 +325,7 @@ public class PublishSharePartialPublishTests
         Catalog = new PublisherCatalog(),
     };
 
-    private PublishShareViewModel CreateViewModel(string[] failingCatalogFiles, bool definitionGenerates = true, bool cancelDefinitionUpload = false, bool failDefinitionUpload = false)
+    private PublishShareViewModel CreateViewModel(string[] failingCatalogFiles, bool definitionGenerates = true, bool cancelDefinitionUpload = false, bool failDefinitionUpload = false, Action? catalogUploaded = null)
     {
         var project = new PublisherStudioProject
         {
@@ -257,7 +346,9 @@ public class PublishSharePartialPublishTests
         mockProvider.Setup(p => p.SupportsUpdate).Returns(false);
         mockProvider.Setup(p => p.UploadCatalogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string json, string publisherId, string? fileName, IProgress<int>? progress, CancellationToken ct) =>
-                Array.IndexOf(failingCatalogFiles, fileName) >= 0
+            {
+                catalogUploaded?.Invoke();
+                return Array.IndexOf(failingCatalogFiles, fileName) >= 0
                     ? OperationResult<HostingUploadResult>.CreateFailure("Quota exceeded")
                     : OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
                     {
@@ -265,7 +356,8 @@ public class PublishSharePartialPublishTests
                         PublicUrl = $"https://dl.dropboxusercontent.com/s/x/{fileName}",
                         DirectDownloadUrl = $"https://dl.dropboxusercontent.com/s/x/{fileName}",
                         FileSize = 10,
-                    }));
+                    });
+            });
         mockProvider.Setup(p => p.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Stream s, string name, string? folder, IProgress<int>? progress, CancellationToken ct) =>
             {

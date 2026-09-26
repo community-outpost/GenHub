@@ -4504,6 +4504,9 @@ public partial class PublishShareViewModel(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var catalog = catalogs[i];
+
+            // An attempted upload can change remote state even if its response is lost.
+            NotifyDefinitionStale();
             var (success, error) = await PublishCatalogItemAsync(catalog, i + 1, catalogs.Count, cancellationToken, uploadDefinition: false);
             if (success)
             {
@@ -4602,6 +4605,10 @@ public partial class PublishShareViewModel(
     {
         var defResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
         var defError = defResult.Success ? null : GetDefinitionError(defResult);
+        if (defResult.Success)
+        {
+            await SyncLocalSubscriptionMetadataAsync();
+        }
 
         GenerateSubscriptionUrl();
         RefreshUploadHierarchy();
