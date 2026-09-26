@@ -334,7 +334,7 @@ public class ProfileSharingService(
                 [TelemetryConstants.Properties.ProfileId] = saveResult.Data.Id,
                 [TelemetryConstants.Properties.GameType] = saveResult.Data.GameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.Success] = true,
-                [TelemetryConstants.Properties.FileCount] = request.Package.RequiredManifests.Count,
+                [TelemetryConstants.Properties.FileCount] = request.Package.RequiredManifests.Sum(manifest => manifest.Files?.Count ?? 0),
             });
             return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
         }

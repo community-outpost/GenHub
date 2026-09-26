@@ -136,7 +136,8 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
 
         foreach (var (key, val) in properties)
         {
-            sanitized[key] = SanitizeValue(val, visited, 0);
+            var sanitizedKey = SanitizeString(key);
+            sanitized[sanitizedKey] = SanitizeValue(val, visited, 0);
         }
 
         return sanitized;

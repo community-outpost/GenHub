@@ -2101,7 +2101,7 @@ public class GameProcessManager(
         var gameClientName = config?.GameClientName;
         var gameClientVersion = config?.GameClientVersion;
 
-        _sessionMetadata[process] = new GameSessionMeta(
+        var meta = new GameSessionMeta(
             sessionId,
             DateTime.UtcNow,
             execName,
@@ -2110,6 +2110,11 @@ public class GameProcessManager(
             gameClientId,
             gameClientName,
             gameClientVersion);
+
+        if (!_sessionMetadata.TryAdd(process, meta))
+        {
+            return;
+        }
 
         if (telemetryService != null)
         {

@@ -1055,7 +1055,6 @@ public partial class ReplayManagerViewModel(
                 TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
-                    [TelemetryConstants.Properties.FileName] = result != null ? Path.GetFileName(result) : null,
                     [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
                     [TelemetryConstants.Properties.Success] = result != null,
                 });

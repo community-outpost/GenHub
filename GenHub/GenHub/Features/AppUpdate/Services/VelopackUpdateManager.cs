@@ -432,7 +432,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
     }
 
-    private void TrackUpdateAppliedAndFlush(string targetVersion)
+    private void TrackUpdateAppliedAndFlush(string targetVersion, string? channel = null)
     {
         try
         {
@@ -442,7 +442,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 [TelemetryConstants.Properties.ToVersion] = targetVersion,
                 [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
                 [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
-                [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+                [TelemetryConstants.Properties.Channel] = channel ?? TelemetryChannel,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
             });
 
@@ -939,13 +939,17 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     },
                     cancellationToken);
 
+                var artifactChannel = artifactInfo.PullRequestNumber.HasValue
+                    ? $"pr-{artifactInfo.PullRequestNumber.Value}"
+                    : (!string.IsNullOrEmpty(artifactInfo.ArtifactName) ? artifactInfo.ArtifactName : TelemetryChannel);
+
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
                     [TelemetryConstants.Properties.ToVersion] = fileVersion,
                     [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
                     [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
-                    [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+                    [TelemetryConstants.Properties.Channel] = artifactChannel,
                     [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
                 });
 
@@ -954,7 +958,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 CleanStrayAppDirectoryArtifacts();
                 _logger.LogInformation("Applying {Label} update and restarting", label);
 
-                TrackUpdateAppliedAndFlush(fileVersion);
+                TrackUpdateAppliedAndFlush(fileVersion, artifactChannel);
 
                 localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
 

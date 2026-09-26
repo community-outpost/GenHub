@@ -1453,6 +1453,7 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             try
@@ -1469,6 +1470,7 @@ public partial class GameProfileLauncherViewModel(
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
                 logger.LogError(ex, "Error starting launch process for {ProfileName}", profile.Name);
                 StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorLaunchingProfile", profile.Name);
                 ErrorMessage = ex.Message;
@@ -1478,12 +1480,12 @@ public partial class GameProfileLauncherViewModel(
                 telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
-                    [TelemetryConstants.Properties.ProfileName] = profile.Name,
                     [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
                     [TelemetryConstants.Properties.LaunchSource] = "launcher",
+                    [TelemetryConstants.Properties.TimeToLaunchMs] = stopwatch.ElapsedMilliseconds,
                     [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
                 });
             }
@@ -1542,7 +1544,6 @@ public partial class GameProfileLauncherViewModel(
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
-                [TelemetryConstants.Properties.ProfileName] = liveProfile.Name,
                 [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
@@ -1573,7 +1574,6 @@ public partial class GameProfileLauncherViewModel(
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
-                [TelemetryConstants.Properties.ProfileName] = profile.Name,
                 [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,

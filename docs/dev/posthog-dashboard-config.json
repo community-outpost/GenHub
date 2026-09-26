@@ -1299,7 +1299,15 @@
                 "kind": "EventsNode",
                 "event": "replay_exported_zip",
                 "name": "Replay ZIPs Exported",
-                "math": "total"
+                "math": "total",
+                "properties": [
+                  {
+                    "key": "success",
+                    "value": ["true"],
+                    "operator": "exact",
+                    "type": "event"
+                  }
+                ]
               }
             ],
             "dateRange": {
@@ -1321,7 +1329,15 @@
                 "kind": "EventsNode",
                 "event": "replay_checkpoint_minted",
                 "name": "Checkpoints Minted",
-                "math": "total"
+                "math": "total",
+                "properties": [
+                  {
+                    "key": "success",
+                    "value": ["true"],
+                    "operator": "exact",
+                    "type": "event"
+                  }
+                ]
               }
             ],
             "dateRange": {

@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameClients;
@@ -1437,7 +1438,7 @@ public class GameProfileLauncherViewModelTests
             new Mock<IGameInstallationService>().Object,
             new Mock<IGameProfileManager>().Object,
             launcherFacade.Object,
-            telemetryService?.Object!,
+            null!,
             new Mock<IProfileEditorFacade>().Object,
             new Mock<IConfigurationProviderService>().Object,
             new Mock<IGameProcessManager>().Object,
@@ -1450,7 +1451,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
-            CreateLocalizationService());
+            CreateLocalizationService(),
+            telemetryService: telemetryService?.Object);
     }
 
     /// <summary>

@@ -1070,7 +1070,6 @@ public class DownloadService(
             [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
             [TelemetryConstants.Properties.ContentName] = contentName,
             [TelemetryConstants.Properties.ContentId] = contentId,
-            [TelemetryConstants.Properties.FileName] = fileName,
             [TelemetryConstants.Properties.PublisherId] = publisherId,
             [TelemetryConstants.Properties.ContentType] = contentType,
         };
@@ -1091,7 +1090,6 @@ public class DownloadService(
             [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
             [TelemetryConstants.Properties.ContentName] = contentName,
             [TelemetryConstants.Properties.ContentId] = contentId,
-            [TelemetryConstants.Properties.FileName] = fileName,
             [TelemetryConstants.Properties.PublisherId] = publisherId,
             [TelemetryConstants.Properties.ContentType] = contentType,
             [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
