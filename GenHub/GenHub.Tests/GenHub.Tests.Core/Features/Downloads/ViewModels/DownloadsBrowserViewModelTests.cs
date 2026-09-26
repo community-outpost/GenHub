@@ -329,9 +329,15 @@ public class DownloadsBrowserViewModelTests
     /// <summary>
     /// Verifies that removing a subscription drops its publisher from the sidebar without a restart.
     /// </summary>
+    /// <param name="selected">Whether the removed publisher is selected.</param>
+    /// <param name="refreshFails">Whether the overlapping refresh fails.</param>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
-    public async Task PublisherSubscriptionRemovedMessage_RemovesUnsubscribedPublisherFromSidebarAsync()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task PublisherSubscriptionRemovedMessage_RemovesUnsubscribedPublisherFromSidebarAsync(bool selected, bool refreshFails)
     {
         // Arrange
         var sub = new PublisherSubscription
@@ -341,11 +347,12 @@ public class DownloadsBrowserViewModelTests
             CatalogUrl = "https://example.com/removed/catalog.json",
         };
 
+        var pendingRefresh = new TaskCompletionSource<OperationResult<IReadOnlyList<PublisherSubscription>>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
         subscriptionStore
             .SetupSequence(store => store.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([sub]))
-            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
+            .Returns(pendingRefresh.Task);
 
         var mockDiscoverer = new Mock<GenericCatalogDiscoverer>(
             new Mock<ILogger<GenericCatalogDiscoverer>>().Object,
@@ -378,8 +385,28 @@ public class DownloadsBrowserViewModelTests
         await viewModel.InitializeAsync();
         Assert.Contains(viewModel.Publishers, p => p.PublisherId == "sub-removed");
 
+        using var browseCts = new CancellationTokenSource();
+        viewModel.SetInFlightOperationForTesting(
+            sub.PublisherId,
+            new DownloadsBrowserViewModel.PublisherInFlightOperation(sub.PublisherId, new ContentSearchQuery(), browseCts));
+        if (selected)
+        {
+            viewModel.SelectedPublisher = viewModel.Publishers.First(p => p.PublisherId == sub.PublisherId);
+        }
+
+        // Start a refresh whose stale snapshot arrives after removal.
+        var refresh = viewModel.InitializeAsync();
+
         // Act
         WeakReferenceMessenger.Default.Send(new PublisherSubscriptionRemovedMessage("sub-removed"));
+
+        Assert.DoesNotContain(viewModel.Publishers, p => p.PublisherId == "sub-removed");
+        Assert.True(browseCts.IsCancellationRequested);
+        Assert.NotEqual(sub.PublisherId, viewModel.SelectedPublisher?.PublisherId);
+        pendingRefresh.SetResult(refreshFails
+            ? OperationResult<IReadOnlyList<PublisherSubscription>>.CreateFailure("unavailable")
+            : OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([sub]));
+        await refresh;
 
         // Assert
         Assert.DoesNotContain(viewModel.Publishers, p => p.PublisherId == "sub-removed");
