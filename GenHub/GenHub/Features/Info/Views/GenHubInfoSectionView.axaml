@@ -430,9 +430,9 @@
                         <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="{localization:Localize Info.Demo.SizeExpanded}" Padding="10,4" FontSize="11" CornerRadius="6"/>
                      </StackPanel>
                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="14,0,0,0">
-                        <TextBlock Text="W:" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.WidthLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                         <Slider Width="85" Minimum="640" Maximum="1040" Value="{Binding DemoSettingsWidth, Mode=TwoWay}" VerticalAlignment="Center"/>
-                        <TextBlock Text="H:" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.HeightLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                         <Slider Width="75" Minimum="440" Maximum="750" Value="{Binding DemoSettingsHeight, Mode=TwoWay}" VerticalAlignment="Center"/>
                      </StackPanel>
                      <TextBlock Grid.Column="3" Text="{localization:Localize Info.Demo.GameSettings.Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" FontStyle="Italic" VerticalAlignment="Center"/>
@@ -486,9 +486,9 @@
                         <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="{localization:Localize Info.Demo.SizeExpanded}" Padding="10,4" FontSize="11" CornerRadius="6"/>
                      </StackPanel>
                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="14,0,0,0">
-                        <TextBlock Text="W:" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.WidthLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                         <Slider Width="85" Minimum="640" Maximum="1040" Value="{Binding DemoSettingsWidth, Mode=TwoWay}" VerticalAlignment="Center"/>
-                        <TextBlock Text="H:" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.HeightLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                         <Slider Width="75" Minimum="440" Maximum="750" Value="{Binding DemoSettingsHeight, Mode=TwoWay}" VerticalAlignment="Center"/>
                      </StackPanel>
                      <TextBlock Grid.Column="3" Text="{localization:Localize Info.Demo.ContentSelection.Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" FontStyle="Italic" VerticalAlignment="Center"/>
