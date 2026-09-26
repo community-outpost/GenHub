@@ -444,6 +444,17 @@ public class PublisherStudioService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
+    private static bool IsConfiguredUpstreamSource(CatalogContentItem content)
+    {
+        if (content.UpstreamSync != null)
+        {
+            return string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ||
+                   CatalogConstants.UpstreamProviders.IsSupported(content.UpstreamSync.Provider);
+        }
+
+        return CatalogConstants.UpstreamProviders.IsSupported(content.PublisherType);
+    }
+
     private static OperationResult<bool> ValidateContentItem(
         CatalogContentItem content,
         HashSet<string> seenIds,
@@ -462,8 +473,7 @@ public class PublisherStudioService(
             return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
         }
 
-        var isUpstreamTracked = content.UpstreamSync != null ||
-                                (!string.IsNullOrEmpty(content.PublisherType) && !string.Equals(content.PublisherType, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase));
+        var isUpstreamTracked = IsConfiguredUpstreamSource(content);
         var isBundle = content.ContentType == ContentType.ContentBundle;
 
         if (content.Releases.Count == 0)
@@ -681,7 +691,7 @@ public class PublisherStudioService(
         {
             if (!visited.Add(currentId))
             {
-                var chain = string.Join(" \u2192 ", visited) + $" \u2192 {currentId}";
+                var chain = string.Join(" → ", visited) + $" → {currentId}";
                 cycleError = $"Circular addon dependency detected: {chain}";
                 return true;
             }

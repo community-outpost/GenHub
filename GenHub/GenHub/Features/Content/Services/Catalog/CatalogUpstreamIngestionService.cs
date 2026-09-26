@@ -80,17 +80,44 @@ public class CatalogUpstreamIngestionService(
         return version;
     }
 
+    private static bool IsAssetRuleMatch(
+        string assetName,
+        CatalogAssetRule rule,
+        GameType itemTargetGame,
+        ILogger log)
+    {
+        if (rule.TargetGame != GameType.Unknown && itemTargetGame != GameType.Unknown && rule.TargetGame != itemTargetGame)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Regex.IsMatch(assetName, rule.Pattern, RegexOptions.IgnoreCase, RegexTimeout);
+        }
+        catch (ArgumentException ex)
+        {
+            log.LogWarning(ex, "Invalid asset rule regex pattern '{Pattern}'", rule.Pattern);
+            return false;
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            log.LogWarning(ex, "Asset rule regex match timed out for pattern '{Pattern}' on asset '{AssetName}'", rule.Pattern, assetName);
+            return false;
+        }
+    }
+
     private static void PopulateArtifactsFromAssetRules(
         ContentRelease release,
         IEnumerable<GitHubReleaseAsset> assets,
         CatalogUpstreamSync sync,
-        CatalogContentItem item)
+        CatalogContentItem item,
+        ILogger log)
     {
         foreach (var asset in assets)
         {
             var matchedRule = sync.AssetRules.FirstOrDefault(r =>
-                Regex.IsMatch(asset.Name, r.Pattern, RegexOptions.IgnoreCase, RegexTimeout) &&
-                (r.TargetGame == GameType.Unknown || item.TargetGame == GameType.Unknown || r.TargetGame == item.TargetGame));
+                IsAssetRuleMatch(asset.Name, r, item.TargetGame, log));
 
             if (matchedRule != null)
             {
@@ -199,22 +226,29 @@ public class CatalogUpstreamIngestionService(
         {
             Version = version,
             ReleaseDate = release.PublishedAt?.UtcDateTime ?? DateTime.UtcNow,
-            IsLatest = !release.IsPrerelease,
+            IsLatest = !release.IsPrerelease || string.Equals(sync?.Channel, "prerelease", StringComparison.OrdinalIgnoreCase),
             IsPrerelease = release.IsPrerelease,
             Changelog = release.Body,
         };
 
         if (sync?.AssetRules is { Count: > 0 })
         {
-            PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, item);
+            PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, item, logger);
         }
         else
         {
             PopulateDefaultSuperHackersArtifacts(synthesized, release.Assets);
         }
 
-        item.Releases.Clear();
-        item.Releases.Add(synthesized);
+        if (synthesized.Artifacts.Count > 0)
+        {
+            item.Releases.Clear();
+            item.Releases.Add(synthesized);
+        }
+        else
+        {
+            logger.LogWarning("No artifacts matched upstream release '{Version}' for item '{ItemId}', keeping existing releases", version, item.Id);
+        }
     }
 
     private async Task IngestGeneralsOnlineItemAsync(
@@ -239,8 +273,21 @@ public class CatalogUpstreamIngestionService(
         }
 
         var matched = items.FirstOrDefault(i =>
-            i.TargetGame == item.TargetGame ||
-            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase)) ?? items[0];
+            string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase)) ??
+            items.FirstOrDefault(i => item.TargetGame != GameType.Unknown && i.TargetGame == item.TargetGame);
+
+        if (matched == null)
+        {
+            return;
+        }
+
+        var downloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl;
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            logger.LogWarning("GeneralsOnline item '{ItemId}' has no usable download URL, keeping existing releases", item.Id);
+            return;
+        }
 
         var synthesized = new ContentRelease
         {
@@ -252,7 +299,7 @@ public class CatalogUpstreamIngestionService(
         synthesized.Artifacts.Add(new ReleaseArtifact
         {
             Filename = $"{item.Id}-{synthesized.Version}.zip",
-            DownloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl ?? string.Empty,
+            DownloadUrl = downloadUrl,
             Size = matched.DownloadSize,
             IsPrimary = true,
         });
@@ -283,8 +330,21 @@ public class CatalogUpstreamIngestionService(
         }
 
         var matched = items.FirstOrDefault(i =>
-            i.TargetGame == item.TargetGame ||
-            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase)) ?? items[0];
+            string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase)) ??
+            items.FirstOrDefault(i => item.TargetGame != GameType.Unknown && i.TargetGame == item.TargetGame);
+
+        if (matched == null)
+        {
+            return;
+        }
+
+        var downloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl;
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            logger.LogWarning("CommunityOutpost item '{ItemId}' has no usable download URL, keeping existing releases", item.Id);
+            return;
+        }
 
         var synthesized = new ContentRelease
         {
@@ -296,7 +356,7 @@ public class CatalogUpstreamIngestionService(
         synthesized.Artifacts.Add(new ReleaseArtifact
         {
             Filename = $"{item.Id}-{synthesized.Version}.zip",
-            DownloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl ?? string.Empty,
+            DownloadUrl = downloadUrl,
             Size = matched.DownloadSize,
             IsPrimary = true,
         });

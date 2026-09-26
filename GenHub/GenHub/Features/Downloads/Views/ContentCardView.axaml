@@ -54,13 +54,13 @@
         </Style>
 
         <Style Selector="Border.content-card.featured-card">
-            <Setter Property="BorderBrush" Value="#F59E0B" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningHighlightBrush}" />
             <Setter Property="BorderThickness" Value="2" />
             <Setter Property="BoxShadow" Value="0 10 35 0 #59F59E0B" />
         </Style>
 
         <Style Selector="Border.content-card.featured-card:pointerover">
-            <Setter Property="BorderBrush" Value="#FBBF24" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}" />
             <Setter Property="BoxShadow" Value="0 14 42 0 #80F59E0B" />
         </Style>
 
@@ -287,15 +287,15 @@
                                        Margin="6"
                                        MaxWidth="228">
                                 <Border Classes="type-badge featured-badge"
-                                        Background="#F59E0B"
-                                        BorderBrush="#FBBF24"
+                                        Background="{DynamicResource WarningHighlightBrush}"
+                                        BorderBrush="{DynamicResource PendingActionHoverBrush}"
                                         IsVisible="{Binding HasFeaturedBadge}"
                                         Margin="0,0,4,4"
                                         ToolTip.Tip="{Binding FeaturedBadge}">
                                     <TextBlock Text="{Binding FeaturedBadge}"
                                                FontSize="10"
                                                FontWeight="Bold"
-                                               Foreground="#000000" />
+                                               Foreground="{DynamicResource WarningForegroundBrush}" />
                                 </Border>
                                 <Border Classes="type-badge"
                                         Background="{DynamicResource CardBackground}"

@@ -2491,6 +2491,22 @@ public sealed partial class DownloadsBrowserViewModel(
             if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
             {
                 ReconcileReleaseUpdateStates(ContentItems);
+                if (ContentItems.Any(ci => ci.IsFeatured))
+                {
+                    var sorted = ContentItems
+                        .OrderByDescending(ci => ci.IsFeatured)
+                        .ThenByDescending(ci => ci.ContentType == ContentType.ContentBundle)
+                        .ToList();
+
+                    for (var i = 0; i < sorted.Count; i++)
+                    {
+                        var oldIdx = ContentItems.IndexOf(sorted[i]);
+                        if (oldIdx != i && oldIdx >= 0)
+                        {
+                            ContentItems.Move(oldIdx, i);
+                        }
+                    }
+                }
             }
         });
 
@@ -2540,6 +2556,10 @@ public sealed partial class DownloadsBrowserViewModel(
                 if (append)
                 {
                     existingState.Items.AddRange(newVms);
+                    existingState.Items = existingState.Items
+                        .OrderByDescending(vm => vm.IsFeatured)
+                        .ThenByDescending(vm => vm.ContentType == ContentType.ContentBundle)
+                        .ToList();
                     existingState.CurrentPage = query.Page ?? existingState.CurrentPage;
                     existingState.CanLoadMore = hasMoreItems;
                 }
