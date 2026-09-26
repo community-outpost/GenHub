@@ -449,25 +449,16 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var customExe = (profile as GameProfile)?.CustomExecutablePath ?? profile.ExecutablePath;
-        if (!string.IsNullOrWhiteSpace(customExe) &&
-            customExe.TryGetFileCaseInsensitive(out var actualCustomExePath))
+        var customExe = (profile as GameProfile)?.CustomExecutablePath;
+        if (string.IsNullOrWhiteSpace(customExe))
         {
-            var effectiveGameType = IsExplicitGeneralsClient(profile.GameClient) ? GameType.Generals : GameType.ZeroHour;
-            var sha = GetCachedExeSha256(actualCustomExePath);
-            var isShaRetail = effectiveGameType == GameType.Generals
-                ? IsGeneralsRetailExeSha256(sha)
-                : IsZeroHourRetailExeSha256(sha);
+            customExe = profile.ExecutablePath;
+        }
 
-            var crc = GetCachedExeCrc(actualCustomExePath);
-            var isCrcRetail = effectiveGameType == GameType.Generals
-                ? IsGeneralsRetailExeCrc(crc)
-                : IsZeroHourRetailExeCrc(crc);
-
-            if (!isShaRetail && !isCrcRetail)
-            {
-                return false;
-            }
+        var effectiveGameType = IsExplicitGeneralsClient(profile.GameClient) ? GameType.Generals : GameType.ZeroHour;
+        if (!ValidateCustomExecutablePath(customExe, effectiveGameType))
+        {
+            return false;
         }
 
         return IsRetailCompatible(profile.GameClient, profile.EnabledContentIds);
@@ -646,41 +637,22 @@ public static class ReplayCrcMatchingHelper
 
         var effectiveGameType = IsExplicitGeneralsClient(client) ? GameType.Generals : GameType.ZeroHour;
 
-        var effectiveExePath = !string.IsNullOrWhiteSpace(profile.CustomExecutablePath)
-            ? profile.CustomExecutablePath
-            : (!string.IsNullOrWhiteSpace(profile.ExecutablePath) ? profile.ExecutablePath : null);
-
-        if (!string.IsNullOrEmpty(effectiveExePath) &&
-            effectiveExePath.TryGetFileCaseInsensitive(out var actualCustomExePath))
+        var effectiveExePath = profile.CustomExecutablePath;
+        if (string.IsNullOrWhiteSpace(effectiveExePath))
         {
-            var sha = GetCachedExeSha256(actualCustomExePath);
-            var isShaRetail = effectiveGameType == GameType.Generals
-                ? IsGeneralsRetailExeSha256(sha)
-                : IsZeroHourRetailExeSha256(sha);
+            effectiveExePath = profile.ExecutablePath;
+        }
 
-            var crc = GetCachedExeCrc(actualCustomExePath);
-            var isCrcRetail = effectiveGameType == GameType.Generals
-                ? IsGeneralsRetailExeCrc(crc)
-                : IsZeroHourRetailExeCrc(crc);
-
-            if (!isShaRetail && !isCrcRetail)
-            {
-                return false;
-            }
+        if (!ValidateCustomExecutablePath(effectiveExePath, effectiveGameType))
+        {
+            return false;
         }
 
         var targetDir = ResolveProfileVerificationDirectory(profile, client);
 
         if (crcCalculator != null && !string.IsNullOrEmpty(targetDir) && Directory.Exists(targetDir))
         {
-            logger?.LogDebug("Calculating INI CRC for profile '{Profile}' at '{Root}'", profile.Name, targetDir);
-            var iniResult = await crcCalculator.CalculateIniCrcAsync(targetDir, effectiveGameType, ct: ct);
-            if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data))
-            {
-                return IsRetailIniCrc(iniResult.Data, effectiveGameType);
-            }
-
-            return false;
+            return await CalculateAndVerifyIniCrcAsync(crcCalculator, targetDir, effectiveGameType, profile.Name, logger, ct).ConfigureAwait(false);
         }
 
         if (TryGetCachedIniCrc(client, effectiveGameType, out var cachedIniCrc) && !string.IsNullOrWhiteSpace(cachedIniCrc))
@@ -961,49 +933,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        foreach (var id in enabledContentIds)
-        {
-            if (string.IsNullOrWhiteSpace(id))
-            {
-                continue;
-            }
-
-            if (CommunityOutpostConstants.IsNonRetailIdentifier(id))
-            {
-                return true;
-            }
-
-            var segments = id.Split(ManifestConstants.ManifestIdSegmentSeparator);
-            if (segments.Length >= 4)
-            {
-                var typeSegment = segments[3].Trim();
-                if (string.Equals(typeSegment, "mod", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                if (string.Equals(typeSegment, "patch", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (id.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
-                        id.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
-                        id.Contains("stream", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-            }
-            else
-            {
-                if (id.Contains(".mod.", StringComparison.OrdinalIgnoreCase) ||
-                    id.StartsWith("mod.", StringComparison.OrdinalIgnoreCase) ||
-                    id.EndsWith(".mod", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return enabledContentIds.Any(IsNonRetailId);
     }
 
     /// <summary>
@@ -1069,12 +999,11 @@ public static class ReplayCrcMatchingHelper
             return true;
         }
 
-        if (TryGetCachedIniCrc(client, targetGameType, out var cachedIniCrc) && !string.IsNullOrWhiteSpace(cachedIniCrc))
+        if (TryGetCachedIniCrc(client, targetGameType, out var cachedIniCrc) &&
+            !string.IsNullOrWhiteSpace(cachedIniCrc) &&
+            !isRetailIniCrc(cachedIniCrc))
         {
-            if (!isRetailIniCrc(cachedIniCrc))
-            {
-                return false;
-            }
+            return false;
         }
 
         if (TryGetCachedExeCrc(client, out var cachedCrc) && isRetailExeCrc(cachedCrc))
@@ -1085,20 +1014,7 @@ public static class ReplayCrcMatchingHelper
         var exePath = ResolveProfileFullExePath(client);
         if (!string.IsNullOrEmpty(exePath) && exePath.TryGetFileCaseInsensitive(out var actualPath))
         {
-            var sha = GetCachedExeSha256(actualPath);
-            if (!string.IsNullOrEmpty(sha) && isRetailExeSha(sha))
-            {
-                return true;
-            }
-
-            var crc = GetCachedExeCrc(actualPath);
-            if (!string.IsNullOrEmpty(crc) && isRetailExeCrc(crc))
-            {
-                return true;
-            }
-
-            // Only allow Steam Game.dat fallback if this is an official Steam installation client
-            if (IsOfficialSteamClient(client) && MatchesGameDat(actualPath, isRetailExeCrc, isRetailExeSha))
+            if (MatchesClientExecutable(actualPath, client, isRetailExeCrc, isRetailExeSha))
             {
                 return true;
             }
@@ -1113,6 +1029,106 @@ public static class ReplayCrcMatchingHelper
         return IsOfficialBaseClient(client);
     }
 
+    private static bool MatchesClientExecutable(
+        string actualPath,
+        GameClient client,
+        Func<string?, bool> isRetailExeCrc,
+        Func<string?, bool> isRetailExeSha)
+    {
+        var sha = GetCachedExeSha256(actualPath);
+        if (!string.IsNullOrEmpty(sha) && isRetailExeSha(sha))
+        {
+            return true;
+        }
+
+        var crc = GetCachedExeCrc(actualPath);
+        if (!string.IsNullOrEmpty(crc) && isRetailExeCrc(crc))
+        {
+            return true;
+        }
+
+        // Only allow Steam Game.dat fallback if this is an official Steam installation client
+        return IsOfficialSteamClient(client) && MatchesGameDat(actualPath, isRetailExeCrc, isRetailExeSha);
+    }
+
+    private static bool ValidateCustomExecutablePath(string? customExePath, GameType effectiveGameType)
+    {
+        if (string.IsNullOrWhiteSpace(customExePath))
+        {
+            return true;
+        }
+
+        if (!customExePath.TryGetFileCaseInsensitive(out var actualCustomExePath))
+        {
+            return false;
+        }
+
+        var sha = GetCachedExeSha256(actualCustomExePath);
+        var isShaRetail = effectiveGameType == GameType.Generals
+            ? IsGeneralsRetailExeSha256(sha)
+            : IsZeroHourRetailExeSha256(sha);
+
+        if (isShaRetail)
+        {
+            return true;
+        }
+
+        var crc = GetCachedExeCrc(actualCustomExePath);
+        return effectiveGameType == GameType.Generals
+            ? IsGeneralsRetailExeCrc(crc)
+            : IsZeroHourRetailExeCrc(crc);
+    }
+
+    private static async Task<bool> CalculateAndVerifyIniCrcAsync(
+        IGameCrcCalculatorService crcCalculator,
+        string targetDir,
+        GameType effectiveGameType,
+        string? profileName,
+        ILogger? logger,
+        CancellationToken ct)
+    {
+        logger?.LogDebug("Calculating INI CRC for profile '{Profile}' at '{Root}'", profileName, targetDir);
+        var iniResult = await crcCalculator.CalculateIniCrcAsync(targetDir, effectiveGameType, ct: ct).ConfigureAwait(false);
+        if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data))
+        {
+            return IsRetailIniCrc(iniResult.Data, effectiveGameType);
+        }
+
+        return false;
+    }
+
+    private static bool IsNonRetailId(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        if (CommunityOutpostConstants.IsNonRetailIdentifier(id))
+        {
+            return true;
+        }
+
+        var segments = id.Split(ManifestConstants.ManifestIdSegmentSeparator);
+        if (segments.Length >= 4)
+        {
+            var typeSegment = segments[3].Trim();
+            if (string.Equals(typeSegment, "mod", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return string.Equals(typeSegment, "patch", StringComparison.OrdinalIgnoreCase) &&
+                   (id.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
+                    id.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
+                    id.Contains("stream", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return id.Contains(".mod.", StringComparison.OrdinalIgnoreCase) ||
+               id.StartsWith("mod.", StringComparison.OrdinalIgnoreCase) ||
+               id.EndsWith(".mod", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Checks whether game.dat adjacent to the executable matches known retail signatures.
     /// </summary>
@@ -1123,9 +1139,16 @@ public static class ReplayCrcMatchingHelper
             return profile.WorkingDirectory;
         }
 
-        var exePath = !string.IsNullOrWhiteSpace(profile.CustomExecutablePath)
-            ? profile.CustomExecutablePath
-            : (!string.IsNullOrWhiteSpace(profile.ExecutablePath) ? profile.ExecutablePath : ResolveProfileFullExePath(client));
+        var exePath = profile.CustomExecutablePath;
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            exePath = profile.ExecutablePath;
+        }
+
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            exePath = ResolveProfileFullExePath(client);
+        }
 
         if (!string.IsNullOrEmpty(exePath))
         {
@@ -1350,7 +1373,7 @@ public static class ReplayCrcMatchingHelper
 
         if (string.IsNullOrEmpty(ver))
         {
-            return true;
+            return false;
         }
 
         return versionPrefixes.Any(prefix =>
