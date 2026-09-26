@@ -1980,4 +1980,69 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         var backupContent = await File.ReadAllTextAsync(entry.BackupPath);
         Assert.Equal("; existing untracked user map configuration", backupContent);
     }
+
+    /// <summary>
+    /// Verifies that preparing a profile without user data records it as the active profile
+    /// across a restart, and still deactivates the previous profile's user data.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareProfileUserDataAsync_ProfileWithoutUserData_PersistsActiveProfileIdAcrossRestartAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Maps/ActiveSwitchTest/map.ini",
+                Hash = "hash-active-switch",
+                Size = 250,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+        var installResult = await _trackerService.InstallUserDataAsync(
+            "switch-manifest",
+            "profile-with-data",
+            GameType.Generals,
+            files,
+            "1.0",
+            "Switch Manifest",
+            CancellationToken.None);
+        Assert.True(installResult.Success, installResult.FirstError);
+        Assert.True((await _trackerService.ActivateProfileUserDataAsync("profile-with-data", CancellationToken.None)).Success);
+
+        var linker = new ProfileContentLinkerService(_trackerService, new Mock<ILogger<ProfileContentLinkerService>>().Object);
+        var prepareResult = await linker.PrepareProfileUserDataAsync("profile-without-data", [], GameType.Generals, CancellationToken.None);
+        Assert.True(prepareResult.Success);
+
+        var restartedTracker = new UserDataTrackerService(
+            _configProviderMock.Object,
+            _fileOperationsMock.Object,
+            _loggerMock.Object,
+            _pathProviderMock.Object);
+
+        var activeIdResult = await restartedTracker.GetActiveProfileIdAsync(CancellationToken.None);
+        Assert.True(activeIdResult.Success);
+        Assert.Equal("profile-without-data", activeIdResult.Data);
+
+        var previousUserData = await restartedTracker.GetProfileUserDataAsync("profile-with-data", CancellationToken.None);
+        Assert.True(previousUserData.Success);
+        Assert.All(previousUserData.Data!, manifest => Assert.False(manifest.IsActive));
+    }
+
+    /// <summary>
+    /// Verifies that cleaning up a deleted profile clears it as the active profile.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupProfileAsync_ActiveProfileWithoutUserData_ClearsActiveProfileIdAsync()
+    {
+        Assert.True((await _trackerService.SetActiveProfileIdAsync("profile-deleted", CancellationToken.None)).Success);
+
+        var cleanupResult = await _trackerService.CleanupProfileAsync("profile-deleted", CancellationToken.None);
+        Assert.True(cleanupResult.Success);
+
+        var activeIdResult = await _trackerService.GetActiveProfileIdAsync(CancellationToken.None);
+        Assert.True(activeIdResult.Success);
+        Assert.Null(activeIdResult.Data);
+    }
 }

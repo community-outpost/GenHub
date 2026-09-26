@@ -55,6 +55,24 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
         Assert.Equal("active", _linkerService.GetActiveProfileId(GameType.ZeroHour));
     }
 
+    /// <summary>A profile without user data is recorded as active, and a failed record does not fail the launch.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareProfileUserDataAsync_ProfileWithoutUserData_RecordsActiveProfileAsync()
+    {
+        _userDataTrackerMock.Setup(t => t.GetGameUserDataAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<UserDataManifest>>.CreateSuccess([]));
+        _userDataTrackerMock.Setup(t => t.SetActiveProfileIdAsync("no-user-data", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("index locked"));
+
+        var prepared = await _linkerService.PrepareProfileUserDataAsync("no-user-data", [], GameType.ZeroHour);
+
+        Assert.True(prepared.Success);
+        Assert.Equal("no-user-data", _linkerService.GetActiveProfileId(GameType.ZeroHour));
+        _userDataTrackerMock.Verify(t => t.SetActiveProfileIdAsync("no-user-data", It.IsAny<CancellationToken>()), Times.Once);
+        _userDataTrackerMock.Verify(t => t.ActivateProfileUserDataAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

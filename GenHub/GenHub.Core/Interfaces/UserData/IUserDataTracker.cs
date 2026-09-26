@@ -152,10 +152,20 @@ public interface IUserDataTracker
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the profile ID that currently has active user data materialized on disk, if any.
+    /// Records the specified profile as the active profile, whether or not it has user data.
+    /// </summary>
+    /// <param name="profileId">The profile whose user data was most recently prepared.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the active profile was recorded.</returns>
+    Task<OperationResult<bool>> SetActiveProfileIdAsync(
+        string profileId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the profile ID whose user data was most recently prepared, if any.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The active profile ID or null if no profile user data is active.</returns>
+    /// <returns>The active profile ID or null if no profile is active.</returns>
     Task<OperationResult<string?>> GetActiveProfileIdAsync(
         CancellationToken cancellationToken = default);
 
