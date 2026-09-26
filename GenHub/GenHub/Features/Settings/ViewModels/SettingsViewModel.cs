@@ -1172,7 +1172,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             PeriodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = true;
             EnableDetailedLogging = false;
-            TelemetryPreference = TelemetryLevel.Disabled;
+            TelemetryPreference = TelemetryLevel.AnonymousMetrics;
             DefaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = DownloadDefaults.BufferSizeKB; // 80KB default
             DownloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;

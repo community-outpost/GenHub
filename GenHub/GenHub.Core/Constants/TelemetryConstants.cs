@@ -106,6 +106,9 @@ public static class TelemetryConstants
     /// </summary>
     public static class Events
     {
+        /// <summary>Emitted when the application launches and initializes the main window.</summary>
+        public const string AppStarted = "app_started";
+
         /// <summary>Emitted when a game process starts.</summary>
         public const string GameSessionStarted = "game_session_started";
 

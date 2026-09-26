@@ -193,6 +193,13 @@ public partial class App : Application
             // Handle startup arguments sequentially once the window is opened and active
             mainWindow.Opened += (_, _) =>
             {
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.AppStarted, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.AppVersion] = AppConstants.AppVersion,
+                    [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+                    [TelemetryConstants.Properties.GitShortHash] = AppConstants.GitShortHash,
+                    [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+                });
                 SafeFireAndForget(CompleteWindowStartupAsync(desktop.Args, mainWindow), nameof(CompleteWindowStartupAsync));
             };
 

@@ -1,6 +1,6 @@
 # Telemetry & Product Analytics Architecture
 
-GenHub features an opt-in, privacy-preserving telemetry and error-reporting architecture built on top of **Sentry** (for crash diagnostics and exception traces) and **PostHog** (for privacy-respecting product analytics and event telemetry).
+GenHub features an opt-out, privacy-preserving telemetry and error-reporting architecture built on top of **Sentry** (for crash diagnostics and exception traces) and **PostHog** (for privacy-respecting product analytics and event telemetry).
 
 ---
 
@@ -8,7 +8,9 @@ GenHub features an opt-in, privacy-preserving telemetry and error-reporting arch
 
 Telemetry strictly honors user choice and local regulations:
 
-1. **Explicit Preference**: Users configure their preference in **Settings > Telemetry & Diagnostics**.
+1. **Preference & Opt-Out**: Telemetry is enabled by default (`AnonymousMetrics`) to help maintain build health, track download reliability, and improve launcher stability without collecting PII. Users can opt out at any time:
+   - **In-App Toggle**: In **Settings > General > Telemetry Preference**, switch to `Disabled`.
+   - **Environment Variables**: Set `DO_NOT_TRACK=1` or `GENHUB_TELEMETRY_OPTOUT=1` in your environment to unconditionally disable all telemetry.
    - `Disabled (0)`: Completely disables all telemetry and error tracking. No network requests are made.
    - `CrashReportsOnly (1)`: Sends anonymized crash reports and exceptions via Sentry.
    - `AnonymousMetrics (2)`: Sends anonymous operational and product usage events via PostHog in addition to anonymous error reports.
@@ -24,6 +26,7 @@ Telemetry strictly honors user choice and local regulations:
 
 | Event Name | Constant | Emitted When | Key Properties |
 |---|---|---|---|
+| `app_started` | `Events.AppStarted` | Application starts and initializes main window | `app_version`, `full_display_version`, `git_hash`, `build_channel` |
 | `profile_launched` | `Events.ProfileLaunched` | A game profile is launched | `profile_id`, `game_type`, `launch_source` ("launcher" \| "shortcut" \| "ipc"), `time_to_launch_ms` |
 | `profile_launch_failed` | `Events.ProfileLaunchFailed` | A game profile fails to launch | `profile_id`, `game_type`, `launch_source`, `time_to_launch_ms`, `error_category` |
 | `profile_launched_from_shortcut` | `Events.ProfileLaunchedFromShortcut` | A game profile is launched via OS shortcut or IPC URI | `profile_id` |

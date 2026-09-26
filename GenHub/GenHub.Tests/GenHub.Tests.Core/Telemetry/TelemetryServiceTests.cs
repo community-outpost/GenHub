@@ -273,4 +273,51 @@ public class TelemetryServiceTests : IDisposable
             service.Dispose();
         }
     }
+
+    /// Verifies that DO_NOT_TRACK environment variable disables telemetry collection.
+    /// </summary>
+    [Fact]
+    public async Task CurrentLevel_WhenDoNotTrackEnvironmentVariableIsSet_ReturnsDisabledAsync()
+    {
+        Environment.SetEnvironmentVariable("DO_NOT_TRACK", "1");
+        try
+        {
+            await using var service = new TelemetryService(
+                _mockLogger.Object,
+                _sanitizer,
+                _mockUserSettingsService.Object,
+                [_mockSink.Object]);
+
+            Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
+            Assert.False(service.IsEnabled(TelemetryLevel.AnonymousMetrics));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DO_NOT_TRACK", null);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that GENHUB_TELEMETRY_OPTOUT environment variable disables telemetry collection.
+    /// </summary>
+    [Fact]
+    public async Task CurrentLevel_WhenGenHubOptOutEnvironmentVariableIsSet_ReturnsDisabledAsync()
+    {
+        Environment.SetEnvironmentVariable("GENHUB_TELEMETRY_OPTOUT", "1");
+        try
+        {
+            await using var service = new TelemetryService(
+                _mockLogger.Object,
+                _sanitizer,
+                _mockUserSettingsService.Object,
+                [_mockSink.Object]);
+
+            Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
+            Assert.False(service.IsEnabled(TelemetryLevel.AnonymousMetrics));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("GENHUB_TELEMETRY_OPTOUT", null);
+        }
+    }
 }
