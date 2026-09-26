@@ -37,7 +37,12 @@ internal static class ClientPathResolver
         var cacheKey = (sourcePath, entryPoint);
         if (ResolvedPathsCache.TryGetValue(cacheKey, out var cached))
         {
-            return cached;
+            if (cached.ExecutablePath != null && File.Exists(cached.ExecutablePath))
+            {
+                return cached;
+            }
+
+            ResolvedPathsCache.TryRemove(cacheKey, out _);
         }
 
         if (Directory.Exists(sourcePath) && !string.IsNullOrWhiteSpace(entryPoint))
@@ -53,7 +58,7 @@ internal static class ClientPathResolver
         var ext = Path.GetExtension(sourcePath);
         if (!string.IsNullOrEmpty(ext) && IsArchiveOrPackageExtension(ext) && !Directory.Exists(sourcePath))
         {
-            return ResolvedPathsCache.GetOrAdd(cacheKey, (null, null));
+            return (null, null);
         }
 
         if (File.Exists(sourcePath))
@@ -62,7 +67,7 @@ internal static class ClientPathResolver
             return ResolvedPathsCache.GetOrAdd(cacheKey, result);
         }
 
-        return ResolvedPathsCache.GetOrAdd(cacheKey, (null, null));
+        return (null, null);
     }
 
     /// <summary>

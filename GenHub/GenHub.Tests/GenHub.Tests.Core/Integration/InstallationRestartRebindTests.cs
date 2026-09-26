@@ -190,6 +190,8 @@ public sealed class InstallationRestartRebindTests : IDisposable
             installationService,
             manifestPool.Object,
             Mock.Of<IGameSettingsService>(),
+            Mock.Of<IWorkspaceManager>(),
+            Mock.Of<IProfileContentLinker>(),
             NullLogger<GameProfileManager>.Instance);
     }
 

@@ -189,6 +189,13 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         var threshold = Math.Max(ScrollSpyConstants.MinActiveThreshold, scrollViewer.Viewport.Height * ScrollSpyConstants.ViewportThresholdRatio);
         var remainingScroll = maxScrollY - scrollViewer.Offset.Y;
 
+        // Catch-up only applies when the scroll viewer is scrolled into the bottom region.
+        // It must never trigger when at or near the top of the scroll viewer.
+        if (scrollViewer.Offset.Y <= ScrollSpyConstants.ScrollSnapEpsilon || remainingScroll > threshold)
+        {
+            return false;
+        }
+
         for (var i = _sections.Count - 1; i >= 0; i--)
         {
             var (key, control) = _sections[i];
@@ -208,7 +215,10 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
                 var topInViewport = transform.Value.Transform(new Point(0, 0)).Y;
                 var distanceToThreshold = topInViewport - threshold;
 
-                if (distanceToThreshold > 0 && distanceToThreshold > remainingScroll)
+                if (topInViewport >= 0 &&
+                    topInViewport < scrollViewer.Viewport.Height &&
+                    distanceToThreshold > 0 &&
+                    distanceToThreshold >= remainingScroll)
                 {
                     ReportActiveKey(key);
                     return true;

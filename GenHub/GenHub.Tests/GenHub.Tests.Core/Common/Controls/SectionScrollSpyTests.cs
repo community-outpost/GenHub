@@ -328,6 +328,33 @@ public class SectionScrollSpyTests
         }
     }
 
+    /// <summary>
+    /// Verifies that when at the top of the scroll viewer, bottom catch-up does not
+    /// prematurely report an unreachable bottom section.
+    /// </summary>
+    [AvaloniaFact]
+    public void ScrollChanged_AtTop_WithUnreachableBottomSection_ReportsFirstSection()
+    {
+        var host = CreateBottomClampedHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+            reported.Clear();
+
+            // Explicitly set offset to 0 to trigger scroll event at the very top
+            host.ScrollViewer.Offset = new Vector(0, 0);
+            Dispatcher.UIThread.RunJobs();
+
+            // When at the top, first section must be reported, never third
+            Assert.Equal("first", Assert.Single(reported));
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
     private static ScrollSpyHost CreateHost()
     {
         var first = new Border { Height = 400 };

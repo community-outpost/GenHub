@@ -1140,15 +1140,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var publisher = primaryItem.Publisher ?? primaryItem.GameClient?.PublisherType ?? string.Empty;
         var itemName = primaryItem.DisplayName ?? primaryItem.GameClient?.Name ?? string.Empty;
 
-        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(Name))
-        {
-            return CreateCommunityOutpostBranding(Name, gameType);
-        }
-
         var specialBranding = TryResolveSpecialPublisherBranding(displayName, publisher, itemName, gameType);
         if (specialBranding != null)
         {
             return specialBranding;
+        }
+
+        if (_isNameCustomized && CommunityOutpostConstants.IsCommunityPatchIdentifier(Name))
+        {
+            return CreateCommunityOutpostBranding(Name, gameType);
         }
 
         return ResolveStandardGameBranding(displayName, gameType);

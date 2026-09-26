@@ -168,6 +168,11 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
                 }
             }
         }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogDebug(ex, "Lutris installation detection was canceled");
+            throw;
+        }
         catch (OperationCanceledException ex)
         {
             logger?.LogDebug(ex, "Lutris installation detection was canceled");

@@ -363,26 +363,30 @@ public partial class GameProfileSettingsViewModel
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
     private bool IsGeneratedCommunityName(string name)
     {
-        return name.StartsWith("Community Patch - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Patch - Generals", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Patch - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
+        return name.Equals("Community Patch", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Community Patch - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Community Patch - Generals", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Community Patch - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Patch v", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Patch 1.", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Patch (", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityPatch - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityPatch - Generals", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("CommunityPatch", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("CommunityPatch - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("CommunityPatch - Generals", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityPatch v", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityPatch 1.", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityPatch (", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Outpost - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Outpost - Generals", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("Community Outpost - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Community Outpost - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Community Outpost - Generals", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Community Outpost - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Outpost v", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Outpost 1.", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("Community Outpost (", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityOutpost - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityOutpost - Generals", StringComparison.OrdinalIgnoreCase) ||
-               name.StartsWith("CommunityOutpost - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("CommunityOutpost", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("CommunityOutpost - Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("CommunityOutpost - Generals", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("CommunityOutpost - Weekly Build", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityOutpost 1.", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityOutpost v", StringComparison.OrdinalIgnoreCase) ||
                name.StartsWith("CommunityOutpost (", StringComparison.OrdinalIgnoreCase);

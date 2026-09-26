@@ -925,6 +925,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     private void ApplyPublisherBranding(string publisherSegment)
     {
         var hasCustomCover = !string.IsNullOrEmpty(CoverPath) &&
+            !string.Equals(CoverPath, IconPath, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(CoverPath, UriConstants.DefaultIconUri, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(CoverPath, SuperHackersConstants.ZeroHourCoverSource, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(CoverPath, GeneralsOnlineConstants.CoverSource, StringComparison.OrdinalIgnoreCase) &&
