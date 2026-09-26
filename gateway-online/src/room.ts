@@ -84,12 +84,13 @@ const toPublic = (member: RoomMember): PublicMember => ({
   endpoint: member.endpoint,
   profileFingerprint: member.profileFingerprint ?? "",
   profileName: member.profileName ?? "",
+  isLaunched: member.isLaunched ?? false,
 });
 
 type HeartbeatMessage =
   // Liveness only: refreshes lastSeen without touching the advertisement.
   | { kind: "ping" }
-  | { kind: "advertisement"; profileFingerprint: string; profileName: string; displayName: string };
+  | { kind: "advertisement"; profileFingerprint: string; profileName: string; displayName: string; isLaunched?: boolean };
 
 // Legacy clients send {"type":"heartbeat"} with no advertisement; newer ones
 // attach the selected profile fingerprint so the roster can show per-member
@@ -115,7 +116,8 @@ const parseHeartbeat = (data: unknown): HeartbeatMessage | null => {
   const fingerprint = typeof raw.profileFingerprint === "string" ? raw.profileFingerprint.substring(0, 256) : "";
   const name = typeof raw.profileName === "string" ? sanitizeText(raw.profileName).substring(0, 64) : "";
   const displayName = typeof raw.displayName === "string" ? sanitizeText(raw.displayName).substring(0, 32) : "";
-  return { kind: "advertisement", profileFingerprint: fingerprint, profileName: name, displayName };
+  const isLaunched = typeof raw.isLaunched === "boolean" ? raw.isLaunched : undefined;
+  return { kind: "advertisement", profileFingerprint: fingerprint, profileName: name, displayName, isLaunched };
 };
 
 const aggregateQuality = (members: RoomMember[]): number => {
@@ -970,12 +972,16 @@ export class PresenceRoom {
       message?.kind === "advertisement" &&
       (member.profileFingerprint !== message.profileFingerprint ||
         member.profileName !== message.profileName ||
-        (message.displayName.length > 0 && member.displayName !== message.displayName));
+        (message.displayName.length > 0 && member.displayName !== message.displayName) ||
+        (message.isLaunched !== undefined && (member.isLaunched ?? false) !== message.isLaunched));
     if (changed && message?.kind === "advertisement") {
       member.profileFingerprint = message.profileFingerprint;
       member.profileName = message.profileName;
       if (message.displayName.length > 0) {
         member.displayName = message.displayName;
+      }
+      if (message.isLaunched !== undefined) {
+        member.isLaunched = message.isLaunched;
       }
     }
     if (stale || changed || message?.kind === "ping") {

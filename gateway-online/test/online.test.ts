@@ -1153,6 +1153,35 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  it("updates member isLaunched status from heartbeat advertisements", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/presence?ticket=${created.grant}`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(res.status).toBe(101);
+    const socket = res.webSocket;
+    expect(socket).not.toBeNull();
+    socket?.accept();
+    const rosters: { isLaunched?: boolean }[][] = [];
+    socket?.addEventListener("message", (event: MessageEvent) => {
+      const parsed = JSON.parse(String(event.data)) as { type: string; members?: { isLaunched?: boolean }[] };
+      if (parsed.type === "roster" && parsed.members !== undefined) {
+        rosters.push(parsed.members);
+      }
+    });
+    await waitFor(() => rosters.length >= 1, 5000, "opening roster");
+    expect(rosters[0][0].isLaunched).toBe(false);
+    socket?.send(JSON.stringify({ type: "heartbeat", profileFingerprint: "", profileName: "", isLaunched: true }));
+    await waitFor(
+      () => rosters.length >= 2 && rosters[rosters.length - 1][0].isLaunched === true,
+      5000,
+      "launched roster"
+    );
+    expect(rosters[rosters.length - 1][0].isLaunched).toBe(true);
+    socket?.close();
+  });
+
   it("updates member display names from heartbeat advertisements", async () => {
     const host = await session();
     const created = await createNetwork(host, { displayName: "Host" });

@@ -215,7 +215,7 @@
                                 AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <material:MaterialIcon Kind="GamepadVariantOutline" Width="16" Height="16" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding SelectedPlayProfile.Name, FallbackValue='Click to select profile...'}"
+                                <TextBlock Text="{Binding SelectedPlayProfileDisplayName}"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            MaxWidth="260" />
@@ -449,7 +449,7 @@
                                     AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <material:MaterialIcon Kind="GamepadVariantOutline" Width="16" Height="16" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding SelectedPlayProfile.Name, FallbackValue='Click to select profile...'}"
+                                    <TextBlock Text="{Binding SelectedPlayProfileDisplayName}"
                                                VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis" />
                                 </StackPanel>

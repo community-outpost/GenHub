@@ -40,6 +40,7 @@ export interface RoomMember {
   lastIp: string;
   profileFingerprint: string;
   profileName: string;
+  isLaunched?: boolean;
 }
 
 export interface PublicMember {
@@ -50,6 +51,7 @@ export interface PublicMember {
   endpoint: string;
   profileFingerprint: string;
   profileName: string;
+  isLaunched?: boolean;
 }
 
 export interface NetworkSummary {

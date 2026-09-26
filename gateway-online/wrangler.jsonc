@@ -28,7 +28,7 @@
     "DIRECTORY_RATE_PER_MIN": "600",
     "EMPTY_NETWORK_TTL_SECONDS": "300",
     "OVERLAY_SUBNET": "10.42.0.0/20",
-    "RELAY_HOST": "130.61.202.35",
+    "RELAY_HOST": "141.144.254.124",
     "RELAY_PORT": "8088",
     // Comma-separated TURN endpoints handed to members, e.g.
     // "turn:turn.example.com:3478,turns:turn.example.com:5349".
