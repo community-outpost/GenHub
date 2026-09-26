@@ -343,6 +343,11 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     protected virtual string GetGeneralsOnlineSettingsPath()
     {
         var zeroHourDataPath = _pathProvider.GetOptionsDirectory(GameType.ZeroHour);
+        if (string.IsNullOrWhiteSpace(zeroHourDataPath) || !Path.IsPathFullyQualified(zeroHourDataPath))
+        {
+            zeroHourDataPath = Path.Combine(AppContext.BaseDirectory, GameSettingsConstants.FolderNames.ZeroHour);
+        }
+
         var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
         return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
     }

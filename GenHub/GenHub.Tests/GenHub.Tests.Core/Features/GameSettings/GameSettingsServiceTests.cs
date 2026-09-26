@@ -679,6 +679,23 @@ MoneyTransactionVolume = 70
         Assert.Equal(expected, service.SettingsPath);
     }
 
+    /// <summary>Unavailable platform folders must never make settings depend on the current directory.</summary>
+    /// <param name="path">The unusable platform path.</param>
+    [Theory]
+    [InlineData("")]
+    [InlineData("relative")]
+    public void GetGeneralsOnlineSettingsPath_InvalidProviderPath_UsesAbsoluteFallback(string path)
+    {
+        _pathProviderMock.Setup(x => x.GetOptionsDirectory(GameType.ZeroHour)).Returns(path);
+        var service = new GeneralsOnlinePathProbe(_loggerMock.Object, _pathProviderMock.Object);
+        var expected = Path.Combine(
+            AppContext.BaseDirectory,
+            GameSettingsConstants.FolderNames.ZeroHour,
+            GameSettingsConstants.FolderNames.GeneralsOnlineData,
+            GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        Assert.Equal(expected, service.SettingsPath);
+    }
+
     private GameSettingsService CreateServiceWritingGeneralsOnlineSettingsTo(string settingsPath)
     {
         var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
