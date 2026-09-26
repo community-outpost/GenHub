@@ -3240,6 +3240,11 @@ public partial class ContentDetailViewModel(
                 // The source URL is an external fallback kept for browser navigation.
                 // Manifest-derived files and metadata stay authoritative.
                 logger.LogDebug("Skipping automatic web parsing for external source URL: {Url}", searchResult.SourceUrl);
+                await RunOnUiThreadAsync(() =>
+                {
+                    LoadRichContent();
+                    loaded = true;
+                });
                 return;
             }
 

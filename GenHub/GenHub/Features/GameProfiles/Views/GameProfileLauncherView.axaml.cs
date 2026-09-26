@@ -33,6 +33,12 @@ public partial class GameProfileLauncherView : UserControl
     {
         try
         {
+            // Bound the sniff cost: oversized files cannot be profile packages and fall through to content import.
+            if (new FileInfo(path).Length > ProfileSharingConstants.MaxProfileFileBytes)
+            {
+                return false;
+            }
+
             using var stream = File.OpenRead(path);
             using var document = JsonDocument.Parse(stream);
             if (document.RootElement.ValueKind != JsonValueKind.Object)

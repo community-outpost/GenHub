@@ -1496,13 +1496,15 @@ public class GameProfileLauncherViewModelTests
     public async Task MoveProfileRelative_PersistSuccess_SavesNewOrderAsync()
     {
         var gameProfileManager = new Mock<IGameProfileManager>();
+        var persistedOrders = new List<(string ProfileId, int DisplayOrder)>();
         gameProfileManager
             .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<string, UpdateProfileRequest, CancellationToken>((profileId, request, _) => persistedOrders.Add((profileId, request.DisplayOrder ?? -1)))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()));
         var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), new Mock<INotificationService>());
 
-        var itemA = CreateProfileItem("Alpha");
-        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("alpha-id", "Alpha");
+        var itemB = CreateProfileItem("bravo-id", "Bravo");
         itemA.DisplayOrder = 0;
         itemB.DisplayOrder = 1;
         vm.Profiles.Add(itemA);
@@ -1517,9 +1519,7 @@ public class GameProfileLauncherViewModelTests
         Assert.Same(itemA, vm.Profiles[1]);
         Assert.Equal(0, itemB.DisplayOrder);
         Assert.Equal(1, itemA.DisplayOrder);
-        gameProfileManager.Verify(
-            m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(2));
+        Assert.Equal(new List<(string ProfileId, int DisplayOrder)> { ("bravo-id", 0), ("alpha-id", 1) }, persistedOrders);
     }
 
     /// <summary>
@@ -1536,8 +1536,8 @@ public class GameProfileLauncherViewModelTests
         var notificationService = new Mock<INotificationService>();
         var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), notificationService);
 
-        var itemA = CreateProfileItem("Alpha");
-        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("alpha-id", "Alpha");
+        var itemB = CreateProfileItem("bravo-id", "Bravo");
         itemA.DisplayOrder = 0;
         itemB.DisplayOrder = 1;
         vm.Profiles.Add(itemA);
@@ -1565,7 +1565,7 @@ public class GameProfileLauncherViewModelTests
     public async Task MoveProfileRelative_PartialFailure_WritesBackSavedOrdersAsync()
     {
         var gameProfileManager = new Mock<IGameProfileManager>();
-        var persistedOrders = new List<int>();
+        var persistedOrders = new List<(string ProfileId, int DisplayOrder)>();
         var results = new Queue<ProfileOperationResult<GameProfile>>(
         [
             ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()),
@@ -1574,12 +1574,12 @@ public class GameProfileLauncherViewModelTests
         ]);
         gameProfileManager
             .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .Callback<string, UpdateProfileRequest, CancellationToken>((_, request, _) => persistedOrders.Add(request.DisplayOrder ?? -1))
+            .Callback<string, UpdateProfileRequest, CancellationToken>((profileId, request, _) => persistedOrders.Add((profileId, request.DisplayOrder ?? -1)))
             .ReturnsAsync(() => results.Dequeue());
         var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), new Mock<INotificationService>());
 
-        var itemA = CreateProfileItem("Alpha");
-        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("alpha-id", "Alpha");
+        var itemB = CreateProfileItem("bravo-id", "Bravo");
         itemA.DisplayOrder = 0;
         itemB.DisplayOrder = 1;
         vm.Profiles.Add(itemA);
@@ -1592,7 +1592,7 @@ public class GameProfileLauncherViewModelTests
 
         Assert.Same(itemA, vm.Profiles[0]);
         Assert.Same(itemB, vm.Profiles[1]);
-        Assert.Equal(new List<int> { 0, 1, 1 }, persistedOrders);
+        Assert.Equal(new List<(string ProfileId, int DisplayOrder)> { ("bravo-id", 0), ("alpha-id", 1), ("bravo-id", 1) }, persistedOrders);
     }
 
     private static ProfileResourceService CreateProfileResourceService()

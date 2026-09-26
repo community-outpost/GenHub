@@ -21,6 +21,7 @@ using GenHub.Features.GameProfiles.Helpers;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.Notifications.Services;
 using GenHub.Features.Notifications.ViewModels;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -869,7 +870,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         string displayName,
         string gameType)
     {
-        if (!string.IsNullOrEmpty(path) && items.All(i => i.Path != path))
+        if (!string.IsNullOrEmpty(path) && items.All(i => i.Path != path) && IsRenderableResourcePath(path))
         {
             items.Add(new ProfileResourceItem
             {
@@ -880,6 +881,24 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 GameType = gameType,
             });
         }
+    }
+
+    /// <summary>
+    /// Determines whether a resource path can be rendered by the image converter.
+    /// Remote artwork renders only when already present in the image memory cache;
+    /// otherwise the tile stays blank and selecting it would save an unusable path.
+    /// </summary>
+    /// <param name="path">The resource path.</param>
+    /// <returns>True when the path renders; otherwise false.</returns>
+    private static bool IsRenderableResourcePath(string path)
+    {
+        if (!path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return ImageCacheService.Instance.GetBitmapFromMemory(path) != null;
     }
 
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)

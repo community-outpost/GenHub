@@ -294,6 +294,38 @@ public sealed class MapDirectoryService(
     }
 
     /// <summary>
+    /// Plans companion asset moves matching a single base name.
+    /// </summary>
+    /// <param name="currentDirPath">The current directory path.</param>
+    /// <param name="baseName">The asset base name to match.</param>
+    /// <param name="newName">The new map name.</param>
+    /// <param name="seenTargets">Targets already planned, to avoid collisions.</param>
+    /// <param name="plannedMoves">The planned moves to append to.</param>
+    private static void PlanAssetsForBaseName(string currentDirPath, string baseName, string newName, HashSet<string> seenTargets, List<(string Source, string Target)> plannedMoves)
+    {
+        foreach (var assetPath in Directory.GetFiles(currentDirPath, baseName + ".*"))
+        {
+            if (!Path.GetFileNameWithoutExtension(assetPath).Equals(baseName, PathHelper.PathComparison))
+            {
+                continue;
+            }
+
+            var ext = Path.GetExtension(assetPath);
+            if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var newAssetPath = Path.Combine(currentDirPath, newName + ext);
+            if (!seenTargets.Contains(newAssetPath) && !File.Exists(newAssetPath))
+            {
+                seenTargets.Add(newAssetPath);
+                plannedMoves.Add((assetPath, newAssetPath));
+            }
+        }
+    }
+
+    /// <summary>
     /// Rolls back executed file moves, ignoring rollback failures.
     /// </summary>
     /// <param name="executedMoves">The executed moves to roll back.</param>
@@ -439,38 +471,6 @@ public sealed class MapDirectoryService(
         }
 
         return plannedMoves;
-    }
-
-    /// <summary>
-    /// Plans companion asset moves matching a single base name.
-    /// </summary>
-    /// <param name="currentDirPath">The current directory path.</param>
-    /// <param name="baseName">The asset base name to match.</param>
-    /// <param name="newName">The new map name.</param>
-    /// <param name="seenTargets">Targets already planned, to avoid collisions.</param>
-    /// <param name="plannedMoves">The planned moves to append to.</param>
-    private void PlanAssetsForBaseName(string currentDirPath, string baseName, string newName, HashSet<string> seenTargets, List<(string Source, string Target)> plannedMoves)
-    {
-        foreach (var assetPath in Directory.GetFiles(currentDirPath, baseName + ".*"))
-        {
-            if (!Path.GetFileNameWithoutExtension(assetPath).Equals(baseName, PathHelper.PathComparison))
-            {
-                continue;
-            }
-
-            var ext = Path.GetExtension(assetPath);
-            if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var newAssetPath = Path.Combine(currentDirPath, newName + ext);
-            if (!seenTargets.Contains(newAssetPath) && !File.Exists(newAssetPath))
-            {
-                seenTargets.Add(newAssetPath);
-                plannedMoves.Add((assetPath, newAssetPath));
-            }
-        }
     }
 
     /// <summary>

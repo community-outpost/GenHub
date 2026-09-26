@@ -67,6 +67,7 @@ public partial class GameProfileSettingsViewModel
         GameType? suggestedGameType = null,
         Avalonia.Controls.Window? owner = null)
     {
+        IsDropImportInProgress = true;
         try
         {
             if (_localContentService == null || _contentStorageService == null)
@@ -134,6 +135,10 @@ public partial class GameProfileSettingsViewModel
         {
             _logger?.LogError(ex, "Error importing dropped files into Add Local Content dialog");
             StatusMessage = _localizationService?.GetString("GameProfiles.Settings.LocalContent.ImportError") ?? "Error importing dropped files";
+        }
+        finally
+        {
+            IsDropImportInProgress = false;
         }
     }
 
@@ -557,6 +562,17 @@ public partial class GameProfileSettingsViewModel
         try
         {
             IsSaving = true;
+
+            if (IsDropImportInProgress)
+            {
+                var importTitle = _localizationService?.GetString("GameProfiles.Settings.Save.DropImportInProgress.Title") ?? "Import in progress";
+                var importMessage = _localizationService?.GetString("GameProfiles.Settings.Save.DropImportInProgress.Message") ?? "Please wait for the dropped content import to finish before saving.";
+                StatusMessage = importMessage;
+                _localNotificationService.ShowWarning(importTitle, importMessage);
+                _logger?.LogWarning("Profile save blocked: dropped content import still in progress");
+                return;
+            }
+
             StatusMessage = "Saving profile...";
 
             if (_gameProfileManager == null)

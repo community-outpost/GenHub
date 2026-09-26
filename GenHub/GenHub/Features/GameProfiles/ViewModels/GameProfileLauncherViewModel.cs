@@ -79,6 +79,7 @@ public partial class GameProfileLauncherViewModel(
     IRecipient<ProfileDeletedMessage>
 {
     private const int MaxReceiptDriftNoticeLines = 5;
+    private const int MaxDirectoryExecutablesToInspect = 8;
     private const string NotificationErrorTitleKey = "GameProfiles.Notification.Error.Title";
     private const string ReorderFailedTitleKey = "GameProfiles.Notification.ReorderFailed.Title";
     private const string ReorderFailedMessageKey = "GameProfiles.Notification.ReorderFailed.Message";
@@ -1163,6 +1164,18 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
+    /// Determines whether a file is worth binary inspection: classic executables and
+    /// extensionless binaries (ELF/Mach-O), which carry no extension by convention.
+    /// </summary>
+    /// <param name="filePath">The file path to check.</param>
+    /// <returns>True when the file should be inspected; otherwise false.</returns>
+    private static bool IsExecutableCandidate(string filePath)
+    {
+        var extension = Path.GetExtension(filePath);
+        return string.Equals(extension, ".exe", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(extension);
+    }
+
+    /// <summary>
     /// Infers the game type from a dropped directory name.
     /// </summary>
     /// <param name="dirName">The directory name.</param>
@@ -1305,12 +1318,27 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>The classified types, or null when detection should continue with other paths.</returns>
     private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDroppedPathAsync(string path)
     {
-        if (!File.Exists(path))
+        if (File.Exists(path))
         {
-            return null;
+            return await ClassifyExecutableFileAsync(path);
         }
 
-        if (!string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase))
+        if (Directory.Exists(path))
+        {
+            return await ClassifyDirectoryExecutableAsync(path);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Classifies a single dropped file by inspecting executable candidates.
+    /// </summary>
+    /// <param name="path">The dropped file path.</param>
+    /// <returns>The classified types, or null when the file is not a recognized executable.</returns>
+    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyExecutableFileAsync(string path)
+    {
+        if (!IsExecutableCandidate(path))
         {
             return null;
         }
@@ -1322,6 +1350,40 @@ public partial class GameProfileLauncherViewModel(
         }
 
         return (result.Value.GameType ?? GameType.ZeroHour, result.Value.ContentType);
+    }
+
+    /// <summary>
+    /// Locates executables inside a dropped directory and returns the first recognized one,
+    /// so game and tool folders are detected instead of falling back to the directory name.
+    /// </summary>
+    /// <param name="directoryPath">The dropped directory path.</param>
+    /// <returns>The classified types, or null when no executable is recognized.</returns>
+    private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDirectoryExecutableAsync(string directoryPath)
+    {
+        List<string> candidates;
+        try
+        {
+            candidates = Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
+                .Where(IsExecutableCandidate)
+                .Take(MaxDirectoryExecutablesToInspect)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to enumerate executables in dropped directory {Path}", directoryPath);
+            return null;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            var classified = await ClassifyExecutableFileAsync(candidate);
+            if (classified.HasValue)
+            {
+                return classified;
+            }
+        }
+
+        return null;
     }
 
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -3121,7 +3183,7 @@ public partial class GameProfileLauncherViewModel(
         try
         {
             var verdict = await GameBinaryInspector.InspectAsync(path);
-            if (verdict.Success && verdict.Data != null)
+            if (verdict.Success && verdict.Data != null && verdict.Data.Role != GameBinaryRole.NotExecutable)
             {
                 var role = verdict.Data.Role switch
                 {

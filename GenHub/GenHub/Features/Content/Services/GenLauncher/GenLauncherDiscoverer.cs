@@ -378,6 +378,32 @@ public class GenLauncherDiscoverer(
         return true;
     }
 
+    /// <summary>
+    /// Applies the manifest fallback links as the result source URL, marking it for
+    /// navigation only when a fallback replaced the previous URL.
+    /// </summary>
+    /// <param name="result">The search result to update.</param>
+    /// <param name="manifest">The version manifest supplying fallback links.</param>
+    private static void ApplyManifestSourceUrlFallback(ContentSearchResult result, GenLauncherVersionManifest manifest)
+    {
+        var previousSourceUrl = result.SourceUrl;
+        result.SourceUrl = GenLauncherConstants.ResolveEffectiveSourceUrl(
+            manifest.NewsLink,
+            manifest.ModDBLink,
+            manifest.DiscordLink,
+            result.SourceUrl);
+
+        if (string.IsNullOrEmpty(result.SourceUrl) ||
+            string.Equals(result.SourceUrl, previousSourceUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // A manifest fallback link replaced the previous URL. Keep it for browser navigation,
+        // but do not let automatic web parsing overwrite manifest-derived file rows.
+        result.SkipAutomaticWebParsing = true;
+    }
+
     private string GetLocalizedString(string key, string fallback)
     {
         return localizationService?.GetString(key) ?? fallback;
@@ -455,20 +481,7 @@ public class GenLauncherDiscoverer(
             result.ResolverMetadata[GenLauncherConstants.ModDbLinkMetadataKey] = manifest.ModDBLink;
         }
 
-        var previousSourceUrl = result.SourceUrl;
-        result.SourceUrl = GenLauncherConstants.ResolveEffectiveSourceUrl(
-            manifest.NewsLink,
-            manifest.ModDBLink,
-            manifest.DiscordLink,
-            result.SourceUrl);
-
-        if (!string.IsNullOrEmpty(result.SourceUrl) &&
-            !string.Equals(result.SourceUrl, previousSourceUrl, StringComparison.OrdinalIgnoreCase))
-        {
-            // A manifest fallback link replaced the previous URL. Keep it for browser navigation,
-            // but do not let automatic web parsing overwrite manifest-derived file rows.
-            result.SkipAutomaticWebParsing = true;
-        }
+        ApplyManifestSourceUrlFallback(result, manifest);
 
         if (!string.IsNullOrEmpty(manifest.DependenceName))
         {
