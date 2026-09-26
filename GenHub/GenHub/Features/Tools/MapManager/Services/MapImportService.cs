@@ -283,6 +283,7 @@ public sealed class MapImportService(
 
                 // Create MapFile object
                 var displayName = mapNameParser.ParseMapName(destPath);
+                var playerCount = mapNameParser.ParsePlayerCount(destPath, displayName);
                 var mapFile = new MapFile
                 {
                     FileName = Path.GetFileName(filePath),
@@ -296,6 +297,7 @@ public sealed class MapImportService(
                     DisplayName = displayName,
                     ThumbnailPath = thumbnailPath,
                     ThumbnailBitmap = null,
+                    PlayerCount = playerCount,
                 };
                 result.ImportedMaps.Add(mapFile);
             }
@@ -541,6 +543,7 @@ public sealed class MapImportService(
 
                             // Create MapFile object
                             var displayName = mapNameParser.ParseMapName(mapDestPath);
+                            var playerCount = mapNameParser.ParsePlayerCount(mapDestPath, displayName);
                             var mapFile = new MapFile
                             {
                                 FileName = mapEntry.Name,
@@ -554,6 +557,7 @@ public sealed class MapImportService(
                                 DisplayName = displayName,
                                 ThumbnailPath = thumbnailPath,
                                 ThumbnailBitmap = null,
+                                PlayerCount = playerCount,
                             };
                             result.ImportedMaps.Add(mapFile);
                         }
@@ -1266,6 +1270,7 @@ public sealed class MapImportService(
         logger.LogInformation("Extracted map to directory: {DirectoryName}/{FileName}", mapDirName, mapFileName);
 
         var displayName = mapNameParser.ParseMapName(mapDestPath);
+        var playerCount = mapNameParser.ParsePlayerCount(mapDestPath, displayName);
         return new MapFile
         {
             FileName = mapFileName,
@@ -1279,6 +1284,7 @@ public sealed class MapImportService(
             DisplayName = displayName,
             ThumbnailPath = thumbnailPath,
             ThumbnailBitmap = null,
+            PlayerCount = playerCount,
         };
     }
 }

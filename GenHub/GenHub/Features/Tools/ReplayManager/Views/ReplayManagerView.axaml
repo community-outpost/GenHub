@@ -97,11 +97,12 @@
                   CellEditEnded="OnCellEditEnded"
                   HeadersVisibility="Column"
                   CanUserResizeColumns="True"
+                  CanUserSortColumns="True"
                   GridLinesVisibility="Horizontal"
                   BorderThickness="0"
                   RowHeight="42">
           <DataGrid.Columns>
-            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Filename}" Width="180" MaxWidth="210">
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Filename}" Width="180" MaxWidth="210" SortMemberPath="FileName">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <TextBlock Text="{Binding FileName}"
@@ -119,7 +120,7 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellEditingTemplate>
             </DataGridTemplateColumn>
-            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Map}" Width="120" MaxWidth="160">
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Map}" Width="120" MaxWidth="160" SortMemberPath="MapName">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <TextBlock Text="{Binding Metadata.MapName}"
@@ -130,7 +131,18 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.ClientBuild}" Width="*" MinWidth="130">
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Players}" Width="Auto" MinWidth="85" SortMemberPath="PlayerCount">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding FormattedPlayerCount}"
+                             VerticalAlignment="Center"
+                             HorizontalAlignment="Center"
+                             ToolTip.Tip="{Binding PlayerNamesDisplay}"
+                             Margin="4,0"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.ClientBuild}" Width="*" MinWidth="130" SortMemberPath="ClientAndPatchDisplay">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <TextBlock Text="{Binding ClientAndPatchDisplay, Converter={x:Static converters:LocalizedReplayBuildConverter.Instance}}"
@@ -141,9 +153,9 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.ExeCrc}" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
-            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.IniCrc}" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
-            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Compatibility}" Width="Auto" MinWidth="120">
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.ExeCrc}" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" SortMemberPath="ExeCrc" />
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.IniCrc}" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" SortMemberPath="IniCrc" />
+            <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Compatibility}" Width="Auto" MinWidth="120" SortMemberPath="CompatibilityBadgeText">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
@@ -165,9 +177,9 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.Size}" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="65" IsReadOnly="True" />
-            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.Modified}" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="115" IsReadOnly="True" />
-            <DataGridTemplateColumn Width="Auto" MinWidth="165" CanUserResize="False" Header="{localization:Localize Tools.ReplayManager.Column.Actions}">
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.Size}" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="65" IsReadOnly="True" SortMemberPath="SizeInBytes" />
+            <DataGridTextColumn Header="{localization:Localize Tools.ReplayManager.Column.Modified}" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="115" IsReadOnly="True" SortMemberPath="LastModified" />
+            <DataGridTemplateColumn Width="Auto" MinWidth="165" CanUserResize="False" CanUserSort="False" Header="{localization:Localize Tools.ReplayManager.Column.Actions}">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">

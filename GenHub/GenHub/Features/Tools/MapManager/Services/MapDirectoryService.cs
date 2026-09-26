@@ -108,8 +108,9 @@ public sealed class MapDirectoryService(
                             // Find thumbnail TGA file
                             var thumbnailPath = FindThumbnail(allFilesInDir);
 
-                            // Parse display name
+                            // Parse display name and player count
                             var displayName = mapNameParser.ParseMapName(primaryMap.FullName);
+                            var playerCount = mapNameParser.ParsePlayerCount(primaryMap.FullName, displayName);
 
                             mapFiles.Add(new MapFile
                             {
@@ -125,12 +126,14 @@ public sealed class MapDirectoryService(
                                 DisplayName = displayName,
                                 ThumbnailPath = thumbnailPath,
                                 ThumbnailBitmap = null, // Loaded lazily in ViewModel
+                                PlayerCount = playerCount,
                             });
                         }
                         else if (!isInSubdirectory)
                         {
                             // This is a standalone .map file in the root Maps directory
                             var displayName = mapNameParser.ParseMapName(fileInfo.FullName);
+                            var playerCount = mapNameParser.ParsePlayerCount(fileInfo.FullName, displayName);
 
                             mapFiles.Add(new MapFile
                             {
@@ -146,6 +149,7 @@ public sealed class MapDirectoryService(
                                 DisplayName = displayName,
                                 ThumbnailPath = null,
                                 ThumbnailBitmap = null,
+                                PlayerCount = playerCount,
                             });
                         }
                     }
@@ -164,6 +168,7 @@ public sealed class MapDirectoryService(
                         try
                         {
                             var fileInfo = new FileInfo(zipPath);
+                            var playerCount = mapNameParser.ParsePlayerCount(fileInfo.FullName, fileInfo.Name);
                             mapFiles.Add(new MapFile
                             {
                                 FileName = fileInfo.Name,
@@ -178,6 +183,7 @@ public sealed class MapDirectoryService(
                                 DisplayName = fileInfo.Name, // Use filename for ZIPs
                                 ThumbnailPath = null,
                                 ThumbnailBitmap = null,
+                                PlayerCount = playerCount,
                             });
                         }
                         catch (Exception ex)

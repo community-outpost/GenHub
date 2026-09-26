@@ -1397,6 +1397,9 @@
   <data name="Maps.Column.Size" xml:space="preserve">
     <value>الحجم</value>
   </data>
+  <data name="Maps.Column.Players" xml:space="preserve">
+    <value>عدد اللاعبين</value>
+  </data>
   <data name="Maps.Column.Type" xml:space="preserve">
     <value>النوع</value>
   </data>
@@ -4986,6 +4989,9 @@
   </data>
   <data name="Tools.ReplayManager.Column.Map" xml:space="preserve">
     <value>الخريطة</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Players" xml:space="preserve">
+    <value>عدد اللاعبين</value>
   </data>
   <data name="Tools.ReplayManager.Column.ClientBuild" xml:space="preserve">
     <value>العميل / الإصدار</value>

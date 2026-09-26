@@ -1401,6 +1401,9 @@
   <data name="Maps.Column.Size" xml:space="preserve">
     <value>Size</value>
   </data>
+  <data name="Maps.Column.Players" xml:space="preserve">
+    <value># of Players</value>
+  </data>
   <data name="Maps.Column.Type" xml:space="preserve">
     <value>Type</value>
   </data>
@@ -4990,6 +4993,9 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Tools.ReplayManager.Column.Map" xml:space="preserve">
     <value>Map</value>
+  </data>
+  <data name="Tools.ReplayManager.Column.Players" xml:space="preserve">
+    <value># of Players</value>
   </data>
   <data name="Tools.ReplayManager.Column.ClientBuild" xml:space="preserve">
     <value>Client / Build</value>
