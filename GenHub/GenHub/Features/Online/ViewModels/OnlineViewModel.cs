@@ -1005,7 +1005,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         RunOnUi(() =>
         {
-            if (!_profilesLoaded)
+            if (_disposed || !_profilesLoaded)
             {
                 return;
             }
@@ -1046,6 +1046,11 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         RunOnUi(() =>
         {
+            if (_disposed)
+            {
+                return;
+            }
+
             if (_profilesLoaded)
             {
                 UpdateAvailableProfilesList(updatedProfile);
@@ -1080,6 +1085,11 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         var deletedId = message.ProfileId;
         RunOnUi(() =>
         {
+            if (_disposed)
+            {
+                return;
+            }
+
             if (_profilesLoaded)
             {
                 var existing = AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, deletedId, StringComparison.Ordinal));

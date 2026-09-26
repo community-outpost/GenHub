@@ -35,6 +35,31 @@ public class RelayHostResolutionTests
     }
 
     /// <summary>
+    /// Tests that a whitespace-only override is ignored and falls back to the advertised host.
+    /// </summary>
+    /// <param name="whitespaceOverride">The whitespace override string.</param>
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("   \t  ")]
+    public void ResolveRelayHost_WithWhitespaceOverride_ShouldFallBackToAdvertisedHost(string whitespaceOverride)
+    {
+        // Arrange
+        Environment.SetEnvironmentVariable(ApiConstants.OnlineRelayHostEnvVar, whitespaceOverride);
+        try
+        {
+            // Act
+            var resolved = ApiConstants.ResolveRelayHost("203.0.113.7");
+
+            // Assert
+            Assert.Equal("203.0.113.7", resolved);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ApiConstants.OnlineRelayHostEnvVar, null);
+        }
+    }
+
+    /// <summary>
     /// Tests that the advertised host wins over the default without an override.
     /// </summary>
     [Fact]

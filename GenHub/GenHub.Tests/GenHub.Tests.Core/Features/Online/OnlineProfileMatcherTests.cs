@@ -398,6 +398,26 @@ public class OnlineProfileMatcherTests
     }
 
     /// <summary>
+    /// Tests that profiles with matching iniCRC upgrade to Exact even when one side
+    /// has an empty exeCRC (e.g. legacy client fingerprint short-circuit).
+    /// </summary>
+    [Fact]
+    public void CompareMember_WithEqualIniCrcAndOneEmptyExeCrc_ShouldUpgradeToExact()
+    {
+        // Arrange
+        var memberWithExe = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"], "0x11111111", "0x22222222");
+        var memberWithoutExe = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-b"], "0x11111111", string.Empty);
+
+        // Act
+        var matchForward = OnlineProfileMatcher.CompareMember(memberWithExe, memberWithoutExe, "ZeroHour|1.04|client-1");
+        var matchReverse = OnlineProfileMatcher.CompareMember(memberWithoutExe, memberWithExe, "ZeroHour|1.04|client-1");
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.Exact, matchForward);
+        Assert.Equal(OnlineProfileMatch.Exact, matchReverse);
+    }
+
+    /// <summary>
     /// Tests that the client key extracts from the versioned fingerprint.
     /// </summary>
     [Fact]
