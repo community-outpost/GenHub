@@ -436,7 +436,7 @@ public sealed class MapImportServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ImportFromZipAsync_MapWithGenericMapTga_CreatesMapDirNamedTgaPreviewAsync()
+    public async Task ImportFromZipAsync_MapWithGenericMapTga_CreatesMapFileNamedTgaPreviewAsync()
     {
         var zipPath = Path.Combine(_workingDirectory, "generic_thumbnail.zip");
         CreateZip(
@@ -451,7 +451,10 @@ public sealed class MapImportServiceTests : IDisposable
         Assert.Equal("Desert", imported.DirectoryName);
         Assert.True(File.Exists(Path.Combine(_mapDirectory, "Desert", "desert.map")));
         Assert.True(File.Exists(Path.Combine(_mapDirectory, "Desert", "map.tga")));
-        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Desert", "Desert.tga")));
+        var expectedPreview = Path.Combine(_mapDirectory, "Desert", "desert.tga");
+        Assert.Equal(expectedPreview, imported.ThumbnailPath);
+        Assert.Equal("generic thumbnail data", await File.ReadAllTextAsync(expectedPreview));
+        Assert.Contains("desert.tga", Directory.GetFiles(Path.Combine(_mapDirectory, "Desert")).Select(Path.GetFileName));
     }
 
     /// <summary>

@@ -2803,12 +2803,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         var existingTargets = Directory.GetFiles(targetFolder, "*", SearchOption.TopDirectoryOnly)
                             .Where(path => Path.GetFileName(path).Equals(targetFileName, StringComparison.OrdinalIgnoreCase))
                             .ToArray();
-                        foreach (var existingTarget in existingTargets)
+                        var conflictingTarget = existingTargets.FirstOrDefault(path => !FilesAreEqual(companion, path));
+                        if (conflictingTarget != null)
                         {
-                            if (!FilesAreEqual(companion, existingTarget))
-                            {
-                                throw new InvalidDataException($"Conflicting shared map companion '{companion}' and '{existingTarget}'.");
-                            }
+                            throw new InvalidDataException($"Conflicting shared map companion '{companion}' and '{conflictingTarget}'.");
                         }
 
                         if (existingTargets.Length > 0)
