@@ -469,9 +469,6 @@ public sealed class MapDirectoryService(
         return anyTga?.FullName;
     }
 
-    private static bool IsValidAssetFile(string extension)
-    {
-        var validExtensions = new[] { ".tga", ".ini", ".str", ".txt" };
-        return validExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
-    }
+    private static bool IsValidAssetFile(string extension) =>
+        MapManagerConstants.AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
 }

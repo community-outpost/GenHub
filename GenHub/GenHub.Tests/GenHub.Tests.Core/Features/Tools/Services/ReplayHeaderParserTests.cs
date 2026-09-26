@@ -374,18 +374,51 @@ public sealed class ReplayHeaderParserTests
     }
 
     /// <summary>
-    /// Verifies that ParseHeaderAsync rejects streams exceeding MaxReplaySizeBytes.
+    /// Verifies that a stream longer than the import size limit still parses, because only the header is read.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseHeaderAsync_StreamExceedingMaxReplaySizeBytes_ReturnsFailureAsync()
+    public async Task ParseHeaderAsync_StreamExceedingMaxReplaySizeBytes_ParsesHeaderAsync()
     {
-        using var stream = new OversizedStream();
+        using var header = new MemoryStream();
+        WriteMinimalValidHeader(header);
+        using var stream = new OversizedStream(header.ToArray());
 
         var result = await _parser.ParseHeaderAsync(stream);
 
-        Assert.False(result.Success);
-        Assert.Contains("exceeds maximum allowed size", result.FirstError);
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.Equal("Long Match", result.Data!.Title);
+        Assert.Equal("defcon6", result.Data.MapName);
+    }
+
+    /// <summary>
+    /// Verifies that a replay file larger than the import size limit still parses, because only the header is read.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_FileExceedingMaxReplaySizeBytes_ParsesHeaderAsync()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "GenHubReplayParser", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var filePath = Path.Combine(directory, "long.rep");
+        try
+        {
+            await using (var file = File.Create(filePath))
+            {
+                WriteMinimalValidHeader(file);
+                file.SetLength(ReplayManagerConstants.MaxReplaySizeBytes + 1);
+            }
+
+            var result = await _parser.ParseHeaderAsync(filePath);
+
+            Assert.True(result.Success, string.Join(" ", result.Errors));
+            Assert.Equal("Long Match", result.Data!.Title);
+            Assert.Equal("defcon6", result.Data.MapName);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     /// <summary>
@@ -569,7 +602,28 @@ public sealed class ReplayHeaderParserTests
         Assert.Equal(TimeSpan.FromSeconds(5), result.Data.Duration);
     }
 
-    private sealed class OversizedStream : MemoryStream
+    private static void WriteMinimalValidHeader(Stream stream)
+    {
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(100u);
+        writer.Write(200u);
+        writer.Write(300u);
+        writer.Write((byte)1);
+        writer.Write((byte)2);
+        writer.Write(new byte[8]);
+        writer.Write(Encoding.Unicode.GetBytes("Long Match" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("Version 1.04" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;S=HPlayerOne,127.0.0.1,8086,0,1,2:X:X;" + char.MinValue));
+        writer.Flush();
+    }
+
+    private sealed class OversizedStream(byte[] content) : MemoryStream(content)
     {
         public override long Length => ReplayManagerConstants.MaxReplaySizeBytes + 1;
 

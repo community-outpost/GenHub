@@ -2717,6 +2717,18 @@
     <value>Выберите инструмент из списка</value>
     <comment>Prompt to select a tool from the sidebar</comment>
   </data>
+<data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
+    <value>Выберите инструмент</value>
+    <comment>Empty state title when no tool is currently selected</comment>
+  </data>
+  <data name="Tools.EmptyState.SelectToolDescription" xml:space="preserve">
+    <value>Выберите инструмент на боковой панели, чтобы начать работу, или перейдите во вкладку «Информация», чтобы узнать больше о доступных инструментах и утилитах.</value>
+    <comment>Empty state description prompting the user to pick a tool or read the info tab</comment>
+  </data>
+  <data name="Tools.Button.ReadInfoTab" xml:space="preserve">
+    <value>Перейти в «Информация»</value>
+    <comment>Button text to navigate to the Info tab from the tools empty state</comment>
+  </data>
   <data name="Tools.Error.ErrorLoadingTool" xml:space="preserve">
     <value>✗ Ошибка при загрузке инструмента «{0}»: {1}</value>
     <comment>Error message when a specific tool fails to load. {0} = tool name, {1} = error</comment>
@@ -8179,6 +8191,9 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
     <value>Сбой импорта: {0}</value>
+  </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>Не найдены файлы карт для импорта.</value>
   </data>
   <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
     <value>Ошибка импорта</value>

@@ -2717,6 +2717,18 @@
     <value>حدد أداة من القائمة</value>
     <comment>Prompt to select a tool from the sidebar</comment>
   </data>
+<data name="Tools.EmptyState.SelectToolTitle" xml:space="preserve">
+    <value>اختر أداة</value>
+    <comment>Empty state title when no tool is currently selected</comment>
+  </data>
+  <data name="Tools.EmptyState.SelectToolDescription" xml:space="preserve">
+    <value>اختر أداة من الشريط الجانبي للبدء، أو اقرأ تبويب المعلومات لمعرفة المزيد حول الأدوات والمرافق المتاحة.</value>
+    <comment>Empty state description prompting the user to pick a tool or read the info tab</comment>
+  </data>
+  <data name="Tools.Button.ReadInfoTab" xml:space="preserve">
+    <value>قراءة تبويب المعلومات</value>
+    <comment>Button text to navigate to the Info tab from the tools empty state</comment>
+  </data>
   <data name="Tools.Error.ErrorLoadingTool" xml:space="preserve">
     <value>✗ خطأ أثناء تحميل الأداة '{0}': {1}</value>
     <comment>Error message when a specific tool fails to load. {0} = tool name, {1} = error</comment>
@@ -8179,6 +8191,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
     <value>فشل الاستيراد: {0}</value>
+  </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>لم يتم العثور على ملفات خرائط لاستيرادها.</value>
   </data>
   <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
     <value>خطأ في الاستيراد</value>

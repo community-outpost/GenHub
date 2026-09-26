@@ -29,6 +29,7 @@ BUNDLE_VERSION="${VERSION%%-*}"
 APP_NAME="GenHub"
 EXECUTABLE_NAME="GenHub.MacOS"
 BUNDLE_ID="org.communityoutpost.genhub"
+URL_SCHEME="genhub"
 
 [[ -d "$PUBLISH_DIR" ]] || { echo "error: publish dir not found: $PUBLISH_DIR" >&2; exit 1; }
 [[ -f "$PUBLISH_DIR/$EXECUTABLE_NAME" ]] || {
@@ -80,6 +81,20 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <string>11.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <!-- Launch Services delivers genhub:// links to the running app as URL-open events. -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>$BUNDLE_ID.url</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>$URL_SCHEME</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+        </dict>
+    </array>
     <!-- Not a background agent: without this the app has no Dock tile and no menu bar. -->
     <key>LSUIElement</key>
     <false/>

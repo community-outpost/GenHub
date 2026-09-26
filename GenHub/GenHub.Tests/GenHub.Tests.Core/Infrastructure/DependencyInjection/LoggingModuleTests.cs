@@ -83,6 +83,37 @@ public class LoggingModuleTests
         }
     }
 
+    /// <summary>
+    /// Verifies GetLogFileName contains the current date prefix and version suffix.
+    /// </summary>
+    [Fact]
+    public void GetLogFileName_ContainsDateAndVersionSuffix()
+    {
+        // Act
+        var fileName = LoggingModule.GetLogFileName();
+        var datePrefix = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var versionSuffix = LoggingModule.GetVersionFileSuffix();
+
+        // Assert
+        Assert.StartsWith($"genhub-{datePrefix}-", fileName);
+        Assert.EndsWith(".log", fileName);
+        Assert.Contains(versionSuffix, fileName);
+    }
+
+    /// <summary>
+    /// Verifies GetVersionFileSuffix returns a non-empty string starting with v.
+    /// </summary>
+    [Fact]
+    public void GetVersionFileSuffix_ReturnsFormattedSuffix()
+    {
+        // Act
+        var suffix = LoggingModule.GetVersionFileSuffix();
+
+        // Assert
+        Assert.False(string.IsNullOrWhiteSpace(suffix));
+        Assert.StartsWith("v", suffix);
+    }
+
     private static IConfigurationProviderService CreateMockConfigProvider()
     {
         var mock = new Mock<IConfigurationProviderService>();
