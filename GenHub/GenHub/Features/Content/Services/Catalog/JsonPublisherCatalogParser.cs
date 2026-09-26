@@ -349,7 +349,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     private static bool IsValidOwnerRepo(string repo)
     {
         var parts = repo.Split('/');
-        return parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]);
+        return parts.Length == 2 && parts.All(part => part.Length > 0 && part.All(c => !char.IsWhiteSpace(c)));
     }
 
     private void ValidateContentItems(PublisherCatalog catalog, List<string> errors)

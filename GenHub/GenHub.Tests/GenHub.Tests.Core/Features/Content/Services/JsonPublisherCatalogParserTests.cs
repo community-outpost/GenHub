@@ -341,6 +341,45 @@ public sealed class JsonPublisherCatalogParserTests
         Assert.Contains(bundle.BundledItems, d => d.ContentId == "competitive-hotkeys");
     }
 
+    /// <summary>
+    /// Upstream GitHub items with whitespace in owner or repository identifier must fail validation.
+    /// </summary>
+    /// <param name="invalidRepo">The invalid repository string with whitespace.</param>
+    [Theory]
+    [InlineData("owner/ repo")]
+    [InlineData("owner/repo\n")]
+    [InlineData(" owner/repo")]
+    [InlineData("owner /repo")]
+    [InlineData("owner/")]
+    [InlineData("/repo")]
+    public void ValidateCatalog_GitHubUpstreamRepository_WhitespaceRejected(string invalidRepo)
+    {
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "item-gh",
+                    Name = "GitHub Item",                    ContentType = ContentType.GameClient,
+                    UpstreamSync = new CatalogUpstreamSync
+                    {
+                        Provider = "github-releases",
+                        Repository = invalidRepo,
+                    },
+                },
+            ],
+        };
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = parser.ValidateCatalog(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("must declare a valid repository in 'owner/repo' format", StringComparison.Ordinal));
+    }
+
     private static string FindCommunityCompetitiveCatalogPath()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
