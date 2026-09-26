@@ -497,7 +497,11 @@ public class CatalogUpstreamIngestionService(
             }
         }
 
-        downloadUrl ??= matched.SelectedDownloadUrl ?? matched.SourceUrl;
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            downloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl;
+        }
+
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
             logger.LogWarning("{Provider} item '{ItemId}' has no usable download URL, keeping existing releases", providerDisplayName, itemId);

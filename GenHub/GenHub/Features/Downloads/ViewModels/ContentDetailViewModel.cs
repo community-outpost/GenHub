@@ -5174,7 +5174,11 @@ public partial class ContentDetailViewModel(
                         await profileManager.ScrubDeletedManifestReferencesAsync([oldManifestId], cancellationToken);
                     }
 
-                    contentStateService.NotifyStateChanged(originalContentId, ContentState.NotDownloaded, oldManifestId);
+                    // The replacement manifest is already downloaded and mapped to the original
+                    // content ID, so re-affirm Downloaded instead of broadcasting NotDownloaded:
+                    // the latter would drop the fresh session mapping and flip open views bound
+                    // to the old manifest even though the replacement is installed.
+                    contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, newManifestId);
                 }
             }
             catch (Exception ex)

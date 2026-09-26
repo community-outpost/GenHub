@@ -1,14 +1,21 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Catalog;
+using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -278,5 +285,78 @@ public sealed class CatalogUpstreamIngestionServiceTests
         // Since no artifacts matched due to invalid pattern, existing release is preserved
         Assert.Single(item.Releases);
         Assert.Equal("0.9.0", item.Releases[0].Version);
+    }
+
+    /// <summary>
+    /// Tests that a blank portable URL falls back to the selected download URL instead of skipping the release.
+    /// </summary>
+    /// <param name="portableUrl">The blank portable URL to test.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task IngestCatalogAsync_BlankPortableUrl_FallsBackToSelectedDownloadUrlAsync(string? portableUrl)
+    {
+        const string fallbackUrl = "https://generals-online.test/downloads/client.zip";
+        var discovered = new ContentSearchResult
+        {
+            Id = "go-client",
+            Name = "Generals Online Client",
+            Version = "1.0.0",
+            SelectedDownloadUrl = fallbackUrl,
+            SourceUrl = "https://generals-online.test/client",
+            Data = new GeneralsOnlineRelease
+            {
+                Version = "010100_QFE1",
+                PortableUrl = portableUrl!,
+            },
+        };
+
+        var discoverer = new StubGeneralsOnlineDiscoverer(
+            new ContentDiscoveryResult { Items = [discovered] });
+        var service = new CatalogUpstreamIngestionService(
+            _gitHubClientMock.Object,
+            NullLogger<CatalogUpstreamIngestionService>.Instance,
+            generalsOnlineDiscoverer: discoverer);
+
+        var item = new CatalogContentItem
+        {
+            Id = "go-client",
+            Name = "Generals Online Client",
+            ContentType = ContentType.GameClient,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GeneralsOnline,
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        var artifact = Assert.Single(Assert.Single(item.Releases).Artifacts);
+        Assert.Equal(fallbackUrl, artifact.DownloadUrl);
+    }
+
+    private sealed class StubGeneralsOnlineDiscoverer(ContentDiscoveryResult result) : GeneralsOnlineDiscoverer(
+        NullLogger<GeneralsOnlineDiscoverer>.Instance,
+        Mock.Of<IProviderDefinitionLoader>(),
+        Mock.Of<ICatalogParserFactory>(),
+        Mock.Of<IHttpClientFactory>(),
+        null)
+    {
+        public override Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+            ContentSearchQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(OperationResult<ContentDiscoveryResult>.CreateSuccess(result));
+        }
     }
 }

@@ -283,6 +283,68 @@ public sealed class JsonPublisherCatalogParserTests
     }
 
     /// <summary>
+    /// Bundled items with null or blank content IDs must fail validation.
+    /// </summary>
+    /// <param name="contentId">The blank content ID to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ValidateCatalog_BundleWithBlankBundledContentId_Fails(string? contentId)
+    {
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "bundle-a",
+                    Name = "Bundle A",
+                    ContentType = ContentType.ContentBundle,
+                    BundledItems = [new CatalogDependency { ContentId = contentId! }],
+                },
+            ],
+        };
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = parser.ValidateCatalog(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("missing content IDs", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Null bundled item entries must fail validation.
+    /// </summary>
+    [Fact]
+    public void ValidateCatalog_BundleWithNullBundledEntry_Fails()
+    {
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "bundle-a",
+                    Name = "Bundle A",
+                    ContentType = ContentType.ContentBundle,
+                    BundledItems = [null!],
+                },
+            ],
+        };
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = parser.ValidateCatalog(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("missing content IDs", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// VerifySignature returns true and warns when a signature is present but unconfigured.
     /// </summary>
     [Fact]

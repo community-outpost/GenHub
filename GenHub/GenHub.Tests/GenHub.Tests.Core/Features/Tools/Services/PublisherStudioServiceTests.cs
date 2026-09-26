@@ -722,6 +722,47 @@ public class PublisherStudioServiceTests
     }
 
     /// <summary>
+    /// Verifies that ValidateCatalogAsync fails for bundles with null or blank bundled content IDs,
+    /// mirroring the parser-side rule so Studio cannot save catalogs that fail to load.
+    /// </summary>
+    /// <param name="contentId">The blank content ID to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ValidateCatalogAsync_BundleWithBlankBundledContentId_ReturnsFailureAsync(string? contentId)
+    {
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile
+            {
+                Id = "test-publisher",
+                Name = "Test Publisher",
+            },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "competitive-bundle",
+                    Name = "Competitive Bundle",
+                    ContentType = ContentType.ContentBundle,
+                    Releases = [],
+                    BundledItems =
+                    [
+                        new CatalogDependency { ContentId = contentId! },
+                    ],
+                },
+            ],
+        };
+
+        var result = await _service.ValidateCatalogAsync(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains("missing content IDs", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Verifies that ValidateCatalogAsync fails for zero-release items with an unsupported or typo publisher type.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

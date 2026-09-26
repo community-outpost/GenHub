@@ -545,6 +545,11 @@ public class PublisherStudioService(
             return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has no bundled items");
         }
 
+        if (content.BundledItems != null && content.BundledItems.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)))
+        {
+            return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has bundled items with missing content IDs");
+        }
+
         return OperationResult<bool>.CreateSuccess(true);
     }
 
