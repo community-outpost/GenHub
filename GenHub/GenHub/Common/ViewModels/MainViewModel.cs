@@ -47,6 +47,7 @@ namespace GenHub.Common.ViewModels;
 /// <param name="infoViewModel">Info view model.</param>
 /// <param name="logger">Logger instance.</param>
 /// <param name="localizationService">The optional localization service.</param>
+/// <param name="linkActivationTracker">The optional tracker that reports whether this session was opened to handle a link.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "MainViewModel is the top-level composition ViewModel for tabs and services injected via dependency injection.")]
 public partial class MainViewModel(
     GameProfileLauncherViewModel gameProfilesViewModel,
@@ -62,7 +63,8 @@ public partial class MainViewModel(
     NotificationFeedViewModel notificationFeedViewModel,
     InfoViewModel infoViewModel,
     ILogger<MainViewModel> logger,
-    ILocalizationService? localizationService = null) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
+    ILocalizationService? localizationService = null,
+    ILinkActivationTracker? linkActivationTracker = null) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
 {
     private readonly CancellationTokenSource _initializationCts = new();
     private bool _disposed;
@@ -267,6 +269,12 @@ public partial class MainViewModel(
         {
             Dispatcher.UIThread.Post(async () =>
             {
+                if (linkActivationTracker?.HasReceivedLink == true)
+                {
+                    logger?.LogInformation("Deferring the Getting Started dialog because this session was opened to handle a link");
+                    return;
+                }
+
                 var actions = new[]
                 {
                     new DialogAction

@@ -74,6 +74,7 @@ public partial class App : Application
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
     private readonly ITelemetryService? _telemetryService;
+    private readonly ILinkActivationTracker? _linkActivationTracker;
     private readonly TaskCompletionSource<MainWindow> _mainWindowReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly SemaphoreSlim _urlActivationLock = new(1, 1);
     private bool _startupArgsHandled;
@@ -96,6 +97,7 @@ public partial class App : Application
         _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
         _themeService = _serviceProvider.GetService<IThemeService>();
         _telemetryService = _serviceProvider.GetService<ITelemetryService>();
+        _linkActivationTracker = _serviceProvider.GetService<ILinkActivationTracker>();
     }
 
     /// <summary>
@@ -300,11 +302,13 @@ public partial class App : Application
         }
 
         logger?.LogInformation("Received URL activation for {Scheme} link", uri.Scheme);
+        _linkActivationTracker?.RecordLink();
 
         var mainWindow = await _mainWindowReady.Task;
         await _urlActivationLock.WaitAsync();
         try
         {
+            WindowActivation.BringToFrontForUserRequest(mainWindow);
             string[] args = [uri.OriginalString];
             await HandleSubscriptionArgsAsync(args, mainWindow);
             await HandleImportProfileArgsAsync(args, mainWindow);
@@ -411,6 +415,11 @@ public partial class App : Application
 
         return null;
     }
+
+    private static bool ContainsLink(string[] args) =>
+        !string.IsNullOrWhiteSpace(CommandLineParser.ExtractSubscriptionUrl(args)) ||
+        !string.IsNullOrWhiteSpace(CommandLineParser.ExtractProfileShareUri(args)) ||
+        !string.IsNullOrWhiteSpace(CommandLineParser.ExtractToolShareUri(args));
 
     private static bool IsAllowedSubscriptionScheme(Uri uri)
     {
@@ -537,6 +546,11 @@ public partial class App : Application
         }
 
         _startupArgsHandled = true;
+        if (ContainsLink(args))
+        {
+            _linkActivationTracker?.RecordLink();
+        }
+
         await HandleLaunchProfileArgsAsync(args, mainWindow);
         await HandleSubscriptionArgsAsync(args, mainWindow);
         await HandleImportProfileArgsAsync(args, mainWindow);
@@ -661,6 +675,7 @@ public partial class App : Application
         {
             var subscriptionUrl = command[IpcCommands.SubscribePrefix.Length..];
             logger?.LogInformation("Received IPC subscribe command for URL: {Url}", subscriptionUrl);
+            BringForwardForLink(mainWindow);
 
             // Handle the subscription URL
             SafeFireAndForget(HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow), nameof(HandleSubscriptionUrlAsync));
@@ -669,6 +684,7 @@ public partial class App : Application
         {
             var shareUri = command[IpcCommands.ImportProfilePrefix.Length..];
             logger?.LogInformation("Received IPC profile import command");
+            BringForwardForLink(mainWindow);
 
             // Handle profile import
             SafeFireAndForget(HandleImportProfileUriAsync(shareUri, mainWindow), nameof(HandleImportProfileUriAsync));
@@ -677,6 +693,7 @@ public partial class App : Application
         {
             var shareUri = command[IpcCommands.ImportMapPrefix.Length..];
             logger?.LogInformation("Received IPC map import command");
+            BringForwardForLink(mainWindow);
 
             // Handle map share import
             SafeFireAndForget(HandleToolImportUriAsync(shareUri, mainWindow), nameof(HandleToolImportUriAsync));
@@ -685,6 +702,7 @@ public partial class App : Application
         {
             var shareUri = command[IpcCommands.ImportReplayPrefix.Length..];
             logger?.LogInformation("Received IPC replay import command");
+            BringForwardForLink(mainWindow);
 
             // Handle replay share import
             SafeFireAndForget(HandleToolImportUriAsync(shareUri, mainWindow), nameof(HandleToolImportUriAsync));
@@ -692,17 +710,18 @@ public partial class App : Application
         else if (string.Equals(command, IpcCommands.ActivateCommand, StringComparison.OrdinalIgnoreCase))
         {
             logger?.LogInformation("Received IPC activate command");
-            if (mainWindow.WindowState == WindowState.Minimized)
-            {
-                mainWindow.WindowState = WindowState.Normal;
-            }
-
-            mainWindow.Activate();
+            WindowActivation.BringToFrontForUserRequest(mainWindow);
         }
         else
         {
             logger?.LogWarning("Unknown IPC command received: {Command}", command);
         }
+    }
+
+    private void BringForwardForLink(MainWindow mainWindow)
+    {
+        _linkActivationTracker?.RecordLink();
+        WindowActivation.BringToFrontForUserRequest(mainWindow);
     }
 
     private async Task HandleImportProfileUriAsync(string shareUriOrPath, MainWindow mainWindow)
@@ -726,12 +745,6 @@ public partial class App : Application
         var launcherViewModel = _serviceProvider.GetService<GameProfileLauncherViewModel>();
         if (launcherViewModel != null)
         {
-            if (mainWindow.WindowState == WindowState.Minimized)
-            {
-                mainWindow.WindowState = WindowState.Normal;
-            }
-
-            mainWindow.Activate();
             await launcherViewModel.ImportProfileFromFileOrUriAsync(trimmed);
         }
         else
@@ -756,12 +769,6 @@ public partial class App : Application
             return;
         }
 
-        if (mainWindow.WindowState == WindowState.Minimized)
-        {
-            mainWindow.WindowState = WindowState.Normal;
-        }
-
-        mainWindow.Activate();
         mainViewModel.SelectTab(NavigationTab.Tools);
 
         bool isMap = target.ToolCommand.Equals(CommandLineConstants.MapCommand, StringComparison.OrdinalIgnoreCase);

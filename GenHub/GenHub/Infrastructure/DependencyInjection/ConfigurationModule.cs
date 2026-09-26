@@ -73,6 +73,7 @@ public static class ConfigurationModule
             (provider.GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).CreateLogger<ThemeService>());
         services.AddSingleton<ISessionPreferenceService, SessionPreferenceService>();
         services.AddSingleton<IDialogService, DialogService>();
+        services.AddSingleton<ILinkActivationTracker, LinkActivationTracker>();
         services.AddSingleton<IAppConfiguration>(provider =>
         {
             var config = provider.GetService<IConfiguration>();
