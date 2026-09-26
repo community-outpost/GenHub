@@ -8,6 +8,7 @@ using GenHub.Features.Info.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Info.Views;
 
@@ -352,8 +353,10 @@ public partial class GenHubInfoSectionView : UserControl
         }
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as instance method to satisfy StyleCop member ordering rules")]
     private void ExpandCardAndTarget(InfoCardViewModel card)
     {
+        _ = this;
         if (card.IsExpandable && !card.IsExpanded)
         {
             card.IsExpanded = true;
