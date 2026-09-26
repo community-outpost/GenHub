@@ -35,7 +35,7 @@ public class ProfileVerificationFileSetService(
         ArgumentNullException.ThrowIfNull(profile);
 
         var (manifests, hasMissingManifests) = await CollectManifestsAsync(profile, cancellationToken).ConfigureAwait(false);
-        var allowedBasePaths = CollectBasePaths(manifests);
+        var allowedBasePaths = CollectAllowedBasePaths(manifests);
         var (overlayPaths, overlaysComplete) = await CollectOverlayPathsAsync(manifests, cancellationToken).ConfigureAwait(false);
 
         return new ProfileVerificationFileSet(
@@ -44,11 +44,14 @@ public class ProfileVerificationFileSetService(
             !hasMissingManifests && overlaysComplete);
     }
 
-    private static HashSet<string> CollectBasePaths(IReadOnlyList<ContentManifest> manifests)
+    private static HashSet<string> CollectAllowedBasePaths(IReadOnlyList<ContentManifest> manifests)
     {
+        // Union installation, client, and enabled overlay files: overlay content
+        // materializes as loose workspace files the engine loads, so hiding those paths
+        // would let modified rules verify as retail. Entries the CRC never reads
+        // (non-INI, non-archive files) are harmless here.
         var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in manifests
-            .Where(IsBaseManifest)
             .SelectMany(manifest => ManifestVariantResolver.ResolveFiles(manifest))
             .Where(file => !string.IsNullOrWhiteSpace(file.RelativePath)))
         {
@@ -57,9 +60,6 @@ public class ProfileVerificationFileSetService(
 
         return allowed;
     }
-
-    private static bool IsBaseManifest(ContentManifest manifest) =>
-        manifest.ContentType == ContentType.GameInstallation || manifest.ContentType == ContentType.GameClient;
 
     private static bool IsBigArchive(string? relativePath)
     {

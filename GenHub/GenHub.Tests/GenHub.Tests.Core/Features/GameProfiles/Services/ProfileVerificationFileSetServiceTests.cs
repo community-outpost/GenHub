@@ -114,6 +114,32 @@ public sealed class ProfileVerificationFileSetServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that loose INI files from enabled overlay manifests join the allowed set so
+    /// workspace-materialized rules participate in the scoped CRC instead of verifying as retail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetVerificationFileSetAsync_WithOverlayLooseIni_IncludesItInAllowedBasePaths()
+    {
+        RegisterManifest(CreateManifest(
+            InstallManifestId,
+            ContentType.GameInstallation,
+            ("INIZH.big", null, ValidHash)));
+        RegisterManifest(CreateManifest(
+            ModManifestId,
+            ContentType.Mod,
+            ("Data/INI/ExtraMod.ini", null, ValidHash)));
+        var profile = CreateProfile(ClientManifestId, InstallManifestId, ModManifestId);
+
+        var result = await _service.GetVerificationFileSetAsync(profile);
+
+        Assert.NotNull(result.AllowedBaseRelativePaths);
+        Assert.Contains("INIZH.big", result.AllowedBaseRelativePaths);
+        Assert.Contains("Data/INI/ExtraMod.ini", result.AllowedBaseRelativePaths);
+        Assert.True(result.IsComplete);
+    }
+
+    /// <summary>
     /// Verifies that base paths come from the resolved variant rather than the flat file list.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

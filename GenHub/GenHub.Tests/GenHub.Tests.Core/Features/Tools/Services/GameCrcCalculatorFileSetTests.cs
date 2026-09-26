@@ -106,6 +106,35 @@ public sealed class GameCrcCalculatorFileSetTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an allow-listed loose INI participates in the calculated CRC.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CalculateIniCrcAsync_WithAllowListedLooseIni_IncludesLooseRules()
+    {
+        BigArchiveFixture.Write(
+            Path.Combine(_tempRoot, "Retail.big"),
+            ("Data\\INI\\GameData.ini", "GameData retail body"));
+        var looseDir = Path.Combine(_tempRoot, "Data", "INI");
+        Directory.CreateDirectory(looseDir);
+        await File.WriteAllTextAsync(Path.Combine(looseDir, "AIData.ini"), "AIData loose body");
+
+        var service = new GameCrcCalculatorService();
+        var baseOnly = await service.CalculateIniCrcAsync(
+            _tempRoot,
+            GameType.ZeroHour,
+            allowedBaseRelativePaths: ["Retail.big"]);
+        var unioned = await service.CalculateIniCrcAsync(
+            _tempRoot,
+            GameType.ZeroHour,
+            allowedBaseRelativePaths: ["Retail.big", "Data/INI/AIData.ini"]);
+
+        Assert.True(baseOnly.Success);
+        Assert.True(unioned.Success);
+        Assert.NotEqual(baseOnly.Data, unioned.Data);
+    }
+
+    /// <summary>
     /// Verifies that overlay mod archives feed the calculated CRC.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

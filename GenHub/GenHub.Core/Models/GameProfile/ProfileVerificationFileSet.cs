@@ -7,8 +7,8 @@ namespace GenHub.Core.Models.GameProfile;
 /// base files plus locally resolved profile overlay archives.
 /// </summary>
 /// <param name="AllowedBaseRelativePaths">
-/// Game-root-relative base file paths named by the profile's installation and client manifests,
-/// or <c>null</c> when no base manifest could be resolved (scan the folder unfiltered).
+/// Game-root-relative file paths named by the profile's installation, client, and enabled
+/// content manifests, or <c>null</c> when no manifest could be resolved (scan the folder unfiltered).
 /// </param>
 /// <param name="OverlayModPaths">
 /// Absolute local paths of enabled content archives to mount with top override priority,
