@@ -124,20 +124,16 @@ public partial class GameProfileSettingsViewModel
 
                 _logger?.LogInformation("Added dropped local content via dialog: {Name}", contentItem.DisplayName);
 
-                StatusMessage = $"Added {contentItem.DisplayName}";
+                NotifyLocalContentAdded(contentItem.DisplayName);
                 await EnableContentInternal(contentItem, bypassLoadingGuard: true);
 
                 await RefreshFiltersAndContentAsync();
-
-                _localNotificationService?.ShowSuccess(
-                     "Content Added",
-                     $"\"{contentItem.DisplayName}\" has been added successfully.");
             }
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error importing dropped files into Add Local Content dialog");
-            StatusMessage = "Error importing dropped files";
+            StatusMessage = _localizationService?.GetString("GameProfiles.Settings.LocalContent.ImportError") ?? "Error importing dropped files";
         }
     }
 
@@ -1156,6 +1152,22 @@ public partial class GameProfileSettingsViewModel
         _logger?.LogInformation("Selected cover: {DisplayName} ({Path})", cover.DisplayName, cover.Path);
     }
 
+    /// <summary>
+    /// Reports a newly added local content item via status and toast notification using shared localized strings.
+    /// </summary>
+    /// <param name="displayName">The display name of the added content item.</param>
+    private void NotifyLocalContentAdded(string displayName)
+    {
+        var addedStatusFormat = _localizationService?.GetString("GameProfiles.Settings.LocalContent.AddedStatus") ?? "Added {0}";
+        StatusMessage = string.Format(CultureInfo.CurrentCulture, addedStatusFormat, displayName);
+
+        var addedTitle = _localizationService?.GetString("GameProfiles.Settings.LocalContent.AddedTitle") ?? "Content Added";
+        var addedMessageFormat = _localizationService?.GetString("GameProfiles.Settings.LocalContent.AddedMessage") ?? "\"{0}\" has been added successfully.";
+        _localNotificationService?.ShowSuccess(
+             addedTitle,
+             string.Format(CultureInfo.CurrentCulture, addedMessageFormat, displayName));
+    }
+
     [RelayCommand]
     private async Task BrowseForCustomIconAsync()
     {
@@ -1414,15 +1426,11 @@ public partial class GameProfileSettingsViewModel
 
                 _logger?.LogInformation("Added local content via dialog: {Name}", contentItem.DisplayName);
 
-                StatusMessage = $"Added {contentItem.DisplayName}";
+                NotifyLocalContentAdded(contentItem.DisplayName);
                 await EnableContentInternal(contentItem, bypassLoadingGuard: true);
 
                 // Refresh filters and content to ensure new type appears and list updates
                 await RefreshFiltersAndContentAsync();
-
-                _localNotificationService?.ShowSuccess(
-                     "Content Added",
-                     $"'{contentItem.DisplayName}' has been added successfully.");
             }
         }
         catch (Exception ex)

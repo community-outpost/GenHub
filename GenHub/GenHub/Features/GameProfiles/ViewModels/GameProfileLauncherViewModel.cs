@@ -2910,6 +2910,6 @@ public partial class GameProfileLauncherViewModel(
             return (GameType.Generals, ContentType.GameClient);
         }
 
-        return (GameType.ZeroHour, ContentType.Executable);
+        return null;
     }
 }

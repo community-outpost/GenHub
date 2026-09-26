@@ -34,33 +34,16 @@ public class MapTypeDisplayConverter : IValueConverter
         var tgaLabel = LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.MapManager.Type.Tga", "TGA");
         var txtLabel = LocalizationConverterHelper.GetLocalizedOrDefault(localizationService, "Tools.MapManager.Type.Txt", "Txt");
 
-        // If it's identified as a raw ZIP archive (not a directory bundle), just say "Archive"
-        if (!mapFile.IsDirectory && mapFile.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        var labelsByPart = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            return archiveLabel;
-        }
+            ["Archive"] = archiveLabel,
+            ["Map"] = mapLabel,
+            ["Ini"] = iniLabel,
+            ["Tga"] = tgaLabel,
+            ["Txt"] = txtLabel,
+        };
 
-        var parts = new List<string> { mapLabel };
-
-        if (mapFile.AssetFiles != null)
-        {
-            if (mapFile.AssetFiles.Any(f => f.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)))
-            {
-                parts.Add(iniLabel);
-            }
-
-            if (mapFile.AssetFiles.Any(f => f.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
-            {
-                parts.Add(tgaLabel);
-            }
-
-            if (mapFile.AssetFiles.Any(f => f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)))
-            {
-                parts.Add(txtLabel);
-            }
-        }
-
-        return string.Join(" + ", parts);
+        return string.Join(" + ", mapFile.MapTypeParts.Select(part => labelsByPart.TryGetValue(part, out var label) ? label : part));
     }
 
     /// <summary>

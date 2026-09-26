@@ -14497,4 +14497,19 @@ How do you want to apply this update?</value>
   <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
     <value>The new profile order could not be saved and the previous order was restored.</value>
   </data>
+  <data name="GameProfiles.Status.ContentServicesUnavailable" xml:space="preserve">
+    <value>Content services unavailable</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedStatus" xml:space="preserve">
+    <value>Added {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedTitle" xml:space="preserve">
+    <value>Content Added</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.AddedMessage" xml:space="preserve">
+    <value>"{0}" has been added successfully.</value>
+  </data>
+  <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
+    <value>Error importing dropped files</value>
+  </data>
 </root>

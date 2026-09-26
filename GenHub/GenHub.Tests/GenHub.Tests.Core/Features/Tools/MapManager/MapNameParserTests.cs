@@ -185,6 +185,38 @@ public sealed class MapNameParserTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that <see cref="MapFile.MapTypeSortKey"/> matches the displayed composite classification.
+    /// </summary>
+    [Fact]
+    public void MapFile_SortKey_MatchesDisplayedClassification()
+    {
+        var composite = new MapFile
+        {
+            FileName = "Mountain_Pass",
+            FullPath = "/test/Mountain_Pass",
+            SizeBytes = 4096,
+            GameType = GameType.ZeroHour,
+            LastModified = DateTime.UtcNow,
+            IsDirectory = true,
+            AssetFiles = ["/test/Mountain_Pass/map.ini", "/test/Mountain_Pass/art.tga"],
+        };
+
+        Assert.Equal("Map + Ini + Tga", composite.MapTypeSortKey);
+
+        var archive = new MapFile
+        {
+            FileName = "TestPack.zip",
+            FullPath = "/test/TestPack.zip",
+            SizeBytes = 2048,
+            GameType = GameType.ZeroHour,
+            LastModified = DateTime.UtcNow,
+            IsDirectory = false,
+        };
+
+        Assert.Equal("Archive", archive.MapTypeSortKey);
+    }
+
+    /// <summary>
     /// Verifies that <see cref="ReplayFile"/> exposes player count, names, and checksums from metadata.
     /// </summary>
     [Fact]

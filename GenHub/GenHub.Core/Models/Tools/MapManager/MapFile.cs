@@ -4,6 +4,7 @@ using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace GenHub.Core.Models.Tools.MapManager;
@@ -93,6 +94,47 @@ public class MapFile : INotifyPropertyChanged
     /// Gets the formatted display text for the number of players.
     /// </summary>
     public string FormattedPlayerCount => PlayerCount is > 0 ? PlayerCount.Value.ToString() : "-";
+
+    /// <summary>
+    /// Gets the invariant asset-type parts classifying this map (e.g. Map, Ini, Tga, or Archive).
+    /// This is the single classification source shared by display and sorting.
+    /// </summary>
+    public IReadOnlyList<string> MapTypeParts
+    {
+        get
+        {
+            if (!IsDirectory && FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return ["Archive"];
+            }
+
+            var parts = new List<string> { "Map" };
+            if (AssetFiles != null)
+            {
+                if (AssetFiles.Any(f => f.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)))
+                {
+                    parts.Add("Ini");
+                }
+
+                if (AssetFiles.Any(f => f.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
+                {
+                    parts.Add("Tga");
+                }
+
+                if (AssetFiles.Any(f => f.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)))
+                {
+                    parts.Add("Txt");
+                }
+            }
+
+            return parts;
+        }
+    }
+
+    /// <summary>
+    /// Gets the sort key matching the displayed map type classification.
+    /// </summary>
+    public string MapTypeSortKey => string.Join(" + ", MapTypeParts);
 
     /// <summary>
     /// Gets the display text for the map format or type.

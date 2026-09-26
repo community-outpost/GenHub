@@ -1234,7 +1234,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    private async Task OnContentTypeChangedAsync() => await LoadAvailableContentAsync();
+    private async Task OnContentTypeChangedAsync()
+    {
+        await LoadAvailableContentAsync();
+        LoadAvailableIconsAndCovers(GameTypeFilter.ToString());
+    }
 
     private async Task EnableContentInternal(
         ContentDisplayItem? contentItem,
