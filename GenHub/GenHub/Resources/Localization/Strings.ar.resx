@@ -8192,6 +8192,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
     <value>فشل الاستيراد: {0}</value>
   </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>لم يتم العثور على ملفات خرائط لاستيرادها.</value>
+  </data>
   <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
     <value>خطأ في الاستيراد</value>
   </data>

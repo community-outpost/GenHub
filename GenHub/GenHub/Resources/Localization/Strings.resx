@@ -8290,6 +8290,9 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
     <value>Import failed: {0}</value>
   </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>No map files were found to import.</value>
+  </data>
   <data name="Tools.ReplayManager.Notify.ImportErrorTitle" xml:space="preserve">
     <value>Import Error</value>
   </data>
