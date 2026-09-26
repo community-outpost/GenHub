@@ -892,6 +892,50 @@ public class ReplayCrcMatchingHelperTests
     }
 
     /// <summary>
+    /// Verifies that a profile specifying a relative CustomExecutablePath resolves against the working directory.
+    /// </summary>
+    [Fact]
+    public void IsRetailCompatible_WithRelativeCustomExecutable_ResolvesAgainstWorkingDirectory()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_RelCustomExe_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, "custom.exe");
+        File.WriteAllText(exePath, "non retail binary data");
+
+        try
+        {
+            var client = new GameClient
+            {
+                Id = "1.04.ea.game.zerohour",
+                Name = "Zero Hour 1.04",
+                Version = "1.04",
+                PublisherType = PublisherTypeConstants.Ea,
+                GameType = GameType.ZeroHour,
+                WorkingDirectory = tempDir,
+            };
+
+            var profile = new GameProfile
+            {
+                Id = "profile-relative-exe",
+                Name = "Relative Custom Exe Profile",
+                GameClient = client,
+                WorkingDirectory = tempDir,
+                CustomExecutablePath = "custom.exe",
+            };
+
+            // Custom exe exists via relative path but is non-retail binary, so it must return false
+            Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(profile));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that an official publisher client with empty version metadata is not assumed to be retail.
     /// </summary>
     [Fact]
