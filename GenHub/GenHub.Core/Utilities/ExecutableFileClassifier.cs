@@ -303,7 +303,7 @@ public static class ExecutableFileClassifier
         }
 
         var suffix = fileName[(versioned + ContentFormatConstants.VersionedSharedLibraryMarker.Length)..];
-        return suffix.Length > 0 && suffix.All(c => char.IsAsciiDigit(c) || c == '.');
+        return suffix.Any(char.IsAsciiDigit) && suffix.All(c => char.IsAsciiDigit(c) || c == '.');
     }
 
     /// <summary>

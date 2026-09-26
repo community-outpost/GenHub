@@ -117,6 +117,8 @@ public class ExecutableFileClassifierTests : IDisposable
     [InlineData("resources.sound", false)]
     [InlineData("libfoo.so.txt", false)]
     [InlineData("libfoo.so.", false)]
+    [InlineData("libfoo.so..", false)]
+    [InlineData("libfoo.so...", false)]
     [InlineData("libfoo.sox", false)]
     [InlineData("INIZH.big", false)]
     [InlineData("", false)]
