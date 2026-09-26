@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -983,6 +984,142 @@ public class ReplayCrcMatchingHelperTests
         Assert.False(ReplayCrcMatchingHelper.HasNonRetailContent(Array.Empty<string>()));
     }
 
+    /// <summary>
+    /// Verifies that async verification returns false when no verification directory can be
+    /// resolved, even for an official client and even when a CRC calculator is available.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_WithMissingVerificationDirectory_ReturnsFalse()
+    {
+        var missingDir = Path.Combine(Path.GetTempPath(), "GenHub_Missing_" + Guid.NewGuid().ToString("N"));
+        var client = new GameClient
+        {
+            Id = "1.104.steam.gameclient.zerohour",
+            Name = "Command & Conquer Generals Zero Hour (Steam)",
+            PublisherType = PublisherTypeConstants.Steam,
+            Version = "1.04",
+            GameType = GameType.ZeroHour,
+            ExecutablePath = Path.Combine(missingDir, "generals.exe"),
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "test-profile-missing-dir",
+            Name = "Missing Directory Profile",
+            GameClient = client,
+            WorkingDirectory = missingDir,
+        };
+
+        var mockCalculator = new Mock<IGameCrcCalculatorService>();
+        mockCalculator
+            .Setup(c => c.CalculateIniCrcAsync(
+                It.IsAny<string>(),
+                GameType.ZeroHour,
+                It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
+
+        Assert.False(await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object));
+        mockCalculator.Verify(
+            c => c.CalculateIniCrcAsync(
+                It.IsAny<string>(),
+                GameType.ZeroHour,
+                It.IsAny<IReadOnlyList<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a matching live retail INI CRC decides async compatibility even when the
+    /// official client carries no version metadata.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_OfficialClientEmptyVersionWithRetailIniCrc_ReturnsTrue()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_AsyncEmptyVer_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, "generals.exe");
+        await File.WriteAllTextAsync(exePath, "dummy binary");
+
+        try
+        {
+            var profile = new GameProfile
+            {
+                Id = "test-profile-empty-ver",
+                Name = "Empty Version Profile",
+                GameClient = new GameClient
+                {
+                    Id = "steam",
+                    Name = "Command & Conquer Generals Zero Hour (Steam)",
+                    PublisherType = PublisherTypeConstants.Steam,
+                    Version = string.Empty,
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = exePath,
+                },
+            };
+
+            var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            mockCalculator
+                .Setup(c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
+
+            Assert.True(await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that custom executable validation applies to any <see cref="IGameProfile"/>
+    /// implementation, not just the concrete <see cref="GameProfile"/> type.
+    /// </summary>
+    [Fact]
+    public void IsRetailCompatible_WithNonGameProfileImplementation_ValidatesCustomExecutable()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_FakeProfile_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var customExePath = Path.Combine(tempDir, "custom.exe");
+        File.WriteAllText(customExePath, "non retail binary data");
+
+        try
+        {
+            var client = new GameClient
+            {
+                Id = "1.104.steam.gameclient.zerohour",
+                Name = "Command & Conquer Generals Zero Hour (Steam)",
+                PublisherType = PublisherTypeConstants.Steam,
+                Version = "1.04",
+                GameType = GameType.ZeroHour,
+                ExecutablePath = Path.Combine(tempDir, "generals.exe"),
+            };
+
+            // A skipped custom executable check would report this official client as retail.
+            IGameProfile profile = new FakeGameProfile(client, customExePath, tempDir);
+            Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(profile));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
     private static async Task RunProfileIniCompatibilityScenarioAsync(
         string clientId,
         string clientName,
@@ -1033,5 +1170,32 @@ public class ReplayCrcMatchingHelperTests
                 Directory.Delete(tempDir, true);
             }
         }
+    }
+
+    /// <summary>
+    /// Minimal <see cref="IGameProfile"/> implementation that is not the concrete
+    /// <see cref="GameProfile"/> type, used to verify interface-based validation.
+    /// </summary>
+    private sealed class FakeGameProfile(GameClient gameClient, string? customExecutablePath, string? workingDirectory) : IGameProfile
+    {
+        public string Id => "fake-profile";
+
+        public string Name => "Fake Profile";
+
+        public GameClient? GameClient => gameClient;
+
+        public string Version => "1.04";
+
+        public string ExecutablePath => string.Empty;
+
+        public string? CustomExecutablePath => customExecutablePath;
+
+        public string? WorkingDirectory => workingDirectory;
+
+        public List<string> EnabledContentIds => [];
+
+        public WorkspaceStrategy? WorkspaceStrategy => null;
+
+        public string BuildInfo { get; set; } = string.Empty;
     }
 }

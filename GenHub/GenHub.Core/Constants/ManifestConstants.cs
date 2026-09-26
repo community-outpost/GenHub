@@ -240,6 +240,16 @@ public static class ManifestConstants
     public const string GameDataContentTypeName = "gamedata";
 
     /// <summary>
+    /// Content type name for mod segment.
+    /// </summary>
+    public const string ModContentTypeName = "mod";
+
+    /// <summary>
+    /// Content type name for patch segment.
+    /// </summary>
+    public const string PatchContentTypeName = "patch";
+
+    /// <summary>
     /// Version string for Generals game installation manifests.
     /// This represents the executable version 1.08.
     /// Note: When used in manifest IDs, dots are removed to create "108" for schema compliance.
@@ -405,6 +415,12 @@ public static class ManifestConstants
 
     /// <summary>Manifest ID segment for mod content.</summary>
     public const string ModManifestSegment = ".mod.";
+
+    /// <summary>Manifest ID prefix for mod content.</summary>
+    public const string ModManifestPrefix = "mod.";
+
+    /// <summary>Manifest ID suffix for mod content.</summary>
+    public const string ModManifestSuffix = ".mod";
 
     /// <summary>
     /// Threshold value for detecting date-based integer versions (e.g. 20260821 for YYYYMMDD format).

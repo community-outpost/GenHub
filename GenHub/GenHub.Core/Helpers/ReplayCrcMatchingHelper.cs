@@ -449,9 +449,9 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var customExe = (profile as GameProfile)?.CustomExecutablePath;
+        var customExe = profile.CustomExecutablePath;
 
-        var workingDir = (profile as GameProfile)?.WorkingDirectory;
+        var workingDir = profile.WorkingDirectory;
         if (string.IsNullOrWhiteSpace(workingDir))
         {
             workingDir = profile.GameClient.WorkingDirectory;
@@ -651,15 +651,15 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (!IsRetailCompatible(client, profile.EnabledContentIds))
-        {
-            return false;
-        }
-
         var targetDir = ResolveProfileVerificationDirectory(profile, client);
 
-        if (crcCalculator != null && !string.IsNullOrEmpty(targetDir) && Directory.Exists(targetDir))
+        if (crcCalculator != null)
         {
+            if (string.IsNullOrEmpty(targetDir) || !Directory.Exists(targetDir))
+            {
+                return false;
+            }
+
             return await CalculateAndVerifyIniCrcAsync(crcCalculator, targetDir, effectiveGameType, profile.Name, logger, ct).ConfigureAwait(false);
         }
 
@@ -1130,20 +1130,20 @@ public static class ReplayCrcMatchingHelper
         if (segments.Length >= 4)
         {
             var typeSegment = segments[3].Trim();
-            if (string.Equals(typeSegment, "mod", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(typeSegment, ManifestConstants.ModContentTypeName, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            return string.Equals(typeSegment, "patch", StringComparison.OrdinalIgnoreCase) &&
-                   (id.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
-                    id.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
-                    id.Contains("stream", StringComparison.OrdinalIgnoreCase));
+            return string.Equals(typeSegment, ManifestConstants.PatchContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+                   (id.Contains(CommunityOutpostConstants.NonRetKeyword, StringComparison.OrdinalIgnoreCase) ||
+                    id.Contains(CommunityOutpostConstants.NonRetHyphenatedKeyword, StringComparison.OrdinalIgnoreCase) ||
+                    id.Contains(CommunityOutpostConstants.StreamTag, StringComparison.OrdinalIgnoreCase));
         }
 
-        return id.Contains(".mod.", StringComparison.OrdinalIgnoreCase) ||
-               id.StartsWith("mod.", StringComparison.OrdinalIgnoreCase) ||
-               id.EndsWith(".mod", StringComparison.OrdinalIgnoreCase);
+        return id.Contains(ManifestConstants.ModManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+               id.StartsWith(ManifestConstants.ModManifestPrefix, StringComparison.OrdinalIgnoreCase) ||
+               id.EndsWith(ManifestConstants.ModManifestSuffix, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -1362,12 +1362,10 @@ public static class ReplayCrcMatchingHelper
                normalizedPub == PublisherTypeConstants.Ea ||
                normalizedPub == PublisherTypeConstants.EaApp ||
                normalizedPub == PublisherTypeConstants.Retail ||
-               normalizedPub == "electronic arts" ||
-               normalizedPub == "ea" ||
-               normalizedPub == "ea app" ||
-               normalizedPub == "eaapp" ||
-               normalizedPub == "thefirstdecade" ||
-               normalizedPub == "cdiso";
+               normalizedPub == PublisherTypeConstants.ElectronicArtsAlias ||
+               normalizedPub == PublisherTypeConstants.EaAppAlias ||
+               normalizedPub == InstallationSourceConstants.TheFirstDecade ||
+               normalizedPub == InstallationSourceConstants.CdIso;
     }
 
     private static bool IsCommunityOutpostRetailClient(GameClient? client)
