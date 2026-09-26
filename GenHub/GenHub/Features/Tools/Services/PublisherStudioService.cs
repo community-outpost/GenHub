@@ -446,13 +446,9 @@ public class PublisherStudioService(
 
     private static bool IsConfiguredUpstreamSource(CatalogContentItem content)
     {
-        if (content.UpstreamSync != null)
-        {
-            return string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ||
-                   CatalogConstants.UpstreamProviders.IsSupported(content.UpstreamSync.Provider);
-        }
-
-        return CatalogConstants.UpstreamProviders.IsSupported(content.PublisherType);
+        return content.UpstreamSync != null &&
+               (string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ||
+                CatalogConstants.UpstreamProviders.IsSupported(content.UpstreamSync.Provider));
     }
 
     private static OperationResult<bool> ValidateContentItem(
@@ -486,13 +482,13 @@ public class PublisherStudioService(
             return OperationResult<bool>.CreateSuccess(true);
         }
 
-        return ValidateSingleContentReleases(content, allowPendingArtifacts, isUpstreamTracked || isBundle, cancellationToken);
+        return ValidateSingleContentReleases(content, allowPendingArtifacts, isBundle, cancellationToken);
     }
 
     private static OperationResult<bool> ValidateSingleContentReleases(
         CatalogContentItem content,
         bool allowPendingArtifacts,
-        bool isUpstreamOrBundle,
+        bool isBundle,
         CancellationToken cancellationToken)
     {
         foreach (var release in content.Releases)
@@ -504,7 +500,7 @@ public class PublisherStudioService(
                 return OperationResult<bool>.CreateFailure($"Release in '{content.Name}' is missing a version");
             }
 
-            if (release.Artifacts.Count == 0 && !isUpstreamOrBundle)
+            if (release.Artifacts.Count == 0 && !isBundle)
             {
                 return OperationResult<bool>.CreateFailure($"Release {release.Version} in '{content.Name}' has no artifacts");
             }
