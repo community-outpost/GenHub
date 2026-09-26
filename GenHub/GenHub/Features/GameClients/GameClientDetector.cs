@@ -65,7 +65,7 @@ public class GameClientDetector(
                 {
                     var generalsVersion = new GameClient
                     {
-                        Name = $"Generals {version}",
+                        Name = GetInstallationClientName(GameType.Generals, version),
                         Id = string.Empty, // Set later by manifest
                         Version = version,
                         ExecutablePath = actualExePath,
@@ -93,7 +93,7 @@ public class GameClientDetector(
                 {
                     var zeroHourVersion = new GameClient
                     {
-                        Name = $"Zero Hour {version}",
+                        Name = GetInstallationClientName(GameType.ZeroHour, version),
                         Id = string.Empty,
                         Version = version,
                         ExecutablePath = actualExePath,
@@ -200,6 +200,43 @@ public class GameClientDetector(
             ExecutablePlatform.MacOS => "macos",
             _ => "unknown",
         };
+    }
+
+    /// <summary>
+    /// Gets the display name of an installation's own game client.
+    /// </summary>
+    /// <param name="gameType">The game type.</param>
+    /// <param name="version">The client version.</param>
+    /// <returns>The display name.</returns>
+    internal static string GetInstallationClientName(GameType gameType, string version) =>
+        gameType == GameType.ZeroHour ? $"Zero Hour {version}" : $"Generals {version}";
+
+    /// <summary>
+    /// Identifies the publisher client an installation executable belongs to, using the
+    /// first identifier that recognizes it.
+    /// </summary>
+    /// <param name="identifiers">The registered client identifiers, in priority order.</param>
+    /// <param name="executablePath">The executable to identify.</param>
+    /// <param name="logger">Receives identifier failures.</param>
+    /// <param name="cancellationToken">Cancels native binary inspection.</param>
+    /// <returns>The identification, or null when the executable is not a publisher client.</returns>
+    internal static async Task<GameClientIdentification?> IdentifyInstallationExecutableAsync(
+        IEnumerable<IGameClientIdentifier> identifiers,
+        string executablePath,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        foreach (var identifier in identifiers)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var identification = await IdentifyInstallationCandidateAsync(identifier, executablePath, logger, cancellationToken);
+            if (identification is not null)
+            {
+                return identification;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -407,6 +444,38 @@ public class GameClientDetector(
         return Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
             .Where(path => ExecutableFileClassifier.IsLegacyLaunchCandidate(path, path))
             .ToArray();
+    }
+
+    private static async Task<GameClientIdentification?> IdentifyInstallationCandidateAsync(
+        IGameClientIdentifier identifier,
+        string executablePath,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var native = !Path.HasExtension(executablePath);
+            GameClientIdentification? identification;
+            if (native && identifier is CommunityGameClientIdentifier community)
+            {
+                identification = await community.IdentifyNativeAsync(executablePath, cancellationToken);
+            }
+            else
+            {
+                identification = identifier.CanIdentify(executablePath) ? identifier.Identify(executablePath) : null;
+            }
+
+            return native && identification?.GameType == GameType.Unknown ? null : identification;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to identify publisher client at {ExecutablePath}", executablePath);
+            return null;
+        }
     }
 
     /// <summary>
@@ -1179,50 +1248,14 @@ public class GameClientDetector(
         foreach (var executablePath in GetLaunchCandidateFiles(installationPath))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            foreach (var identifier in gameClientIdentifiers)
+            var identification = await IdentifyInstallationExecutableAsync(gameClientIdentifiers, executablePath, logger, cancellationToken);
+            if (identification is not null)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var identification = await IdentifyInstallationCandidateAsync(identifier, executablePath, cancellationToken);
-                if (identification is not null)
-                {
-                    candidates.Add((executablePath, identification));
-                    break;
-                }
+                candidates.Add((executablePath, identification));
             }
         }
 
         return candidates;
-    }
-
-    private async Task<GameClientIdentification?> IdentifyInstallationCandidateAsync(
-        IGameClientIdentifier identifier,
-        string executablePath,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var native = !Path.HasExtension(executablePath);
-            GameClientIdentification? identification;
-            if (native && identifier is CommunityGameClientIdentifier community)
-            {
-                identification = await community.IdentifyNativeAsync(executablePath, cancellationToken);
-            }
-            else
-            {
-                identification = identifier.CanIdentify(executablePath) ? identifier.Identify(executablePath) : null;
-            }
-
-            return native && identification?.GameType == GameType.Unknown ? null : identification;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to identify publisher client at {ExecutablePath}", executablePath);
-            return null;
-        }
     }
 
     /// <summary>
