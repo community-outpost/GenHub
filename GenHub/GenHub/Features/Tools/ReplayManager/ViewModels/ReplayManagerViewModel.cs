@@ -1746,30 +1746,7 @@ public partial class ReplayManagerViewModel(
                 var createdProfileId = await SelectClientAndCreateProfileAsync(replay);
                 if (!string.IsNullOrEmpty(createdProfileId))
                 {
-                    var (mgr, pScope) = ResolveProfileManager();
-                    try
-                    {
-                        if (mgr != null)
-                        {
-                            var profilesResult = await mgr.GetAllProfilesAsync();
-                            if (profilesResult.Success && profilesResult.Data != null)
-                            {
-                                var recoveryCandidates = directoryService.FindRecoveryProfiles(replay, profilesResult.Data);
-                                var matched = recoveryCandidates.FirstOrDefault(p => string.Equals(p.Id, createdProfileId, StringComparison.OrdinalIgnoreCase));
-                                if (matched != null)
-                                {
-                                    replay.RecoveryProfileId = matched.Id;
-                                    replay.RecoveryProfileName = matched.Name;
-                                    _selectedRecoveryProfiles[replay.FullPath] = matched.Id;
-                                }
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        pScope?.Dispose();
-                    }
-
+                    await HandleCreatedRecoveryProfileAsync(replay, createdProfileId);
                     await OpenCheckpointDrawerAsync(replay);
                 }
 
@@ -1787,6 +1764,37 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to display recovery profile selection dialog for {FileName}", replay.FileName);
+        }
+    }
+
+    private async Task HandleCreatedRecoveryProfileAsync(ReplayFile replay, string createdProfileId)
+    {
+        var (mgr, pScope) = ResolveProfileManager();
+        try
+        {
+            if (mgr == null)
+            {
+                return;
+            }
+
+            var profilesResult = await mgr.GetAllProfilesAsync();
+            if (!profilesResult.Success || profilesResult.Data == null)
+            {
+                return;
+            }
+
+            var recoveryCandidates = directoryService.FindRecoveryProfiles(replay, profilesResult.Data);
+            var matched = recoveryCandidates.FirstOrDefault(p => string.Equals(p.Id, createdProfileId, StringComparison.OrdinalIgnoreCase));
+            if (matched != null)
+            {
+                replay.RecoveryProfileId = matched.Id;
+                replay.RecoveryProfileName = matched.Name;
+                _selectedRecoveryProfiles[replay.FullPath] = matched.Id;
+            }
+        }
+        finally
+        {
+            pScope?.Dispose();
         }
     }
 
@@ -1941,71 +1949,8 @@ public partial class ReplayManagerViewModel(
         try
         {
             var replays = await directoryService.GetReplaysAsync(SelectedTab);
-            if (_selectedRecoveryProfiles.Count > 0)
-            {
-                var (manager, scope) = ResolveProfileManager();
-                try
-                {
-                    var profiles = manager != null ? (await manager.GetAllProfilesAsync()).Data : null;
-                    if (profiles != null && profiles.Count > 0)
-                    {
-                        var staleKeys = new List<string>();
-                        foreach (var (replayPath, savedRecoveryId) in _selectedRecoveryProfiles)
-                        {
-                            var replay = replays.FirstOrDefault(r => string.Equals(r.FullPath, replayPath, StringComparison.OrdinalIgnoreCase));
-                            if (replay == null)
-                            {
-                                continue;
-                            }
-
-                            var recoveryCandidates = directoryService.FindRecoveryProfiles(replay, profiles);
-                            var matchedCandidate = recoveryCandidates.FirstOrDefault(p => string.Equals(p.Id, savedRecoveryId, StringComparison.OrdinalIgnoreCase));
-                            if (matchedCandidate != null)
-                            {
-                                replay.RecoveryProfileId = matchedCandidate.Id;
-                                replay.RecoveryProfileName = matchedCandidate.Name;
-                            }
-                            else
-                            {
-                                staleKeys.Add(replayPath);
-                            }
-                        }
-
-                        foreach (var key in staleKeys)
-                        {
-                            _selectedRecoveryProfiles.TryRemove(key, out _);
-                        }
-                    }
-                }
-                finally
-                {
-                    scope?.Dispose();
-                }
-            }
-
-            // Marshall to UI thread for collection updates
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                // Update the appropriate collection
-                if (SelectedTab == GameType.Generals)
-                {
-                    GeneralsReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        GeneralsReplays.Add(r);
-                    }
-                }
-                else
-                {
-                    ZeroHourReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        ZeroHourReplays.Add(r);
-                    }
-                }
-
-                ApplyFilter();
-            });
+            await RevalidateSelectedRecoveryProfilesAsync(replays);
+            await UpdateLoadedReplaysCollectionAsync(replays);
 
             _lastLoadedCount = replays.Count;
             StatusMessage = LocalizationService != null
@@ -2026,6 +1971,76 @@ public partial class ReplayManagerViewModel(
             IsBusy = false;
             IsIndeterminate = false;
         }
+    }
+
+    private async Task RevalidateSelectedRecoveryProfilesAsync(IReadOnlyList<ReplayFile> replays)
+    {
+        if (_selectedRecoveryProfiles.IsEmpty)
+        {
+            return;
+        }
+
+        var (manager, scope) = ResolveProfileManager();
+        try
+        {
+            if (manager == null)
+            {
+                return;
+            }
+
+            var profilesResult = await manager.GetAllProfilesAsync();
+            var profiles = profilesResult.Data;
+            if (profiles == null || profiles.Count == 0)
+            {
+                return;
+            }
+
+            var staleKeys = new List<string>();
+            foreach (var (replayPath, savedRecoveryId) in _selectedRecoveryProfiles)
+            {
+                var replay = replays.FirstOrDefault(r => string.Equals(r.FullPath, replayPath, StringComparison.OrdinalIgnoreCase));
+                if (replay == null)
+                {
+                    continue;
+                }
+
+                var recoveryCandidates = directoryService.FindRecoveryProfiles(replay, profiles);
+                var matchedCandidate = recoveryCandidates.FirstOrDefault(p => string.Equals(p.Id, savedRecoveryId, StringComparison.OrdinalIgnoreCase));
+                if (matchedCandidate != null)
+                {
+                    replay.RecoveryProfileId = matchedCandidate.Id;
+                    replay.RecoveryProfileName = matchedCandidate.Name;
+                }
+                else
+                {
+                    staleKeys.Add(replayPath);
+                }
+            }
+
+            foreach (var key in staleKeys)
+            {
+                _selectedRecoveryProfiles.TryRemove(key, out _);
+            }
+        }
+        finally
+        {
+            scope?.Dispose();
+        }
+    }
+
+    private async Task UpdateLoadedReplaysCollectionAsync(IReadOnlyList<ReplayFile> replays)
+    {
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var targetCollection = SelectedTab == GameType.Generals ? GeneralsReplays : ZeroHourReplays;
+            targetCollection.Clear();
+            foreach (var r in replays)
+            {
+                targetCollection.Add(r);
+            }
+
+            ApplyFilter();
+        });
     }
 
     /// <summary>

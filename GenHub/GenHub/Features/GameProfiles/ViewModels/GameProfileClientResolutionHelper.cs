@@ -279,6 +279,11 @@ internal static class GameProfileClientResolutionHelper
         return null;
     }
 
+    /// <summary>
+    /// Determines whether the given file extension corresponds to an archive or package format.
+    /// </summary>
+    /// <param name="extension">The file extension including the leading dot.</param>
+    /// <returns>True if the extension is an archive or package; otherwise, false.</returns>
     private static bool IsArchiveOrPackageExtension(string extension)
     {
         if (string.IsNullOrEmpty(extension))
@@ -286,22 +291,9 @@ internal static class GameProfileClientResolutionHelper
             return false;
         }
 
-        foreach (var archiveExt in ContentFormatConstants.UnderstoodArchiveExtensions)
-        {
-            if (string.Equals(extension, archiveExt, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        foreach (var pkgExt in ContentFormatConstants.GuidedRejectionExtensions)
-        {
-            if (string.Equals(extension, pkgExt, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return ContentFormatConstants.UnderstoodArchiveExtensions.Any(archiveExt =>
+                   string.Equals(extension, archiveExt, StringComparison.OrdinalIgnoreCase)) ||
+               ContentFormatConstants.GuidedRejectionExtensions.Any(pkgExt =>
+                   string.Equals(extension, pkgExt, StringComparison.OrdinalIgnoreCase));
     }
 }
