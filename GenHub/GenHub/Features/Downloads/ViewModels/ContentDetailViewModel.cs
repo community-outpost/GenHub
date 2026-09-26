@@ -100,6 +100,7 @@ public partial class ContentDetailViewModel(
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
+    private const string DefaultAddonName = "Addon";
     private const string DeleteFailedTitleKey = "Downloads.ContentDetail.DeleteFailedTitle";
     private const string DeleteFailedTitleFallback = "Delete Failed";
     private const string DeleteFailedMessageKey = "Downloads.ContentDetail.DeleteFailedMessage";
@@ -150,6 +151,7 @@ public partial class ContentDetailViewModel(
     private bool _basicContentLoaded;
     private Task? _basicContentLoadTask;
     private int _iconLoadVersion;
+    private int _backdropLoadVersion;
     private Task? _initialStateTask;
     private Task? _iconTask;
     private Task? _customTabsTask;
@@ -173,6 +175,9 @@ public partial class ContentDetailViewModel(
 
     [ObservableProperty]
     private Avalonia.Media.Imaging.Bitmap? _iconBitmap;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _backdropBitmap;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
@@ -529,14 +534,14 @@ public partial class ContentDetailViewModel(
     /// Gets the content name. Prefer the selected variant label or user-selected downloadable item
     /// so the specific mod/patch/addon title stays visible; fall back to search result, then parsed page title.
     /// </summary>
-    public string Name => SelectedVariant?.Name
+    public string Name => (!string.IsNullOrWhiteSpace(searchResult.Name) ? searchResult.Name : null)
+        ?? SelectedVariant?.Name
+        ?? ParsedPage?.Context.Title
         ?? (SelectedDownloadableItem != null &&
             !string.IsNullOrWhiteSpace(SelectedDownloadableItem.Name) &&
             !SelectedDownloadableItem.Name.StartsWith(UnknownValue, StringComparison.OrdinalIgnoreCase)
                 ? SelectedDownloadableItem.Name
                 : null)
-        ?? (!string.IsNullOrWhiteSpace(searchResult.Name) ? searchResult.Name : null)
-        ?? ParsedPage?.Context.Title
         ?? UnknownValue;
 
     /// <summary>
@@ -552,7 +557,7 @@ public partial class ContentDetailViewModel(
     public string FormattedDescription =>
         string.IsNullOrWhiteSpace(Description)
             ? BuildDetailsFallback()
-            : MarkdownLinkFormatter.FormatLinks(Description, searchResult.SourceUrl);
+            : MarkdownLinkFormatter.FormatLinks(MarkdownLinkFormatter.PreserveLineBreaks(Description), searchResult.SourceUrl);
 
     /// <summary>
     /// Gets a value indicating whether repository README markdown was loaded.
@@ -654,21 +659,47 @@ public partial class ContentDetailViewModel(
     public string ProviderName => searchResult.ProviderName ?? string.Empty;
 
     /// <summary>
-    /// Gets the icon URL - prefers parsed page context icon.
+    /// Gets the icon URL - prefers parsed page context icon, falling back to a placeholder when missing.
     /// </summary>
-    public string? IconUrl =>
-        ParsedPage?.Context.IconUrl ??
-        (!string.IsNullOrWhiteSpace(searchResult.IconUrl)
-            ? searchResult.IconUrl
-            : (ContentCardBadgeHelper.GetPublisherLogoUrl(searchResult) ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)));
+    public string IconUrl
+    {
+        get
+        {
+            var logo = ContentCardBadgeHelper.GetPublisherLogoUrl(searchResult);
+            var candidate = ParsedPage?.Context.IconUrl ?? searchResult.IconUrl;
+
+            return ContentCardBadgeHelper.OrDefaultImage(
+                !string.IsNullOrWhiteSpace(candidate)
+                    ? candidate
+                    : (logo ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)));
+        }
+    }
 
     /// <summary>
     /// Gets the preferred header thumbnail URL (banner / screenshot / icon).
     /// </summary>
-    public string? ThumbnailUrl =>
+    public string ThumbnailUrl =>
         !string.IsNullOrWhiteSpace(searchResult.BannerUrl)
             ? searchResult.BannerUrl
             : ContentCardBadgeHelper.GetThumbnailUrl(searchResult) ?? IconUrl;
+
+    /// <summary>
+    /// Gets the wide backdrop/cover URL for the detail header (backdrop preferred, banner fallback).
+    /// </summary>
+    public string? BackdropUrl =>
+        !string.IsNullOrWhiteSpace(searchResult.BackdropUrl)
+            ? searchResult.BackdropUrl
+            : searchResult.BannerUrl;
+
+    /// <summary>
+    /// Gets the publisher-defined accent color hex for this content, if any.
+    /// </summary>
+    public string? AccentColor => searchResult.AccentColor;
+
+    /// <summary>
+    /// Gets a value indicating whether a valid accent color is available for detail highlights.
+    /// </summary>
+    public bool HasAccentColor => ContentCardBadgeHelper.IsValidAccentColor(searchResult.AccentColor);
 
     /// <summary>
     /// Gets a comma-separated includes summary for bundles / multi-content packages.
@@ -961,7 +992,7 @@ public partial class ContentDetailViewModel(
         // Load icon and parsed data asynchronously
         // Note: Full details are loaded eagerly for ModDB and similar content
         // that requires page parsing to show releases, addons, etc.
-        _iconTask = LoadIconAsync();
+        _iconTask = LoadHeaderImagesAsync();
         _ = LoadBasicParsedDataAsync();
         _customTabsTask = LoadCustomTabsAsync();
         _variantsTask = InitializeVariantsAsync();
@@ -1123,7 +1154,7 @@ public partial class ContentDetailViewModel(
     /// </summary>
     public void PopulateReleasesFromVariants()
     {
-        if (Variants.Count == 0)
+        if (Variants.Count == 0 || IsCatalogContent)
         {
             return;
         }
@@ -1509,6 +1540,7 @@ public partial class ContentDetailViewModel(
                 }
 
                 IconBitmap = null;
+                BackdropBitmap = null;
             }
 
             _disposed = true;
@@ -1805,6 +1837,13 @@ public partial class ContentDetailViewModel(
         if (releases.Count == 0)
         {
             return null;
+        }
+
+        // Prefer downloaded release so user does not lose access to installed version when a newer one is released
+        var downloaded = releases.FirstOrDefault(r => r.IsDownloaded);
+        if (downloaded != null)
+        {
+            return downloaded;
         }
 
         return releases.OrderByDescending(GetReleasePriority).First();
@@ -2278,7 +2317,7 @@ public partial class ContentDetailViewModel(
             SelectedVariant = chosenVariant;
             RebuildVariantAxes();
 
-            if (ParsedPage == null)
+            if (ParsedPage == null && Releases.Count == 0)
             {
                 PopulateReleasesFromVariants();
             }
@@ -2378,6 +2417,46 @@ public partial class ContentDetailViewModel(
             IsUpdateAvailable = value.CurrentState is ContentState.UpdateAvailable;
         }
 
+        if (SelectedDownloadableItem is ReleaseItemViewModel currentRel && value != null && IsCatalogContent)
+        {
+            if (!string.IsNullOrWhiteSpace(value.DownloadUrl))
+            {
+                currentRel.DownloadUrl = value.DownloadUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(value.File))
+            {
+                currentRel.Filename = value.File;
+            }
+
+            if (value.Size.HasValue && value.Size.Value > 0)
+            {
+                currentRel.FileSize = value.Size.Value;
+            }
+
+            if (!string.IsNullOrWhiteSpace(value.Sha256))
+            {
+                currentRel.Sha256Hash = value.Sha256;
+            }
+
+            if (currentRel.File != null)
+            {
+                currentRel.File = new DownloadableFile(
+                    Name: !string.IsNullOrWhiteSpace(currentRel.Filename) ? currentRel.Filename : currentRel.Name,
+                    DownloadUrl: currentRel.DownloadUrl,
+                    SizeBytes: currentRel.FileSize > 0 ? currentRel.FileSize : null,
+                    UploadDate: currentRel.ReleaseDate,
+                    Version: currentRel.Version,
+                    Category: currentRel.Category,
+                    Uploader: currentRel.Uploader,
+                    Filename: currentRel.Filename,
+                    Description: currentRel.FullDescription,
+                    FileSectionType: FileSectionType.Downloads);
+            }
+
+            RefreshSelectedTargetProperties();
+        }
+
         if (value != null &&
             !string.IsNullOrEmpty(value.ManifestId) &&
             variantSearchResults != null &&
@@ -2395,11 +2474,14 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(ShowUpdateButton));
             OnPropertyChanged(nameof(IconUrl));
             OnPropertyChanged(nameof(ThumbnailUrl));
+            OnPropertyChanged(nameof(BackdropUrl));
+            OnPropertyChanged(nameof(AccentColor));
+            OnPropertyChanged(nameof(HasAccentColor));
             OnPropertyChanged(nameof(IncludesSummary));
             OnPropertyChanged(nameof(HasIncludesSummary));
             OnPropertyChanged(nameof(IncludesSectionTitle));
 
-            _ = LoadIconAsync();
+            _ = LoadHeaderImagesAsync();
             _ = LoadInitialStateAsync();
         }
         else
@@ -2407,9 +2489,10 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(Name));
         }
 
-        if (value != null && Releases.Count > 0)
+        if (value != null && (Releases.Count > 0 || Addons.Count > 0))
         {
-            var match = Releases.FirstOrDefault(r =>
+            var allRows = Releases.Cast<DownloadableItemViewModel>().Concat(Addons).ToList();
+            var match = allRows.FirstOrDefault(r =>
                 !string.IsNullOrEmpty(value.ManifestId) &&
                 string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase) &&
                 r.Name != null && !string.IsNullOrEmpty(value.Name) &&
@@ -2417,12 +2500,12 @@ public partial class ContentDetailViewModel(
                  r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
                  value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)))
                 ?? (!string.IsNullOrEmpty(value.ManifestId)
-                    ? Releases.FirstOrDefault(r =>
+                    ? allRows.FirstOrDefault(r =>
                         string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase))
                     : null)
-                ?? Releases.FirstOrDefault(r =>
+                ?? allRows.FirstOrDefault(r =>
                     string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase))
-                ?? Releases.FirstOrDefault(r =>
+                ?? allRows.FirstOrDefault(r =>
                     !string.IsNullOrEmpty(value.Name) && r.Name != null &&
                     (r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
                      value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)));
@@ -2432,18 +2515,10 @@ public partial class ContentDetailViewModel(
                     string.Equals(match.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase);
                 var isExactNameMatch = string.Equals(match.Name, value.Name, StringComparison.OrdinalIgnoreCase);
 
-                // The variant carries no version, so an exact-name match is only trustworthy
-                // when the name is unique across releases: same-named siblings (e.g. a patch
-                // and a full build sharing a title) are indistinguishable here, and binding
-                // the variant's manifest to the wrong one would corrupt Add to Profile.
                 var isUniqueNameMatch = isExactNameMatch &&
-                    Releases.Count(row => string.Equals(row.Name, value.Name, StringComparison.OrdinalIgnoreCase)) == 1;
+                    allRows.Count(row => string.Equals(row.Name, value.Name, StringComparison.OrdinalIgnoreCase)) == 1;
                 var isExactManifestOrNameMatch = isManifestMatch || isUniqueNameMatch;
 
-                // Only an exact manifest or unique-name match may flip row state: fuzzy
-                // substring matches routinely pick a sibling release and would show
-                // "Add to Profile" on the wrong row. The row's own async state probe
-                // corrects display state; selection below is still harmless.
                 if (value.CurrentState == ContentState.Downloaded && isExactManifestOrNameMatch)
                 {
                     match.IsDownloaded = true;
@@ -2464,7 +2539,7 @@ public partial class ContentDetailViewModel(
 
                 if (!ReferenceEquals(SelectedDownloadableItem, match))
                 {
-                    SelectDownloadableItem(match);
+                    SelectDownloadableItem(match, isUserInitiated: false);
                 }
                 else
                 {
@@ -2949,6 +3024,44 @@ public partial class ContentDetailViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to open browser for {Url}", url);
+        }
+    }
+
+    private async Task LoadHeaderImagesAsync()
+    {
+        await LoadIconAsync();
+        await LoadBackdropAsync();
+    }
+
+    private async Task LoadBackdropAsync()
+    {
+        var backdropUrl = BackdropUrl;
+        if (string.IsNullOrWhiteSpace(backdropUrl))
+        {
+            BackdropBitmap = null;
+            return;
+        }
+
+        var currentVersion = ++_backdropLoadVersion;
+        try
+        {
+            var loadedBitmap = await ImageCacheService.Instance.GetBitmapAsync(backdropUrl, _cts.Token);
+            if (currentVersion == _backdropLoadVersion && loadedBitmap != null)
+            {
+                BackdropBitmap = loadedBitmap;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed or superseded during fetch
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed during fetch
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load backdrop from {BackdropUrl} for content: {Name}", backdropUrl, Name);
         }
     }
 
@@ -3474,6 +3587,7 @@ public partial class ContentDetailViewModel(
             PopulateCatalogScreenshots(catalogItem);
             PopulateCatalogReleases(catalogItem);
             PopulateCatalogMedia(catalogItem);
+            PopulateCatalogAddons(catalogItem);
 
             OnPropertyChanged(nameof(Description));
             OnPropertyChanged(nameof(FormattedDescription));
@@ -3491,12 +3605,25 @@ public partial class ContentDetailViewModel(
 
     private void PopulateCatalogScreenshots(CatalogContentItem catalogItem)
     {
-        if (catalogItem.Metadata?.ScreenshotUrls == null || catalogItem.Metadata.ScreenshotUrls.Count == 0)
+        var screenshots = new List<string>();
+        if (catalogItem.Metadata?.ScreenshotUrls != null)
+        {
+            screenshots.AddRange(catalogItem.Metadata.ScreenshotUrls);
+        }
+
+        if (catalogItem.Releases != null)
+        {
+            screenshots.AddRange(catalogItem.Releases
+                .Where(release => release.ImageUrls != null)
+                .SelectMany(release => release.ImageUrls));
+        }
+
+        if (screenshots.Count == 0)
         {
             return;
         }
 
-        foreach (var screenshot in catalogItem.Metadata.ScreenshotUrls.Where(screenshot => !Screenshots.Contains(screenshot)))
+        foreach (var screenshot in screenshots.Where(screenshot => !string.IsNullOrWhiteSpace(screenshot) && !Screenshots.Contains(screenshot)))
         {
             Screenshots.Add(screenshot);
         }
@@ -3543,30 +3670,204 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(ShowSelectedTargetBanner));
     }
 
+    private bool IsCatalogContent =>
+        searchResult.ResolverId == CatalogConstants.GenericCatalogResolverId ||
+        (searchResult.ResolverMetadata != null &&
+         searchResult.ResolverMetadata.ContainsKey(CatalogConstants.CatalogItemJsonMetadataKey));
+
+    private static bool IsVideoUrl(string url)
+    {
+        return url.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) ||
+               url.Contains("youtu.be", StringComparison.OrdinalIgnoreCase) ||
+               url.Contains("vimeo.com", StringComparison.OrdinalIgnoreCase) ||
+               url.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+               url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
+               url.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void PopulateCatalogAddons(CatalogContentItem catalogItem)
+    {
+        var hasAddonReleases = catalogItem.AddonReleases is { Count: > 0 };
+        var hasLegacyAddons = catalogItem.Addons is { Count: > 0 };
+
+        if (!hasAddonReleases && !hasLegacyAddons)
+        {
+            return;
+        }
+
+        Addons.Clear();
+
+        if (hasAddonReleases)
+        {
+            foreach (var addonRel in catalogItem.AddonReleases)
+            {
+                var primary = addonRel.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? addonRel.Artifacts.FirstOrDefault();
+                var name = !string.IsNullOrWhiteSpace(addonRel.Title) ? addonRel.Title : (primary?.Filename ?? $"Addon v{addonRel.Version}");
+                var url = primary?.DownloadUrl ?? string.Empty;
+                var size = addonRel.Artifacts.Sum(a => a.Size);
+                var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : DefaultAddonName;
+                var description = !string.IsNullOrWhiteSpace(addonRel.Changelog) ? addonRel.Changelog : $"Addon for {catalogItem.Name}";
+
+                var addonThumb = addonRel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+                    ?? catalogItem.Metadata?.BannerUrl
+                    ?? catalogItem.Metadata?.IconUrl
+                    ?? searchResult.IconUrl
+                    ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{addonRel.Version}-addon-thumb", 256, 256);
+
+                var file = new DownloadableFile(
+                    Name: name,
+                    DownloadUrl: url,
+                    SizeBytes: size > 0 ? size : null,
+                    UploadDate: addonRel.ReleaseDate,
+                    Version: addonRel.Version,
+                    Category: category,
+                    Uploader: searchResult.AuthorName,
+                    Filename: primary?.Filename ?? $"{name}.zip",
+                    ThumbnailUrl: addonThumb,
+                    Description: description,
+                    FileSectionType: FileSectionType.Addons);
+
+                var addonItem = CreateAddonItemViewModel(file);
+                Addons.Add(addonItem);
+            }
+        }
+
+        if (hasLegacyAddons)
+        {
+            foreach (var addonDep in catalogItem.Addons)
+            {
+                var legacyAddonThumb = catalogItem.Metadata?.BannerUrl
+                    ?? catalogItem.Metadata?.IconUrl
+                    ?? searchResult.IconUrl
+                    ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{addonDep.ContentId}-thumb", 256, 256);
+
+                var file = new DownloadableFile(
+                    Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : DefaultAddonName,
+                    DownloadUrl: addonDep.DefinitionUrl ?? addonDep.CatalogUrl ?? string.Empty,
+                    SizeBytes: null,
+                    UploadDate: null,
+                    Version: addonDep.VersionConstraint,
+                    Category: Enum.TryParse<ContentType>(addonDep.ContentType, true, out var parsedType) ? parsedType.GetDisplayName() : addonDep.ContentType,
+                    Uploader: addonDep.PublisherId ?? searchResult.AuthorName,
+                    Filename: addonDep.ContentId,
+                    ThumbnailUrl: legacyAddonThumb,
+                    Description: $"Addon dependency for {catalogItem.Name}",
+                    FileSectionType: FileSectionType.Addons);
+
+                var addonItem = CreateAddonItemViewModel(file);
+                Addons.Add(addonItem);
+            }
+        }
+
+        OnPropertyChanged(nameof(HasAddons));
+        OnPropertyChanged(nameof(AddonsCount));
+    }
+
     private void PopulateCatalogMedia(CatalogContentItem catalogItem)
     {
         var videoList = new List<Video>();
+        var seenVideos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddVideo(string? url, string title)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !seenVideos.Add(url))
+            {
+                return;
+            }
+
+            videoList.Add(new Video(
+                Title: title,
+                ThumbnailUrl: catalogItem.Metadata?.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
+                EmbedUrl: url,
+                Platform: "Web"));
+        }
+
         if (!string.IsNullOrWhiteSpace(catalogItem.Metadata?.VideoUrl))
         {
-            videoList.Add(new Video(
-                Title: $"{catalogItem.Name} Preview",
-                ThumbnailUrl: catalogItem.Metadata.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
-                EmbedUrl: catalogItem.Metadata.VideoUrl,
-                Platform: "Web"));
+            AddVideo(catalogItem.Metadata.VideoUrl, $"{catalogItem.Name} Preview");
+        }
+
+        if (catalogItem.Metadata?.VideoUrls != null)
+        {
+            var idx = 1;
+            foreach (var vid in catalogItem.Metadata.VideoUrls)
+            {
+                AddVideo(vid, $"{catalogItem.Name} Showcase {idx++}");
+            }
+        }
+
+        if (catalogItem.Releases != null)
+        {
+            foreach (var rel in catalogItem.Releases)
+            {
+                if (rel.VideoUrls == null) continue;
+                var rIdx = 1;
+                foreach (var vid in rel.VideoUrls)
+                {
+                    AddVideo(vid, $"{catalogItem.Name} v{rel.Version} Video {rIdx++}");
+                }
+            }
+        }
+
+        if (catalogItem.AddonReleases != null)
+        {
+            foreach (var addon in catalogItem.AddonReleases)
+            {
+                if (addon.VideoUrls == null) continue;
+                var aIdx = 1;
+                foreach (var vid in addon.VideoUrls)
+                {
+                    AddVideo(vid, $"{addon.Title ?? DefaultAddonName} Video {aIdx++}");
+                }
+            }
         }
 
         Videos = videoList.ToObservableCollection();
 
         var imageList = new List<Image>();
+        var seenImages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddImage(string? url, string title)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !seenImages.Add(url)) return;
+            imageList.Add(new Image(
+                Title: title,
+                ThumbnailUrl: url,
+                FullSizeUrl: url));
+        }
+
         if (catalogItem.Metadata?.ScreenshotUrls != null)
         {
             var shotIndex = 1;
             foreach (var shot in catalogItem.Metadata.ScreenshotUrls)
             {
-                imageList.Add(new Image(
-                    Title: $"Screenshot {shotIndex++}",
-                    ThumbnailUrl: shot,
-                    FullSizeUrl: shot));
+                AddImage(shot, $"Screenshot {shotIndex++}");
+            }
+        }
+
+        if (catalogItem.Releases != null)
+        {
+            foreach (var rel in catalogItem.Releases)
+            {
+                if (rel.ImageUrls == null) continue;
+                var rShotIndex = 1;
+                foreach (var shot in rel.ImageUrls)
+                {
+                    AddImage(shot, $"{catalogItem.Name} v{rel.Version} Screenshot {rShotIndex++}");
+                }
+            }
+        }
+
+        if (catalogItem.AddonReleases != null)
+        {
+            foreach (var addon in catalogItem.AddonReleases)
+            {
+                if (addon.ImageUrls == null) continue;
+                var aShotIndex = 1;
+                foreach (var shot in addon.ImageUrls)
+                {
+                    AddImage(shot, $"{addon.Title ?? DefaultAddonName} Screenshot {aShotIndex++}");
+                }
             }
         }
 
@@ -3850,7 +4151,9 @@ public partial class ContentDetailViewModel(
 
     private ReleaseItemViewModel CreateCatalogReleaseItem(ContentRelease rel, CatalogContentItem catalogItem)
     {
-        var primaryArtifact = rel.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? rel.Artifacts.FirstOrDefault();
+        var primaryArtifact = rel.Artifacts.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl))
+            ?? rel.Artifacts.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.DownloadUrl))
+            ?? rel.Artifacts.FirstOrDefault();
         var downloadUrl = primaryArtifact?.DownloadUrl ?? string.Empty;
         var fileSize = primaryArtifact?.Size ?? 0;
         var filename = primaryArtifact?.Filename ?? GetFileNameFromUrl(downloadUrl) ?? $"{catalogItem.Name} v{rel.Version}";
@@ -3858,8 +4161,15 @@ public partial class ContentDetailViewModel(
         var category = searchResult.ContentType.GetDisplayName();
         var uploader = searchResult.AuthorName;
 
+        var releaseThumb = rel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+            ?? catalogItem.Metadata?.BannerUrl
+            ?? catalogItem.Metadata?.IconUrl
+            ?? searchResult.IconUrl
+            ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{rel.Version}-thumb", 256, 256);
+
+        var contentItemName = !string.IsNullOrWhiteSpace(catalogItem.Name) ? catalogItem.Name : searchResult.Name;
         var file = new DownloadableFile(
-            Name: filename,
+            Name: !string.IsNullOrWhiteSpace(contentItemName) ? contentItemName : filename,
             DownloadUrl: downloadUrl,
             SizeBytes: fileSize > 0 ? fileSize : null,
             UploadDate: rel.ReleaseDate,
@@ -3867,10 +4177,23 @@ public partial class ContentDetailViewModel(
             Category: category,
             Uploader: uploader,
             Filename: filename,
+            ThumbnailUrl: releaseThumb,
             Description: description,
             FileSectionType: FileSectionType.Downloads);
 
-        var releaseName = $"Version {rel.Version}";
+        string releaseName;
+        if (!string.IsNullOrWhiteSpace(rel.Title))
+        {
+            releaseName = rel.Title;
+        }
+        else if (!string.IsNullOrWhiteSpace(searchResult.Name))
+        {
+            releaseName = $"{searchResult.Name} Version {rel.Version}";
+        }
+        else
+        {
+            releaseName = $"Version {rel.Version}";
+        }
 
         var releaseItem = new ReleaseItemViewModel
         {
@@ -3881,6 +4204,7 @@ public partial class ContentDetailViewModel(
             FileSize = fileSize,
             DownloadUrl = downloadUrl,
             DetailsUrl = downloadUrl,
+            ThumbnailUrl = releaseThumb,
             File = file,
             ContentType = searchResult.ContentType,
             Category = category,
@@ -3890,7 +4214,24 @@ public partial class ContentDetailViewModel(
             Sha256Hash = primaryArtifact?.Sha256,
             Md5Hash = null,
             IsDetailsLoaded = true,
+            Release = rel,
         };
+
+        if (rel.ImageUrls != null)
+        {
+            foreach (var img in rel.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            {
+                releaseItem.PreviewImages.Add(img);
+            }
+        }
+
+        if (rel.VideoUrls != null)
+        {
+            foreach (var vid in rel.VideoUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            {
+                releaseItem.PreviewVideos.Add(vid);
+            }
+        }
 
         releaseItem.SelectCommand = new RelayCommand(
             () => SelectDownloadableItem(releaseItem, isUserInitiated: true),
@@ -4154,11 +4495,71 @@ public partial class ContentDetailViewModel(
             addon.IsSelected = ReferenceEquals(addon, item);
         }
 
+        if (item is ReleaseItemViewModel relItem && relItem.Release != null)
+        {
+            var rel = relItem.Release;
+            if (!rel.BundleArtifacts && rel.Artifacts.Count > 1)
+            {
+                Variants.Clear();
+                foreach (var art in rel.Artifacts)
+                {
+                    string varName;
+                    if (!string.IsNullOrWhiteSpace(art.Variant))
+                    {
+                        varName = art.Variant;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(art.Filename))
+                    {
+                        varName = art.Filename;
+                    }
+                    else
+                    {
+                        varName = "Variant";
+                    }
+
+                    var axis = !string.IsNullOrWhiteSpace(art.VariantAxis) ? art.VariantAxis : "Variant";
+                    Variants.Add(new InstallableVariant
+                    {
+                        Id = !string.IsNullOrWhiteSpace(art.Filename) ? art.Filename : art.DownloadUrl,
+                        Name = varName,
+                        ManifestId = art.Sha256,
+                        DownloadUrl = art.DownloadUrl,
+                        File = art.Filename,
+                        Size = art.Size,
+                        Sha256 = art.Sha256,
+                        VariantType = axis,
+                        IsDefault = art.IsDefaultVariant,
+                    });
+                }
+
+                var defaultVar = Variants.FirstOrDefault(v => v.IsDefault) ?? Variants[0];
+                SelectedVariant = defaultVar;
+                OnPropertyChanged(nameof(HasVariants));
+                RebuildVariantAxes();
+            }
+            else if (IsCatalogContent)
+            {
+                Variants.Clear();
+                SelectedVariant = null;
+                OnPropertyChanged(nameof(HasVariants));
+                RebuildVariantAxes();
+            }
+        }
+
         if (Variants.Count > 0)
         {
-            var matchingVariant = Variants.FirstOrDefault(v =>
-                string.Equals(v.ManifestId, item.DownloadedManifestId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(v.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+            var matchingVariant = (!string.IsNullOrEmpty(item.DownloadedManifestId)
+                ? Variants.FirstOrDefault(v => string.Equals(v.ManifestId, item.DownloadedManifestId, StringComparison.OrdinalIgnoreCase))
+                : null)
+                ?? Variants.FirstOrDefault(v => string.Equals(v.Name, item.Name, StringComparison.OrdinalIgnoreCase))
+                ?? Variants.FirstOrDefault(v =>
+                    !string.IsNullOrWhiteSpace(v.Name) && !string.IsNullOrWhiteSpace(item.Name) &&
+                    (v.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase) ||
+                     item.Name.Contains(v.Name, StringComparison.OrdinalIgnoreCase)))
+                ?? (item.File != null && !string.IsNullOrEmpty(item.File.Version)
+                    ? Variants.FirstOrDefault(v => v.Name.Contains(item.File.Version, StringComparison.OrdinalIgnoreCase))
+                    : null);
+
             if (matchingVariant != null && !ReferenceEquals(SelectedVariant, matchingVariant))
             {
                 SelectedVariant = matchingVariant;
@@ -4268,14 +4669,19 @@ public partial class ContentDetailViewModel(
         RefreshSelectedTargetProperties();
     }
 
-    private ReleaseItemViewModel? FindCandidateUpdate(ReleaseItemViewModel rel)
+    private ReleaseItemViewModel? FindCandidateUpdate(ReleaseItemViewModel rel, bool includeDownloaded = false)
     {
         var relIndex = Releases.IndexOf(rel);
         var relVersion = GetEffectiveVersion(rel);
 
         return Releases.FirstOrDefault(other =>
         {
-            if (other.IsDownloaded || ReferenceEquals(other, rel) || !IsSameReleaseLineage(rel, other))
+            if (ReferenceEquals(other, rel) || !IsSameReleaseLineage(rel, other))
+            {
+                return false;
+            }
+
+            if (!includeDownloaded && other.IsDownloaded)
             {
                 return false;
             }
@@ -4355,11 +4761,29 @@ public partial class ContentDetailViewModel(
             }
 
             RefreshSelectedTargetProperties();
+            await LoadInitialStateAsync();
             return;
         }
 
         if (_updateTargetSearchResult != null)
         {
+            if (dialogService != null)
+            {
+                var versionText = !string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version)
+                    ? $" ({_updateTargetSearchResult.Version})"
+                    : string.Empty;
+
+                var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
+                    $"{Name} Update Available",
+                    $"A new version of **{Name}** is available{versionText}.\n\nHow do you want to apply this update?",
+                    initialDeleteOldVersions: true);
+
+                if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+
             var success = await ExecuteDownloadFlowAsync(_updateTargetSearchResult, cancellationToken);
             if (_disposed || !success)
             {
@@ -4381,25 +4805,40 @@ public partial class ContentDetailViewModel(
             }
 
             RefreshSelectedTargetProperties();
+            await LoadInitialStateAsync();
             return;
         }
 
         if (SelectedDownloadableItem is ReleaseItemViewModel rel && rel.IsUpdateAvailable)
         {
-            var newerRelease = FindCandidateUpdate(rel);
+            var newerRelease = FindCandidateUpdate(rel, includeDownloaded: false)
+                ?? FindCandidateUpdate(rel, includeDownloaded: true);
 
-            if (newerRelease?.File != null)
+            if (newerRelease != null)
             {
-                var success = await DownloadReleaseAsync(newerRelease, newerRelease.File, cancellationToken);
-                if (_disposed || !success)
+                if (newerRelease.IsDownloaded)
                 {
+                    SelectDownloadableItem(newerRelease, isUserInitiated: true);
+                    rel.IsUpdateAvailable = false;
+                    IsUpdateAvailable = false;
+                    RefreshSelectedTargetProperties();
+                    DownloadStatusMessage = $"Updated to {newerRelease.Name}";
                     return;
                 }
 
-                rel.IsUpdateAvailable = false;
-                IsUpdateAvailable = false;
-                RefreshSelectedTargetProperties();
-                return;
+                if (newerRelease.File != null)
+                {
+                    var success = await DownloadReleaseAsync(newerRelease, newerRelease.File, cancellationToken);
+                    if (_disposed || !success)
+                    {
+                        return;
+                    }
+
+                    rel.IsUpdateAvailable = false;
+                    IsUpdateAvailable = false;
+                    RefreshSelectedTargetProperties();
+                    return;
+                }
             }
         }
 
@@ -5068,6 +5507,16 @@ public partial class ContentDetailViewModel(
             }
         }
 
+        if (searchResult.GetData<CatalogContentItem>() is { } catalogContent)
+        {
+            var matchingRelease = catalogContent.Releases.FirstOrDefault(r => string.Equals(r.Version, file.Version, StringComparison.OrdinalIgnoreCase))
+                ?? catalogContent.AddonReleases?.FirstOrDefault(a => string.Equals(a.Version, file.Version, StringComparison.OrdinalIgnoreCase));
+            if (matchingRelease != null)
+            {
+                rowSearchResult.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = System.Text.Json.JsonSerializer.Serialize(matchingRelease);
+            }
+        }
+
         StampGitHubAssetPin(rowSearchResult, file, baseResult);
 
         return rowSearchResult;
@@ -5317,6 +5766,15 @@ public partial class ContentDetailViewModel(
                 row.IsDownloaded = state is ContentState.Downloaded or ContentState.UpdateAvailable;
                 row.IsUpdateAvailable = state == ContentState.UpdateAvailable;
                 ReconcileReleases();
+                if (!_userManuallySelectedDownloadableItem && (SelectedDownloadableItem == null || !SelectedDownloadableItem.IsDownloaded))
+                {
+                    var preferred = FindPreferredRelease(Releases);
+                    if (preferred != null && !ReferenceEquals(SelectedDownloadableItem, preferred))
+                    {
+                        SelectDownloadableItem(preferred, isUserInitiated: false);
+                    }
+                }
+
                 if (ReferenceEquals(SelectedDownloadableItem, row))
                 {
                     RefreshSelectedTargetProperties();
@@ -5406,6 +5864,24 @@ public partial class ContentDetailViewModel(
         }
         else if (item is string url && !string.IsNullOrWhiteSpace(url))
         {
+            if (IsVideoUrl(url) && Uri.TryCreate(url, UriKind.Absolute, out var videoUri) &&
+                (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = videoUri.AbsoluteUri,
+                        UseShellExecute = true,
+                    });
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to open video in browser: {Url}", url);
+                }
+            }
+
             FullScreenMediaUrl = url;
             FullScreenMediaTitle = GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview");
             IsFullScreenMediaOpen = true;
@@ -6089,6 +6565,75 @@ public partial class ContentDetailViewModel(
         }
     }
 
+    private string? FindManifestIdForFile(DownloadableFile file)
+    {
+        if (file == null)
+        {
+            return null;
+        }
+
+        var fileDownloadUrl = file.DownloadUrl?.TrimEnd('/');
+        var fileDetailsUrl = file.DetailsUrl?.TrimEnd('/');
+        var fileName = file.Name?.Trim();
+        var fileVersion = file.Version?.Trim();
+
+        if (variantSearchResults != null)
+        {
+            foreach (var kvp in variantSearchResults)
+            {
+                var sr = kvp.Value;
+                var srDownloadUrl = sr.SelectedDownloadUrl?.TrimEnd('/');
+                var srSourceUrl = sr.SourceUrl?.TrimEnd('/');
+
+                if (!string.IsNullOrEmpty(fileDownloadUrl) &&
+                    (string.Equals(srDownloadUrl, fileDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(srSourceUrl, fileDownloadUrl, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return kvp.Key;
+                }
+
+                if (!string.IsNullOrEmpty(fileDetailsUrl) &&
+                    (string.Equals(srSourceUrl, fileDetailsUrl, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(srDownloadUrl, fileDetailsUrl, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return kvp.Key;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(fileName))
+            {
+                var matchByName = variantSearchResults.FirstOrDefault(kvp =>
+                    string.Equals(kvp.Value.Name?.Trim(), fileName, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(matchByName.Key))
+                {
+                    return matchByName.Key;
+                }
+            }
+        }
+
+        if (Variants.Count > 0 && !string.IsNullOrEmpty(fileName))
+        {
+            var matchVariant = Variants.FirstOrDefault(v =>
+                string.Equals(v.Name?.Trim(), fileName, StringComparison.OrdinalIgnoreCase));
+            if (matchVariant != null && !string.IsNullOrEmpty(matchVariant.ManifestId))
+            {
+                return matchVariant.ManifestId;
+            }
+
+            if (!string.IsNullOrEmpty(fileVersion))
+            {
+                var matchByVersion = Variants.FirstOrDefault(v =>
+                    v.Name.Contains(fileVersion, StringComparison.OrdinalIgnoreCase));
+                if (matchByVersion != null && !string.IsNullOrEmpty(matchByVersion.ManifestId))
+                {
+                    return matchByVersion.ManifestId;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private ReleaseItemViewModel CreateReleaseItemViewModel(DownloadableFile file)
     {
         var isDetailsAlreadyLoaded = IsFileDetailsAlreadyLoaded(file);
@@ -6120,11 +6665,18 @@ public partial class ContentDetailViewModel(
             mappedType = ContentType.Mod;
         }
 
+        var resolvedManifestId = FindManifestIdForFile(file);
+        var isDownloadedVariant = !string.IsNullOrEmpty(resolvedManifestId) &&
+            Variants.Any(v => string.Equals(v.ManifestId, resolvedManifestId, StringComparison.OrdinalIgnoreCase) &&
+                              v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+
         ReleaseItemViewModel releaseItem = new()
         {
             Id = Guid.NewGuid().ToString(),
             Name = file.Name ?? ContentConstants.UnknownReleaseName,
             Version = file.Version,
+            DownloadedManifestId = resolvedManifestId,
+            IsDownloaded = isDownloadedVariant,
             ReleaseDate = file.ReleaseDate ?? file.UploadDate,
             FileSize = file.SizeBytes ?? 0,
             SizeDisplay = file.SizeDisplay,
@@ -6214,10 +6766,17 @@ public partial class ContentDetailViewModel(
             ? ModDBCategoryMapper.MapCategoryByName(file.Category)
             : ContentType.Addon;
 
+        var resolvedAddonManifestId = FindManifestIdForFile(file);
+        var isDownloadedAddonVariant = !string.IsNullOrEmpty(resolvedAddonManifestId) &&
+            Variants.Any(v => string.Equals(v.ManifestId, resolvedAddonManifestId, StringComparison.OrdinalIgnoreCase) &&
+                              v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+
         AddonItemViewModel addonItem = new()
         {
             Id = Guid.NewGuid().ToString(),
             Name = file.Name ?? ContentConstants.UnknownAddonName,
+            DownloadedManifestId = resolvedAddonManifestId,
+            IsDownloaded = isDownloadedAddonVariant,
             ReleaseDate = file.ReleaseDate ?? file.UploadDate,
             FileSize = file.SizeBytes ?? 0,
             SizeDisplay = file.SizeDisplay,

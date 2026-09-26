@@ -1,5 +1,7 @@
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Results;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
@@ -115,6 +117,7 @@ public class PublisherCatalogRefreshService(
                 return OperationResult<bool>.CreateFailure(updateResult);
             }
 
+            WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(publisherId));
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

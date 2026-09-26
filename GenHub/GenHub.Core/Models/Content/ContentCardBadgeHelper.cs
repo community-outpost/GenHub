@@ -206,6 +206,11 @@ public static partial class ContentCardBadgeHelper
             return screenshot;
         }
 
+        if (IsGenericCatalog(result) && !string.IsNullOrWhiteSpace(result.IconUrl))
+        {
+            return result.IconUrl;
+        }
+
         if (IsGeneralsOnline(result))
         {
             return PublisherInfoConstants.GeneralsOnline.LogoSource;
@@ -240,6 +245,42 @@ public static partial class ContentCardBadgeHelper
     }
 
     /// <summary>
+    /// Determines whether an accent color value is a usable hex color (#RGB, #RRGGBB, or #AARRGGBB).
+    /// </summary>
+    /// <param name="value">The candidate accent color value.</param>
+    /// <returns>True when the value parses as a hex color; otherwise, false.</returns>
+    public static bool IsValidAccentColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var span = value.Trim();
+        if (span.Length == 0 || span[0] != '#')
+        {
+            return false;
+        }
+
+        span = span[1..];
+        if (span.Length is not (3 or 6 or 8))
+        {
+            return false;
+        }
+
+        foreach (var c in span)
+        {
+            var isHexDigit = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+            if (!isHexDigit)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Filters out unusable or expired image URLs (such as Discord CDN attachment links) and returns a clean URL or null.
     /// </summary>
     /// <param name="rawUrl">The candidate image URL.</param>
@@ -258,6 +299,16 @@ public static partial class ContentCardBadgeHelper
         }
 
         return trimmed;
+    }
+
+    /// <summary>
+    /// Returns the candidate image URL, or the default placeholder when it is missing.
+    /// </summary>
+    /// <param name="candidate">The candidate image URL.</param>
+    /// <returns>The candidate URL, or the default content image URL when empty.</returns>
+    public static string OrDefaultImage(string? candidate)
+    {
+        return string.IsNullOrWhiteSpace(candidate) ? ImageCacheConstants.DefaultContentImageUrl : candidate;
     }
 
     /// <summary>
@@ -285,6 +336,17 @@ public static partial class ContentCardBadgeHelper
     public static string? GetPublisherLogoUrl(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+
+        if (IsGenericCatalog(result))
+        {
+            if (!string.IsNullOrWhiteSpace(result.IconUrl))
+            {
+                return result.IconUrl;
+            }
+
+            var pubLogo = PublisherInfoConstants.GetPublisherLogo(result.ProviderName, result.AuthorName);
+            return pubLogo;
+        }
 
         if (IsTheSuperHackers(result))
         {
@@ -318,7 +380,18 @@ public static partial class ContentCardBadgeHelper
             return PublisherInfoConstants.GitHub.LogoSource;
         }
 
-        return PublisherInfoConstants.GetPublisherLogo(result.ProviderName, $"{result.AuthorName} {result.Id} {result.Name}");
+        var knownLogo = PublisherInfoConstants.GetPublisherLogo(result.ProviderName, $"{result.AuthorName} {result.Id} {result.Name}");
+        if (!string.IsNullOrWhiteSpace(knownLogo))
+        {
+            return knownLogo;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.IconUrl))
+        {
+            return result.IconUrl;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -472,6 +545,11 @@ public static partial class ContentCardBadgeHelper
     public static bool IsTheSuperHackers(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        if (IsGenericCatalog(result))
+        {
+            return false;
+        }
+
         return (result.ProviderName?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.AuthorName?.Equals(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true) ||
@@ -485,6 +563,18 @@ public static partial class ContentCardBadgeHelper
     }
 
     /// <summary>
+    /// Checks whether the search result originates from a generic publisher catalog.
+    /// </summary>
+    /// <param name="result">The search result to check.</param>
+    /// <returns>True if the item is from a generic catalog; otherwise false.</returns>
+    public static bool IsGenericCatalog(ContentSearchResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        return string.Equals(result.ResolverId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(result.ProviderName, CatalogConstants.GenericCatalogProviderName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Checks whether the search result belongs to Generals Online publisher.
     /// </summary>
     /// <param name="result">The search result to check.</param>
@@ -492,6 +582,11 @@ public static partial class ContentCardBadgeHelper
     public static bool IsGeneralsOnline(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        if (IsGenericCatalog(result))
+        {
+            return false;
+        }
+
         return (result.ProviderName?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals("Generals Online", StringComparison.OrdinalIgnoreCase) == true) ||
@@ -512,6 +607,11 @@ public static partial class ContentCardBadgeHelper
     public static bool IsCommunityOutpost(ContentSearchResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        if (IsGenericCatalog(result))
+        {
+            return false;
+        }
+
         return (result.ProviderName?.Equals(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals("Community-Outpost", StringComparison.OrdinalIgnoreCase) == true) ||
                (result.ProviderName?.Equals("Community Outpost", StringComparison.OrdinalIgnoreCase) == true) ||

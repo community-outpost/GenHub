@@ -94,10 +94,17 @@ public sealed partial class ContentGridItemViewModel(
     private bool _isSelected;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPublisherLogoBadge))]
     private Bitmap? _iconBitmap;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPublisherLogoBadge))]
     private Bitmap? _publisherLogoBitmap;
+
+    /// <summary>
+    /// Gets a value indicating whether the top-left publisher logo or icon overlay badge should be displayed.
+    /// </summary>
+    public bool ShowPublisherLogoBadge => IconBitmap != null && PublisherLogoBitmap != null;
 
     /// <summary>
     /// Performs initialization.
@@ -323,14 +330,24 @@ public sealed partial class ContentGridItemViewModel(
     public string ProviderName => SearchResult.ProviderName ?? string.Empty;
 
     /// <summary>
-    /// Gets the icon URL for the content.
+    /// Gets the icon URL for the content, falling back to a placeholder when missing.
     /// </summary>
-    public string? IconUrl => SearchResult.IconUrl;
+    public string IconUrl => ContentCardBadgeHelper.OrDefaultImage(SearchResult.IconUrl);
 
     /// <summary>
-    /// Gets the preferred card thumbnail URL (banner / screenshot / icon).
+    /// Gets the preferred card thumbnail URL (banner / screenshot / icon), falling back to a placeholder when missing.
     /// </summary>
-    public string? ThumbnailUrl => ContentCardBadgeHelper.GetThumbnailUrl(SearchResult);
+    public string ThumbnailUrl => ContentCardBadgeHelper.OrDefaultImage(ContentCardBadgeHelper.GetThumbnailUrl(SearchResult));
+
+    /// <summary>
+    /// Gets the publisher-defined accent color hex for this content, if any.
+    /// </summary>
+    public string? AccentColor => SearchResult.AccentColor;
+
+    /// <summary>
+    /// Gets a value indicating whether a valid accent color is available for card highlights.
+    /// </summary>
+    public bool HasAccentColor => ContentCardBadgeHelper.IsValidAccentColor(SearchResult.AccentColor);
 
     /// <summary>
     /// Gets the source URL for viewing more details.
@@ -857,6 +874,11 @@ public sealed partial class ContentGridItemViewModel(
 
         // 1. Load publisher logo if available
         var publisherLogoUrl = ContentCardBadgeHelper.GetPublisherLogoUrl(SearchResult);
+        if (string.Equals(publisherLogoUrl, ThumbnailUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            publisherLogoUrl = null;
+        }
+
         if (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
         {
             try
@@ -1268,6 +1290,8 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(Id));
         OnPropertyChanged(nameof(IconUrl));
         OnPropertyChanged(nameof(ThumbnailUrl));
+        OnPropertyChanged(nameof(AccentColor));
+        OnPropertyChanged(nameof(HasAccentColor));
         OnPropertyChanged(nameof(IncludesSummary));
         OnPropertyChanged(nameof(HasIncludesSummary));
         OnPropertyChanged(nameof(ShortDescription));

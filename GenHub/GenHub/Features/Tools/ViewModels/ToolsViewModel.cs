@@ -74,6 +74,7 @@ public sealed partial class ToolsViewModel(
 
     private IToolPlugin? _lastOpenedTool;
     private System.Threading.CancellationTokenSource? _statusHideCts;
+    private bool _activateOnLoadComplete;
 
     /// <summary>
     /// Gets the most recently opened tool plugin, remembered across tab switches.
@@ -129,8 +130,22 @@ public sealed partial class ToolsViewModel(
 
                 if (HasTools)
                 {
-                    // Select the first tool by default
-                    SelectedTool = InstalledTools[0];
+                    // Remember the first tool without selecting it. Selecting would activate
+                    // the tool immediately (loading its ViewModel, views, and data at app
+                    // startup). Activation is deferred until the Tools tab is actually opened,
+                    // where OnTabActivated restores this remembered tool.
+                    _lastOpenedTool = InstalledTools[0];
+                }
+
+                if (_activateOnLoadComplete)
+                {
+                    // The Tools tab was opened while tools were still loading and the
+                    // earlier activation found an empty list; run it now that tools exist.
+                    // IsLoading is still true until the finally block runs, so clear it
+                    // first or the re-entrant activation would defer again instead of selecting.
+                    _activateOnLoadComplete = false;
+                    IsLoading = false;
+                    OnTabActivated();
                 }
 
                 logger.LogInformation("Loaded {Count} tool plugins", InstalledTools.Count);
@@ -159,6 +174,12 @@ public sealed partial class ToolsViewModel(
     /// </summary>
     public void OnTabActivated()
     {
+        if (IsLoading)
+        {
+            _activateOnLoadComplete = true;
+            return;
+        }
+
         if (SelectedTool == null && _lastOpenedTool != null)
         {
             var matchingTool = InstalledTools.FirstOrDefault(t =>

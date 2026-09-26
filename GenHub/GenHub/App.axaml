@@ -17,6 +17,7 @@
             <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <local:IntToBoolConverter x:Key="IntToBoolConverter" />
             <local:EqualityConverter x:Key="EqualityConverter" />
+            <local:FirstCharConverter x:Key="FirstCharConverter" />
             <local:BoolToExpandIconConverter x:Key="BoolToExpandIconConverter" />
             <local:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
             <local:FileIconConverter x:Key="FileIconConverter" />

@@ -27,17 +27,6 @@ public sealed class ContentArtworkService(
     IHttpClientFactory httpClientFactory,
     ILogger<ContentArtworkService> logger) : IContentArtworkService
 {
-    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".webp",
-        ".gif",
-        ".bmp",
-        ".ico",
-    };
-
     private string? _resolvedArtworkRoot;
 
     private string ArtworkRoot
@@ -139,13 +128,10 @@ public sealed class ContentArtworkService(
 
     private static string ResolveExtension(string url)
     {
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            && MediaFileHelper.IsImageFile(uri.LocalPath))
         {
-            var extension = Path.GetExtension(uri.LocalPath);
-            if (ImageExtensions.Contains(extension))
-            {
-                return extension.ToLowerInvariant();
-            }
+            return Path.GetExtension(uri.LocalPath).ToLowerInvariant();
         }
 
         return ".png";

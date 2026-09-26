@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
@@ -209,12 +210,14 @@ public partial class App : Application
             }
 
             var vmLogger = loggerFactory.CreateLogger<SubscriptionConfirmationViewModel>();
+            var definitionService = _serviceProvider.GetService<IPublisherDefinitionService>();
             var confirmationVm = new SubscriptionConfirmationViewModel(
                 targetUrl,
                 subscriptionStore,
                 catalogParser,
                 httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName),
                 vmLogger,
+                definitionService,
                 _localizationService);
 
             var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);

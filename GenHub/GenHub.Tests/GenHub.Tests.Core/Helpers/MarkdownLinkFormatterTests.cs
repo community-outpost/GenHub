@@ -346,4 +346,41 @@ public sealed class MarkdownLinkFormatterTests
         Assert.Contains("```\n• inside code\n  • indented\n```", result);
         Assert.Contains("- outside list", result);
     }
+
+    /// <summary>
+    /// Verifies that PreserveLineBreaks appends two trailing spaces to regular lines while leaving
+    /// headers, blockquotes, code fences, and bullet lists untouched.
+    /// </summary>
+    [Fact]
+    public void PreserveLineBreaks_AppendsTwoTrailingSpacesToRegularLines()
+    {
+        var input = "Line 1\nLine 2\n# Header\n- Bullet 1\nLine 3";
+        var result = MarkdownLinkFormatter.PreserveLineBreaks(input);
+
+        Assert.Equal("Line 1  \nLine 2  \n# Header\n- Bullet 1\nLine 3  ", result);
+    }
+
+    /// <summary>
+    /// Verifies that ordered lists are not padded with trailing spaces, but decimal numbers are.
+    /// </summary>
+    [Fact]
+    public void PreserveLineBreaks_OrderedList_PreservedUntouched()
+    {
+        var input = "1. First\n2) Second\n3.5 million players";
+        var result = MarkdownLinkFormatter.PreserveLineBreaks(input);
+
+        Assert.Equal("1. First\n2) Second\n3.5 million players  ", result);
+    }
+
+    /// <summary>
+    /// Verifies that block code fences toggle correctly while inline backticks do not.
+    /// </summary>
+    [Fact]
+    public void PreserveLineBreaks_CodeFencesAndInlineBackticks_HandledCorrectly()
+    {
+        var input = "```csharp\nvar x = 1;\n```\n```inline``` text";
+        var result = MarkdownLinkFormatter.PreserveLineBreaks(input);
+
+        Assert.Equal("```csharp\nvar x = 1;\n```\n```inline``` text  ", result);
+    }
 }

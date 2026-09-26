@@ -66,7 +66,8 @@ public class ProfileLauncherFacade(
     ILogger<ProfileLauncherFacade> logger,
     IGameLaunchRunner launchRunner,
     IInstallationCasPoolService? installationCasPoolService = null,
-    ILocalizationService? localizationService = null) : IProfileLauncherFacade
+    ILocalizationService? localizationService = null,
+    IGenericCatalogProfileReconciler? genericCatalogProfileReconciler = null) : IProfileLauncherFacade
 {
     private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
     {
@@ -1114,7 +1115,26 @@ public class ProfileLauncherFacade(
                     return ProfileOperationResult<GameProfile>.CreateFailure(error);
                 }
 
-                return ProfileOperationResult<GameProfile>.CreateSuccess(reloadedProfileResult.Data);
+                profile = reloadedProfileResult.Data;
+                profileId = targetProfileId;
+            }
+        }
+
+        if (genericCatalogProfileReconciler != null &&
+            !string.Equals(publisherType, CatalogConstants.GenericPublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogDebug("[Launch] Checking for subscribed catalog content updates in profile");
+            var catalogReconcileResult = await genericCatalogProfileReconciler.CheckAndReconcileIfNeededAsync(profileId, cancellationToken);
+            if (catalogReconcileResult.Success && catalogReconcileResult.Data)
+            {
+                var targetProfileId = !string.IsNullOrWhiteSpace(catalogReconcileResult.Data.TargetProfileId)
+                    ? catalogReconcileResult.Data.TargetProfileId
+                    : profileId;
+                var reloadedProfileResult = await profileManager.GetProfileAsync(targetProfileId, cancellationToken);
+                if (reloadedProfileResult.Success && reloadedProfileResult.Data != null)
+                {
+                    profile = reloadedProfileResult.Data;
+                }
             }
         }
 

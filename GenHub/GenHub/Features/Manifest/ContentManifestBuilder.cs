@@ -6,6 +6,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
@@ -127,7 +128,7 @@ public partial class ContentManifestBuilder(
         // Store basic info for ID generation when ContentType is set
         _publisherId = publisherId;
         _contentName = contentName;
-        _manifestVersion = int.TryParse(manifestVersion, out var v) ? v : 0;
+        _manifestVersion = CatalogManifestIdentity.ExtractVersionNumber(manifestVersion);
 
         _manifest.Name = contentName;
         _manifest.Version = manifestVersion ?? "0";

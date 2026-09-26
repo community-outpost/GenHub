@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -25,6 +27,18 @@ public class PublisherCatalog
     /// </summary>
     [JsonPropertyName("$schemaVersion")]
     public int SchemaVersion { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets the optional icon URL for this catalog.
+    /// </summary>
+    [JsonPropertyName("iconUrl")]
+    public string? IconUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional avatar URL for this catalog.
+    /// </summary>
+    [JsonPropertyName("avatarUrl")]
+    public string? AvatarUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the publisher identity and branding information.

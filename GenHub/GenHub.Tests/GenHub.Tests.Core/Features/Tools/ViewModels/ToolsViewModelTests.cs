@@ -219,8 +219,41 @@ public class ToolsViewModelTests
         Assert.Contains(plugin1, _viewModel.InstalledTools);
         Assert.Contains(plugin2, _viewModel.InstalledTools);
         Assert.True(_viewModel.HasTools);
-        Assert.Equal(plugin1, _viewModel.SelectedTool); // First tool selected by default
-        Assert.Equal(plugin1, _viewModel.LastOpenedTool);
+        Assert.Null(_viewModel.SelectedTool); // Deferred until the Tools tab is actually opened
+        Assert.Equal(plugin1, _viewModel.LastOpenedTool); // Remembered for first tab activation
+        Assert.Null(_viewModel.CurrentToolControl); // No tool control created at startup
+        Assert.False(plugin1.IsActivated);
+        Assert.False(plugin2.IsActivated);
+        Assert.False(_viewModel.IsLoading);
+    }
+
+    /// <summary>
+    /// Tests that opening the Tools tab while tools are still loading defers activation
+    /// until the load completes instead of leaving the detail pane blank.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_ActivatesFirstTool_WhenTabOpenedDuringLoadAsync()
+    {
+        // Arrange
+        var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
+        var tools = new List<IToolPlugin> { plugin1 };
+        var loadCompletion = new TaskCompletionSource<OperationResult<List<IToolPlugin>>>();
+
+        _mockToolService.Setup(x => x.LoadSavedToolsAsync()).Returns(loadCompletion.Task);
+
+        // Act: open the tab while the load is still in flight.
+        var initializeTask = _viewModel.InitializeAsync();
+        Assert.True(_viewModel.IsLoading);
+        _viewModel.OnTabActivated();
+        Assert.Null(_viewModel.SelectedTool);
+
+        loadCompletion.SetResult(OperationResult<List<IToolPlugin>>.CreateSuccess(tools));
+        await initializeTask;
+
+        // Assert
+        Assert.Equal(plugin1, _viewModel.SelectedTool);
+        Assert.NotNull(_viewModel.CurrentToolControl);
         Assert.False(_viewModel.IsLoading);
     }
 

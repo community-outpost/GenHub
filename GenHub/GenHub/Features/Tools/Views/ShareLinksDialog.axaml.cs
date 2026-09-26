@@ -13,6 +13,18 @@ public partial class ShareLinksDialog : Window
 {
     private ShareLinksViewModel? attachedViewModel;
 
+    /// <inheritdoc/>
+    /// <param name="e">The key event arguments.</param>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.Escape && !e.Handled)
+        {
+            e.Handled = true;
+            Close();
+        }
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ShareLinksDialog"/> class.
     /// </summary>

@@ -223,6 +223,12 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>Maximize / Restore</value>
   </data>
+  <data name="Common.Tooltip.Clear" xml:space="preserve">
+    <value>Clear input</value>
+  </data>
+  <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
+    <value>Paste image or file from clipboard (Ctrl+V)</value>
+  </data>
   <data name="Dialog.UpdateOption.Button.Update" xml:space="preserve">
     <value>Update</value>
   </data>
@@ -4727,8 +4733,17 @@ This will modify game files and configuration settings at:
   <data name="Common.SavingEllipsis" xml:space="preserve">
     <value>Saving...</value>
   </data>
+  <data name="Downloads.Subscription.CatalogsLabel" xml:space="preserve">
+    <value>Catalogs</value>
+  </data>
   <data name="Downloads.Subscription.NewCatalogBadge" xml:space="preserve">
     <value>+ New Catalog</value>
+  </data>
+  <data name="Downloads.Subscription.NewPublisherBadge" xml:space="preserve">
+    <value>+ New Publisher</value>
+  </data>
+  <data name="Downloads.Subscription.NewPublisherBadgeFormat" xml:space="preserve">
+    <value>+ New Publisher • {0} catalogs</value>
   </data>
   <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
     <value>ADD CONTENT</value>
@@ -5603,7 +5618,6 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Tools.GenHotkeys.UpdateAddonTooltip" xml:space="preserve">
     <value>Update the existing Addon '{0}' with current hotkey settings.</value>
   </data>
-
   <data name="Tools.ReplayManager.ClientSelection.Title" xml:space="preserve">
     <value>Select Game Client</value>
   </data>
@@ -5739,7 +5753,7 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Tools.ReplayManager.Client.CustomExeIni" xml:space="preserve">
     <value>Custom (Exe: {0}, INI: {1})</value>
   </data>
-    <data name="Info.Card.app-updates.rollback.Content" xml:space="preserve">
+  <data name="Info.Card.app-updates.rollback.Content" xml:space="preserve">
     <value>How to revert to an earlier release if needed.</value>
   </data>
   <data name="Info.Card.app-updates.rollback.DetailedContent" xml:space="preserve">
@@ -6961,14 +6975,17 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>Updated {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Settings.Section.CloudUploads" xml:space="preserve">
+    <value>Cloud Storage &amp; Uploads</value>
+  </data>
   <data name="Settings.Section.CatalogSubscriptions" xml:space="preserve">
-    <value>Catalog Subscriptions</value>
+    <value>Publisher Subscriptions</value>
   </data>
   <data name="Settings.Subscriptions.Description" xml:space="preserve">
-    <value>Manage your subscribed content catalogs.</value>
+    <value>Manage your subscribed publishers and their content catalogs.</value>
   </data>
   <data name="Settings.Subscriptions.EmptyState" xml:space="preserve">
-    <value>No active subscriptions found. You can subscribe to catalogs via 'genhub://subscribe' links.</value>
+    <value>No active subscriptions found. You can subscribe to publishers via 'genhub://subscribe' links.</value>
   </data>
   <data name="Settings.Subscriptions.LoadFailedFallback" xml:space="preserve">
     <value>Failed to load subscriptions</value>
@@ -6989,7 +7006,7 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
     <value>An unexpected error occurred during refresh.</value>
   </data>
   <data name="Settings.Subscriptions.RefreshedNotificationMessage" xml:space="preserve">
-    <value>Successfully updated all subscribed catalogs.</value>
+    <value>Successfully updated all subscribed publishers.</value>
   </data>
   <data name="Settings.Subscriptions.RefreshedNotificationTitle" xml:space="preserve">
     <value>Catalogs Refreshed</value>
@@ -7025,7 +7042,7 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
     <value>Subscription Removed</value>
   </data>
   <data name="Settings.Subscriptions.Title" xml:space="preserve">
-    <value>Catalog Subscriptions</value>
+    <value>Publisher Subscriptions</value>
   </data>
   <data name="Settings.Subscriptions.ToggleTrustAutomation" xml:space="preserve">
     <value>Toggle Subscription Trust Level</value>
@@ -9190,7 +9207,6 @@ Do you want to download and inspect this profile package?</value>
   <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
     <value>Unknown</value>
   </data>
-
   <data name="ModDB.ChromiumRuntimeName" xml:space="preserve">
     <value>ModDB Chromium Runtime</value>
   </data>
@@ -9274,7 +9290,6 @@ Install location:
   <data name="Tools.GenHotkeys.Notification.HotkeyAssigned" xml:space="preserve">
     <value>Assigned {0}.</value>
   </data>
-
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
     <value>Skipping clean for unsafe or external build directory: {0}</value>
   </data>
@@ -9406,6 +9421,1660 @@ Install location:
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
+  </data>
+  <data name="Downloads.Browser.ImportSubscription" xml:space="preserve">
+    <value>Import Catalog / Provider</value>
+  </data>
+  <data name="Downloads.Browser.ImportSubscriptionTooltip" xml:space="preserve">
+    <value>Import a custom publisher catalog or provider subscription link</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Downloads.ImportSubscription.LoadAndSubscribe" xml:space="preserve">
+    <value>Load and Subscribe</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Prompt" xml:space="preserve">
+    <value>Subscription or Manifest URL:</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Subtitle" xml:space="preserve">
+    <value>Add external publisher catalogs or subscribe to custom content providers via direct URL or GenHub protocol link.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.SupportedSources" xml:space="preserve">
+    <value>Supported: genhub:// links, GitHub Gist URLs, Dropbox links, Google Drive links, or any direct catalog/publisher JSON URL.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Title" xml:space="preserve">
+    <value>Import Custom Catalog / Provider</value>
+  </data>
+  <data name="Downloads.ImportSubscription.UrlWatermark" xml:space="preserve">
+    <value>genhub://subscribe?url=... or https://example.com/catalog.json</value>
+  </data>
+  <data name="Tools.Plugin.publisher-studio.Description" xml:space="preserve">
+    <value>Create, host, and publish custom game manifests, catalogs, and downloads via the GenHub network.</value>
+  </data>
+  <data name="Tools.Plugin.publisher-studio.Name" xml:space="preserve">
+    <value>Publisher Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.AddTitle" xml:space="preserve">
+    <value>Add Artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Browse" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseFolder" xml:space="preserve">
+    <value>Browse Folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.CalculatingFolderSize" xml:space="preserve">
+    <value>Folder (calculating size...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DragDropHint" xml:space="preserve">
+    <value>Tip: drag &amp; drop a file or folder anywhere in this dialog to fill in the details.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FolderSizeUnavailable" xml:space="preserve">
+    <value>Folder (size unavailable)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ComputeHash" xml:space="preserve">
+    <value>Compute</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ComputingHash" xml:space="preserve">
+    <value>Computing SHA-256 hash...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DirectDownloadUrl" xml:space="preserve">
+    <value>Direct Download URL *</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ExternalCdn" xml:space="preserve">
+    <value>External CDN / Direct URL (e.g. Game Client, Fast Mirror)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ExternalCdnHint" xml:space="preserve">
+    <value>Pre-hosted external link (game clients, community CDN, S3, fast mirrors). Kept intact without cloud re-upload.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FileSize" xml:space="preserve">
+    <value>File Size (e.g. 500 MB, 1.2 GB, or bytes)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FileSizePlaceholder" xml:space="preserve">
+    <value>e.g. 750 MB</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder" xml:space="preserve">
+    <value>https://cdn.example.com/downloads/gameclient-v1.0.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Filename" xml:space="preserve">
+    <value>Filename</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FilenameHint" xml:space="preserve">
+    <value>Auto-filled from selected file or direct URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FilenamePlaceholder" xml:space="preserve">
+    <value>e.g. GeneralsOnline-Client-v1.0.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashHint" xml:space="preserve">
+    <value>Auto-computed from selected local file</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashPlaceholder" xml:space="preserve">
+    <value>Hash string (optional for external CDN)...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFile" xml:space="preserve">
+    <value>Local File (Upload to Cloud Storage)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFileHint" xml:space="preserve">
+    <value>File will be copied, SHA-256 computed, and prepared for cloud upload in Publish &amp; Share.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.MetadataHeader" xml:space="preserve">
+    <value>Artifact Metadata:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.NoFileSelected" xml:space="preserve">
+    <value>No file selected...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.PrimaryArtifact" xml:space="preserve">
+    <value>Primary Artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
+    <value>This is the main file users should download.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
+    <value>SHA256 Hash (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SourceMethod" xml:space="preserve">
+    <value>Artifact Source Method:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SourcePrompt" xml:space="preserve">
+    <value>Choose artifact source:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Subtitle" xml:space="preserve">
+    <value>Specify artifact binary details. GenHub supports uploading local files to your cloud storage or linking to an existing CDN / direct URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.UploadLocalFile" xml:space="preserve">
+    <value>Upload Local File (Cloud Hosting)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.UploadLocalFileHint" xml:space="preserve">
+    <value>File will be uploaded to your connected cloud hosting provider when you publish</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AddButton" xml:space="preserve">
+    <value>Add Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AddTitle" xml:space="preserve">
+    <value>Add Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactExternalCdn" xml:space="preserve">
+    <value>External CDN / Direct URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactExternalCdnHint" xml:space="preserve">
+    <value>Pre-hosted link (game clients, fast mirrors). Kept as-is without cloud re-upload.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactLocalFile" xml:space="preserve">
+    <value>Local File (Upload to Cloud Storage)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactLocalFileHint" xml:space="preserve">
+    <value>File will be copied and prepared for upload when publishing.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Browse" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFile" xml:space="preserve">
+    <value>Browse File...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFolder" xml:space="preserve">
+    <value>Browse Folder...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Changelog" xml:space="preserve">
+    <value>Changelog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ChangelogPlaceholder" xml:space="preserve">
+    <value>Initial release notes...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ContentType" xml:space="preserve">
+    <value>Content Type</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DescriptionPlaceholder" xml:space="preserve">
+    <value>Describe your content item...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectDownloadUrl" xml:space="preserve">
+    <value>Direct Download URL *</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectDownloadUrlPlaceholder" xml:space="preserve">
+    <value>https://cdn.example.com/downloads/gameclient-v1.0.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectUrlOption" xml:space="preserve">
+    <value>Direct Download URL (hosted/CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadSource" xml:space="preserve">
+    <value>Download / Distribution Source</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadUrl" xml:space="preserve">
+    <value>Download URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadUrlHint" xml:space="preserve">
+    <value>Direct URL where players download this package (Google Drive, CDN, GitHub, etc.)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropHint" xml:space="preserve">
+    <value>Drag &amp; drop folders or files here</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsContent" xml:space="preserve">
+    <value>Extends Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsContentPlaceholder" xml:space="preserve">
+    <value>Parent content ID if this is a sub-mod/addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsHint" xml:space="preserve">
+    <value>The content ID this addon extends. Use 'content-id' for same catalog, or 'publisher-id/content-id' for cross-publisher.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsPlaceholder" xml:space="preserve">
+    <value>e.g. my-mod or publisher-id/content-id</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FileSize" xml:space="preserve">
+    <value>File Size</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FileSizePlaceholder" xml:space="preserve">
+    <value>e.g. 500 MB, 1.2 GB, or bytes</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Id" xml:space="preserve">
+    <value>Content ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
+    <value>Unique identifier for this content item. Alphanumeric and hyphens only.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
+    <value>e.g. generals-online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IncludeInitialRelease" xml:space="preserve">
+    <value>Include initial release and package artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InitialArtifact" xml:space="preserve">
+    <value>Initial Artifact (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InitialRelease" xml:space="preserve">
+    <value>Initial Release (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.LocalFileOption" xml:space="preserve">
+    <value>Local File (for cloud upload)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.LocalFileOrFolder" xml:space="preserve">
+    <value>Drag &amp; drop folders or files here</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.NamePlaceholder" xml:space="preserve">
+    <value>e.g. Generals Online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.NoFileSelected" xml:space="preserve">
+    <value>No file selected...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.PackageFilename" xml:space="preserve">
+    <value>Package Filename</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.PackageFilenamePlaceholder" xml:space="preserve">
+    <value>e.g. GeneralsOnline.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseVersion" xml:space="preserve">
+    <value>Release Version</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectOrDragPlaceholder" xml:space="preserve">
+    <value>Select or drag &amp; drop a folder or archive file...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Subtitle" xml:space="preserve">
+    <value>Create a new content item in this catalog. You can add releases and download artifacts after creation.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Tags" xml:space="preserve">
+    <value>Tags (Comma Separated)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.TagsPlaceholder" xml:space="preserve">
+    <value>e.g. multiplayer, patch, balance</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.TargetGame" xml:space="preserve">
+    <value>Target Game</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Type" xml:space="preserve">
+    <value>Content Type</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UseSuggestedId" xml:space="preserve">
+    <value>Use Suggested ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VersionPlaceholder" xml:space="preserve">
+    <value>e.g. 1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AddButton" xml:space="preserve">
+    <value>Add Dependency</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AddTitle" xml:space="preserve">
+    <value>Add Dependency</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AvailableVersions" xml:space="preserve">
+    <value>Available versions: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.BrowseKnown" xml:space="preserve">
+    <value>Browse Known Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.CatalogUrl" xml:space="preserve">
+    <value>Catalog / Definition URL (Recommended)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWith" xml:space="preserve">
+    <value>Conflicts With (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWithHint" xml:space="preserve">
+    <value>Comma-separated Manifest IDs this dependency conflicts with.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWithPlaceholder" xml:space="preserve">
+    <value>e.g. 1.0.other.mod.id, 1.0.another.mod</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentId" xml:space="preserve">
+    <value>Content ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentIdPlaceholder" xml:space="preserve">
+    <value>e.g. worldbuilder-tool</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Discover" xml:space="preserve">
+    <value>Discover</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoverHint" xml:space="preserve">
+    <value>Providing a URL allows discovering content IDs automatically.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoverTooltip" xml:space="preserve">
+    <value>Fetch catalogs from this publisher to browse available content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveredContent" xml:space="preserve">
+    <value>Discovered Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveredCount" xml:space="preserve">
+    <value>{0} content item(s) found from publisher '{1}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExactVersion" xml:space="preserve">
+    <value>Exact Version (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExactVersionPlaceholder" xml:space="preserve">
+    <value>e.g. 1.2.3</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Examples" xml:space="preserve">
+    <value>Examples:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExternalPublisher" xml:space="preserve">
+    <value>External Publisher</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.FromMyCatalog" xml:space="preserve">
+    <value>From My Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MaxVersion" xml:space="preserve">
+    <value>Maximum Version (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MaxVersionPlaceholder" xml:space="preserve">
+    <value>e.g. 2.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MinVersion" xml:space="preserve">
+    <value>Minimum Version (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MinVersionPlaceholder" xml:space="preserve">
+    <value>e.g. 1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoContentDiscovered" xml:space="preserve">
+    <value>No content found for this publisher.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoKnownPublishers" xml:space="preserve">
+    <value>No known publishers available</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoOtherItems" xml:space="preserve">
+    <value>No other content items available.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.OptionalDependency" xml:space="preserve">
+    <value>Optional Dependency</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherId" xml:space="preserve">
+    <value>Publisher ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherIdPlaceholder" xml:space="preserve">
+    <value>e.g. community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.RequiredNotice" xml:space="preserve">
+    <value>* Publisher ID and Content ID are required.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectContentItem" xml:space="preserve">
+    <value>Select Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectFromDiscovered" xml:space="preserve">
+    <value>Or select from discovered content:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectPublisherFirst" xml:space="preserve">
+    <value>Select a publisher first</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Source" xml:space="preserve">
+    <value>Dependency Source</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Subtitle" xml:space="preserve">
+    <value>Specify a required dependency for this release.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.VersionConstraint" xml:space="preserve">
+    <value>Version Constraint (SemVer)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.VersionConstraintPlaceholder" xml:space="preserve">
+    <value>e.g. &gt;=1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetBreakdown" xml:space="preserve">
+    <value>ASSET BREAKDOWN</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AuthRequired" xml:space="preserve">
+    <value>Authentication Required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CancelAuthTip" xml:space="preserve">
+    <value>Cancel the ongoing authentication</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CatalogsPrefix" xml:space="preserve">
+    <value>Catalogs: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudFilesSummary" xml:space="preserve">
+    <value>Cloud files (Definition, Catalogs, Releases)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudProviderSetup" xml:space="preserve">
+    <value>Cloud Storage Provider Setup</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudProviderSetupSubtitle" xml:space="preserve">
+    <value>Select a hosting service to upload catalogs and releases. Step-by-step setup instructions are provided below.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColActions" xml:space="preserve">
+    <value>ACTIONS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColCategory" xml:space="preserve">
+    <value>CATEGORY</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColFileName" xml:space="preserve">
+    <value>FILE NAME</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColLocation" xml:space="preserve">
+    <value>LOCATION</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColSize" xml:space="preserve">
+    <value>SIZE</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColStatus" xml:space="preserve">
+    <value>STATUS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectProvider" xml:space="preserve">
+    <value>Connect Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectProviderTip" xml:space="preserve">
+    <value>Connect and authenticate with the selected provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Connected" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CopyDownloadLinkTip" xml:space="preserve">
+    <value>Copy direct download link</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CreateDropboxApp" xml:space="preserve">
+    <value>1. Create Dropbox App (App Console)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBGuideSubtitle" xml:space="preserve">
+    <value>Dropbox offers 2 GB free storage with instant direct download links. Setup takes under 1 minute:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBGuideTitle" xml:space="preserve">
+    <value>Dropbox Setup &amp; Token Guide (No Cloud Project Needed)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep1Desc" xml:space="preserve">
+    <value>Click button #1 below ('1. Create Dropbox App'). Select 'Scoped access', choose 'Full Dropbox' (or 'App folder'), enter an App name (e.g. 'GenHubPublisher'), and click 'Create app'. Your App key is shown at the top of the app's Settings tab on that same page — paste it into GenHub below. The App secret is not needed: GenHub signs in with PKCE, which never uses the secret.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep1Title" xml:space="preserve">
+    <value>Step 1: Create a Scoped App</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep2Desc" xml:space="preserve">
+    <value>Switch to the 'Permissions' tab at the top of your Dropbox app page. Enable ALL of the following permissions:
+• account_info.read
+• files.metadata.read
+• files.metadata.write
+• files.content.write
+• sharing.read
+• sharing.write
+Then click the 'Submit' button at the bottom of the page! (GenHub requests exactly these scopes; sign-in fails if any is missing.)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep2Title" xml:space="preserve">
+    <value>Step 2: Enable Permissions in Dropbox Console  [CRITICAL: Prevents 400 Bad Request]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep3Desc" xml:space="preserve">
+    <value>On the app's Settings tab, find 'Redirect URIs', click 'Add', and paste the exact redirect URI shown below (use the Copy button — it must match character for character, including the port and trailing slash). Without this, Dropbox rejects the sign-in with 'Invalid redirect_uri'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep3Title" xml:space="preserve">
+    <value>Step 3: Register the Redirect URI (Required)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Disconnect" xml:space="preserve">
+    <value>Disconnect</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxConsole" xml:space="preserve">
+    <value>Open Dropbox App Console</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxConsoleTip" xml:space="preserve">
+    <value>Open Dropbox App Console in your default browser</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxDescription" xml:space="preserve">
+    <value>Dropbox enables hosting both catalog manifests and binary release artifacts inside your personal Dropbox account.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxDevSettings" xml:space="preserve">
+    <value>2. Dropbox Developer Settings</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder" xml:space="preserve">
+    <value>sl.u.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxHowTo" xml:space="preserve">
+    <value>How to generate a Dropbox Access Token in 30 seconds:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep1" xml:space="preserve">
+    <value>1. Click 'Open Dropbox App Console' below (or create an app if you haven't yet: Scoped access &gt; App folder or Full Dropbox).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep2" xml:space="preserve">
+    <value>2. In the 'Permissions' tab at the top: check 'account_info.read', 'files.content.read', 'files.content.write', 'sharing.read', and 'sharing.write', then click 'Submit' at the bottom.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep3" xml:space="preserve">
+    <value>3. In the 'Settings' tab: scroll down to the 'OAuth 2' section -&gt; find 'Generated access token'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep4" xml:space="preserve">
+    <value>4. Click the 'Generate' button right there on the page. Dropbox will reveal your access token (starts with 'sl.').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep5" xml:space="preserve">
+    <value>5. Copy that token, paste it below, and click 'Connect'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTip" xml:space="preserve">
+    <value>Tip: If you prefer to avoid setting up a Google Cloud Project and OAuth app, switch to Dropbox above! Dropbox does not require a cloud project or consent screen — you can generate a token in 30 seconds.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTokenPlaceholder" xml:space="preserve">
+    <value>sl.xxxxxxxx...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTokenPrompt" xml:space="preserve">
+    <value>Dropbox Access Token (sl.u.xxxxxx...):</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ExternalCdnPrefix" xml:space="preserve">
+    <value>External CDN: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilesHostedOnCloud" xml:space="preserve">
+    <value>Files hosted on cloud storage</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDGuideSubtitle" xml:space="preserve">
+    <value>Google Drive supports hosting both catalog manifests and binary archives (mod/patch zips) up to your Drive storage quota.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDGuideTitle" xml:space="preserve">
+    <value>Google Drive Desktop OAuth Setup Guide (Step-by-Step)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step1" xml:space="preserve">
+    <value>1. Use the links next to the steps below to open the Google Cloud Console and log into your Google account.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step2" xml:space="preserve">
+    <value>2. In the top navigation bar (next to 'Google Cloud'), click the project selector dropdown, then click 'NEW PROJECT'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step3" xml:space="preserve">
+    <value>3. Enter a Project name (e.g. 'GenHub Publisher'), leave Organization as 'No organization', and click 'CREATE'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step4" xml:space="preserve">
+    <value>4. Wait a few seconds for creation, then click the top project selector dropdown again and select your new project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Title" xml:space="preserve">
+    <value>Step 1: Create a Project in Google Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step1" xml:space="preserve">
+    <value>1. Click 'Open Auth Platform' next to this step. If you see 'Google auth platform not configured yet', click the blue 'Get started' button. (If you see a yellow banner 'To create an OAuth client ID, you must first configure your consent screen', click 'Configure consent screen').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2" xml:space="preserve">
+    <value>2. The 'Project configuration' wizard will open with 4 steps:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2a" xml:space="preserve">
+    <value>   • App Information: Enter App name (e.g. 'GenHub'), select your email in 'User support email', and click 'Next'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2b" xml:space="preserve">
+    <value>   • Audience: Select 'External' (Internal is only for Google Workspace orgs; External allows your Google account to test). Click 'Next'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2c" xml:space="preserve">
+    <value>   • Contact Information: Enter your email address in 'Developer contact information', then click 'Next'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2d" xml:space="preserve">
+    <value>   • Finish: Review and click 'Create'. You will see a confirmation toast: 'OAuth configuration created'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Title" xml:space="preserve">
+    <value>Step 2: Create App via 'Project Configuration' (Google Auth Platform)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Warning" xml:space="preserve">
+    <value>Note: Google will NOT allow creating OAuth credentials until your project has an App configured!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Step1" xml:space="preserve">
+    <value>1. Click 'Enable Drive API' next to this step (or search for 'Google Drive API' in the Cloud Console top search bar).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Step2" xml:space="preserve">
+    <value>2. Click the blue 'ENABLE' button, then wait a few minutes before connecting. Uploads fail with 403 until the API is enabled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Title" xml:space="preserve">
+    <value>Step 3: Enable the Google Drive API</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step1" xml:space="preserve">
+    <value>1. In Google Auth Platform, click 'Clients' in the left menu (or click 'Open Credentials' next to this step).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step2" xml:space="preserve">
+    <value>2. Click '+ Create client' (or '+ CREATE CREDENTIALS' &gt; 'OAuth client ID').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step3" xml:space="preserve">
+    <value>3. Application type: You MUST choose 'Desktop app' (DO NOT leave it as 'Web application' — Google defaults to Web application, which will FAIL with redirect URI errors in desktop apps!).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step4" xml:space="preserve">
+    <value>4. Enter a name (e.g. 'GenHub Desktop') and click 'CREATE'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step5" xml:space="preserve">
+    <value>5. An 'OAuth client created' popup will appear showing your 'Client ID' and 'Client secret'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step6" xml:space="preserve">
+    <value>6. Important: Copy both now! Google warns you will not be able to view the secret again once the dialog is closed.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Title" xml:space="preserve">
+    <value>Step 4: Create Desktop OAuth Client Credentials</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step1" xml:space="preserve">
+    <value>1. In Google Auth Platform, click the 'Audience' tab in the left menu (or click 'Open Test Users' next to this step).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step2" xml:space="preserve">
+    <value>2. Under 'Test users', click '+ ADD USERS', enter your Google account email (e.g. your Gmail), and click 'SAVE'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step2Note" xml:space="preserve">
+    <value>   (Without this, Google blocks authorization with 'Error 403: access_denied / Access blocked: GenHub has not completed the Google verification process').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Title" xml:space="preserve">
+    <value>Step 5: Add your Google Account to Test Users  [CRITICAL: Fixes Error 403 access_denied]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Step1" xml:space="preserve">
+    <value>1. Copy and paste your Client ID and Client Secret into the two input fields below.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Step2" xml:space="preserve">
+    <value>2. Click 'Connect to Google Drive'. A browser window will open asking you to sign into your Google account and grant Drive file permissions to your project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Title" xml:space="preserve">
+    <value>Step 6: Paste and Connect in GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep1Desc" xml:space="preserve">
+    <value>Open the Google Cloud Console with one of the links next to the steps below. Click the project selector at the top &gt; 'NEW PROJECT' &gt; name it 'GenHub Publisher' &gt; click 'CREATE'. Then select it from the project dropdown.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep1Title" xml:space="preserve">
+    <value>Step 1: Create a Google Cloud Project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep2Desc" xml:space="preserve">
+    <value>Click 'Open Auth Platform' next to this step. If you see 'Google auth platform not configured yet', click 'Get started' (or 'Configure consent screen'). Enter App name (GenHub), select your email, set Audience to External, developer email, and click Create.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep2Title" xml:space="preserve">
+    <value>Step 2: Create App via 'Project Configuration'  [CRITICAL: Configure first]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep3Desc" xml:space="preserve">
+    <value>Click 'Enable Drive API' next to this step (or search for 'Google Drive API' in the top search bar) and click 'ENABLE'. Wait a few minutes before connecting.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep4Desc" xml:space="preserve">
+    <value>In Google Auth Platform, click 'Clients' (or click 'Open Credentials' next to this step). Click '+ Create client'. Set Application type to 'Desktop app' (DO NOT leave as 'Web application'!). Name it 'GenHub Desktop' and click 'CREATE'. Copy your Client ID and Client Secret immediately!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep4Title" xml:space="preserve">
+    <value>Step 4: Create Desktop OAuth Client ID  [CRITICAL: Must select 'Desktop app']</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep5Desc" xml:space="preserve">
+    <value>In Google Auth Platform, click 'Audience' (or click 'Open Test Users' next to this step). Under 'Test users', click '+ ADD USERS', enter your Google account email (e.g. your Gmail), and click 'SAVE'. If you skip this, Google blocks authorization with Error 403: access_denied.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep5Title" xml:space="preserve">
+    <value>Step 5: Add your Google account to Test Users  [CRITICAL: Fixes Error 403 access_denied]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep6Desc" xml:space="preserve">
+    <value>Copy your Client ID and Client Secret into the input fields below and click Connect.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep6Title" xml:space="preserve">
+    <value>Step 6: Paste Client ID and Secret below and Connect</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGenerateToken" xml:space="preserve">
+    <value>Generate Personal Access Token on GitHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsDescription" xml:space="preserve">
+    <value>GitHub Gists hosts your catalog manifests and provider definition as public Gists on your personal GitHub profile.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsHowItWorks" xml:space="preserve">
+    <value>How GitHub Gists hosting works:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsManifestsOnly" xml:space="preserve">
+    <value>• Manifests only: It publishes 'catalog.json' and 'publisher.json' as public Gists under your GitHub account.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsNoBinaryHosting" xml:space="preserve">
+    <value>• No binary hosting: Gists DO NOT store binary archives (zip/exe). All release artifacts must use external CDN or direct download links.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsNoRepoCommits" xml:space="preserve">
+    <value>• No repository commits: No files are committed to your repositories; Gists are standalone snippets.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep1" xml:space="preserve">
+    <value>1. Click 'Generate Personal Access Token on GitHub' below.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep2" xml:space="preserve">
+    <value>2. Ensure the 'gist' scope (or 'repo') is selected.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep3" xml:space="preserve">
+    <value>3. Click 'Generate token' at bottom, copy the 'ghp_...' token, paste it below, and connect.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubTokenTip" xml:space="preserve">
+    <value>Open GitHub Token generator page with preconfigured repo scope</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientId" xml:space="preserve">
+    <value>Google Client ID:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientIdPlaceholder" xml:space="preserve">
+    <value>Enter client ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientSecret" xml:space="preserve">
+    <value>Google Client Secret:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveDescription" xml:space="preserve">
+    <value>Google Drive enables hosting both your catalog manifests and large binary release artifacts directly in your personal Drive.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveGuideSummary" xml:space="preserve">
+    <value>Google Drive requires you to: 1) Create a Google Cloud Project, 2) Create an App in Project Configuration (Google Auth Platform), and 3) Generate a Desktop OAuth Client ID before allowing file uploads.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveGuideTitle" xml:space="preserve">
+    <value>Google Cloud OAuth Setup Guide (Step-by-Step):</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.HostedAssets" xml:space="preserve">
+    <value>HOSTED ASSETS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InventorySubtitle" xml:space="preserve">
+    <value>Inventory of publisher definition, catalog manifests, and release binaries stored in cloud storage or external CDNs.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InventoryTitle" xml:space="preserve">
+    <value>Hosted Asset Inventory</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoAssetsSubtitle" xml:space="preserve">
+    <value>Upload your catalog or click 'Scan / Sync Storage' to discover existing files on your cloud provider.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoAssetsTitle" xml:space="preserve">
+    <value>No Hosted Assets Recorded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NotConnected" xml:space="preserve">
+    <value>Not Connected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenAuthPlatform" xml:space="preserve">
+    <value>Open Auth Platform</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenAuthWizardTip" xml:space="preserve">
+    <value>Open Google Auth Platform / Project Configuration wizard in your default browser</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCloudFolder" xml:space="preserve">
+    <value>Open Cloud Folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCloudFolderTip" xml:space="preserve">
+    <value>Open the provider's /GenHub_Publisher storage folder in browser</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCredentials" xml:space="preserve">
+    <value>Open Credentials</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCredentialsTip" xml:space="preserve">
+    <value>Open Google Cloud Console Credentials page in your default browser</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenDriveApi" xml:space="preserve">
+    <value>Enable Drive API</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenDriveApiTip" xml:space="preserve">
+    <value>Open the Google Drive API enablement page in your default browser</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenTestUsers" xml:space="preserve">
+    <value>Open Test Users</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenTestUsersTip" xml:space="preserve">
+    <value>Open Google Auth Platform Audience / Test Users page to authorize your account and fix 403 errors</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenUrlTip" xml:space="preserve">
+    <value>Open download URL in browser</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NotConnectedHint" xml:space="preserve">
+    <value>No hosting provider connected — files stay local-only until you connect below. Catalogs, definitions, and release files can then be uploaded straight from the inventory.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadTip" xml:space="preserve">
+    <value>Upload this file to the connected hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadInProgress" xml:space="preserve">
+    <value>Another upload is already in progress.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectBeforeUpload" xml:space="preserve">
+    <value>Connect to your hosting provider before uploading files.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LocalFileMissingFormat" xml:space="preserve">
+    <value>Local file not found: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadSuccessFormat" xml:space="preserve">
+    <value>{0} uploaded successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadFailedFormat" xml:space="preserve">
+    <value>Failed to upload {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Provider" xml:space="preserve">
+    <value>Hosting Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ProviderSubtitle" xml:space="preserve">
+    <value>Choose where to host your provider definition, catalog manifests, and download artifacts.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ReleaseBinariesPrefix" xml:space="preserve">
+    <value>Release Binaries: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanSyncStorage" xml:space="preserve">
+    <value>Scan / Sync Storage</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanSyncStorageTip" xml:space="preserve">
+    <value>Scan cloud storage for already-uploaded publisher files and synchronize state</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Scanning" xml:space="preserve">
+    <value>Scanning...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SelectProvider" xml:space="preserve">
+    <value>Select Provider:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusExternalCdn" xml:space="preserve">
+    <value>External CDN</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusLiveOnline" xml:space="preserve">
+    <value>Live Online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusPending" xml:space="preserve">
+    <value>Pending</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusCloudHosted" xml:space="preserve">
+    <value>Cloud Hosted</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusPendingUpload" xml:space="preserve">
+    <value>Pending Upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusNoFileOrUrl" xml:space="preserve">
+    <value>No File / URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationGitHubGists" xml:space="preserve">
+    <value>Public Gists</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationRemoteCloud" xml:space="preserve">
+    <value>Remote Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
+    <value>Not authenticated with Google Drive</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
+    <value>{0} Assets Tracked</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StorageConsumed" xml:space="preserve">
+    <value>STORAGE CONSUMED</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StorageLocation" xml:space="preserve">
+    <value>STORAGE LOCATION</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Subtitle" xml:space="preserve">
+    <value>Manage cloud storage distribution, monitor space consumed, inspect live file URLs, and sync existing assets.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Title" xml:space="preserve">
+    <value>Hosting &amp; Cloud Storage</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddArtifact" xml:space="preserve">
+    <value>Add Artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddArtifactTooltip" xml:space="preserve">
+    <value>Add an artifact to this release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddButton" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddCatalogTooltip" xml:space="preserve">
+    <value>Add New Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddContent" xml:space="preserve">
+    <value>Add Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddContentTooltip" xml:space="preserve">
+    <value>Add Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddDependency" xml:space="preserve">
+    <value>Add Dependency</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddDependencyTooltip" xml:space="preserve">
+    <value>Add a dependency to this release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddItem" xml:space="preserve">
+    <value>Add Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddRelease" xml:space="preserve">
+    <value>Add Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddReleaseTooltip" xml:space="preserve">
+    <value>Add a new release to this content item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Artifacts" xml:space="preserve">
+    <value>Artifacts</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ArtifactsHeader" xml:space="preserve">
+    <value>Download Artifacts</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BundledItems" xml:space="preserve">
+    <value>Bundled Content Items</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BundledItemsHint" xml:space="preserve">
+    <value>Items included in this bundle that will be installed together</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.CdnDirectBadge" xml:space="preserve">
+    <value>CDN / DIRECT LINK</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Changelog" xml:space="preserve">
+    <value>Changelog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColActions" xml:space="preserve">
+    <value>ACTIONS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColContent" xml:space="preserve">
+    <value>CONTENT</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColFilename" xml:space="preserve">
+    <value>FILENAME</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColHash" xml:space="preserve">
+    <value>SHA256 HASH</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColPublisher" xml:space="preserve">
+    <value>PUBLISHER</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColSize" xml:space="preserve">
+    <value>SIZE</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColVersionRange" xml:space="preserve">
+    <value>VERSION RANGE</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ContentId" xml:space="preserve">
+    <value>Content ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ContentType" xml:space="preserve">
+    <value>Content Type</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteCatalogTooltip" xml:space="preserve">
+    <value>Delete Selected Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteContent" xml:space="preserve">
+    <value>Delete Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteContentTooltip" xml:space="preserve">
+    <value>Delete Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteRelease" xml:space="preserve">
+    <value>Delete Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseTooltip" xml:space="preserve">
+    <value>Delete Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseTitle" xml:space="preserve">
+    <value>Delete Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseMessageFormat" xml:space="preserve">
+    <value>Are you sure you want to delete release v{0}? This will also remove its artifacts and cannot be undone.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedTitle" xml:space="preserve">
+    <value>Release Deleted</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedMessageFormat" xml:space="preserve">
+    <value>Release v{0} was deleted.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.HostingHintMessage" xml:space="preserve">
+    <value>{0} file(s) are waiting for upload. Connect a hosting provider to publish them to the cloud.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.GoToHosting" xml:space="preserve">
+    <value>Open Hosting</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Dependencies" xml:space="preserve">
+    <value>Dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropAddHint" xml:space="preserve">
+    <value>Drag &amp; drop folders or archives here to add content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditContentTooltip" xml:space="preserve">
+    <value>Edit Content Details</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditReleaseTooltip" xml:space="preserve">
+    <value>Edit Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EmptyContent" xml:space="preserve">
+    <value>No content items yet</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ExtendsContent" xml:space="preserve">
+    <value>Extends Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.LatestBadge" xml:space="preserve">
+    <value>LATEST</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoArtifacts" xml:space="preserve">
+    <value>No artifacts in this release.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoBundledItems" xml:space="preserve">
+    <value>No bundled items yet. Click 'Add Item' to bundle existing content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoContentSubtitle" xml:space="preserve">
+    <value>Click 'Add Content' above to create your first content item.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoContentTitle" xml:space="preserve">
+    <value>No Content Items in Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoDependencies" xml:space="preserve">
+    <value>No dependencies for this release.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoReleases" xml:space="preserve">
+    <value>No releases for this content item. Add a release to allow users to download content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PendingCloudBadge" xml:space="preserve">
+    <value>PENDING CLOUD UPLOAD</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PrereleaseBadge" xml:space="preserve">
+    <value>PRE-RELEASE</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Primary" xml:space="preserve">
+    <value>PRIMARY</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManifestIdPrefix" xml:space="preserve">
+    <value>Manifest ID: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SamePublisher" xml:space="preserve">
+    <value>(same)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PublisherPrefix" xml:space="preserve">
+    <value>Publisher: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDate" xml:space="preserve">
+    <value>Release Date</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesAndArtifacts" xml:space="preserve">
+    <value>Releases &amp; Artifacts</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesHeader" xml:space="preserve">
+    <value>Releases</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
+    <value> releases</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveArtifactTooltip" xml:space="preserve">
+    <value>Remove artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveDependencyTooltip" xml:space="preserve">
+    <value>Remove dependency</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveFromBundleTooltip" xml:space="preserve">
+    <value>Remove from bundle</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RenameCatalogTooltip" xml:space="preserve">
+    <value>Rename Selected Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SaveContent" xml:space="preserve">
+    <value>Save Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SaveRelease" xml:space="preserve">
+    <value>Save Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SearchWatermark" xml:space="preserve">
+    <value>Search content...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SelectItemPrompt" xml:space="preserve">
+    <value>Select a content item to view details</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Subtitle" xml:space="preserve">
+    <value>Manage content items, releases, and download artifacts in the active catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.TargetGame" xml:space="preserve">
+    <value>Target Game</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Title" xml:space="preserve">
+    <value>Content Library</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUrl" xml:space="preserve">
+    <value>Avatar URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DescriptionHint" xml:space="preserve">
+    <value>Brief description of the publisher organization or team.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DescriptionPlaceholder" xml:space="preserve">
+    <value>About this publisher...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayName" xml:space="preserve">
+    <value>Display Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayNameHint" xml:space="preserve">
+    <value>Human-readable name displayed in GenHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayNamePlaceholder" xml:space="preserve">
+    <value>e.g. Community Outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Email" xml:space="preserve">
+    <value>Contact Email</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.EmailPlaceholder" xml:space="preserve">
+    <value>publisher@example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherId" xml:space="preserve">
+    <value>Publisher ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherIdHint" xml:space="preserve">
+    <value>Unique identifier for this publisher. Alphanumeric and hyphens only.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherIdPlaceholder" xml:space="preserve">
+    <value>e.g. community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Save" xml:space="preserve">
+    <value>Save Profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SaveProfile" xml:space="preserve">
+    <value>Save Profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Subtitle" xml:space="preserve">
+    <value>Your publisher identity. This information is embedded in all catalogs you produce.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SupportDiscord" xml:space="preserve">
+    <value>Support / Discord URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Tags" xml:space="preserve">
+    <value>Tags (Comma Separated)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.TagsPlaceholder" xml:space="preserve">
+    <value>e.g. mods, maps, patches</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Title" xml:space="preserve">
+    <value>Publisher Profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Website" xml:space="preserve">
+    <value>Website</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.WebsitePlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CancelUpload" xml:space="preserve">
+    <value>Cancel Upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsAndDefinition" xml:space="preserve">
+    <value>Catalogs &amp; Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyArtifactUrlTip" xml:space="preserve">
+    <value>Copy Artifact URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyDefinitionUrlTip" xml:space="preserve">
+    <value>Copy Definition URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyLink" xml:space="preserve">
+    <value>Copy Link</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyProtocolLinkTip" xml:space="preserve">
+    <value>Copy Protocol Link</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>Not uploaded yet...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUrlTitle" xml:space="preserve">
+    <value>Online Definition Direct Download URL (publisher.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExternalCdnPreserved" xml:space="preserve">
+    <value>External CDN (Preserved)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.HierarchySubtitle" xml:space="preserve">
+    <value>Overview of your uploaded assets: 1. Provider Definition  -&gt;  2. Catalogs  -&gt;  3. Content Items &amp; Releases</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.HierarchyTitle" xml:space="preserve">
+    <value>Uploads &amp; Distribution Hierarchy</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.LocalFilesToUpload" xml:space="preserve">
+    <value>Local Files to Upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NotPublished" xml:space="preserve">
+    <value>Not Published</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NotUploadedYet" xml:space="preserve">
+    <value>Not Uploaded Yet</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PendingUploadHint" xml:space="preserve">
+    <value>Local file pending upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkHint" xml:space="preserve">
+    <value>Users can click or paste this genhub:// link into GenHub to view and subscribe to your content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkPlaceholder" xml:space="preserve">
+    <value>Publish definition to generate link...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkTitle" xml:space="preserve">
+    <value>GenHub Protocol Share Link</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalog" xml:space="preserve">
+    <value>Publish Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Published" xml:space="preserve">
+    <value>Published</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishedCatalogs" xml:space="preserve">
+    <value>Published Catalogs &amp; Manifests</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Revalidate" xml:space="preserve">
+    <value>Revalidate</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepCatalogs" xml:space="preserve">
+    <value>2. Catalogs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepContentReleases" xml:space="preserve">
+    <value>3. Content Items &amp; Releases</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepDefinition" xml:space="preserve">
+    <value>1. Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Subtitle" xml:space="preserve">
+    <value>Host your provider definition and catalogs online, and distribute them via GenHub protocol.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagCdn" xml:space="preserve">
+    <value>CDN</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagCloud" xml:space="preserve">
+    <value>CLOUD</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagPending" xml:space="preserve">
+    <value>PENDING</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TargetDestination" xml:space="preserve">
+    <value>Target Hosting Destination:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Title" xml:space="preserve">
+    <value>Publish and Share</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadDefinition" xml:space="preserve">
+    <value>Upload / Update Provider Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Uploaded" xml:space="preserve">
+    <value>Uploaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.AddButton" xml:space="preserve">
+    <value>Add Referral</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.AddTitle" xml:space="preserve">
+    <value>Add Publisher Referral</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.BrowseKnown" xml:space="preserve">
+    <value>Browse Known Publishers</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrl" xml:space="preserve">
+    <value>Catalog / Definition URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DefinitionUrl" xml:space="preserve">
+    <value>Definition URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Description" xml:space="preserve">
+    <value>Description (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DescriptionPlaceholder" xml:space="preserve">
+    <value>Why do you recommend this publisher?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Discover" xml:space="preserve">
+    <value>Discover</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoverHint" xml:space="preserve">
+    <value>Enter a URL to a publisher definition (publisher.json) or catalog (catalog.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoKnownPublishers" xml:space="preserve">
+    <value>No known publishers available</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Note" xml:space="preserve">
+    <value>Note (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NotePlaceholder" xml:space="preserve">
+    <value>Why are you recommending this publisher?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.OrEnterManually" xml:space="preserve">
+    <value>Or Enter Manually</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherFound" xml:space="preserve">
+    <value>Publisher Found</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherId" xml:space="preserve">
+    <value>Publisher ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherIdPlaceholder" xml:space="preserve">
+    <value>e.g. community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.QuickSelect" xml:space="preserve">
+    <value>Quick Select from Your Subscriptions</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.QuickSelectPrompt" xml:space="preserve">
+    <value>Select a publisher you're already subscribed to:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.RequiredNotice" xml:space="preserve">
+    <value>* Publisher ID and Definition URL are required.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Subtitle" xml:space="preserve">
+    <value>Recommend another publisher to your subscribers. This helps users discover related community content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.AddButton" xml:space="preserve">
+    <value>Add Referral</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.AddTooltip" xml:space="preserve">
+    <value>Add New Referral</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.CatalogUrl" xml:space="preserve">
+    <value>Catalog URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColActions" xml:space="preserve">
+    <value>ACTIONS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColDefinitionUrl" xml:space="preserve">
+    <value>DEFINITION URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColDescription" xml:space="preserve">
+    <value>DESCRIPTION</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColPublisherId" xml:space="preserve">
+    <value>PUBLISHER ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DefinitionUrl" xml:space="preserve">
+    <value>Definition URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Description" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DescriptionPlaceholder" xml:space="preserve">
+    <value>Why do you recommend this publisher?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EditSubtitle" xml:space="preserve">
+    <value>Update publisher recommendation details</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EditTitle" xml:space="preserve">
+    <value>Edit Referral</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EmptyState" xml:space="preserve">
+    <value>No referrals yet</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.HowItWorksText" xml:space="preserve">
+    <value>Referrals allow your catalog to cross-promote other trusted publishers (such as Community-Outpost or GeneralsOnline). When players subscribe to your catalog, they can easily discover and install content from your referred publishers.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.HowItWorksTitle" xml:space="preserve">
+    <value>How Referrals Work</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.NoReferralsSubtitle" xml:space="preserve">
+    <value>Click 'Add Referral' above to recommend other publishers.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.NoReferralsTitle" xml:space="preserve">
+    <value>No Referrals Configured</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherId" xml:space="preserve">
+    <value>Publisher ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherIdPlaceholder" xml:space="preserve">
+    <value>e.g. generals-online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RecommendationNote" xml:space="preserve">
+    <value>Recommendation Note (optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RecommendationNotePlaceholder" xml:space="preserve">
+    <value>Why do you recommend this publisher to your players?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RemoveTooltip" xml:space="preserve">
+    <value>Remove this referral</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.SaveChanges" xml:space="preserve">
+    <value>Save Changes</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.SelectPrompt" xml:space="preserve">
+    <value>Select a referral to view details, or click 'Add Referral' to recommend a publisher</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Subtitle" xml:space="preserve">
+    <value>Recommend other publishers to your subscribers. When users subscribe to your catalog, they will see these recommendations.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Title" xml:space="preserve">
+    <value>Referrals</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddArtifact" xml:space="preserve">
+    <value>Add Artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DragDropHint" xml:space="preserve">
+    <value>Tip: drag &amp; drop files or folders here to add artifacts.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddDependency" xml:space="preserve">
+    <value>Add Dependency</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddRelease" xml:space="preserve">
+    <value>Add Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddTitle" xml:space="preserve">
+    <value>Add Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactRequired" xml:space="preserve">
+    <value>At least one artifact is required.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Artifacts" xml:space="preserve">
+    <value>Artifacts</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactsFiles" xml:space="preserve">
+    <value>Artifacts (Files)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Changelog" xml:space="preserve">
+    <value>Changelog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ChangelogPlaceholder" xml:space="preserve">
+    <value>Describe what's new in this release...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Dependencies" xml:space="preserve">
+    <value>Dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Featured" xml:space="preserve">
+    <value>Featured</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Latest" xml:space="preserve">
+    <value>Latest</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Prerelease" xml:space="preserve">
+    <value>Pre-release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Subtitle" xml:space="preserve">
+    <value>Create a new release for this content item. Add download artifacts and configure dependencies.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Suggest" xml:space="preserve">
+    <value>Suggest</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VersionPlaceholder" xml:space="preserve">
+    <value>e.g. 1.0.0, 2.1-beta</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VersionRequired" xml:space="preserve">
+    <value>* Version is required.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.CatalogName" xml:space="preserve">
+    <value>Catalog Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.CatalogNamePlaceholder" xml:space="preserve">
+    <value>e.g., Main Mods, Patches, Community Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Description" xml:space="preserve">
+    <value>Renaming will update the catalog title and its export filename (e.g. catalog-maps.json).</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Name" xml:space="preserve">
+    <value>Catalog Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.NamePlaceholder" xml:space="preserve">
+    <value>e.g. Maps, Mods, Zero Hour Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.RenameButton" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Subtitle" xml:space="preserve">
+    <value>Change the display name of this catalog. The catalog ID will remain the same.</value>
+  </data>
+  <data name="Tools.PublisherStudio.EditCatalog.Title" xml:space="preserve">
+    <value>Edit Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Title" xml:space="preserve">
+    <value>Rename Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.AllSet" xml:space="preserve">
+    <value>All Set!</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.AllSetDescription" xml:space="preserve">
+    <value>Your publisher profile is ready. You can now start adding content to your catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.CompleteSetup" xml:space="preserve">
+    <value>Complete Setup</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactEmail" xml:space="preserve">
+    <value>Contact Email</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder" xml:space="preserve">
+    <value>publisher@example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactInfo" xml:space="preserve">
+    <value>Provide contact information for your users (Optional).</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.DisplayName" xml:space="preserve">
+    <value>Display Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.DisplayNamePlaceholder" xml:space="preserve">
+    <value>e.g., Community Outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Finish" xml:space="preserve">
+    <value>Finish</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalog" xml:space="preserve">
+    <value>Initial Catalog Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalogHint" xml:space="preserve">
+    <value>Every publisher must have at least one catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalogPlaceholder" xml:space="preserve">
+    <value>e.g., Main, Content, Mods</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherId" xml:space="preserve">
+    <value>Publisher ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherIdHint" xml:space="preserve">
+    <value>A unique alphanumeric identifier with hyphens. Cannot be changed later.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherIdPlaceholder" xml:space="preserve">
+    <value>e.g., community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.RequiredNotice" xml:space="preserve">
+    <value>* Publisher ID, Display Name, and Initial Catalog Name are required.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Subtitle" xml:space="preserve">
+    <value>Configure your publisher identity. This information will be embedded in your manifests.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Title" xml:space="preserve">
+    <value>Publisher Setup</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Website" xml:space="preserve">
+    <value>Website (Optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.WebsitePlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Welcome" xml:space="preserve">
+    <value>Welcome to Publisher Studio! Let's set up your publisher identity.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.ChangesPending" xml:space="preserve">
+    <value>Changes Pending</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.NotPublished" xml:space="preserve">
+    <value>Not Published</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.Published" xml:space="preserve">
+    <value>Published</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.PublishedDate" xml:space="preserve">
+    <value>Published {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.AddCatalogTooltip" xml:space="preserve">
+    <value>Add a new catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.BadgeCreator" xml:space="preserve">
+    <value>CREATOR</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ConfigureProfile" xml:space="preserve">
+    <value>Configure Profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CurrentCatalog" xml:space="preserve">
+    <value>Current Catalog:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogTooltip" xml:space="preserve">
+    <value>Delete the selected catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectTooltip" xml:space="preserve">
+    <value>Load Existing Project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.NewProjectTooltip" xml:space="preserve">
+    <value>Create New Project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.RenameCatalogTooltip" xml:space="preserve">
+    <value>Rename the selected catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectTooltip" xml:space="preserve">
+    <value>Save Project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupBannerSubtitle" xml:space="preserve">
+    <value>Configure your publisher identity before creating catalogs and content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupBannerTitle" xml:space="preserve">
+    <value>Publisher Setup Required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupPublisher" xml:space="preserve">
+    <value>Setup Publisher</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupRequired" xml:space="preserve">
+    <value>Publisher Setup Required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupRequiredDescription" xml:space="preserve">
+    <value>Configure your Publisher ID and Name in the Profile tab to unlock the content library and publishing features.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Subtitle" xml:space="preserve">
+    <value>Create and maintain custom content catalogs for distribution</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHelp" xml:space="preserve">
+    <value>Help &amp; Docs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHelpTooltip" xml:space="preserve">
+    <value>Publisher Studio documentation and guides</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHosting" xml:space="preserve">
+    <value>Hosting &amp; Cloud Storage</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHostingTooltip" xml:space="preserve">
+    <value>Manage cloud storage connections, monitor space, and scan for existing files</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabLibrary" xml:space="preserve">
+    <value>Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabLibraryTooltip" xml:space="preserve">
+    <value>Manage mods, maps, patches, and add-ons in this catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabProfile" xml:space="preserve">
+    <value>Publisher Profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabProfileTooltip" xml:space="preserve">
+    <value>View and edit your publisher identity and metadata</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabPublish" xml:space="preserve">
+    <value>Publish &amp; Share</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabPublishTooltip" xml:space="preserve">
+    <value>Host your catalog and definition files online via integrated cloud providers</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabReferrals" xml:space="preserve">
+    <value>Referrals</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabReferralsTooltip" xml:space="preserve">
+    <value>Recommend other publishers to your subscribers</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Title" xml:space="preserve">
+    <value>Publisher Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Title" xml:space="preserve">
+    <value>Publisher Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Unsaved" xml:space="preserve">
+    <value>Unsaved</value>
   </data>
   <data name="Tools.Share.Title" xml:space="preserve">
     <value>Share Upload</value>
@@ -9569,7 +11238,6 @@ Install location:
     <value>To keep a single installation, reinstall over the previous location or move this install in Settings &gt; Migrate Installation, then remove the remaining duplicate copy.</value>
     <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
   </data>
-
   <data name="GameSettings.Video.ResolutionToolTip" xml:space="preserve">
     <value>Sets the display resolution for the game.</value>
   </data>
@@ -10420,6 +12088,1459 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
     <value>Creating MapPack...</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectToProvider" xml:space="preserve">
+    <value>Connect to {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProvider" xml:space="preserve">
+    <value>Connect Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishToProvider" xml:space="preserve">
+    <value>Publish to {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCatalogs" xml:space="preserve">
+    <value>Publish All Catalogs &amp; Update Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderSelected" xml:space="preserve">
+    <value>No hosting provider selected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGoogleDrive" xml:space="preserve">
+    <value>Your Google Drive (inside '{0}' folder)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationDropbox" xml:space="preserve">
+    <value>Your Dropbox account (inside '/Apps/GenHub/' app folder)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGitHub" xml:space="preserve">
+    <value>Your GitHub Gists (manifests &amp; definitions only; binaries require CDN URLs)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedTitle" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedMessage" xml:space="preserve">
+    <value>Successfully connected to {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTitle" xml:space="preserve">
+    <value>Authentication Canceled</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTimeout" xml:space="preserve">
+    <value>Authentication timed out or was canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledAborted" xml:space="preserve">
+    <value>Hosting provider connection was aborted.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledDriveHelp" xml:space="preserve">
+    <value>Authentication was canceled or timed out. For Google Drive, ensure you selected 'Desktop app' (not 'Web application') in Google Cloud Console.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthError" xml:space="preserve">
+    <value>Authentication Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailed" xml:space="preserve">
+    <value>Authentication failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Authenticating" xml:space="preserve">
+    <value>Authenticating...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGitHubToken" xml:space="preserve">
+    <value>Please enter your Personal Access Token</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxToken" xml:space="preserve">
+    <value>Please enter your Dropbox Access Token</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGoogleCredentials" xml:space="preserve">
+    <value>Google Drive requires client credentials. Enter your Client ID and Client Secret above.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticatedSuccess" xml:space="preserve">
+    <value>Authenticated successfully</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignedOut" xml:space="preserve">
+    <value>Signed out</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignOutError" xml:space="preserve">
+    <value>Sign out error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.RestoredConnection" xml:space="preserve">
+    <value>Restored connection</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleProvider" xml:space="preserve">
+    <value>Incompatible Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishWarning" xml:space="preserve">
+    <value>Publish Warning</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishFailed" xml:space="preserve">
+    <value>Publish Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.LinkCopied" xml:space="preserve">
+    <value>Link copied to clipboard.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.BrowserError" xml:space="preserve">
+    <value>Browser Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CouldNotOpenUrl" xml:space="preserve">
+    <value>Could not open URL: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderNotConnected" xml:space="preserve">
+    <value>Provider Not Connected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectBeforeScan" xml:space="preserve">
+    <value>Connect to your hosting provider before scanning storage.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StorageSynced" xml:space="preserve">
+    <value>Storage Synced</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanError" xml:space="preserve">
+    <value>Scan Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanBlockedByOperation" xml:space="preserve">
+    <value>Please wait for the current upload or sync to finish before scanning.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
+    <value>{0} Catalogs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopiedToClipboard" xml:space="preserve">
+    <value>Copied to Clipboard</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DirectDownloadUrlCopied" xml:space="preserve">
+    <value>Direct download URL copied.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogTitle" xml:space="preserve">
+    <value>Delete Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogMessage" xml:space="preserve">
+    <value>Are you sure you want to delete catalog '{0}'? This cannot be undone.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteConfirm" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DuplicateCatalogId" xml:space="preserve">
+    <value>Duplicate Catalog ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogAlreadyExists" xml:space="preserve">
+    <value>A catalog with ID '{0}' already exists.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededTitle" xml:space="preserve">
+    <value>Google Drive Credentials Needed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededMessage" xml:space="preserve">
+    <value>Please enter your Google OAuth Client ID and Secret to connect to Google Drive. Follow the Project Configuration guide above.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.ProjectSavedTitle" xml:space="preserve">
+    <value>Project Saved</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.ProjectSavedMessage" xml:space="preserve">
+    <value>Your publisher project '{0}' has been saved successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveFailedTitle" xml:space="preserve">
+    <value>Save Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorTitle" xml:space="preserve">
+    <value>Save Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle" xml:space="preserve">
+    <value>Duplicate Catalog ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DuplicateIdTitle" xml:space="preserve">
+    <value>Duplicate Content ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DuplicateIdMessageFormat" xml:space="preserve">
+    <value>A content item with ID '{0}' already exists in this catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DeleteContentTitle" xml:space="preserve">
+    <value>Delete Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DeleteContentMessageFormat" xml:space="preserve">
+    <value>Are you sure you want to delete '{0}' ({1})? This will also remove all its releases and artifacts.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceled" xml:space="preserve">
+    <value>Upload canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishedSuccessfully" xml:space="preserve">
+    <value>Published successfully!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploaded" xml:space="preserve">
+    <value>Provider definition uploaded successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingProviderDefinition" xml:space="preserve">
+    <value>Uploading provider definition...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.EditTitle" xml:space="preserve">
+    <value>Edit Content Item</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CreateContent" xml:space="preserve">
+    <value>Create Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.EditTitle" xml:space="preserve">
+    <value>Edit Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.CreateRelease" xml:space="preserve">
+    <value>Create Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Common.SaveChanges" xml:space="preserve">
+    <value>Save Changes</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.NoFileConfigured" xml:space="preserve">
+    <value>No file configured</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.StatusLocalFile" xml:space="preserve">
+    <value>Local file selected - will be uploaded during publish</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.StatusExternalCdn" xml:space="preserve">
+    <value>Hosted externally on CDN / mirror (will not be uploaded)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.InvalidSize" xml:space="preserve">
+    <value>Invalid size</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashInProgress" xml:space="preserve">
+    <value>Hash computation is still in progress. Please wait.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
+    <value>Invalid file size format (e.g., 10 MB, 500 KB, 1.5 GB)</value>
+  </data>
+  <data name="Common.Notification.Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.InvalidUrl" xml:space="preserve">
+    <value>Invalid URL format. Please provide a valid HTTPS or genhub:// link.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.LaunchFailedFormat" xml:space="preserve">
+    <value>Failed to launch subscription confirmation: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.UrlRequired" xml:space="preserve">
+    <value>Please enter a URL or genhub:// link.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorBody" xml:space="preserve">
+    <value>Failed to open import dialog: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorTitle" xml:space="preserve">
+    <value>Import Error</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorBody" xml:space="preserve">
+    <value>Failed to open manifests directory: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorTitle" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseError" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashComputeFailed" xml:space="preserve">
+    <value>Failed to compute hash: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFileRequired" xml:space="preserve">
+    <value>Please select a local file to upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectLocalFileFirst" xml:space="preserve">
+    <value>Please select a local file first</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ValidUrlRequired" xml:space="preserve">
+    <value>Please enter a valid HTTP or HTTPS download URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArchiveTitle" xml:space="preserve">
+    <value>Select Content Archive File</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectFolderTitle" xml:space="preserve">
+    <value>Select Content Folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentIdRequired" xml:space="preserve">
+    <value>Content ID is required for external dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryFailed" xml:space="preserve">
+    <value>Discovery failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryTimeout" xml:space="preserve">
+    <value>Discovery request timed out or was canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.EnterCatalogUrlFirst" xml:space="preserve">
+    <value>Please enter a Catalog or Provider Definition URL first</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.InvalidCatalogUrl" xml:space="preserve">
+    <value>Please enter a valid catalog URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoContentFound" xml:space="preserve">
+    <value>No content found at the provided URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoOtherContentItems" xml:space="preserve">
+    <value>No other content items available in your catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required for external dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectContentRequired" xml:space="preserve">
+    <value>Please select a content item from your catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SaveFailedTitle" xml:space="preserve">
+    <value>Save Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedMessage" xml:space="preserve">
+    <value>Publisher profile saved successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedTitle" xml:space="preserve">
+    <value>Profile Saved</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationMessage" xml:space="preserve">
+    <value>Please fix the validation errors before saving.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationTitle" xml:space="preserve">
+    <value>Validation Errors</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonCopiedMessage" xml:space="preserve">
+    <value>Catalog JSON copied to clipboard!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionFailedTitle" xml:space="preserve">
+    <value>Definition Link Unavailable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportFailedTitle" xml:space="preserve">
+    <value>Export Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FailedTitle" xml:space="preserve">
+    <value>Publish Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlMessage" xml:space="preserve">
+    <value>Please publish this catalog first before copying its URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoDefinitionUrlMessage" xml:space="preserve">
+    <value>Please upload the provider definition first before copying its URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderTitle" xml:space="preserve">
+    <value>Provider Required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlMessage" xml:space="preserve">
+    <value>Please publish your catalogs and provider definition first before copying the subscription link.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlPlaceholder" xml:space="preserve">
+    <value>Please publish to generate subscription URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlTitle" xml:space="preserve">
+    <value>Subscription Link Unavailable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoUrlToCopy" xml:space="preserve">
+    <value>No URL available to copy.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionJsonCopiedMessage" xml:space="preserve">
+    <value>Provider definition JSON copied to clipboard!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage" xml:space="preserve">
+    <value>Provider definition uploaded successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanInProgress" xml:space="preserve">
+    <value>Storage scan in progress. Please try again shortly.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanTimedOut" xml:space="preserve">
+    <value>Scan timed out or was canceled. Please try again.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SuccessTitle" xml:space="preserve">
+    <value>Publish Success</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Pending" xml:space="preserve">
+    <value>Pending</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploaded" xml:space="preserve">
+    <value>Uploaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploading" xml:space="preserve">
+    <value>Uploading...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedTitle" xml:space="preserve">
+    <value>Validation Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlRequired" xml:space="preserve">
+    <value>Catalog URL is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryError" xml:space="preserve">
+    <value>Discovery error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryTimeout" xml:space="preserve">
+    <value>Discovery request timed out. Please try again.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.FetchFailed" xml:space="preserve">
+    <value>Could not fetch catalog: HTTP {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.InvalidCatalogUrl" xml:space="preserve">
+    <value>Invalid Catalog URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherDetails" xml:space="preserve">
+    <value>Could not find publisher details in the response</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherInfo" xml:space="preserve">
+    <value>No valid publisher information found at URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ParseFailed" xml:space="preserve">
+    <value>Failed to parse catalog: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ValidUrlRequired" xml:space="preserve">
+    <value>Please enter a valid URL first</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.CatalogUrlInvalid" xml:space="preserve">
+    <value>Catalog URL must be a valid http or https URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ValidationTitle" xml:space="preserve">
+    <value>Invalid Referral</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DuplicateVersion" xml:space="preserve">
+    <value>Version {0} already exists for this content</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidContactEmail" xml:space="preserve">
+    <value>Please enter a valid email address.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidWebsiteUrl" xml:space="preserve">
+    <value>Please enter a valid HTTP or HTTPS website URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepComplete" xml:space="preserve">
+    <value>Setup Complete</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepContact" xml:space="preserve">
+    <value>Contact Information</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepIdentity" xml:space="preserve">
+    <value>Publisher Identity</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CannotRemoveLastCatalog" xml:space="preserve">
+    <value>Cannot remove the last catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectErrorFormat" xml:space="preserve">
+    <value>Error loading project: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectLoadedFormat" xml:space="preserve">
+    <value>Project loaded: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectFailedFormat" xml:space="preserve">
+    <value>Failed to load project: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreatedSetupHint" xml:space="preserve">
+    <value>New project created - configure your publisher profile to get started</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreated" xml:space="preserve">
+    <value>New project created</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectFailedFormat" xml:space="preserve">
+    <value>Failed to create project: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectErrorFormat" xml:space="preserve">
+    <value>Error creating project: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogRenamedFormat" xml:space="preserve">
+    <value>Updated catalog '{0}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.HostingRecoveryNeeded" xml:space="preserve">
+    <value>Hosting state missing - recovery may be needed. Use Publish &amp; Share tab to reconnect.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogCountFormat" xml:space="preserve">
+    <value>{0} catalogs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.NoProjectLoaded" xml:space="preserve">
+    <value>No project loaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.ConfirmButton" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.CancelButton" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.WindowTitle" xml:space="preserve">
+    <value>GenHub Publisher Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
+    <value>{0} items in catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
+    <value>Parsed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SelectHostingProvider" xml:space="preserve">
+    <value>Please select a hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationErrorFormat" xml:space="preserve">
+    <value>Authentication error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationCanceled" xml:space="preserve">
+    <value>Authentication canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogSelected" xml:space="preserve">
+    <value>No catalog selected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationArtifactsInvalidFormat" xml:space="preserve">
+    <value>Validation failed: {0} artifacts have invalid or missing URLs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogValidFormat" xml:space="preserve">
+    <value>Catalog '{0}' is valid</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedFormat" xml:space="preserve">
+    <value>Validation failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationErrorFormat" xml:space="preserve">
+    <value>Validation error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat" xml:space="preserve">
+    <value>{0} only hosts catalog metadata (JSON). The active catalog '{1}' has {2} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforeUpload" xml:space="preserve">
+    <value>Please fix catalog validation errors before uploading.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforePublish" xml:space="preserve">
+    <value>Please fix catalog validation errors before publishing.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PreparingToPublish" xml:space="preserve">
+    <value>Preparing to publish...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingCatalogFormat" xml:space="preserve">
+    <value>Generating catalog '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogFailedFormat" xml:space="preserve">
+    <value>Failed to export catalog: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingCatalogFormat" xml:space="preserve">
+    <value>Uploading catalog '{0}' to {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogUploadFailedFormat" xml:space="preserve">
+    <value>Catalog upload failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorFormat" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UpdatingCatalogFormat" xml:space="preserve">
+    <value>Updating existing catalog '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingProviderDefinition" xml:space="preserve">
+    <value>Generating provider definition...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat" xml:space="preserve">
+    <value>Catalog published, but provider definition upload failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactHostingNotSupported" xml:space="preserve">
+    <value>Provider does not support artifact hosting. Please add URLs manually.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CompressingFolderFormat" xml:space="preserve">
+    <value>Compressing folder '{0}' into archive...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFound" xml:space="preserve">
+    <value>File or directory not found</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFoundFormat" xml:space="preserve">
+    <value>File or directory not found: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtifactFormat" xml:space="preserve">
+    <value>Uploading artifact {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedShort" xml:space="preserve">
+    <value>Upload failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadInProgressTitle" xml:space="preserve">
+    <value>Upload In Progress</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat" xml:space="preserve">
+    <value>Failed to upload {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceledError" xml:space="preserve">
+    <value>Upload canceled</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingArtifactFormat" xml:space="preserve">
+    <value>Error uploading {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedYet" xml:space="preserve">
+    <value>No catalogs have been published yet</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedPublishFirst" xml:space="preserve">
+    <value>No catalogs have been published yet. Please publish a catalog first.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlsForDefinition" xml:space="preserve">
+    <value>No catalog URLs available for definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GenerateDefinitionFailedFormat" xml:space="preserve">
+    <value>Failed to generate definition: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedFormat" xml:space="preserve">
+    <value>Upload failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat" xml:space="preserve">
+    <value>Error uploading definition: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllFailed" xml:space="preserve">
+    <value>Publishing all catalogs failed.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCanceled" xml:space="preserve">
+    <value>Publishing all catalogs was canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishingCatalogFormat" xml:space="preserve">
+    <value>Publishing catalog {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessDefinitionFailedFormat" xml:space="preserve">
+    <value>Successfully published all {0} catalog(s), but provider definition upload failed: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialDefinitionFailedFormat" xml:space="preserve">
+    <value>Published {0} of {1} catalog(s), but provider definition upload failed: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessFormat" xml:space="preserve">
+    <value>Successfully published all {0} catalogs!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
+    <value>Published {0} of {1} catalog(s). Failed: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat" xml:space="preserve">
+    <value>Published {0} of {1} catalog(s). Failed: {2}. Provider definition failed: {3}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadAlreadyInProgress" xml:space="preserve">
+    <value>An upload is already in progress.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogPublishedFormat" xml:space="preserve">
+    <value>Catalog '{0}' published successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogPublishFailed" xml:space="preserve">
+    <value>Failed to publish catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProviderFirst" xml:space="preserve">
+    <value>Please connect to your hosting provider first.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SyncCompleteFormat" xml:space="preserve">
+    <value>Sync complete! Discovered {0} file(s) in {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanningFolderFormat" xml:space="preserve">
+    <value>Scanning {0} folder for hosted files...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoHostedFilesFound" xml:space="preserve">
+    <value>No hosted files discovered in cloud storage folder.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanErrorFormat" xml:space="preserve">
+    <value>Scan error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsWarningFormat" xml:space="preserve">
+    <value>{0} only hosts catalog metadata (JSON). Your project has {1} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogJsonFailed" xml:space="preserve">
+    <value>Failed to export catalog JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage" xml:space="preserve">
+    <value>Failed to upload provider definition.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UnknownPublisher" xml:space="preserve">
+    <value>Publisher</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectSavedHint" xml:space="preserve">
+    <value>Project saved. Go to 'Publish &amp; Share' to export and release.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectFailedFormat" xml:space="preserve">
+    <value>Failed to save: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectErrorFormat" xml:space="preserve">
+    <value>Error saving: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveUnknownError" xml:space="preserve">
+    <value>An unknown error occurred while saving the project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorMessageFormat" xml:space="preserve">
+    <value>An error occurred while saving: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.PendingUpload" xml:space="preserve">
+    <value>Pending cloud upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.LocalFileNotFound" xml:space="preserve">
+    <value>Local file or directory not found</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.NoFileOrUrl" xml:space="preserve">
+    <value>No file or URL configured</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedWithLocal" xml:space="preserve">
+    <value>Hosted (local file available)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedExternalCdn" xml:space="preserve">
+    <value>Hosted (External CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.InvalidUrlFormat" xml:space="preserve">
+    <value>Invalid URL format</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryDefinition" xml:space="preserve">
+    <value>Publisher Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalOnly" xml:space="preserve">
+    <value>Local only</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat" xml:space="preserve">
+    <value>Catalog Manifest ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat" xml:space="preserve">
+    <value>{0} v{1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalFile" xml:space="preserve">
+    <value>Local file</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat" xml:space="preserve">
+    <value>Cloud Catalog ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact" xml:space="preserve">
+    <value>Cloud Artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailedMessage" xml:space="preserve">
+    <value>Failed to authenticate with the hosting provider.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ClipboardUnavailable" xml:space="preserve">
+    <value>Clipboard is not available.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyToClipboardFailedFormat" xml:space="preserve">
+    <value>Failed to copy to clipboard: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonGenerationFailed" xml:space="preserve">
+    <value>Catalog JSON could not be generated.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionJsonGenerationFailed" xml:space="preserve">
+    <value>Provider definition JSON could not be generated.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.FilenameRequired" xml:space="preserve">
+    <value>Filename is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdRequired" xml:space="preserve">
+    <value>Content ID is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdPattern" xml:space="preserve">
+    <value>ID must be lowercase alphanumeric with hyphens only</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMinLength" xml:space="preserve">
+    <value>ID must be at least 3 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMaxLength" xml:space="preserve">
+    <value>ID cannot exceed 64 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameRequired" xml:space="preserve">
+    <value>Content name is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMinLength" xml:space="preserve">
+    <value>Name must be at least 2 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMaxLength" xml:space="preserve">
+    <value>Name cannot exceed 100 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionRequired" xml:space="preserve">
+    <value>Description is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMinLength" xml:space="preserve">
+    <value>Description must be at least 10 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMaxLength" xml:space="preserve">
+    <value>Description cannot exceed 2000 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyPublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required for external dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyContentIdRequired" xml:space="preserve">
+    <value>Content ID is required for external dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidCatalogUrl" xml:space="preserve">
+    <value>Please enter a valid catalog URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogUrlRequired" xml:space="preserve">
+    <value>Catalog URL is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidUrl" xml:space="preserve">
+    <value>Please enter a valid URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionRequired" xml:space="preserve">
+    <value>Version is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionPattern" xml:space="preserve">
+    <value>Version format: X.Y or X.Y.Z or X.Y.Z-tag (e.g. 1.0, 2.1.0, 1.0.0-beta)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdPattern" xml:space="preserve">
+    <value>Lowercase, alphanumeric only</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DisplayNameRequired" xml:space="preserve">
+    <value>Display Name is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.MinLength2" xml:space="preserve">
+    <value>At least 2 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameRequired" xml:space="preserve">
+    <value>Catalog name is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameNotEmpty" xml:space="preserve">
+    <value>Catalog name cannot be empty</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
+    <value>{0} must be a valid http or https URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
+    <value>Contact email must be a valid email address.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.GenericError" xml:space="preserve">
+    <value>Validation error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
+    <value>The Google Drive API is not enabled for your Google Cloud project. Enable it at {0}, wait a few minutes for the change to propagate, then retry.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PublisherFolderFailed" xml:space="preserve">
+    <value>Failed to get publisher folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PublisherFolderFailedFormat" xml:space="preserve">
+    <value>Failed to get publisher folder: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthCompleteTitle" xml:space="preserve">
+    <value>GenHub connected to Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthCompleteMessage" xml:space="preserve">
+    <value>You can close this tab and return to GenHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxAppKey" xml:space="preserve">
+    <value>Please enter your Dropbox app key. Create an app in the Dropbox App Console to get one.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStartedTitle" xml:space="preserve">
+    <value>Uploading</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadStarted" xml:space="preserve">
+    <value>Uploading provider definition...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishStartedTitle" xml:space="preserve">
+    <value>Publishing</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalogStartedFormat" xml:space="preserve">
+    <value>Publishing catalog '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllStartedFormat" xml:space="preserve">
+    <value>Publishing {0} catalog(s) to {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadStartedFormat" xml:space="preserve">
+    <value>Uploading {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthTitle" xml:space="preserve">
+    <value>Connect with Dropbox (Recommended)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthDescription" xml:space="preserve">
+    <value>Sign in with your Dropbox app to stay connected. GenHub securely stores a refresh token so you don't have to paste a new token every few hours.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder" xml:space="preserve">
+    <value>Dropbox app key</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectWithDropbox" xml:space="preserve">
+    <value>Connect with Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxManualTokenTitle" xml:space="preserve">
+    <value>Or paste an access token manually</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadArtifactTooltip" xml:space="preserve">
+    <value>Upload this file to the connected hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadButton" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadCatalogTooltip" xml:space="preserve">
+    <value>Upload this catalog to the connected hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.UploadDefinitionTooltip" xml:space="preserve">
+    <value>Upload provider definition (saves the project first)</value>
+  </data>
+  <data name="Downloads.Browser.Catalog" xml:space="preserve">
+    <value>Catalog</value>
+  </data>
+  <data name="Downloads.Browser.LoadingCatalogs" xml:space="preserve">
+    <value>Loading catalogs...</value>
+  </data>
+  <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
+    <value>Current catalog</value>
+  </data>
+  <data name="Downloads.Browser.SwitchCatalogFailedTitle" xml:space="preserve">
+    <value>Could Not Switch Catalogs</value>
+  </data>
+  <data name="Downloads.Browser.SwitchCatalogFailedMessage" xml:space="preserve">
+    <value>The catalog selection could not be saved. Please try again.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkTitle" xml:space="preserve">
+    <value>Artwork</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
+    <value>Paste an image URL or pick a local file. Local files are uploaded to your hosting provider when you publish the catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
+    <value>Icon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BannerArtwork" xml:space="preserve">
+    <value>Banner</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BackdropArtwork" xml:space="preserve">
+    <value>Backdrop cover</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColor" xml:space="preserve">
+    <value>Accent color</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkUrlPlaceholder" xml:space="preserve">
+    <value>https://... or local image file</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColorPlaceholder" xml:space="preserve">
+    <value>#7C3AED</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArtworkTitle" xml:space="preserve">
+    <value>Select Artwork Image</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ArtworkPathInvalidFormat" xml:space="preserve">
+    <value>{0} must be an HTTPS URL or an existing local image file.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.AccentColorInvalid" xml:space="preserve">
+    <value>Accent color must be a hex color like #7C3AED.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtworkFormat" xml:space="preserve">
+    <value>Uploading artwork {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkFileMissingFormat" xml:space="preserve">
+    <value>Artwork file not found: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkUploadFailedFormat" xml:space="preserve">
+    <value>Failed to upload artwork {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkUploadFailedTitle" xml:space="preserve">
+    <value>Artwork Upload Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
+    <value>Provider does not support artwork hosting. Use direct image URLs or switch providers.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
+    <value>Could not read the dropped file: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep4Title" xml:space="preserve">
+    <value>Step 4: Connect from GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep4Desc" xml:space="preserve">
+    <value>Paste your App key below and click 'Connect with Dropbox'. Your browser opens for approval and returns to GenHub automatically — GenHub stays signed in via refresh tokens.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxRedirectUriLabel" xml:space="preserve">
+    <value>Redirect URI (register this exact string in your Dropbox app)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip" xml:space="preserve">
+    <value>Copy the redirect URI to the clipboard</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.RedirectUriCopied" xml:space="preserve">
+    <value>Redirect URI copied. Paste it into your Dropbox app's Redirect URIs list.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
+    <value>{0} package for {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
+    <value>A release item is required. Please provide a valid download URL or local file.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
+    <value>Download URL must be a valid HTTP or HTTPS link.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.LocalPathMissingFormat" xml:space="preserve">
+    <value>Local path does not exist: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectFileTitle" xml:space="preserve">
+    <value>Select Artifact File</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectFolderTitle" xml:space="preserve">
+    <value>Select Artifact Folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
+    <value>Customizes card badges, borders, and highlight bars for this content item in the downloads catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.PreviewBadge" xml:space="preserve">
+    <value>Preview Badge</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
+    <value>Browse Files...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.RemoveStagedFileTooltip" xml:space="preserve">
+    <value>Remove file</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.MultiFileBundleNoteFormat" xml:space="preserve">
+    <value>{0} files will be uploaded separately and installed together as one package.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderCalculating" xml:space="preserve">
+    <value>Folder (calculating size...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderSizeFormat" xml:space="preserve">
+    <value>{0} (folder)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderUnavailable" xml:space="preserve">
+    <value>Folder (size unavailable)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveFormat" xml:space="preserve">
+    <value>Archive with {0} files. Contents are extracted automatically when players install this content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveUnknownFormat" xml:space="preserve">
+    <value>Archive. Contents are extracted automatically when players install this content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleArtifacts" xml:space="preserve">
+    <value>Install all files together (bundle)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleArtifactsHint" xml:space="preserve">
+    <value>All artifacts in this release are installed as one package instead of offering a file picker.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.RemoteCatalogDeleteFailedFormat" xml:space="preserve">
+    <value>Catalog removed locally, but the published file for '{0}' could not be deleted. It may still be live.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalogTooltip" xml:space="preserve">
+    <value>Publish this catalog to the hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanAndLoadProvider" xml:space="preserve">
+    <value>Scan &amp; Load Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanAndLoadProviderTip" xml:space="preserve">
+    <value>Scan connected provider storage and sync/load assets and definitions</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterDefinitions" xml:space="preserve">
+    <value>Definitions</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterCatalogs" xml:space="preserve">
+    <value>Catalogs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterArtifacts" xml:space="preserve">
+    <value>Artifacts</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterExternalCdn" xml:space="preserve">
+    <value>External CDN</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SearchAssetsWatermark" xml:space="preserve">
+    <value>Search inventory...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToProject" xml:space="preserve">
+    <value>Load to Project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToProjectTip" xml:space="preserve">
+    <value>Load this definition and its catalogs into current project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadCatalogTip" xml:space="preserve">
+    <value>Load this catalog into current project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AddToCatalog" xml:space="preserve">
+    <value>Add to Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AddToCatalogTip" xml:space="preserve">
+    <value>Link this cloud artifact binary into the active catalog release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessTitle" xml:space="preserve">
+    <value>Definition Loaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessFormat" xml:space="preserve">
+    <value>Successfully loaded publisher definition "{0}" and {1} catalog(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedCatalogSuccessTitle" xml:space="preserve">
+    <value>Catalog Loaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat" xml:space="preserve">
+    <value>Successfully loaded catalog "{0}" into project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ArtifactAddedTitle" xml:space="preserve">
+    <value>Artifact Added</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ArtifactAddedToCatalogFormat" xml:space="preserve">
+    <value>Added "{0}" to catalog "{1}".</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingDefinitionTitle" xml:space="preserve">
+    <value>Loading Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingDefinitionFormat" xml:space="preserve">
+    <value>Loading publisher definition from {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingCatalogTitle" xml:space="preserve">
+    <value>Loading Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingCatalogFormat" xml:space="preserve">
+    <value>Loading catalog from {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadFailedTitle" xml:space="preserve">
+    <value>Load Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadFailedFormat" xml:space="preserve">
+    <value>Failed to load {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
+    <value>Downloaded file was empty.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
+    <value>Invalid publisher definition JSON: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeserializeCatalogErrorFormat" xml:space="preserve">
+    <value>Invalid catalog JSON: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InvalidDefinitionError" xml:space="preserve">
+    <value>Definition does not contain valid publisher information.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InvalidCatalogError" xml:space="preserve">
+    <value>Catalog JSON is missing a valid identifier.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoActiveCatalogTitle" xml:space="preserve">
+    <value>No Active Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoActiveCatalogError" xml:space="preserve">
+    <value>Please select or create an active catalog first.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudDefinitionFormat" xml:space="preserve">
+    <value>Cloud Publisher Definition ({0})</value>
+  </data>
+  <data name="Downloads.ContentDetail.PreviewVideos" xml:space="preserve">
+    <value>Preview Videos</value>
+  </data>
+  <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
+    <value>Play or open video</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
+    <value>Alternative Variants (e.g. Languages, Resolutions)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
+    <value>Each file is a distinct variant the user chooses from (e.g. English, Russian, Arabic or 720p, 1080p, 4K).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
+    <value>Install all files together (Bundle)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleModeDesc" xml:space="preserve">
+    <value>All files in this release are downloaded and installed together as a single package.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ReleaseImages" xml:space="preserve">
+    <value>Release Image URLs (one per line)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ReleaseVideos" xml:space="preserve">
+    <value>Release Video URLs (one per line)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Addons" xml:space="preserve">
+    <value>Addons</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonsHint" xml:space="preserve">
+    <value>Optional addon dependencies associated with this content item.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddAddon" xml:space="preserve">
+    <value>Add Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoAddons" xml:space="preserve">
+    <value>No addons specified for this content item.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveAddonTooltip" xml:space="preserve">
+    <value>Remove this addon dependency</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ChangesPending" xml:space="preserve">
+    <value>Changes Pending</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Screenshots" xml:space="preserve">
+    <value>Screenshot URLs (one per line)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VideoUrl" xml:space="preserve">
+    <value>Video Preview URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaAndTheme" xml:space="preserve">
+    <value>Media &amp; Theme</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactDeliveryMode" xml:space="preserve">
+    <value>Artifact Delivery Mode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BadgeVariants" xml:space="preserve">
+    <value>VARIANTS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BadgeBundle" xml:space="preserve">
+    <value>BUNDLE</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropContentHint" xml:space="preserve">
+    <value>(drag &amp; drop to add content)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropAddonHint" xml:space="preserve">
+    <value>(drag &amp; drop to add addon)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropReleaseHint" xml:space="preserve">
+    <value>(drag &amp; drop to add release)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditAddonTooltip" xml:space="preserve">
+    <value>Edit Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonTooltip" xml:space="preserve">
+    <value>Delete Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropImagesHint" xml:space="preserve">
+    <value>(drag &amp; drop image files here)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BulkScreenshotsPlaceholder" xml:space="preserve">
+    <value>Bulk URLs: one per line&#x0a;https://example.com/screenshot1.png&#x0a;https://example.com/screenshot2.png</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseChangelogPlaceholder" xml:space="preserve">
+    <value>Changelog notes for this version...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SingleBundleOption" xml:space="preserve">
+    <value>Single Bundle (all artifacts)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantsOption" xml:space="preserve">
+    <value>Variants (user chooses one)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropFilesHint" xml:space="preserve">
+    <value>(drag &amp; drop to upload files)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropReleaseImagesHint" xml:space="preserve">
+    <value>(drag &amp; drop images here)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonTitle" xml:space="preserve">
+    <value>Addon Title</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonTitlePlaceholder" xml:space="preserve">
+    <value>e.g. Lemon Edition ZH Control Bar 1920x1080</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonCategory" xml:space="preserve">
+    <value>Addon Category</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Step1Title" xml:space="preserve">
+    <value>Step 1: Connect Cloud Hosting</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Step1Desc" xml:space="preserve">
+    <value>Connect your cloud hosting provider (Google Drive, Dropbox, or GitHub) to automatically discover and sync your existing publisher definition and catalogs, or to set up cloud hosting for a new publisher.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConfigureLocalProfile" xml:space="preserve">
+    <value>Configure Local Profile Instead</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConfigureLocalProfileTip" xml:space="preserve">
+    <value>Skip cloud sync and configure a publisher profile on this device</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DiscoveredDefinitionTitle" xml:space="preserve">
+    <value>Publisher Definition Discovered in Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DiscoveredDefinitionDesc" xml:space="preserve">
+    <value>An existing publisher definition was found in your cloud storage. Pull it into Publisher Studio to automatically import your publisher profile, catalogs, and releases.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PullDefinitionAction" xml:space="preserve">
+    <value>Pull Definition into Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PullDefinitionTip" xml:space="preserve">
+    <value>Download and sync this publisher definition and all attached catalogs into Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoDefinitionFoundTitle" xml:space="preserve">
+    <value>Connected to Cloud Storage</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoDefinitionFoundDesc" xml:space="preserve">
+    <value>No existing publisher definition was found in your cloud folder. You are connected and ready to create your publisher identity.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CreateProfileBtn" xml:space="preserve">
+    <value>Create Publisher Profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OrCreateNewProfile" xml:space="preserve">
+    <value>Or create new profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OrCreateNewProfileTip" xml:space="preserve">
+    <value>Start with a brand new profile instead of pulling this definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ImportCatalogTooltip" xml:space="preserve">
+    <value>Import Catalog (.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogTitle" xml:space="preserve">
+    <value>Import Catalog (.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogPromptTitle" xml:space="preserve">
+    <value>Add Catalog to Provider?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogPromptMessage" xml:space="preserve">
+    <value>A catalog file '{0}' was detected containing {1} content items by '{2}'.
+Would you like to add this catalog to your provider project?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.AddCatalogConfirm" xml:space="preserve">
+    <value>Add Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogImportedFormat" xml:space="preserve">
+    <value>Added catalog '{0}' with {1} content items.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ImportCatalogErrorFormat" xml:space="preserve">
+    <value>Failed to import catalog: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InvalidPathTitle" xml:space="preserve">
+    <value>Invalid Path</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InvalidPathMessage" xml:space="preserve">
+    <value>The specified file or folder does not exist.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportButton" xml:space="preserve">
+    <value>Batch Import</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportTooltip" xml:space="preserve">
+    <value>Batch import multiple files or archives as individual content items</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportSuccessTitle" xml:space="preserve">
+    <value>Batch Import Complete</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportSuccessMessage" xml:space="preserve">
+    <value>Successfully imported {0} content items (1 release each).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BatchImportPickerTitle" xml:space="preserve">
+    <value>Select Files or Archives to Batch Import</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.AddButton" xml:space="preserve">
+    <value>Add Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.AddTitle" xml:space="preserve">
+    <value>Add Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.EditTitle" xml:space="preserve">
+    <value>Edit Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.DeleteTitle" xml:space="preserve">
+    <value>Delete Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.TitleRequired" xml:space="preserve">
+    <value>Addon title / name is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Addon.DeleteMessageFormat" xml:space="preserve">
+    <value>Are you sure you want to delete addon '{0}'? This will also remove its artifacts and cannot be undone.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkDropHint" xml:space="preserve">
+    <value>Paste a URL, browse, or drag &amp; drop an image file here.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VideoDropHint" xml:space="preserve">
+    <value>Paste a URL or drag &amp; drop a video file here.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DeliveryModeHint" xml:space="preserve">
+    <value>Bundle installs every file together. Variants let the player pick exactly one file.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadSourceHint" xml:space="preserve">
+    <value>Direct URL uses a file you already host. Local File stages files on this PC that GenHub uploads when you publish.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ExplicitArtifactsHint" xml:space="preserve">
+    <value>Ready-made entries used exactly as listed. While any are listed, the staged files below are ignored.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Media" xml:space="preserve">
+    <value>Media</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Screenshots" xml:space="preserve">
+    <value>Screenshots</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Videos" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaScreenshotsDropHint" xml:space="preserve">
+    <value>Drag &amp; drop image files here to add screenshots</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaVideosDropHint" xml:space="preserve">
+    <value>Drag &amp; drop video files here to add preview videos</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveMediaTooltip" xml:space="preserve">
+    <value>Remove media</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.OpenVideoTooltip" xml:space="preserve">
+    <value>Open video</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaOpenFailedTitle" xml:space="preserve">
+    <value>Cannot Open Media</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaOpenFailedMessage" xml:space="preserve">
+    <value>This media entry is neither an existing file nor a valid web URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.Title" xml:space="preserve">
+    <value>Duplicate File Detected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.UploadNew" xml:space="preserve">
+    <value>Upload New Copy</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.UseExisting" xml:space="preserve">
+    <value>Use Existing File</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DropErrorTitle" xml:space="preserve">
+    <value>Import Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DropErrorMessage" xml:space="preserve">
+    <value>Could not import the dropped files. See logs for details.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveInspecting" xml:space="preserve">
+    <value>Archive (inspecting contents...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedTitle" xml:space="preserve">
+    <value>Could Not Stage Files</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.StageArtifactsFailedMessage" xml:space="preserve">
+    <value>Some dropped files could not be staged and were skipped. See logs for details.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UnsupportedMediaDropMessage" xml:space="preserve">
+    <value>No supported image or video files found.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarPlaceholder" xml:space="preserve">
+    <value>Drag &amp; drop to upload or enter image URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarDropTooltip" xml:space="preserve">
+    <value>Drop an image file or URL here to update avatar</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadFailedTitle" xml:space="preserve">
+    <value>Avatar Upload Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadSuccessTitle" xml:space="preserve">
+    <value>Avatar Uploaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadSuccessMessage" xml:space="preserve">
+    <value>Avatar image uploaded to hosting provider successfully.</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogNotificationTitle" xml:space="preserve">
+    <value>New Catalog Available</value>
+  </data>
+  <data name="Downloads.Browser.ViewCatalogAction" xml:space="preserve">
+    <value>View Catalog</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogNotificationFormat" xml:space="preserve">
+    <value>Publisher '{0}' released a new catalog: '{1}'</value>
+  </data>
+  <data name="Downloads.Browser.NewCatalogsNotificationFormat" xml:space="preserve">
+    <value>Publisher '{0}' released {1} new catalogs.</value>
+  </data>
+  <data name="Downloads.Browser.NewContentNotificationTitle" xml:space="preserve">
+    <value>New Content Available</value>
+  </data>
+  <data name="Downloads.Browser.ViewContentAction" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="Downloads.Browser.NewContentNotificationFormat" xml:space="preserve">
+    <value>New content '{0}' released in catalog '{1}'</value>
+  </data>
+  <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
+    <value>{0} new content items released in catalog '{1}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
+    <value>Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonDeletedTitle" xml:space="preserve">
+    <value>Addon Deleted</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonDeletedMessageFormat" xml:space="preserve">
+    <value>Addon '{0}' was deleted.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonTitle" xml:space="preserve">
+    <value>Delete Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonMessageFormat" xml:space="preserve">
+    <value>Are you sure you want to delete addon '{0}'? This cannot be undone.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUpdatedTitle" xml:space="preserve">
+    <value>Avatar Updated</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUpdatedMessage" xml:space="preserve">
+    <value>Avatar URL updated successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadingTitle" xml:space="preserve">
+    <value>Uploading Avatar</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUploadingMessage" xml:space="preserve">
+    <value>Uploading avatar to {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarLocalWarningTitle" xml:space="preserve">
+    <value>Local Avatar Set</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarLocalWarningMessage" xml:space="preserve">
+    <value>Local avatar image cannot be saved directly. Please connect a hosting provider to upload avatars, or enter a remote image URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogConfirmFormat" xml:space="preserve">
+    <value>Are you sure you want to delete catalog '{0}'? All content items in this catalog will be removed.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.IconPlaceholder" xml:space="preserve">
+    <value>https://... or avares://...</value>
+  </data>
+  <data name="Downloads.ContentUpdateNotificationTitle" xml:space="preserve">
+    <value>Update Available: {0}</value>
+  </data>
+  <data name="Downloads.ContentUpdateNotificationMessage" xml:space="preserve">
+    <value>Version {0} is available for {1}.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>
@@ -10440,5 +13561,73 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>Successfully launched '{0}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Duplicate.MessageFormat" xml:space="preserve">
+    <value>We found an identical file already hosted on your provider:
+• Name: {0}
+• URL: {1}
+
+Would you like to use this existing hosted file instead of uploading a new copy?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Title" xml:space="preserve">
+    <value>Release Title / Name</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.TitlePlaceholder" xml:space="preserve">
+    <value>Leave empty to inherit content name and version</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsPublishedTitle" xml:space="preserve">
+    <value>Catalogs Published</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsPublishedMessageFormat" xml:space="preserve">
+    <value>Successfully published {0} catalog(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionPublishedTitle" xml:space="preserve">
+    <value>Definition Published</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionPublishedMessage" xml:space="preserve">
+    <value>Provider definition uploaded successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddScreenshot" xml:space="preserve">
+    <value>Add Screenshot</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteScreenshot" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteScreenshotTooltip" xml:space="preserve">
+    <value>Paste image, file, or URL from clipboard</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddVideo" xml:space="preserve">
+    <value>Add Video File</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddVideoUrl" xml:space="preserve">
+    <value>Add URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.VideoUrlWatermark" xml:space="preserve">
+    <value>Enter video URL (e.g. YouTube, Vimeo, MP4)...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PickScreenshotTitle" xml:space="preserve">
+    <value>Select Screenshot Images</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PickVideoTitle" xml:space="preserve">
+    <value>Select Video Files</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardImageTitle" xml:space="preserve">
+    <value>No Image Found</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
+    <value>No image, file, or image URL was found on the clipboard.</value>
+  </data>
+  <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
+    <value>{0} Update Available</value>
+  </data>
+  <data name="Downloads.UpdateDialog.MessageWithVersion" xml:space="preserve">
+    <value>{0} has an update available ({1}).
+
+How do you want to apply this update?</value>
+  </data>
+  <data name="Downloads.UpdateDialog.Message" xml:space="preserve">
+    <value>{0} has an update available.
+
+How do you want to apply this update?</value>
   </data>
 </root>

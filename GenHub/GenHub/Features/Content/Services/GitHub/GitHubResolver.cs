@@ -156,11 +156,6 @@ public partial class GitHubResolver(
         return GitHubTopicsDiscoverer.ExtractAssetVariant(assetName);
     }
 
-    private static (ContentType Type, bool IsInferred) InferContentType(string repo, string? releaseName)
-    {
-        return GitHubInferenceHelper.InferContentType(repo, releaseName);
-    }
-
     private static GitHubUrlParseResult ParseGitHubUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))

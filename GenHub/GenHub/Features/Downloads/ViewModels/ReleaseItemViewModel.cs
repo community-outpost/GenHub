@@ -1,3 +1,5 @@
+using GenHub.Core.Models.Providers;
+
 namespace GenHub.Features.Downloads.ViewModels;
 
 /// <summary>
@@ -6,4 +8,8 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// </summary>
 public partial class ReleaseItemViewModel : DownloadableItemViewModel
 {
+    /// <summary>
+    /// Gets or sets the underlying content release from the publisher catalog, if any.
+    /// </summary>
+    public ContentRelease? Release { get; set; }
 }

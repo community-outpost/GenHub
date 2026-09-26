@@ -15,6 +15,8 @@
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="11.2.7" />
     <PackageVersion Include="BCnEncoder.Net" Version="2.3.0" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+    <PackageVersion Include="Google.Apis.Auth" Version="1.73.0" />
+    <PackageVersion Include="Google.Apis.Drive.v3" Version="1.73.0.3996" />
     <PackageVersion Include="Magick.NET-Q16-AnyCPU" Version="14.17.1" />
     <PackageVersion Include="Markdig" Version="0.44.0" />
     <PackageVersion Include="Markdown.Avalonia" Version="11.0.3" />
@@ -30,7 +32,7 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
-    <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="Microsoft.Playwright" Version="1.55.0" />
     <PackageVersion Include="ReactiveUI" Version="19.6.1" />
     <PackageVersion Include="Serilog" Version="4.2.0" />

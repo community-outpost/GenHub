@@ -955,26 +955,11 @@
 
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="{Binding PublisherName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14"/>
-                        <TextBlock Text="{Binding CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding DefinitionUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding DefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Text="{Binding CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding DefinitionUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                       </StackPanel>
 
                       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                        <!-- Trust Toggle Button -->
-                        <Button Content="{Binding TrustLevel}"
-                                Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).ToggleSubscriptionTrustCommand}"
-                                CommandParameter="{Binding}"
-                                AutomationProperties.Name="{localization:Localize Settings.Subscriptions.ToggleTrustAutomation}"
-                                ToolTip.Tip="{localization:Localize Settings.Subscriptions.ToggleTrustToolTip}"
-                                Classes="secondary-button"
-                                Padding="8,4"
-                                FontSize="12">
-                          <Button.Styles>
-                            <Style Selector="Button">
-                              <Setter Property="Foreground" Value="{Binding TrustLevel, Converter={x:Static converters:TrustLevelToColorConverter.Instance}}" />
-                            </Style>
-                          </Button.Styles>
-                        </Button>
-
                         <!-- Remove Button -->
                         <Button Content="{localization:Localize Settings.Subscriptions.Remove}"
                                 Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveSubscriptionCommand}"

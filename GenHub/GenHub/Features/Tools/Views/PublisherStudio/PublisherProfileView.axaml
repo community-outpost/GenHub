@@ -1,0 +1,191 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
+             mc:Ignorable="d"
+             d:DesignWidth="900" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherProfileView"
+             x:DataType="vm:PublisherProfileViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassStrongBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+
+        <Style Selector="TextBlock.field-label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="TextBlock.field-hint">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+        </Style>
+        <Style Selector="TextBlock.required">
+            <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style Selector="Border.glass-card">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+        </Style>
+
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="24,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <Border Classes="glass-card"
+                Padding="24"
+                Margin="16"
+                HorizontalAlignment="Center"
+                MaxWidth="840">
+            <StackPanel Spacing="16">
+                <!-- Compact Header -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Border Width="36" Height="36"
+                                CornerRadius="10"
+                                ClipToBounds="True"
+                                Background="{DynamicResource PrimaryGradientBrush}"
+                                VerticalAlignment="Center">
+                            <Panel>
+                                <PathIcon Data="{StaticResource PersonIcon}"
+                                          Width="18" Height="18"
+                                          Foreground="{DynamicResource TextPrimary}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding AvatarUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                                <Image controls:ImageLoader.Source="{Binding AvatarUrl}"
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding AvatarUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            </Panel>
+                        </Border>
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Title}"
+                                       FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Save Profile Button in Header / Top Right -->
+                    <Button Grid.Column="2"
+                            Classes="primary-btn"
+                            Command="{Binding SaveProfileCommand}"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource SaveIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Save}" FontWeight="SemiBold" FontSize="13"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <Rectangle Height="1" Fill="{DynamicResource GlassFillBrush}"/>
+
+                <!-- 2-Column Fields Grid -->
+                <Grid ColumnDefinitions="*,16,*" RowDefinitions="Auto,12,Auto,12,Auto">
+                    <!-- Row 0: Publisher ID & Display Name -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.PublisherId}" Classes="field-label"/>
+                            <TextBlock Text="*" Classes="required"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding PublisherId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Profile.PublisherIdPlaceholder}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.PublisherIdHint}" Classes="field-hint"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.DisplayName}" Classes="field-label"/>
+                            <TextBlock Text="*" Classes="required"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding PublisherName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Profile.DisplayNamePlaceholder}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.DisplayNameHint}" Classes="field-hint"/>
+                    </StackPanel>
+
+                    <!-- Row 2: Website & Contact Email -->
+                    <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Website}" Classes="field-label"/>
+                        <TextBox Text="{Binding WebsiteUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Watermark="https://community-outpost.org"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Grid.Column="2" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Email}" Classes="field-label"/>
+                        <TextBox Text="{Binding ContactEmail, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Profile.EmailPlaceholder}"/>
+                    </StackPanel>
+
+                    <!-- Row 4: Support URL & Avatar URL -->
+                    <StackPanel Grid.Row="4" Grid.Column="0" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.SupportDiscord}" Classes="field-label"/>
+                        <TextBox Text="{Binding SupportUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Watermark="https://discord.gg/yourserver"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Grid.Column="2" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.AvatarUrl}" Classes="field-label"/>
+                        <commonControls:ImageInputBox Text="{Binding AvatarUrl, Mode=TwoWay}"
+                                                     Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"
+                                                     FallbackIconData="{StaticResource PersonIcon}"
+                                                     PreviewCornerRadius="17"
+                                                     PreviewToolTip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}"
+                                                     DropHandler="{Binding HandleAvatarDropAsync}"/>
+                    </StackPanel>
+                </Grid>
+
+                <Rectangle Height="1" Fill="{DynamicResource GlassFillBrush}"/>
+
+                <!-- Tags & Description -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Tags}" Classes="field-label"/>
+                    <TextBox Text="{Binding TagsString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Profile.TagsPlaceholder}"/>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Description}" Classes="field-label"/>
+                    <TextBox Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Profile.DescriptionPlaceholder}"
+                             AcceptsReturn="True"
+                             Height="70"
+                             TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </ScrollViewer>
+</UserControl>

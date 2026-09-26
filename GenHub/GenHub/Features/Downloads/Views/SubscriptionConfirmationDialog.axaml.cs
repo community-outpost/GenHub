@@ -55,11 +55,13 @@ public partial class SubscriptionConfirmationDialog : Window
 
         if (DataContext is SubscriptionConfirmationViewModel vm)
         {
-            // set up a way to close the window from the view model
+            // set up a way to close the window from the view model while preserving external handlers
+            var externalRequestClose = vm.RequestClose;
             vm.RequestClose = (result) =>
             {
                 DialogResult = result;
                 Close(result);
+                externalRequestClose?.Invoke(result);
             };
 
             // start initialization
@@ -71,6 +73,18 @@ public partial class SubscriptionConfirmationDialog : Window
             {
                 // Dialog closed during initialization
             }
+        }
+    }
+
+    /// <inheritdoc/>
+    /// <param name="e">The key event arguments.</param>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.Escape && !e.Handled)
+        {
+            e.Handled = true;
+            CloseDialog(false);
         }
     }
 

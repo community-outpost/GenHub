@@ -2067,6 +2067,20 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that Sections contains both Publisher Subscriptions and Cloud Storage &amp; Uploads sections.
+    /// </summary>
+    [Fact]
+    public void Sections_IncludesSubscriptionsAndCloudUploadsSections()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Assert
+        Assert.Contains(viewModel.Sections, s => s.Id == SettingsConstants.SectionSubscriptions);
+        Assert.Contains(viewModel.Sections, s => s.Id == SettingsConstants.SectionCloudUploads);
+    }
+
+    /// <summary>
     /// Verifies that SaveSettingsCommand persists the selected language to UserSettings.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
@@ -2155,55 +2169,6 @@ public class SettingsViewModelTests
         // Assert
         Assert.DoesNotContain(sub, viewModel.Subscriptions);
         _mockNotificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
-    }
-
-    /// <summary>
-    /// Verifies that ToggleSubscriptionTrustCommand toggles trust level and saves to store.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
-    [Fact]
-    public async Task ToggleSubscriptionTrustCommand_TogglesTrustLevelAsync()
-    {
-        // Arrange
-        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
-        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher", TrustLevel = TrustLevel.Trusted };
-        mockSubStore.Setup(s => s.UpdateTrustLevelAsync("pub1", TrustLevel.Untrusted, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
-        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
-
-        viewModel.Subscriptions.Add(sub);
-
-        // Act
-        await viewModel.ToggleSubscriptionTrustCommand.ExecuteAsync(sub);
-
-        // Assert
-        Assert.Equal(TrustLevel.Untrusted, sub.TrustLevel);
-        mockSubStore.Verify(s => s.UpdateTrustLevelAsync("pub1", TrustLevel.Untrusted, It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    /// <summary>
-    /// Verifies that ToggleSubscriptionTrustCommand ignores verified publishers and prevents execution.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
-    [Fact]
-    public async Task ToggleSubscriptionTrustCommand_VerifiedSubscription_CannotExecuteAndDoesNotModifyAsync()
-    {
-        // Arrange
-        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
-        var sub = new PublisherSubscription { PublisherId = "pub_verified", PublisherName = "Verified Pub", TrustLevel = TrustLevel.Verified };
-
-        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
-        viewModel.Subscriptions.Add(sub);
-
-        // Act & Assert CanExecute
-        Assert.False(viewModel.ToggleSubscriptionTrustCommand.CanExecute(sub));
-
-        await viewModel.ToggleSubscriptionTrustCommand.ExecuteAsync(sub);
-
-        // Assert
-        Assert.Equal(TrustLevel.Verified, sub.TrustLevel);
-        mockSubStore.Verify(s => s.UpdateTrustLevelAsync(It.IsAny<string>(), It.IsAny<TrustLevel>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>

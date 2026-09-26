@@ -12,9 +12,39 @@ public class InstallableVariant : INotifyPropertyChanged
     private ContentState _currentState = ContentState.NotDownloaded;
 
     /// <summary>
+    /// Gets or sets the unique identifier or key for this variant.
+    /// </summary>
+    public string? Id { get; set; }
+
+    /// <summary>
     /// Gets or sets the display name of the variant.
     /// </summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the download URL for this variant.
+    /// </summary>
+    public string? DownloadUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the file name or relative path for this variant.
+    /// </summary>
+    public string? File { get; set; }
+
+    /// <summary>
+    /// Gets or sets the size in bytes for this variant.
+    /// </summary>
+    public long? Size { get; set; }
+
+    /// <summary>
+    /// Gets or sets the SHA256 checksum for this variant.
+    /// </summary>
+    public string? Sha256 { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this is the default variant.
+    /// </summary>
+    public bool IsDefault { get; set; }
 
     /// <summary>
     /// Gets or sets the specific manifest ID for this variant.

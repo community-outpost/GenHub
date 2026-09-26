@@ -1,0 +1,377 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddReleaseDialogView"
+             x:DataType="vm:AddReleaseDialogViewModel"
+             x:Name="Root"
+             DragDrop.AllowDrop="True">
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="ListBoxItem">
+             <Setter Property="CornerRadius" Value="4"/>
+             <Setter Property="Padding" Value="8"/>
+        </Style>
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+             <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+        </Style>
+         <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*" Margin="20,14,20,14">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+            <TextBlock Text="{Binding DialogTitle}"
+                       FontSize="18" FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimary}"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="{StaticResource CloseIcon}"
+                          Width="12" Height="12"
+                          Foreground="{DynamicResource TextMuted}"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="14" Margin="0,0,0,80">
+                <!-- Info -->
+                <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="{DynamicResource TextPrimary}"/>
+
+                <!-- Title (Addon or Release) -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{Binding TitleLabel}" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding IsAddonMode}"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding Title}" Watermark="{Binding TitlePlaceholder}"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8" IsVisible="{Binding IsAddonMode}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddonCategory}" Classes="label"/>
+                    <ComboBox ItemsSource="{Binding AvailableAddonCategories}"
+                              SelectedItem="{Binding Category}"
+                              HorizontalAlignment="Stretch"/>
+                </StackPanel>
+
+                <!-- Version -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Version}" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,8,Auto">
+                         <TextBox Text="{Binding Version}" Watermark="{localization:Localize Tools.PublisherStudio.Release.VersionPlaceholder}"/>
+                         <Button Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Suggest}"
+                                 Command="{Binding ApplySuggestedVersionCommand}"
+                                 Classes="small-glass-btn"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Date & Options -->
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                    <DatePicker Grid.Column="0" SelectedDate="{Binding ReleaseDate}" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource GlassFillBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" CornerRadius="6"/>
+                    <CheckBox Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Release.Latest}" IsChecked="{Binding IsLatest}" Margin="8,0"/>
+                    <CheckBox Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Prerelease}" IsChecked="{Binding IsPrerelease}" Margin="8,0"/>
+                    <CheckBox Grid.Column="3" Content="{localization:Localize Tools.PublisherStudio.Release.Featured}" IsChecked="{Binding IsFeatured}" Margin="8,0"/>
+                </Grid>
+
+                <!-- Changelog -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Changelog}" Classes="label"/>
+                    <TextBox Text="{Binding Changelog}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             Height="80"/>
+                </StackPanel>
+
+                <!-- Artifacts Section -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactsFiles}" Classes="label"/>
+                                <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.DragDropHint}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Command="{Binding AddArtifactCommand}"
+                                Classes="small-glass-btn">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddArtifact}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- Dedicated Artifacts Drop Zone -->
+                    <Border x:Name="ArtifactsDropZone"
+                            IsVisible="{Binding !Artifacts.Count}"
+                            DragDrop.AllowDrop="True"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            Padding="12"
+                            Cursor="Hand">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                            <PathIcon Data="{StaticResource DocumentIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropFilesHint}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <ListBox ItemsSource="{Binding Artifacts}" MinHeight="60">
+                         <ListBox.ItemTemplate>
+                             <DataTemplate>
+                                 <Grid ColumnDefinitions="*,Auto">
+                                     <StackPanel>
+                                         <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                         <TextBlock Text="{Binding Size}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                     </StackPanel>
+                                     <Button Grid.Column="1"
+                                             Command="{ReflectionBinding DataContext.RemoveArtifactCommand, ElementName=Root}"
+                                             CommandParameter="{Binding}"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Padding="8">
+                                         <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                     </Button>
+                                 </Grid>
+                             </DataTemplate>
+                         </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactRequired}" FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding !Artifacts.Count}"/>
+
+                    <!-- Mode: Bundle vs Variants -->
+                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactDeliveryMode}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                            <RadioButton IsChecked="{Binding BundleArtifacts, Mode=TwoWay}"
+                                         GroupName="ReleaseArtifactMode"
+                                         Foreground="{DynamicResource TextPrimary}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.BundleMode}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.BundleModeDesc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton IsChecked="{Binding IsVariantsMode, Mode=TwoWay}"
+                                         GroupName="ReleaseArtifactMode"
+                                         Foreground="{DynamicResource TextPrimary}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.VariantsMode}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.VariantsModeDesc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Dependencies Section -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Dependencies}" Classes="label" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1"
+                                Command="{Binding AddDependencyCommand}"
+                                Classes="small-glass-btn">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddDependency}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <ListBox ItemsSource="{Binding Dependencies}" MinHeight="60">
+                         <ListBox.ItemTemplate>
+                             <DataTemplate>
+                                 <Grid ColumnDefinitions="*,Auto">
+                                     <StackPanel>
+                                         <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                         <TextBlock Text="{Binding VersionConstraint, StringFormat='v{0}'}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                     </StackPanel>
+                                      <Button Grid.Column="1"
+                                              Command="{ReflectionBinding DataContext.RemoveDependencyCommand, ElementName=Root}"
+                                              CommandParameter="{Binding}"
+                                              Background="Transparent"
+                                              BorderThickness="0"
+                                              Padding="8">
+                                          <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                      </Button>
+                                 </Grid>
+                             </DataTemplate>
+                         </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+
+                <!-- Release Media (Images & Videos) Section -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaAndTheme}" Classes="label"/>
+
+                    <!-- Dedicated Images Drop Zone -->
+                    <Border x:Name="ImagesDropZone"
+                            IsVisible="{Binding ImageUrlsInput, Converter={x:Static StringConverters.IsNullOrEmpty}}"
+                            DragDrop.AllowDrop="True"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            Padding="12"
+                            Cursor="Hand">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                            <PathIcon Data="{StaticResource ImageIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropReleaseImagesHint}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ReleaseImages}" Classes="label"/>
+                        <TextBox Text="{Binding ImageUrlsInput, Mode=TwoWay}"
+                                 AcceptsReturn="True"
+                                 Height="60"
+                                 Watermark="https://example.com/screenshot1.jpg&#x0a;https://example.com/screenshot2.jpg"/>
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ReleaseVideos}" Classes="label"/>
+                        <TextBox Text="{Binding VideoUrlsInput, Mode=TwoWay}"
+                                 AcceptsReturn="True"
+                                 Height="60"
+                                 Watermark="https://www.youtube.com/watch?v=...&#x0a;https://example.com/video.mp4"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Floating Validation Error Badge (Bottom Left) -->
+        <Border Grid.Row="1"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Left"
+                Margin="0,0,0,8"
+                Padding="12,6"
+                Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
+                BorderBrush="{DynamicResource StatusErrorBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                MaxWidth="320"
+                IsVisible="{Binding ValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                BoxShadow="{DynamicResource FlyoutElevationShadow}">
+            <TextBlock Text="{Binding ValidationError}"
+                       Foreground="{DynamicResource StatusErrorBrush}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       FontSize="11"/>
+        </Border>
+
+        <!-- Floating Action Button Bar (Bottom Right) -->
+        <Border Grid.Row="1"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Right"
+                Margin="0,0,0,8"
+                Padding="4"
+                Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource GlassBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="10"
+                BoxShadow="{DynamicResource FlyoutElevationShadow}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <!-- Delete Button (Only in Edit Mode) -->
+                <Button Command="{Binding DeleteReleaseCommand}"
+                        IsVisible="{Binding IsEditMode}"
+                        Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
+                        BorderBrush="{DynamicResource StatusErrorBrush}"
+                        BorderThickness="1"
+                        CornerRadius="7"
+                        Padding="14,7"
+                        Cursor="Hand"
+                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteReleaseTooltip}">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <PathIcon Data="{StaticResource DeleteIcon}" Width="13" Height="13" Foreground="{DynamicResource StatusErrorBrush}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.DeleteConfirm}"
+                                   Foreground="{DynamicResource StatusErrorBrush}"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Save / Create Button -->
+                <Button Content="{Binding SubmitButtonText}"
+                        Command="{Binding CreateReleaseCommand}"
+                        Background="{DynamicResource PrimaryGradientBrush}"
+                        Foreground="{DynamicResource PrimaryButtonForeground}"
+                        CornerRadius="7"
+                        Padding="20,7"
+                        FontWeight="SemiBold"
+                        FontSize="12"
+                        Cursor="Hand"
+                        BorderThickness="0">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                            <Setter Property="Opacity" Value="0.85"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -20,6 +20,7 @@
     <UserControl.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter" />
         <converters:StringToImageConverter x:Key="StringToImageConverter" />
+        <converters:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <converters:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
         <converters:ContentStateToPathDataConverter x:Key="ContentStateToPathDataConverter" />
         <converters:ContentStateToBrushConverter x:Key="ContentStateToBrushConverter" />
@@ -58,13 +59,16 @@
         <Style Selector="Button.media-card-btn">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Margin" Value="2,2,10,10" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ClipToBounds" Value="False" />
             <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="VerticalAlignment" Value="Top" />
         </Style>
         <Style Selector="Button.media-card-btn /template/ ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="ClipToBounds" Value="False" />
         </Style>
 
         <Style Selector="Border.media-item-card">
@@ -72,6 +76,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="ClipToBounds" Value="False" />
             <Setter Property="Transitions">
                 <Transitions>
                     <BrushTransition Property="Background" Duration="0:0:0.15" />
@@ -120,7 +125,22 @@
         <Grid Grid.Row="1" ColumnDefinitions="*, 320">
             <!-- Main Content (Left) -->
             <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,24,0">
-                <!-- Banner Image (Removed) -->
+                <!-- Backdrop cover (publisher artwork; hidden when the content has none) -->
+                <Border Grid.Row="0" CornerRadius="12" Height="180" ClipToBounds="True" Margin="0,0,0,16"
+                        Background="{DynamicResource CardBackground}"
+                        IsVisible="{Binding BackdropBitmap, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <Panel>
+                        <Image Source="{Binding BackdropBitmap}" Stretch="UniformToFill" />
+                        <Border VerticalAlignment="Bottom" Height="64" IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                    <GradientStop Offset="0" Color="Transparent" />
+                                    <GradientStop Offset="1" Color="{DynamicResource SurfaceBackgroundDark}" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                    </Panel>
+                </Border>
 
                 <!-- Header Info -->
                 <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,24">
@@ -134,6 +154,14 @@
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
                                        IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
+                            <!-- Accent ring only when the publisher defines an accent color,
+                                 so content without one keeps the full icon area. -->
+                            <Border CornerRadius="12"
+                                    BorderBrush="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
+                                    BorderThickness="2"
+                                    Background="Transparent"
+                                    IsHitTestVisible="False"
+                                    IsVisible="{Binding HasAccentColor}" />
                         </Panel>
                     </Border>
                     <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center" Spacing="6">
@@ -222,7 +250,7 @@
                     <!-- Summary Tab (Default) -->
                     <TabItem Header="{localization:Localize Downloads.ContentDetail.Summary}">
                         <ScrollViewer>
-                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                            <StackPanel Spacing="24" Margin="4,24,4,0" ClipToBounds="False">
                                 <!-- Screenshots Gallery -->
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="4"
                                         IsVisible="{Binding SelectedScreenshotUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
@@ -449,7 +477,7 @@
                                                         <!-- Primary Actions -->
                                                         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                             <!-- Selection / Download action states -->
-                                                            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsDownloaded}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
                                                                 <!-- Select button (when not selected) -->
                                                                 <Button Command="{Binding SelectCommand}"
                                                                         IsVisible="{Binding !IsSelected}"
@@ -716,6 +744,38 @@
                                                                     </ItemsControl>
                                                                 </ScrollViewer>
                                                             </StackPanel>
+
+                                                            <!-- Preview Videos -->
+                                                            <StackPanel Spacing="6" IsVisible="{Binding HasPreviewVideos}">
+                                                                <TextBlock Text="{localization:Localize Downloads.ContentDetail.PreviewVideos}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                                                    <ItemsControl ItemsSource="{Binding PreviewVideos}">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <StackPanel Orientation="Horizontal" Spacing="10" />
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                                                        CommandParameter="{Binding}"
+                                                                                        Background="{DynamicResource CardBackground}"
+                                                                                        BorderThickness="1"
+                                                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                                                        CornerRadius="6"
+                                                                                        Padding="12,8"
+                                                                                        Cursor="Hand"
+                                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.PlayVideoTooltip}">
+                                                                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                                                        <PathIcon Data="M8 5v14l11-7z" Width="14" Height="14" Foreground="{DynamicResource AccentBrush}"/>
+                                                                                        <TextBlock Text="{Binding}" MaxWidth="240" TextTrimming="CharacterEllipsis" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                                                                    </StackPanel>
+                                                                                </Button>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </ScrollViewer>
+                                                            </StackPanel>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Grid>
@@ -823,7 +883,7 @@
                                                         <!-- Primary Actions -->
                                                         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                             <!-- Selection / Download action states -->
-                                                            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsDownloaded}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
                                                                 <!-- Select button (when not selected) -->
                                                                 <Button Command="{Binding SelectCommand}"
                                                                         IsVisible="{Binding !IsSelected}"
@@ -1103,15 +1163,15 @@
 
                     <!-- Media Tab -->
                     <TabItem Header="{localization:Localize Downloads.ContentDetail.Media}" IsVisible="{Binding HasMedia}">
-                        <ScrollViewer>
-                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                        <ScrollViewer ClipToBounds="False">
+                            <StackPanel Spacing="24" Margin="12,24,12,16" ClipToBounds="False">
                                 <!-- Videos -->
-                                <StackPanel Spacing="12" IsVisible="{Binding HasVideos}">
+                                <StackPanel Spacing="12" IsVisible="{Binding HasVideos}" ClipToBounds="False">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.Videos}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <ItemsControl ItemsSource="{Binding Videos}">
+                                    <ItemsControl ItemsSource="{Binding Videos}" ClipToBounds="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <WrapPanel Orientation="Horizontal" />
+                                                <WrapPanel Orientation="Horizontal" ClipToBounds="False" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -1120,7 +1180,7 @@
                                                         Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip.Tip="{localization:Localize Downloads.ContentDetail.WatchVideoTooltip}">
-                                                    <Border Classes="media-item-card" Padding="12" Margin="0,0,12,12" Width="300">
+                                                    <Border Classes="media-item-card" Padding="12" Width="300">
                                                         <StackPanel Spacing="8">
                                                             <Border CornerRadius="6" Height="170" Background="{DynamicResource CardBackground}" ClipToBounds="True">
                                                                 <Panel>
@@ -1153,12 +1213,12 @@
                                 </StackPanel>
 
                                 <!-- Images -->
-                                <StackPanel Spacing="12" IsVisible="{Binding HasImages}">
+                                <StackPanel Spacing="12" IsVisible="{Binding HasImages}" ClipToBounds="False">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.Images}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <ItemsControl ItemsSource="{Binding Images}">
+                                    <ItemsControl ItemsSource="{Binding Images}" ClipToBounds="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <WrapPanel Orientation="Horizontal" />
+                                                <WrapPanel Orientation="Horizontal" ClipToBounds="False" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -1167,7 +1227,7 @@
                                                         Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
                                                         CommandParameter="{Binding}"
                                                         ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ExpandImageTooltip}">
-                                                    <Border Classes="media-item-card" Padding="8" Margin="0,0,8,8" Width="200">
+                                                    <Border Classes="media-item-card" Padding="8" Width="200">
                                                         <StackPanel Spacing="8">
                                                             <Border CornerRadius="6" Height="120" Background="{DynamicResource CardBackground}" ClipToBounds="True">
                                                                 <Panel>

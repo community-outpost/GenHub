@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
@@ -212,4 +213,19 @@ public static class CommandLineConstants
     /// Maximum retry attempts to forward command-line arguments to an existing primary instance.
     /// </summary>
     public const int SingleInstanceMaxForwardAttempts = 3;
+
+    /// <summary>
+    /// Builds a full <c>genhub://subscribe?url=...</c> subscription URL for the specified catalog or definition URL.
+    /// </summary>
+    /// <param name="catalogUrl">The catalog or provider definition URL.</param>
+    /// <returns>The complete genhub:// subscription URI, or an empty string if the input is null or whitespace.</returns>
+    public static string BuildSubscriptionUrl(string? catalogUrl)
+    {
+        if (string.IsNullOrWhiteSpace(catalogUrl))
+        {
+            return string.Empty;
+        }
+
+        return $"{SubscribeUriPrefix}{SubscribeUrlParam}{Uri.EscapeDataString(catalogUrl)}";
+    }
 }

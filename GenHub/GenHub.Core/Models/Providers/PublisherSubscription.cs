@@ -61,6 +61,16 @@ public class PublisherSubscription : ObservableObject
     public string? DefinitionUrl { get; set; }
 
     /// <summary>
+    /// Gets or sets the currently selected catalog ID within a multi-catalog definition.
+    /// </summary>
+    /// <remarks>
+    /// Null means the default (first) catalog, or the single <see cref="CatalogUrl"/> for
+    /// catalog-direct subscriptions. Updated when the user switches catalogs in Downloads.
+    /// </remarks>
+    [JsonPropertyName("selectedCatalogId")]
+    public string? SelectedCatalogId { get; set; }
+
+    /// <summary>
     /// Gets or sets when the subscription was added.
     /// </summary>
     [JsonPropertyName("added")]

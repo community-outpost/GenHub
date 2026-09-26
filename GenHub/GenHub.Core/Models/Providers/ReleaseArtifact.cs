@@ -39,6 +39,12 @@ public class ReleaseArtifact
     public string? ContentType { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional entry point relative path for this artifact.
+    /// </summary>
+    [JsonPropertyName("entryPoint")]
+    public string? EntryPoint { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether this is the primary artifact.
     /// When multiple artifacts exist, the primary one is downloaded by default.
     /// </summary>
@@ -68,4 +74,10 @@ public class ReleaseArtifact
     /// </summary>
     [JsonPropertyName("isDefaultVariant")]
     public bool IsDefaultVariant { get; set; }
+
+    /// <summary>
+    /// Gets or sets the local file path for upload (not serialized).
+    /// </summary>
+    [JsonIgnore]
+    public string? LocalFilePath { get; set; }
 }

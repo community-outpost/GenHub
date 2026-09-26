@@ -136,11 +136,13 @@ public class GenericCatalogManifestFactory(
 
                 var fileInfo = new FileInfo(filePath);
                 var hash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
+                var installTarget = DetermineInstallTarget(originalManifest.ContentType, relativePath);
 
                 var manifestFile = new ManifestFile
                 {
                     RelativePath = relativePath,
                     SourceType = ContentSourceType.ContentAddressable,
+                    InstallTarget = installTarget,
                     Size = fileInfo.Length,
                     Hash = hash,
                     IsExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, filePath),
@@ -150,10 +152,11 @@ public class GenericCatalogManifestFactory(
                 processedFiles++;
 
                 logger.LogDebug(
-                    "Computed hash for file {RelativePath}: {Hash}, Size: {Size}",
+                    "Computed hash for file {RelativePath}: {Hash}, Size: {Size}, InstallTarget: {InstallTarget}",
                     relativePath,
                     hash,
-                    fileInfo.Length);
+                    fileInfo.Length,
+                    installTarget);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -207,5 +210,39 @@ public class GenericCatalogManifestFactory(
     public string GetManifestDirectory(ContentManifest manifest, string extractedDirectory)
     {
         return extractedDirectory;
+    }
+
+    private static ContentInstallTarget DetermineInstallTarget(ContentType contentType, string relativePath)
+    {
+        if (contentType is ContentType.Map or ContentType.MapPack)
+        {
+            return ContentInstallTarget.UserMapsDirectory;
+        }
+
+        var extension = Path.GetExtension(relativePath).ToLowerInvariant();
+
+        // Extension-based map routing only applies when the content type does not explicitly
+        // declare a non-map payload. Mod/Patch payloads can ship .map files that belong in
+        // the workspace rather than the user maps directory.
+        var isExplicitNonMapType = contentType is ContentType.Mod or ContentType.Patch;
+        if (!isExplicitNonMapType &&
+            (extension == ".map" ||
+            (extension == ".tga" && relativePath.Contains("maps", StringComparison.OrdinalIgnoreCase)) ||
+            (extension == ".wak" && relativePath.Contains("maps", StringComparison.OrdinalIgnoreCase))))
+        {
+            return ContentInstallTarget.UserMapsDirectory;
+        }
+
+        if (extension == ".rep")
+        {
+            return ContentInstallTarget.UserReplaysDirectory;
+        }
+
+        if (extension == ".bmp" && relativePath.Contains("screenshots", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentInstallTarget.UserScreenshotsDirectory;
+        }
+
+        return ContentInstallTarget.Workspace;
     }
 }

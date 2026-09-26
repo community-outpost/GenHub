@@ -72,14 +72,8 @@ public class CNCLabsMapResolver(
                 return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
             }
 
-            if (!mapId.HasValue)
-            {
-                logger.LogWarning("Invalid or missing map ID in resolver metadata for {Url}", discoveredItem.SourceUrl);
-                return OperationResult<ContentManifest>.CreateFailure("Invalid map ID in resolver metadata");
-            }
-
             // Use factory to create manifest
-            var manifest = await manifestFactory.CreateManifestAsync(mapDetails);
+            var manifest = await manifestFactory.CreateManifestAsync(mapDetails, cancellationToken);
 
             if (string.IsNullOrEmpty(manifest.OriginalProviderName))
             {

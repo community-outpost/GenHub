@@ -287,7 +287,7 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// Gets the formatted markdown description with clickable links.
     /// </summary>
     public string FormattedFullDescription =>
-        MarkdownLinkFormatter.FormatLinks(FullDescription, DetailsUrl ?? DownloadUrl);
+        MarkdownLinkFormatter.FormatLinks(MarkdownLinkFormatter.PreserveLineBreaks(FullDescription), DetailsUrl ?? DownloadUrl);
 
     /// <summary>
     /// Gets or sets the short summary or description of the item.
@@ -313,6 +313,16 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// Gets a value indicating whether preview images are available.
     /// </summary>
     public bool HasPreviewImages => PreviewImages.Count > 0;
+
+    /// <summary>
+    /// Gets the collection of preview videos for this item.
+    /// </summary>
+    public ObservableCollection<string> PreviewVideos { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether preview videos are available.
+    /// </summary>
+    public bool HasPreviewVideos => PreviewVideos.Count > 0;
 
     /// <summary>
     /// Gets or sets a value indicating whether the item is downloaded.

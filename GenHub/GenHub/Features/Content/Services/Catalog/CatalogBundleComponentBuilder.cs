@@ -84,6 +84,7 @@ public static class CatalogBundleComponentBuilder
             IsPrerelease = release.IsPrerelease,
             IsLatest = release.IsLatest,
             Changelog = release.Changelog,
+            BundleArtifacts = release.BundleArtifacts,
             Artifacts = release.Artifacts?.Select(a => new ReleaseArtifact
             {
                 Filename = a.Filename,
@@ -360,6 +361,7 @@ public static class CatalogBundleComponentBuilder
             IsPrerelease = release.IsPrerelease,
             IsLatest = release.IsLatest,
             Changelog = release.Changelog,
+            BundleArtifacts = release.BundleArtifacts,
             Artifacts = artifactsToInclude.Select(a => new ReleaseArtifact
             {
                 Filename = a.Filename,

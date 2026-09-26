@@ -66,6 +66,15 @@ public partial class GameProfileSettingsWindow : Window
 
         // Subscribe to window events
         Activated += OnWindowActivated;
+
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Avalonia.Input.Key.Escape && !e.Handled)
+            {
+                e.Handled = true;
+                Close();
+            }
+        };
     }
 
     /// <summary>

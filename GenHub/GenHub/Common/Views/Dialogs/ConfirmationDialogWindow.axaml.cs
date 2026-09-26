@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels.Dialogs;
 
@@ -24,6 +25,18 @@ public partial class ConfirmationDialogWindow : Window
         if (DataContext is ConfirmationDialogViewModel vm)
         {
             vm.CloseAction = Close;
+        }
+    }
+
+    /// <inheritdoc/>
+    /// <param name="e">The key event arguments.</param>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.Escape && !e.Handled)
+        {
+            e.Handled = true;
+            Close(false);
         }
     }
 

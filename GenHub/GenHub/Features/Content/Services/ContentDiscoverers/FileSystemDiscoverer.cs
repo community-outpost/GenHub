@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
@@ -91,7 +92,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
                     ContentType = manifest.ContentType,
                     TargetGame = manifest.TargetGame,
                     ProviderName = SourceName,
-                    AuthorName = manifest.Publisher?.Name ?? "Unknown",
+                    AuthorName = manifest.Publisher?.Name ?? ContentConstants.UnknownAuthorName,
                     IconUrl = manifest.Metadata?.IconUrl ?? string.Empty,
                     LastUpdated = manifest.Metadata?.ReleaseDate ?? DateTime.UtcNow,
                     DownloadSize = manifest.Files?.Sum(f => f.Size) ?? 0,
