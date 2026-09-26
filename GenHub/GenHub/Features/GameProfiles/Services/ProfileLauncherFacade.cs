@@ -143,9 +143,12 @@ public class ProfileLauncherFacade(
             if (launchResult.Success)
             {
                 // Reconciliation may have cloned the profile, so stamp the profile that actually launched.
-                var playedProfileId = !string.IsNullOrWhiteSpace(launchResult.Data?.ProfileId)
-                    ? launchResult.Data!.ProfileId
-                    : profileId;
+                var playedProfileId = launchResult.Data?.ProfileId;
+                if (string.IsNullOrWhiteSpace(playedProfileId))
+                {
+                    playedProfileId = profileId;
+                }
+
                 try
                 {
                     var updateResult = await profileManager.UpdateProfileAsync(

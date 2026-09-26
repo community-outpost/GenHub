@@ -11,6 +11,12 @@ public static class MapManagerConstants
     public const long MaxMapSizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
+    /// Maximum lines scanned when parsing player counts from a map file.
+    /// Bounds reads against gigantic binary or compressed streams.
+    /// </summary>
+    public const int MaxPlayerCountScanLines = 20000;
+
+    /// <summary>
     /// Maximum allowed entries in a map ZIP archive.
     /// </summary>
     public const int MaxZipEntries = 500;

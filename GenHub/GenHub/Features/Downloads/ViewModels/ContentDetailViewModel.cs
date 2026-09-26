@@ -3235,6 +3235,14 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
+            if (searchResult.SkipAutomaticWebParsing)
+            {
+                // The source URL is an external fallback kept for browser navigation.
+                // Manifest-derived files and metadata stay authoritative.
+                logger.LogDebug("Skipping automatic web parsing for external source URL: {Url}", searchResult.SourceUrl);
+                return;
+            }
+
             var parser = parsers.FirstOrDefault(p => p.CanParse(searchResult.SourceUrl));
             if (parser == null)
             {

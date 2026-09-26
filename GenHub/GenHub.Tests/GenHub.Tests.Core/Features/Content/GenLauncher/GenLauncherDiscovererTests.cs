@@ -760,4 +760,95 @@ SimpleDownloadLink: 'https://onedrive.live.com/embed?cid=0A88C98986A457EB&resid=
         Assert.Equal(2, files.Select(f => f.Filename).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.All(files, f => Assert.EndsWith(".zip", f.Filename, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>
+    /// Tests that a child manifest fallback link is kept for navigation but excluded from automatic web parsing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_ChildManifestWithModDbLink_SkipsAutomaticWebParsing()
+    {
+        const string rootYaml = @"
+LauncherVersion: '1.0'
+modDatas:
+  - ModName: 'Shockwave'
+    ModLink: 'https://example.com/shockwave.yaml'
+    ModPatches:
+      - 'https://example.com/shockwave-patch1.yaml'
+    ModAddons: []
+";
+
+        const string parentYaml = @"
+Name: 'Shockwave'
+Version: '1.2'
+ModificationType: 0
+SimpleDownloadLink: 'https://dropbox.com/s/test/mod.zip?dl=0'
+";
+
+        const string patchYaml = @"
+Name: 'Shockwave 1.2 Patch 1'
+Version: '1.2.1'
+ModificationType: 2
+DependenceName: 'Shockwave'
+ModDBLink: 'https://www.moddb.com/mods/shockwave'
+SimpleDownloadLink: 'https://dropbox.com/s/test/patch.zip?dl=0'
+";
+
+        var mockHttp = new Mock<HttpMessageHandler>();
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Get && r.RequestUri!.ToString().Contains("ZH")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(rootYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Get && r.RequestUri!.ToString().Contains("shockwave-patch1.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(patchYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Get && r.RequestUri!.ToString().Contains("shockwave.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(parentYaml),
+            });
+
+        var httpClient = new HttpClient(mockHttp.Object);
+        var mockFactory = new Mock<IHttpClientFactory>();
+        mockFactory.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(httpClient);
+
+        var mockLoader = new Mock<IProviderDefinitionLoader>();
+        mockLoader.Setup(l => l.GetProvider(GenLauncherConstants.PublisherId)).Returns((ProviderDefinition?)null);
+
+        var parser = new GenLauncherCatalogParser(NullLogger<GenLauncherCatalogParser>.Instance);
+        var discoverer = new GenLauncherDiscoverer(
+            mockFactory.Object,
+            mockLoader.Object,
+            parser,
+            NullLogger<GenLauncherDiscoverer>.Instance);
+
+        var result = await discoverer.DiscoverAsync(
+            new ContentSearchQuery { TargetGame = GameType.ZeroHour },
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        var patchItem = result.Data.Items.FirstOrDefault(i => i.Name == "Shockwave 1.2 Patch 1");
+        Assert.NotNull(patchItem);
+        Assert.Equal("https://www.moddb.com/mods/shockwave", patchItem.SourceUrl);
+        Assert.True(patchItem.SkipAutomaticWebParsing);
+    }
 }

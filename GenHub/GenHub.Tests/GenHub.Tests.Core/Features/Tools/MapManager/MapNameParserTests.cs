@@ -131,6 +131,26 @@ public sealed class MapNameParserTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an authoritative numPlayers declaration wins over a conflicting display name.
+    /// </summary>
+    [Fact]
+    public void ParsePlayerCount_FileDeclarationBeatsDisplayName_ReturnsFileValue()
+    {
+        var mapFile = Path.Combine(_tempDirectory, "conflict_map.map");
+        var content = """
+            Map
+              displayName = "Area 51 [6]"
+              numPlayers = 2
+            End
+            """;
+        File.WriteAllText(mapFile, content);
+
+        var result = _parser.ParsePlayerCount(mapFile, "Area 51 [6]");
+
+        Assert.Equal(2, result);
+    }
+
+    /// <summary>
     /// Verifies that <see cref="MapNameParser.ParsePlayerCount"/> falls back to the directory name.
     /// </summary>
     [Fact]

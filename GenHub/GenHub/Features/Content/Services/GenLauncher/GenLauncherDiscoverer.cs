@@ -455,11 +455,20 @@ public class GenLauncherDiscoverer(
             result.ResolverMetadata[GenLauncherConstants.ModDbLinkMetadataKey] = manifest.ModDBLink;
         }
 
+        var previousSourceUrl = result.SourceUrl;
         result.SourceUrl = GenLauncherConstants.ResolveEffectiveSourceUrl(
             manifest.NewsLink,
             manifest.ModDBLink,
             manifest.DiscordLink,
             result.SourceUrl);
+
+        if (!string.IsNullOrEmpty(result.SourceUrl) &&
+            !string.Equals(result.SourceUrl, previousSourceUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            // A manifest fallback link replaced the previous URL. Keep it for browser navigation,
+            // but do not let automatic web parsing overwrite manifest-derived file rows.
+            result.SkipAutomaticWebParsing = true;
+        }
 
         if (!string.IsNullOrEmpty(manifest.DependenceName))
         {
@@ -947,6 +956,10 @@ public class GenLauncherDiscoverer(
                 versionManifest.NewsLink,
                 versionManifest.ModDBLink,
                 versionManifest.DiscordLink),
+
+            // The version manifest is the canonical data source; the resolved link above is an
+            // external page kept for browser navigation and must not replace manifest file rows.
+            SkipAutomaticWebParsing = true,
             IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, context.ParentIconUrl),
             RequiresResolution = true,
             VariantGroupId = $"{context.Game.ToString().ToLowerInvariant()}-{context.ParentModSlug}",

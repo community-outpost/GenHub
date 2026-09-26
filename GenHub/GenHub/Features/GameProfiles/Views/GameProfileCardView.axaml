@@ -38,9 +38,21 @@
                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" />
                         <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.25" />
                         <BrushTransition Property="BorderBrush" Duration="0:0:0.25" />
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
                     </Transitions>
                 </Setter.Value>
             </Setter>
+            <!-- Entrance animation: replays when cards are re-materialized by sorting or moves -->
+            <Style.Animations>
+                <Animation Duration="0:0:0.25" Easing="CubicEaseOut" IterationCount="1">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0.0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1.0" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
         </Style>
 
         <Style Selector="Border.profile-card[Tag=True]">

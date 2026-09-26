@@ -83,6 +83,24 @@ public partial class GameProfileLauncherView : UserControl
         }
     }
 
+    private void SortModeComboBox_DropDownOpened(object? sender, EventArgs e)
+    {
+        if (DataContext is GameProfileLauncherViewModel vm)
+        {
+            vm.IsSortDropdownOpen = true;
+            vm.ExpandHeaderCommand.Execute(null);
+        }
+    }
+
+    private void SortModeComboBox_DropDownClosed(object? sender, EventArgs e)
+    {
+        if (DataContext is GameProfileLauncherViewModel vm)
+        {
+            vm.IsSortDropdownOpen = false;
+            vm.StartHeaderTimerCommand.Execute(null);
+        }
+    }
+
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         if (DataContext is not GameProfileLauncherViewModel vm)

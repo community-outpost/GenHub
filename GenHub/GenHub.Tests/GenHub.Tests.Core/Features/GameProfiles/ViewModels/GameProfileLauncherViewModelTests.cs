@@ -1451,6 +1451,44 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// Last-played sorting puts the most recently played profile first and unplayed profiles last.
+    /// </summary>
+    [Fact]
+    public void ApplySorting_LastPlayed_PutsRecentlyPlayedFirst()
+    {
+        var vm = CreateViewModel();
+        var oldItem = CreateProfileItem("Old");
+        oldItem.LastPlayedAt = DateTime.UtcNow.AddDays(-7);
+        var newItem = CreateProfileItem("New");
+        newItem.LastPlayedAt = DateTime.UtcNow;
+        var neverItem = CreateProfileItem("Never");
+
+        vm.Profiles.Add(oldItem);
+        vm.Profiles.Add(neverItem);
+        vm.Profiles.Add(newItem);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.LastPlayed;
+        vm.ApplySorting();
+
+        Assert.Equal("New", vm.Profiles[0].Name);
+        Assert.Equal("Old", vm.Profiles[1].Name);
+        Assert.Equal("Never", vm.Profiles[2].Name);
+        Assert.IsType<AddProfileItemViewModel>(vm.Profiles[3]);
+    }
+
+    /// <summary>
+    /// The sort dropdown starts closed so the header collapse guard is inactive initially.
+    /// </summary>
+    [Fact]
+    public void IsSortDropdownOpen_DefaultsToFalse()
+    {
+        var vm = CreateViewModel();
+
+        Assert.False(vm.IsSortDropdownOpen);
+    }
+
+    /// <summary>
     /// A successful move persists the new order for every profile.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
