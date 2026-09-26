@@ -104,11 +104,12 @@ public class ProfileVerificationFileSetService(
             {
                 manifests.Add(manifest);
             }
-            else if (enabledIds.Contains(id))
+            else if (enabledIds.Contains(id) && !string.Equals(id, clientId, StringComparison.OrdinalIgnoreCase))
             {
-                // Fail closed when an enabled manifest cannot be resolved: the client
-                // manifest lookup stays best-effort because detected clients carry
-                // synthetic IDs that are not pool-backed.
+                // Fail closed when an enabled content manifest cannot be resolved. The
+                // profile's own client ID is exempt: it always heads the enabled IDs,
+                // and detected or catalog-chosen clients may carry IDs that are not
+                // pool-backed.
                 hasMissingManifests = true;
             }
         }

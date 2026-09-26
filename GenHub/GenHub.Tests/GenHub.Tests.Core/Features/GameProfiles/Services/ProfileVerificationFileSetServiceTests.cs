@@ -114,6 +114,23 @@ public sealed class ProfileVerificationFileSetServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an unpooled client ID stays best-effort even when it appears in the
+    /// enabled IDs (profile creation always inserts it there), keeping the unfiltered scan.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetVerificationFileSetAsync_WithUnpooledClientIdInEnabledIds_StaysComplete()
+    {
+        const string unpooledClientId = "1.20260821.thesuperhackers.gameclient.zerohour";
+        var profile = CreateProfile(unpooledClientId, unpooledClientId);
+
+        var result = await _service.GetVerificationFileSetAsync(profile);
+
+        Assert.Null(result.AllowedBaseRelativePaths);
+        Assert.True(result.IsComplete);
+    }
+
+    /// <summary>
     /// Verifies that loose INI files from enabled overlay manifests join the allowed set so
     /// workspace-materialized rules participate in the scoped CRC instead of verifying as retail.
     /// </summary>
