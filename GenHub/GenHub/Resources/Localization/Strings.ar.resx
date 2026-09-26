@@ -14417,6 +14417,7 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
     <value>تمييز كعنصر مميز ذهبي</value>
   </data>

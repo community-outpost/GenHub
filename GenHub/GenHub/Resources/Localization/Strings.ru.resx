@@ -14417,6 +14417,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Успешно удалено профилей: {0}.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
     <value>Отметить как золотой избранный</value>
   </data>

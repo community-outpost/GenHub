@@ -14476,6 +14476,7 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Deleted {0} profile(s) successfully.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
     <value>Mark as Golden Featured</value>
   </data>
