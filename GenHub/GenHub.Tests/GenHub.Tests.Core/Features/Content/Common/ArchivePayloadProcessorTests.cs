@@ -1517,6 +1517,29 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a loose map's .wak, map.ini and map.str companions move into the map folder with it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_LooseMapWithWakIniAndStr_OrganizesAllCompanionsAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "map-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.wak"), "wak-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "map.ini"), "ini-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "map.str"), "str-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var mapFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.Equal("wak-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "Desert.wak")));
+        Assert.Equal("ini-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "map.ini")));
+        Assert.Equal("str-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "map.str")));
+        Assert.Empty(Directory.GetFiles(_stagingDirectory));
+    }
+
+    /// <summary>
     /// Verifies that multiple loose maps sharing a root map.tga receive the thumbnail in each respective map folder.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

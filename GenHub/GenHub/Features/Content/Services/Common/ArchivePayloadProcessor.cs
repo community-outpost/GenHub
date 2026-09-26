@@ -2454,6 +2454,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return files.Any(ext => GameContentConstants.RecognizedGameFileExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase));
     }
 
+    private static bool IsSharedMapCompanion(string fileName) =>
+        fileName.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase) ||
+        fileName.Equals(MapManagerConstants.MapStrFileName, StringComparison.OrdinalIgnoreCase);
+
     private static bool IsMapFile(string path) =>
         string.Equals(Path.GetExtension(path), Path.GetExtension(MapManagerConstants.MapFilePattern), StringComparison.OrdinalIgnoreCase);
 
@@ -2753,10 +2757,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 File.Delete(rootThumbnail);
             }
 
-            var rootMapIni = Path.Combine(extractedDirectory, MapManagerConstants.MapIniFileName);
-            if (File.Exists(rootMapIni))
+            foreach (var sharedCompanion in new[] { MapManagerConstants.MapIniFileName, MapManagerConstants.MapStrFileName })
             {
-                File.Delete(rootMapIni);
+                var rootCompanion = Path.Combine(extractedDirectory, sharedCompanion);
+                if (File.Exists(rootCompanion))
+                {
+                    File.Delete(rootCompanion);
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -2786,7 +2793,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
                 fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
                 fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
-                fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase);
+                IsSharedMapCompanion(fn);
 
             if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
@@ -2798,7 +2805,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 {
                     try
                     {
-                        if (isDefaultThumbnail || fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase))
+                        if (isDefaultThumbnail || IsSharedMapCompanion(fn))
                         {
                             File.Copy(companion, targetAssetFile);
                         }

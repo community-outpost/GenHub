@@ -887,12 +887,14 @@ public class UserDataTrackerService(
     {
         var isTga = ext.Equals(".tga", StringComparison.OrdinalIgnoreCase);
         var isIni = ext.Equals(".ini", StringComparison.OrdinalIgnoreCase);
+        var isStr = ext.Equals(".str", StringComparison.OrdinalIgnoreCase);
 
         var isGenericThumbnail = isTga &&
             (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
              baseName.Equals("preview", StringComparison.OrdinalIgnoreCase));
 
         var isGenericIni = isIni && baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
+        var isGenericStr = isStr && baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
 
         if (isGenericThumbnail && !string.IsNullOrEmpty(fallbackMapName))
         {
@@ -902,6 +904,11 @@ public class UserDataTrackerService(
         if (isGenericIni && !string.IsNullOrEmpty(fallbackMapName))
         {
             return (fallbackMapName, MapManagerConstants.MapIniFileName);
+        }
+
+        if (isGenericStr && !string.IsNullOrEmpty(fallbackMapName))
+        {
+            return (fallbackMapName, MapManagerConstants.MapStrFileName);
         }
 
         if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))

@@ -160,15 +160,17 @@ public sealed class MapImportService(
         var targetDir = directoryService.GetMapDirectory(targetVersion);
         directoryService.EnsureDirectoryExists(targetVersion);
 
+        var mapExtension = Path.GetExtension(MapManagerConstants.MapFilePattern);
+
         // Expand directories
-        var expandedPaths = new List<string>();
+        var expandedPaths = new List<(string Path, bool FromDirectory)>();
         foreach (var path in filePaths)
         {
             if (Directory.Exists(path))
             {
                 try
                 {
-                    expandedPaths.AddRange(Directory.GetFiles(path, "*", SearchOption.AllDirectories));
+                    expandedPaths.AddRange(Directory.GetFiles(path, "*", SearchOption.AllDirectories).Select(f => (f, true)));
                 }
                 catch (Exception ex)
                 {
@@ -177,15 +179,21 @@ public sealed class MapImportService(
             }
             else
             {
-                expandedPaths.Add(path);
+                expandedPaths.Add((path, false));
             }
         }
 
-        foreach (var filePath in expandedPaths)
+        foreach (var (filePath, fromDirectory) in expandedPaths)
         {
             string? mapDirPath = null;
             try
             {
+                var isMapFile = filePath.EndsWith(mapExtension, StringComparison.OrdinalIgnoreCase);
+                if (fromDirectory && !isMapFile && IsAllowedMapFolderFile(filePath))
+                {
+                    continue;
+                }
+
                 if (IsArchiveFile(filePath))
                 {
                     var zipResult = await ImportFromZipAsync(filePath, targetVersion, null, ct);
@@ -195,7 +203,7 @@ public sealed class MapImportService(
                     continue;
                 }
 
-                if (!filePath.EndsWith(Path.GetExtension(MapManagerConstants.MapFilePattern), StringComparison.OrdinalIgnoreCase))
+                if (!isMapFile)
                 {
                     result.Errors.Add($"Skipped non-map file: {Path.GetFileName(filePath)}");
                     continue;
@@ -223,34 +231,43 @@ public sealed class MapImportService(
 
                 if (!string.IsNullOrEmpty(sourceDir))
                 {
-                    foreach (var ext in MapManagerConstants.AllowedExtensions)
-                    {
-                        if (ext.Equals(Path.GetExtension(MapManagerConstants.MapFilePattern), StringComparison.OrdinalIgnoreCase))
-                            continue;
-
-                        var matchingFiles = Directory.EnumerateFiles(sourceDir, $"*{ext}")
-                            .Where(f =>
-                            {
-                                var assetNameWithoutExt = Path.GetFileNameWithoutExtension(f);
-                                return string.Equals(assetNameWithoutExt, mapName, StringComparison.OrdinalIgnoreCase) ||
-                                       assetNameWithoutExt.StartsWith(mapName + "_", StringComparison.OrdinalIgnoreCase) ||
-                                       assetNameWithoutExt.StartsWith(mapName + ".", StringComparison.OrdinalIgnoreCase);
-                            });
-                        foreach (var asset in matchingFiles)
+                    var folderFiles = Directory.GetFiles(sourceDir);
+                    var isSingleMapFolder = folderFiles.Count(f => f.EndsWith(mapExtension, StringComparison.OrdinalIgnoreCase)) == 1;
+                    var matchingFiles = folderFiles
+                        .Where(f => !f.EndsWith(mapExtension, StringComparison.OrdinalIgnoreCase) && IsAllowedMapFolderFile(f))
+                        .Where(f =>
                         {
-                            var assetDest = Path.Combine(mapDirPath, Path.GetFileName(asset));
-                            if (!File.Exists(assetDest))
+                            if (isSingleMapFolder)
                             {
-                                File.Copy(asset, assetDest, overwrite: true);
+                                return true;
                             }
 
-                            assetFiles.Add(assetDest);
+                            var assetNameWithoutExt = Path.GetFileNameWithoutExtension(f);
+                            return string.Equals(assetNameWithoutExt, mapName, StringComparison.OrdinalIgnoreCase) ||
+                                   assetNameWithoutExt.StartsWith(mapName + "_", StringComparison.OrdinalIgnoreCase) ||
+                                   assetNameWithoutExt.StartsWith(mapName + ".", StringComparison.OrdinalIgnoreCase);
+                        });
 
-                            // Check for thumbnail (.tga)
-                            if (asset.EndsWith(".tga", StringComparison.OrdinalIgnoreCase) && thumbnailPath == null)
-                            {
-                                thumbnailPath = assetDest;
-                            }
+                    foreach (var asset in matchingFiles)
+                    {
+                        if (new FileInfo(asset).Length > MapManagerConstants.MaxAssetSizeBytes)
+                        {
+                            result.Errors.Add($"Skipped oversized map asset: {Path.GetFileName(asset)}");
+                            continue;
+                        }
+
+                        var assetDest = Path.Combine(mapDirPath, Path.GetFileName(asset));
+                        if (!File.Exists(assetDest))
+                        {
+                            File.Copy(asset, assetDest, overwrite: true);
+                        }
+
+                        assetFiles.Add(assetDest);
+
+                        if (asset.EndsWith(".tga", StringComparison.OrdinalIgnoreCase) &&
+                            (thumbnailPath == null || Path.GetFileName(asset).Equals(mapName + ".tga", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            thumbnailPath = assetDest;
                         }
                     }
                 }
@@ -621,7 +638,7 @@ public sealed class MapImportService(
                 var extension = Path.GetExtension(entry.Name);
                 if (!allowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
                 {
-                    return (false, $"ZIP contains invalid file type: {extension}. Only .map, .tga, .ini, .str, and .txt files are allowed.");
+                    return (false, $"ZIP contains invalid file type: {extension}. Only {string.Join(", ", MapManagerConstants.AllowedExtensions)} files are allowed.");
                 }
 
                 if (extension.Equals(Path.GetExtension(MapManagerConstants.MapFilePattern), StringComparison.OrdinalIgnoreCase))
@@ -741,7 +758,7 @@ public sealed class MapImportService(
         var extension = Path.GetExtension(fileName);
         if (!MapManagerConstants.AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
         {
-            return (false, $"Archive contains invalid file type: {extension}. Only .map, .tga, .ini, .str, and .txt files are allowed.");
+            return (false, $"Archive contains invalid file type: {extension}. Only {string.Join(", ", MapManagerConstants.AllowedExtensions)} files are allowed.");
         }
 
         if (extension.Equals(Path.GetExtension(MapManagerConstants.MapFilePattern), StringComparison.OrdinalIgnoreCase))
@@ -940,6 +957,9 @@ public sealed class MapImportService(
 
         return path;
     }
+
+    private static bool IsAllowedMapFolderFile(string path) =>
+        MapManagerConstants.AllowedExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
     private static bool MatchesArchiveMagicBytes(byte[] buffer, int read)
     {

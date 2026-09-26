@@ -61,6 +61,11 @@ public static class MapManagerConstants
     public const string MapIniFileName = "map.ini";
 
     /// <summary>
+    /// Standard per-map string table filename.
+    /// </summary>
+    public const string MapStrFileName = "map.str";
+
+    /// <summary>
     /// Maximum directory nesting depth for maps (1 level).
     /// </summary>
     public const int MaxDirectoryDepth = 1;
@@ -208,7 +213,7 @@ public static class MapManagerConstants
     /// <summary>
     /// Allowed file extensions for map packages.
     /// </summary>
-    public static readonly string[] AllowedExtensions = [".map", ".tga", ".ini", ".str", ".txt"];
+    public static readonly string[] AllowedExtensions = [".map", ".tga", ".wak", ".ini", ".str", ".txt"];
 
     /// <summary>
     /// Image file extensions that can be used as thumbnails.

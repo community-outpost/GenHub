@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
@@ -8,6 +9,7 @@ using Moq.Protected;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -406,6 +408,151 @@ public sealed class MapImportServiceTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_mapDirectory, "Desert", "Desert.tga")));
     }
 
+    /// <summary>
+    /// Imports every standard file of a zipped map folder byte for byte, including the .wak,
+    /// map.ini and map.str files real map folders carry.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromZipAsync_MapFolderWithWakIniAndStr_ImportsEveryFileUnchangedAsync()
+    {
+        var source = CreateStandardMapFolder("Vendetta");
+        var zipPath = Path.Combine(_workingDirectory, "vendetta.zip");
+        ZipFile.CreateFromDirectory(source, zipPath, CompressionLevel.Optimal, includeBaseDirectory: true);
+
+        var result = await _service.ImportFromZipAsync(zipPath, GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.Empty(result.Errors);
+        Assert.Single(result.ImportedMaps);
+        AssertFolderMatches(source, Path.Combine(_mapDirectory, "Vendetta"));
+    }
+
+    /// <summary>
+    /// Imports every standard file of a map folder byte for byte when the folder itself is imported.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromFilesAsync_MapFolder_ImportsEveryFileUnchangedAsync()
+    {
+        var source = CreateStandardMapFolder("Vendetta");
+
+        var result = await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.Empty(result.Errors);
+        var imported = Assert.Single(result.ImportedMaps);
+        Assert.Equal(4, imported.AssetFiles.Count);
+        Assert.Equal(Path.Combine(_mapDirectory, "Vendetta", "Vendetta.tga"), imported.ThumbnailPath);
+        AssertFolderMatches(source, Path.Combine(_mapDirectory, "Vendetta"));
+    }
+
+    /// <summary>
+    /// Imports the companion files of a map folder when only its .map file is selected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromFilesAsync_MapFileInsideMapFolder_ImportsEveryFileUnchangedAsync()
+    {
+        var source = CreateStandardMapFolder("Vendetta");
+
+        var result = await _service.ImportFromFilesAsync([Path.Combine(source, "Vendetta.map")], GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        AssertFolderMatches(source, Path.Combine(_mapDirectory, "Vendetta"));
+    }
+
+    /// <summary>
+    /// Keeps each map's own assets apart when one folder holds several maps.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromFilesAsync_FolderWithTwoMaps_CopiesOnlyNameMatchedAssetsAsync()
+    {
+        var source = Path.Combine(_workingDirectory, "Source", "Pack");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "Alpha.map"), "alpha");
+        await File.WriteAllTextAsync(Path.Combine(source, "Alpha.wak"), "alpha wak");
+        await File.WriteAllTextAsync(Path.Combine(source, "Beta.map"), "beta");
+        await File.WriteAllTextAsync(Path.Combine(source, "Beta.tga"), "beta tga");
+        await File.WriteAllTextAsync(Path.Combine(source, "map.ini"), "shared ini");
+
+        var result = await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.Equal(
+            ["Alpha.map", "Alpha.wak"],
+            Directory.GetFiles(Path.Combine(_mapDirectory, "Alpha")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal(
+            ["Beta.map", "Beta.tga"],
+            Directory.GetFiles(Path.Combine(_mapDirectory, "Beta")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Leaves a disallowed file type behind when a map folder is imported.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromFilesAsync_MapFolderWithDisallowedFile_SkipsThatFileAsync()
+    {
+        var source = CreateStandardMapFolder("Vendetta");
+        await File.WriteAllTextAsync(Path.Combine(source, "payload.exe"), "not a map file");
+
+        var result = await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.Contains(result.Errors, e => e.Contains("payload.exe", StringComparison.Ordinal));
+        Assert.False(File.Exists(Path.Combine(_mapDirectory, "Vendetta", "payload.exe")));
+    }
+
+    /// <summary>
+    /// Leaves a companion file over the asset size limit behind, as zip import does.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromFilesAsync_MapFolderWithOversizedAsset_SkipsThatAssetAsync()
+    {
+        var source = CreateStandardMapFolder("Vendetta");
+        await using (var oversized = File.Create(Path.Combine(source, "huge.tga")))
+        {
+            oversized.SetLength(MapManagerConstants.MaxAssetSizeBytes + 1);
+        }
+
+        var result = await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.Contains(result.Errors, e => e.Contains("huge.tga", StringComparison.Ordinal));
+        Assert.False(File.Exists(Path.Combine(_mapDirectory, "Vendetta", "huge.tga")));
+        Assert.True(File.Exists(Path.Combine(_mapDirectory, "Vendetta", "map.str")));
+    }
+
+    /// <summary>
+    /// Keeps rejecting a zip that carries a file type outside the map allowlist.
+    /// </summary>
+    [Fact]
+    public void ValidateZip_RejectsDisallowedFileType()
+    {
+        var zipPath = Path.Combine(_workingDirectory, "disallowed.zip");
+        CreateZip(
+            zipPath,
+            ("Vendetta/Vendetta.map", "map"),
+            ("Vendetta/payload.exe", "binary"));
+
+        var (isValid, errorMessage) = _service.ValidateZip(zipPath);
+
+        Assert.False(isValid);
+        Assert.Contains(".exe", errorMessage, StringComparison.Ordinal);
+    }
+
+    private static void AssertFolderMatches(string expectedDirectory, string actualDirectory)
+    {
+        var expected = Directory.GetFiles(expectedDirectory).ToDictionary(f => Path.GetFileName(f)!, HashFile, StringComparer.Ordinal);
+        var actual = Directory.GetFiles(actualDirectory).ToDictionary(f => Path.GetFileName(f)!, HashFile, StringComparer.Ordinal);
+        Assert.Equal(expected.OrderBy(p => p.Key, StringComparer.Ordinal), actual.OrderBy(p => p.Key, StringComparer.Ordinal));
+    }
+
+    private static string HashFile(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
+
     private static Mock<IDownloadUrlValidator> CreateValidator(bool result)
     {
         var validator = new Mock<IDownloadUrlValidator>();
@@ -422,6 +569,21 @@ public sealed class MapImportServiceTests : IDisposable
             using var stream = entry.Open();
             stream.Write(Encoding.UTF8.GetBytes(content));
         }
+    }
+
+    private string CreateStandardMapFolder(string mapName)
+    {
+        var folder = Path.Combine(_workingDirectory, "Source", mapName);
+        Directory.CreateDirectory(folder);
+        var files = new[] { $"{mapName}.map", $"{mapName}.tga", $"{mapName}.wak", "map.ini", "map.str" };
+        for (var i = 0; i < files.Length; i++)
+        {
+            var seed = i;
+            var content = Enumerable.Range(0, 256 + (i * 97)).Select(j => (byte)((j * 7) + (seed * 31))).ToArray();
+            File.WriteAllBytes(Path.Combine(folder, files[i]), content);
+        }
+
+        return folder;
     }
 
     private sealed class CancelOnFirstReport(CancellationTokenSource cancellation) : IProgress<double>

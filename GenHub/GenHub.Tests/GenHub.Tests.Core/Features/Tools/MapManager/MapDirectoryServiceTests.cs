@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -328,5 +329,38 @@ public sealed class MapDirectoryServiceTests : IDisposable
         Assert.Equal("Tournament Desert.map", map.FileName);
         Assert.True(map.IsDirectory);
         Assert.Equal(GameType.ZeroHour, map.GameType);
+    }
+
+    /// <summary>
+    /// Verifies that GetMapsAsync lists the .wak, map.ini and map.str companions as map assets so export keeps them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetMapsAsync_WhenMapFolderHasWakIniAndStr_ListsThemAsAssetsAsync()
+    {
+        var mockPathProvider = new Mock<IGamePathProvider>();
+        var fakeBasePath = Path.Combine(_tempDirectory, "TestZHAssets");
+        mockPathProvider
+            .Setup(p => p.GetOptionsDirectory(GameType.ZeroHour))
+            .Returns(fakeBasePath);
+
+        var mapDir = Path.Combine(fakeBasePath, MapManagerConstants.MapsSubdirectoryName, "Vendetta");
+        Directory.CreateDirectory(mapDir);
+        foreach (var name in new[] { "Vendetta.map", "Vendetta.tga", "Vendetta.wak", "map.ini", "map.str" })
+        {
+            await File.WriteAllTextAsync(Path.Combine(mapDir, name), name);
+        }
+
+        var service = new MapDirectoryService(
+            _mapNameParser,
+            NullLogger<MapDirectoryService>.Instance,
+            pathProvider: mockPathProvider.Object);
+
+        var results = await service.GetMapsAsync(GameType.ZeroHour);
+
+        var map = Assert.Single(results);
+        Assert.Equal(
+            ["Vendetta.tga", "Vendetta.wak", "map.ini", "map.str"],
+            map.AssetFiles.Select(Path.GetFileName).Order(StringComparer.Ordinal));
     }
 }

@@ -74,6 +74,28 @@ public sealed class ReplayImportServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Refuses a replay file larger than the import size limit even though its header can be parsed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromFilesAsync_ReplayOverSizeLimit_IsSkippedAsync()
+    {
+        var sourcePath = Path.Combine(_workingDirectory, "long.rep");
+        await using (var file = File.Create(sourcePath))
+        {
+            await file.WriteAsync(Encoding.ASCII.GetBytes("GENREP"));
+            file.SetLength(GenHub.Core.Constants.ReplayManagerConstants.MaxReplaySizeBytes + 1);
+        }
+
+        var result = await _service.ImportFromFilesAsync([sourcePath], GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Equal(1, result.FilesSkipped);
+        Assert.Contains(result.Errors, e => e.Contains("exceeds", StringComparison.Ordinal));
+        Assert.Empty(Directory.GetFiles(_replayDirectory));
+    }
+
+    /// <summary>
     /// Surfaces a cancellation that lands part-way through an archive as a cancellation. Entries
     /// imported before the cancellation must not be reported as a successful import, because the
     /// caller would otherwise treat a truncated set of replays as the whole archive.
