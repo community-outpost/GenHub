@@ -77,6 +77,7 @@ public partial class ReplayManagerViewModel(
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _runningProfiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _selectedRecoveryProfiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _currentRecoveryProfileIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
@@ -243,7 +244,7 @@ public partial class ReplayManagerViewModel(
     partial void OnSelectedCompatibleProfileChanged(GameProfile? value)
     {
         var replay = ActiveCheckpointReplay;
-        if (value != null && replay != null && ReplayDirectoryService.HasCheckpointCapability(value))
+        if (value != null && replay != null && _currentRecoveryProfileIds.Contains(value.Id))
         {
             replay.RecoveryProfileId = value.Id;
             replay.RecoveryProfileName = value.Name;
@@ -397,6 +398,15 @@ public partial class ReplayManagerViewModel(
     {
         _runningProfiles.TryRemove(message.ProfileId, out _);
 
+        var staleRecoveryKeys = _selectedRecoveryProfiles
+            .Where(kvp => string.Equals(kvp.Value, message.ProfileId, StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Key)
+            .ToList();
+        foreach (var key in staleRecoveryKeys)
+        {
+            _selectedRecoveryProfiles.TryRemove(key, out _);
+        }
+
         PostReloadReplays("profile deletion", message.ProfileId, () =>
         {
             foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
@@ -405,6 +415,13 @@ public partial class ReplayManagerViewModel(
                 replay.MatchingProfileId = null;
                 replay.MatchingProfileName = null;
                 replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+            }
+
+            foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
+                         .Where(replay => string.Equals(replay.RecoveryProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase)))
+            {
+                replay.RecoveryProfileId = null;
+                replay.RecoveryProfileName = null;
             }
         });
     }
@@ -1729,8 +1746,30 @@ public partial class ReplayManagerViewModel(
                 var createdProfileId = await SelectClientAndCreateProfileAsync(replay);
                 if (!string.IsNullOrEmpty(createdProfileId))
                 {
-                    replay.RecoveryProfileId = createdProfileId;
-                    _selectedRecoveryProfiles[replay.FullPath] = createdProfileId;
+                    var (mgr, pScope) = ResolveProfileManager();
+                    try
+                    {
+                        if (mgr != null)
+                        {
+                            var profilesResult = await mgr.GetAllProfilesAsync();
+                            if (profilesResult.Success && profilesResult.Data != null)
+                            {
+                                var recoveryCandidates = directoryService.FindRecoveryProfiles(replay, profilesResult.Data);
+                                var matched = recoveryCandidates.FirstOrDefault(p => string.Equals(p.Id, createdProfileId, StringComparison.OrdinalIgnoreCase));
+                                if (matched != null)
+                                {
+                                    replay.RecoveryProfileId = matched.Id;
+                                    replay.RecoveryProfileName = matched.Name;
+                                    _selectedRecoveryProfiles[replay.FullPath] = matched.Id;
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        pScope?.Dispose();
+                    }
+
                     await OpenCheckpointDrawerAsync(replay);
                 }
 
@@ -1902,11 +1941,45 @@ public partial class ReplayManagerViewModel(
         try
         {
             var replays = await directoryService.GetReplaysAsync(SelectedTab);
-            foreach (var r in replays)
+            if (_selectedRecoveryProfiles.Count > 0)
             {
-                if (_selectedRecoveryProfiles.TryGetValue(r.FullPath, out var savedRecoveryId))
+                var (manager, scope) = ResolveProfileManager();
+                try
                 {
-                    r.RecoveryProfileId = savedRecoveryId;
+                    var profiles = manager != null ? (await manager.GetAllProfilesAsync()).Data : null;
+                    if (profiles != null && profiles.Count > 0)
+                    {
+                        var staleKeys = new List<string>();
+                        foreach (var (replayPath, savedRecoveryId) in _selectedRecoveryProfiles)
+                        {
+                            var replay = replays.FirstOrDefault(r => string.Equals(r.FullPath, replayPath, StringComparison.OrdinalIgnoreCase));
+                            if (replay == null)
+                            {
+                                continue;
+                            }
+
+                            var recoveryCandidates = directoryService.FindRecoveryProfiles(replay, profiles);
+                            var matchedCandidate = recoveryCandidates.FirstOrDefault(p => string.Equals(p.Id, savedRecoveryId, StringComparison.OrdinalIgnoreCase));
+                            if (matchedCandidate != null)
+                            {
+                                replay.RecoveryProfileId = matchedCandidate.Id;
+                                replay.RecoveryProfileName = matchedCandidate.Name;
+                            }
+                            else
+                            {
+                                staleKeys.Add(replayPath);
+                            }
+                        }
+
+                        foreach (var key in staleKeys)
+                        {
+                            _selectedRecoveryProfiles.TryRemove(key, out _);
+                        }
+                    }
+                }
+                finally
+                {
+                    scope?.Dispose();
                 }
             }
 
@@ -2032,6 +2105,12 @@ public partial class ReplayManagerViewModel(
             }
 
             var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfilesResult.Data);
+            _currentRecoveryProfileIds.Clear();
+            foreach (var profile in recoveryProfiles)
+            {
+                _currentRecoveryProfileIds.Add(profile.Id);
+            }
+
             var profilesToAdd = recoveryProfiles.Count > 0
                 ? recoveryProfiles
                 : directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
@@ -2124,6 +2203,7 @@ public partial class ReplayManagerViewModel(
         checkpointService.CancelActiveMint();
         IsCheckpointDrawerOpen = false;
         ActiveCheckpointReplay = null;
+        _currentRecoveryProfileIds.Clear();
     }
 
     /// <summary>

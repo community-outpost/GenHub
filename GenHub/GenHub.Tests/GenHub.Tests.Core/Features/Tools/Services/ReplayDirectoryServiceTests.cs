@@ -4775,10 +4775,23 @@ public sealed class ReplayDirectoryServiceTests
     [Fact]
     public async Task FindRecoveryProfiles_WhenProfileExeCrcMatchesReplayExeCrc_IncludesProfileAsync()
     {
-        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0xDA2B4B18", isRetail: true);
+        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0x88BEB180", isRetail: false);
 
         Assert.Single(matches);
         Assert.Equal("recovery-profile-1", matches[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles excludes recovery profiles when an unmapped replay has a
+    /// non-retail CRC that does not match the profile executable CRC.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FindRecoveryProfiles_WhenUnmappedNonRetailReplay_ExcludesMismatchedRecoveryProfileAsync()
+    {
+        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0xF643CAE1", isRetail: false, unmappedReplay: true);
+
+        Assert.Empty(matches);
     }
 
     /// <summary>
@@ -4957,7 +4970,10 @@ public sealed class ReplayDirectoryServiceTests
         Description = "Zero Hour 1.04 (Retail)",
     };
 
-    private static async Task<IReadOnlyList<GameProfile>> FindRecoveryProfilesWithCachedExeCrcAsync(string mockedExeCrc, bool isRetail = true)
+    private static async Task<IReadOnlyList<GameProfile>> FindRecoveryProfilesWithCachedExeCrcAsync(
+        string mockedExeCrc,
+        bool isRetail = true,
+        bool unmappedReplay = false)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "genhub_test_recovery_crc_" + Guid.NewGuid().ToString("N"));
         var fakeExePath = Path.Combine(tempDir, "generals.exe");
@@ -4981,7 +4997,8 @@ public sealed class ReplayDirectoryServiceTests
                 SizeInBytes = 2048,
                 LastModified = DateTime.UtcNow,
                 GameVersion = GameType.ZeroHour,
-                MatchedClient = isRetail ? CreateRetailMappingEntry() : CreateGeneralsOnlineMappingEntry(),
+                MatchedClient = unmappedReplay ? null : (isRetail ? CreateRetailMappingEntry() : CreateGeneralsOnlineMappingEntry()),
+                Metadata = unmappedReplay ? new ReplayMetadata { ExeCrc = 0x99999999 } : null,
             };
 
             var recoveryProfile = new GameProfile

@@ -367,31 +367,7 @@ public class ProfileContentLoader(
             ? manifest.Version
             : string.Empty;
 
-        string? exePath = null;
-        string? workingDir = null;
-
-        if (!string.IsNullOrWhiteSpace(manifest.SourcePath))
-        {
-            if (File.Exists(manifest.SourcePath))
-            {
-                var ext = Path.GetExtension(manifest.SourcePath);
-                if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                    ext.Equals(".dat", StringComparison.OrdinalIgnoreCase))
-                {
-                    exePath = manifest.SourcePath;
-                    workingDir = Path.GetDirectoryName(manifest.SourcePath);
-                }
-            }
-            else if (Directory.Exists(manifest.SourcePath) && !string.IsNullOrWhiteSpace(manifest.EntryPoint))
-            {
-                var combined = Path.Combine(manifest.SourcePath, manifest.EntryPoint);
-                if (File.Exists(combined))
-                {
-                    exePath = combined;
-                    workingDir = manifest.SourcePath;
-                }
-            }
-        }
+        var (exePath, workingDir) = GenHub.Features.GameProfiles.ViewModels.GameProfileClientResolutionHelper.ResolveClientPaths(manifest.SourcePath, manifest.EntryPoint);
 
         return new GameClient
         {

@@ -582,14 +582,15 @@ public sealed class ReplayDirectoryService(
 
         var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
         var replayPublisher = replay.MatchedClient?.Publisher ?? string.Empty;
-        var isRetailReplay = IsRetailClient(replayPublisher, clientManifestId);
+        var replayExeCrc = replay.MatchedClient?.ExeCrc ?? replay.Metadata?.FormattedExeCrc;
+        var isRetailReplay = replay.MatchedClient != null
+            ? IsRetailClient(replayPublisher, clientManifestId)
+            : !string.IsNullOrEmpty(replayExeCrc) && ReplayCrcMatchingHelper.IsRetailExeCrc(replayExeCrc, replay.GameVersion);
         var isGeneralsOnlineReplay = string.Equals(replayPublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
                                      clientManifestId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase);
         var isSuperHackersReplay = string.Equals(replayPublisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                    string.Equals(replayPublisher, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                    clientManifestId.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
-
-        var replayExeCrc = replay.MatchedClient?.ExeCrc ?? replay.Metadata?.FormattedExeCrc;
         var recoveryCandidates = profiles.Where(p =>
         {
             if (p.GameClient?.GameType != replay.GameVersion)
