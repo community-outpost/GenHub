@@ -28,7 +28,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     private TKey _lastReportedKey = default!;
     private bool _hasReportedKey;
     private bool _disposed;
-    private bool _suppressNextScrollChanged;
+    private double? _suppressProgrammaticTargetOffset;
 
     /// <summary>
     /// Gets a value indicating whether a programmatic scroll animation is in progress.
@@ -149,10 +149,14 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             return;
         }
 
-        if (_suppressNextScrollChanged)
+        if (_suppressProgrammaticTargetOffset.HasValue)
         {
-            _suppressNextScrollChanged = false;
-            return;
+            var suppressOffset = _suppressProgrammaticTargetOffset.Value;
+            _suppressProgrammaticTargetOffset = null;
+            if (Math.Abs(scrollViewer.Offset.Y - suppressOffset) < ScrollSpyConstants.ScrollSnapEpsilon)
+            {
+                return;
+            }
         }
 
         UpdateActiveSection();
@@ -307,7 +311,9 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             IsScrollingProgrammatically = false;
             if (targetKey.HasValue && targetKey.Value is not null)
             {
-                _suppressNextScrollChanged = !EqualityComparer<double>.Default.Equals(currentY, effectiveTargetY);
+                _suppressProgrammaticTargetOffset = !EqualityComparer<double>.Default.Equals(currentY, effectiveTargetY)
+                    ? effectiveTargetY
+                    : null;
                 ReportActiveKey(targetKey.Value);
             }
             else
@@ -345,7 +351,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     {
         _animationGeneration++;
         _animTargetKey = default;
-        _suppressNextScrollChanged = false;
+        _suppressProgrammaticTargetOffset = null;
         StopAnimationTimer();
         IsScrollingProgrammatically = false;
     }
@@ -380,13 +386,14 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
                 if (!_disposed && _animationGeneration == gen)
                 {
                     IsScrollingProgrammatically = false;
-                    _suppressNextScrollChanged = false;
                     if (targetKey.HasValue && targetKey.Value is not null)
                     {
+                        _suppressProgrammaticTargetOffset = scrollViewer.Offset.Y;
                         ReportActiveKey(targetKey.Value);
                     }
                     else
                     {
+                        _suppressProgrammaticTargetOffset = null;
                         UpdateActiveSection();
                     }
                 }
