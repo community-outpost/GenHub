@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
@@ -1263,25 +1264,6 @@ public class OnlineViewModelTests
         return CreateViewModel(networkMock.Object, profiles: profiles.Object);
     }
 
-    private static OnlineViewModel CreateViewModel(
-        IOnlineNetworkService? network = null,
-        INotificationService? notifications = null,
-        IOnlineLaunchService? launchService = null,
-        IDialogService? dialogs = null,
-        IGameProfileManager? profiles = null,
-        IUserSettingsService? userSettings = null,
-        IGameCrcCalculatorService? crcCalculator = null)
-    {
-        return new OnlineViewModel(
-            network ?? Mock.Of<IOnlineNetworkService>(),
-            launchService ?? Mock.Of<IOnlineLaunchService>(),
-            profiles ?? Mock.Of<IGameProfileManager>(),
-            notifications ?? Mock.Of<INotificationService>(),
-            dialogs ?? Mock.Of<IDialogService>(),
-            Mock.Of<ILogger<OnlineViewModel>>(),
-            new OnlineViewModelDependencies(null, userSettings, null, crcCalculator));
-    }
-
     /// <summary>
     /// Tests that profile setup results are cached and invalidated when a profile updated message arrives.
     /// </summary>
@@ -1293,7 +1275,7 @@ public class OnlineViewModelTests
         var profile = ProfileWithClient("p1", "Profile 1", GameType.ZeroHour, "client-1", "1.04", "mod-a");
         var manifests = new List<ContentManifest>
         {
-            new() { Id = new ManifestId("mod-a"), ContentType = ContentType.Mod }
+            new() { Id = new ManifestId("mod-a"), ContentType = GenHub.Core.Models.Enums.ContentType.Mod }
         };
         var profiles = new Mock<IGameProfileManager>();
         profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
@@ -1330,4 +1312,22 @@ public class OnlineViewModelTests
         profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
+    private static OnlineViewModel CreateViewModel(
+        IOnlineNetworkService? network = null,
+        INotificationService? notifications = null,
+        IOnlineLaunchService? launchService = null,
+        IDialogService? dialogs = null,
+        IGameProfileManager? profiles = null,
+        IUserSettingsService? userSettings = null,
+        IGameCrcCalculatorService? crcCalculator = null)
+    {
+        return new OnlineViewModel(
+            network ?? Mock.Of<IOnlineNetworkService>(),
+            launchService ?? Mock.Of<IOnlineLaunchService>(),
+            profiles ?? Mock.Of<IGameProfileManager>(),
+            notifications ?? Mock.Of<INotificationService>(),
+            dialogs ?? Mock.Of<IDialogService>(),
+            Mock.Of<ILogger<OnlineViewModel>>(),
+            new OnlineViewModelDependencies(null, userSettings, null, crcCalculator));
+    }
 }
