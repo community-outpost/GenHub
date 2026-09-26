@@ -424,10 +424,10 @@
                   <!-- Demo Size Preset Bar -->
                   <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Window Size:" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeCompact}" Command="{Binding SetDemoCompactCommand}" Content="Compact (720x480)" Padding="10,4" FontSize="11" CornerRadius="6"/>
-                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeStandard}" Command="{Binding SetDemoStandardCommand}" Content="Standard (840x580)" Padding="10,4" FontSize="11" CornerRadius="6"/>
-                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="Expanded (980x680)" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.WindowSize}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeCompact}" Command="{Binding SetDemoCompactCommand}" Content="{localization:Localize Info.Demo.SizeCompact}" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeStandard}" Command="{Binding SetDemoStandardCommand}" Content="{localization:Localize Info.Demo.SizeStandard}" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="{localization:Localize Info.Demo.SizeExpanded}" Padding="10,4" FontSize="11" CornerRadius="6"/>
                      </StackPanel>
                      <TextBlock Grid.Column="1" Text="{localization:Localize Info.Demo.GameSettings.Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" FontStyle="Italic" VerticalAlignment="Center"/>
                   </Grid>
@@ -473,10 +473,10 @@
                   <!-- Demo Size Preset Bar -->
                   <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Window Size:" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" FontWeight="SemiBold"/>
-                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeCompact}" Command="{Binding SetDemoCompactCommand}" Content="Compact (720x480)" Padding="10,4" FontSize="11" CornerRadius="6"/>
-                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeStandard}" Command="{Binding SetDemoStandardCommand}" Content="Standard (840x580)" Padding="10,4" FontSize="11" CornerRadius="6"/>
-                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="Expanded (980x680)" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.WindowSize}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeCompact}" Command="{Binding SetDemoCompactCommand}" Content="{localization:Localize Info.Demo.SizeCompact}" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeStandard}" Command="{Binding SetDemoStandardCommand}" Content="{localization:Localize Info.Demo.SizeStandard}" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="{localization:Localize Info.Demo.SizeExpanded}" Padding="10,4" FontSize="11" CornerRadius="6"/>
                      </StackPanel>
                      <TextBlock Grid.Column="1" Text="{localization:Localize Info.Demo.ContentSelection.Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" FontStyle="Italic" VerticalAlignment="Center"/>
                   </Grid>
