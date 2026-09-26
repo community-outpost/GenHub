@@ -1432,6 +1432,7 @@ public class GameProfileLauncherViewModelTests
     /// </summary>
     /// <param name="launcherFacade">The launcher facade mock.</param>
     /// <param name="notificationService">The notification service mock.</param>
+    /// <param name="telemetryService">The optional telemetry service mock.</param>
     /// <returns>The view model.</returns>
     private static GameProfileLauncherViewModel CreateLauncherViewModel(
         Mock<IProfileLauncherFacade> launcherFacade,
