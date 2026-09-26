@@ -634,31 +634,30 @@ public class WineRunner(
 
         var enumerationOptions = new EnumerationOptions
         {
-            IgnoreInaccessible = true,
+            IgnoreInaccessible = false,
             RecurseSubdirectories = true,
             AttributesToSkip = FileAttributes.ReparsePoint,
         };
 
-        var allSuccess = true;
-        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
+        try
         {
-            if (string.Equals(Path.GetFileName(file), SyncStateFileName, StringComparison.OrdinalIgnoreCase))
+            foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
             {
-                continue;
-            }
+                if (string.Equals(Path.GetFileName(file), SyncStateFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
 
-            var fullFilePath = Path.GetFullPath(file);
-            if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
-            {
-                // Target directory is nested inside source directory; avoid recursive copy into target
-                continue;
-            }
+                var fullFilePath = Path.GetFullPath(file);
+                if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
+                {
+                    // Target directory is nested inside source directory; avoid recursive copy into target
+                    continue;
+                }
 
-            var relative = Path.GetRelativePath(sourceDir, file);
-            var destFile = Path.Combine(targetDir, relative);
+                var relative = Path.GetRelativePath(sourceDir, file);
+                var destFile = Path.Combine(targetDir, relative);
 
-            try
-            {
                 var destDir = Path.GetDirectoryName(destFile);
                 if (!string.IsNullOrEmpty(destDir))
                 {
@@ -670,14 +669,14 @@ public class WineRunner(
                     File.Copy(file, destFile, overwrite: true);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                allSuccess = false;
-                logger?.LogWarning(ex, "[WineRunner] Failed to copy '{Source}' to '{Destination}' during directory sync.", file, destFile);
-            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to mirror content from '{SourceDir}' to '{TargetDir}' due to file access or enumeration failure.", sourceDir, targetDir);
+            return false;
         }
 
-        return allSuccess;
+        return true;
     }
 
     /// <summary>

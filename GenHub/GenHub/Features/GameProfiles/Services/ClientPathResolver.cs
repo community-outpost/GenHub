@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using System;
 using System.Collections.Concurrent;
 using System.IO;
@@ -39,10 +40,10 @@ internal static class ClientPathResolver
 
         if (Directory.Exists(sourcePath) && !string.IsNullOrWhiteSpace(entryPoint))
         {
-            var combined = Path.Combine(sourcePath, entryPoint);
-            if (File.Exists(combined))
+            var policyResult = ContentPathPolicy.ResolveContainedFile(sourcePath, entryPoint);
+            if (policyResult.Success && File.Exists(policyResult.Data))
             {
-                var result = (combined, sourcePath);
+                var result = (policyResult.Data, sourcePath);
                 return ResolvedPathsCache.GetOrAdd(cacheKey, result);
             }
         }
@@ -63,20 +64,11 @@ internal static class ClientPathResolver
     }
 
     /// <summary>
-    /// Determines whether the given file extension corresponds to an archive or package format.
+    /// Determines whether the file extension indicates an archive or installer package that cannot be executed directly.
     /// </summary>
-    /// <param name="extension">The file extension including the leading dot.</param>
-    /// <returns>True if the extension is an archive or package; otherwise, false.</returns>
-    private static bool IsArchiveOrPackageExtension(string extension)
+    internal static bool IsArchiveOrPackageExtension(string extension)
     {
-        if (string.IsNullOrEmpty(extension))
-        {
-            return false;
-        }
-
-        return ContentFormatConstants.UnderstoodArchiveExtensions.Any(archiveExt =>
-                   string.Equals(extension, archiveExt, StringComparison.OrdinalIgnoreCase)) ||
-               ContentFormatConstants.GuidedRejectionExtensions.Any(pkgExt =>
-                   string.Equals(extension, pkgExt, StringComparison.OrdinalIgnoreCase));
+        return GenLauncherConstants.SupportedArchiveExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase) ||
+               GenLauncherConstants.PackageArchiveExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 }
