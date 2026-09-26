@@ -13455,4 +13455,16 @@ GenHub compares the replay's Exe CRC and INI CRC against a preloaded catalog of 
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Open Publisher Studio</value>
   </data>
+  <data name="Info.Demo.WindowSize" xml:space="preserve">
+    <value>Window Size:</value>
+  </data>
+  <data name="Info.Demo.SizeCompact" xml:space="preserve">
+    <value>Compact (720x480)</value>
+  </data>
+  <data name="Info.Demo.SizeStandard" xml:space="preserve">
+    <value>Standard (840x580)</value>
+  </data>
+  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
+    <value>Expanded (980x680)</value>
+  </data>
 </root>

@@ -13399,4 +13399,16 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Открыть студию издателя</value>
   </data>
+  <data name="Info.Demo.WindowSize" xml:space="preserve">
+    <value>Размер окна:</value>
+  </data>
+  <data name="Info.Demo.SizeCompact" xml:space="preserve">
+    <value>Компактный (720x480)</value>
+  </data>
+  <data name="Info.Demo.SizeStandard" xml:space="preserve">
+    <value>Стандартный (840x580)</value>
+  </data>
+  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
+    <value>Расширенный (980x680)</value>
+  </data>
 </root>

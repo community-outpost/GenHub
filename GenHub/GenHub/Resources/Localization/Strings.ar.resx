@@ -13399,4 +13399,16 @@ https://example.com/screenshot2.png</value>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>فتح استوديو الناشر</value>
   </data>
+  <data name="Info.Demo.WindowSize" xml:space="preserve">
+    <value>حجم النافذة:</value>
+  </data>
+  <data name="Info.Demo.SizeCompact" xml:space="preserve">
+    <value>مدمج (720x480)</value>
+  </data>
+  <data name="Info.Demo.SizeStandard" xml:space="preserve">
+    <value>قياسي (840x580)</value>
+  </data>
+  <data name="Info.Demo.SizeExpanded" xml:space="preserve">
+    <value>موسع (980x680)</value>
+  </data>
 </root>
