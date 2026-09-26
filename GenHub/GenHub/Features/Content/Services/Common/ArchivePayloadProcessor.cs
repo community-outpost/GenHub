@@ -2751,16 +2751,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         try
         {
-            var rootThumbnail = Path.Combine(extractedDirectory, MapManagerConstants.DefaultThumbnailName);
-            if (File.Exists(rootThumbnail))
+            foreach (var rootCompanion in Directory.EnumerateFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly))
             {
-                File.Delete(rootThumbnail);
-            }
-
-            foreach (var sharedCompanion in new[] { MapManagerConstants.MapIniFileName, MapManagerConstants.MapStrFileName })
-            {
-                var rootCompanion = Path.Combine(extractedDirectory, sharedCompanion);
-                if (File.Exists(rootCompanion))
+                var fileName = Path.GetFileName(rootCompanion);
+                if (IsSharedMapCompanion(fileName) || fileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase))
                 {
                     File.Delete(rootCompanion);
                 }

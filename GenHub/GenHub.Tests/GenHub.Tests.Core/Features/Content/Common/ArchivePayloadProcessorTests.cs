@@ -1540,6 +1540,42 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that shared companions retain their content in every map folder and leave no
+    /// staging-root duplicate, regardless of filename casing.
+    /// </summary>
+    /// <param name="companionName">The shared companion filename.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("map.ini")]
+    [InlineData("MAP.INI")]
+    [InlineData("map.str")]
+    [InlineData("MAP.STR")]
+    [InlineData("map.tga")]
+    [InlineData("MAP.TGA")]
+    public async Task NormalizeDirectoryStructureAsync_SharedCompanionCaseVariants_RemovesRootCopyAsync(string companionName)
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "desert-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Snow.map"), "snow-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, companionName), "shared-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "unrelated.ini"), "unrelated-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        foreach (var mapName in new[] { "Desert", "Snow" })
+        {
+            var targetName = companionName.Equals("map.tga", StringComparison.OrdinalIgnoreCase)
+                ? mapName + Path.GetExtension(companionName)
+                : companionName;
+            Assert.Equal("shared-data", await File.ReadAllTextAsync(Path.Combine(_stagingDirectory, mapName, targetName)));
+        }
+
+        Assert.Equal("unrelated.ini", Path.GetFileName(Assert.Single(Directory.GetFiles(_stagingDirectory))));
+        Assert.Equal("unrelated-data", await File.ReadAllTextAsync(Path.Combine(_stagingDirectory, "unrelated.ini")));
+    }
+
+    /// <summary>
     /// Verifies that multiple loose maps sharing a root map.tga receive the thumbnail in each respective map folder.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
