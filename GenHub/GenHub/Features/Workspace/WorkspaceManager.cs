@@ -172,19 +172,32 @@ public class WorkspaceManager(
                 return CleanupUnrecordedWorkspace(workspaceId);
             }
 
-            // CRITICAL: Untrack CAS references BEFORE deleting workspace to prevent reference counting leak.
-            // If we delete the directory but leave .refs, GC will think they are still used.
-            logger.LogDebug("[Workspace] Untracking CAS references for workspace {Id}", workspaceId);
-            var untrackResult = await casReferenceTracker.UntrackWorkspaceAsync(workspaceId, cancellationToken);
-            if (!untrackResult.Success)
-            {
-                logger.LogError("[Workspace] Failed to untrack CAS references for workspace {Id}: {Error}. Aborting cleanup to prevent orphan reference leaks.", workspaceId, untrackResult.FirstError);
-                return OperationResult<bool>.CreateFailure($"Failed to untrack CAS references: {untrackResult.FirstError}");
-            }
-
+            // Keep references until deletion succeeds: retained files may still depend on CAS.
             if (FileOperationsService.DeleteDirectoryIfExists(workspace.WorkspacePath))
             {
                 logger.LogInformation("Deleted workspace directory {Path}", workspace.WorkspacePath);
+            }
+
+            // A false return can also mean an inaccessible path. Prove absence before untracking.
+            try
+            {
+                _ = File.GetAttributes(workspace.WorkspacePath);
+                return OperationResult<bool>.CreateFailure("Workspace still exists after cleanup.");
+            }
+            catch (FileNotFoundException)
+            {
+                // Confirmed absent.
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // Confirmed absent.
+            }
+
+            // A failed or cancelled untrack leaves metadata and references available for retry.
+            var untrackResult = await casReferenceTracker.UntrackWorkspaceAsync(workspaceId, cancellationToken);
+            if (!untrackResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure($"Failed to untrack CAS references: {untrackResult.FirstError}");
             }
 
             workspaces.Remove(workspace);

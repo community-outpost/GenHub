@@ -211,6 +211,71 @@ public sealed class GameProfileManagerDeletionCleanupTests : IDisposable
         Assert.DoesNotContain(_fixture.Profile.Id, metadata);
     }
 
+    /// <summary>A directory deletion error must leave workspace references and metadata intact.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupWorkspaceAsync_InvalidRecordedPath_RetainsReferencesAsync()
+    {
+        await _fixture.ArrangeProfileWithDataAsync();
+        var metadataPath = Path.Combine(_fixture.AppDataPath, FileTypes.WorkspaceMetadataFileName);
+        var records = System.Text.Json.JsonSerializer.Deserialize<List<GenHub.Core.Models.Workspace.WorkspaceInfo>>(
+            await File.ReadAllTextAsync(metadataPath))!;
+        records[0].WorkspacePath = _fixture.WorkspacePath + "\0";
+        var metadata = System.Text.Json.JsonSerializer.Serialize(records);
+        await File.WriteAllTextAsync(metadataPath, metadata);
+
+        var result = await _fixture.CreateWorkspaceManager().CleanupWorkspaceAsync(_fixture.Profile.Id);
+
+        Assert.False(result.Success);
+        Assert.True(Directory.Exists(_fixture.WorkspacePath));
+        Assert.True(File.Exists(_fixture.WorkspaceRefsPath));
+        Assert.Equal(metadata, await File.ReadAllTextAsync(metadataPath));
+    }
+
+    /// <summary>A failed untrack retains metadata so directory-absent cleanup can be retried.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupWorkspaceAsync_UntrackFails_RetainsMetadataForRetryAsync()
+    {
+        await _fixture.ArrangeProfileWithDataAsync();
+        var tracker = new Mock<ICasReferenceTracker>();
+        tracker.Setup(t => t.UntrackWorkspaceAsync(_fixture.Profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateFailure("tracker unavailable"));
+        var metadataPath = Path.Combine(_fixture.AppDataPath, FileTypes.WorkspaceMetadataFileName);
+        var metadata = await File.ReadAllTextAsync(metadataPath);
+
+        var result = await _fixture.CreateWorkspaceManager(tracker.Object).CleanupWorkspaceAsync(_fixture.Profile.Id);
+
+        Assert.False(result.Success);
+        Assert.False(Directory.Exists(_fixture.WorkspacePath));
+        Assert.True(File.Exists(_fixture.WorkspaceRefsPath));
+        Assert.Equal(metadata, await File.ReadAllTextAsync(metadataPath));
+        var retry = await _fixture.CreateWorkspaceManager().CleanupWorkspaceAsync(_fixture.Profile.Id);
+        Assert.True(retry.Success, retry.FirstError);
+        Assert.False(File.Exists(_fixture.WorkspaceRefsPath));
+    }
+
+    /// <summary>Unreadable tracking data blocks deletion and preserves deployed files for recovery.</summary>
+    /// <param name="corruptIndex">Whether to corrupt the index instead of an indexed manifest.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeleteProfileAsync_UnreadableUserData_KeepsProfileAndRecoveryRecordAsync(bool corruptIndex)
+    {
+        await _fixture.ArrangeProfileWithDataAsync();
+        var path = corruptIndex ? _fixture.UserDataIndexPath : _fixture.UserDataManifestPath;
+        await File.WriteAllTextAsync(path, "{ broken json");
+        var deployed = await File.ReadAllTextAsync(_fixture.DeployedMapPath);
+
+        var result = await _fixture.CreateProfileManager().DeleteProfileAsync(_fixture.Profile.Id);
+
+        Assert.False(result.Success);
+        Assert.True((await _fixture.CreateRepository().LoadProfileAsync(_fixture.Profile.Id)).Success);
+        Assert.Equal(deployed, await File.ReadAllTextAsync(_fixture.DeployedMapPath));
+        Assert.Equal("{ broken json", await File.ReadAllTextAsync(path));
+    }
+
     /// <summary>Workspace cleanup propagates a cancelled token rather than returning a failure.</summary>
     /// <returns>The asynchronous test.</returns>
     [Fact]
