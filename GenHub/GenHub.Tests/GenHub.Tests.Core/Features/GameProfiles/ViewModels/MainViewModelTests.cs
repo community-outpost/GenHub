@@ -1,3 +1,6 @@
+using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
+using GenHub.Common.Services;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -17,6 +20,7 @@ using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
@@ -259,10 +263,43 @@ public class MainViewModelTests
             expectedShows);
     }
 
+    /// <summary>
+    /// Verifies that a session opened to handle a link defers the Getting Started dialog so the two modals never stack.
+    /// </summary>
+    /// <param name="linkReceived">Whether the session received a link before startup finished.</param>
+    /// <param name="expectedDialogs">How many Getting Started dialogs should open.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaTheory]
+    [InlineData(false, 1)]
+    [InlineData(true, 0)]
+    public async Task InitializeAsync_GettingStarted_DeferredWhenSessionOpenedForLinkAsync(bool linkReceived, int expectedDialogs)
+    {
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>()))
+            .ReturnsAsync((null, false));
+        var tracker = new LinkActivationTracker();
+        if (linkReceived)
+        {
+            tracker.RecordLink();
+        }
+
+        var vm = CreateMainViewModel(dialogService: dialogService, linkActivationTracker: tracker);
+
+        await vm.InitializeAsync();
+        Dispatcher.UIThread.RunJobs();
+
+        dialogService.Verify(
+            x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), true),
+            Times.Exactly(expectedDialogs));
+    }
+
     private static MainViewModel CreateMainViewModel(
         Mock<IBackgroundUpdateCoordinator>? mockBackgroundCoordinator = null,
         Mock<IUserSettingsService>? mockUserSettings = null,
-        Mock<INotificationService>? mockNotificationServiceParam = null)
+        Mock<INotificationService>? mockNotificationServiceParam = null,
+        Mock<IDialogService>? dialogService = null,
+        ILinkActivationTracker? linkActivationTracker = null)
     {
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var toolsVm = CreateToolsVm();
@@ -286,10 +323,11 @@ public class MainViewModelTests
             userSettingsService: mockUserSettings?.Object ?? userSettingsMock.Object,
             backgroundUpdateCoordinator: coordinator.Object,
             notificationService: mockNotificationService.Object,
-            dialogService: new Mock<IDialogService>().Object,
+            dialogService: (dialogService ?? new Mock<IDialogService>()).Object,
             notificationFeedViewModel: notificationFeedVm,
             infoViewModel: CreateInfoViewModel(),
-            logger: mockLogger.Object);
+            logger: mockLogger.Object,
+            linkActivationTracker: linkActivationTracker);
     }
 
     private static ToolsViewModel CreateToolsVm()
