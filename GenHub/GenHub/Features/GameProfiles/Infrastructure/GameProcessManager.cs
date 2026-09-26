@@ -721,61 +721,19 @@ public class GameProcessManager(
             return;
         }
 
-        var exitTime = DateTime.UtcNow;
-        int? exitCode = null;
-        try
-        {
-            exitTime = process.ExitTime.ToUniversalTime();
-            exitCode = process.ExitCode;
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
-        {
-            // Process may have already been disposed or its metadata may be inaccessible.
-        }
+        var (exitTime, exitCode) = CaptureExitInfo(process);
 
         // A delayed callback must not remove a new process that reused the same PID.
         _managedProcesses.TryRemove(new KeyValuePair<int, Process>(processId, process));
 
-        if (_sessionMetadata.TryRemove(process, out var sessionMeta) && telemetryService != null)
-        {
-            var duration = (DateTime.UtcNow - sessionMeta.StartTime).TotalSeconds;
-            var endProperties = new Dictionary<string, object?>
-            {
-                [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
-                [TelemetryConstants.Properties.DurationSeconds] = duration,
-                [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
-                [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
-                [TelemetryConstants.Properties.GameType] = sessionMeta.GameType,
-                [TelemetryConstants.Properties.GameClientId] = sessionMeta.GameClientId,
-                [TelemetryConstants.Properties.GameClientName] = sessionMeta.GameClientName,
-                [TelemetryConstants.Properties.GameClientVersion] = sessionMeta.GameClientVersion,
-            };
-
-            // An unknown exit code is not a crash; omit both properties instead of reporting failure.
-            if (exitCode is int knownExitCode)
-            {
-                endProperties[TelemetryConstants.Properties.ExitCode] = knownExitCode;
-                endProperties[TelemetryConstants.Properties.WasGraceful] = knownExitCode == ProcessConstants.ExitCodeSuccess;
-            }
-
-            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, endProperties);
-        }
+        EmitSessionEndedTelemetry(process, exitCode);
 
         var terminationRequested = _requestedTerminations.TryRemove(process, out _);
 
         // Attach the stderr capture, when this manager started the process itself. This
         // is what makes an abort that outlived the detection window explicable: the exit
         // is already after "launched", so the event is the only place the evidence fits.
-        string? stderrTail = null;
-        IReadOnlyList<string> unmountableArchives = [];
-        if (_stderrBuffers.TryRemove(process, out var capturedErrors))
-        {
-            DrainStandardError(capturedErrors);
-
-            var tail = capturedErrors.ToString();
-            stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
-            unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
-        }
+        var (stderrTail, unmountableArchives) = CaptureExitDiagnostics(process);
 
         if (!terminationRequested && exitCode is int code && code != ProcessConstants.ExitCodeSuccess)
         {
@@ -849,6 +807,26 @@ public class GameProcessManager(
         }
 
         return archives;
+    }
+
+    /// <summary>Captures exit metadata that may already be inaccessible after disposal.</summary>
+    /// <param name="process">The exited process.</param>
+    /// <returns>The exit time and exit code, defaulting when the process metadata is gone.</returns>
+    private static (DateTime ExitTime, int? ExitCode) CaptureExitInfo(Process process)
+    {
+        var exitTime = DateTime.UtcNow;
+        int? exitCode = null;
+        try
+        {
+            exitTime = process.ExitTime.ToUniversalTime();
+            exitCode = process.ExitCode;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+        {
+            // Process may have already been disposed or its metadata may be inaccessible.
+        }
+
+        return (exitTime, exitCode);
     }
 
     /// <summary>
@@ -2170,6 +2148,37 @@ public class GameProcessManager(
         }
     }
 
+    /// <summary>Emits the session end telemetry for a finalized process exit.</summary>
+    /// <param name="process">The exited process whose session metadata is removed.</param>
+    /// <param name="exitCode">The process exit code, when it could be captured.</param>
+    private void EmitSessionEndedTelemetry(Process process, int? exitCode)
+    {
+        if (_sessionMetadata.TryRemove(process, out var sessionMeta) && telemetryService != null)
+        {
+            var duration = (DateTime.UtcNow - sessionMeta.StartTime).TotalSeconds;
+            var endProperties = new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
+                [TelemetryConstants.Properties.DurationSeconds] = duration,
+                [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
+                [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
+                [TelemetryConstants.Properties.GameType] = sessionMeta.GameType,
+                [TelemetryConstants.Properties.GameClientId] = sessionMeta.GameClientId,
+                [TelemetryConstants.Properties.GameClientName] = sessionMeta.GameClientName,
+                [TelemetryConstants.Properties.GameClientVersion] = sessionMeta.GameClientVersion,
+            };
+
+            // An unknown exit code is not a crash; omit both properties instead of reporting failure.
+            if (exitCode is int knownExitCode)
+            {
+                endProperties[TelemetryConstants.Properties.ExitCode] = knownExitCode;
+                endProperties[TelemetryConstants.Properties.WasGraceful] = knownExitCode == ProcessConstants.ExitCodeSuccess;
+            }
+
+            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, endProperties);
+        }
+    }
+
     /// <summary>
     /// Waits for asynchronous stderr reads to finish draining so the buffer holds the complete output.
     /// </summary>
@@ -2196,6 +2205,25 @@ public class GameProcessManager(
             logger.LogDebug(
                 "[Process] Standard error did not signal end of stream; the captured output may be incomplete");
         }
+    }
+
+    /// <summary>Captures the stderr tail and named archives for a finalized process exit.</summary>
+    /// <param name="process">The exited process whose stderr buffer is removed.</param>
+    /// <returns>The stderr tail and the distinct archives named by mount-failure sentinels.</returns>
+    private (string? StderrTail, IReadOnlyList<string> UnmountableArchives) CaptureExitDiagnostics(Process process)
+    {
+        string? stderrTail = null;
+        IReadOnlyList<string> unmountableArchives = [];
+        if (_stderrBuffers.TryRemove(process, out var capturedErrors))
+        {
+            DrainStandardError(capturedErrors);
+
+            var tail = capturedErrors.ToString();
+            stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
+            unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
+        }
+
+        return (stderrTail, unmountableArchives);
     }
 
     /// <summary>

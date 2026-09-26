@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -147,15 +148,7 @@ public sealed class SentryTelemetrySink(
             return false;
         }
 
-        foreach (var c in eventId)
-        {
-            if (!Uri.IsHexDigit(c))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return eventId.All(Uri.IsHexDigit);
     }
 
     private static Dictionary<string, object?> BuildSentryPayload(TelemetryEvent telemetryEvent)

@@ -666,7 +666,7 @@ public class DownloadService(
             catch (InvalidDataException ex)
             {
                 logger.LogError(ex, "Download for {Url} failed with non-retryable invalid data error: {Message}", configuration.Url, ex.Message);
-                TrackDownloadFailure(configuration, ex.Message);
+                TrackDownloadFailure(ex.Message);
                 return DownloadResult.CreateFailure(ex.Message, 0, TimeSpan.Zero);
             }
             catch (Exception ex)
@@ -675,7 +675,7 @@ public class DownloadService(
                 {
                     logger.LogError(ex, "Download failed after {Attempts} attempts for {Url}", maxAttempts, configuration.Url);
                     var errorMessage = $"Download failed after {maxAttempts} attempts: {ex.Message}";
-                    TrackDownloadFailure(configuration, errorMessage);
+                    TrackDownloadFailure(errorMessage);
                     return DownloadResult.CreateFailure(errorMessage, 0, TimeSpan.Zero);
                 }
 
@@ -685,7 +685,7 @@ public class DownloadService(
         }
 
         var finalError = $"Download failed after {maxAttempts} attempts (unexpected error)";
-        TrackDownloadFailure(configuration, finalError);
+        TrackDownloadFailure(finalError);
         return DownloadResult.CreateFailure(finalError, 0, TimeSpan.Zero);
     }
 
@@ -697,7 +697,7 @@ public class DownloadService(
         var destFileInfo = new FileInfo(configuration.DestinationPath);
         if (destFileInfo.Exists && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
         {
-            TrackDownloadCompleted(configuration, destFileInfo.Length, TimeSpan.Zero);
+            TrackDownloadCompleted(destFileInfo.Length, TimeSpan.Zero);
             return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
         }
 
@@ -903,7 +903,7 @@ public class DownloadService(
 
         if (string.IsNullOrWhiteSpace(configuration.ExpectedHash))
         {
-            TrackDownloadCompleted(configuration, downloadedBytes, elapsed);
+            TrackDownloadCompleted(downloadedBytes, elapsed);
             return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, false);
         }
 
@@ -913,7 +913,7 @@ public class DownloadService(
         {
             TryDeleteFile(configuration.DestinationPath);
             var hashError = $"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}";
-            TrackDownloadFailure(configuration, hashError, elapsed);
+            TrackDownloadFailure(hashError, elapsed);
 
             return DownloadResult.CreateFailure(
                 hashError,
@@ -921,7 +921,7 @@ public class DownloadService(
                 elapsed);
         }
 
-        TrackDownloadCompleted(configuration, downloadedBytes, elapsed);
+        TrackDownloadCompleted(downloadedBytes, elapsed);
         return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, true);
     }
 
@@ -1050,7 +1050,7 @@ public class DownloadService(
         return action;
     }
 
-    private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed)
+    private void TrackDownloadCompleted(long downloadedBytes, TimeSpan elapsed)
     {
         var totalElapsedSeconds = elapsed.TotalSeconds;
         var sizeMb = downloadedBytes / (1024.0 * 1024.0);
@@ -1067,7 +1067,7 @@ public class DownloadService(
         telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, downloadProperties);
     }
 
-    private void TrackDownloadFailure(DownloadConfiguration configuration, string errorMessage, TimeSpan? elapsed = null)
+    private void TrackDownloadFailure(string errorMessage, TimeSpan? elapsed = null)
     {
         var properties = new Dictionary<string, object?>
         {
