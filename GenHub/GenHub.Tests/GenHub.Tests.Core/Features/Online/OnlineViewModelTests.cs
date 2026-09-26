@@ -1202,17 +1202,6 @@ public class OnlineViewModelTests
         Assert.Null(vm.SelectedCreateProfile);
     }
 
-    private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
-    {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (!condition() && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(20);
-        }
-
-        Assert.True(condition(), "Timed out waiting for the background match.");
-    }
-
     /// <summary>
     /// Tests that profile setup results are cached and invalidated when a profile updated message arrives.
     /// </summary>
@@ -1259,6 +1248,17 @@ public class OnlineViewModelTests
         var result3 = await task3;
         Assert.NotNull(result3);
         profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(20);
+        }
+
+        Assert.True(condition(), "Timed out waiting for the background match.");
     }
 
     private static GameProfile ProfileWithClient(
