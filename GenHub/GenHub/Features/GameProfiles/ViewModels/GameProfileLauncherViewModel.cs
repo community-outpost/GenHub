@@ -2735,6 +2735,7 @@ public partial class GameProfileLauncherViewModel(
     /// <param name="displayOrder">The assigned display order.</param>
     private async Task PersistDisplayOrderAsync(string profileId, int displayOrder)
     {
+        await _reorderLock.WaitAsync();
         try
         {
             var updateResult = await gameProfileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { DisplayOrder = displayOrder });
@@ -2746,6 +2747,10 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to persist display order for profile {ProfileId}", profileId);
+        }
+        finally
+        {
+            _reorderLock.Release();
         }
     }
 

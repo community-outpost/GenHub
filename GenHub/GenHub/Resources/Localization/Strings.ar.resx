@@ -14388,30 +14388,30 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>ترتيب مخصص</value>
   </data>
   <data name="GameProfiles.Settings.CustomImage.InvalidFile.Title" xml:space="preserve">
-    <value>Invalid image file</value>
+    <value>ملف صورة غير صالح</value>
   </data>
   <data name="GameProfiles.Settings.CustomImage.InvalidFile.Message" xml:space="preserve">
-    <value>Please select a valid image file (PNG, JPG, JPEG, WEBP, BMP, GIF, ICO).</value>
+    <value>يرجى تحديد ملف صورة صالح (PNG، JPG، JPEG، WEBP، BMP، GIF، ICO).</value>
   </data>
   <data name="GameProfiles.Notification.ReorderFailed.Title" xml:space="preserve">
-    <value>Failed to save profile order</value>
+    <value>فشل حفظ ترتيب ملفات التعريف</value>
   </data>
   <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
-    <value>The new profile order could not be saved and the previous order was restored.</value>
+    <value>تعذّر حفظ الترتيب الجديد لملفات التعريف وتمت استعادة الترتيب السابق.</value>
   </data>
   <data name="GameProfiles.Status.ContentServicesUnavailable" xml:space="preserve">
-    <value>Content services unavailable</value>
+    <value>خدمات المحتوى غير متوفرة</value>
   </data>
   <data name="GameProfiles.Settings.LocalContent.AddedStatus" xml:space="preserve">
-    <value>Added {0}</value>
+    <value>تمت إضافة {0}</value>
   </data>
   <data name="GameProfiles.Settings.LocalContent.AddedTitle" xml:space="preserve">
-    <value>Content Added</value>
+    <value>تمت إضافة المحتوى</value>
   </data>
   <data name="GameProfiles.Settings.LocalContent.AddedMessage" xml:space="preserve">
-    <value>"{0}" has been added successfully.</value>
+    <value>تمت إضافة "{0}" بنجاح.</value>
   </data>
   <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
-    <value>Error importing dropped files</value>
+    <value>حدث خطأ أثناء استيراد الملفات المسحوبة</value>
   </data>
 </root>
