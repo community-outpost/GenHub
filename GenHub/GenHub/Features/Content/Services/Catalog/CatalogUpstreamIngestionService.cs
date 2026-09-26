@@ -180,7 +180,7 @@ public class CatalogUpstreamIngestionService(
     private async Task IngestSingleItemAsync(CatalogContentItem item, CancellationToken cancellationToken)
     {
         var sync = item.UpstreamSync;
-        var provider = sync?.Provider ?? item.PublisherType ?? string.Empty;
+        var provider = CatalogConstants.UpstreamProviders.Normalize(sync?.Provider ?? item.PublisherType);
 
         if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))

@@ -334,22 +334,48 @@ public static class CatalogConstants
         /// </summary>
         public const string GitHubReleases = "GitHubReleases";
 
-        private static readonly HashSet<string> SupportedProviders = new(StringComparer.OrdinalIgnoreCase)
+        /// <summary>
+        /// Normalizes provider aliases to canonical upstream provider identifiers.
+        /// </summary>
+        /// <param name="provider">The provider name or alias to normalize.</param>
+        /// <returns>The canonical provider identifier, or <c>null</c> if unsupported.</returns>
+        public static string? Normalize(string? provider)
         {
-            TheSuperHackers,
-            GeneralsOnline,
-            CommunityOutpost,
-            GitHubReleases,
-            PublisherTypeConstants.GitHub,
-            SuperHackersConstants.PublisherId,
-        };
+            if (string.IsNullOrWhiteSpace(provider))
+            {
+                return null;
+            }
+
+            if (string.Equals(provider, TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
+            {
+                return TheSuperHackers;
+            }
+
+            if (string.Equals(provider, GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnline;
+            }
+
+            if (string.Equals(provider, CommunityOutpost, StringComparison.OrdinalIgnoreCase))
+            {
+                return CommunityOutpost;
+            }
+
+            if (string.Equals(provider, GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase))
+            {
+                return GitHubReleases;
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Determines whether the specified provider name represents a supported upstream provider.
         /// </summary>
         /// <param name="provider">The provider name to check.</param>
         /// <returns><c>true</c> if supported; otherwise <c>false</c>.</returns>
-        public static bool IsSupported(string? provider) =>
-            !string.IsNullOrWhiteSpace(provider) && SupportedProviders.Contains(provider);
+        public static bool IsSupported(string? provider) => Normalize(provider) != null;
     }
 }
