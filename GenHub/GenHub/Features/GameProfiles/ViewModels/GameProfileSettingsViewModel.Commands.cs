@@ -749,6 +749,7 @@ public partial class GameProfileSettingsViewModel
         await LoadAvailableContentAsync();
         SelectInitialGameInstallation(originalProfile);
         UpdateAllItemsHotswapState();
+        CaptureLoadedClientSelection();
     }
 
     private async Task<bool> RollbackLiveUserDataAsync(GameType liveGameType, CancellationToken cancellationToken)
@@ -829,7 +830,7 @@ public partial class GameProfileSettingsViewModel
         var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
             EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
 
-        var activeGameClient = isStandaloneProfile ? null : GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation, _originalProfile?.GameClient);
+        var activeGameClient = isStandaloneProfile ? null : ResolveGameClientForUpdate();
 
         var updateRequest = new UpdateProfileRequest
         {
@@ -849,6 +850,19 @@ public partial class GameProfileSettingsViewModel
 
         PopulateGameSettings(updateRequest, gameSettings);
         return updateRequest;
+    }
+
+    /// <summary>Preserves a stored client for unchanged selections while accepting explicit client edits.</summary>
+    private GameClient? ResolveGameClientForUpdate()
+    {
+        if (_originalProfile?.GameClient != null &&
+            !HasClientSelectionChangedSinceLoad() &&
+            GetActiveClientSelection().Client?.GameClient == null)
+        {
+            return _originalProfile.GameClient.Clone();
+        }
+
+        return GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation, _originalProfile?.GameClient);
     }
 
     private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning)

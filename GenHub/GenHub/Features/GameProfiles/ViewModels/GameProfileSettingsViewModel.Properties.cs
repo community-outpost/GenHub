@@ -54,6 +54,8 @@ public partial class GameProfileSettingsViewModel
     private bool _isIconCustomized;
     private bool _isCoverCustomized;
     private bool _isApplyingBranding;
+    private string? _brandingSelectionKey;
+    private string? _loadedClientSelectionKey;
 
     partial void OnNameChanged(string value)
     {
