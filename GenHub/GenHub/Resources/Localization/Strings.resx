@@ -12778,6 +12778,12 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Resize window</value>
   </data>
+  <data name="Tools.WndEditor.Drop.ErrorTitle" xml:space="preserve">
+    <value>Drop Failed</value>
+  </data>
+  <data name="Tools.WndEditor.Drop.ErrorMessage" xml:space="preserve">
+    <value>Failed to process dropped item: {0}</value>
+  </data>
   <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
     <value>Add to Profile</value>
   </data>

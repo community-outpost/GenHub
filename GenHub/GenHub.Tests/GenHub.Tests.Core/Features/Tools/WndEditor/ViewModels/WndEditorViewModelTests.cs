@@ -2392,7 +2392,9 @@ public sealed class WndEditorViewModelTests : IDisposable
     public async Task Undo_DivergingEdit_PreservesModifiedState()
     {
         // Arrange
-        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        var filePath = Path.Combine(_tempDirectory, "DivergingUndo.wnd");
+        await File.WriteAllTextAsync(filePath, SampleDocument);
+        await _viewModel.OpenFileAsync(filePath);
         _viewModel.IsModified.Should().BeFalse();
         _viewModel.SelectedNode = _viewModel.RootNodes[0];
 
@@ -2400,13 +2402,36 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.SelectedProperties!.ShortName = "Edit1";
         _viewModel.IsModified.Should().BeTrue();
 
-        // Undo back to saved state
-        _viewModel.UndoCommand.Execute(null);
+        // Save after first edit so the saved history version matches Edit1
+        await _viewModel.SaveFileCommand.ExecuteAsync(null);
         _viewModel.IsModified.Should().BeFalse();
+
+        // Undo back to original state
+        _viewModel.UndoCommand.Execute(null);
+        _viewModel.IsModified.Should().BeTrue();
 
         // Diverging edit
         _viewModel.SelectedProperties!.ShortName = "Edit2";
         _viewModel.IsModified.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that NotifyDropError displays a localized error notification.
+    /// </summary>
+    [Fact]
+    public void NotifyDropError_WithException_ShowsLocalizedNotification()
+    {
+        // Act
+        _viewModel.NotifyDropError(new InvalidOperationException("Failed to decode asset"));
+
+        // Assert
+        _mockNotificationService.Verify(
+            s => s.ShowError(
+                "Tools.WndEditor.Drop.ErrorTitle",
+                It.Is<string>(m => m.Contains("Failed to decode asset")),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
     }
 
     private static string DrawDataWith(string name, int index)

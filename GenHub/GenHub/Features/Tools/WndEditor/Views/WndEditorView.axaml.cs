@@ -294,7 +294,7 @@ public partial class WndEditorView : UserControl
         }
         catch (Exception ex)
         {
-            viewModel.NotifyError("Drop Failed", $"Failed to process dropped item: {ex.Message}");
+            viewModel.NotifyDropError(ex);
         }
     }
 }

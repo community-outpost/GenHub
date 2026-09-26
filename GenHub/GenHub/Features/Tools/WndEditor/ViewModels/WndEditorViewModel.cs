@@ -606,12 +606,20 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
-    /// Displays an error notification.
+    /// Displays a localized drop failure notification.
     /// </summary>
-    /// <param name="title">Notification title.</param>
-    /// <param name="message">Notification message.</param>
-    public void NotifyError(string title, string message)
+    /// <param name="exception">Optional exception that caused the drop failure.</param>
+    public void NotifyDropError(Exception? exception = null)
     {
+        if (exception != null)
+        {
+            logger.LogError(exception, "Failed to process dropped item in WND editor");
+        }
+
+        var title = localizationService.GetString("Tools.WndEditor.Drop.ErrorTitle");
+        var message = exception?.Message is { Length: > 0 } msg
+            ? localizationService.GetString("Tools.WndEditor.Drop.ErrorMessage", msg)
+            : localizationService.GetString("Tools.WndEditor.Drop.ErrorMessage", string.Empty);
         notificationService.ShowError(title, message);
     }
 

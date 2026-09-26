@@ -12677,6 +12677,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>Изменить размер окна</value>
   </data>
+  <data name="Tools.WndEditor.Drop.ErrorTitle" xml:space="preserve">
+    <value>Ошибка перетаскивания</value>
+  </data>
+  <data name="Tools.WndEditor.Drop.ErrorMessage" xml:space="preserve">
+    <value>Не удалось обработать перетащенный элемент: {0}</value>
+  </data>
   <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
     <value>Добавить в профиль</value>
   </data>

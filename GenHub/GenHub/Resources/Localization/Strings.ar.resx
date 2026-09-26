@@ -12677,6 +12677,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
     <value>تغيير حجم النافذة</value>
   </data>
+  <data name="Tools.WndEditor.Drop.ErrorTitle" xml:space="preserve">
+    <value>فشل الإفلات</value>
+  </data>
+  <data name="Tools.WndEditor.Drop.ErrorMessage" xml:space="preserve">
+    <value>تعذر معالجة العنصر المُفلت: {0}</value>
+  </data>
   <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
     <value>إضافة إلى الملف التعريفي</value>
   </data>
