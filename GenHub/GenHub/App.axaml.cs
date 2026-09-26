@@ -18,7 +18,6 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
-using System.Diagnostics;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -30,6 +29,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -802,6 +802,7 @@ public partial class App : Application
                 profile = profileResult.Data;
             }
         }
+
         var gameClient = profile?.GameClient;
 
         var sw = Stopwatch.StartNew();

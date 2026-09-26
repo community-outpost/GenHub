@@ -2382,7 +2382,6 @@ public partial class ReplayManagerViewModel(
         StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
     }
 
-
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance properties for Avalonia UI data binding")]
     private void UpdateReplayTimingBounds()
     {
