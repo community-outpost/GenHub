@@ -74,6 +74,8 @@ public partial class App : Application
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
     private readonly ITelemetryService? _telemetryService;
+    private readonly TaskCompletionSource<MainWindow> _mainWindowReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly SemaphoreSlim _urlActivationLock = new(1, 1);
     private bool _startupArgsHandled;
 
     /// <summary>
@@ -183,9 +185,14 @@ public partial class App : Application
             // Subscribe to IPC commands from secondary instances (Windows and Linux)
             SubscribeToSingleInstanceCommands(mainWindow);
 
+            // macOS delivers genhub:// links as Apple Events instead of command-line arguments
+            SubscribeToUrlActivation();
+
             // Handle startup arguments sequentially once the window is opened and active
             mainWindow.Opened += (_, _) =>
-                SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
+            {
+                SafeFireAndForget(CompleteWindowStartupAsync(desktop.Args, mainWindow), nameof(CompleteWindowStartupAsync));
+            };
 
             // Repair desktop and application shortcuts if application executable has moved/relocated
             SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
@@ -262,6 +269,65 @@ public partial class App : Application
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
+        }
+    }
+
+    /// <summary>
+    /// Routes a URL activation from the operating system into the same handlers used for command-line arguments.
+    /// Waits until the main window has opened so a cold start via URL behaves like a running instance.
+    /// </summary>
+    /// <param name="e">The activation event arguments.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    internal async Task HandleUrlActivationAsync(ActivatedEventArgs e)
+    {
+        if (e is not ProtocolActivatedEventArgs { Uri: { } uri })
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        if (!string.Equals(uri.Scheme, CommandLineConstants.SchemeName, StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogWarning("Ignoring URL activation with unsupported scheme: {Scheme}", uri.Scheme);
+            return;
+        }
+
+        logger?.LogInformation("Received URL activation for {Scheme} link", uri.Scheme);
+
+        var mainWindow = await _mainWindowReady.Task;
+        await _urlActivationLock.WaitAsync();
+        try
+        {
+            string[] args = [uri.OriginalString];
+            await HandleSubscriptionArgsAsync(args, mainWindow);
+            await HandleImportProfileArgsAsync(args, mainWindow);
+            await HandleToolImportArgsAsync(args, mainWindow);
+        }
+        finally
+        {
+            _urlActivationLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Releases URL activations that arrived before the main window opened.
+    /// </summary>
+    /// <param name="mainWindow">The opened main window.</param>
+    internal void MarkMainWindowReady(MainWindow mainWindow) => _mainWindowReady.TrySetResult(mainWindow);
+
+    /// <summary>Completes startup dialogs before releasing queued URL activations.</summary>
+    /// <param name="args">The startup arguments.</param>
+    /// <param name="mainWindow">The opened main window.</param>
+    /// <returns>The asynchronous startup operation.</returns>
+    internal async Task CompleteWindowStartupAsync(string[]? args, MainWindow mainWindow)
+    {
+        try
+        {
+            await HandleStartupArgsAsync(args, mainWindow);
+        }
+        finally
+        {
+            MarkMainWindowReady(mainWindow);
         }
     }
 
@@ -559,6 +625,17 @@ public partial class App : Application
 
         var logger = _serviceProvider.GetService<ILogger<App>>();
         logger?.LogDebug("Subscribed to single instance IPC commands");
+    }
+
+    private void SubscribeToUrlActivation()
+    {
+        if (!OperatingSystem.IsMacOS() || TryGetFeature(typeof(IActivatableLifetime)) is not IActivatableLifetime activatableLifetime)
+        {
+            return;
+        }
+
+        activatableLifetime.Activated += (_, e) =>
+            SafeFireAndForget(HandleUrlActivationAsync(e), nameof(HandleUrlActivationAsync));
     }
 
     private void HandleSingleInstanceCommand(string command, MainWindow mainWindow)

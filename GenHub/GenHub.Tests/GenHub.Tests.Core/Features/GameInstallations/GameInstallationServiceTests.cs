@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -237,6 +238,49 @@ public class GameInstallationServiceTests : IDisposable
         {
             Directory.Delete(tempDir1, true);
             Directory.Delete(tempDir2, true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that a custom installation keeps its ID when a new service instance loads it from
+    /// the persisted settings, which is what happens after an app restart.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RegisterCustomInstallationAsync_AfterRestart_ResolvesSameInstallationIdAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory("GenHub.CustomRestart.").FullName;
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), "dummy");
+        File.WriteAllText(Path.Combine(tempDir, GameClientConstants.ZeroHourIniBig), "archive");
+
+        try
+        {
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            var registerResult = await _service.RegisterCustomInstallationAsync(tempDir);
+            Assert.True(registerResult.Success, string.Join("; ", registerResult.Errors));
+            var originalId = registerResult.Data!.Id;
+            Assert.Contains(Path.GetFullPath(tempDir), _userSettings.CustomInstallationDirectories);
+
+            using var restartedService = new GameInstallationService(
+                _orchestratorMock.Object,
+                _clientOrchestratorMock.Object,
+                _loggerMock.Object,
+                _manifestServiceMock.Object,
+                _manifestPoolMock.Object,
+                _pathResolverMock.Object,
+                _userSettingsMock.Object);
+
+            var restartedResult = await restartedService.GetInstallationAsync(originalId);
+
+            Assert.True(restartedResult.Success, string.Join("; ", restartedResult.Errors));
+            Assert.Equal(GameInstallationType.Custom, restartedResult.Data!.InstallationType);
+            Assert.True(PathHelper.AreSamePath(tempDir, restartedResult.Data.InstallationPath));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
         }
     }
 

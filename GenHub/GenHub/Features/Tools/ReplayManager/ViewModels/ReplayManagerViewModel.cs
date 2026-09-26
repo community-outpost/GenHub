@@ -2305,59 +2305,12 @@ public partial class ReplayManagerViewModel(
                 SelectedCompatibleProfile,
                 TargetCheckpointFrame);
 
-            try
-            {
-                TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayCheckpointMinted, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.GameType] = ActiveCheckpointReplay?.GameVersion.ToString(),
-                    [TelemetryConstants.Properties.TargetFrame] = TargetCheckpointFrame,
-                    [TelemetryConstants.Properties.ProfileId] = SelectedCompatibleProfile?.Id,
-                    [TelemetryConstants.Properties.Success] = result.Success,
-                    [TelemetryConstants.Properties.ErrorMessage] = result.FirstError,
-                });
-            }
-            catch (Exception teleEx)
-            {
-                logger.LogWarning(teleEx, "Failed to track replay checkpoint minting telemetry");
-            }
-
-            if (result.Success && result.Data != null)
-            {
-                AvailableCheckpoints.Add(result.Data);
-                SelectedCheckpoint = result.Data;
-                var successTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.CheckpointCreatedTitle") ?? "Checkpoint Created";
-                var successDesc = LocalizationService != null
-                    ? LocalizationService.GetString("Tools.ReplayManager.Notify.CheckpointCreatedDesc", result.Data.FileName, CheckpointTimeDisplay)
-                    : $"Created checkpoint {result.Data.FileName} at {CheckpointTimeDisplay}.";
-                notificationService.ShowSuccess(successTitle, successDesc);
-                StatusMessage = LocalizationService != null
-                    ? LocalizationService.GetString("Tools.ReplayManager.Status.CheckpointCreated", result.Data.FileName)
-                    : $"Checkpoint {result.Data.FileName} created.";
-            }
-            else
-            {
-                var error = result.FirstError ?? "Failed to create checkpoint.";
-                if (string.Equals(error, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal))
-                {
-                    var cancelTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledTitle") ?? "Checkpoint Creation Canceled";
-                    var cancelDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledDesc") ?? "Checkpoint creation was canceled.";
-                    notificationService.ShowInfo(cancelTitle, cancelDesc);
-                    StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
-                }
-                else
-                {
-                    var failTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintFailedTitle") ?? "Checkpoint Creation Failed";
-                    notificationService.ShowError(failTitle, error);
-                    StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintFailed") ?? "Checkpoint creation failed.";
-                }
-            }
+            TrackCheckpointMintedTelemetry(result);
+            HandleCheckpointResult(result);
         }
         catch (OperationCanceledException)
         {
-            var cancelTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledTitle") ?? "Checkpoint Creation Canceled";
-            var cancelDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledDesc") ?? "Checkpoint creation was canceled.";
-            notificationService.ShowInfo(cancelTitle, cancelDesc);
-            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
+            HandleCheckpointCanceled();
         }
         catch (Exception ex)
         {
@@ -2371,6 +2324,64 @@ public partial class ReplayManagerViewModel(
             IsMintingCheckpoint = false;
         }
     }
+
+    private void TrackCheckpointMintedTelemetry(ProfileOperationResult<ReplayCheckpointInfo> result)
+    {
+        try
+        {
+            TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayCheckpointMinted, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.GameType] = ActiveCheckpointReplay?.GameVersion.ToString(),
+                [TelemetryConstants.Properties.TargetFrame] = TargetCheckpointFrame,
+                [TelemetryConstants.Properties.ProfileId] = SelectedCompatibleProfile?.Id,
+                [TelemetryConstants.Properties.Success] = result.Success,
+                [TelemetryConstants.Properties.ErrorMessage] = result.FirstError,
+            });
+        }
+        catch (Exception teleEx)
+        {
+            logger.LogWarning(teleEx, "Failed to track replay checkpoint minting telemetry");
+        }
+    }
+
+    private void HandleCheckpointResult(ProfileOperationResult<ReplayCheckpointInfo> result)
+    {
+        if (result.Success && result.Data != null)
+        {
+            AvailableCheckpoints.Add(result.Data);
+            SelectedCheckpoint = result.Data;
+            var successTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.CheckpointCreatedTitle") ?? "Checkpoint Created";
+            var successDesc = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Notify.CheckpointCreatedDesc", result.Data.FileName, CheckpointTimeDisplay)
+                : $"Created checkpoint {result.Data.FileName} at {CheckpointTimeDisplay}.";
+            notificationService.ShowSuccess(successTitle, successDesc);
+            StatusMessage = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Status.CheckpointCreated", result.Data.FileName)
+                : $"Checkpoint {result.Data.FileName} created.";
+            return;
+        }
+
+        var error = result.FirstError ?? "Failed to create checkpoint.";
+        if (string.Equals(error, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal))
+        {
+            HandleCheckpointCanceled();
+        }
+        else
+        {
+            var failTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintFailedTitle") ?? "Checkpoint Creation Failed";
+            notificationService.ShowError(failTitle, error);
+            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintFailed") ?? "Checkpoint creation failed.";
+        }
+    }
+
+    private void HandleCheckpointCanceled()
+    {
+        var cancelTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledTitle") ?? "Checkpoint Creation Canceled";
+        var cancelDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledDesc") ?? "Checkpoint creation was canceled.";
+        notificationService.ShowInfo(cancelTitle, cancelDesc);
+        StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
+    }
+
 
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance properties for Avalonia UI data binding")]
     private void UpdateReplayTimingBounds()

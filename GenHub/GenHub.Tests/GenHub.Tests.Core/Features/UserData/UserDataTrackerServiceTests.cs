@@ -304,6 +304,13 @@ public sealed class UserDataTrackerServiceTests : IDisposable
                 Size = 200,
                 InstallTarget = ContentInstallTarget.UserMapsDirectory,
             },
+            new()
+            {
+                RelativePath = "map.str",
+                Hash = "hash-str-strings",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
         };
 
         var result = await _trackerService.InstallUserDataAsync(
@@ -319,10 +326,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
         var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.tga");
         var expectedIniPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "map.ini");
+        var expectedStrPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "map.str");
 
         Assert.True(File.Exists(expectedMapPath));
         Assert.True(File.Exists(expectedTgaPath));
         Assert.True(File.Exists(expectedIniPath));
+        Assert.True(File.Exists(expectedStrPath));
 
         Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "map")));
     }

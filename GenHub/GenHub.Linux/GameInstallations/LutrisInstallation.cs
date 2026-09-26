@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Linux.Model;
 using Microsoft.Extensions.Logging;
 using System;
@@ -57,7 +58,9 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
     }
 
     /// <inheritdoc/>
-    public string Id => $"lutris-{InstallationPath.GetHashCode()}";
+    public string Id => string.IsNullOrWhiteSpace(InstallationPath)
+        ? "Lutris"
+        : GameInstallation.CreateStableId(InstallationType, InstallationPath);
 
     /// <inheritdoc/>
     public GameInstallationType InstallationType => GameInstallationType.Lutris;

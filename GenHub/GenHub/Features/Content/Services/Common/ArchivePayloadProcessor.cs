@@ -2454,6 +2454,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return files.Any(ext => GameContentConstants.RecognizedGameFileExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase));
     }
 
+    private static bool IsSharedMapCompanion(string fileName) =>
+        fileName.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase) ||
+        fileName.Equals(MapManagerConstants.MapStrFileName, StringComparison.OrdinalIgnoreCase);
+
     private static bool IsMapFile(string path) =>
         string.Equals(Path.GetExtension(path), Path.GetExtension(MapManagerConstants.MapFilePattern), StringComparison.OrdinalIgnoreCase);
 
@@ -2747,16 +2751,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         try
         {
-            var rootThumbnail = Path.Combine(extractedDirectory, MapManagerConstants.DefaultThumbnailName);
-            if (File.Exists(rootThumbnail))
+            foreach (var rootCompanion in Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly))
             {
-                File.Delete(rootThumbnail);
-            }
-
-            var rootMapIni = Path.Combine(extractedDirectory, MapManagerConstants.MapIniFileName);
-            if (File.Exists(rootMapIni))
-            {
-                File.Delete(rootMapIni);
+                var fileName = Path.GetFileName(rootCompanion);
+                if (IsSharedMapCompanion(fileName) || fileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Delete(rootCompanion);
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -2786,7 +2787,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
                 fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
                 fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
-                fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase);
+                IsSharedMapCompanion(fn);
 
             if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
@@ -2794,11 +2795,36 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var targetFileName = isDefaultThumbnail ? mapBase + ext : fn;
                 var targetAssetFile = Path.Combine(targetFolder, targetFileName);
 
+                var isSharedCompanion = isDefaultThumbnail || IsSharedMapCompanion(fn);
+                try
+                {
+                    if (isSharedCompanion)
+                    {
+                        var existingTargets = Directory.GetFiles(targetFolder, "*", SearchOption.TopDirectoryOnly)
+                            .Where(path => Path.GetFileName(path).Equals(targetFileName, StringComparison.OrdinalIgnoreCase))
+                            .ToArray();
+                        var conflictingTarget = existingTargets.FirstOrDefault(path => !FilesAreEqual(companion, path));
+                        if (conflictingTarget != null)
+                        {
+                            throw new InvalidDataException($"Conflicting shared map companion '{companion}' and '{conflictingTarget}'.");
+                        }
+
+                        if (existingTargets.Length > 0)
+                        {
+                            continue;
+                        }
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    throw new InvalidDataException($"Could not compare shared map companion '{companion}' with '{targetAssetFile}'.", ex);
+                }
+
                 if (!File.Exists(targetAssetFile))
                 {
                     try
                     {
-                        if (isDefaultThumbnail || fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase))
+                        if (isDefaultThumbnail || IsSharedMapCompanion(fn))
                         {
                             File.Copy(companion, targetAssetFile);
                         }
@@ -2811,6 +2837,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
+                        if (isSharedCompanion)
+                        {
+                            throw new InvalidDataException($"Could not preserve shared map companion '{companion}' in '{targetAssetFile}'.", ex);
+                        }
+
                         logger.LogWarning(ex, "Failed to organize loose companion {Source} into {Target}", companion, targetAssetFile);
                     }
                 }

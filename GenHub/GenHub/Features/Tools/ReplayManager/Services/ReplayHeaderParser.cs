@@ -43,12 +43,6 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             return OperationResult<ReplayMetadata>.CreateFailure($"Replay file not found: {filePath}");
         }
 
-        if (fileInfo.Length > ReplayManagerConstants.MaxReplaySizeBytes)
-        {
-            return OperationResult<ReplayMetadata>.CreateFailure(
-                $"Replay file size ({fileInfo.Length} bytes) exceeds maximum allowed size ({ReplayManagerConstants.MaxReplaySizeBytes} bytes).");
-        }
-
         try
         {
             await using var stream = new FileStream(
@@ -76,12 +70,6 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         if (!stream.CanRead)
         {
             return OperationResult<ReplayMetadata>.CreateFailure("Stream does not support reading.");
-        }
-
-        if (stream.CanSeek && stream.Length > ReplayManagerConstants.MaxReplaySizeBytes)
-        {
-            return OperationResult<ReplayMetadata>.CreateFailure(
-                $"Replay stream size ({stream.Length} bytes) exceeds maximum allowed size ({ReplayManagerConstants.MaxReplaySizeBytes} bytes).");
         }
 
         try
