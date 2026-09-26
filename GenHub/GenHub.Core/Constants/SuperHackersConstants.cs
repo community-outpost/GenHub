@@ -9,8 +9,6 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class SuperHackersConstants
 {
-    private static readonly Regex IsoDateRegex = new(@"\b(19\d\d|20\d\d)[-._](0[1-9]|1[0-2])[-._](0[1-9]|[12]\d|3[01])\b", RegexOptions.Compiled, TimeSpan.FromMilliseconds(250));
-
     /// <summary>
     /// The publisher ID for TheSuperHackers.
     /// </summary>
@@ -159,6 +157,8 @@ public static class SuperHackersConstants
 
     /// <summary>Default page size for discovery (10 items = 5 release cards).</summary>
     public const int PageSize = 10;
+
+    private static readonly Regex IsoDateRegex = new(@"\b(19\d\d|20\d\d)[-._](0[1-9]|1[0-2])[-._](0[1-9]|[12]\d|3[01])\b", RegexOptions.Compiled, TimeSpan.FromMilliseconds(250));
 
     /// <summary>
     /// Gets the standard variant group ID for a SuperHackers game client release.
