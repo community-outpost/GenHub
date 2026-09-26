@@ -1539,9 +1539,6 @@ public class UserDataTrackerService(
         {
             if (adoptedEntry != null)
             {
-                wasOverwritten = adoptedEntry.WasOverwritten;
-                backupPath = adoptedEntry.BackupPath;
-
                 // If adopted file on disk does not match expected hash, back up user modifications before deletion
                 var modifiedBackup = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
                 if (string.IsNullOrEmpty(modifiedBackup))

@@ -91,7 +91,7 @@ public sealed class MapManagerViewModelTests : IDisposable
     {
         var deleted = new MapFile { FileName = "Deleted.map", FullPath = Path.Combine(_tempDirectory, "Deleted.map"), SizeBytes = 1, GameType = GameType.ZeroHour, LastModified = DateTime.UtcNow };
         var remaining = new MapFile { FileName = "Remaining.map", FullPath = Path.Combine(_tempDirectory, "Remaining.map"), SizeBytes = 1, GameType = GameType.ZeroHour, LastModified = DateTime.UtcNow };
-        _viewModel.SelectedTab = GameType.ZeroHour;
+        Assert.Equal(GameType.ZeroHour, _viewModel.SelectedTab);
         _viewModel.ZeroHourMaps.Add(deleted);
         _viewModel.ZeroHourMaps.Add(remaining);
         _viewModel.SelectedMaps.Add(deleted);
