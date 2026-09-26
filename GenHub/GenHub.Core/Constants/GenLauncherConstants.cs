@@ -433,6 +433,36 @@ public static class GenLauncherConstants
     }
 
     /// <summary>
+    /// Chooses the first valid HTTP or HTTPS news, ModDB, or Discord link that is not a YAML descriptor.
+    /// </summary>
+    /// <param name="candidateUrls">Candidate URLs in priority order (e.g. NewsLink, ModDBLink, DiscordLink).</param>
+    /// <returns>The resolved valid URL, or string.Empty if none found.</returns>
+    public static string ResolveEffectiveSourceUrl(params string?[] candidateUrls)
+    {
+        if (candidateUrls == null)
+        {
+            return string.Empty;
+        }
+
+        foreach (var url in candidateUrls)
+        {
+            if (string.IsNullOrWhiteSpace(url) || IsYamlDescriptorPath(url))
+            {
+                continue;
+            }
+
+            var trimmed = url.Trim();
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                return trimmed;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>
     /// Determines whether a URL-derived file name is usable as an archive file name.
     /// </summary>
     /// <param name="fileName">The file name extracted from a download URL.</param>

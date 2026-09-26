@@ -2996,33 +2996,17 @@ public partial class ContentDetailViewModel(
 
     private string? ResolveEffectiveSourceUrl()
     {
-        var url = searchResult.SourceUrl;
-        if (!string.IsNullOrEmpty(url) && !GenLauncherConstants.IsYamlDescriptorPath(url))
-        {
-            return url;
-        }
+        searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.NewsLinkMetadataKey, out var newsLink);
+        searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.ModDbLinkMetadataKey, out var modDbLink);
+        searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.DiscordLinkMetadataKey, out var discordLink);
 
-        if (searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.NewsLinkMetadataKey, out var newsLink) &&
-            !string.IsNullOrWhiteSpace(newsLink) &&
-            !GenLauncherConstants.IsYamlDescriptorPath(newsLink))
-        {
-            return newsLink;
-        }
+        var resolved = GenLauncherConstants.ResolveEffectiveSourceUrl(
+            searchResult.SourceUrl,
+            newsLink,
+            modDbLink,
+            discordLink);
 
-        if (searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.ModDbLinkMetadataKey, out var modDbLink) &&
-            !string.IsNullOrWhiteSpace(modDbLink) &&
-            !GenLauncherConstants.IsYamlDescriptorPath(modDbLink))
-        {
-            return modDbLink;
-        }
-
-        if (searchResult.ResolverMetadata.TryGetValue(GenLauncherConstants.DiscordLinkMetadataKey, out var discordLink) &&
-            !string.IsNullOrWhiteSpace(discordLink))
-        {
-            return discordLink;
-        }
-
-        return null;
+        return string.IsNullOrEmpty(resolved) ? null : resolved;
     }
 
     /// <summary>

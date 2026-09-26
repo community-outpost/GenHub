@@ -16,6 +16,8 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
     private const string CoversPath = "/Assets/Covers";
     private const string LogosPath = "/Assets/Logos";
     private const string ImagesPath = "/Assets/Images";
+    private const string GeneralsGameType = "Generals";
+    private const string ZeroHourGameType = "ZeroHour";
 
     private readonly object _initLock = new();
     private readonly List<ProfileResourceItem> _icons = [];
@@ -118,8 +120,8 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
         // Load icons
         var iconFiles = new (string FileName, string DisplayName, string? GameType)[]
         {
-            ("generals-icon.png", "Generals Icon", "Generals"),
-            ("zerohour-icon.png", "Zero Hour Icon", "ZeroHour"),
+            ("generals-icon.png", "Generals Icon", GeneralsGameType),
+            ("zerohour-icon.png", "Zero Hour Icon", ZeroHourGameType),
             ("generalshub-icon.png", "GenHub Icon", null),
             ("steam-icon.png", "Steam Icon", null),
             ("eaapp-icon.png", "EA App Icon", null),
@@ -180,8 +182,8 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
         // Load game images as icons
         var imageFiles = new (string FileName, string DisplayName, string? GameType)[]
         {
-            ("zero-hour-logo.png", "Zero Hour Logo", "ZeroHour"),
-            ("generals-logo.png", "Generals Logo", "Generals"),
+            ("zero-hour-logo.png", "Zero Hour Logo", ZeroHourGameType),
+            ("generals-logo.png", "Generals Logo", GeneralsGameType),
         };
 
         foreach (var (fileName, displayName, gameType) in imageFiles)

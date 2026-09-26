@@ -63,7 +63,9 @@ public sealed class ReplayFile : IExportableFile
     /// <summary>
     /// Gets the number of players in the replay match.
     /// </summary>
-    public int PlayerCount => Metadata?.Players?.Count ?? Metadata?.Slots?.Count ?? 0;
+    public int PlayerCount => Metadata?.Players is { Count: > 0 } players
+        ? players.Count
+        : Metadata?.Slots?.Count ?? 0;
 
     /// <summary>
     /// Gets the formatted display text for the number of players.
@@ -73,11 +75,23 @@ public sealed class ReplayFile : IExportableFile
     /// <summary>
     /// Gets a comma-separated list of player names in the replay match.
     /// </summary>
-    public string PlayerNamesDisplay => Metadata?.Players is { Count: > 0 } players
-        ? string.Join(", ", players)
-        : (Metadata?.Slots is { Count: > 0 } slots
-            ? string.Join(", ", slots.Select(s => s.PlayerName))
-            : string.Empty);
+    public string PlayerNamesDisplay
+    {
+        get
+        {
+            if (Metadata?.Players is { Count: > 0 } players)
+            {
+                return string.Join(", ", players);
+            }
+
+            if (Metadata?.Slots is { Count: > 0 } slots)
+            {
+                return string.Join(", ", slots.Select(s => s.PlayerName));
+            }
+
+            return string.Empty;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the compatibility status against known and installed game clients.

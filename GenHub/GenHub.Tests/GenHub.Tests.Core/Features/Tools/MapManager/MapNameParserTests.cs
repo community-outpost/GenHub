@@ -44,6 +44,11 @@ public sealed class MapNameParserTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies that <see cref="MapNameParser.ExtractPlayerCountFromString"/> parses known player-count patterns.
+    /// </summary>
+    /// <param name="input">The map name to parse.</param>
+    /// <param name="expected">The expected player count.</param>
     [Theory]
     [InlineData("(2) Tournament Desert", 2)]
     [InlineData("Tournament Desert [4]", 4)]
@@ -63,6 +68,10 @@ public sealed class MapNameParserTests : IDisposable
         Assert.Equal(expected, result);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="MapNameParser.ExtractPlayerCountFromString"/> returns null when no player pattern is present.
+    /// </summary>
+    /// <param name="input">The map name to parse.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -76,6 +85,9 @@ public sealed class MapNameParserTests : IDisposable
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="MapNameParser.ParsePlayerCount"/> reads the player count from map file content.
+    /// </summary>
     [Fact]
     public void ParsePlayerCount_FromFileWithNumPlayers_ReturnsParsedValue()
     {
@@ -92,6 +104,9 @@ public sealed class MapNameParserTests : IDisposable
         Assert.Equal(4, result);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="MapNameParser.ParsePlayerCount"/> derives the player count from waypoint slots.
+    /// </summary>
     [Fact]
     public void ParsePlayerCount_FromFileWithWaypoints_ReturnsMaxSlot()
     {
@@ -115,6 +130,9 @@ public sealed class MapNameParserTests : IDisposable
         Assert.Equal(3, result);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="MapNameParser.ParsePlayerCount"/> falls back to the directory name.
+    /// </summary>
     [Fact]
     public void ParsePlayerCount_FallbackToDirectoryName_ReturnsCount()
     {
@@ -127,6 +145,9 @@ public sealed class MapNameParserTests : IDisposable
         Assert.Equal(4, result);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="MapFile"/> exposes player count formatting and map type display.
+    /// </summary>
     [Fact]
     public void MapFile_PlayerCountAndFormatting_WorksCorrectly()
     {
@@ -163,6 +184,9 @@ public sealed class MapNameParserTests : IDisposable
         Assert.Equal("Archive", zipMap.MapTypeDisplay);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="ReplayFile"/> exposes player count, names, and checksums from metadata.
+    /// </summary>
     [Fact]
     public void ReplayFile_PlayerCountAndDisplay_WorksCorrectly()
     {
@@ -170,7 +194,7 @@ public sealed class MapNameParserTests : IDisposable
         {
             FileName = "test_replay.rep",
             FullPath = "/test/test_replay.rep",
-            SizeBytes = 5000,
+            SizeInBytes = 5000,
             LastModified = DateTime.UtcNow,
             GameVersion = GameType.ZeroHour,
             Metadata = new ReplayMetadata
@@ -190,6 +214,9 @@ public sealed class MapNameParserTests : IDisposable
         Assert.Equal(0x87654321u, replay.IniCrc);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="ReplayFile"/> returns defaults when metadata has no players.
+    /// </summary>
     [Fact]
     public void ReplayFile_WithNoPlayers_ReturnsDefaults()
     {
@@ -197,7 +224,7 @@ public sealed class MapNameParserTests : IDisposable
         {
             FileName = "test_replay_empty.rep",
             FullPath = "/test/test_replay_empty.rep",
-            SizeBytes = 5000,
+            SizeInBytes = 5000,
             LastModified = DateTime.UtcNow,
             GameVersion = GameType.ZeroHour,
             Metadata = null,

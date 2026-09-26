@@ -26,6 +26,16 @@ public interface IGameProfile
     string Description { get; }
 
     /// <summary>
+    /// Gets the version of the profile.
+    /// </summary>
+    string Version => string.Empty;
+
+    /// <summary>
+    /// Gets the executable path for launching the profile.
+    /// </summary>
+    string ExecutablePath => string.Empty;
+
+    /// <summary>
     /// Gets the game client associated with this profile.
     /// </summary>
     GameClient? GameClient { get; }

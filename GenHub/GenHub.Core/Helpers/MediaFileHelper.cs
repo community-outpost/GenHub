@@ -9,7 +9,10 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class MediaFileHelper
 {
-    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>
+    /// Gets the collection of supported preview image file extensions.
+    /// </summary>
+    public static IReadOnlyCollection<string> ImageExtensions { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".ico",
     };
@@ -19,6 +22,8 @@ public static class MediaFileHelper
         ".mp4", ".webm", ".mkv", ".mov", ".avi", ".m4v", ".ogv",
     };
 
+    private static readonly HashSet<string> ImageExtensionsLookup = new(ImageExtensions, StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Determines whether the path points to a preview image file.
     /// </summary>
@@ -26,7 +31,7 @@ public static class MediaFileHelper
     /// <returns>True when the extension is a known image extension.</returns>
     public static bool IsImageFile(string? path)
     {
-        return !string.IsNullOrWhiteSpace(path) && ImageExtensions.Contains(GetExtension(path));
+        return !string.IsNullOrWhiteSpace(path) && ImageExtensionsLookup.Contains(GetExtension(path));
     }
 
     /// <summary>
