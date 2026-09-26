@@ -14151,6 +14151,9 @@ https://example.com/screenshot2.png</value>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
   </data>
+  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
+    <value>فتح استوديو الناشر</value>
+  </data>
   <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
     <value>تحريك لليسار</value>
   </data>
