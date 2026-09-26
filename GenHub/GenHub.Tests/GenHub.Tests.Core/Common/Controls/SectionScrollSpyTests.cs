@@ -327,6 +327,17 @@ public class SectionScrollSpyTests
 
             spy.ScrollToSection("second");
             Assert.False(spy.IsScrollingProgrammatically);
+
+            reported.Clear();
+            spy.ScrollToSection("first");
+            Assert.False(spy.IsScrollingProgrammatically);
+            Assert.Equal("first", Assert.Single(reported));
+
+            reported.Clear();
+            host.ScrollViewer.Offset = new Vector(0, 850);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("third", Assert.Single(reported));
         }
         finally
         {
