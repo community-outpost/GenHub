@@ -181,6 +181,34 @@ public class GameLauncherTests : IDisposable
             localization.Object);
     }
 
+    /// <summary>A launch queued behind deletion cannot launch its stale profile snapshot.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_ProfileDeletedWhileWaiting_RejectsStaleSnapshotAsync()
+    {
+        var profile = CreateTestProfile();
+        profile.Id = Guid.NewGuid().ToString();
+        var gate = GameLauncher.ProfileLaunchLocks.GetOrAdd(profile.Id, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
+        Task<LaunchOperationResult<GameLaunchInfo>> launch;
+        try
+        {
+            launch = _gameLauncher.LaunchProfileAsync(profile);
+            Assert.False(launch.IsCompleted);
+            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("deleted"));
+        }
+        finally
+        {
+            gate.Release();
+        }
+
+        var result = await launch;
+        Assert.False(result.Success);
+        Assert.Contains("no longer available", result.FirstError);
+        _workspaceManagerMock.Verify(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     /// <summary>
     /// Launches a profile asynchronously and asserts success.
     /// </summary>
@@ -704,6 +732,10 @@ public class GameLauncherTests : IDisposable
         var secondProfile = CreateTestProfile();
         secondProfile.UseSteamLaunch = true;
         secondProfile.GameInstallationId = "installation-alias";
+        _profileManagerMock.Setup(x => x.GetProfileAsync(firstProfile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(firstProfile));
+        _profileManagerMock.Setup(x => x.GetProfileAsync(secondProfile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(secondProfile));
 
         var physicalInstallation = new GameInstallation(
             physicalInstallationPath,

@@ -460,6 +460,16 @@ public class GameLauncher(
         await semaphore.WaitAsync(cancellationToken);
         try
         {
+            // A caller can load the profile before waiting behind deletion. Recheck persistence
+            // after acquiring the shared lock so that a deleted snapshot cannot recreate its workspace.
+            var persistedProfile = await profileManager.GetProfileAsync(profile.Id, cancellationToken);
+            if (persistedProfile is not { Success: true, Data: not null })
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                    "Profile is no longer available. Refresh the profile list before launching.",
+                    profileId: profile.Id);
+            }
+
             // Check if already launching (inside the semaphore to prevent race)
             var existingLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
             var activeLaunch = existingLaunches.FirstOrDefault(l => l.ProfileId == profile.Id && !l.TerminatedAt.HasValue);
