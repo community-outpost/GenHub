@@ -1007,8 +1007,8 @@ public class CommunityOutpostDeliverer(
 
                 if (hasControlBarProBigs &&
                     packageMetadata.Category == GenPatcherContentCategory.ControlBar &&
-                    (string.Equals(depMetadata.OutputFilename, "400_ControlBarProCoreZH.big", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(depMetadata.OutputFilename, "400_ControlBarHDBaseZH.big", StringComparison.OrdinalIgnoreCase)))
+                    (string.Equals(depMetadata.OutputFilename, GameContentConstants.ControlBarProCoreFileName, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(depMetadata.OutputFilename, GameContentConstants.ControlBarHdBaseFileName, StringComparison.OrdinalIgnoreCase)))
                 {
                     logger.LogInformation(
                         "Skipping dependency {Name} because Control Bar Pro BIGs already exist in extracted content",

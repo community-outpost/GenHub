@@ -136,7 +136,7 @@ public static class GenPatcherContentRegistry
             Category = GenPatcherContentCategory.ControlBar,
             InstallTarget = ContentInstallTarget.Workspace,
             RequiresRepacking = true,
-            OutputFilename = "400_ControlBarHDBaseZH.big",
+            OutputFilename = GameContentConstants.ControlBarHdBaseFileName,
             IsBaseDependency = true,
         },
         ["cben"] = new GenPatcherContentMetadata
@@ -149,7 +149,7 @@ public static class GenPatcherContentRegistry
             Category = GenPatcherContentCategory.ControlBar,
             InstallTarget = ContentInstallTarget.Workspace,
             RequiresRepacking = true,
-            OutputFilename = "400_ControlBarHDEnglishZH.big",
+            OutputFilename = GameContentConstants.ControlBarHdEnglishFileName,
             IsBaseDependency = true,
         },
         ["cbpc"] = new GenPatcherContentMetadata
@@ -162,7 +162,7 @@ public static class GenPatcherContentRegistry
             Category = GenPatcherContentCategory.ControlBar,
             InstallTarget = ContentInstallTarget.Workspace,
             RequiresRepacking = true,
-            OutputFilename = "400_ControlBarProCoreZH.big",
+            OutputFilename = GameContentConstants.ControlBarProCoreFileName,
             IsBaseDependency = true,
         },
         ["cbpr"] = new GenPatcherContentMetadata

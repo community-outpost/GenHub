@@ -274,6 +274,68 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that Control Bar variant cleanup preserves merged auto-install dependency BIG files
+    /// and that variant manifests reference them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithControlBarVariants_PreservesDependencyBigsDuringCleanupAsync()
+    {
+        // Arrange: metadata plus a merged dependency BIG in the extract root.
+        File.WriteAllText(Path.Combine(_tempDir, GameContentConstants.ControlBarProBaseFileName), "metadata big");
+        File.WriteAllText(Path.Combine(_tempDir, GameContentConstants.ControlBarHdEnglishFileName), "dependency big");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.cbpr"),
+            Name = "Control Bar Pro",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:cbpr"],
+            },
+        };
+
+        _controlBarProcessorMock
+            .Setup(c => c.ProcessAndRepackControlBarAsync(
+                _tempDir,
+                originalManifest,
+                It.IsAny<string?>(),
+                false,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, ContentManifest _, string? variantId, bool _, CancellationToken _) =>
+            {
+                var suffix = variantId switch
+                {
+                    "2160p" => "4K",
+                    _ => (variantId ?? string.Empty).TrimEnd('p'),
+                };
+                var artFile = $"340_ControlBarProArt{suffix}ZH.big";
+                File.WriteAllText(Path.Combine(_tempDir, artFile), "art big");
+                return new[] { artFile, GameContentConstants.ControlBarProBaseFileName };
+            });
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert: cleanup preservation set includes the auto-install dependency BIGs.
+        Assert.True(result.Success);
+        _controlBarProcessorMock.Verify(
+            c => c.CleanupSourceDirectories(_tempDir, It.Is<IEnumerable<string>>(outputs =>
+                outputs.Contains(GameContentConstants.ControlBarHdEnglishFileName, StringComparer.OrdinalIgnoreCase) &&
+                outputs.Contains(GameContentConstants.ControlBarProCoreFileName, StringComparer.OrdinalIgnoreCase))),
+            Times.Once());
+
+        // Assert: variant manifests reference the merged dependency file on disk.
+        var manifests = result.Data!;
+        Assert.NotEmpty(manifests);
+        Assert.Contains(manifests, m => m.Files.Any(f =>
+            f.RelativePath.EndsWith(GameContentConstants.ControlBarHdEnglishFileName, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    /// <summary>
     /// Verifies that when a Control Bar variant produces no outputs (assets not present in package),
     /// no manifest is emitted for that missing variant.
     /// </summary>

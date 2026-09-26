@@ -36,6 +36,26 @@ public static class GameContentConstants
     public const string ControlBarProLemonBaseFileName = "340_ControlBarProLemonEditionZH.big";
 
     /// <summary>
+    /// Shared Control Bar HD base BIG archive for Zero Hour.
+    /// </summary>
+    public const string ControlBarHdBaseFileName = "400_ControlBarHDBaseZH.big";
+
+    /// <summary>
+    /// Shared Control Bar HD base BIG archive for Generals.
+    /// </summary>
+    public const string ControlBarHdBaseCcgFileName = "400_ControlBarHDBaseCCG.big";
+
+    /// <summary>
+    /// Shared Control Bar HD English language BIG archive.
+    /// </summary>
+    public const string ControlBarHdEnglishFileName = "400_ControlBarHDEnglishZH.big";
+
+    /// <summary>
+    /// Shared Control Bar Pro core BIG archive.
+    /// </summary>
+    public const string ControlBarProCoreFileName = "400_ControlBarProCoreZH.big";
+
+    /// <summary>
     /// Standard subfolder name for English BIG files.
     /// </summary>
     public const string BigEnDirectoryName = "BIG EN";
@@ -161,6 +181,28 @@ public static class GameContentConstants
         "Command & Conquer Generals",
         "C&C Generals",
     ];
+
+    /// <summary>
+    /// Shared Control Bar dependency BIG archives merged into variant extract roots.
+    /// </summary>
+    public static readonly IReadOnlyList<string> SharedControlBarBigFileNames =
+    [
+        ControlBarHdBaseFileName,
+        ControlBarHdBaseCcgFileName,
+        ControlBarHdEnglishFileName,
+        ControlBarProCoreFileName,
+    ];
+
+    /// <summary>
+    /// Determines whether the specified file name is a shared Control Bar dependency BIG archive.
+    /// </summary>
+    /// <param name="fileName">The file name to check.</param>
+    /// <returns><c>true</c> if shared; otherwise, <c>false</c>.</returns>
+    public static bool IsSharedControlBarBig(string? fileName)
+    {
+        return !string.IsNullOrEmpty(fileName) &&
+            SharedControlBarBigFileNames.Contains(fileName, StringComparer.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Determines whether the specified directory name is a recognized canonical game directory.

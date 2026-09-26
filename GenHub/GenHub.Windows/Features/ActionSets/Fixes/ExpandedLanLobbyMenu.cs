@@ -23,8 +23,8 @@ public class ExpandedLanLobbyMenu(
 {
     private static readonly IReadOnlyList<string> KnownMenuBigFiles =
     [
-        "400_ControlBarHDBaseZH.big",
-        "400_ControlBarHDBaseCCG.big",
+        GameContentConstants.ControlBarHdBaseFileName,
+        GameContentConstants.ControlBarHdBaseCcgFileName,
         "!ExpandedLANMenu.big",
         "CustomWindows.big",
     ];
