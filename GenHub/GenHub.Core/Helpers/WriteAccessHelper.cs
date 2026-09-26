@@ -64,9 +64,15 @@ public static class WriteAccessHelper
         }
 
         var mode = entry.UnixFileMode;
-        if ((mode & UnixFileMode.UserWrite) == 0)
+        var required = UnixFileMode.UserWrite;
+        if (entry is DirectoryInfo)
         {
-            entry.UnixFileMode = mode | UnixFileMode.UserWrite;
+            required |= UnixFileMode.UserExecute;
+        }
+
+        if ((mode & required) != required)
+        {
+            entry.UnixFileMode = mode | required;
         }
     }
 }

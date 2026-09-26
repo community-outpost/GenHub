@@ -45,6 +45,44 @@ public sealed class WriteAccessHelperTests : IDisposable
     }
 
     /// <summary>
+    /// Restores directory traversal without making ordinary files executable.
+    /// </summary>
+    [Fact]
+    public void EnsureDirectoryWritable_WithoutUnixSearchPermission_RestoresTraversal()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var folder = Path.Combine(_tempDirectory, "NoSearch");
+        var nested = Path.Combine(folder, "Nested");
+        Directory.CreateDirectory(nested);
+        var file = Path.Combine(nested, "Map.map");
+        File.WriteAllText(file, "map");
+        var readOnly = UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead;
+        File.SetUnixFileMode(file, readOnly);
+        File.SetUnixFileMode(nested, readOnly);
+        File.SetUnixFileMode(folder, readOnly);
+        try
+        {
+            WriteAccessHelper.EnsureDirectoryWritable(folder);
+
+            var directoryMode = readOnly | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+            Assert.Equal(directoryMode, File.GetUnixFileMode(folder));
+            Assert.Equal(directoryMode, File.GetUnixFileMode(nested));
+            Assert.Equal(readOnly | UnixFileMode.UserWrite, File.GetUnixFileMode(file));
+            File.WriteAllText(file, "updated");
+            Assert.Equal("updated", File.ReadAllText(file));
+        }
+        finally
+        {
+            File.SetUnixFileMode(folder, readOnly | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            File.SetUnixFileMode(nested, readOnly | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    /// <summary>
     /// Verifies that a symbolic link inside the folder is not followed, so its read-only target is left alone.
     /// </summary>
     [Fact]
