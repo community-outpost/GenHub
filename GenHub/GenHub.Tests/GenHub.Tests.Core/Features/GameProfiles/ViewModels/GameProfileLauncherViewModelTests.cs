@@ -703,6 +703,7 @@ public class GameProfileLauncherViewModelTests
     /// <summary>
     /// Verifies that a successful launch emits ProfileLaunched with game client and timing telemetry.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task LaunchProfileCommand_OnSuccess_TracksProfileLaunchedWithGameClientAndTimingAsync()
     {
@@ -732,13 +733,15 @@ public class GameProfileLauncherViewModelTests
                     (string?)props[TelemetryConstants.Properties.ProfileId] == "profile-1" &&
                     (string?)props[TelemetryConstants.Properties.GameClientId] == "thesuperhackers.zh" &&
                     (string?)props[TelemetryConstants.Properties.GameClientName] == "TheSuperHackers Zero Hour" &&
-                    props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs))),
+                    props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs)),
+                It.IsAny<TelemetryLevel>()),
             Times.Once);
     }
 
     /// <summary>
     /// Verifies that a failed launch emits ProfileLaunchFailed with game client and error telemetry.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task LaunchProfileCommand_OnFailure_TracksProfileLaunchFailedWithGameClientAndErrorsAsync()
     {
@@ -762,7 +765,8 @@ public class GameProfileLauncherViewModelTests
                     (string?)props[TelemetryConstants.Properties.ProfileId] == "profile-1" &&
                     (string?)props[TelemetryConstants.Properties.GameClientId] == "thesuperhackers.zh" &&
                     ((string?)props[TelemetryConstants.Properties.ErrorMessage])!.Contains("Process start failed") &&
-                    props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs))),
+                    props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs)),
+                It.IsAny<TelemetryLevel>()),
             Times.Once);
     }
 
