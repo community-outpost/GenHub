@@ -82,7 +82,7 @@ public class CatalogUpstreamIngestionService(
 
     private static bool IsAssetRuleMatch(
         string assetName,
-        CatalogAssetRule rule,
+        CatalogUpstreamAssetRule rule,
         GameType itemTargetGame,
         ILogger log)
     {
