@@ -722,6 +722,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
         var activeLogPath = LoggingModule.ActiveLogFilePath;
         var activeLogFileName = Path.GetFileName(activeLogPath);
+        var currentLogFileName = LoggingModule.GetLogFileName();
         var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
 
         var deleted = 0;
@@ -730,7 +731,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         foreach (var file in files)
         {
-            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, activeLogFileName, todayUtcLogFileName, logger);
+            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, activeLogFileName, currentLogFileName, todayUtcLogFileName, logger);
             if (fileDeleted)
             {
                 deleted++;
@@ -749,6 +750,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         string file,
         string activeLogPath,
         string activeLogFileName,
+        string currentLogFileName,
         string todayUtcLogFileName,
         ILogger logger)
     {
@@ -764,6 +766,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var length = fileInfo.Length;
 
             var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(fileName, currentLogFileName, StringComparison.OrdinalIgnoreCase) ||
                               string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
                               (!string.IsNullOrWhiteSpace(activeLogPath) && string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase));
 
@@ -2965,23 +2968,32 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var logsPath = _configurationProvider.GetLogsPath();
-            if (!Directory.Exists(logsPath))
+            string? targetLogFilePath = null;
+
+            if (!string.IsNullOrWhiteSpace(LoggingModule.ActiveLogFilePath) && File.Exists(LoggingModule.ActiveLogFilePath))
+            {
+                targetLogFilePath = LoggingModule.ActiveLogFilePath;
+            }
+            else if (Directory.Exists(logsPath))
+            {
+                var directoryInfo = new DirectoryInfo(logsPath);
+                var latestLog = directoryInfo.GetFiles("*.log")
+                                             .OrderByDescending(f => f.LastWriteTime)
+                                             .FirstOrDefault();
+                targetLogFilePath = latestLog?.FullName;
+            }
+            else
             {
                 _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
                 return;
             }
 
-            var directoryInfo = new DirectoryInfo(logsPath);
-            var latestLog = directoryInfo.GetFiles("*.log")
-                                         .OrderByDescending(f => f.LastWriteTime)
-                                         .FirstOrDefault();
-
-            if (latestLog != null)
+            if (!string.IsNullOrWhiteSpace(targetLogFilePath) && File.Exists(targetLogFilePath))
             {
                 try
                 {
                     // Read with sharing allowed to prevent "file in use" errors if the app is currently writing to it
-                    using var fileStream = new FileStream(latestLog.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var fileStream = new FileStream(targetLogFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     using var streamReader = new StreamReader(fileStream);
                     string logContent = await streamReader.ReadToEndAsync();
 

@@ -58,80 +58,61 @@
     <Style Selector="Button.tools-action-btn:pointerover">
       <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="RenderTransform" Value="scale(1.01)" />
     </Style>
 
     <Style Selector="Button.tools-action-btn:pressed">
-      <Setter Property="RenderTransform" Value="scale(0.99)" />
-    </Style>
-
-    <Style Selector="TextBlock.header">
-      <Setter Property="FontSize" Value="24" />
-      <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-    </Style>
-
-    <Style Selector="TextBlock.subheader">
-      <Setter Property="FontSize" Value="14" />
-      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-    </Style>
-
-    <Style Selector="TextBlock.section-title">
-      <Setter Property="FontSize" Value="16" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="Margin" Value="0,0,0,8" />
-    </Style>
-
-    <Style Selector="Border.status-banner">
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="12,6" />
-      <Setter Property="Margin" Value="16,0,0,0" />
-    </Style>
-
-    <Style Selector="Border.status-banner.success">
-      <Setter Property="Background" Value="#1510B981" />
-      <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-    </Style>
-
-    <Style Selector="Border.status-banner.error">
-      <Setter Property="Background" Value="#20EF4444" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-    </Style>
-
-    <Style Selector="Border.status-banner.info">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="RenderTransform" Value="scale(0.98)" />
     </Style>
 
     <Style Selector="Button.dialog-close-btn">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="Padding" Value="16,8" />
       <Setter Property="FontSize" Value="13" />
-      <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="Transitions">
         <Transitions>
           <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
         </Transitions>
       </Setter>
     </Style>
 
     <Style Selector="Button.dialog-close-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+    </Style>
+
+    <Style Selector="Border.status-banner">
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="Margin" Value="10,0,0,0" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.status-banner.success">
+      <Setter Property="Background" Value="{DynamicResource SuccessTintBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Border.status-banner.error">
+      <Setter Property="Background" Value="{DynamicResource ErrorTintBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Border.status-banner.info">
+      <Setter Property="Background" Value="{DynamicResource InfoTintBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource InfoBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
     </Style>
   </UserControl.Styles>
 
   <Grid>
+    <!-- Main Sidebar Layout -->
     <controls:SidebarLayout PaneTitle="{localization:Localize Tools.Label.InstalledTools}"
                             ItemsSource="{Binding InstalledTools}"
                             SelectedItem="{Binding SelectedTool, Mode=TwoWay}"
@@ -214,13 +195,51 @@
             <Grid IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNull}}"
                   HorizontalAlignment="Center"
                   VerticalAlignment="Center">
-                <StackPanel Spacing="20">
-                    <material:MaterialIcon Kind="AutoFix" Width="64" Height="64" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.Label.SelectToolPlaceholder}"
-                               FontSize="18"
-                               Foreground="{DynamicResource TextSecondary}"
-                               HorizontalAlignment="Center"/>
-                </StackPanel>
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16"
+                        Padding="40,32"
+                        MaxWidth="520"
+                        HorizontalAlignment="Center">
+                    <StackPanel Spacing="16" HorizontalAlignment="Center">
+                        <Border Width="64"
+                                Height="64"
+                                CornerRadius="32"
+                                Background="{DynamicResource SurfaceCardBrush}"
+                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                BorderThickness="1"
+                                HorizontalAlignment="Center">
+                            <material:MaterialIcon Kind="WrenchOutline"
+                                                   Width="32"
+                                                   Height="32"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="{localization:Localize Tools.EmptyState.SelectToolTitle}"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.EmptyState.SelectToolDescription}"
+                                   FontSize="14"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   HorizontalAlignment="Center"
+                                   LineHeight="20"/>
+                        <Button Command="{Binding OpenToolsInfoCommand}"
+                                Classes="tools-action-btn"
+                                HorizontalAlignment="Center"
+                                Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <material:MaterialIcon Kind="BookOpenOutline" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}"/>
+                                <TextBlock Text="{localization:Localize Tools.Button.ReadInfoTab}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <!-- Tool Content -->

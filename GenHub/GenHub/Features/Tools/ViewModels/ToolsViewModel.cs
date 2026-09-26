@@ -8,6 +8,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
+using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
@@ -128,15 +129,6 @@ public sealed partial class ToolsViewModel(
 
                 HasTools = InstalledTools.Count > 0;
 
-                if (HasTools)
-                {
-                    // Remember the first tool without selecting it. Selecting would activate
-                    // the tool immediately (loading its ViewModel, views, and data at app
-                    // startup). Activation is deferred until the Tools tab is actually opened,
-                    // where OnTabActivated restores this remembered tool.
-                    _lastOpenedTool = InstalledTools[0];
-                }
-
                 if (_activateOnLoadComplete)
                 {
                     // The Tools tab was opened while tools were still loading and the
@@ -189,11 +181,6 @@ public sealed partial class ToolsViewModel(
             if (matchingTool != null)
             {
                 SelectedTool = matchingTool;
-            }
-            else if (InstalledTools.Count > 0)
-            {
-                _lastOpenedTool = InstalledTools[0];
-                SelectedTool = _lastOpenedTool;
             }
             else
             {
@@ -424,10 +411,15 @@ public sealed partial class ToolsViewModel(
 
                 if (HasTools)
                 {
-                    // Try to restore previous selection, otherwise select first
-                    var toolToSelect = InstalledTools.FirstOrDefault(t => t.Metadata.Id == previousSelectedId)
-                                      ?? InstalledTools[0];
+                    // Try to restore previous selection if one was previously selected
+                    var toolToSelect = previousSelectedId != null
+                        ? InstalledTools.FirstOrDefault(t => t.Metadata.Id == previousSelectedId)
+                        : null;
                     SelectedTool = toolToSelect;
+                    if (toolToSelect == null)
+                    {
+                        _lastOpenedTool = null;
+                    }
 
                     ShowStatusMessage(localizationService?.GetString("Tools.Status.RefreshedCountSuccess", InstalledTools.Count) ?? $"Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
                 }
@@ -524,6 +516,16 @@ public sealed partial class ToolsViewModel(
     {
         IsDetailsDialogOpen = false;
         ToolForDetails = null;
+    }
+
+    /// <summary>
+    /// Navigates to the Info tab and opens the Tools guide section.
+    /// </summary>
+    [RelayCommand]
+    private void OpenToolsInfo()
+    {
+        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Info));
+        WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(InfoConstants.SectionTools));
     }
 
     private void ShowStatusMessage(string message, MessageType type = MessageType.Info)

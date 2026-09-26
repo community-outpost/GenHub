@@ -1,4 +1,8 @@
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Messages;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ViewModels;
@@ -106,10 +110,10 @@ public class ToolsViewModelTests
     }
 
     /// <summary>
-    /// Tests that OnTabActivated selects the first tool when the remembered tool was removed from installed tools.
+    /// Tests that OnTabActivated leaves SelectedTool null when the remembered tool was removed from installed tools.
     /// </summary>
     [Fact]
-    public void OnTabActivated_SelectsFirstTool_WhenRememberedToolWasRemoved()
+    public void OnTabActivated_LeavesSelectedToolNull_WhenRememberedToolWasRemoved()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -126,7 +130,26 @@ public class ToolsViewModelTests
         _viewModel.OnTabActivated();
 
         // Assert
-        Assert.Equal(plugin1, _viewModel.SelectedTool);
+        Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.LastOpenedTool);
+    }
+
+    /// <summary>
+    /// Tests that OnTabActivated keeps SelectedTool null when no tool has been chosen yet.
+    /// </summary>
+    [Fact]
+    public void OnTabActivated_DoesNotAutoSelectTool_WhenNoPriorSelection()
+    {
+        // Arrange
+        var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
+        _viewModel.InstalledTools.Add(plugin1);
+
+        // Act
+        _viewModel.OnTabActivated();
+
+        // Assert
+        Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.LastOpenedTool);
     }
 
     /// <summary>
@@ -219,8 +242,8 @@ public class ToolsViewModelTests
         Assert.Contains(plugin1, _viewModel.InstalledTools);
         Assert.Contains(plugin2, _viewModel.InstalledTools);
         Assert.True(_viewModel.HasTools);
-        Assert.Null(_viewModel.SelectedTool); // Deferred until the Tools tab is actually opened
-        Assert.Equal(plugin1, _viewModel.LastOpenedTool); // Remembered for first tab activation
+        Assert.Null(_viewModel.SelectedTool); // Deferred until user explicitly selects a tool
+        Assert.Null(_viewModel.LastOpenedTool); // Tools tab defaults to empty state until a tool is chosen
         Assert.Null(_viewModel.CurrentToolControl); // No tool control created at startup
         Assert.False(plugin1.IsActivated);
         Assert.False(plugin2.IsActivated);
@@ -228,12 +251,12 @@ public class ToolsViewModelTests
     }
 
     /// <summary>
-    /// Tests that opening the Tools tab while tools are still loading defers activation
-    /// until the load completes instead of leaving the detail pane blank.
+    /// Tests that opening the Tools tab while tools are still loading leaves selection null
+    /// until the user selects a tool.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_ActivatesFirstTool_WhenTabOpenedDuringLoadAsync()
+    public async Task InitializeAsync_DefersTabActivation_WhenTabOpenedDuringLoadAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -252,9 +275,40 @@ public class ToolsViewModelTests
         await initializeTask;
 
         // Assert
-        Assert.Equal(plugin1, _viewModel.SelectedTool);
-        Assert.NotNull(_viewModel.CurrentToolControl);
+        Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.CurrentToolControl);
         Assert.False(_viewModel.IsLoading);
+    }
+
+    /// <summary>
+    /// Tests that OpenToolsInfoCommand sends NavigationMessage and OpenInfoSectionMessage.
+    /// </summary>
+    [Fact]
+    public void OpenToolsInfo_SendsNavigationAndOpenInfoSectionMessages()
+    {
+        // Arrange
+        NavigationMessage? receivedNavMessage = null;
+        OpenInfoSectionMessage? receivedInfoMessage = null;
+
+        WeakReferenceMessenger.Default.Register<NavigationMessage>(this, (_, m) => receivedNavMessage = m);
+        WeakReferenceMessenger.Default.Register<OpenInfoSectionMessage>(this, (_, m) => receivedInfoMessage = m);
+
+        try
+        {
+            // Act
+            _viewModel.OpenToolsInfoCommand.Execute(null);
+
+            // Assert
+            Assert.NotNull(receivedNavMessage);
+            Assert.Equal(NavigationTab.Info, receivedNavMessage.Tab);
+            Assert.NotNull(receivedInfoMessage);
+            Assert.Equal(InfoConstants.SectionTools, receivedInfoMessage.Value);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<NavigationMessage>(this);
+            WeakReferenceMessenger.Default.Unregister<OpenInfoSectionMessage>(this);
+        }
     }
 
     /// <summary>
@@ -674,5 +728,27 @@ public class ToolsViewModelTests
 
         // Assert
         Assert.Empty(_viewModel.InstalledTools);
+    }
+
+    /// <summary>
+    /// Tests that RefreshToolsAsync keeps SelectedTool null when no tool was previously selected.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshToolsAsync_KeepsSelectedToolNull_WhenNoToolWasPreviouslySelectedAsync()
+    {
+        // Arrange
+        var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
+        var refreshedTools = new List<IToolPlugin> { plugin1 };
+        _mockToolService.Setup(x => x.LoadSavedToolsAsync())
+            .ReturnsAsync(OperationResult<List<IToolPlugin>>.CreateSuccess(refreshedTools));
+
+        // Act
+        await _viewModel.RefreshToolsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Single(_viewModel.InstalledTools);
+        Assert.Null(_viewModel.SelectedTool);
+        Assert.Null(_viewModel.LastOpenedTool);
     }
 }
