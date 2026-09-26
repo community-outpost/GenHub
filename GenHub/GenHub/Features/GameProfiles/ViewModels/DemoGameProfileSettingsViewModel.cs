@@ -308,9 +308,9 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
             _ => -1,
         };
 
-        if (targetIndex >= 0 && this.SelectedTabIndex != targetIndex)
+        if (targetIndex >= 0 && SelectedTabIndex != targetIndex)
         {
-            this.SelectedTabIndex = targetIndex;
+            SelectedTabIndex = targetIndex;
         }
     }
 

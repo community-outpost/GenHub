@@ -64,7 +64,7 @@ public partial class InfoCardViewModel : ObservableObject
     /// Gets the icon kind representing this card.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
-    public Material.Icons.MaterialIconKind IconKind => this.CustomIconKind ?? this.Type switch
+    public Material.Icons.MaterialIconKind IconKind => CustomIconKind ?? Type switch
     {
         InfoCardType.HowTo => Material.Icons.MaterialIconKind.LightbulbOutline,
         InfoCardType.Feature => Material.Icons.MaterialIconKind.StarOutline,
