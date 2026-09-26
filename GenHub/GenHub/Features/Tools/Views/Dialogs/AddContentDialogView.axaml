@@ -15,6 +15,7 @@
 
     <UserControl.Resources>
         <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
+        <converters:ContrastTextColorConverter x:Key="ContrastTextColorConverter"/>
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
     </UserControl.Resources>
 
@@ -323,7 +324,7 @@
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.PreviewBadge}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
-                                               Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
+                                               Foreground="{Binding AccentColor, Converter={StaticResource ContrastTextColorConverter}}"/>
                                 </Border>
                             </StackPanel>
                             <ItemsControl ItemsSource="{x:Static vm:AddContentDialogViewModel.AccentColorPresets}">

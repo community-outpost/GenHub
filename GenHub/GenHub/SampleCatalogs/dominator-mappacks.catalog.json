@@ -1,0 +1,1881 @@
+{
+  "$schemaVersion": 1,
+  "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+  "avatarUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+  "publisher": {
+    "id": "dominator-mappacks",
+    "name": "Dominator Mappacks",
+    "description": "Contains the essential tools needed for running the game",
+    "website": "http://generalshub.com/",
+    "avatarUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+    "supportUrl": "https://discord.gg/ZGtT3Qwd3Y",
+    "contactEmail": null
+  },
+  "content": [
+    {
+      "id": "gla-campaign-by-tklyo",
+      "name": "GLA Campaign by TKlyo",
+      "description": "Dominator Mappack: Custom singleplayer GLA campaign missions designed by TKlyo.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": false,
+          "isFeatured": false,
+          "changelog": "Release of GLA Campaign by TKlyo",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "GLA Campaign by TKlyo.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=18PLAvNx-aJHxbMT265W__OKsLSQiIUIm&export=download&confirm=t",
+              "size": 2138952,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-gla-campaign-by-tklyo-1/1280/720",
+            "https://picsum.photos/seed/dominator-gla-campaign-by-tklyo-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": null,
+        "videoUrls": [],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "campaign",
+        "singleplayer",
+        "gla",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "gla-with-power-maps",
+      "name": "GLA with Power Maps",
+      "description": "Dominator Mappack: GLA with power multiplayer maps.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of GLA with Power Maps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "GLA with power maps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1y3m84Ujr6o-Lf1JcW5F63JUBonFwdJMB&export=download&confirm=t",
+              "size": 2716370,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-gla-with-power-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-gla-with-power-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [
+          "https://picsum.photos/seed/dominator-gla-with-power-maps-1/1280/720",
+          "https://picsum.photos/seed/dominator-gla-with-power-maps-2/1280/720",
+          "https://picsum.photos/seed/dominator-gla-with-power-maps-3/1280/720"
+        ],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "mappack",
+        "gla",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "jhg-maps",
+      "name": "JHG Maps",
+      "description": "Dominator Mappack: JHG competitive multiplayer and custom maps collection.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of JHG Maps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "JHG Maps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1d_tWuAnoCZCDSTKbQZUA4uYFP3cvJcYV&export=download&confirm=t",
+              "size": 3589116,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-jhg-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-jhg-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "mappack",
+        "jhg",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "micro-challenge-maps",
+      "name": "Micro Challenge Maps (Humvee, Bus, Buggy)",
+      "description": "Dominator Mappack: Micro skill challenge maps for Humvee, Battle Bus, and Rocket Buggy.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Micro Challenge Maps (Humvee, Bus, Buggy)",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Micro Challenge Maps (Humvee, Bus, Buggy).rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1lpDG031oKujJJVuFe8CN195R5l0I9_MQ&export=download&confirm=t",
+              "size": 100169,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-micro-challenge-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-micro-challenge-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "challenge",
+        "micro",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "naval-maps",
+      "name": "Naval Maps",
+      "description": "Dominator Mappack: Naval warfare maps designed for boat combat and island assaults.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Naval Maps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Naval Maps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=11ovjkp2JANWLjs_hMfNWXmTStW4mQp8Y&export=download&confirm=t",
+              "size": 6070691,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-naval-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-naval-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "naval",
+        "water",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "no-money-and-cxn",
+      "name": "No Money and CXN",
+      "description": "Dominator Mappack: Zero-money and CXN challenge maps testing resource-constrained tactics.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of No Money and CXN",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "No money and CXN.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1-gvLBMC69tvAogI9ITvwD1I-N8HBsDO6&export=download&confirm=t",
+              "size": 2062021,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-no-money-and-cxn-1/1280/720",
+            "https://picsum.photos/seed/dominator-no-money-and-cxn-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "challenge",
+        "nomoney",
+        "cxn",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "pro-skills-dominator-maps",
+      "name": "Pro Skills Dominator Maps",
+      "description": "Dominator Mappack: Advanced pro-level micro and combat training maps.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Pro Skills Dominator Maps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Pro Skills dominator maps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1QmEHCi3dfR51AoW_F7N4IdBwR_0CwFvA&export=download&confirm=t",
+              "size": 233935,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-pro-skills-dominator-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-pro-skills-dominator-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "pro",
+        "competitive",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "pvp-micro-maps",
+      "name": "PVP Micro Maps",
+      "description": "Dominator Mappack: Fast-paced PVP micro battles focusing on army control and reaction speed.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of PVP Micro Maps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "PVP Micro Maps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1IBoW1F7oBvGLcDAGVu1gURQC3MGHgvqE&export=download&confirm=t",
+              "size": 1322495,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-pvp-micro-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-pvp-micro-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "pvp",
+        "micro",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "race-maps",
+      "name": "Race Maps",
+      "description": "Dominator Mappack: Fun vehicle racing tracks and obstacle courses built in the SAGE engine.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Race Maps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Race Maps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=11Pk8R2GvF6yD-HFsg3oL3AwaTtmms3_e&export=download&confirm=t",
+              "size": 1333435,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-race-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-race-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "race",
+        "minigame",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "random-multiplayer-maps-1",
+      "name": "Random Multiplayer Maps Folder One",
+      "description": "Dominator Mappack: Diverse multiplayer skirmish maps part 1.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Random Multiplayer Maps Folder One",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Random Multiplayer Maps Folder One.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1fzU5W9cTMVExbc7svHN8yvQaMzktLZ6m&export=download&confirm=t",
+              "size": 186002843,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-random-multiplayer-maps-1-1/1280/720",
+            "https://picsum.photos/seed/dominator-random-multiplayer-maps-1-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "multiplayer",
+        "collection",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "random-multiplayer-maps-3",
+      "name": "Random Multiplayer Maps Folder Three",
+      "description": "Dominator Mappack: Curated multiplayer maps pack part 3.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Random Multiplayer Maps Folder Three",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Random Multiplayer Maps Folder Three.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1NHs5mPkHishe2OGFQutTEtOfuC9JtTNI&export=download&confirm=t",
+              "size": 5578380,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-random-multiplayer-maps-3-1/1280/720",
+            "https://picsum.photos/seed/dominator-random-multiplayer-maps-3-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "multiplayer",
+        "collection",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "random-multiplayer-maps-2",
+      "name": "Random Multiplayer Maps Folder Two",
+      "description": "Dominator Mappack: Massive multiplayer map collection part 2.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Random Multiplayer Maps Folder Two",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Random Multiplayer Maps Folder Two.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1ABLNiTDMeLZpOwn0dZzlCeVZ7gwaBfIZ&export=download&confirm=t",
+              "size": 206303039,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-random-multiplayer-maps-2-1/1280/720",
+            "https://picsum.photos/seed/dominator-random-multiplayer-maps-2-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "multiplayer",
+        "collection",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "shellmaps",
+      "name": "Shellmaps",
+      "description": "Dominator Mappack: Custom animated background shellmaps for main menu customization.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Shellmaps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Shellmaps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1lnYnbxXw2e4nrb70vDllqmXqHeQXX7zY&export=download&confirm=t",
+              "size": 2131020,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-shellmaps-1/1280/720",
+            "https://picsum.photos/seed/dominator-shellmaps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "shellmap",
+        "menu",
+        "cinematic",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "shkai-domis-toy-box",
+      "name": "Shkai - Domi's Toy Box",
+      "description": "Dominator Mappack: Shkai sandbox and experimental fun maps.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Shkai - Domi's Toy Box",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Shkai - Domi's Toy Box.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=15zhjUdnmP-oo_ZLW6CduVj-pfOc8GbFD&export=download&confirm=t",
+              "size": 73756,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-shkai-domis-toy-box-1/1280/720",
+            "https://picsum.photos/seed/dominator-shkai-domis-toy-box-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "toybox",
+        "fun",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "starwars-maps",
+      "name": "Starwars Maps",
+      "description": "Dominator Mappack: Themed sci-fi battlefield maps inspired by Star Wars battles.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Starwars Maps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Starwars maps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=13vgGB6TKGkpjGHMfqcj4lfjX46gRwaOY&export=download&confirm=t",
+              "size": 325376,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-starwars-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-starwars-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "starwars",
+        "scifi",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "troll-maps-april-fools",
+      "name": "Troll Maps - April Fools",
+      "description": "Dominator Mappack: Hilarious, chaotic prank and puzzle maps made for April Fools.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of Troll Maps - April Fools",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "Troll Maps - April Fools.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1wghbkC9b_ra5b98M9CUqxMSda9uT5nUC&export=download&confirm=t",
+              "size": 5077660,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-troll-maps-april-fools-1/1280/720",
+            "https://picsum.photos/seed/dominator-troll-maps-april-fools-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "troll",
+        "aprilfools",
+        "fun",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "usa-campaign-by-cresty",
+      "name": "USA Campaign by Cresty",
+      "description": "Dominator Mappack: Custom singleplayer USA campaign missions crafted by Cresty.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of USA Campaign by Cresty",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "USA Campaign by Cresty.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1ptUof2oKuxD1c7PcvXunUmMr2RT6UxxE&export=download&confirm=t",
+              "size": 4463844,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-usa-campaign-by-cresty-1/1280/720",
+            "https://picsum.photos/seed/dominator-usa-campaign-by-cresty-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "campaign",
+        "singleplayer",
+        "usa",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "usa-campaign-by-supakrid",
+      "name": "USA Campaign by Supakrid",
+      "description": "Dominator Mappack: Epic custom singleplayer USA campaign missions crafted by Supakrid.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of USA Campaign by Supakrid",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "USA Campaign by Supakrid.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1TtYdftDGPld07dTXFHHZFNJrDebrYe6e&export=download&confirm=t",
+              "size": 34672357,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-usa-campaign-by-supakrid-1/1280/720",
+            "https://picsum.photos/seed/dominator-usa-campaign-by-supakrid-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "campaign",
+        "singleplayer",
+        "usa",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "usa-campaign-by-tklyo",
+      "name": "USA Campaign by TKlyo",
+      "description": "Dominator Mappack: Custom singleplayer USA campaign missions designed by TKlyo.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of USA Campaign by TKlyo",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "USA Campaign by TKlyo.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1th4AZyrgzI3S-wb8RJXzPyYhcabNrEVn&export=download&confirm=t",
+              "size": 2758702,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-usa-campaign-by-tklyo-1/1280/720",
+            "https://picsum.photos/seed/dominator-usa-campaign-by-tklyo-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "campaign",
+        "singleplayer",
+        "usa",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "usa-campaign-by-unicas",
+      "name": "USA Campaign by Unicas",
+      "description": "Dominator Mappack: Custom singleplayer USA campaign missions created by Unicas.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of USA Campaign by Unicas",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "USA Campaign by Unicas.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1QzO88CY8aCqEiUNBAWjDVqxg1sh3Vey_&export=download&confirm=t",
+              "size": 2528862,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-usa-campaign-by-unicas-1/1280/720",
+            "https://picsum.photos/seed/dominator-usa-campaign-by-unicas-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "campaign",
+        "singleplayer",
+        "usa",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "usa-campaign-by-xjoueuer50",
+      "name": "USA Campaign by XJoueuer50",
+      "description": "Dominator Mappack: Custom singleplayer USA campaign missions created by XJoueuer50.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of USA Campaign by XJoueuer50",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "USA Campaign by XJoueuer50.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1aUVho8JFLY6W-SKKgyiFAivWEk3df0rL&export=download&confirm=t",
+              "size": 1630071,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-usa-campaign-by-xjoueuer50-1/1280/720",
+            "https://picsum.photos/seed/dominator-usa-campaign-by-xjoueuer50-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "campaign",
+        "singleplayer",
+        "usa",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    },
+    {
+      "id": "wbc-big-maps",
+      "name": "WBC Big Maps",
+      "description": "Dominator Mappack: Large-scale World Battle Championship (WBC) maps.",
+      "contentType": "MapPack",
+      "targetGame": "ZeroHour",
+      "entryPoint": null,
+      "releases": [
+        {
+          "title": null,
+          "category": null,
+          "version": "1.0.0",
+          "releaseDate": "2023-12-04T00:00:00Z",
+          "isPrerelease": false,
+          "isLatest": true,
+          "isFeatured": false,
+          "changelog": "Release of WBC Big Maps",
+          "entryPoint": null,
+          "artifacts": [
+            {
+              "filename": "wbc big maps.rar",
+              "downloadUrl": "https://drive.usercontent.google.com/download?id=1tNv7UXdkdOFPckwkzLHqA8BzmD-SbGiL&export=download&confirm=t",
+              "size": 3055745,
+              "sha256": "",
+              "contentType": "application/vnd.rar",
+              "entryPoint": null,
+              "isPrimary": true,
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": false
+            }
+          ],
+          "bundleArtifacts": false,
+          "imageUrls": [
+            "https://picsum.photos/seed/dominator-wbc-big-maps-1/1280/720",
+            "https://picsum.photos/seed/dominator-wbc-big-maps-2/1280/720"
+          ],
+          "videoUrls": [
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          ],
+          "dependencies": [
+            {
+              "publisherId": "ea",
+              "contentId": "zerohour",
+              "versionConstraint": "1.04",
+              "isOptional": false,
+              "contentType": "GameInstallation",
+              "catalogUrl": null,
+              "dependencyType": "Required",
+              "definitionUrl": null,
+              "conflictsWith": []
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "accentColor": "#10B981",
+        "screenshotUrls": [],
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoUrls": [
+          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ],
+        "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
+        "author": "Dominator",
+        "license": null,
+        "category": "Maps",
+        "playerCount": null
+      },
+      "tags": [
+        "maps",
+        "mappack",
+        "wbc",
+        "zerohour"
+      ],
+      "bundledItems": [],
+      "addons": [],
+      "addonReleases": [],
+      "extendsContentId": null,
+      "publisherType": "",
+      "isStandalone": true
+    }
+  ],
+  "lastUpdated": "0001-01-01T00:00:00",
+  "signature": null,
+  "referrals": [],
+  "customTabs": [],
+  "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+  "accentColor": "#10B981"
+}

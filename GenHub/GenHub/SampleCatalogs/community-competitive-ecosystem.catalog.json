@@ -46,7 +46,39 @@
         "author": "TheSuperHackers",
         "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
         "documentationUrl": "https://github.com/TheSuperHackers/GeneralsGameCode"
-      }
+      },
+      "releases": [
+        {
+          "version": "0.9",
+          "releaseDate": "2026-06-01T00:00:00Z",
+          "isLatest": true,
+          "changelog": "TheSuperHackers community engine update with high refresh rate support and modern OS fixes.",
+          "artifacts": [
+            {
+              "filename": "generalszh-0.9.zip",
+              "downloadUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/v0.9/generalszh-0.9.zip",
+              "size": 8500000,
+              "sha256": "",
+              "contentType": "application/zip",
+              "variantAxis": "game-type",
+              "variant": "Zero Hour",
+              "isDefaultVariant": true,
+              "isPrimary": true
+            },
+            {
+              "filename": "generals-0.9.zip",
+              "downloadUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/v0.9/generals-0.9.zip",
+              "size": 8500000,
+              "sha256": "",
+              "contentType": "application/zip",
+              "variantAxis": "game-type",
+              "variant": "Generals",
+              "isDefaultVariant": false,
+              "isPrimary": false
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "generalsonline-client",
@@ -71,20 +103,37 @@
         "author": "Generals Online Team",
         "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
         "documentationUrl": "https://generals-online.com"
-      }
+      },
+      "releases": [
+        {
+          "version": "1.0.4",
+          "releaseDate": "2026-06-15T00:00:00Z",
+          "isLatest": true,
+          "changelog": "Generals Online ladder client with 60Hz tickrate engine and automatic matchmaking.",
+          "artifacts": [
+            {
+              "filename": "GeneralsOnline-1.0.4-portable.zip",
+              "downloadUrl": "https://launcher.generals-online.com/downloads/GeneralsOnline-1.0.4-portable.zip",
+              "size": 25000000,
+              "sha256": "",
+              "contentType": "application/zip",
+              "variantAxis": null,
+              "variant": null,
+              "isDefaultVariant": true,
+              "isPrimary": true
+            }
+          ]
+        }
+      ]
     },
     {
-      "id": "communityoutpost-client",
-      "name": "Community Outpost GenPatcher Client",
-      "description": "The standardized community competitive client baseline curated by Community Outpost with GenPatcher and GenTool integrated.",
+      "id": "community-patch-client",
+      "name": "Community Patch GameClient",
+      "description": "Standard Zero Hour community patch client featuring both retail-compatible and non-retail network editions.",
       "contentType": "GameClient",
       "publisherType": "communityoutpost",
       "targetGame": 1,
       "isStandalone": false,
-      "upstreamSync": {
-        "provider": "CommunityOutpost",
-        "channel": "release"
-      },
       "tags": [
         "gentool",
         "genpatcher",
@@ -96,7 +145,37 @@
         "author": "Community Outpost",
         "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
         "documentationUrl": "https://community-outpost.com"
-      }
+      },
+      "releases": [
+        {
+          "version": "1.06",
+          "releaseDate": "2026-07-01T00:00:00Z",
+          "isLatest": true,
+          "changelog": "Standard community patch for Zero Hour with retail and non-retail compatible editions.",
+          "artifacts": [
+            {
+              "filename": "patch.dat",
+              "downloadUrl": "https://legi.cc/gp2/f/patch.dat",
+              "size": 1530920,
+              "sha256": "b6b69b4e1ffcf5ee41fa2a88a0e23485ba574d6f4d2f0eb3fe44857b686e0fc5",
+              "variantAxis": "compatibility",
+              "variant": "Retail Compatible",
+              "isDefaultVariant": true,
+              "isPrimary": true
+            },
+            {
+              "filename": "patch_stream.dat",
+              "downloadUrl": "https://legi.cc/gp2/f/patch_stream.dat",
+              "size": 1530920,
+              "sha256": "b6b69b4e1ffcf5ee41fa2a88a0e23485ba574d6f4d2f0eb3fe44857b686e0fc5",
+              "variantAxis": "compatibility",
+              "variant": "Non-Retail",
+              "isDefaultVariant": false,
+              "isPrimary": false
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "l3m-controlbar",
@@ -125,6 +204,17 @@
           "isPrerelease": false,
           "changelog": "Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all resolution packs.",
           "artifacts": [
+            {
+              "filename": "ControlBarProLemonEditionZH_v1.3_1280x720.zip",
+              "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip",
+              "size": 4993550,
+              "sha256": "d79d8be0448461adeba69f4def5bf9a759bfea1266d7c0f5af6bd5287abeb221",
+              "contentType": "application/zip",
+              "variantAxis": "resolution",
+              "variant": "720p",
+              "isDefaultVariant": false,
+              "isPrimary": false
+            },
             {
               "filename": "ControlBarProLemonEditionZH_v1.3_1920x1080.zip",
               "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip",
@@ -163,60 +253,21 @@
       ]
     },
     {
-      "id": "gentool",
-      "name": "GenTool Anti-Cheat & Engine Fixes",
-      "description": "Essential competitive expansion adding anti-cheat validation, high-resolution widescreen rendering, observer broadcast mode, and enhanced stability.",
-      "contentType": "Addon",
-      "targetGame": 1,
-      "isStandalone": false,
-      "tags": [
-        "addon",
-        "gentool",
-        "utility",
-        "competitive",
-        "anticheat"
-      ],
-      "metadata": {
-        "author": "Xezon",
-        "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
-        "documentationUrl": "https://www.gentool.net"
-      },
-      "releases": [
-        {
-          "version": "8.9",
-          "releaseDate": "2026-07-15T00:00:00Z",
-          "isLatest": true,
-          "isPrerelease": false,
-          "changelog": "GenTool 8.9 release with enhanced anti-cheat and high-resolution support.",
-          "artifacts": [
-            {
-              "filename": "gentool_v8.9.zip",
-              "downloadUrl": "https://legi.cc/gp2/f/gent.dat",
-              "size": 4194304,
-              "sha256": "62bb0380ae14c570b6fad92b31784bec188dc22ac5ac9e11d3c524e08fa434e4",
-              "contentType": "application/x-7z-compressed",
-              "isPrimary": true
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "competitive-hotkeys",
-      "name": "Legionnaire Competitive Hotkeys",
-      "description": "Ergonomic QWERTY build and command grid layout modeled after modern RTS control schemes with built-in HUD unit command indicators.",
+      "id": "leikeze-hotkeys",
+      "name": "Leikeze Competitive Hotkeys",
+      "description": "A comprehensive ergonomic hotkey set by Leikeze. Supports multiple languages (English, German, Russian) and balanced for efficiency and ease of use.",
       "contentType": "Addon",
       "targetGame": 1,
       "isStandalone": false,
       "tags": [
         "addon",
         "hotkeys",
-        "legionnaire",
+        "leikeze",
         "qwerty",
         "competitive"
       ],
       "metadata": {
-        "author": "Legionnaire",
+        "author": "Leikeze",
         "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
         "documentationUrl": "https://legi.cc/patch"
       },
@@ -226,15 +277,104 @@
           "releaseDate": "2026-07-01T00:00:00Z",
           "isLatest": true,
           "isPrerelease": false,
-          "changelog": "Updated hotkey indicators for all ZH factions. Synchronized shortcut layout with latest GenPatcher profile standard.",
+          "changelog": "Leikeze hotkey layout presets for English, German, and Russian.",
           "artifacts": [
             {
-              "filename": "hleg.dat",
-              "downloadUrl": "https://legi.cc/gp2/f/hleg.dat",
-              "size": 136899,
-              "sha256": "69693e098b309bbdb67968926234f725580bb7401cf350cce325542e361b4530",
+              "filename": "hlei.dat",
+              "downloadUrl": "https://legi.cc/gp2/f/hlei.dat",
+              "size": 172942,
+              "sha256": "a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215",
               "contentType": "application/x-7z-compressed",
+              "variantAxis": "language",
+              "variant": "English",
+              "isDefaultVariant": true,
               "isPrimary": true
+            },
+            {
+              "filename": "hlei.dat",
+              "downloadUrl": "https://legi.cc/gp2/f/hlei.dat",
+              "size": 172942,
+              "sha256": "a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215",
+              "contentType": "application/x-7z-compressed",
+              "variantAxis": "language",
+              "variant": "German",
+              "isDefaultVariant": false,
+              "isPrimary": false
+            },
+            {
+              "filename": "hlei.dat",
+              "downloadUrl": "https://legi.cc/gp2/f/hlei.dat",
+              "size": 172942,
+              "sha256": "a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215",
+              "contentType": "application/x-7z-compressed",
+              "variantAxis": "language",
+              "variant": "Russian",
+              "isDefaultVariant": false,
+              "isPrimary": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "eliorata-improved-menus",
+      "name": "Improved Menus Widescreen",
+      "description": "High-resolution widescreen menu interface with responsive button layouts and enhanced typography by ElTioRata.",
+      "contentType": "Addon",
+      "targetGame": 1,
+      "isStandalone": false,
+      "tags": [
+        "addon",
+        "menus",
+        "eliorata",
+        "ui",
+        "widescreen"
+      ],
+      "metadata": {
+        "author": "ElTioRata",
+        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "documentationUrl": "https://github.com/ElTioRata/ImprovedMenus"
+      },
+      "releases": [
+        {
+          "version": "1.3",
+          "releaseDate": "2026-07-10T00:00:00Z",
+          "isLatest": true,
+          "isPrerelease": false,
+          "changelog": "Widescreen menu layouts for Zero Hour supporting English, Russian, and Spanish.",
+          "artifacts": [
+            {
+              "filename": "0_ImprovedMenusEnglish.zip",
+              "downloadUrl": "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip",
+              "size": 5242880,
+              "sha256": "3280056a2d7cf9bc5cbe8d4ac18fb082846e6db11ad7bb5c60f7c4619353f0a4",
+              "contentType": "application/zip",
+              "variantAxis": "language",
+              "variant": "English",
+              "isDefaultVariant": true,
+              "isPrimary": true
+            },
+            {
+              "filename": "0_ImprovedMenusRussian.zip",
+              "downloadUrl": "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusRussian.zip",
+              "size": 5242880,
+              "sha256": "9b5bd315545a9fee17582f7dca4962f1004ea1b40699d3582845af66ac414715",
+              "contentType": "application/zip",
+              "variantAxis": "language",
+              "variant": "Russian",
+              "isDefaultVariant": false,
+              "isPrimary": false
+            },
+            {
+              "filename": "0_ImprovedMenusSpanish.zip",
+              "downloadUrl": "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusSpanish.zip",
+              "size": 5242880,
+              "sha256": "515649ee2db438aaf5a02a8bb2a1b24cc1ce3d4f4aa4bd635d5ff927bbf7a003",
+              "contentType": "application/zip",
+              "variantAxis": "language",
+              "variant": "Spanish",
+              "isDefaultVariant": false,
+              "isPrimary": false
             }
           ]
         }
@@ -283,14 +423,22 @@
           ]
         },
         {
-          "contentId": "gentool",
-          "versionConstraint": ">= 8.9",
-          "isOptional": false
+          "contentId": "leikeze-hotkeys",
+          "versionConstraint": ">= 2026.07.01",
+          "isOptional": false,
+          "defaultVariant": "English",
+          "allowedVariantAxes": [
+            "language"
+          ]
         },
         {
-          "contentId": "competitive-hotkeys",
-          "versionConstraint": ">= 2026.07.01",
-          "isOptional": false
+          "contentId": "eliorata-improved-menus",
+          "versionConstraint": ">= 1.3",
+          "isOptional": false,
+          "defaultVariant": "English",
+          "allowedVariantAxes": [
+            "language"
+          ]
         }
       ]
     },
@@ -334,14 +482,22 @@
           ]
         },
         {
-          "contentId": "gentool",
-          "versionConstraint": ">= 8.9",
-          "isOptional": false
+          "contentId": "leikeze-hotkeys",
+          "versionConstraint": ">= 2026.07.01",
+          "isOptional": false,
+          "defaultVariant": "English",
+          "allowedVariantAxes": [
+            "language"
+          ]
         },
         {
-          "contentId": "competitive-hotkeys",
-          "versionConstraint": ">= 2026.07.01",
-          "isOptional": false
+          "contentId": "eliorata-improved-menus",
+          "versionConstraint": ">= 1.3",
+          "isOptional": false,
+          "defaultVariant": "English",
+          "allowedVariantAxes": [
+            "language"
+          ]
         }
       ]
     },
@@ -371,8 +527,12 @@
       },
       "bundledItems": [
         {
-          "contentId": "communityoutpost-client",
-          "isOptional": false
+          "contentId": "community-patch-client",
+          "isOptional": false,
+          "defaultVariant": "Retail Compatible",
+          "allowedVariantAxes": [
+            "compatibility"
+          ]
         },
         {
           "contentId": "l3m-controlbar",
@@ -384,16 +544,26 @@
           ]
         },
         {
-          "contentId": "gentool",
-          "versionConstraint": ">= 8.9",
-          "isOptional": false
+          "contentId": "leikeze-hotkeys",
+          "versionConstraint": ">= 2026.07.01",
+          "isOptional": false,
+          "defaultVariant": "English",
+          "allowedVariantAxes": [
+            "language"
+          ]
         },
         {
-          "contentId": "competitive-hotkeys",
-          "versionConstraint": ">= 2026.07.01",
-          "isOptional": false
+          "contentId": "eliorata-improved-menus",
+          "versionConstraint": ">= 1.3",
+          "isOptional": false,
+          "defaultVariant": "English",
+          "allowedVariantAxes": [
+            "language"
+          ]
         }
       ]
     }
-  ]
+  ],
+  "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+  "accentColor": "#F59E0B"
 }

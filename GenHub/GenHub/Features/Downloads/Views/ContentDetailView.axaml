@@ -176,11 +176,24 @@
                                     BorderThickness="1"
                                     CornerRadius="6"
                                     Padding="8,3"
-                                    VerticalAlignment="Center">
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding !HasAccentColor}">
                                 <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
                                            FontSize="11"
                                            FontWeight="Bold"
                                            Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />
+                            </Border>
+                            <Border Background="{DynamicResource GlassFillBrush}"
+                                    BorderBrush="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,3"
+                                    VerticalAlignment="Center"
+                                    IsVisible="{Binding HasAccentColor}">
+                                <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Foreground="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}" />
                             </Border>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="8">
