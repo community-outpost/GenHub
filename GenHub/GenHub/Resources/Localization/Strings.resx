@@ -8290,6 +8290,15 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
     <value>Import failed: {0}</value>
   </data>
+  <data name="Maps.Error.FolderNotWritable" xml:space="preserve">
+    <value>GenHub could not make the map folder "{0}" writable. Check that your account owns the folder and that it is not locked, then try again.</value>
+  </data>
+  <data name="Maps.Error.DeleteFailed" xml:space="preserve">
+    <value>Could not delete "{0}".</value>
+  </data>
+  <data name="Maps.Error.RenameFailed" xml:space="preserve">
+    <value>Could not rename "{0}".</value>
+  </data>
   <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
     <value>No map files were found to import.</value>
   </data>

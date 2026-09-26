@@ -512,7 +512,7 @@ public class MockReplayExportService : IReplayExportService
 public class MockMapDirectoryService : IMapDirectoryService
 {
     /// <inheritdoc/>
-    public Task<bool> DeleteMapsAsync(IEnumerable<MapFile> maps, CancellationToken ct = default) => Task.FromResult(true);
+    public Task<OperationResult> DeleteMapsAsync(IEnumerable<MapFile> maps, CancellationToken ct = default) => Task.FromResult(OperationResult.CreateSuccess());
 
     /// <inheritdoc/>
     public void EnsureDirectoryExists(GameType version)
@@ -584,9 +584,9 @@ public class MockMapDirectoryService : IMapDirectoryService
     }
 
     /// <inheritdoc/>
-    public Task<bool> RenameMapAsync(MapFile map, string newName, CancellationToken ct = default)
+    public Task<OperationResult> RenameMapAsync(MapFile map, string newName, CancellationToken ct = default)
     {
-        return Task.FromResult(true);
+        return Task.FromResult(OperationResult.CreateSuccess());
     }
 
     /// <inheritdoc/>

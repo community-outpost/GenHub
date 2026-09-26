@@ -1,14 +1,19 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Features.Tools.MapManager.Services;
 using GenHub.Infrastructure.Imaging;
+using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -72,7 +77,7 @@ public sealed class MapDirectoryServiceTests : IDisposable
 
         var result = await service.RenameMapAsync(map, "NewMap");
 
-        Assert.True(result);
+        Assert.True(result.Success);
         var newDir = Path.Combine(mapsDir, "NewMap");
         Assert.True(Directory.Exists(newDir));
         Assert.True(File.Exists(Path.Combine(newDir, "NewMap.map")));
@@ -122,7 +127,7 @@ public sealed class MapDirectoryServiceTests : IDisposable
 
         var result = await service.RenameMapAsync(map, "NewMap");
 
-        Assert.True(result);
+        Assert.True(result.Success);
         var newDir = Path.Combine(mapsDir, "NewMap");
         Assert.True(Directory.Exists(newDir));
         Assert.True(File.Exists(Path.Combine(newDir, "NewMap.map")));
@@ -171,7 +176,7 @@ public sealed class MapDirectoryServiceTests : IDisposable
 
         var result = await service.RenameMapAsync(map, "NewMap");
 
-        Assert.True(result);
+        Assert.True(result.Success);
         var newDir = Path.Combine(mapsDir, "NewMap");
         Assert.True(Directory.Exists(newDir));
         Assert.True(File.Exists(Path.Combine(newDir, "NewMap.map")));
@@ -186,6 +191,7 @@ public sealed class MapDirectoryServiceTests : IDisposable
         {
             try
             {
+                ReadOnlyFolderFixtures.RestoreWritable(_tempDirectory);
                 Directory.Delete(_tempDirectory, true);
             }
             catch
@@ -362,5 +368,193 @@ public sealed class MapDirectoryServiceTests : IDisposable
         Assert.Equal(
             ["Vendetta.tga", "Vendetta.wak", "map.ini", "map.str"],
             map.AssetFiles.Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Verifies that deleting a map whose folder was made read-only outside GenHub removes the folder
+    /// and leaves a read-only sibling folder untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteMapsAsync_WithReadOnlyMapFolder_DeletesFolderAndLeavesSiblingReadOnlyAsync()
+    {
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestDeleteReadOnly");
+        var map = await CreateDirectoryMapAsync(mapsDir, "LockedMap");
+        var sibling = await CreateDirectoryMapAsync(mapsDir, "OtherMap");
+        ReadOnlyFolderFixtures.MakeReadOnly(Path.Combine(mapsDir, "LockedMap"));
+        ReadOnlyFolderFixtures.MakeReadOnly(Path.Combine(mapsDir, "OtherMap"));
+
+        var result = await service.DeleteMapsAsync([map]);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.False(Directory.Exists(Path.Combine(mapsDir, "LockedMap")));
+        Assert.True(File.Exists(sibling.FullPath));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(Path.Combine(mapsDir, "OtherMap")));
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(sibling.FullPath));
+    }
+
+    /// <summary>
+    /// Verifies that renaming a map whose folder and files were made read-only outside GenHub renames the
+    /// folder, the .map file and its companion assets.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameMapAsync_WithReadOnlyMapFolder_RenamesFolderMapAndCompanionAsync()
+    {
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestRenameReadOnly");
+        var map = await CreateDirectoryMapAsync(mapsDir, "LockedMap");
+        ReadOnlyFolderFixtures.MakeReadOnly(Path.Combine(mapsDir, "LockedMap"));
+
+        var result = await service.RenameMapAsync(map, "OpenMap");
+
+        Assert.True(result.Success, result.FirstError);
+        var newDir = Path.Combine(mapsDir, "OpenMap");
+        Assert.True(File.Exists(Path.Combine(newDir, "OpenMap.map")));
+        Assert.True(File.Exists(Path.Combine(newDir, "OpenMap.tga")));
+        Assert.True(File.Exists(Path.Combine(newDir, "OpenMap.ini")));
+        Assert.False(Directory.Exists(Path.Combine(mapsDir, "LockedMap")));
+    }
+
+    /// <summary>
+    /// Verifies that a map folder whose permissions cannot be changed is reported by path instead of a bare failure,
+    /// and that the folder is left intact.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteMapsAsync_WhenFolderCannotBeMadeWritable_ReturnsErrorNamingFolderAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestDeleteImmutable");
+        var map = await CreateDirectoryMapAsync(mapsDir, "ImmutableMap");
+        var mapDir = Path.Combine(mapsDir, "ImmutableMap");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.LockImmutable(mapDir);
+
+        var result = await service.DeleteMapsAsync([map]);
+
+        Assert.False(result.Success);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, MapManagerConstants.FolderNotWritableFallbackMessage, mapDir), result.FirstError);
+        Assert.True(File.Exists(map.FullPath));
+    }
+
+    /// <summary>
+    /// Verifies that a rename blocked by a map folder whose permissions cannot be changed reports the folder by path.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RenameMapAsync_WhenFolderCannotBeMadeWritable_ReturnsErrorNamingFolderAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestRenameImmutable");
+        var map = await CreateDirectoryMapAsync(mapsDir, "ImmutableMap");
+        var mapDir = Path.Combine(mapsDir, "ImmutableMap");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.LockImmutable(mapDir);
+
+        var result = await service.RenameMapAsync(map, "OpenMap");
+
+        Assert.False(result.Success);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, MapManagerConstants.FolderNotWritableFallbackMessage, mapDir), result.FirstError);
+        Assert.True(File.Exists(map.FullPath));
+        Assert.False(Directory.Exists(Path.Combine(mapsDir, "OpenMap")));
+    }
+
+    /// <summary>
+    /// Verifies that the folder error is taken from the localization service when one is supplied.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteMapsAsync_WhenFolderCannotBeMadeWritable_UsesLocalizedMessageAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var localization = new Mock<ILocalizationService>();
+        string? localized = "localized folder error";
+        localization
+            .Setup(l => l.TryGetString(MapManagerConstants.FolderNotWritableMessageKey, out localized, It.IsAny<object?[]>()))
+            .Returns(true);
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("TestDeleteLocalized", localization.Object);
+        var map = await CreateDirectoryMapAsync(mapsDir, "ImmutableMap");
+        var mapDir = Path.Combine(mapsDir, "ImmutableMap");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.LockImmutable(mapDir);
+
+        var result = await service.DeleteMapsAsync([map]);
+
+        Assert.False(result.Success);
+        Assert.Equal("localized folder error", result.FirstError);
+    }
+
+    /// <summary>Cancellation between deletions is propagated, leaving later maps untouched.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteMapsAsync_CancelledBetweenMaps_DoesNotReportSuccessAsync()
+    {
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("CancelDelete");
+        var first = await CreateDirectoryMapAsync(mapsDir, "First");
+        var second = await CreateDirectoryMapAsync(mapsDir, "Second");
+        using var cancellation = new CancellationTokenSource();
+
+        IEnumerable<MapFile> Maps()
+        {
+            yield return first;
+            cancellation.Cancel();
+            yield return second;
+        }
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.DeleteMapsAsync(Maps(), cancellation.Token));
+        Assert.False(File.Exists(first.FullPath));
+        Assert.True(File.Exists(second.FullPath));
+    }
+
+    private static async Task<MapFile> CreateDirectoryMapAsync(string mapsDir, string name)
+    {
+        var mapDir = Path.Combine(mapsDir, name);
+        Directory.CreateDirectory(mapDir);
+        var mapPath = Path.Combine(mapDir, name + ".map");
+        await File.WriteAllTextAsync(mapPath, "map content");
+        await File.WriteAllTextAsync(Path.Combine(mapDir, name + ".tga"), "tga content");
+        await File.WriteAllTextAsync(Path.Combine(mapDir, name + ".ini"), "ini content");
+
+        return new MapFile
+        {
+            FileName = name + ".map",
+            FullPath = mapPath,
+            DirectoryName = name,
+            IsDirectory = true,
+            GameType = GameType.ZeroHour,
+            SizeBytes = 100,
+            LastModified = DateTime.UtcNow,
+        };
+    }
+
+    private (MapDirectoryService Service, string MapsDir) CreateServiceWithMapsDirectory(
+        string baseName,
+        ILocalizationService? localizationService = null)
+    {
+        var basePath = Path.Combine(_tempDirectory, baseName);
+        var pathProvider = new Mock<IGamePathProvider>();
+        pathProvider.Setup(p => p.GetOptionsDirectory(GameType.ZeroHour)).Returns(basePath);
+
+        var mapsDir = Path.Combine(basePath, MapManagerConstants.MapsSubdirectoryName);
+        Directory.CreateDirectory(mapsDir);
+
+        var service = new MapDirectoryService(
+            _mapNameParser,
+            NullLogger<MapDirectoryService>.Instance,
+            pathProvider.Object,
+            localizationService);
+        return (service, mapsDir);
     }
 }
