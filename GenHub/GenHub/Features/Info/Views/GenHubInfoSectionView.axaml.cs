@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using GenHub.Common.Controls;
+using GenHub.Core.Models.Info;
 using GenHub.Features.Info.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -20,6 +21,8 @@ public partial class GenHubInfoSectionView : UserControl
     private ItemsControl? _cardsItemsControl;
     private ItemsControl? _faqLeftItemsControl;
     private ItemsControl? _faqRightItemsControl;
+    private ChangelogsView? _changelogsView;
+    private GeneralsOnlineChangelogView? _goChangelogView;
     private bool _syncingSelectionFromScroll;
     private bool _deferredScrollPending;
 
@@ -87,6 +90,8 @@ public partial class GenHubInfoSectionView : UserControl
         _cardsItemsControl = this.FindControl<ItemsControl>("CardsItemsControl");
         _faqLeftItemsControl = this.FindControl<ItemsControl>("FaqLeftItemsControl");
         _faqRightItemsControl = this.FindControl<ItemsControl>("FaqRightItemsControl");
+        _changelogsView = this.FindControl<ChangelogsView>("GenHubChangelogsView");
+        _goChangelogView = this.FindControl<GeneralsOnlineChangelogView>("GenHubGoChangelogView");
 
         HookItemsControl(_cardsItemsControl);
         HookItemsControl(_faqLeftItemsControl);
@@ -121,6 +126,8 @@ public partial class GenHubInfoSectionView : UserControl
         _faqLeftItemsControl = null;
         _faqRightItemsControl = null;
         _contentScrollViewer = null;
+        _changelogsView = null;
+        _goChangelogView = null;
     }
 
     private void HookViewModel(GenHubInfoSectionViewModel vm)
@@ -205,6 +212,30 @@ public partial class GenHubInfoSectionView : UserControl
         RegisterCardsFromControl(_cardsItemsControl ??= this.FindControl<ItemsControl>("CardsItemsControl"));
         RegisterCardsFromControl(_faqLeftItemsControl ??= this.FindControl<ItemsControl>("FaqLeftItemsControl"));
         RegisterCardsFromControl(_faqRightItemsControl ??= this.FindControl<ItemsControl>("FaqRightItemsControl"));
+
+        _changelogsView ??= this.FindControl<ChangelogsView>("GenHubChangelogsView");
+        _goChangelogView ??= this.FindControl<GeneralsOnlineChangelogView>("GenHubGoChangelogView");
+
+        if (_boundViewModel?.SelectedSection?.Cards != null)
+        {
+            foreach (var card in _boundViewModel.SelectedSection.Cards)
+            {
+                if (card.TargetItem is ChangelogItemViewModel chItem && _changelogsView != null)
+                {
+                    if (_changelogsView.ContainerFromItem(chItem) is Control chControl)
+                    {
+                        _scrollSpy.RegisterSection(card, chControl);
+                    }
+                }
+                else if (card.TargetItem is PatchNote pnItem && _goChangelogView != null)
+                {
+                    if (_goChangelogView.ContainerFromItem(pnItem) is Control pnControl)
+                    {
+                        _scrollSpy.RegisterSection(card, pnControl);
+                    }
+                }
+            }
+        }
     }
 
     private void RegisterCardsFromControl(ItemsControl? control)
@@ -265,13 +296,34 @@ public partial class GenHubInfoSectionView : UserControl
             card.IsExpanded = true;
         }
 
+        if (card.TargetItem is ChangelogItemViewModel releaseItem)
+        {
+            releaseItem.IsExpanded = true;
+        }
+        else if (card.TargetItem is PatchNote patchNote)
+        {
+            patchNote.IsExpanded = true;
+        }
+
         EnsureScrollSpy();
         if (_scrollSpy == null)
         {
             return;
         }
 
-        var container = (_cardsItemsControl?.ContainerFromItem(card)
+        Control? container = null;
+        if (card.TargetItem is ChangelogItemViewModel chItem)
+        {
+            _changelogsView ??= this.FindControl<ChangelogsView>("GenHubChangelogsView");
+            container = _changelogsView?.ContainerFromItem(chItem);
+        }
+        else if (card.TargetItem is PatchNote pnItem)
+        {
+            _goChangelogView ??= this.FindControl<GeneralsOnlineChangelogView>("GenHubGoChangelogView");
+            container = _goChangelogView?.ContainerFromItem(pnItem);
+        }
+
+        container ??= (_cardsItemsControl?.ContainerFromItem(card)
             ?? _faqLeftItemsControl?.ContainerFromItem(card)
             ?? _faqRightItemsControl?.ContainerFromItem(card)) as Control;
 

@@ -3028,6 +3028,27 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="Info.Demo.Tools.LaunchPublisherStudio" xml:space="preserve">
     <value>Open Publisher Studio</value>
   </data>
+  <data name="Info.Demo.Tools.PublisherStudioShowcaseSubheading" xml:space="preserve">
+    <value>Tier 1 (Publisher Manifest) → Tier 2 (Content Catalogs) → Tier 3 (Artifact Archives)</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep1Title" xml:space="preserve">
+    <value>1. Catalog Authoring</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep1Desc" xml:space="preserve">
+    <value>Package content, hash files, configure variants, and specify dependencies.</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep2Title" xml:space="preserve">
+    <value>2. External CDN Hosting</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep2Desc" xml:space="preserve">
+    <value>Host manifests &amp; archives on GitHub Releases, Google Drive, Dropbox, or custom CDNs.</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep3Title" xml:space="preserve">
+    <value>3. Player Notifications</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
+    <value>Subscribed players poll manifests every 30m, get notified, and download updates CAS-verified.</value>
+  </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>Scan Wizard</value>
   </data>

@@ -39,6 +39,38 @@ public partial class InfoCardViewModel : ObservableObject
     [ObservableProperty]
     private List<InfoAction> _actions = [];
 
+    [ObservableProperty]
+    private Material.Icons.MaterialIconKind? _customIconKind;
+
+    /// <summary>
+    /// Gets or sets an optional associated target object (e.g. changelog release or patch note).
+    /// </summary>
+    public object? TargetItem { get; set; }
+
+    /// <summary>
+    /// Gets the unique identifier of the underlying card model.
+    /// </summary>
+    public string Id => _model?.Id ?? string.Empty;
+
+    /// <summary>
+    /// Gets the underlying card model.
+    /// </summary>
+    public InfoCard? Model => _model;
+
+    /// <summary>
+    /// Gets the icon kind representing this card.
+    /// </summary>
+    public Material.Icons.MaterialIconKind IconKind => CustomIconKind ?? Type switch
+    {
+        InfoCardType.HowTo => Material.Icons.MaterialIconKind.LightbulbOutline,
+        InfoCardType.Feature => Material.Icons.MaterialIconKind.StarOutline,
+        InfoCardType.Concept => Material.Icons.MaterialIconKind.BookOpenPageVariantOutline,
+        InfoCardType.Warning => Material.Icons.MaterialIconKind.AlertCircleOutline,
+        InfoCardType.Tip => Material.Icons.MaterialIconKind.LightbulbOnOutline,
+        InfoCardType.Example => Material.Icons.MaterialIconKind.PlayCircleOutline,
+        _ => Material.Icons.MaterialIconKind.FileDocumentOutline,
+    };
+
     /// <summary>
     /// Initializes a new instance of the <see cref="InfoCardViewModel"/> class with default values.
     /// </summary>

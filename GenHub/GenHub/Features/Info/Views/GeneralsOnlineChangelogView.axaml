@@ -47,7 +47,7 @@
     </Border>
 
     <!-- List -->
-    <ItemsControl ItemsSource="{Binding PatchNotes}">
+    <ItemsControl x:Name="PatchNotesItemsControl" ItemsSource="{Binding PatchNotes}">
        <ItemsControl.ItemTemplate>
           <DataTemplate>
              <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Margin="0,0,0,12"

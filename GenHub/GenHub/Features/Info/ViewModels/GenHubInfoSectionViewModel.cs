@@ -16,6 +16,7 @@ using GenHub.Features.Tools.ReplayManager.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -41,6 +42,8 @@ public partial class GenHubInfoSectionViewModel(
     private readonly List<InfoSectionViewModel> _allSections = [];
     private bool _disposed;
     private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
+    private ObservableCollection<InfoCardViewModel>? _selectedSectionCards;
+    private NotifyCollectionChangedEventHandler? _cardsCollectionChangedHandler;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
@@ -458,18 +461,29 @@ public partial class GenHubInfoSectionViewModel(
             }
 
             FilterSections();
+            SyncChangelogCards();
+            SyncGoChangelogCards();
 
             // Load changelogs automatically
             await Changelogs.LoadChangelogsAsync();
         }
         else
         {
+            SyncChangelogCards();
+            SyncGoChangelogCards();
+
             // Already initialized, but load changelogs if not loaded
             if (Changelogs.Releases.Count == 0)
             {
                 await Changelogs.LoadChangelogsAsync();
             }
         }
+
+        changelogsViewModel.Releases.CollectionChanged -= OnChangelogsReleasesChanged;
+        changelogsViewModel.Releases.CollectionChanged += OnChangelogsReleasesChanged;
+
+        goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
+        goChangelogViewModel.PatchNotes.CollectionChanged += OnGoPatchNotesChanged;
 
         // Ensure Demo ViewModels are initialized (even if Sections were already loaded)
         // Check each property individually to be robust against partial initialization failures
@@ -563,6 +577,13 @@ public partial class GenHubInfoSectionViewModel(
             if (localizationService != null)
             {
                 localizationService.PropertyChanged -= OnLocalizationChanged;
+            }
+
+            changelogsViewModel.Releases.CollectionChanged -= OnChangelogsReleasesChanged;
+            goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
+            if (_selectedSectionCards != null && _cardsCollectionChangedHandler != null)
+            {
+                _selectedSectionCards.CollectionChanged -= _cardsCollectionChangedHandler;
             }
 
             DemoReplayManager?.Dispose();
@@ -669,9 +690,124 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
-    partial void OnSelectedSectionChanged(InfoSectionViewModel? value)
+    private void OnChangelogsReleasesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        SelectedCard = value?.Cards.FirstOrDefault();
+        SyncChangelogCards();
+    }
+
+    private void OnGoPatchNotesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        SyncGoChangelogCards();
+    }
+
+    private void SyncChangelogCards()
+    {
+        var section = _allSections.FirstOrDefault(s => s.Id == InfoConstants.SectionChangelogs);
+        if (section == null)
+        {
+            return;
+        }
+
+        foreach (var release in Changelogs.Releases)
+        {
+            if (!section.Cards.Any(c => ReferenceEquals(c.TargetItem, release)))
+            {
+                var cardVm = new InfoCardViewModel(
+                    new InfoCard
+                    {
+                        Id = "release-" + (release.Release.TagName ?? release.Release.Name ?? Guid.NewGuid().ToString()),
+                        Title = release.Release.Name ?? release.Release.TagName ?? "Release",
+                        Content = release.Release.PublishedAt?.ToString("yyyy-MM-dd") ?? string.Empty,
+                        Type = InfoCardType.Feature,
+                        DetailedContent = release.Release.Body,
+                    },
+                    InfoConstants.SectionChangelogs,
+                    localizationService)
+                {
+                    TargetItem = release,
+                    CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+                };
+                section.Cards.Add(cardVm);
+            }
+        }
+
+        if (SelectedSection?.Id == InfoConstants.SectionChangelogs)
+        {
+            UpdateCardsPaneLengthForSection(SelectedSection);
+        }
+    }
+
+    private void SyncGoChangelogCards()
+    {
+        var section = _allSections.FirstOrDefault(s => s.Id == InfoConstants.SectionGoChangelog);
+        if (section == null)
+        {
+            return;
+        }
+
+        foreach (var note in GoChangelog.PatchNotes)
+        {
+            if (!section.Cards.Any(c => ReferenceEquals(c.TargetItem, note)))
+            {
+                var cardId = string.IsNullOrEmpty(note.Id) ? (note.Title ?? Guid.NewGuid().ToString()) : note.Id;
+                var cardVm = new InfoCardViewModel(
+                    new InfoCard
+                    {
+                        Id = "go-patch-" + cardId,
+                        Title = note.Title ?? string.Empty,
+                        Content = note.Date ?? string.Empty,
+                        Type = InfoCardType.Feature,
+                        DetailedContent = note.Summary,
+                    },
+                    InfoConstants.SectionGoChangelog,
+                    localizationService)
+                {
+                    TargetItem = note,
+                    CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+                };
+                section.Cards.Add(cardVm);
+            }
+        }
+
+        if (SelectedSection?.Id == InfoConstants.SectionGoChangelog)
+        {
+            UpdateCardsPaneLengthForSection(SelectedSection);
+        }
+    }
+
+    private void UpdateCardsPaneLengthForSection(InfoSectionViewModel? section)
+    {
+        if (section == null || section.Cards.Count == 0)
+        {
+            CardsOpenPaneLength = 220;
+            return;
+        }
+
+        var maxTitleLength = section.Cards.Max(c => c.Title?.Length ?? 0);
+        double estimatedWidth = 60 + (maxTitleLength * 8.0);
+        CardsOpenPaneLength = Math.Clamp(estimatedWidth, 180, 380);
+    }
+
+    partial void OnSelectedSectionChanged(InfoSectionViewModel? oldValue, InfoSectionViewModel? newValue)
+    {
+        if (oldValue?.Cards != null && _cardsCollectionChangedHandler != null)
+        {
+            oldValue.Cards.CollectionChanged -= _cardsCollectionChangedHandler;
+        }
+
+        SelectedCard = newValue?.Cards.FirstOrDefault();
+        UpdateCardsPaneLengthForSection(newValue);
+
+        if (newValue?.Cards != null)
+        {
+            _cardsCollectionChangedHandler ??= (_, _) => UpdateCardsPaneLengthForSection(SelectedSection);
+            newValue.Cards.CollectionChanged += _cardsCollectionChangedHandler;
+            _selectedSectionCards = newValue.Cards;
+        }
+        else
+        {
+            _selectedSectionCards = null;
+        }
 
         OnPropertyChanged(nameof(IsQuickStartSelected));
         OnPropertyChanged(nameof(IsGameProfilesSelected));

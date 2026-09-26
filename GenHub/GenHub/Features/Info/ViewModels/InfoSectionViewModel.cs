@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Info;
 using System;
@@ -29,6 +30,28 @@ public partial class InfoSectionViewModel(InfoSection model, ILocalizationServic
     /// Gets the underlying model.
     /// </summary>
     public InfoSection Model => model;
+
+    /// <summary>
+    /// Gets the icon kind representing this section.
+    /// </summary>
+    public Material.Icons.MaterialIconKind IconKind => Id switch
+    {
+        InfoConstants.SectionQuickstart => Material.Icons.MaterialIconKind.RocketLaunchOutline,
+        InfoConstants.SectionGameProfiles => Material.Icons.MaterialIconKind.AccountMultipleOutline,
+        InfoConstants.SectionGameSettings => Material.Icons.MaterialIconKind.TuneVariant,
+        InfoConstants.SectionGameProfileContent => Material.Icons.MaterialIconKind.FolderCogOutline,
+        InfoConstants.SectionShortcuts => Material.Icons.MaterialIconKind.Launch,
+        InfoConstants.SectionSteam => Material.Icons.MaterialIconKind.Steam,
+        InfoConstants.SectionLocalContent => Material.Icons.MaterialIconKind.FolderEyeOutline,
+        InfoConstants.SectionTools => Material.Icons.MaterialIconKind.HammerWrench,
+        InfoConstants.SectionScanGames => Material.Icons.MaterialIconKind.FolderSearchOutline,
+        InfoConstants.SectionWorkspaces => Material.Icons.MaterialIconKind.LayersOutline,
+        InfoConstants.SectionAppUpdates => Material.Icons.MaterialIconKind.Update,
+        InfoConstants.SectionChangelogs => Material.Icons.MaterialIconKind.History,
+        InfoConstants.SectionFaq => Material.Icons.MaterialIconKind.HelpCircleOutline,
+        InfoConstants.SectionGoChangelog => Material.Icons.MaterialIconKind.ClipboardTextClockOutline,
+        _ => Material.Icons.MaterialIconKind.InformationOutline,
+    };
 
     /// <summary>
     /// Gets the collection of cards in this section.

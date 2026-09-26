@@ -3028,6 +3028,27 @@
   <data name="Info.Demo.Tools.LaunchPublisherStudio" xml:space="preserve">
     <value>فتح استوديو الناشر</value>
   </data>
+  <data name="Info.Demo.Tools.PublisherStudioShowcaseSubheading" xml:space="preserve">
+    <value>المستوى 1 (بيان الناشر) ← المستوى 2 (فهارس المحتوى) ← المستوى 3 (أرشيفات العناصر)</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep1Title" xml:space="preserve">
+    <value>1. تأليف الفهرس</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep1Desc" xml:space="preserve">
+    <value>حزم المحتوى وتجزئة الملفات وتكوين المتغيرات وتحديد التبعيات.</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep2Title" xml:space="preserve">
+    <value>2. استضافة CDN خارجية</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep2Desc" xml:space="preserve">
+    <value>استضافة البيانات والأرشيفات على GitHub Releases أو Google Drive أو Dropbox أو شبكات CDN المخصصة.</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep3Title" xml:space="preserve">
+    <value>3. إشعارات اللاعبين</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
+    <value>يقوم اللاعبون المشتركون بالتحقق من البيانات كل 30 دقيقة وتلقي الإشعارات وتنزيل التحديثات المعتمدة من CAS.</value>
+  </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>معالج الفحص</value>
   </data>

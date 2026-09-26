@@ -461,6 +461,21 @@ public static class InfoConstants
     public const string CardUpdatesOfflineDownloads = "offline-downloads";
 
     /// <summary>
+    /// Card ID for Changelog Overview.
+    /// </summary>
+    public const string CardChangelogsOverview = "changelogs-overview";
+
+    /// <summary>
+    /// Card ID for Changelog Updates.
+    /// </summary>
+    public const string CardChangelogsUpdates = "changelogs-updates";
+
+    /// <summary>
+    /// Card ID for Changelog Compatibility.
+    /// </summary>
+    public const string CardChangelogsCompatibility = "changelogs-compatibility";
+
+    /// <summary>
     /// Prefix for FAQ Card IDs.
     /// </summary>
     public const string CardFaqPrefix = "faq-";

@@ -14,4 +14,14 @@ public partial class GeneralsOnlineChangelogView : UserControl
     {
         InitializeComponent();
     }
+
+    /// <summary>
+    /// Gets the container control for a specific patch note item.
+    /// </summary>
+    /// <param name="item">The patch note item.</param>
+    /// <returns>The container control if found; otherwise, null.</returns>
+    public Control? ContainerFromItem(object item)
+    {
+        return PatchNotesItemsControl?.ContainerFromItem(item);
+    }
 }

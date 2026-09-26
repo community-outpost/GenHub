@@ -15,4 +15,14 @@ public partial class ChangelogsView : UserControl
     {
         InitializeComponent();
     }
+
+    /// <summary>
+    /// Gets the container control for a specific changelog item.
+    /// </summary>
+    /// <param name="item">The changelog item.</param>
+    /// <returns>The container control if found; otherwise, null.</returns>
+    public Control? ContainerFromItem(object item)
+    {
+        return ReleasesItemsControl?.ContainerFromItem(item);
+    }
 }

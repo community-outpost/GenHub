@@ -3028,6 +3028,27 @@
   <data name="Info.Demo.Tools.LaunchPublisherStudio" xml:space="preserve">
     <value>Открыть студию издателя</value>
   </data>
+  <data name="Info.Demo.Tools.PublisherStudioShowcaseSubheading" xml:space="preserve">
+    <value>Уровень 1 (Манифест издателя) → Уровень 2 (Каталоги контента) → Уровень 3 (Архивы артефактов)</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep1Title" xml:space="preserve">
+    <value>1. Создание каталога</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep1Desc" xml:space="preserve">
+    <value>Упаковывайте контент, вычисляйте хеши, настраивайте варианты и зависимости.</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep2Title" xml:space="preserve">
+    <value>2. Внешний хостинг CDN</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep2Desc" xml:space="preserve">
+    <value>Размещайте манифесты и архивы на GitHub Releases, Google Drive, Dropbox или собственных CDN.</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep3Title" xml:space="preserve">
+    <value>3. Уведомления игроков</value>
+  </data>
+  <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
+    <value>Подписанные игроки опрашивают манифесты каждые 30 мин, получают уведомления и скачивают обновления с проверкой CAS.</value>
+  </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>Мастер сканирования</value>
   </data>
