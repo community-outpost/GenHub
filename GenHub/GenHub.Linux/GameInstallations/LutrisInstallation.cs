@@ -144,33 +144,14 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
                     directory,
                     $"drive_c/Program Files/EA Games/{GameClientConstants.ZeroHourDirectoryName}/");
 
-                // Check if EA app and Generals/ZH are installed
-                if (Directory.Exists(homeDir))
+                if (TryApplyGameInstallation(homeDir, version, entry.Value))
                 {
-                    IsLutrisInstalled = true;
-                    InstallationPath = homeDir;
-                    LutrisVersion = version;
-                    PackageInstallationType = entry.Value;
-
-                    if (Directory.Exists(Path.Combine(homeDir, GameClientConstants.ZeroHourDirectoryName)))
-                    {
-                        HasZeroHour = true;
-                        ZeroHourPath = Path.Combine(homeDir, GameClientConstants.ZeroHourDirectoryName);
-                    }
-
-                    if (Directory.Exists(Path.Combine(homeDir, GameClientConstants.GeneralsDirectoryName)))
-                    {
-                        HasGenerals = true;
-                        GeneralsPath = Path.Combine(homeDir, GameClientConstants.GeneralsDirectoryName);
-                    }
-
                     break;
                 }
             }
         }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger?.LogDebug(ex, "Lutris installation detection was canceled");
             throw;
         }
         catch (OperationCanceledException ex)
@@ -210,6 +191,35 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
     public void PopulateGameClients(IEnumerable<GameClient> clients)
     {
         AvailableGameClients.AddRange(clients);
+    }
+
+    private bool TryApplyGameInstallation(string homeDir, string version, LinuxInstallationType packageType)
+    {
+        if (!Directory.Exists(homeDir))
+        {
+            return false;
+        }
+
+        IsLutrisInstalled = true;
+        InstallationPath = homeDir;
+        LutrisVersion = version;
+        PackageInstallationType = packageType;
+
+        var zhDir = Path.Combine(homeDir, GameClientConstants.ZeroHourDirectoryName);
+        if (Directory.Exists(zhDir))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = zhDir;
+        }
+
+        var generalsDir = Path.Combine(homeDir, GameClientConstants.GeneralsDirectoryName);
+        if (Directory.Exists(generalsDir))
+        {
+            HasGenerals = true;
+            GeneralsPath = generalsDir;
+        }
+
+        return true;
     }
 
     private static ProcessStartInfo CreateLutrisStartInfo(string command, string[] extraArgs)
