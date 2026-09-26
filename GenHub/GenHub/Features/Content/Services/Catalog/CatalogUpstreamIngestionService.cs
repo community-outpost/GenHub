@@ -298,6 +298,15 @@ public class CatalogUpstreamIngestionService(
         });
     }
 
+    private static ContentSearchResult? FindMatchingDiscoveryItem(IReadOnlyList<ContentSearchResult> items, CatalogContentItem item)
+    {
+        return items.FirstOrDefault(i =>
+            string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(i.Name) &&
+             (item.Name.Contains(i.Name, StringComparison.OrdinalIgnoreCase) || i.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase))));
+    }
+
     private async Task IngestSingleItemAsync(
         CatalogContentItem item,
         Dictionary<IContentDiscoverer, OperationResult<ContentDiscoveryResult>> discoveryCache,
@@ -440,33 +449,15 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var matched = items.FirstOrDefault(i =>
-            string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(i.Name) &&
-             (item.Name.Contains(i.Name, StringComparison.OrdinalIgnoreCase) || i.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase))));
-
+        var matched = FindMatchingDiscoveryItem(items, item);
         if (matched == null)
         {
             return;
         }
 
-        string? downloadUrl = null;
-        long downloadSize = matched.DownloadSize;
-
-        if (matched.Data is GeneralsOnlineRelease goRelease)
-        {
-            downloadUrl = goRelease.PortableUrl;
-            if (goRelease.PortableSize.HasValue && goRelease.PortableSize.Value > 0)
-            {
-                downloadSize = goRelease.PortableSize.Value;
-            }
-        }
-
-        downloadUrl ??= matched.SelectedDownloadUrl ?? matched.SourceUrl;
+        var (downloadUrl, downloadSize) = ResolveDiscoveryDownloadUrl(matched, providerDisplayName, item.Id);
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
-            logger.LogWarning("{Provider} item '{ItemId}' has no usable download URL, keeping existing releases", providerDisplayName, item.Id);
             return;
         }
 
@@ -487,5 +478,31 @@ public class CatalogUpstreamIngestionService(
 
         item.Releases.Clear();
         item.Releases.Add(synthesized);
+    }
+
+    private (string? DownloadUrl, long DownloadSize) ResolveDiscoveryDownloadUrl(
+        ContentSearchResult matched,
+        string providerDisplayName,
+        string itemId)
+    {
+        string? downloadUrl = null;
+        var downloadSize = matched.DownloadSize;
+
+        if (matched.Data is GeneralsOnlineRelease goRelease)
+        {
+            downloadUrl = goRelease.PortableUrl;
+            if (goRelease.PortableSize.HasValue && goRelease.PortableSize.Value > 0)
+            {
+                downloadSize = goRelease.PortableSize.Value;
+            }
+        }
+
+        downloadUrl ??= matched.SelectedDownloadUrl ?? matched.SourceUrl;
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            logger.LogWarning("{Provider} item '{ItemId}' has no usable download URL, keeping existing releases", providerDisplayName, itemId);
+        }
+
+        return (downloadUrl, downloadSize);
     }
 }

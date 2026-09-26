@@ -5153,8 +5153,11 @@ public partial class ContentDetailViewModel(
             }
         }
 
+        // Creating a new profile leaves the original profile on the old manifest, so the
+        // old manifest must stay installed regardless of the delete-old-versions option.
         if (promptResult.DeleteOldVersions && !string.IsNullOrEmpty(oldManifestId) &&
-            !string.Equals(oldManifestId, newManifestId, StringComparison.OrdinalIgnoreCase))
+            !string.Equals(oldManifestId, newManifestId, StringComparison.OrdinalIgnoreCase) &&
+            promptResult.Strategy != UpdateStrategy.CreateNewProfile)
         {
             try
             {

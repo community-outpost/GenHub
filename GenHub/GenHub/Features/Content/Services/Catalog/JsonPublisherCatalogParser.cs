@@ -324,6 +324,10 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         {
             errors.Add($"Content bundle '{content.Id}' has no bundled items");
         }
+        else if (content.BundledItems != null && content.BundledItems.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)))
+        {
+            errors.Add($"Content bundle '{content.Id}' has bundled items with missing content IDs");
+        }
     }
 
     private static void ValidateUpstreamItem(CatalogContentItem content, List<string> errors)
