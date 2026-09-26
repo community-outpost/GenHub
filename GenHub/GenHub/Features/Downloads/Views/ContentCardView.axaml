@@ -595,7 +595,7 @@
                                IsVisible="{Binding DownloadStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
                     <!-- Download Button (visible when not downloaded) -->
-                    <Button Classes="card-button download-btn"
+                    <Button x:Name="DownloadButton" Classes="card-button download-btn"
                             Command="{Binding DownloadCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowDownloadButton}"
@@ -610,7 +610,7 @@
                     </Button>
 
                     <!-- Update Button (visible when update is available) -->
-                    <Button Classes="card-button update-btn"
+                    <Button x:Name="UpdateButton" Classes="card-button update-btn"
                             Command="{Binding UpdateCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowUpdateButton}"
@@ -624,7 +624,7 @@
                     </Button>
 
                     <!-- Add to Profile Button (visible when downloaded) -->
-                    <Button Classes="card-button add-profile-btn"
+                    <Button x:Name="AddToProfileButton" Classes="card-button add-profile-btn"
                             Command="{Binding AddToProfileCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowAddToProfileButton}"
