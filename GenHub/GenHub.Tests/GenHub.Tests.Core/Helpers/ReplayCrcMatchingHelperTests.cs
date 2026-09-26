@@ -355,6 +355,7 @@ public class ReplayCrcMatchingHelperTests
             Id = "steam",
             Name = "Command & Conquer Generals Zero Hour (Steam)",
             PublisherType = "Steam",
+            Version = "1.04",
             GameType = GameType.ZeroHour,
         };
         Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(steamClient));
@@ -843,7 +844,7 @@ public class ReplayCrcMatchingHelperTests
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<string>.CreateSuccess("0xDEADBEEF"));
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
 
             var isRetail = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
             Assert.False(isRetail);

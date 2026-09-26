@@ -450,10 +450,6 @@ public static class ReplayCrcMatchingHelper
         }
 
         var customExe = (profile as GameProfile)?.CustomExecutablePath;
-        if (string.IsNullOrWhiteSpace(customExe))
-        {
-            customExe = profile.ExecutablePath;
-        }
 
         var workingDir = (profile as GameProfile)?.WorkingDirectory;
         if (string.IsNullOrWhiteSpace(workingDir))
@@ -643,19 +639,19 @@ public static class ReplayCrcMatchingHelper
 
         var effectiveGameType = IsExplicitGeneralsClient(client) ? GameType.Generals : GameType.ZeroHour;
 
-        var effectiveExePath = profile.CustomExecutablePath;
-        if (string.IsNullOrWhiteSpace(effectiveExePath))
-        {
-            effectiveExePath = profile.ExecutablePath;
-        }
-
+        var customExe = profile.CustomExecutablePath;
         var workingDir = profile.WorkingDirectory;
         if (string.IsNullOrWhiteSpace(workingDir))
         {
             workingDir = client.WorkingDirectory;
         }
 
-        if (!ValidateCustomExecutablePath(effectiveExePath, workingDir, effectiveGameType))
+        if (!ValidateCustomExecutablePath(customExe, workingDir, effectiveGameType))
+        {
+            return false;
+        }
+
+        if (!IsRetailCompatible(client, profile.EnabledContentIds))
         {
             return false;
         }
@@ -1151,9 +1147,9 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
-    /// Checks whether game.dat adjacent to the executable matches known retail signatures.
+    /// Resolves the candidate full executable path for profile verification.
     /// </summary>
-    private static string? ResolveProfileVerificationDirectory(GameProfile profile, GameClient client)
+    private static string? ResolveFullCandidateExePath(GameProfile profile, GameClient client)
     {
         var exePath = profile.CustomExecutablePath;
         if (string.IsNullOrWhiteSpace(exePath))
@@ -1163,22 +1159,35 @@ public static class ReplayCrcMatchingHelper
 
         if (string.IsNullOrWhiteSpace(exePath))
         {
-            exePath = ResolveProfileFullExePath(client);
-        }
-        else if (!Path.IsPathRooted(exePath))
-        {
-            var workingDir = !string.IsNullOrWhiteSpace(profile.WorkingDirectory)
-                ? profile.WorkingDirectory
-                : client.WorkingDirectory;
-            if (!string.IsNullOrWhiteSpace(workingDir))
-            {
-                exePath = Path.Combine(workingDir, exePath);
-            }
+            return ResolveProfileFullExePath(client);
         }
 
+        if (Path.IsPathRooted(exePath))
+        {
+            return exePath;
+        }
+
+        var workingDir = !string.IsNullOrWhiteSpace(profile.WorkingDirectory)
+            ? profile.WorkingDirectory
+            : client.WorkingDirectory;
+
+        return !string.IsNullOrWhiteSpace(workingDir)
+            ? Path.Combine(workingDir, exePath)
+            : exePath;
+    }
+
+    /// <summary>
+    /// Resolves the root directory to verify for a game profile.
+    /// </summary>
+    private static string? ResolveProfileVerificationDirectory(GameProfile profile, GameClient client)
+    {
+        var exePath = ResolveFullCandidateExePath(profile, client);
         if (!string.IsNullOrEmpty(exePath))
         {
-            var dir = exePath.TryGetFileCaseInsensitive(out var actual) ? Path.GetDirectoryName(actual) : Path.GetDirectoryName(exePath);
+            var dir = exePath.TryGetFileCaseInsensitive(out var actual)
+                ? Path.GetDirectoryName(actual)
+                : Path.GetDirectoryName(exePath);
+
             if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
             {
                 return dir;
@@ -1407,9 +1416,7 @@ public static class ReplayCrcMatchingHelper
                 versionPrefixes.Any(prefix => ver.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) ||
                 exactVersions.Any(exact => string.Equals(ver, exact, StringComparison.OrdinalIgnoreCase)))) ||
             versionPrefixes.Any(prefix => name.Contains(prefix, StringComparison.OrdinalIgnoreCase)) ||
-            idTokens.Any(idToken => id.Contains(idToken, StringComparison.OrdinalIgnoreCase)) ||
-            string.Equals(id, "steam", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(id, "ea", StringComparison.OrdinalIgnoreCase);
+            idTokens.Any(idToken => id.Contains(idToken, StringComparison.OrdinalIgnoreCase));
 
         return hasVersionEvidence;
     }

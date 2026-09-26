@@ -241,6 +241,8 @@ public class GameProfileItemViewModelTests
                 Id = "steam",
                 Name = "Steam Client",
                 PublisherType = "Steam",
+                Version = "1.04",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
             EnabledContentIds = ["1.106.communityoutpost.patch.zerohour"],
         };
@@ -449,6 +451,8 @@ public class GameProfileItemViewModelTests
                 Id = "steam",
                 Name = "Command & Conquer Generals Zero Hour (Steam)",
                 PublisherType = "Steam",
+                Version = "1.04",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
         };
 
@@ -499,6 +503,8 @@ public class GameProfileItemViewModelTests
                 Id = "steam",
                 Name = "Steam Client",
                 PublisherType = "Steam",
+                Version = "1.04",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
         };
 
