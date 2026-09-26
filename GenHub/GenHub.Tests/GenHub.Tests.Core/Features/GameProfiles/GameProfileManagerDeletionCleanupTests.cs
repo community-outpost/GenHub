@@ -111,7 +111,7 @@ public sealed class GameProfileManagerDeletionCleanupTests : IDisposable
                     LaunchId = "launch-1",
                     ProfileId = _fixture.Profile.Id,
                     WorkspaceId = _fixture.Profile.Id,
-                    ProcessInfo = new GameProcessInfo { ProcessId = 1234 },
+                    ProcessInfo = new GameProcessInfo { ProcessId = Environment.ProcessId },
                 },
             ]);
 
@@ -123,6 +123,42 @@ public sealed class GameProfileManagerDeletionCleanupTests : IDisposable
         Assert.True(File.Exists(_fixture.WorkspaceRefsPath));
         Assert.True(File.Exists(_fixture.UserDataManifestPath));
         Assert.NotEqual(ProfileDeletionFixture.OriginalMapContent, await File.ReadAllTextAsync(_fixture.DeployedMapPath));
+    }
+
+    /// <summary>An exited process does not block deletion while its registry entry is stale.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_StaleLaunchEntry_AllowsCleanupAsync()
+    {
+        await _fixture.ArrangeProfileWithDataAsync();
+        _fixture.LaunchRegistry.Setup(r => r.GetAllActiveLaunchesAsync()).ReturnsAsync(
+        [
+            new GameLaunchInfo
+            {
+                LaunchId = "stale-launch",
+                WorkspaceId = _fixture.Profile.Id,
+                ProfileId = _fixture.Profile.Id,
+                ProcessInfo = new GameProcessInfo { ProcessId = int.MaxValue },
+            },
+        ]);
+
+        var result = await _fixture.CreateProfileManager().DeleteProfileAsync(_fixture.Profile.Id);
+
+        Assert.True(result.Success, result.FirstError);
+        await _fixture.AssertProfileAndDataRemovedAsync();
+    }
+
+    /// <summary>Workspace cleanup propagates a cancelled token rather than returning a failure.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupWorkspaceAsync_Cancelled_ThrowsAsync()
+    {
+        await _fixture.ArrangeProfileWithDataAsync();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _fixture.CreateWorkspaceManager().CleanupWorkspaceAsync(_fixture.Profile.Id, cts.Token));
+        Assert.True(Directory.Exists(_fixture.WorkspacePath));
     }
 
     /// <summary>

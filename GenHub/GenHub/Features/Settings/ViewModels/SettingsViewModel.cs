@@ -2656,14 +2656,33 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 if (showToast && failedProfileNames.Count > 0)
                 {
-                    _notificationService.ShowWarning(
-                        "Profiles Partially Deleted",
-                        $"Deleted {deletedCount} profile(s). Could not delete {failedProfileNames.Count}: {string.Join(", ", failedProfileNames)}.",
-                        5000);
+                    var message = string.Format(
+                        CultureInfo.CurrentCulture,
+                        _localizationService?.GetString("Settings.Profiles.DeleteIncomplete") ?? "Deleted {0} profile(s). Could not delete {1}: {2}.",
+                        deletedCount,
+                        failedProfileNames.Count,
+                        string.Join(", ", failedProfileNames));
+                    if (deletedCount == 0)
+                    {
+                        _notificationService.ShowError(
+                            _localizationService?.GetString("Settings.Profiles.DeleteFailedTitle") ?? "Profile Deletion Failed",
+                            message,
+                            NotificationDurations.Medium);
+                    }
+                    else
+                    {
+                        _notificationService.ShowWarning(
+                            _localizationService?.GetString("Settings.Profiles.DeletePartialTitle") ?? "Profiles Partially Deleted",
+                            message,
+                            NotificationDurations.Medium);
+                    }
                 }
                 else if (showToast)
                 {
-                    _notificationService.ShowSuccess("Profiles Deleted", $"Deleted {deletedCount} profile(s) successfully.", 3000);
+                    _notificationService.ShowSuccess(
+                        _localizationService?.GetString("Settings.Profiles.DeletedTitle") ?? "Profiles Deleted",
+                        string.Format(CultureInfo.CurrentCulture, _localizationService?.GetString("Settings.Profiles.DeletedMessage") ?? "Deleted {0} profile(s) successfully.", deletedCount),
+                        NotificationDurations.Short);
                 }
             }
 

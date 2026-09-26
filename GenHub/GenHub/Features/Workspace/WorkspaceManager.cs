@@ -157,7 +157,9 @@ public class WorkspaceManager(
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var workspacesResult = await GetAllWorkspacesAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!workspacesResult.Success)
             {
                 return OperationResult<bool>.CreateFailure($"Failed to get workspaces for cleanup: {workspacesResult.FirstError}");
@@ -175,6 +177,7 @@ public class WorkspaceManager(
                 }
 
                 var orphanUntrackResult = await casReferenceTracker.UntrackWorkspaceAsync(workspaceId, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 return orphanUntrackResult.Success
                     ? OperationResult<bool>.CreateSuccess(false)
                     : OperationResult<bool>.CreateFailure($"Failed to untrack CAS references: {orphanUntrackResult.FirstError}");
@@ -184,6 +187,7 @@ public class WorkspaceManager(
             // If we delete the directory but leave .refs, GC will think they are still used.
             logger.LogDebug("[Workspace] Untracking CAS references for workspace {Id}", workspaceId);
             var untrackResult = await casReferenceTracker.UntrackWorkspaceAsync(workspaceId, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!untrackResult.Success)
             {
                 logger.LogError("[Workspace] Failed to untrack CAS references for workspace {Id}: {Error}. Aborting cleanup to prevent orphan reference leaks.", workspaceId, untrackResult.FirstError);
@@ -200,7 +204,7 @@ public class WorkspaceManager(
 
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to cleanup workspace {Id}", workspaceId);
             return OperationResult<bool>.CreateFailure($"Failed to cleanup workspace: {ex.Message}");

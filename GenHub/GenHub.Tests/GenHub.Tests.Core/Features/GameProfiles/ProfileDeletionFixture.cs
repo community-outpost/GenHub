@@ -211,6 +211,16 @@ internal sealed class ProfileDeletionFixture : IDisposable
         AssertArranged();
     }
 
+    /// <summary>Creates the workspace manager over the fixture's private storage.</summary>
+    /// <returns>The workspace manager.</returns>
+    public WorkspaceManager CreateWorkspaceManager() => new(
+        [],
+        _configProvider.Object,
+        NullLogger<WorkspaceManager>.Instance,
+        CreateReferenceTracker(),
+        Mock.Of<IWorkspaceValidator>(),
+        new WorkspaceReconciler(NullLogger<WorkspaceReconciler>.Instance, _fileOperations.Object));
+
     /// <summary>Creates a profile manager over fresh instances of the real services.</summary>
     /// <returns>The profile manager.</returns>
     public GameProfileManager CreateProfileManager() => new(
@@ -332,12 +342,4 @@ internal sealed class ProfileDeletionFixture : IDisposable
         _fileOperations.Object,
         NullLogger<UserDataTrackerService>.Instance,
         _pathProvider.Object);
-
-    private WorkspaceManager CreateWorkspaceManager() => new(
-        [],
-        _configProvider.Object,
-        NullLogger<WorkspaceManager>.Instance,
-        CreateReferenceTracker(),
-        Mock.Of<IWorkspaceValidator>(),
-        new WorkspaceReconciler(NullLogger<WorkspaceReconciler>.Instance, _fileOperations.Object));
 }

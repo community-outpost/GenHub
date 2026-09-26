@@ -56,6 +56,25 @@ public class GameProfileManagerTests
             _loggerMock.Object);
     }
 
+    /// <summary>Cancellation reported as a failure by a downstream cleanup still cancels deletion.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_WorkspaceCancels_KeepsProfileAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        _workspaceManagerMock.Setup(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), cts.Token))
+            .Returns(() =>
+            {
+                cts.Cancel();
+                return Task.FromResult(OperationResult<bool>.CreateFailure("cancelled"));
+            });
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("profile", cts.Token))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "profile" }));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _profileManager.DeleteProfileAsync("profile", cts.Token));
+        _profileRepositoryMock.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     /// <summary>
     /// Should return success when installation and client exist.
     /// </summary>

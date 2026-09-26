@@ -447,7 +447,7 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure(
                 "Cannot delete profile because workspace files are being used. Please ensure the game is fully stopped before deleting.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "An unexpected error occurred while deleting profile {ProfileId}.", profileId);
             return ProfileOperationResult<bool>.CreateFailure("An unexpected error occurred.");

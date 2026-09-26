@@ -1054,7 +1054,7 @@ public class SettingsViewModelTests
 
         // Assert
         _mockNotificationService.Verify(
-            x => x.ShowWarning(It.IsAny<string>(), It.Is<string>(m => m.Contains("Stuck Profile")), It.IsAny<int?>(), It.IsAny<bool>()),
+            x => x.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("Stuck Profile")), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         _mockNotificationService.Verify(
             x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),

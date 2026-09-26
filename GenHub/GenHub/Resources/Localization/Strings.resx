@@ -13630,4 +13630,19 @@ How do you want to apply this update?</value>
 
 How do you want to apply this update?</value>
   </data>
+  <data name="Settings.Profiles.DeleteIncomplete" xml:space="preserve">
+    <value>Deleted {0} profile(s). Could not delete {1}: {2}.</value>
+  </data>
+  <data name="Settings.Profiles.DeleteFailedTitle" xml:space="preserve">
+    <value>Profile Deletion Failed</value>
+  </data>
+  <data name="Settings.Profiles.DeletePartialTitle" xml:space="preserve">
+    <value>Profiles Partially Deleted</value>
+  </data>
+  <data name="Settings.Profiles.DeletedTitle" xml:space="preserve">
+    <value>Profiles Deleted</value>
+  </data>
+  <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
+    <value>Deleted {0} profile(s) successfully.</value>
+  </data>
 </root>
