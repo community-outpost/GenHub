@@ -311,7 +311,11 @@ public class WineRunner(
 
             // Pre-existing non-empty directory (e.g. from a prior plain-Wine installation).
             // First migrate files from prefix to native directory to prevent data loss.
-            MirrorDirectoryContent(sourceDir: dirPath, targetDir: targetPath, logger: logger);
+            if (!MirrorDirectoryContent(sourceDir: dirPath, targetDir: targetPath, logger: logger))
+            {
+                logger?.LogWarning("[WineRunner] Failed to mirror content from '{DirPath}' to '{TargetPath}'; aborting symlink conversion to prevent data loss.", dirPath, targetPath);
+                return false;
+            }
 
             var tempDir = dirPath + ".symlink_tmp_" + Guid.NewGuid().ToString("N");
             Directory.Move(dirPath, tempDir);
@@ -486,7 +490,9 @@ public class WineRunner(
 
         try
         {
-            var updatedFiles = EnumerateFilesRelative(prefixDir).Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var finalPrefixFiles = EnumerateFilesRelative(prefixDir);
+            var finalNativeFiles = EnumerateFilesRelative(nativeDir);
+            var updatedFiles = finalPrefixFiles.Keys.Intersect(finalNativeFiles.Keys, StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var json = JsonSerializer.Serialize(updatedFiles);
             File.WriteAllText(stateFilePath, json);
         }
@@ -568,11 +574,11 @@ public class WineRunner(
         }
     }
 
-    private static void MirrorDirectoryContent(string sourceDir, string targetDir, ILogger? logger = null)
+    private static bool MirrorDirectoryContent(string sourceDir, string targetDir, ILogger? logger = null)
     {
         if (!Directory.Exists(sourceDir))
         {
-            return;
+            return true;
         }
 
         var normalizedSource = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceDir)) + Path.DirectorySeparatorChar;
@@ -580,10 +586,18 @@ public class WineRunner(
 
         if (string.Equals(normalizedSource, normalizedTarget, PathHelper.PathComparison))
         {
-            return;
+            return true;
         }
 
-        Directory.CreateDirectory(targetDir);
+        try
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to create target directory '{TargetDir}' during directory sync.", targetDir);
+            return false;
+        }
 
         var enumerationOptions = new EnumerationOptions
         {
@@ -592,6 +606,7 @@ public class WineRunner(
             AttributesToSkip = FileAttributes.ReparsePoint,
         };
 
+        var allSuccess = true;
         foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
         {
             if (string.Equals(Path.GetFileName(file), SyncStateFileName, StringComparison.OrdinalIgnoreCase))
@@ -624,9 +639,12 @@ public class WineRunner(
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                allSuccess = false;
                 logger?.LogWarning(ex, "[WineRunner] Failed to copy '{Source}' to '{Destination}' during directory sync.", file, destFile);
             }
         }
+
+        return allSuccess;
     }
 
     /// <summary>

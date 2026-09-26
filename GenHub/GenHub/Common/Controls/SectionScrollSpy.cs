@@ -165,13 +165,58 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
             return;
         }
 
-        if (TryApplyBottomSnap())
+        if (TryApplyBottomSnap() || TryApplyBottomCatchUp())
         {
             return;
         }
 
         var activeKey = FindActiveKey();
         ReportActiveKey(activeKey is not null ? activeKey : _sections[0].Key);
+    }
+
+    private bool TryApplyBottomCatchUp()
+    {
+        var maxScrollY = scrollViewer.Extent.Height - scrollViewer.Viewport.Height;
+        if (maxScrollY <= 0)
+        {
+            return false;
+        }
+
+        var threshold = Math.Max(ScrollSpyConstants.MinActiveThreshold, scrollViewer.Viewport.Height * ScrollSpyConstants.ViewportThresholdRatio);
+        var remainingScroll = maxScrollY - scrollViewer.Offset.Y;
+
+        for (var i = _sections.Count - 1; i >= 0; i--)
+        {
+            var (key, control) = _sections[i];
+            if (IsAboveThreshold(control, threshold))
+            {
+                return false;
+            }
+
+            try
+            {
+                var transform = control.TransformToVisual(scrollViewer);
+                if (!transform.HasValue)
+                {
+                    continue;
+                }
+
+                var topInViewport = transform.Value.Transform(new Point(0, 0)).Y;
+                var distanceToThreshold = topInViewport - threshold;
+
+                if (distanceToThreshold > 0 && distanceToThreshold > remainingScroll)
+                {
+                    ReportActiveKey(key);
+                    return true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Visual target is detached from visual tree; ignore transform calculation.
+            }
+        }
+
+        return false;
     }
 
     private bool TryApplyBottomSnap()
@@ -335,13 +380,14 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
                 if (!_disposed && _animationGeneration == gen)
                 {
                     IsScrollingProgrammatically = false;
-                    _suppressNextScrollChanged = false;
                     if (targetKey.HasValue && targetKey.Value is not null)
                     {
+                        _suppressNextScrollChanged = true;
                         ReportActiveKey(targetKey.Value);
                     }
                     else
                     {
+                        _suppressNextScrollChanged = false;
                         UpdateActiveSection();
                     }
                 }

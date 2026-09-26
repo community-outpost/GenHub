@@ -95,8 +95,12 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
     /// </summary>
     public string LutrisVersion { get; private set; } = string.Empty;
 
-    /// <inheritdoc/>
-    public void Fetch()
+    /// <summary>
+    /// Detects Lutris installation and games asynchronously.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task FetchAsync(CancellationToken cancellationToken = default)
     {
         logger?.LogInformation("Starting Lutris installation detection on Linux");
 
@@ -119,9 +123,20 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
             };
             foreach (var entry in lutrisExecutables)
             {
-                // check for lutris
-                if (!TryLutris(entry.Key, out var version) ||
-                    !TryLutrisHasZH(entry.Key, out var directory)) continue;
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var (hasVersion, version) = await TryLutrisAsync(entry.Key, cancellationToken).ConfigureAwait(false);
+                if (!hasVersion)
+                {
+                    continue;
+                }
+
+                var (hasZH, directory) = await TryLutrisHasZHAsync(entry.Key, cancellationToken).ConfigureAwait(false);
+                if (!hasZH)
+                {
+                    continue;
+                }
+
                 var homeDir = Path.Combine(
                     directory,
                     $"drive_c/Program Files/EA Games/{GameClientConstants.ZeroHourDirectoryName}/");
@@ -133,6 +148,7 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
                     InstallationPath = homeDir;
                     LutrisVersion = version;
                     PackageInstallationType = entry.Value;
+
                     if (Directory.Exists(Path.Combine(homeDir, GameClientConstants.ZeroHourDirectoryName)))
                     {
                         HasZeroHour = true;
@@ -149,11 +165,21 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            logger?.LogDebug("Lutris installation detection was canceled");
+        }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Error occurred during Lutris installation detection on Linux");
             IsLutrisInstalled = false;
         }
+    }
+
+    /// <inheritdoc/>
+    public void Fetch()
+    {
+        Task.Run(() => FetchAsync(CancellationToken.None)).GetAwaiter().GetResult();
     }
 
     /// <inheritdoc/>
@@ -204,14 +230,30 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
         return psi;
     }
 
-    private bool RunLutrisCommand(string installationPath, string[] args, out string output)
+    private static void KillLutrisProcess(Process process)
     {
-        output = string.Empty;
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (Exception)
+        {
+            // Ignore failure to terminate already exited process
+        }
+    }
+
+    private async Task<(bool Success, string Output)> RunLutrisCommandAsync(
+        string installationPath,
+        string[] args,
+        CancellationToken cancellationToken = default)
+    {
         if (_processRunner != null)
         {
             var result = _processRunner(installationPath, args);
-            output = result.Output;
-            return result.Success;
+            return (result.Success, result.Output);
         }
 
         try
@@ -223,122 +265,97 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
 
             if (!process.Start())
             {
-                return false;
+                return (false, string.Empty);
             }
 
-            // Drain standard output asynchronously with cancellation and bounded wait to avoid deadlocks, hangs, or thread leaks
-            using var cts = new CancellationTokenSource(ProcessConstants.ExternalCliTimeoutMs);
-            var readOutputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
-            if (process.WaitForExit(ProcessConstants.ExternalCliTimeoutMs) && readOutputTask.Wait(ProcessConstants.ExternalCliTimeoutMs))
-            {
-                output = readOutputTask.Result;
-                return process.ExitCode == 0;
-            }
+            using var timeoutCts = new CancellationTokenSource(ProcessConstants.ExternalCliTimeoutMs);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
+            var readOutputTask = process.StandardOutput.ReadToEndAsync(linkedCts.Token);
             try
             {
-                cts.Cancel();
+                await process.WaitForExitAsync(linkedCts.Token).ConfigureAwait(false);
             }
-            catch (Exception)
+            catch (OperationCanceledException)
             {
-                // Ignore cancellation failure
+                KillLutrisProcess(process);
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                return (false, string.Empty);
             }
 
-            try
+            if (await Task.WhenAny(readOutputTask, Task.Delay(TimeSpan.FromMilliseconds(ProcessConstants.ProcessKillWaitMs), cancellationToken)).ConfigureAwait(false) != readOutputTask)
             {
-                process.StandardOutput.Close();
-            }
-            catch (Exception)
-            {
-                // Ignore stream close failure
+                KillLutrisProcess(process);
+                return (false, string.Empty);
             }
 
-            try
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(true);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogDebug(ex, "Failed to terminate timed-out Lutris process.");
-            }
-
-            try
-            {
-                readOutputTask.Wait(ProcessConstants.ProcessKillWaitMs);
-            }
-            catch (Exception)
-            {
-                // Bounded wait to ensure readOutputTask finishes before process is disposed
-            }
-
-            return false;
+            var output = await readOutputTask.ConfigureAwait(false);
+            return (process.ExitCode == 0, output);
         }
         catch (Exception ex)
         {
             logger?.LogDebug(ex, "Failed to execute Lutris command: {InstallationPath} {Args}", installationPath, string.Join(" ", args));
-            return false;
+            return (false, string.Empty);
         }
     }
 
-    private bool TryLutris(string installationPath, out string lutrisVersion)
+    private async Task<(bool Success, string Version)> TryLutrisAsync(string installationPath, CancellationToken cancellationToken)
     {
-        lutrisVersion = string.Empty;
-        if (!RunLutrisCommand(installationPath, ["-v"], out var output))
-            return false;
+        var (success, output) = await RunLutrisCommandAsync(installationPath, ["-v"], cancellationToken).ConfigureAwait(false);
+        if (!success)
+        {
+            return (false, string.Empty);
+        }
 
         foreach (var item in output.Split(Environment.NewLine))
         {
             if (string.IsNullOrWhiteSpace(item))
+            {
                 continue;
+            }
 
             // check for lutris, if installed version is printed
             var match = LutrisVersionRegex().Match(item);
             if (match.Success && match.Groups.Count > 1)
             {
-                lutrisVersion = match.Groups[1].Value;
-                return true;
+                return (true, match.Groups[1].Value);
             }
         }
 
-        return false;
+        return (false, string.Empty);
     }
 
-    private bool TryLutrisHasZH(string installationPath, out string directory)
+    private async Task<(bool Success, string Directory)> TryLutrisHasZHAsync(string installationPath, CancellationToken cancellationToken)
     {
-        directory = string.Empty;
-        if (!RunLutrisCommand(installationPath, ["-l", "-j"], out var output))
-            return false;
+        var (success, output) = await RunLutrisCommandAsync(installationPath, ["-l", "-j"], cancellationToken).ConfigureAwait(false);
+        if (!success)
+        {
+            return (false, string.Empty);
+        }
 
         var jsonMatch = LutrisGamesRegex().Match(output);
         if (!jsonMatch.Success)
-            return false;
-
-        var jsonOutput = jsonMatch.Value;
+        {
+            return (false, string.Empty);
+        }
 
         // check for games on lutris, it's a json array
         try
         {
-            var jsonOutputParsed = JsonSerializer.Deserialize<List<LutrisGame>>(jsonOutput);
-
+            var jsonOutputParsed = JsonSerializer.Deserialize<List<LutrisGame>>(jsonMatch.Value);
             if (jsonOutputParsed == null)
-                return false;
+            {
+                return (false, string.Empty);
+            }
 
-            var gameListFiltered =
-                jsonOutputParsed
-                    .FirstOrDefault(item => item.Slug == "ea-app" && !string.IsNullOrWhiteSpace(item.Directory));
+            var gameListFiltered = jsonOutputParsed
+                .FirstOrDefault(item => item.Slug == "ea-app" && !string.IsNullOrWhiteSpace(item.Directory));
 
-            if (gameListFiltered == null)
-                return false;
-
-            directory = gameListFiltered.Directory;
-            return true;
+            return gameListFiltered != null ? (true, gameListFiltered.Directory) : (false, string.Empty);
         }
         catch (JsonException)
         {
-            return false;
+            return (false, string.Empty);
         }
     }
 }

@@ -2694,12 +2694,9 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 .OfType<string>(),
             StringComparer.OrdinalIgnoreCase);
 
-        var allMapNames = Directory.EnumerateFiles(extractedDirectory, "*", SearchOption.AllDirectories)
-            .Where(IsMapFile)
-            .Select(Path.GetFileNameWithoutExtension)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var isSingleMap = allMapNames.Count == 1;
+        var totalMapFiles = Directory.EnumerateFiles(extractedDirectory, "*", SearchOption.AllDirectories)
+            .Count(IsMapFile);
+        var isSingleMap = totalMapFiles == 1;
 
         foreach (var mapFile in looseMapFiles)
         {
@@ -2791,11 +2788,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var fn = Path.GetFileName(companion);
             var ext = Path.GetExtension(fn);
             var isGenericMapIni = fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase);
-            var isCompanion =
-                fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
-                fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
-                fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
-                (isGenericMapIni && isSingleMap);
+            var isCompanion = isGenericMapIni
+                ? isSingleMap
+                : (fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
+                   fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
+                   fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase));
 
             if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {

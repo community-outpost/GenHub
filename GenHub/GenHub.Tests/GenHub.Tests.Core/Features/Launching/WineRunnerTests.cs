@@ -1249,8 +1249,13 @@ public sealed class WineRunnerTests : IDisposable
         Assert.True(File.Exists(synchronizedMapFile));
         if (Directory.Exists(loopLink))
         {
-            var loopDirInPrefix = Path.Combine(prefixMapsDir, "RegularMap", "loop");
-            Assert.False(Directory.Exists(loopDirInPrefix));
+            var prefixMapsInfo = new DirectoryInfo(prefixMapsDir);
+            var isSymlink = prefixMapsInfo.LinkTarget != null || (prefixMapsInfo.Attributes & FileAttributes.ReparsePoint) != 0;
+            if (!isSymlink)
+            {
+                var loopDirInPrefix = Path.Combine(prefixMapsDir, "RegularMap", "loop");
+                Assert.False(Directory.Exists(loopDirInPrefix));
+            }
         }
     }
 

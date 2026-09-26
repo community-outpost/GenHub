@@ -924,20 +924,35 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ApplyPublisherBranding(string publisherSegment)
     {
+        var hasCustomCover = !string.IsNullOrEmpty(CoverPath) &&
+            !string.Equals(CoverPath, UriConstants.DefaultIconUri, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(CoverPath, SuperHackersConstants.ZeroHourCoverSource, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(CoverPath, GeneralsOnlineConstants.CoverSource, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(CoverPath, CommunityOutpostConstants.CoverSource, StringComparison.OrdinalIgnoreCase);
+
         if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
         {
             ColorValue = SuperHackersConstants.ZeroHourThemeColor;
-            CoverImagePath = SuperHackersConstants.ZeroHourCoverSource;
+            if (!hasCustomCover)
+            {
+                CoverImagePath = SuperHackersConstants.ZeroHourCoverSource;
+            }
         }
         else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
         {
             ColorValue = GeneralsOnlineConstants.ThemeColor;
-            CoverImagePath = GeneralsOnlineConstants.CoverSource;
+            if (!hasCustomCover)
+            {
+                CoverImagePath = GeneralsOnlineConstants.CoverSource;
+            }
         }
         else if (publisherSegment == CommunityOutpostConstants.PublisherType)
         {
             ColorValue = CommunityOutpostConstants.ThemeColor;
-            CoverImagePath = CommunityOutpostConstants.CoverSource;
+            if (!hasCustomCover)
+            {
+                CoverImagePath = CommunityOutpostConstants.CoverSource;
+            }
         }
     }
 
@@ -954,6 +969,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
         else
         {
             ResolveFromInstallationManifest(gameProfile.EnabledContentIds);
+        }
+
+        if (gameProfile.IsCommunityOutpostProfile())
+        {
+            Publisher = CommunityOutpostConstants.PublisherName;
+            ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
         }
 
         if (gameProfile.EnabledContentIds is not { Count: > 0 } enabledIds)

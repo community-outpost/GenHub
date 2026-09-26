@@ -1041,31 +1041,28 @@ public class ProfileLauncherFacade(
         IPublisherReconciler? reconciler = null;
         string? publisherType = profile.GameClient?.PublisherType;
 
-        if (!string.IsNullOrWhiteSpace(publisherType))
+        if (profile.IsCommunityOutpostProfile())
+        {
+            publisherType = CommunityOutpostConstants.PublisherType;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected Community Outpost profile, using reconciler");
+        }
+        else if (profile.IsGeneralsOnlineProfile())
+        {
+            publisherType = PublisherTypeConstants.GeneralsOnline;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
+        }
+        else if (!string.IsNullOrWhiteSpace(publisherType))
         {
             logger.LogDebug("[Launch] Looking up reconciler for publisher: {PublisherType}", publisherType);
             reconciler = reconcilerRegistry.GetReconciler(publisherType);
         }
-        else
+        else if (IsSuperHackersProfile(profile))
         {
-            if (profile.IsGeneralsOnlineProfile())
-            {
-                publisherType = PublisherTypeConstants.GeneralsOnline;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
-            }
-            else if (IsCommunityOutpostProfile(profile))
-            {
-                publisherType = CommunityOutpostConstants.PublisherType;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy CommunityOutpost profile, using reconciler");
-            }
-            else if (IsSuperHackersProfile(profile))
-            {
-                publisherType = PublisherTypeConstants.TheSuperHackers;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
-            }
+            publisherType = PublisherTypeConstants.TheSuperHackers;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
         }
 
         if (reconciler != null && publisherType != null)
