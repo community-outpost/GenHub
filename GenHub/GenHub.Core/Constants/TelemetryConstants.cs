@@ -148,6 +148,21 @@ public static class TelemetryConstants
         /// <summary>Emitted when CAS workspace reconciliation completes.</summary>
         public const string CasReconcileCompleted = "cas_reconcile_completed";
 
+        /// <summary>Emitted when CAS garbage collection finishes.</summary>
+        public const string CasGarbageCollected = "cas_garbage_collected";
+
+        /// <summary>Emitted when a workspace is prepared or reused.</summary>
+        public const string WorkspacePrepared = "workspace_prepared";
+
+        /// <summary>Emitted when game installation detection finishes.</summary>
+        public const string GameInstallationsDetected = "game_installations_detected";
+
+        /// <summary>Emitted when replays are exported to a ZIP archive.</summary>
+        public const string ReplayExportedZip = "replay_exported_zip";
+
+        /// <summary>Emitted when a replay checkpoint is minted.</summary>
+        public const string ReplayCheckpointMinted = "replay_checkpoint_minted";
+
         /// <summary>Emitted when an unhandled application exception or crash occurs.</summary>
         public const string AppCrash = "app_unhandled_crash";
     }
@@ -315,5 +330,50 @@ public static class TelemetryConstants
 
         /// <summary>Executable path or name.</summary>
         public const string ExecutablePath = "executable_path";
+
+        /// <summary>Number of objects scanned during CAS garbage collection.</summary>
+        public const string ObjectsScanned = "objects_scanned";
+
+        /// <summary>Number of objects referenced during CAS garbage collection.</summary>
+        public const string ObjectsReferenced = "objects_referenced";
+
+        /// <summary>Number of objects deleted during CAS garbage collection.</summary>
+        public const string ObjectsDeleted = "objects_deleted";
+
+        /// <summary>Total bytes freed during CAS garbage collection.</summary>
+        public const string BytesFreed = "bytes_freed";
+
+        /// <summary>Workspace identifier.</summary>
+        public const string WorkspaceId = "workspace_id";
+
+        /// <summary>Number of manifests in workspace.</summary>
+        public const string ManifestCount = "manifest_count";
+
+        /// <summary>Indicates whether workspace fast-path reuse was taken.</summary>
+        public const string IsReused = "is_reused";
+
+        /// <summary>Number of game installations detected.</summary>
+        public const string InstallationCount = "installation_count";
+
+        /// <summary>Indicates whether Steam game installation is present.</summary>
+        public const string HasSteam = "has_steam";
+
+        /// <summary>Indicates whether EA App game installation is present.</summary>
+        public const string HasEaApp = "has_ea_app";
+
+        /// <summary>Indicates whether The First Decade game installation is present.</summary>
+        public const string HasTheFirstDecade = "has_the_first_decade";
+
+        /// <summary>Indicates whether Generals game installation is present.</summary>
+        public const string HasGenerals = "has_generals";
+
+        /// <summary>Indicates whether Zero Hour game installation is present.</summary>
+        public const string HasZeroHour = "has_zero_hour";
+
+        /// <summary>Number of replays processed.</summary>
+        public const string ReplayCount = "replay_count";
+
+        /// <summary>Target frame number for replay checkpoint.</summary>
+        public const string TargetFrame = "target_frame";
     }
 }

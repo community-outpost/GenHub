@@ -56,6 +56,11 @@ public class TelemetryConstantsTests
             TelemetryConstants.Events.ModProjectCreated,
             TelemetryConstants.Events.ModBuilt,
             TelemetryConstants.Events.CasReconcileCompleted,
+            TelemetryConstants.Events.CasGarbageCollected,
+            TelemetryConstants.Events.WorkspacePrepared,
+            TelemetryConstants.Events.GameInstallationsDetected,
+            TelemetryConstants.Events.ReplayExportedZip,
+            TelemetryConstants.Events.ReplayCheckpointMinted,
             TelemetryConstants.Events.AppCrash,
         };
 
@@ -128,6 +133,21 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.BuildChannel,
             TelemetryConstants.Properties.PullRequestNumber,
             TelemetryConstants.Properties.ExecutablePath,
+            TelemetryConstants.Properties.ObjectsScanned,
+            TelemetryConstants.Properties.ObjectsReferenced,
+            TelemetryConstants.Properties.ObjectsDeleted,
+            TelemetryConstants.Properties.BytesFreed,
+            TelemetryConstants.Properties.WorkspaceId,
+            TelemetryConstants.Properties.ManifestCount,
+            TelemetryConstants.Properties.IsReused,
+            TelemetryConstants.Properties.InstallationCount,
+            TelemetryConstants.Properties.HasSteam,
+            TelemetryConstants.Properties.HasEaApp,
+            TelemetryConstants.Properties.HasTheFirstDecade,
+            TelemetryConstants.Properties.HasGenerals,
+            TelemetryConstants.Properties.HasZeroHour,
+            TelemetryConstants.Properties.ReplayCount,
+            TelemetryConstants.Properties.TargetFrame,
         };
 
         foreach (var prop in properties)

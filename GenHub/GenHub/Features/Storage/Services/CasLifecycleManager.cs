@@ -1,6 +1,9 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
@@ -28,7 +31,8 @@ public class CasLifecycleManager(
     IOptions<CasConfiguration> config,
     ILogger<CasLifecycleManager> logger,
     CasWriteFence writeFence,
-    ICasPoolManager? poolManager = null) : ICasLifecycleManager, IDisposable
+    ICasPoolManager? poolManager = null,
+    ITelemetryService? telemetryService = null) : ICasLifecycleManager, IDisposable
 {
     private readonly SemaphoreSlim _gcLock = new(1, 1);
 
@@ -171,6 +175,7 @@ public class CasLifecycleManager(
         }
 
         IDisposable? collectionLease = null;
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             // Forced collection bypasses the grace period, so hold the exclusive
@@ -183,7 +188,6 @@ public class CasLifecycleManager(
                     "Cannot clean CAS storage while content is being imported. Try again when the import finishes.");
             }
 
-            var stopwatch = Stopwatch.StartNew();
             logger.LogInformation("Starting garbage collection (force={Force})", force);
 
             var liveSet = await BuildLiveSetAsync(cancellationToken);
@@ -198,6 +202,16 @@ public class CasLifecycleManager(
                 stats.ObjectsDeleted,
                 stats.BytesFreed);
 
+            telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.ObjectsScanned] = stats.ObjectsScanned,
+                [TelemetryConstants.Properties.ObjectsReferenced] = stats.ObjectsReferenced,
+                [TelemetryConstants.Properties.ObjectsDeleted] = stats.ObjectsDeleted,
+                [TelemetryConstants.Properties.BytesFreed] = stats.BytesFreed,
+                [TelemetryConstants.Properties.Success] = true,
+            });
+
             return OperationResult<GarbageCollectionStats>.CreateSuccess(stats);
         }
         catch (OperationCanceledException)
@@ -207,6 +221,13 @@ public class CasLifecycleManager(
         }
         catch (Exception ex)
         {
+            telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+            });
+
             logger.LogError(ex, "Garbage collection failed");
             return OperationResult<GarbageCollectionStats>.CreateFailure($"GC failed: {ex.Message}");
         }

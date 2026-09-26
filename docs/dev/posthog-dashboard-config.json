@@ -720,6 +720,389 @@
           }
         }
       ]
+    },
+    {
+      "id": "genhub-storage-cas-lifecycle",
+      "name": "GenHub - Storage & CAS Lifecycle",
+      "description": "Observability into Content Addressed Storage (CAS) garbage collection, storage optimization, bytes freed, and cleanup execution.",
+      "pinned": false,
+      "tiles": [
+        {
+          "name": "CAS Garbage Collections Executed",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "cas_garbage_collected",
+                "name": "GC Executions",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Total Storage Bytes Freed by CAS GC",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "cas_garbage_collected",
+                "name": "Total Bytes Freed",
+                "math": "sum",
+                "math_property": "bytes_freed"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Objects Scanned vs Deleted in CAS GC",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "cas_garbage_collected",
+                "name": "Objects Scanned",
+                "math": "sum",
+                "math_property": "objects_scanned"
+              },
+              {
+                "kind": "EventsNode",
+                "event": "cas_garbage_collected",
+                "name": "Objects Deleted",
+                "math": "sum",
+                "math_property": "objects_deleted"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "CAS GC Average Duration (Seconds)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "cas_garbage_collected",
+                "name": "Avg Duration (s)",
+                "math": "avg",
+                "math_property": "duration_seconds"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "CAS GC Success vs Failure",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "cas_garbage_collected",
+                "name": "GC Executions",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "success"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "genhub-workspace-engine",
+      "name": "GenHub - Workspace Engine & Strategy Performance",
+      "description": "Observability into workspace generation, preparation strategies (Symlink, Hardlink, Copy), reuse rate, and manifest volume.",
+      "pinned": false,
+      "tiles": [
+        {
+          "name": "Total Workspaces Prepared",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "workspace_prepared",
+                "name": "Workspaces Prepared",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Workspaces Prepared by Strategy (Hardlink, Symlink, Copy)",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "workspace_prepared",
+                "name": "Strategy Volume",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "strategy"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Workspace Fast-Path Reuse Rate",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "workspace_prepared",
+                "name": "Workspaces Prepared",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "is_reused"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Workspace Preparation Success vs Failure",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "workspace_prepared",
+                "name": "Workspaces Prepared",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "success"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "genhub-game-installations-and-replays",
+      "name": "GenHub - Game Installations & Replay Ecosystem",
+      "description": "Observability into detected game installations across Steam, EA App, and The First Decade, plus Replay ZIP exports and checkpoint minting.",
+      "pinned": false,
+      "tiles": [
+        {
+          "name": "Game Installation Detections Performed",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_installations_detected",
+                "name": "Detections",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Steam Installation Presence",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_installations_detected",
+                "name": "Detections",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "has_steam"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "EA App Installation Presence",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_installations_detected",
+                "name": "Detections",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "has_ea_app"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "The First Decade Installation Presence",
+          "type": "Trends",
+          "display": "ActionsPie",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "game_installations_detected",
+                "name": "Detections",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "has_the_first_decade"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Replays Exported to ZIP (Total)",
+          "type": "Trends",
+          "display": "BoldNumber",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "replay_exported_zip",
+                "name": "Replay ZIPs Exported",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            }
+          }
+        },
+        {
+          "name": "Replay Checkpoints Minted by Game Type",
+          "type": "Trends",
+          "display": "ActionsBar",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "replay_checkpoint_minted",
+                "name": "Checkpoints Minted",
+                "math": "total"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "game_type"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

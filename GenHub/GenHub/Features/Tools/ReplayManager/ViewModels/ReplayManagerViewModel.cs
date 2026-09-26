@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
@@ -11,6 +11,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
@@ -94,6 +95,8 @@ public partial class ReplayManagerViewModel(
     private IDialogService? DialogService => serviceProvider?.GetService<IDialogService>();
 
     private ILocalizationService? LocalizationService => localizationService ?? serviceProvider?.GetService<ILocalizationService>();
+
+    private ITelemetryService? TelemetryService => serviceProvider?.GetService<ITelemetryService>();
 
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -1031,6 +1034,7 @@ public partial class ReplayManagerViewModel(
         Progress = 0;
         var zipStatusMsg = LocalizationService?.GetString("Tools.ReplayManager.Status.CreatingZip") ?? "Creating ZIP...";
         StatusMessage = zipStatusMsg;
+        var sw = Stopwatch.StartNew();
 
         try
         {
@@ -1044,6 +1048,16 @@ public partial class ReplayManagerViewModel(
             });
 
             var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
+            sw.Stop();
+
+            TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
+                [TelemetryConstants.Properties.FileName] = result != null ? Path.GetFileName(result) : null,
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.Success] = result != null,
+            });
+
             if (result != null)
             {
                 var zipTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedTitle") ?? "Zip Created";
@@ -1069,6 +1083,16 @@ public partial class ReplayManagerViewModel(
         }
         catch (Exception ex)
         {
+            sw.Stop();
+            TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
+                [TelemetryConstants.Properties.FileName] = null,
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+            });
+
             logger.LogError(ex, "Failed to export ZIP directly");
             var exportErrorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ExportErrorTitle") ?? "Export Error";
             var exportErrorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ExportError") ?? "Export error.";
@@ -2266,6 +2290,15 @@ public partial class ReplayManagerViewModel(
                 ActiveCheckpointReplay,
                 SelectedCompatibleProfile,
                 TargetCheckpointFrame);
+
+            TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayCheckpointMinted, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.GameType] = ActiveCheckpointReplay?.GameVersion.ToString(),
+                [TelemetryConstants.Properties.TargetFrame] = TargetCheckpointFrame,
+                [TelemetryConstants.Properties.ProfileId] = SelectedCompatibleProfile?.Id,
+                [TelemetryConstants.Properties.Success] = result.Success,
+                [TelemetryConstants.Properties.ErrorMessage] = result.FirstError,
+            });
 
             if (result.Success && result.Data != null)
             {

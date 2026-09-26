@@ -1,4 +1,8 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.Telemetry;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -16,9 +20,11 @@ namespace GenHub.Features.GameInstallations;
 /// </summary>
 /// <param name="detectors">The collection of installation detectors.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="telemetryService">Optional telemetry service.</param>
 public sealed class GameInstallationDetectionOrchestrator(
     IEnumerable<IGameInstallationDetector> detectors,
-    ILogger<GameInstallationDetectionOrchestrator> logger)
+    ILogger<GameInstallationDetectionOrchestrator> logger,
+    ITelemetryService? telemetryService = null)
     : IGameInstallationDetectionOrchestrator
 {
     /// <inheritdoc/>
@@ -71,6 +77,25 @@ public sealed class GameInstallationDetectionOrchestrator(
             totalResults,
             detectorCount,
             sw.ElapsedMilliseconds);
+
+        var hasSteam = allGameInstallations.Any(i => i.InstallationType == GameInstallationType.Steam);
+        var hasEaApp = allGameInstallations.Any(i => i.InstallationType == GameInstallationType.EaApp);
+        var hasTheFirstDecade = allGameInstallations.Any(i => i.InstallationType == GameInstallationType.TheFirstDecade);
+        var hasGenerals = allGameInstallations.Any(i => i.HasGenerals);
+        var hasZeroHour = allGameInstallations.Any(i => i.HasZeroHour);
+
+        telemetryService?.TrackEvent(TelemetryConstants.Events.GameInstallationsDetected, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+            [TelemetryConstants.Properties.InstallationCount] = allGameInstallations.Count,
+            [TelemetryConstants.Properties.HasSteam] = hasSteam,
+            [TelemetryConstants.Properties.HasEaApp] = hasEaApp,
+            [TelemetryConstants.Properties.HasTheFirstDecade] = hasTheFirstDecade,
+            [TelemetryConstants.Properties.HasGenerals] = hasGenerals,
+            [TelemetryConstants.Properties.HasZeroHour] = hasZeroHour,
+            [TelemetryConstants.Properties.Success] = errors.Count == 0,
+            [TelemetryConstants.Properties.ErrorMessage] = errors.Count > 0 ? string.Join("; ", errors) : null,
+        });
 
         return errors.Count > 0
              ? DetectionResult<GameInstallation>.CreateFailure(string.Join("; ", errors))
