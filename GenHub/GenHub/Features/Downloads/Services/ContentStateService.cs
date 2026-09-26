@@ -1852,8 +1852,8 @@ public sealed partial class ContentStateService(
             providerName = $"{GenLauncherConstants.PublisherId}{gameToken}";
         }
 
-        var contentName = SanitizeSegmentForManifest(item.Id, null)
-            ?? SanitizeSegmentForManifest(item.Name, UnknownSegment)
+        var contentName = SanitizeSegmentForManifest(item.Name, null)
+            ?? SanitizeSegmentForManifest(item.Id, UnknownSegment)
             ?? UnknownSegment;
 
         var userVersion = CatalogManifestIdentity.ExtractVersionNumber(item.Version);

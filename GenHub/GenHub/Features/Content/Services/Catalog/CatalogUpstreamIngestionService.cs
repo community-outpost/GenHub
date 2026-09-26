@@ -332,12 +332,12 @@ public class CatalogUpstreamIngestionService(
         GitHubRelease? release;
         if (isTrackPrerelease)
         {
-            release = await FetchNewestReleaseAsync(owner, repoName, cancellationToken);
+            release = await FetchNewestReleaseAsync(owner, repoName, allowPrerelease: true, cancellationToken);
         }
         else
         {
             release = await gitHubClient.GetLatestReleaseAsync(owner, repoName, cancellationToken);
-            release ??= await FetchNewestReleaseAsync(owner, repoName, cancellationToken);
+            release ??= await FetchNewestReleaseAsync(owner, repoName, allowPrerelease: false, cancellationToken);
         }
 
         if (release != null)
@@ -351,11 +351,12 @@ public class CatalogUpstreamIngestionService(
     private async Task<GitHubRelease?> FetchNewestReleaseAsync(
         string owner,
         string repoName,
+        bool allowPrerelease,
         CancellationToken cancellationToken)
     {
         var allReleases = await gitHubClient.GetReleasesAsync(owner, repoName, cancellationToken);
         return allReleases?
-            .Where(r => !r.IsDraft)
+            .Where(r => !r.IsDraft && (allowPrerelease || !r.IsPrerelease))
             .OrderByDescending(r => r.PublishedAt ?? r.CreatedAt)
             .FirstOrDefault();
     }

@@ -154,20 +154,22 @@
           "changelog": "Standard community patch for Zero Hour with retail and non-retail compatible editions.",
           "artifacts": [
             {
-              "filename": "patch.dat",
-              "downloadUrl": "https://legi.cc/gp2/f/patch.dat",
-              "size": 1530920,
-              "sha256": "b6b69b4e1ffcf5ee41fa2a88a0e23485ba574d6f4d2f0eb3fe44857b686e0fc5",
+              "filename": "generalszh_23-07-2026.zip",
+              "downloadUrl": "https://legi.cc/patch/generalszh_23-07-2026.zip",
+              "size": 2716400,
+              "sha256": "a531a56e82381b0d15117ee5f9881d276de232c9245e598f3b75b71bc80275b8",
+              "contentType": "application/zip",
               "variantAxis": "compatibility",
               "variant": "Retail Compatible",
               "isDefaultVariant": true,
               "isPrimary": true
             },
             {
-              "filename": "patch_stream.dat",
-              "downloadUrl": "https://legi.cc/gp2/f/patch_stream.dat",
-              "size": 1530920,
-              "sha256": "b6b69b4e1ffcf5ee41fa2a88a0e23485ba574d6f4d2f0eb3fe44857b686e0fc5",
+              "filename": "generalszh_11-09-2026_NonRet.zip",
+              "downloadUrl": "https://legi.cc/patch/generalszh_11-09-2026_NonRet.zip",
+              "size": 2724556,
+              "sha256": "f17e7a610ef73f86fb293678f5a4f3e24238eac8707f151c155701ea6049fcc6",
+              "contentType": "application/zip",
               "variantAxis": "compatibility",
               "variant": "Non-Retail",
               "isDefaultVariant": false,
@@ -255,7 +257,7 @@
     {
       "id": "leikeze-hotkeys",
       "name": "Leikeze Competitive Hotkeys",
-      "description": "A comprehensive ergonomic hotkey set by Leikeze. Supports multiple languages (English, German, Russian) and balanced for efficiency and ease of use.",
+      "description": "A comprehensive ergonomic hotkey set by Leikeze and GenPatcher. Supports English (Compact Indicators), German, and English (Full) layouts.",
       "contentType": "Addon",
       "targetGame": 1,
       "isStandalone": true,
@@ -277,12 +279,12 @@
           "releaseDate": "2026-07-01T00:00:00Z",
           "isLatest": true,
           "isPrerelease": false,
-          "changelog": "Leikeze hotkey layout presets for English, German, and Russian.",
+          "changelog": "Leikeze and GenPatcher hotkey layout presets for English, German, and English (Full).",
           "artifacts": [
             {
               "filename": "hlei.dat",
-              "downloadUrl": "https://legi.cc/gp2/f/hlei.dat",
-              "size": 172942,
+              "downloadUrl": "https://gentool.net/program_data/genpatcher/hlei.dat",
+              "size": 293333,
               "sha256": "a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215",
               "contentType": "application/x-7z-compressed",
               "variantAxis": "language",
@@ -291,10 +293,10 @@
               "isPrimary": true
             },
             {
-              "filename": "hlei.dat",
-              "downloadUrl": "https://legi.cc/gp2/f/hlei.dat",
-              "size": 172942,
-              "sha256": "a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215",
+              "filename": "hlde.dat",
+              "downloadUrl": "https://gentool.net/program_data/genpatcher/hlde.dat",
+              "size": 13741307,
+              "sha256": "4936447a0ad8813fde4062c06b1240c73a6e8e0aaa240c13080f4d074efd1be8",
               "contentType": "application/x-7z-compressed",
               "variantAxis": "language",
               "variant": "German",
@@ -302,13 +304,13 @@
               "isPrimary": false
             },
             {
-              "filename": "hlei.dat",
-              "downloadUrl": "https://legi.cc/gp2/f/hlei.dat",
-              "size": 172942,
-              "sha256": "a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215",
+              "filename": "hlen.dat",
+              "downloadUrl": "https://gentool.net/program_data/genpatcher/hlen.dat",
+              "size": 20295471,
+              "sha256": "60647478fc0494cac46934fad1a830e522f90475b21feca5bf896c3902a02033",
               "contentType": "application/x-7z-compressed",
               "variantAxis": "language",
-              "variant": "Russian",
+              "variant": "English (Full)",
               "isDefaultVariant": false,
               "isPrimary": false
             }
@@ -383,7 +385,7 @@
     {
       "id": "thesuperhackers-competitive-bundle",
       "name": "TheSuperHackers Pro Competitive Suite",
-      "description": "Complete all-in-one suite featuring the latest TheSuperHackers game engine, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire Pro Hotkeys.\n\nFully customizable with per-component variant selection for game type and screen resolution.",
+      "description": "Complete all-in-one suite featuring the latest TheSuperHackers game engine, L3M HD Control Bar, and Leikeze Pro Hotkeys.\n\nFully customizable with per-component variant selection for game type and screen resolution.",
       "contentType": "ContentBundle",
       "targetGame": 1,
       "isFeatured": true,
@@ -392,7 +394,6 @@
         "featured",
         "thesuperhackers",
         "l3m",
-        "gentool",
         "hotkeys",
         "competitive"
       ],
@@ -445,7 +446,7 @@
     {
       "id": "generalsonline-competitive-bundle",
       "name": "Generals Online Matchmaking Pro Suite",
-      "description": "The official Generals Online ladder bundle with 60Hz high-tick client, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire competitive hotkeys.",
+      "description": "The official Generals Online ladder bundle with 60Hz high-tick client, L3M HD Control Bar, and Leikeze competitive hotkeys.",
       "contentType": "ContentBundle",
       "targetGame": 1,
       "isFeatured": true,
@@ -456,7 +457,6 @@
         "ladder",
         "60hz",
         "l3m",
-        "gentool",
         "hotkeys"
       ],
       "metadata": {
@@ -504,7 +504,7 @@
     {
       "id": "communityoutpost-competitive-bundle",
       "name": "Community Outpost Standardized Tournament Suite",
-      "description": "Standard tournament-ready package containing the GenPatcher client, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire Pro Hotkeys.",
+      "description": "Standard tournament-ready package containing the GenPatcher client, L3M HD Control Bar, and Leikeze Pro Hotkeys.",
       "contentType": "ContentBundle",
       "targetGame": 1,
       "isFeatured": true,
@@ -513,7 +513,6 @@
         "featured",
         "communityoutpost",
         "tournament",
-        "gentool",
         "l3m",
         "hotkeys"
       ],
