@@ -103,8 +103,8 @@ public partial class ToolDialogWindow : Window
         var workingArea = screen.WorkingArea;
         var scaling = screen.Scaling;
 
-        var screenLeft = (int)workingArea.X;
-        var screenTop = (int)workingArea.Y;
+        var screenLeft = workingArea.X;
+        var screenTop = workingArea.Y;
         var screenRight = screenLeft + workingArea.Width;
         var screenBottom = screenTop + workingArea.Height;
 

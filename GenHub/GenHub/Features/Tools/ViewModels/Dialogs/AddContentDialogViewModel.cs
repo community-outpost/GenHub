@@ -1616,36 +1616,18 @@ public partial class AddContentDialogViewModel(
         var singleVideo = NormalizeArtworkValue(VideoUrl);
         var source = _existingItem?.Metadata;
 
-        var allScreenshots = new List<string>(Screenshots);
-        foreach (var s in ParseUrls(ScreenshotUrlsInput).Where(s => !allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase)))
-        {
-            allScreenshots.Add(s);
-        }
-
-        var allVideos = new List<string>(Videos);
-        if (!string.IsNullOrWhiteSpace(singleVideo) && !allVideos.Contains(singleVideo, StringComparer.OrdinalIgnoreCase))
-        {
-            allVideos.Add(singleVideo);
-        }
+        var allScreenshots = CollectAllScreenshots();
+        var allVideos = CollectAllVideos(singleVideo);
 
         var effectiveIcon = IsEditMode ? icon : (icon ?? source?.IconUrl);
         var effectiveBanner = IsEditMode ? banner : (banner ?? source?.BannerUrl);
         var effectiveBackdrop = IsEditMode ? backdrop : (backdrop ?? source?.BackdropUrl);
         var effectiveAccent = IsEditMode ? accent : (accent ?? source?.AccentColor);
-        var effectiveScreenshots = IsEditMode
-            ? allScreenshots
-            : (allScreenshots.Count > 0 ? allScreenshots : (source?.ScreenshotUrls is { } sUrls ? [.. sUrls] : new List<string>()));
-        var effectiveVideos = IsEditMode
-            ? allVideos
-            : (allVideos.Count > 0 ? allVideos : (source?.VideoUrls is { } vUrls ? [.. vUrls] : new List<string>()));
+        var effectiveScreenshots = ResolveEffectiveScreenshots(allScreenshots, source);
+        var effectiveVideos = ResolveEffectiveVideos(allVideos, source);
         var effectiveVideo = allVideos.FirstOrDefault() ?? (IsEditMode ? null : source?.VideoUrl);
 
-        var hasCarriedFields = source != null && (
-            source.DocumentationUrl != null ||
-            source.Author != null ||
-            source.License != null ||
-            source.Category != null ||
-            source.PlayerCount != null);
+        var hasCarriedFields = HasCarriedMetadataFields(source);
 
         if (effectiveIcon == null && effectiveBanner == null && effectiveBackdrop == null && effectiveAccent == null &&
             effectiveVideos.Count == 0 && effectiveScreenshots.Count == 0 && !hasCarriedFields)
@@ -1669,6 +1651,56 @@ public partial class AddContentDialogViewModel(
             PlayerCount = source?.PlayerCount,
         };
     }
+
+    private List<string> CollectAllScreenshots()
+    {
+        var allScreenshots = new List<string>(Screenshots);
+        foreach (var s in ParseUrls(ScreenshotUrlsInput).Where(s => !allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase)))
+        {
+            allScreenshots.Add(s);
+        }
+
+        return allScreenshots;
+    }
+
+    private List<string> CollectAllVideos(string? singleVideo)
+    {
+        var allVideos = new List<string>(Videos);
+        if (!string.IsNullOrWhiteSpace(singleVideo) && !allVideos.Contains(singleVideo, StringComparer.OrdinalIgnoreCase))
+        {
+            allVideos.Add(singleVideo);
+        }
+
+        return allVideos;
+    }
+
+    private List<string> ResolveEffectiveScreenshots(List<string> allScreenshots, ContentRichMetadata? source)
+    {
+        if (IsEditMode || allScreenshots.Count > 0)
+        {
+            return allScreenshots;
+        }
+
+        return source?.ScreenshotUrls is { } sUrls ? [.. sUrls] : [];
+    }
+
+    private List<string> ResolveEffectiveVideos(List<string> allVideos, ContentRichMetadata? source)
+    {
+        if (IsEditMode || allVideos.Count > 0)
+        {
+            return allVideos;
+        }
+
+        return source?.VideoUrls is { } vUrls ? [.. vUrls] : [];
+    }
+
+    private bool HasCarriedMetadataFields(ContentRichMetadata? source) =>
+        source != null && (
+            source.DocumentationUrl != null ||
+            source.Author != null ||
+            source.License != null ||
+            source.Category != null ||
+            source.PlayerCount != null);
 
     private void AttachInitialRelease(CatalogContentItem contentItem)
     {

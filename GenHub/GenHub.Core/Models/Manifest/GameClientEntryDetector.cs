@@ -47,6 +47,7 @@ public static class GameClientEntryDetector
     };
 
     private static readonly char[] DirectorySeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+    private static readonly char[] ArchivePathSeparators = ['/', '\\'];
 
     /// <summary>
     /// Detects the entry point of an extracted game client payload.
@@ -114,8 +115,8 @@ public static class GameClientEntryDetector
 
             if (known.Count > 1)
             {
-                var minDepth = known.Min(e => e.FullName.Split('/', '\\').Length);
-                var shallow = known.Where(e => e.FullName.Split('/', '\\').Length == minDepth).ToList();
+                var minDepth = known.Min(e => e.FullName.Split(ArchivePathSeparators).Length);
+                var shallow = known.Where(e => e.FullName.Split(ArchivePathSeparators).Length == minDepth).ToList();
                 if (shallow.Count == 1)
                 {
                     return shallow[0].FullName.Replace('\\', '/');
@@ -134,8 +135,8 @@ public static class GameClientEntryDetector
 
             if (executables.Count > 1)
             {
-                var minDepth = executables.Min(e => e.FullName.Split('/', '\\').Length);
-                var shallow = executables.Where(e => e.FullName.Split('/', '\\').Length == minDepth).ToList();
+                var minDepth = executables.Min(e => e.FullName.Split(ArchivePathSeparators).Length);
+                var shallow = executables.Where(e => e.FullName.Split(ArchivePathSeparators).Length == minDepth).ToList();
                 if (shallow.Count == 1)
                 {
                     return shallow[0].FullName.Replace('\\', '/');

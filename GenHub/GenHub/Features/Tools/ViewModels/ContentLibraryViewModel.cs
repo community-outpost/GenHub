@@ -1425,10 +1425,11 @@ public partial class ContentLibraryViewModel(
     private void LoadContent()
     {
         ContentItems.Clear();
-        var content = activeCatalog?.Catalog?.Content;
-        if (content != null)
+        var catalog = activeCatalog;
+        var content = catalog?.Catalog?.Content;
+        if (catalog != null && content != null)
         {
-            var catalogIcon = activeCatalog?.IconUrl ?? activeCatalog?.Catalog?.IconUrl;
+            var catalogIcon = catalog.IconUrl ?? catalog.Catalog.IconUrl;
             var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
 
             foreach (var item in content)

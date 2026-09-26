@@ -128,63 +128,12 @@ public partial class ImageInputBox : UserControl
 
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
-
         AddHandler(KeyDownEvent, OnControlKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
-        var previewBorder = this.FindControl<Border>("PreviewBorder");
-        if (previewBorder != null)
-        {
-            previewBorder.PointerPressed += OnPreviewBorderPointerPressed;
-        }
-
-        var clearButton = this.FindControl<Button>("ClearButton");
-        if (clearButton != null)
-        {
-            clearButton.Click += (s, e) =>
-            {
-                if (_isProcessingInput)
-                {
-                    return;
-                }
-
-                Text = string.Empty;
-            };
-        }
-
-        var pasteButton = this.FindControl<Button>("PasteButton");
-        if (pasteButton != null)
-        {
-            pasteButton.Click += OnPasteButtonClick;
-        }
-
-        var inputTextBox = this.FindControl<TextBox>("InputTextBox");
-        if (inputTextBox != null)
-        {
-            inputTextBox.LostFocus += async (s, e) =>
-            {
-                if (!_isProcessingInput && DropHandler != null)
-                {
-                    var newText = inputTextBox.Text?.Trim();
-                    if (!string.IsNullOrWhiteSpace(newText) && File.Exists(newText))
-                    {
-                        await ProcessIncomingInputAsync(newText);
-                    }
-                }
-            };
-
-            inputTextBox.KeyDown += async (s, e) =>
-            {
-                if (e.Key == Key.Enter && !_isProcessingInput && DropHandler != null)
-                {
-                    var newText = inputTextBox.Text?.Trim();
-                    if (!string.IsNullOrWhiteSpace(newText) && File.Exists(newText))
-                    {
-                        e.Handled = true;
-                        await ProcessIncomingInputAsync(newText);
-                    }
-                }
-            };
-        }
+        WirePreviewBorder();
+        WireClearButton();
+        WirePasteButton();
+        WireInputTextBox();
     }
 
     private static void OnDragOver(object? sender, DragEventArgs e)
@@ -232,6 +181,82 @@ public partial class ImageInputBox : UserControl
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    private void WirePreviewBorder()
+    {
+        var previewBorder = this.FindControl<Border>("PreviewBorder");
+        if (previewBorder != null)
+        {
+            previewBorder.PointerPressed += OnPreviewBorderPointerPressed;
+        }
+    }
+
+    private void WireClearButton()
+    {
+        var clearButton = this.FindControl<Button>("ClearButton");
+        if (clearButton != null)
+        {
+            clearButton.Click += OnClearButtonClick;
+        }
+    }
+
+    private void WirePasteButton()
+    {
+        var pasteButton = this.FindControl<Button>("PasteButton");
+        if (pasteButton != null)
+        {
+            pasteButton.Click += OnPasteButtonClick;
+        }
+    }
+
+    private void WireInputTextBox()
+    {
+        var inputTextBox = this.FindControl<TextBox>("InputTextBox");
+        if (inputTextBox == null)
+        {
+            return;
+        }
+
+        inputTextBox.LostFocus += OnInputTextBoxLostFocus;
+        inputTextBox.KeyDown += OnInputTextBoxKeyDown;
+    }
+
+    private void OnClearButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (!_isProcessingInput)
+        {
+            Text = string.Empty;
+        }
+    }
+
+    private async void OnInputTextBoxLostFocus(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_isProcessingInput || DropHandler == null || sender is not TextBox inputTextBox)
+        {
+            return;
+        }
+
+        var newText = inputTextBox.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(newText) && File.Exists(newText))
+        {
+            await ProcessIncomingInputAsync(newText);
+        }
+    }
+
+    private async void OnInputTextBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || _isProcessingInput || DropHandler == null || sender is not TextBox inputTextBox)
+        {
+            return;
+        }
+
+        var newText = inputTextBox.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(newText) && File.Exists(newText))
+        {
+            e.Handled = true;
+            await ProcessIncomingInputAsync(newText);
+        }
     }
 
     private async void OnControlKeyDown(object? sender, KeyEventArgs e)

@@ -23,7 +23,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <summary>
 /// ViewModel for the Publisher Profile tab.
 /// </summary>
-public partial class PublisherProfileViewModel(
+public sealed partial class PublisherProfileViewModel(
     PublisherStudioProject project,
     PublisherStudioViewModel parentViewModel,
     ILogger logger,
@@ -202,8 +202,13 @@ public partial class PublisherProfileViewModel(
 
         if (File.Exists(trimmed))
         {
-            _avatarUploadCts?.Cancel();
-            _avatarUploadCts?.Dispose();
+            if (_avatarUploadCts != null)
+            {
+                await _avatarUploadCts.CancelAsync();
+                _avatarUploadCts.Dispose();
+                _avatarUploadCts = null;
+            }
+
             _avatarUploadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             await HandleLocalAvatarFileAsync(trimmed, _avatarUploadCts.Token);
         }
@@ -215,7 +220,6 @@ public partial class PublisherProfileViewModel(
         _avatarUploadCts?.Cancel();
         _avatarUploadCts?.Dispose();
         _avatarUploadCts = null;
-        GC.SuppressFinalize(this);
     }
 
     private static bool IsRemoteUrl(string text) =>
@@ -278,9 +282,9 @@ public partial class PublisherProfileViewModel(
             var errorMessage = result.FirstError ?? "Failed to upload avatar to hosting provider.";
             notificationService?.ShowError(errorTitle, errorMessage);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger?.LogDebug("Avatar upload was canceled for {Path}", filePath);
+            logger?.LogDebug(ex, "Avatar upload was canceled for {Path}", filePath);
         }
         catch (Exception ex)
         {
