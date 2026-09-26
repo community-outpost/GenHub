@@ -8,6 +8,8 @@ using GenHub.MacOS.Infrastructure.DependencyInjection;
 using GenHub.Tests.MacOS.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -62,10 +64,15 @@ public class NativeInstallationRestartTests
     {
         var services = new ServiceCollection();
         services.ConfigureApplicationServices(platformServices => platformServices.AddMacOSServices());
+
+        // SpecialFolder.MyDocuments can remain tied to the real account despite a temporary HOME.
+        var isolatedPaths = new Mock<IGamePathProvider>();
+        isolatedPaths.Setup(p => p.GetOptionsDirectory(It.IsAny<GameType>()))
+            .Returns((GameType gameType) => Path.Combine(home, "Documents", gameType.ToString()));
+        services.Replace(ServiceDescriptor.Singleton(isolatedPaths.Object));
         using var serviceProvider = services.BuildServiceProvider();
 
         AssertUnderTemporaryDirectory(home);
-        AssertUnderTemporaryDirectory(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
         var pathProvider = serviceProvider.GetRequiredService<IGamePathProvider>();
         AssertUnderTemporaryDirectory(pathProvider.GetOptionsDirectory(GameType.Generals));
         AssertUnderTemporaryDirectory(pathProvider.GetOptionsDirectory(GameType.ZeroHour));
