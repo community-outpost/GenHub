@@ -1041,8 +1041,8 @@
         // Fallback
         const textarea = document.getElementById('copyBuffer');
         textarea.select();
-        document.execCommand('copy');
-        alert('Copied to clipboard!');
+        const ok = document.execCommand('copy');
+        alert(ok ? 'Copied to clipboard!' : 'Copy failed. Please copy manually.');
       });
     });
 

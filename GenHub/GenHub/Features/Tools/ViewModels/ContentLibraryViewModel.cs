@@ -45,6 +45,21 @@ public partial class ContentLibraryViewModel(
     [ObservableProperty]
     private ObservableCollection<CatalogContentItem> _contentItems = InitializeContentItems(activeCatalog, parentViewModel);
 
+    private static (string? CatalogIconUrl, string? PublisherAvatarUrl) ResolveCatalogPresentationUrls(
+        NamedCatalog? catalog,
+        PublisherStudioViewModel? parentViewModel)
+    {
+        var catalogIcon = catalog?.IconUrl
+            ?? catalog?.Catalog?.IconUrl
+            ?? catalog?.Catalog?.AvatarUrl
+            ?? catalog?.Catalog?.Publisher?.AvatarUrl;
+        var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl
+            ?? catalog?.Catalog?.Publisher?.AvatarUrl
+            ?? catalogIcon;
+
+        return (catalogIcon, publisherAvatar);
+    }
+
     private static ObservableCollection<CatalogContentItem> InitializeContentItems(
         NamedCatalog? activeCatalog,
         PublisherStudioViewModel? parentViewModel)
@@ -54,13 +69,7 @@ public partial class ContentLibraryViewModel(
         var content = catalog?.Catalog?.Content;
         if (catalog != null && content != null)
         {
-            var catalogIcon = catalog.IconUrl
-                ?? catalog.Catalog?.IconUrl
-                ?? catalog.Catalog?.AvatarUrl
-                ?? catalog.Catalog?.Publisher?.AvatarUrl;
-            var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl
-                ?? catalog.Catalog?.Publisher?.AvatarUrl
-                ?? catalogIcon;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(catalog, parentViewModel);
 
             foreach (var item in content)
             {
@@ -273,8 +282,9 @@ public partial class ContentLibraryViewModel(
                 return;
             }
 
-            newContent.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl ?? activeCatalog.Catalog?.AvatarUrl ?? activeCatalog.Catalog?.Publisher?.AvatarUrl;
-            newContent.PublisherAvatarUrl ??= parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(activeCatalog, parentViewModel);
+            newContent.CatalogIconUrl = catalogIcon;
+            newContent.PublisherAvatarUrl ??= publisherAvatar;
             activeCatalog.Catalog?.Content.Add(newContent);
             ContentItems.Add(newContent);
             OnPropertyChanged(nameof(FilteredContent));
@@ -744,8 +754,9 @@ public partial class ContentLibraryViewModel(
             target.Tags = edited.Tags;
             target.ExtendsContentId = edited.ExtendsContentId;
             target.Metadata = edited.Metadata;
-            target.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl ?? activeCatalog.Catalog?.AvatarUrl ?? activeCatalog.Catalog?.Publisher?.AvatarUrl;
-            target.PublisherAvatarUrl = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(activeCatalog, parentViewModel);
+            target.CatalogIconUrl = catalogIcon;
+            target.PublisherAvatarUrl = publisherAvatar;
             target.NotifyPresentationChanged();
 
             // Trigger UI update
@@ -1460,13 +1471,7 @@ public partial class ContentLibraryViewModel(
         var content = catalog?.Catalog?.Content;
         if (catalog != null && content != null)
         {
-            var catalogIcon = catalog.IconUrl
-                ?? catalog.Catalog?.IconUrl
-                ?? catalog.Catalog?.AvatarUrl
-                ?? catalog.Catalog?.Publisher?.AvatarUrl;
-            var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl
-                ?? catalog.Catalog?.Publisher?.AvatarUrl
-                ?? catalogIcon;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(catalog, parentViewModel);
 
             foreach (var item in content)
             {

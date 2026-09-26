@@ -62,7 +62,14 @@ public partial class ImageInputBox : UserControl
         {
             var assetBtn = this.FindControl<Button>("AssetPickerButton");
             assetBtn?.Flyout?.Hide();
-            await ProcessIncomingInputAsync(url);
+            try
+            {
+                await ProcessIncomingInputAsync(url);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to apply built-in asset: {ex.Message}");
+            }
         }
     }
 

@@ -7,6 +7,7 @@ using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.GeneralsOnline;
@@ -45,13 +46,14 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
+        var discoveryCache = new Dictionary<IContentDiscoverer, OperationResult<ContentDiscoveryResult>>();
         foreach (var item in catalog.Content)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             try
             {
-                await IngestSingleItemAsync(item, cancellationToken);
+                await IngestSingleItemAsync(item, discoveryCache, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -296,7 +298,10 @@ public class CatalogUpstreamIngestionService(
         });
     }
 
-    private async Task IngestSingleItemAsync(CatalogContentItem item, CancellationToken cancellationToken)
+    private async Task IngestSingleItemAsync(
+        CatalogContentItem item,
+        Dictionary<IContentDiscoverer, OperationResult<ContentDiscoveryResult>> discoveryCache,
+        CancellationToken cancellationToken)
     {
         var sync = item.UpstreamSync;
         var declaredProvider = !string.IsNullOrWhiteSpace(sync?.Provider) ? sync.Provider : item.PublisherType;
@@ -309,11 +314,11 @@ public class CatalogUpstreamIngestionService(
         }
         else if (string.Equals(provider, CatalogConstants.UpstreamProviders.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
         {
-            await IngestFromDiscovererAsync(generalsOnlineDiscoverer, "GeneralsOnline", item, cancellationToken);
+            await IngestFromDiscovererAsync(generalsOnlineDiscoverer, "GeneralsOnline", item, discoveryCache, cancellationToken);
         }
         else if (string.Equals(provider, CatalogConstants.UpstreamProviders.CommunityOutpost, StringComparison.OrdinalIgnoreCase))
         {
-            await IngestFromDiscovererAsync(communityOutpostDiscoverer, "CommunityOutpost", item, cancellationToken);
+            await IngestFromDiscovererAsync(communityOutpostDiscoverer, "CommunityOutpost", item, discoveryCache, cancellationToken);
         }
     }
 
@@ -407,6 +412,7 @@ public class CatalogUpstreamIngestionService(
         IContentDiscoverer? discoverer,
         string providerDisplayName,
         CatalogContentItem item,
+        Dictionary<IContentDiscoverer, OperationResult<ContentDiscoveryResult>> discoveryCache,
         CancellationToken cancellationToken)
     {
         if (discoverer == null)
@@ -414,7 +420,15 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var discovery = await discoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
+        if (!discoveryCache.TryGetValue(discoverer, out var discovery))
+        {
+            discovery = await discoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
+            if (discovery.Success && discovery.Data?.Items != null)
+            {
+                discoveryCache[discoverer] = discovery;
+            }
+        }
+
         if (!discovery.Success || discovery.Data?.Items == null)
         {
             return;
