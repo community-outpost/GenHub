@@ -336,6 +336,11 @@ public static class CatalogConstants
         public const string GitHubReleases = "GitHubReleases";
 
         /// <summary>
+        /// Wire alias for generic GitHub Releases provider.
+        /// </summary>
+        public const string GitHubReleasesAlias = "github-releases";
+
+        /// <summary>
         /// Normalizes provider aliases to canonical upstream provider identifiers.
         /// </summary>
         /// <param name="provider">The provider name or alias to normalize.</param>
@@ -369,7 +374,7 @@ public static class CatalogConstants
             }
 
             if (string.Equals(provider, GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(provider, "github-releases", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, GitHubReleasesAlias, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(provider, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase))
             {
                 return GitHubReleases;
