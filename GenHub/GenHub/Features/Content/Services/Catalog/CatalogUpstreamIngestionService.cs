@@ -189,11 +189,11 @@ public class CatalogUpstreamIngestionService(
         }
         else if (string.Equals(provider, CatalogConstants.UpstreamProviders.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
         {
-            await IngestGeneralsOnlineItemAsync(item, cancellationToken);
+            await IngestFromDiscovererAsync(generalsOnlineDiscoverer, "GeneralsOnline", item, cancellationToken);
         }
         else if (string.Equals(provider, CatalogConstants.UpstreamProviders.CommunityOutpost, StringComparison.OrdinalIgnoreCase))
         {
-            await IngestCommunityOutpostItemAsync(item, cancellationToken);
+            await IngestFromDiscovererAsync(communityOutpostDiscoverer, "CommunityOutpost", item, cancellationToken);
         }
     }
 
@@ -251,16 +251,18 @@ public class CatalogUpstreamIngestionService(
         }
     }
 
-    private async Task IngestGeneralsOnlineItemAsync(
+    private async Task IngestFromDiscovererAsync(
+        IContentDiscoverer? discoverer,
+        string providerDisplayName,
         CatalogContentItem item,
         CancellationToken cancellationToken)
     {
-        if (generalsOnlineDiscoverer == null)
+        if (discoverer == null)
         {
             return;
         }
 
-        var discovery = await generalsOnlineDiscoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
+        var discovery = await discoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
         if (!discovery.Success || discovery.Data?.Items == null)
         {
             return;
@@ -285,64 +287,7 @@ public class CatalogUpstreamIngestionService(
         var downloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl;
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
-            logger.LogWarning("GeneralsOnline item '{ItemId}' has no usable download URL, keeping existing releases", item.Id);
-            return;
-        }
-
-        var synthesized = new ContentRelease
-        {
-            Version = !string.IsNullOrWhiteSpace(matched.Version) ? matched.Version : "1.0.0",
-            ReleaseDate = matched.LastUpdated ?? DateTime.UtcNow,
-            IsLatest = true,
-        };
-
-        synthesized.Artifacts.Add(new ReleaseArtifact
-        {
-            Filename = $"{item.Id}-{synthesized.Version}.zip",
-            DownloadUrl = downloadUrl,
-            Size = matched.DownloadSize,
-            IsPrimary = true,
-        });
-
-        item.Releases.Clear();
-        item.Releases.Add(synthesized);
-    }
-
-    private async Task IngestCommunityOutpostItemAsync(
-        CatalogContentItem item,
-        CancellationToken cancellationToken)
-    {
-        if (communityOutpostDiscoverer == null)
-        {
-            return;
-        }
-
-        var discovery = await communityOutpostDiscoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
-        if (!discovery.Success || discovery.Data?.Items == null)
-        {
-            return;
-        }
-
-        var items = discovery.Data.Items.ToList();
-        if (items.Count == 0)
-        {
-            return;
-        }
-
-        var matched = items.FirstOrDefault(i =>
-            string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase)) ??
-            items.FirstOrDefault(i => item.TargetGame != GameType.Unknown && i.TargetGame == item.TargetGame);
-
-        if (matched == null)
-        {
-            return;
-        }
-
-        var downloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl;
-        if (string.IsNullOrWhiteSpace(downloadUrl))
-        {
-            logger.LogWarning("CommunityOutpost item '{ItemId}' has no usable download URL, keeping existing releases", item.Id);
+            logger.LogWarning("{Provider} item '{ItemId}' has no usable download URL, keeping existing releases", providerDisplayName, item.Id);
             return;
         }
 
