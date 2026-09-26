@@ -62,7 +62,7 @@ public class Program
 
         try
         {
-            bootstrapLogger.LogInformation("Starting GenHub Linux application");
+            bootstrapLogger.LogInformation("Starting GenHub Linux application ({Version})", AppConstants.FullDisplayVersion);
 
             // Initialize configured data-path resolver before checking conflict so AppDataPath is respected
             ConfigurationModule.InitializeConfiguredDataPathResolver();
