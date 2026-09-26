@@ -902,7 +902,7 @@ public class GameProfileManager(
             {
                 // The process has exited before the launch registry was updated.
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
             {
                 logger.LogWarning(ex, "Unable to verify process for profile {ProfileId}; blocking deletion", profileId);
                 return true;

@@ -13533,7 +13533,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
 Как применить это обновление?</value>
   </data>
   <data name="Settings.Profiles.DeleteIncomplete" xml:space="preserve">
-    <value>Удалено профилей: {0}. Не удалось удалить {1}: {2}.</value>
+    <value>Удалено профилей: {0}. Не удалось удалить профили ({1}): {2}.</value>
   </data>
   <data name="Settings.Profiles.DeleteFailedTitle" xml:space="preserve">
     <value>Не удалось удалить профили</value>
