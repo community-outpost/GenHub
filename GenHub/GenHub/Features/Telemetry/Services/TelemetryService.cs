@@ -54,9 +54,11 @@ public sealed class TelemetryService(
         {
             try
             {
-                var optOutEnv = Environment.GetEnvironmentVariable("GENHUB_TELEMETRY_OPTOUT") ??
-                                Environment.GetEnvironmentVariable("DO_NOT_TRACK");
-                if (optOutEnv is "1" or "true" or "yes")
+                var genHubOptOut = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
+                var doNotTrack = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack);
+
+                if ((!string.IsNullOrWhiteSpace(genHubOptOut) && TelemetryConstants.OptOutTruthyValues.Contains(genHubOptOut.Trim())) ||
+                    (!string.IsNullOrWhiteSpace(doNotTrack) && TelemetryConstants.OptOutTruthyValues.Contains(doNotTrack.Trim())))
                 {
                     return TelemetryLevel.Disabled;
                 }

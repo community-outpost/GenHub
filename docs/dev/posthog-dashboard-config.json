@@ -10,6 +10,29 @@
       "pinned": true,
       "tiles": [
         {
+          "name": "Application Starts (DAU)",
+          "type": "Trends",
+          "display": "ActionsLineGraph",
+          "query": {
+            "kind": "TrendsQuery",
+            "series": [
+              {
+                "kind": "EventsNode",
+                "event": "app_started",
+                "name": "Daily Active Users",
+                "math": "dau"
+              }
+            ],
+            "dateRange": {
+              "date_from": "-30d"
+            },
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
+          }
+        },
+        {
           "name": "Daily Active Game Launchers (DAU)",
           "type": "Trends",
           "display": "ActionsLineGraph",
@@ -1025,7 +1048,9 @@
                 "properties": [
                   {
                     "key": "success",
-                    "value": ["true"],
+                    "value": [
+                      "true"
+                    ],
                     "operator": "exact",
                     "type": "event"
                   }
@@ -1265,7 +1290,9 @@
                 "properties": [
                   {
                     "key": "success",
-                    "value": ["true"],
+                    "value": [
+                      "true"
+                    ],
                     "operator": "exact",
                     "type": "event"
                   }
@@ -1295,7 +1322,9 @@
                 "properties": [
                   {
                     "key": "success",
-                    "value": ["true"],
+                    "value": [
+                      "true"
+                    ],
                     "operator": "exact",
                     "type": "event"
                   }

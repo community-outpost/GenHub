@@ -274,13 +274,22 @@ public class TelemetryServiceTests : IDisposable
         }
     }
 
-    /// Verifies that DO_NOT_TRACK environment variable disables telemetry collection.
+    /// Verifies that DO_NOT_TRACK environment variable disables telemetry collection across casing and conventions.
     /// </summary>
+    /// <param name="optOutValue">The truthy opt-out string value.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task CurrentLevel_WhenDoNotTrackEnvironmentVariableIsSet_ReturnsDisabledAsync()
+    [Theory]
+    [InlineData("1")]
+    [InlineData("True")]
+    [InlineData("TRUE")]
+    [InlineData("true")]
+    [InlineData("yes")]
+    [InlineData("YES")]
+    [InlineData("on")]
+    public async Task CurrentLevel_WhenDoNotTrackEnvironmentVariableIsSet_ReturnsDisabledAsync(string optOutValue)
     {
-        Environment.SetEnvironmentVariable("DO_NOT_TRACK", "1");
+        var original = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack);
+        Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, optOutValue);
         try
         {
             await using var service = new TelemetryService(
@@ -294,18 +303,27 @@ public class TelemetryServiceTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable("DO_NOT_TRACK", null);
+            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, original);
         }
     }
 
     /// <summary>
-    /// Verifies that GENHUB_TELEMETRY_OPTOUT environment variable disables telemetry collection.
+    /// Verifies that GENHUB_TELEMETRY_OPTOUT environment variable disables telemetry collection across casing and conventions.
     /// </summary>
+    /// <param name="optOutValue">The truthy opt-out string value.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task CurrentLevel_WhenGenHubOptOutEnvironmentVariableIsSet_ReturnsDisabledAsync()
+    [Theory]
+    [InlineData("1")]
+    [InlineData("True")]
+    [InlineData("TRUE")]
+    [InlineData("true")]
+    [InlineData("yes")]
+    [InlineData("YES")]
+    [InlineData("on")]
+    public async Task CurrentLevel_WhenGenHubOptOutEnvironmentVariableIsSet_ReturnsDisabledAsync(string optOutValue)
     {
-        Environment.SetEnvironmentVariable("GENHUB_TELEMETRY_OPTOUT", "1");
+        var original = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
+        Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, optOutValue);
         try
         {
             await using var service = new TelemetryService(
@@ -319,7 +337,35 @@ public class TelemetryServiceTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable("GENHUB_TELEMETRY_OPTOUT", null);
+            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, original);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that DO_NOT_TRACK is honored even if GENHUB_TELEMETRY_OPTOUT is set to a non-optout value like 0.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CurrentLevel_WhenDoNotTrackIsSetAndGenHubOptOutIsZero_ReturnsDisabledAsync()
+    {
+        var originalDnt = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack);
+        var originalOptOut = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
+        Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, "1");
+        Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, "0");
+        try
+        {
+            await using var service = new TelemetryService(
+                _mockLogger.Object,
+                _sanitizer,
+                _mockUserSettingsService.Object,
+                [_mockSink.Object]);
+
+            Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, originalDnt);
+            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, originalOptOut);
         }
     }
 }

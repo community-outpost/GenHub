@@ -102,6 +102,26 @@ public static class TelemetryConstants
     public const string DefaultPostHogProjectId = "567732";
 
     /// <summary>
+    /// Environment variables that configure telemetry behavior.
+    /// </summary>
+    public static class EnvironmentVariables
+    {
+        /// <summary>Custom GenHub telemetry opt-out environment variable.</summary>
+        public const string GenHubTelemetryOptOut = "GENHUB_TELEMETRY_OPTOUT";
+
+        /// <summary>Standard cross-ecosystem telemetry opt-out environment variable.</summary>
+        public const string DoNotTrack = "DO_NOT_TRACK";
+    }
+
+    /// <summary>
+    /// Accepted truthy values indicating a user opted out of telemetry via environment variable.
+    /// </summary>
+    public static readonly IReadOnlySet<string> OptOutTruthyValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "1", "true", "yes", "on",
+    };
+
+    /// <summary>
     /// Telemetry event names.
     /// </summary>
     public static class Events
