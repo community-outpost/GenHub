@@ -21,7 +21,6 @@ namespace GenHub.MacOS.Infrastructure.AppActivation;
 internal static class MacAppActivationGate
 {
     private const string ObjCLibrary = "/usr/lib/libobjc.A.dylib";
-    private const string AvaloniaAppDelegateClass = "AvnAppDelegate";
     private const string AppBundleExecutableMarker = ".app/Contents/MacOS/";
     private const double RecentInputWindowSeconds = 1.0;
 
@@ -36,14 +35,10 @@ internal static class MacAppActivationGate
 
     private static ActivateIgnoringOtherAppsHandler? _originalActivate;
     private static ActivateIgnoringOtherAppsHandler? _activateHook;
-    private static NotificationHandler? _didFinishLaunchingHook;
     private static ILogger? _logger;
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ActivateIgnoringOtherAppsHandler(IntPtr self, IntPtr selector, byte ignoringOtherApps);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void NotificationHandler(IntPtr self, IntPtr selector, IntPtr notification);
 
     /// <summary>
     /// Installs the gate when GenHub runs from an app bundle. Unbundled development runs keep
@@ -66,10 +61,7 @@ internal static class MacAppActivationGate
             var activateSelector = RegisterSelector("activateIgnoringOtherApps:");
             var applicationClass = GetObjectClass(application);
             var activateMethod = GetInstanceMethod(applicationClass, activateSelector);
-            var delegateClass = GetClass(AvaloniaAppDelegateClass);
-            var didFinishSelector = RegisterSelector("applicationDidFinishLaunching:");
-            var didFinishMethod = delegateClass == IntPtr.Zero ? IntPtr.Zero : GetInstanceMethod(delegateClass, didFinishSelector);
-            if (application == IntPtr.Zero || activateMethod == IntPtr.Zero || didFinishMethod == IntPtr.Zero)
+            if (application == IntPtr.Zero || activateMethod == IntPtr.Zero)
             {
                 logger?.LogWarning("Could not locate the Avalonia activation methods; app activation is not gated");
                 return false;
@@ -77,27 +69,19 @@ internal static class MacAppActivationGate
 
             _originalActivate = Marshal.GetDelegateForFunctionPointer<ActivateIgnoringOtherAppsHandler>(GetMethodImplementation(activateMethod));
             _activateHook = OnActivateIgnoringOtherApps;
-            _didFinishLaunchingHook = OnDidFinishLaunching;
 
             ReplaceMethod(
                 applicationClass,
                 activateSelector,
                 Marshal.GetFunctionPointerForDelegate(_activateHook),
                 GetMethodTypeEncoding(activateMethod));
-            ReplaceMethod(
-                delegateClass,
-                didFinishSelector,
-                Marshal.GetFunctionPointerForDelegate(_didFinishLaunchingHook),
-                GetMethodTypeEncoding(didFinishMethod));
 
             logger?.LogInformation("Installed the macOS app activation gate");
             return true;
         }
         catch (Exception ex)
         {
-            _originalActivate = null;
-            _activateHook = null;
-            _didFinishLaunchingHook = null;
+            // Keep delegates rooted: an exception after replacement must not invalidate native callbacks.
             logger?.LogWarning(ex, "Failed to install the macOS app activation gate");
             return false;
         }
@@ -152,11 +136,6 @@ internal static class MacAppActivationGate
         }
 
         _originalActivate?.Invoke(self, selector, ignoringOtherApps);
-    }
-
-    private static void OnDidFinishLaunching(IntPtr self, IntPtr selector, IntPtr notification)
-    {
-        _logger?.LogDebug("Left launch activation to LaunchServices");
     }
 
     private static bool IsAppActive(IntPtr application) =>

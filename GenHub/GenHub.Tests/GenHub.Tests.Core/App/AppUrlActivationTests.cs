@@ -257,6 +257,20 @@ public sealed class AppUrlActivationTests
         Assert.False(WindowActivation.IsUserRequestInProgress);
     }
 
+    /// <summary>Unsupported protocol targets do not suppress Getting Started or wait for a window.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task HandleUrlActivationAsync_UnknownTarget_DoesNotRecordLinkAsync()
+    {
+        var tracker = new LinkActivationTracker();
+        var app = CreateApp(linkActivationTracker: tracker);
+
+        await app.HandleUrlActivationAsync(new ProtocolActivatedEventArgs(new Uri("genhub://unknown")))
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.False(tracker.HasReceivedLink);
+    }
+
     private static global::GenHub.App CreateApp(GameProfileLauncherViewModel? launcher = null, ILinkActivationTracker? linkActivationTracker = null)
     {
         var httpClientFactory = new Mock<IHttpClientFactory>();
