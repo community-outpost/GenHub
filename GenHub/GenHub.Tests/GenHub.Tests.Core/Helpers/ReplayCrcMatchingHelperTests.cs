@@ -858,6 +858,59 @@ public class ReplayCrcMatchingHelperTests
     }
 
     /// <summary>
+    /// Verifies that a profile specifying an inaccessible or non-existent CustomExecutablePath is rejected as non-retail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatible_WithUnresolvedCustomExecutable_ReturnsFalse()
+    {
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), "GenHub_NonExistent_" + Guid.NewGuid().ToString("N"), "generals.exe");
+        var client = new GameClient
+        {
+            Id = "1.04.ea.game.zerohour",
+            Name = "Zero Hour 1.04",
+            Version = "1.04",
+            PublisherType = PublisherTypeConstants.Ea,
+            GameType = GameType.ZeroHour,
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "profile-unresolved-exe",
+            Name = "Unresolved Custom Exe Profile",
+            GameClient = client,
+            CustomExecutablePath = nonExistentPath,
+        };
+
+        // Synchronous check must fail
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(profile));
+
+        // Asynchronous check must fail without attempting CRC
+        var mockCalculator = new Mock<IGameCrcCalculatorService>();
+        var isRetailAsync = await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(profile, mockCalculator.Object);
+        Assert.False(isRetailAsync);
+    }
+
+    /// <summary>
+    /// Verifies that an official publisher client with empty version metadata is not assumed to be retail.
+    /// </summary>
+    [Fact]
+    public void IsOfficialBaseClient_WithEmptyVersion_ReturnsFalse()
+    {
+        var client = new GameClient
+        {
+            Id = "client-empty-ver",
+            Name = "Zero Hour Unknown",
+            Version = string.Empty,
+            PublisherType = PublisherTypeConstants.Ea,
+            GameType = GameType.ZeroHour,
+        };
+
+        Assert.False(ReplayCrcMatchingHelper.IsOfficialBaseClient(client));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(client));
+    }
+
+    /// <summary>
     /// Verifies that HasNonRetailContent correctly identifies mods and non-retail patches while allowing retail addons.
     /// </summary>
     [Fact]
