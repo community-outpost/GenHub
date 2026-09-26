@@ -73,7 +73,7 @@ public sealed partial class PublisherProfileViewModel(
     private string _tagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
 
     /// <summary>
-    /// Validates that a string is either empty or a valid HTTP/HTTPS URL.
+    /// Validates that a string is either empty or a valid HTTP, HTTPS, or avares URL.
     /// </summary>
     /// <param name="value">The string value to validate.</param>
     /// <param name="context">The validation context.</param>
@@ -91,7 +91,7 @@ public sealed partial class PublisherProfileViewModel(
             return ValidationResult.Success;
         }
 
-        return new ValidationResult(ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.ValidHttpUrlFormat", "{0} must be a valid http or https URL.", context.DisplayName));
+        return new ValidationResult(ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.ValidHttpUrlFormat", "{0} must be a valid http, https, or avares URL.", context.DisplayName));
     }
 
     /// <summary>

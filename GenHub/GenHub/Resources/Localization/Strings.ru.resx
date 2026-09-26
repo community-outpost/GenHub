@@ -12813,7 +12813,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Название каталога не должно быть пустым</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
-    <value>{0} должен быть допустимым URL-адресом http или https.</value>
+    <value>{0} должен быть допустимым URL-адресом http, https или avares.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
     <value>Контактный адрес должен быть допустимым адресом электронной почты.</value>

@@ -12813,7 +12813,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>لا يمكن أن يكون اسم الكتالوج فارغًا</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
-    <value>يجب أن يكون {0} رابط http أو https صالحًا.</value>
+    <value>يجب أن يكون {0} رابط http أو https أو avares صالحًا.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
     <value>يجب أن يكون البريد الإلكتروني للتواصل عنوانًا صالحًا.</value>

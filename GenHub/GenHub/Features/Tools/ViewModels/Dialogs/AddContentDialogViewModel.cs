@@ -2169,7 +2169,7 @@ public partial class AddContentDialogViewModel(
             contentItem.Releases.Add(CloneRelease(release));
         }
 
-        if (contentItem.ContentType != ContentType.ContentBundle)
+        if (contentItem.ContentType != ContentType.ContentBundle && _existingItem.ContentType != ContentType.ContentBundle)
         {
             foreach (var dependency in _existingItem.BundledItems)
             {

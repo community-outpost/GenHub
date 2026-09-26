@@ -318,7 +318,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
 
         var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
-        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r.Dependencies != null && r.Dependencies.Count > 0);
+        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r?.Dependencies is { Count: > 0 });
 
         if (!hasBundledItems && !hasReleaseDependencies)
         {

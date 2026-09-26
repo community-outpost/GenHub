@@ -12911,7 +12911,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Catalog name cannot be empty</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
-    <value>{0} must be a valid http or https URL.</value>
+    <value>{0} must be a valid http, https, or avares URL.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
     <value>Contact email must be a valid email address.</value>

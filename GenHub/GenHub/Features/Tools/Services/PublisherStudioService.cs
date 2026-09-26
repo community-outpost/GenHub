@@ -532,7 +532,15 @@ public class PublisherStudioService(
 
     private static OperationResult<bool> ValidateContentBundleItem(CatalogContentItem content)
     {
-        if (content.ContentType == ContentType.ContentBundle && (content.BundledItems == null || content.BundledItems.Count == 0))
+        if (content.ContentType != ContentType.ContentBundle)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
+        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r?.Dependencies is { Count: > 0 });
+
+        if (!hasBundledItems && !hasReleaseDependencies)
         {
             return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has no bundled items");
         }

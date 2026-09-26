@@ -4924,7 +4924,6 @@ public partial class ContentDetailViewModel(
                 }
 
                 var isGameClient = candidateResult.ContentType == ContentType.GameClient;
-                var contentTypeLabel = isGameClient ? "GameClient" : "Addon";
                 var versionText = !string.IsNullOrWhiteSpace(candidateResult.Version)
                     ? $" ({candidateResult.Version})"
                     : string.Empty;
@@ -4938,7 +4937,7 @@ public partial class ContentDetailViewModel(
                     : FormatLocalizedString(
                         "Downloads.ContentDetail.BundleUpdateComponentMessageFormat",
                         "A new version of {0} **{1}** is available{2}.\n\nWould you like to update and replace it in the profile as part of this bundle installation?",
-                        contentTypeLabel,
+                        GetLocalizedString($"ContentType.{candidateResult.ContentType}", candidateResult.ContentType.GetDisplayName()),
                         updateComp.SelectedDisplayName,
                         versionText);
 
@@ -5038,7 +5037,7 @@ public partial class ContentDetailViewModel(
                 if (componentUpdates.TryGetValue(originalContentId, out var updateInfo) ||
                     (!string.IsNullOrEmpty(target.Id) && componentUpdates.TryGetValue(target.Id, out updateInfo)))
                 {
-                    await ApplyBundleComponentUpdateStrategyAsync(target, updateInfo.OldManifestId, newManifest, updateInfo.PromptResult, cancellationToken);
+                    await ApplyBundleComponentUpdateStrategyAsync(target, originalContentId, updateInfo.OldManifestId, newManifest, updateInfo.PromptResult, cancellationToken);
                 }
 
                 completed++;
@@ -5089,6 +5088,7 @@ public partial class ContentDetailViewModel(
 
     private async Task ApplyBundleComponentUpdateStrategyAsync(
         ContentSearchResult target,
+        string originalContentId,
         string? oldManifestId,
         ContentManifest newManifest,
         UpdateDialogResult promptResult,
@@ -5141,7 +5141,7 @@ public partial class ContentDetailViewModel(
                         await profileManager.ScrubDeletedManifestReferencesAsync([oldManifestId], cancellationToken);
                     }
 
-                    contentStateService.NotifyStateChanged(target.Id ?? string.Empty, ContentState.NotDownloaded, oldManifestId);
+                    contentStateService.NotifyStateChanged(originalContentId, ContentState.NotDownloaded, oldManifestId);
                 }
             }
             catch (Exception ex)
