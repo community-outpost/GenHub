@@ -2637,33 +2637,35 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogWarning("Deleting all profiles");
             var profilesResult = await _profileManager.GetAllProfilesAsync(cancellationToken);
-            if (profilesResult.Success && profilesResult.Data != null)
+            if (!profilesResult.Success || profilesResult.Data == null)
             {
-                var deletedCount = 0;
-                var failedProfileNames = new List<string>();
-                foreach (var profile in profilesResult.Data.ToList())
-                {
-                    var deleteResult = await _profileManager.DeleteProfileAsync(profile.Id, cancellationToken);
-                    if (deleteResult.Success)
-                    {
-                        deletedCount++;
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to delete profile {ProfileName} ({ProfileId}): {Error}", profile.Name, profile.Id, deleteResult.FirstError);
-                        failedProfileNames.Add(profile.Name);
-                    }
-                }
+                return;
+            }
 
-                if (showToast)
+            var deletedCount = 0;
+            var failedProfileNames = new List<string>();
+            foreach (var profile in profilesResult.Data.ToList())
+            {
+                var deleteResult = await _profileManager.DeleteProfileAsync(profile.Id, cancellationToken);
+                if (deleteResult.Success)
                 {
-                    ShowProfileDeletionResult(deletedCount, failedProfileNames);
+                    deletedCount++;
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to delete profile {ProfileName} ({ProfileId}): {Error}", profile.Name, profile.Id, deleteResult.FirstError);
+                    failedProfileNames.Add(profile.Name);
                 }
             }
+
+            if (showToast)
+            {
+                ShowProfileDeletionResult(deletedCount, failedProfileNames);
+            }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
-            _logger.LogInformation("Profile deletion was cancelled");
+            _logger.LogInformation(ex, "Profile deletion was cancelled");
         }
         catch (Exception ex)
         {
