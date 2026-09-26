@@ -204,7 +204,8 @@
               </Style>
             </Border.Styles>
 
-            <Border Classes="expand-tab"
+            <Border x:Name="PART_ExpandTab"
+                    Classes="expand-tab"
                     Width="4"
                     Height="48"
                     CornerRadius="0,3,3,0"
@@ -215,5 +216,20 @@
         </Grid>
       </ControlTemplate>
     </Setter>
+  </Style>
+
+  <Style Selector="controls|SidebarLayout[PanePlacement=Right] /template/ Border#PART_SidebarPane">
+    <Setter Property="Grid.Column" Value="2" />
+    <Setter Property="BorderThickness" Value="1,0,0,0" />
+  </Style>
+  <Style Selector="controls|SidebarLayout[PanePlacement=Right] /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Grid.Column" Value="0" />
+  </Style>
+  <Style Selector="controls|SidebarLayout[PanePlacement=Right] /template/ Border#PART_TriggerZone">
+    <Setter Property="HorizontalAlignment" Value="Right" />
+  </Style>
+  <Style Selector="controls|SidebarLayout[PanePlacement=Right] /template/ Border#PART_ExpandTab">
+    <Setter Property="HorizontalAlignment" Value="Right" />
+    <Setter Property="CornerRadius" Value="3,0,0,3" />
   </Style>
 </Styles>
