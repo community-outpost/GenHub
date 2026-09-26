@@ -803,7 +803,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              "Publishers maintain external CDN links — GenHub does not centrally store or host mod files.",
              InfoCardType.Feature,
              """
-             GenHub is decentralized. It does not store or mirror mod archives on a central server; all downloads come directly from creator-managed hosting.
+             GenHub is decentralized. It does not provide central CDN hosting or mirror mod archives on a central server; all downloads come directly from creator-managed external CDN hosting and cloud storage.
 
              **Publisher Responsibilities:**
              * **Link Availability:** Publishers are entirely responsible for hosting bandwidth and link availability. If an external file URL expires, is removed, or exceeds quota, player downloads will fail until an updated catalog is published.
@@ -864,11 +864,11 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                  },
              ]),
             (InfoConstants.CardToolsModBuilderSuitePipeline,
-             "ModBuilder Suite: Asset Pipelines (In Development)",
+             "ModBuilder Suite: Asset Pipelines",
              "Mod workspace management, texture batch conversion, and string table compiling.",
              InfoCardType.Concept,
              """
-             This feature is currently in development under an open pull request.
+             The ModBuilder Suite provides complete tooling for Command & Conquer SAGE engine mod development, integrated into GenHub.
 
              **Workspace Projects.**
              ModBuilder projects use .mbproj files (such as Shockwave.mbproj) to track source directories, build targets, and external tools like Crunch and FinalBIG.
@@ -880,12 +880,10 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              """,
              null),
             (InfoConstants.CardToolsModBuilderSuiteWndBuild,
-             "ModBuilder Suite: WND Editor & BIG Builds (In Development)",
+             "ModBuilder Suite: WND Editor & BIG Builds",
              "GUI layout validation, canonical formatting, and incremental BIG packaging.",
              InfoCardType.Feature,
              """
-             This feature is currently in development under an open pull request.
-
              **WND Interface Editor.**
              Structured editor for Command & Conquer GUI layout files (.wnd).
              * **Validation:** Parses UI control hierarchies, detects unclosed blocks, and flags syntax errors by line number.
@@ -937,7 +935,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              **Binary Verification:**
              GenHub calculates SHA-256 hashes of generals.exe and game.dat to identify exact game versions and verify file integrity.
              * **Verified:** Matches known official releases (Steam edition, EA App, The First Decade, or v1.04).
-             * **Unverified:** Custom or modified community binaries are flagged as unverified, but remain fully launchable.
+             * **Unverified:** Custom or modified community binaries are flagged as unverified, but remain fully launchable.\r
              """),
             (InfoConstants.CardScanCrossPlatformDetection,
              "Linux & macOS Client Detection",
@@ -1226,13 +1224,45 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     /// <returns>The changelog <see cref="InfoSection"/>.</returns>
     private static InfoSection CreateChangelogSection()
     {
+        (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            (InfoConstants.CardChangelogsOverview,
+             "Release History & Changelogs",
+             "Track all official GenHub desktop releases, patch notes, and engine improvements.",
+             InfoCardType.Feature,
+             """
+             **Official Release History:**
+             GenHub releases are distributed directly from official GitHub releases. Each release provides an overview of new features, bug fixes, engine compatibility updates, and performance enhancements.
+
+             * **SemVer Numbering:** Versioning strictly follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
+             * **Pre-releases:** Beta releases with testing builds are marked with a Pre-release badge.
+             * **Live Sync:** Release notes are fetched automatically with local caching for offline viewing.
+             """),
+            (InfoConstants.CardChangelogsUpdates,
+             "Automatic Update Distribution",
+             "How releases are polled, verified, and safely applied via background services.",
+             InfoCardType.HowTo,
+             """
+             **Background Update Detection:**
+             GenHub checks for newer releases in the background using GitHub API and publisher manifests. When an update is ready, GenHub notifies you and applies it seamlessly.
+             """),
+            (InfoConstants.CardChangelogsCompatibility,
+             "Rollbacks & Workspace Stability",
+             "Safeguard your mods and game profiles across version changes.",
+             InfoCardType.Concept,
+             """
+             **Safe Rollbacks:**
+             Because GenHub keeps game configurations isolated in profiles and zero-copy workspaces, updating GenHub never corrupts your mods, replays, or game installations.
+             """),
+        ];
+
         return new InfoSection
         {
             Id = InfoConstants.SectionChangelogs,
             Title = "Changelog",
-            Description = "Version history.",
+            Description = "Version history and patch notes for GenHub releases.",
             Order = 10,
-            Cards = [],
+            Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
@@ -1284,13 +1314,33 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     /// <returns>The Generals Online changelog <see cref="InfoSection"/>.</returns>
     private static InfoSection CreateGeneralsOnlineChangeLogSection()
     {
+        (string Id, string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("go-patch-notes-overview",
+             "Generals Online Patch Notes",
+             "Latest service updates, lobby fixes, and netcode improvements.",
+             InfoCardType.Feature,
+             """
+             **Generals Online Service Updates:**
+             Stay informed about multiplayer network changes, matchmaker improvements, balance adjustments, and anti-cheat updates deployed to the Generals Online network.
+             """),
+            ("go-patch-notes-netcode",
+             "Relays & Edge Infrastructure",
+             "Low-latency UDP edge routing, NAT traversal, and disconnect protection.",
+             InfoCardType.Concept,
+             """
+             **Multiplayer Infrastructure:**
+             Generals Online routes match traffic through global edge relays, ensuring smooth peer connections and NAT traversal without manual port forwarding.
+             """),
+        ];
+
         return new InfoSection
         {
             Id = InfoConstants.SectionGoChangelog,
             Title = "Changelog",
             Description = "View the latest changes and updates to the Generals Online service.",
             Order = 12,
-            Cards = [], // Content managed by dynamic view
+            Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 

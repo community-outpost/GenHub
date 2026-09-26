@@ -139,4 +139,42 @@ public class InfoCardViewModelTests
         vm.ToggleExpansionCommand.Execute(null);
         vm.IsExpanded.Should().BeFalse();
     }
+
+    /// <summary>
+    /// Tests that IconKind returns expected default icon when CustomIconKind is not set.
+    /// </summary>
+    [Fact]
+    public void IconKind_ReturnsDefaultBasedOnType_WhenCustomIconKindNotSet()
+    {
+        var card = new InfoCard { Id = "c1", Title = "Card 1", Type = InfoCardType.Warning };
+        var vm = new InfoCardViewModel(card, "sec1");
+        vm.IconKind.Should().Be(Material.Icons.MaterialIconKind.AlertCircleOutline);
+    }
+
+    /// <summary>
+    /// Tests that CustomIconKind overrides the default icon.
+    /// </summary>
+    [Fact]
+    public void IconKind_UsesCustomIconKind_WhenSet()
+    {
+        var card = new InfoCard { Id = "c1", Title = "Card 1", Type = InfoCardType.HowTo };
+        var vm = new InfoCardViewModel(card, "sec1")
+        {
+            CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+        };
+        vm.IconKind.Should().Be(Material.Icons.MaterialIconKind.TagOutline);
+    }
+
+    /// <summary>
+    /// Tests that TargetItem can be set and retrieved.
+    /// </summary>
+    [Fact]
+    public void TargetItem_CanBeAssignedAndRetrieved()
+    {
+        var card = new InfoCard { Id = "c1", Title = "Card 1" };
+        var vm = new InfoCardViewModel(card, "sec1");
+        var target = new object();
+        vm.TargetItem = target;
+        vm.TargetItem.Should().BeSameAs(target);
+    }
 }

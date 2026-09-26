@@ -179,6 +179,35 @@ public class GenHubInfoSectionViewModelTests
         vm.SelectedCard.Should().BeSameAs(cardVm);
     }
 
+    /// <summary>
+    /// Verifies that CardsOpenPaneLength dynamically adjusts based on the longest card title.
+    /// </summary>
+    [Fact]
+    public void CardsOpenPaneLength_DynamicallyAdjusts_BasedOnCardTitles()
+    {
+        var vm = CreateViewModel();
+        var shortCard = new InfoCard { Id = "c1", Title = "Short" };
+        var sectionShort = new InfoSection
+        {
+            Id = "sec-short",
+            Title = "Short Section",
+            Cards = new List<InfoCard> { shortCard },
+        };
+        vm.SelectedSection = new InfoSectionViewModel(sectionShort, _localizationServiceMock.Object);
+        vm.CardsOpenPaneLength.Should().BeInRange(180, 220);
+
+        var longCard = new InfoCard { Id = "c2", Title = "A Very Long Section Card Title That Requires More Sidebar Space" };
+        var sectionLong = new InfoSection
+        {
+            Id = "sec-long",
+            Title = "Long Section",
+            Cards = new List<InfoCard> { longCard },
+        };
+        vm.SelectedSection = new InfoSectionViewModel(sectionLong, _localizationServiceMock.Object);
+        vm.CardsOpenPaneLength.Should().BeGreaterThan(220);
+        vm.CardsOpenPaneLength.Should().BeLessOrEqualTo(380);
+    }
+
     private GenHubInfoSectionViewModel CreateViewModel()
     {
         var changelogVm = new ChangelogsViewModel(_gitHubMock.Object, _changelogLoggerMock.Object);

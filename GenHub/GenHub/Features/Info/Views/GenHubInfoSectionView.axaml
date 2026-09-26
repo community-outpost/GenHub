@@ -192,15 +192,15 @@
                           SelectedItem="{Binding SelectedCard, Mode=TwoWay}"
                           IsPaneOpen="{Binding IsCardsPaneOpen, Mode=TwoWay}"
                           OpenPaneLength="{Binding CardsOpenPaneLength, Mode=TwoWay}"
-                          MinPaneLength="160"
-                          MaxPaneLength="360">
+                          MinPaneLength="180"
+                          MaxPaneLength="380">
     <controls:SidebarLayout.ItemTemplate>
       <DataTemplate x:DataType="vm:InfoCardViewModel">
         <DockPanel LastChildFill="True">
           <material:MaterialIcon DockPanel.Dock="Left"
-                                 Kind="FileDocumentOutline"
+                                 Kind="{Binding IconKind}"
                                  Width="14" Height="14"
-                                 Foreground="{DynamicResource TextSecondary}"
+                                 Foreground="{DynamicResource AccentBrush}"
                                  Margin="0,0,8,0"
                                  VerticalAlignment="Center"/>
           <TextBlock Text="{Binding Title}"
@@ -633,7 +633,7 @@
                                         <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioShowcaseHeading}"
                                                    FontSize="16" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextPrimary}"/>
-                                        <TextBlock Text="Tier 1 (Publisher Manifest) → Tier 2 (Content Catalogs) → Tier 3 (Artifact Archives)"
+                                        <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioShowcaseSubheading}"
                                                    FontSize="12" Foreground="{DynamicResource TextMuted}"/>
                                     </StackPanel>
                                 </StackPanel>
@@ -649,9 +649,9 @@
                                         <StackPanel Spacing="6">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <material:MaterialIcon Kind="PackageVariantClosed" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                                                <TextBlock Text="1. Catalog Authoring" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep1Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                             </StackPanel>
-                                            <TextBlock Text="Package content, hash files, configure variants, and specify dependencies." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
+                                            <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep1Desc}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
                                         </StackPanel>
                                     </Border>
                                     <!-- Step 2 -->
@@ -659,9 +659,9 @@
                                         <StackPanel Spacing="6">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <material:MaterialIcon Kind="CloudUploadOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                                                <TextBlock Text="2. External CDN Hosting" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep2Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                             </StackPanel>
-                                            <TextBlock Text="Host manifests &amp; archives on GitHub Releases, Google Drive, Dropbox, or custom CDNs." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
+                                            <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep2Desc}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
                                         </StackPanel>
                                     </Border>
                                     <!-- Step 3 -->
@@ -669,9 +669,9 @@
                                         <StackPanel Spacing="6">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <material:MaterialIcon Kind="BellRingOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                                                <TextBlock Text="3. Player Notifications" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep3Title}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                             </StackPanel>
-                                            <TextBlock Text="Subscribed players poll manifests every 30m, get notified, and download updates CAS-verified." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
+                                            <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioStep3Desc}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
                                         </StackPanel>
                                     </Border>
                                 </Grid>
@@ -819,14 +819,14 @@
         <!-- DEMO: CHANGELOGS                               -->
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsChangelogsSelected}" Margin="0,0,0,50">
-            <views:ChangelogsView DataContext="{Binding Changelogs}"/>
+            <views:ChangelogsView x:Name="GenHubChangelogsView" DataContext="{Binding Changelogs}"/>
         </Border>
 
         <!-- ============================================== -->
         <!-- DEMO: GO CHANGELOG                             -->
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsGoChangelogSelected}" Margin="0,0,0,50">
-            <views:GeneralsOnlineChangelogView DataContext="{Binding GoChangelog}"/>
+            <views:GeneralsOnlineChangelogView x:Name="GenHubGoChangelogView" DataContext="{Binding GoChangelog}"/>
         </Border>
 
         <!-- ============================================== -->
