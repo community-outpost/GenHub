@@ -51,6 +51,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private const string DefaultErrorLoadingContent = "Error loading content";
     private const string ProfileManagerUnavailableMessageKey = "Errors.Operations.ServiceNotAvailable.GameProfileManager";
     private const string DefaultProfileManagerUnavailableMessage = "Profile manager not available";
+    private const string InvalidCustomImageTitleKey = "GameProfiles.Settings.CustomImage.InvalidFile.Title";
+    private const string DefaultInvalidCustomImageTitle = "Invalid image file";
+    private const string InvalidCustomImageMessageKey = "GameProfiles.Settings.CustomImage.InvalidFile.Message";
+    private const string DefaultInvalidCustomImageMessage = "Please select a valid image file (PNG, JPG, JPEG, WEBP, BMP, GIF, ICO).";
     private const string ContentLockedMessage = "This content item is locked and cannot be modified";
     private const string ContentLockedTitle = "Content Locked";
     private const string LiveSyncFailedTitle = "Live Sync Failed";
@@ -1959,7 +1963,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
             if (AvailableContent != null)
             {
-                foreach (var content in AvailableContent)
+                foreach (var content in AvailableContent.Concat(EnabledContent))
                 {
                     var gameTypeStr = content.GameType.ToString();
                     AppendContentResource(

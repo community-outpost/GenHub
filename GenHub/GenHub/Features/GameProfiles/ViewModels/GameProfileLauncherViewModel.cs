@@ -80,6 +80,8 @@ public partial class GameProfileLauncherViewModel(
 {
     private const int MaxReceiptDriftNoticeLines = 5;
     private const string NotificationErrorTitleKey = "GameProfiles.Notification.Error.Title";
+    private const string ReorderFailedTitleKey = "GameProfiles.Notification.ReorderFailed.Title";
+    private const string ReorderFailedMessageKey = "GameProfiles.Notification.ReorderFailed.Message";
 
     private readonly Dictionary<int, (Guid Identity, bool IsTool, string ProfileId)> _announcedProcesses = new();
 
@@ -87,6 +89,7 @@ public partial class GameProfileLauncherViewModel(
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
     private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
     private readonly SemaphoreSlim _reorderLock = new(1, 1);
+    private readonly SemaphoreSlim _sortPersistLock = new(1, 1);
 
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
@@ -136,21 +139,38 @@ public partial class GameProfileLauncherViewModel(
 
         if (userSettingsService != null)
         {
-            _ = Task.Run(async () =>
+            _ = PersistSortModeAsync(userSettingsService, value);
+        }
+    }
+
+    /// <summary>
+    /// Persists the selected sort mode, skipping stale requests so rapid changes keep the latest selection.
+    /// </summary>
+    /// <param name="settingsService">The user settings service.</param>
+    /// <param name="mode">The sort mode to persist.</param>
+    private async Task PersistSortModeAsync(IUserSettingsService settingsService, ProfileSortMode mode)
+    {
+        await _sortPersistLock.WaitAsync();
+        try
+        {
+            if (SelectedSortMode != mode)
             {
-                try
-                {
-                    await userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.ProfileSortMode = value;
-                        return true;
-                    });
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to persist profile sort mode setting");
-                }
+                return;
+            }
+
+            await settingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.ProfileSortMode = mode;
+                return true;
             });
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to persist profile sort mode setting");
+        }
+        finally
+        {
+            _sortPersistLock.Release();
         }
     }
 
@@ -1666,6 +1686,7 @@ public partial class GameProfileLauncherViewModel(
             {
                 var nextOrder = existingItems.Max(p => p.DisplayOrder) + 1;
                 profile.DisplayOrder = nextOrder;
+                _ = PersistDisplayOrderAsync(profile.Id, nextOrder);
             }
 
             var item = new GameProfileItemViewModel(
@@ -2696,6 +2717,27 @@ public partial class GameProfileLauncherViewModel(
         SelectedSortModeItem = AvailableSortModes.FirstOrDefault(o => o.Mode == SelectedSortMode) ?? AvailableSortModes.FirstOrDefault();
     }
 
+    /// <summary>
+    /// Persists an assigned display order for a newly added profile so reloads keep the appended position.
+    /// </summary>
+    /// <param name="profileId">The profile identifier.</param>
+    /// <param name="displayOrder">The assigned display order.</param>
+    private async Task PersistDisplayOrderAsync(string profileId, int displayOrder)
+    {
+        try
+        {
+            var updateResult = await gameProfileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { DisplayOrder = displayOrder });
+            if (!updateResult.Success)
+            {
+                logger.LogWarning("Failed to persist display order for profile {ProfileId}: {Errors}", profileId, string.Join(", ", updateResult.Errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to persist display order for profile {ProfileId}", profileId);
+        }
+    }
+
     private async Task MoveProfileRelativeAsync(GameProfileItemViewModel item, int delta)
     {
         if (SelectedSortMode != ProfileSortMode.Free)
@@ -2722,6 +2764,8 @@ public partial class GameProfileLauncherViewModel(
             profileItems.RemoveAt(currentIndex);
             profileItems.Insert(newIndex, item);
 
+            var originalOrders = profileItems.Select(p => p.DisplayOrder).ToList();
+            bool persistFailed = false;
             for (int i = 0; i < profileItems.Count; i++)
             {
                 var p = profileItems[i];
@@ -2741,13 +2785,29 @@ public partial class GameProfileLauncherViewModel(
                     var updateResult = await gameProfileManager.UpdateProfileAsync(p.ProfileId, updateRequest);
                     if (!updateResult.Success)
                     {
+                        persistFailed = true;
                         logger.LogWarning("Failed to persist new DisplayOrder for profile {ProfileId}: {Errors}", p.ProfileId, string.Join(", ", updateResult.Errors));
                     }
                 }
                 catch (Exception ex)
                 {
+                    persistFailed = true;
                     logger.LogWarning(ex, "Failed to persist new DisplayOrder for profile {ProfileId}", p.ProfileId);
                 }
+            }
+
+            if (persistFailed)
+            {
+                for (int i = 0; i < profileItems.Count && i < originalOrders.Count; i++)
+                {
+                    profileItems[i].DisplayOrder = originalOrders[i];
+                    if (profileItems[i].Profile is GameProfile restoreGp)
+                    {
+                        restoreGp.DisplayOrder = originalOrders[i];
+                    }
+                }
+
+                notificationService.ShowWarning(localizationService[ReorderFailedTitleKey], localizationService[ReorderFailedMessageKey]);
             }
 
             ApplySorting();

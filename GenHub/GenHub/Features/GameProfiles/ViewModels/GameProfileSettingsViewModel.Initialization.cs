@@ -169,6 +169,7 @@ public partial class GameProfileSettingsViewModel
             await LoadEnabledContentForProfileAsync(profile);
             await LoadAvailableGameInstallationsAsync();
             await LoadAvailableContentAsync();
+            LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? ZeroHourName);
             UpdateAllItemsHotswapState();
             await RefreshVisibleFiltersAsync();
 

@@ -14387,4 +14387,16 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Sort.Free" xml:space="preserve">
     <value>Пользовательский порядок</value>
   </data>
+  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Title" xml:space="preserve">
+    <value>Invalid image file</value>
+  </data>
+  <data name="GameProfiles.Settings.CustomImage.InvalidFile.Message" xml:space="preserve">
+    <value>Please select a valid image file (PNG, JPG, JPEG, WEBP, BMP, GIF, ICO).</value>
+  </data>
+  <data name="GameProfiles.Notification.ReorderFailed.Title" xml:space="preserve">
+    <value>Failed to save profile order</value>
+  </data>
+  <data name="GameProfiles.Notification.ReorderFailed.Message" xml:space="preserve">
+    <value>The new profile order could not be saved and the previous order was restored.</value>
+  </data>
 </root>

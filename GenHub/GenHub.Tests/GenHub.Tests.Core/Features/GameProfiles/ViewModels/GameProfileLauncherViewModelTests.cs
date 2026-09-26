@@ -1450,6 +1450,75 @@ public class GameProfileLauncherViewModelTests
         Assert.False(itemB.CanMoveRight);
     }
 
+    /// <summary>
+    /// A successful move persists the new order for every profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task MoveProfileRelative_PersistSuccess_SavesNewOrderAsync()
+    {
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        gameProfileManager
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()));
+        var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), new Mock<INotificationService>());
+
+        var itemA = CreateProfileItem("Alpha");
+        var itemB = CreateProfileItem("Bravo");
+        itemA.DisplayOrder = 0;
+        itemB.DisplayOrder = 1;
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+        vm.SelectedSortMode = ProfileSortMode.Free;
+        vm.ApplySorting();
+
+        await itemA.MoveRightAction!(itemA);
+
+        Assert.Same(itemB, vm.Profiles[0]);
+        Assert.Same(itemA, vm.Profiles[1]);
+        Assert.Equal(0, itemB.DisplayOrder);
+        Assert.Equal(1, itemA.DisplayOrder);
+        gameProfileManager.Verify(
+            m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+    }
+
+    /// <summary>
+    /// A failed move restores the previous order and warns the user.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task MoveProfileRelative_PersistFailure_RestoresOriginalOrderAndWarnsAsync()
+    {
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        gameProfileManager
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("disk error"));
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), notificationService);
+
+        var itemA = CreateProfileItem("Alpha");
+        var itemB = CreateProfileItem("Bravo");
+        itemA.DisplayOrder = 0;
+        itemB.DisplayOrder = 1;
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+        vm.SelectedSortMode = ProfileSortMode.Free;
+        vm.ApplySorting();
+
+        await itemA.MoveRightAction!(itemA);
+
+        Assert.Same(itemA, vm.Profiles[0]);
+        Assert.Same(itemB, vm.Profiles[1]);
+        Assert.Equal(0, itemA.DisplayOrder);
+        Assert.Equal(1, itemB.DisplayOrder);
+        notificationService.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
@@ -1595,8 +1664,22 @@ public class GameProfileLauncherViewModelTests
         Mock<IGameProcessManager> gameProcessManager,
         Mock<INotificationService> notificationService)
     {
-        var gameProfileManager = new Mock<IGameProfileManager>();
+        return CreateViewModelWithProfileManager(new Mock<IGameProfileManager>(), gameProcessManager, notificationService);
+    }
 
+    /// <summary>
+    /// Creates a GameProfileLauncherViewModel wired to the given profile manager,
+    /// process manager, and notification mocks.
+    /// </summary>
+    /// <param name="gameProfileManager">The game profile manager mock.</param>
+    /// <param name="gameProcessManager">The process manager mock the view model subscribes to.</param>
+    /// <param name="notificationService">The notification service mock to observe.</param>
+    /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
+    private static GameProfileLauncherViewModel CreateViewModelWithProfileManager(
+        Mock<IGameProfileManager> gameProfileManager,
+        Mock<IGameProcessManager> gameProcessManager,
+        Mock<INotificationService> notificationService)
+    {
         // InitializeAsync must complete cleanly: it is what subscribes the view model to
         // ProcessExited, and a failed profile load would pollute the error state these
         // tests assert on.

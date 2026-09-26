@@ -1187,7 +1187,13 @@ public partial class GameProfileSettingsViewModel
                 if (result.Count > 0)
                 {
                     var selectedFile = result[0];
-                    IconPath = selectedFile.Path.LocalPath;
+                    var validatedPath = ValidateCustomImagePath(selectedFile.Path.LocalPath);
+                    if (validatedPath == null)
+                    {
+                        return;
+                    }
+
+                    IconPath = validatedPath;
                     SelectedIcon = null;
                     _isIconCustomized = true;
                     _logger?.LogInformation("Selected custom icon: {Path}", IconPath);
@@ -1233,7 +1239,13 @@ public partial class GameProfileSettingsViewModel
                 if (result.Count > 0)
                 {
                     var selectedFile = result[0];
-                    CoverPath = selectedFile.Path.LocalPath;
+                    var validatedPath = ValidateCustomImagePath(selectedFile.Path.LocalPath);
+                    if (validatedPath == null)
+                    {
+                        return;
+                    }
+
+                    CoverPath = validatedPath;
                     SelectedCoverItem = null;
                     _isCoverCustomized = true;
                     _logger?.LogInformation("Selected custom cover: {Path}", CoverPath);
@@ -1246,6 +1258,25 @@ public partial class GameProfileSettingsViewModel
             _logger?.LogError(ex, "Error browsing for custom cover");
             StatusMessage = "Error selecting custom cover";
         }
+    }
+
+    /// <summary>
+    /// Validates that a user-picked file is a supported image before it is stored as an icon or cover.
+    /// </summary>
+    /// <param name="localPath">The picked file path.</param>
+    /// <returns>The path when it is a supported image; otherwise null after notifying the user.</returns>
+    private string? ValidateCustomImagePath(string? localPath)
+    {
+        if (!string.IsNullOrEmpty(localPath) && MediaFileHelper.IsImageFile(localPath))
+        {
+            return localPath;
+        }
+
+        _logger?.LogWarning("Rejected custom profile image with unsupported extension: {Path}", localPath);
+        _notificationService?.ShowError(
+            _localizationService?.GetString(InvalidCustomImageTitleKey) ?? DefaultInvalidCustomImageTitle,
+            _localizationService?.GetString(InvalidCustomImageMessageKey) ?? DefaultInvalidCustomImageMessage);
+        return null;
     }
 
     [RelayCommand]
