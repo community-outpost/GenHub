@@ -31,6 +31,11 @@ public static class UiConstants
     public const double DefaultProfileSettingsSidebarWidth = 140;
 
     /// <summary>
+    /// Default fallback width in pixels for profile settings tab sidebars.
+    /// </summary>
+    public const double DefaultProfileSettingsTabSidebarFallbackWidth = 170;
+
+    /// <summary>
     /// Minimum width for the profile settings sidebar (shows icons only) in pixels.
     /// </summary>
     public const double MinProfileSettingsSidebarWidth = 58;

@@ -16,10 +16,14 @@ namespace GenHub.Features.Info.Views;
 /// </summary>
 public partial class GenHubInfoSectionView : UserControl
 {
+    private const string ChangelogsViewName = "GenHubChangelogsView";
+    private const string GoChangelogViewName = "GenHubGoChangelogView";
+
     private readonly Dictionary<string, Vector> _sectionScrollOffsets = new(StringComparer.OrdinalIgnoreCase);
     private string? _currentSectionId;
     private GenHubInfoSectionViewModel? _boundViewModel;
     private SectionScrollSpy<InfoCardViewModel>? _scrollSpy;
+
     private ScrollViewer? _contentScrollViewer;
     private ItemsControl? _cardsItemsControl;
     private ItemsControl? _faqLeftItemsControl;
@@ -95,8 +99,8 @@ public partial class GenHubInfoSectionView : UserControl
         _cardsItemsControl = this.FindControl<ItemsControl>("CardsItemsControl");
         _faqLeftItemsControl = this.FindControl<ItemsControl>("FaqLeftItemsControl");
         _faqRightItemsControl = this.FindControl<ItemsControl>("FaqRightItemsControl");
-        _changelogsView = this.FindControl<ChangelogsView>("GenHubChangelogsView");
-        _goChangelogView = this.FindControl<GeneralsOnlineChangelogView>("GenHubGoChangelogView");
+        _changelogsView = this.FindControl<ChangelogsView>(ChangelogsViewName);
+        _goChangelogView = this.FindControl<GeneralsOnlineChangelogView>(GoChangelogViewName);
 
         HookItemsControl(_cardsItemsControl);
         HookItemsControl(_faqLeftItemsControl);
@@ -252,8 +256,8 @@ public partial class GenHubInfoSectionView : UserControl
         InfoConstants.CardScanDemo => this.FindControl<Control>("ScanDemoContainer"),
         InfoConstants.CardWorkspaceDemo => this.FindControl<Control>("WorkspacesDemoContainer"),
         InfoConstants.CardUpdatesDemo => this.FindControl<Control>("AppUpdatesDemoContainer"),
-        InfoConstants.CardChangelogsOverview or InfoConstants.CardChangelogsDemo => this.FindControl<Control>("GenHubChangelogsView"),
-        InfoConstants.CardGoChangelogOverview or InfoConstants.CardGoChangelogDemo => this.FindControl<Control>("GenHubGoChangelogView"),
+        InfoConstants.CardChangelogsOverview or InfoConstants.CardChangelogsDemo => this.FindControl<Control>(ChangelogsViewName),
+        InfoConstants.CardGoChangelogOverview or InfoConstants.CardGoChangelogDemo => this.FindControl<Control>(GoChangelogViewName),
         _ => null,
     };
 
@@ -268,33 +272,32 @@ public partial class GenHubInfoSectionView : UserControl
         RegisterCardsFromControl(_faqLeftItemsControl ??= this.FindControl<ItemsControl>("FaqLeftItemsControl"));
         RegisterCardsFromControl(_faqRightItemsControl ??= this.FindControl<ItemsControl>("FaqRightItemsControl"));
 
-        _changelogsView ??= this.FindControl<ChangelogsView>("GenHubChangelogsView");
-        _goChangelogView ??= this.FindControl<GeneralsOnlineChangelogView>("GenHubGoChangelogView");
+        _changelogsView ??= this.FindControl<ChangelogsView>(ChangelogsViewName);
+        _goChangelogView ??= this.FindControl<GeneralsOnlineChangelogView>(GoChangelogViewName);
 
         if (_boundViewModel?.SelectedSection?.Cards != null)
         {
             foreach (var card in _boundViewModel.SelectedSection.Cards)
             {
-                var demoCtrl = FindDemoContainer(card.Id);
-                if (demoCtrl != null)
-                {
-                    _scrollSpy.RegisterSection(card, demoCtrl);
-                }
-                else if (card.TargetItem is ChangelogItemViewModel chItem && _changelogsView != null)
-                {
-                    if (_changelogsView.ContainerFromItem(chItem) is Control chControl)
-                    {
-                        _scrollSpy.RegisterSection(card, chControl);
-                    }
-                }
-                else if (card.TargetItem is PatchNote pnItem && _goChangelogView != null)
-                {
-                    if (_goChangelogView.ContainerFromItem(pnItem) is Control pnControl)
-                    {
-                        _scrollSpy.RegisterSection(card, pnControl);
-                    }
-                }
+                RegisterSectionCard(card);
             }
+        }
+    }
+
+    private void RegisterSectionCard(InfoCardViewModel card)
+    {
+        var demoCtrl = FindDemoContainer(card.Id);
+        if (demoCtrl != null)
+        {
+            _scrollSpy?.RegisterSection(card, demoCtrl);
+        }
+        else if (card.TargetItem is ChangelogItemViewModel chItem && _changelogsView?.ContainerFromItem(chItem) is Control chControl)
+        {
+            _scrollSpy?.RegisterSection(card, chControl);
+        }
+        else if (card.TargetItem is PatchNote pnItem && _goChangelogView?.ContainerFromItem(pnItem) is Control pnControl)
+        {
+            _scrollSpy?.RegisterSection(card, pnControl);
         }
     }
 
@@ -349,7 +352,7 @@ public partial class GenHubInfoSectionView : UserControl
         }
     }
 
-    private void ScrollToCard(InfoCardViewModel card)
+    private void ExpandCardAndTarget(InfoCardViewModel card)
     {
         if (card.IsExpandable && !card.IsExpanded)
         {
@@ -364,6 +367,53 @@ public partial class GenHubInfoSectionView : UserControl
         {
             patchNote.IsExpanded = true;
         }
+    }
+
+    private Control? ResolveCardContainer(InfoCardViewModel card)
+    {
+        Control? container = null;
+        if (card.TargetItem is ChangelogItemViewModel chItem)
+        {
+            _changelogsView ??= this.FindControl<ChangelogsView>(ChangelogsViewName);
+            container = _changelogsView?.ContainerFromItem(chItem);
+        }
+        else if (card.TargetItem is PatchNote pnItem)
+        {
+            _goChangelogView ??= this.FindControl<GeneralsOnlineChangelogView>(GoChangelogViewName);
+            container = _goChangelogView?.ContainerFromItem(pnItem);
+        }
+
+        container ??= FindDemoContainer(card.Id);
+
+        return container ?? ((_cardsItemsControl?.ContainerFromItem(card)
+            ?? _faqLeftItemsControl?.ContainerFromItem(card)
+            ?? _faqRightItemsControl?.ContainerFromItem(card)) as Control);
+    }
+
+    private void DeferScrollToCard(InfoCardViewModel card)
+    {
+        if (_deferredScrollPending)
+        {
+            return;
+        }
+
+        _deferredScrollPending = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _deferredScrollPending = false;
+                if (_boundViewModel?.SelectedCard != null && ReferenceEquals(_boundViewModel.SelectedCard, card))
+                {
+                    RegisterAllCardContainers();
+                    _scrollSpy?.ScrollToSection(card);
+                }
+            },
+            DispatcherPriority.Loaded);
+    }
+
+    private void ScrollToCard(InfoCardViewModel card)
+    {
+        ExpandCardAndTarget(card);
 
         EnsureScrollSpy();
         if (_scrollSpy == null)
@@ -371,42 +421,11 @@ public partial class GenHubInfoSectionView : UserControl
             return;
         }
 
-        Control? container = null;
-        if (card.TargetItem is ChangelogItemViewModel chItem)
-        {
-            _changelogsView ??= this.FindControl<ChangelogsView>("GenHubChangelogsView");
-            container = _changelogsView?.ContainerFromItem(chItem);
-        }
-        else if (card.TargetItem is PatchNote pnItem)
-        {
-            _goChangelogView ??= this.FindControl<GeneralsOnlineChangelogView>("GenHubGoChangelogView");
-            container = _goChangelogView?.ContainerFromItem(pnItem);
-        }
-
-        container ??= FindDemoContainer(card.Id);
-
-        container ??= (_cardsItemsControl?.ContainerFromItem(card)
-            ?? _faqLeftItemsControl?.ContainerFromItem(card)
-            ?? _faqRightItemsControl?.ContainerFromItem(card)) as Control;
+        var container = ResolveCardContainer(card);
 
         if (container == null || container.Bounds.Height <= 0)
         {
-            if (!_deferredScrollPending)
-            {
-                _deferredScrollPending = true;
-                Dispatcher.UIThread.Post(
-                    () =>
-                    {
-                        _deferredScrollPending = false;
-                        if (_boundViewModel?.SelectedCard != null && ReferenceEquals(_boundViewModel.SelectedCard, card))
-                        {
-                            RegisterAllCardContainers();
-                            _scrollSpy?.ScrollToSection(card);
-                        }
-                    },
-                    DispatcherPriority.Loaded);
-            }
-
+            DeferScrollToCard(card);
             return;
         }
 

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using GenHub.Core.Constants;
 using System;
 
 namespace GenHub.Features.GameProfiles.Views;
@@ -28,7 +29,7 @@ public sealed class SidebarWidthSynchronizer : IDisposable
             }
             else
             {
-                _sidebarColumn.Width = new GridLength(170, GridUnitType.Pixel);
+                _sidebarColumn.Width = new GridLength(UiConstants.DefaultProfileSettingsTabSidebarFallbackWidth, GridUnitType.Pixel);
             }
 
             _sidebarColumn.PropertyChanged += OnColumnPropertyChanged;

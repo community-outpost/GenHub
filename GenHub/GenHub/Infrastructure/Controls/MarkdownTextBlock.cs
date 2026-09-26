@@ -319,14 +319,8 @@ public class MarkdownTextBlock : UserControl
         return stackPanel;
     }
 
-    private static string NormalizeMarkdown(string text)
+    private static int CalculateCommonIndent(string[] lines)
     {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return string.Empty;
-        }
-
-        var lines = text.Replace("\r\n", "\n").Split('\n');
         var minIndent = int.MaxValue;
         var inFencedCode = false;
 
@@ -348,6 +342,19 @@ public class MarkdownTextBlock : UserControl
                 }
             }
         }
+
+        return minIndent;
+    }
+
+    private static string NormalizeMarkdown(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        var minIndent = CalculateCommonIndent(lines);
 
         if (minIndent > 0 && minIndent < int.MaxValue)
         {

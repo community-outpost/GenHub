@@ -5,6 +5,7 @@ using GenHub.Core.Models.Info;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace GenHub.Features.Info.ViewModels;
@@ -34,7 +35,8 @@ public partial class InfoSectionViewModel(InfoSection model, ILocalizationServic
     /// <summary>
     /// Gets the icon kind representing this section.
     /// </summary>
-    public Material.Icons.MaterialIconKind IconKind => Id switch
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads observable instance property Id for UI binding")]
+    public Material.Icons.MaterialIconKind IconKind => this.Id switch
     {
         InfoConstants.SectionQuickstart => Material.Icons.MaterialIconKind.RocketLaunchOutline,
         InfoConstants.SectionGameProfiles => Material.Icons.MaterialIconKind.AccountMultipleOutline,
