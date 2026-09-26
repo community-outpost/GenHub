@@ -144,7 +144,16 @@ public class ProfileVerificationFileSetService(
         foreach (var manifest in overlays)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
+            var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
+            if (manifest.Variants.Count > 0 && resolvedFiles.Count == 0)
+            {
+                // Fail closed when no declared variant applies to this host: the enabled
+                // content cannot run here, so its files must not silently drop out of verification.
+                complete = false;
+                continue;
+            }
+
+            foreach (var file in resolvedFiles)
             {
                 var resolved = await ResolveOverlayArchiveAsync(manifest, file, cancellationToken).ConfigureAwait(false);
                 if (resolved != null)

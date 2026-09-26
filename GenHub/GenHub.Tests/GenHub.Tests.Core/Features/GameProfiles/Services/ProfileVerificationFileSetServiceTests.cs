@@ -157,6 +157,37 @@ public sealed class ProfileVerificationFileSetServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an overlay whose variants match nothing on this host marks the set incomplete.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetVerificationFileSetAsync_WithUnmatchedVariantOverlay_MarksIncomplete()
+    {
+        RegisterManifest(CreateManifest(
+            InstallManifestId,
+            ContentType.GameInstallation,
+            ("INIZH.big", null, ValidHash)));
+        var modManifest = CreateManifest(
+            ModManifestId,
+            ContentType.Mod,
+            ("ModFiles.big", null, ValidHash));
+        modManifest.Variants.Add(new ArtifactVariant
+        {
+            RuntimeIdentifiers = ["nonexistent-rid"],
+            Files =
+            [
+                new ManifestFile { RelativePath = "ModFiles.big", Hash = ValidHash },
+            ],
+        });
+        RegisterManifest(modManifest);
+        var profile = CreateProfile(ClientManifestId, InstallManifestId, ModManifestId);
+
+        var result = await _service.GetVerificationFileSetAsync(profile);
+
+        Assert.False(result.IsComplete);
+    }
+
+    /// <summary>
     /// Verifies that base paths come from the resolved variant rather than the flat file list.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
