@@ -301,6 +301,12 @@ public partial class App : Application
             return;
         }
 
+        string[] args = [uri.OriginalString];
+        if (!ContainsLink(args))
+        {
+            return;
+        }
+
         logger?.LogInformation("Received URL activation for {Scheme} link", uri.Scheme);
         _linkActivationTracker?.RecordLink();
 
@@ -309,9 +315,8 @@ public partial class App : Application
         try
         {
             WindowActivation.BringToFrontForUserRequest(mainWindow);
-            string[] args = [uri.OriginalString];
             await HandleSubscriptionArgsAsync(args, mainWindow);
-            await HandleImportProfileArgsAsync(args, mainWindow);
+            await HandleImportProfileArgsAsync(args);
             await HandleToolImportArgsAsync(args, mainWindow);
         }
         finally
@@ -553,11 +558,11 @@ public partial class App : Application
 
         await HandleLaunchProfileArgsAsync(args, mainWindow);
         await HandleSubscriptionArgsAsync(args, mainWindow);
-        await HandleImportProfileArgsAsync(args, mainWindow);
+        await HandleImportProfileArgsAsync(args);
         await HandleToolImportArgsAsync(args, mainWindow);
     }
 
-    private async Task HandleImportProfileArgsAsync(string[]? args, MainWindow mainWindow)
+    private async Task HandleImportProfileArgsAsync(string[]? args)
     {
         if (args == null || args.Length == 0)
         {
@@ -573,7 +578,7 @@ public partial class App : Application
         var logger = _serviceProvider.GetService<ILogger<App>>();
         logger?.LogInformation("Startup profile import request received");
 
-        await HandleImportProfileUriAsync(shareUri, mainWindow);
+        await HandleImportProfileUriAsync(shareUri);
     }
 
     private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
@@ -687,7 +692,7 @@ public partial class App : Application
             BringForwardForLink(mainWindow);
 
             // Handle profile import
-            SafeFireAndForget(HandleImportProfileUriAsync(shareUri, mainWindow), nameof(HandleImportProfileUriAsync));
+            SafeFireAndForget(HandleImportProfileUriAsync(shareUri), nameof(HandleImportProfileUriAsync));
         }
         else if (command.StartsWith(IpcCommands.ImportMapPrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -724,7 +729,7 @@ public partial class App : Application
         WindowActivation.BringToFrontForUserRequest(mainWindow);
     }
 
-    private async Task HandleImportProfileUriAsync(string shareUriOrPath, MainWindow mainWindow)
+    private async Task HandleImportProfileUriAsync(string shareUriOrPath)
     {
         if (string.IsNullOrWhiteSpace(shareUriOrPath))
         {
