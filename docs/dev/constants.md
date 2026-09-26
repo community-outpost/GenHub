@@ -1962,6 +1962,16 @@ Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `P
 
 ---
 
+## Reject List (Literals That Must Be Constants)
+
+The 30-day review audit showed agents reintroducing the same inline literals. Reject these in review and move them into the matching constants class:
+
+- Timeouts and intervals: name them `*Ms` constants with units (no bare `1000` / `500`).
+- Directory and file names: reuse the existing constant (no `current`, `Hotkeys`, `Artwork`, `.ghtoken` duplicates).
+- Font sizes and min/max/default bounds: keep defaults, minimums, and maximums together in constants.
+- Status and protocol tokens (for example game-client tokens): centralize with the settings constants.
+- Gateway and API endpoints: only in `ApiConstants` with environment variable override support.
+
 ## Related Documentation
 
 - [Manifest ID System](manifest-id-system.md)

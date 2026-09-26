@@ -74,7 +74,7 @@ dotnet_diagnostic.CS0168.severity = warning       # Variable is declared but nev
 dotnet_diagnostic.CS0219.severity = warning       # Variable is assigned but its value is never used
 dotnet_diagnostic.IDE0059.severity = warning       # Unnecessary assignment of a value
 dotnet_diagnostic.IDE0060.severity = suggestion    # Remove unused parameter
-dotnet_diagnostic.IDE0063.severity = suggestion    # Use simple 'using' statement
+dotnet_diagnostic.IDE0063.severity = warning      # Use simple 'using' statement
 dotnet_diagnostic.IDE0079.severity = warning       # Remove unnecessary suppression
 dotnet_diagnostic.CA2007.severity = none          # Do not require ConfigureAwait for desktop UI app
 
