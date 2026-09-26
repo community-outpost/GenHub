@@ -432,6 +432,13 @@ public static class PublisherInfoConstants
     /// <returns>An avares:// URI string pointing to the logo image asset, or null if unmapped.</returns>
     public static string? GetPublisherLogo(string? publisherIdOrName, string? contentIdOrName = null)
     {
+        // Community Patch takes precedence over primary/secondary matches (such as thesuperhackers)
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(contentIdOrName) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(publisherIdOrName))
+        {
+            return CommunityOutpost.LogoSource;
+        }
+
         var primary = MatchLogo(publisherIdOrName);
         var secondary = MatchLogo(contentIdOrName);
 
@@ -452,6 +459,13 @@ public static class PublisherInfoConstants
     /// <returns>A cover image path string, or null if unmapped.</returns>
     public static string? GetPublisherCover(string? publisherIdOrName, string? contentIdOrName = null)
     {
+        // Community Patch takes precedence over primary/secondary matches (such as thesuperhackers)
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(contentIdOrName) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(publisherIdOrName))
+        {
+            return CommunityOutpostConstants.CoverSource;
+        }
+
         var primary = MatchCover(publisherIdOrName);
         var secondary = MatchCover(contentIdOrName);
 
@@ -463,6 +477,11 @@ public static class PublisherInfoConstants
         if (string.IsNullOrWhiteSpace(input))
         {
             return null;
+        }
+
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(input))
+        {
+            return CommunityOutpost.LogoSource;
         }
 
         foreach (var (keywords, logoSource) in LogoRules)
@@ -481,6 +500,11 @@ public static class PublisherInfoConstants
         if (string.IsNullOrWhiteSpace(input))
         {
             return null;
+        }
+
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(input))
+        {
+            return CommunityOutpostConstants.CoverSource;
         }
 
         foreach (var (keywords, coverSource) in CoverRules)

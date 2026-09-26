@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 namespace GenHub.Features.Launching;
 
@@ -23,6 +24,11 @@ public class WineRunner(
     ILogger<WineRunner> logger,
     ILocalizationService? localizationService = null) : IGameLaunchRunner
 {
+    /// <summary>
+    /// File name used to track the synchronization manifest across launches.
+    /// </summary>
+    private const string SyncStateFileName = ".genhub-sync.json";
+
     /// <summary>
     /// Standard user data subdirectories bridged into the Wine prefix.
     /// </summary>
@@ -255,13 +261,13 @@ public class WineRunner(
             return true;
         }
 
-        // Real directory: if it is empty, we can safely replace it with a symlink
-        if (TryReplaceEmptyDirectoryWithSymlink(prefixSubDir, nativeSubDir))
+        // Real directory: convert it to a symlink (migrating existing files first)
+        if (TryConvertDirectoryToSymlink(prefixSubDir, nativeSubDir, logger))
         {
             return true;
         }
 
-        // If non-empty or symlink creation failed, synchronize files in both directions
+        // If symlink creation failed, synchronize files with deletion propagation
         SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
         return true;
     }
@@ -280,23 +286,76 @@ public class WineRunner(
         }
     }
 
-    private static bool TryReplaceEmptyDirectoryWithSymlink(string dirPath, string targetPath)
+    private static bool TryConvertDirectoryToSymlink(string dirPath, string targetPath, ILogger? logger = null)
     {
         try
         {
+            // Probe whether symlink creation is supported in this environment before touching or moving any files.
+            var probeSymlink = dirPath + ".symlink_probe_" + Guid.NewGuid().ToString("N");
+            try
+            {
+                Directory.CreateSymbolicLink(probeSymlink, targetPath);
+                Directory.Delete(probeSymlink, recursive: false);
+            }
+            catch (Exception probeEx) when (probeEx is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                return false;
+            }
+
             if (!Directory.EnumerateFileSystemEntries(dirPath).Any())
             {
                 Directory.Delete(dirPath, recursive: false);
                 Directory.CreateSymbolicLink(dirPath, targetPath);
                 return true;
             }
+
+            // Pre-existing non-empty directory (e.g. from a prior plain-Wine installation).
+            // First migrate files from prefix to native directory to prevent data loss.
+            if (!MirrorDirectoryContent(sourceDir: dirPath, targetDir: targetPath, logger: logger))
+            {
+                logger?.LogWarning("[WineRunner] Failed to mirror content from '{DirPath}' to '{TargetPath}'; aborting symlink conversion to prevent data loss.", dirPath, targetPath);
+                return false;
+            }
+
+            var tempDir = dirPath + ".symlink_tmp_" + Guid.NewGuid().ToString("N");
+            Directory.Move(dirPath, tempDir);
+            try
+            {
+                Directory.CreateSymbolicLink(dirPath, targetPath);
+                try
+                {
+                    Directory.Delete(tempDir, recursive: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger?.LogWarning(ex, "[WineRunner] Created symlink for '{DirPath}' but failed to clean up temporary directory '{TempDir}'.", dirPath, tempDir);
+                }
+
+                return true;
+            }
+            catch
+            {
+                try
+                {
+                    if (Directory.Exists(dirPath))
+                    {
+                        Directory.Delete(dirPath, recursive: false);
+                    }
+
+                    Directory.Move(tempDir, dirPath);
+                }
+                catch (Exception restoreEx)
+                {
+                    logger?.LogError(restoreEx, "[WineRunner] Failed to restore '{DirPath}' from '{TempDir}' after failed symlink conversion.", dirPath, tempDir);
+                }
+
+                throw;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            // Fall back to mirroring
+            return false;
         }
-
-        return false;
     }
 
     private static bool CreateNewBridgeSymlinkOrSync(string nativeSubDir, string prefixSubDir, ILogger? logger = null)
@@ -324,28 +383,195 @@ public class WineRunner(
         }
     }
 
-    private static void SyncDirectoryFiles(string firstDir, string secondDir, ILogger? logger = null)
+    private static void SyncDirectoryFiles(string nativeDir, string prefixDir, ILogger? logger = null)
     {
-        MirrorDirectoryContent(sourceDir: firstDir, targetDir: secondDir, logger: logger);
-        MirrorDirectoryContent(sourceDir: secondDir, targetDir: firstDir, logger: logger);
+        if (!Directory.Exists(nativeDir) && !Directory.Exists(prefixDir))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(nativeDir);
+        Directory.CreateDirectory(prefixDir);
+
+        var normalizedNative = Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeDir)) + Path.DirectorySeparatorChar;
+        var normalizedPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(prefixDir)) + Path.DirectorySeparatorChar;
+
+        if (string.Equals(normalizedNative, normalizedPrefix, PathHelper.PathComparison))
+        {
+            return;
+        }
+
+        var stateFilePath = Path.Combine(prefixDir, SyncStateFileName);
+        var previousSyncedFiles = LoadSyncState(stateFilePath, logger);
+
+        var nativeFiles = EnumerateFilesRelative(nativeDir);
+        var prefixFiles = EnumerateFilesRelative(prefixDir);
+
+        if (previousSyncedFiles != null)
+        {
+            PropagateDeletions(nativeFiles, prefixFiles, previousSyncedFiles, logger);
+        }
+
+        // Copy new or newer files from native to prefix
+        CopyNewerFiles(nativeFiles, prefixFiles, prefixDir, logger);
+
+        // Copy new or newer files from prefix to native
+        CopyNewerFiles(prefixFiles, nativeFiles, nativeDir, logger);
+
+        CleanEmptySubdirectories(prefixDir);
+
+        SaveSyncState(stateFilePath, prefixDir, nativeDir, logger);
     }
 
-    private static void MirrorDirectoryContent(string sourceDir, string targetDir, ILogger? logger = null)
+    private static Dictionary<string, long>? LoadSyncState(string stateFilePath, ILogger? logger)
     {
-        if (!Directory.Exists(sourceDir))
+        if (!File.Exists(stateFilePath))
         {
+            return null;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(stateFilePath).Trim();
+            if (json.StartsWith('{'))
+            {
+                return JsonSerializer.Deserialize<Dictionary<string, long>>(json);
+            }
+
+            if (json.StartsWith('['))
+            {
+                var legacySet = JsonSerializer.Deserialize<HashSet<string>>(json);
+                if (legacySet != null)
+                {
+                    return legacySet.ToDictionary(k => k, _ => 0L, StringComparer.OrdinalIgnoreCase);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to read sync state from '{StateFile}'.", stateFilePath);
+        }
+
+        return null;
+    }
+
+    private static void PropagateDeletions(
+        Dictionary<string, FileInfo> nativeFiles,
+        Dictionary<string, FileInfo> prefixFiles,
+        Dictionary<string, long> previousSyncedFiles,
+        ILogger? logger)
+    {
+        foreach (var (relPath, recordedTicks) in previousSyncedFiles)
+        {
+            var inNative = nativeFiles.ContainsKey(relPath);
+            var inPrefix = prefixFiles.ContainsKey(relPath);
+
+            if (!inNative && inPrefix)
+            {
+                PropagateFileDeletion(prefixFiles, relPath, recordedTicks, "Wine prefix", logger);
+            }
+            else if (inNative && !inPrefix)
+            {
+                PropagateFileDeletion(nativeFiles, relPath, recordedTicks, "native directory", logger);
+            }
+        }
+    }
+
+    private static void PropagateFileDeletion(
+        Dictionary<string, FileInfo> files,
+        string relPath,
+        long recordedTicks,
+        string locationName,
+        ILogger? logger)
+    {
+        var fileInfo = files[relPath];
+        if (recordedTicks > 0 && fileInfo.LastWriteTimeUtc.Ticks > recordedTicks)
+        {
+            logger?.LogInformation("[WineRunner] Skipping deletion of '{RelativePath}' in {Location} because it was modified after last sync.", relPath, locationName);
             return;
         }
 
-        var normalizedSource = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceDir)) + Path.DirectorySeparatorChar;
-        var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetDir)) + Path.DirectorySeparatorChar;
-
-        if (string.Equals(normalizedSource, normalizedTarget, PathHelper.PathComparison))
+        try
         {
-            return;
+            File.Delete(fileInfo.FullName);
+            files.Remove(relPath);
+            logger?.LogInformation("[WineRunner] Propagated deletion of '{RelativePath}' to {Location}.", relPath, locationName);
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from {Location} during deletion propagation.", relPath, locationName);
+        }
+    }
 
-        Directory.CreateDirectory(targetDir);
+    private static void CopyNewerFiles(
+        Dictionary<string, FileInfo> sourceFiles,
+        Dictionary<string, FileInfo> targetFiles,
+        string targetDir,
+        ILogger? logger)
+    {
+        foreach (var (relPath, sourceFileInfo) in sourceFiles)
+        {
+            var destFile = Path.Combine(targetDir, relPath);
+            if (!targetFiles.TryGetValue(relPath, out var targetFileInfo) ||
+                sourceFileInfo.LastWriteTimeUtc > targetFileInfo.LastWriteTimeUtc)
+            {
+                CopySyncFile(sourceFileInfo.FullName, destFile, logger);
+            }
+        }
+    }
+
+    private static void SaveSyncState(
+        string stateFilePath,
+        string prefixDir,
+        string nativeDir,
+        ILogger? logger)
+    {
+        try
+        {
+            var finalPrefixFiles = EnumerateFilesRelative(prefixDir);
+            var finalNativeFiles = EnumerateFilesRelative(nativeDir);
+            var updatedFiles = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            foreach (var key in finalPrefixFiles.Keys.Intersect(finalNativeFiles.Keys, StringComparer.OrdinalIgnoreCase))
+            {
+                var prefixUtc = finalPrefixFiles[key].LastWriteTimeUtc.Ticks;
+                var nativeUtc = finalNativeFiles[key].LastWriteTimeUtc.Ticks;
+                updatedFiles[key] = Math.Max(prefixUtc, nativeUtc);
+            }
+
+            var json = JsonSerializer.Serialize(updatedFiles);
+            File.WriteAllText(stateFilePath, json);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to write sync state to '{StateFile}'.", stateFilePath);
+        }
+    }
+
+    private static void CopySyncFile(string sourceFile, string destFile, ILogger? logger = null)
+    {
+        try
+        {
+            var destDir = Path.GetDirectoryName(destFile);
+            if (!string.IsNullOrEmpty(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            File.Copy(sourceFile, destFile, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to copy '{Source}' to '{Destination}' during directory sync.", sourceFile, destFile);
+        }
+    }
+
+    private static Dictionary<string, FileInfo> EnumerateFilesRelative(string rootDir)
+    {
+        var result = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+        if (!Directory.Exists(rootDir))
+        {
+            return result;
+        }
 
         var enumerationOptions = new EnumerationOptions
         {
@@ -354,35 +580,118 @@ public class WineRunner(
             AttributesToSkip = FileAttributes.ReparsePoint,
         };
 
-        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
+        foreach (var file in Directory.EnumerateFiles(rootDir, "*", enumerationOptions))
         {
-            var fullFilePath = Path.GetFullPath(file);
-            if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
+            var fileName = Path.GetFileName(file);
+            if (string.Equals(fileName, SyncStateFileName, StringComparison.OrdinalIgnoreCase))
             {
-                // Target directory is nested inside source directory; avoid recursive copy into target
                 continue;
             }
 
-            var relative = Path.GetRelativePath(sourceDir, file);
-            var destFile = Path.Combine(targetDir, relative);
+            var relPath = Path.GetRelativePath(rootDir, file);
+            result[relPath] = new FileInfo(file);
+        }
 
-            try
+        return result;
+    }
+
+    private static void CleanEmptySubdirectories(string dir)
+    {
+        try
+        {
+            if (!Directory.Exists(dir))
             {
-                var destDir = Path.GetDirectoryName(destFile);
-                if (!string.IsNullOrEmpty(destDir))
-                {
-                    Directory.CreateDirectory(destDir);
-                }
+                return;
+            }
 
-                if (!File.Exists(destFile) || File.GetLastWriteTimeUtc(file) > File.GetLastWriteTimeUtc(destFile))
+            foreach (var subDir in Directory.EnumerateDirectories(dir))
+            {
+                CleanEmptySubdirectories(subDir);
+                if (!Directory.EnumerateFileSystemEntries(subDir).Any())
                 {
-                    File.Copy(file, destFile, overwrite: true);
+                    Directory.Delete(subDir, recursive: false);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Ignore directory cleanup failure
+        }
+    }
+
+    private static bool MirrorDirectoryContent(string sourceDir, string targetDir, ILogger? logger = null)
+    {
+        if (!Directory.Exists(sourceDir))
+        {
+            return true;
+        }
+
+        var normalizedSource = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceDir)) + Path.DirectorySeparatorChar;
+        var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetDir)) + Path.DirectorySeparatorChar;
+
+        if (string.Equals(normalizedSource, normalizedTarget, PathHelper.PathComparison))
+        {
+            return true;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to create target directory '{TargetDir}' during directory sync.", targetDir);
+            return false;
+        }
+
+        var enumerationOptions = new EnumerationOptions
+        {
+            IgnoreInaccessible = false,
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
             {
-                logger?.LogWarning(ex, "[WineRunner] Failed to copy '{Source}' to '{Destination}' during directory sync.", file, destFile);
+                MirrorSingleFile(file, sourceDir, targetDir, normalizedTarget);
             }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to mirror content from '{SourceDir}' to '{TargetDir}' due to file access or enumeration failure.", sourceDir, targetDir);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void MirrorSingleFile(string file, string sourceDir, string targetDir, string normalizedTarget)
+    {
+        if (string.Equals(Path.GetFileName(file), SyncStateFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var fullFilePath = Path.GetFullPath(file);
+        if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
+        {
+            return;
+        }
+
+        var relative = Path.GetRelativePath(sourceDir, file);
+        var destFile = Path.Combine(targetDir, relative);
+
+        var destDir = Path.GetDirectoryName(destFile);
+        if (!string.IsNullOrEmpty(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        if (!File.Exists(destFile) || File.GetLastWriteTimeUtc(file) > File.GetLastWriteTimeUtc(destFile))
+        {
+            File.Copy(file, destFile, overwrite: true);
         }
     }
 

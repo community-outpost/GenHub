@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Tools.Checksum;
@@ -498,15 +499,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         ResolveCompatibilityBadge(profile);
 
         // Set color value with game type defaults or profile theme
-        if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
-        {
-            _colorValue = gp.ThemeColor;
-        }
-        else if (string.IsNullOrEmpty(_colorValue))
-        {
-            // Only set default if ExtractManifestInfo didn't set a branded one
-            _colorValue = GetDefaultColorForGameType(profile.GameClient?.GameType);
-        }
+        _colorValue = ResolveInitialColorValue(profile, _colorValue);
 
         // Set user-friendly source type name (use the game type as the source)
         _sourceTypeName = GetFriendlyGameTypeName(profile.GameClient?.GameType);
@@ -526,26 +519,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // Set workspace status based on ActiveWorkspaceId and WorkspaceStrategy
         if (profile is GameProfile gameProfile2)
         {
-            _activeWorkspaceId = gameProfile2.ActiveWorkspaceId;
-            _isProcessRunning = false; // Will be updated by LauncherViewModel
-
-            // Determine if this is a Steam installation by checking the publisher in the manifest ID
-            _isSteamInstallation = gameProfile2.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
-
-            // Initialize Steam launch mode settings
-            var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(_isSteamInstallation, gameProfile2.GameClient);
-            _useSteamLaunch = isEligibleForSteam && (gameProfile2.UseSteamLaunch ?? true);
-
-            _workspaceStatus = string.IsNullOrEmpty(gameProfile2.ActiveWorkspaceId)
-                ? "Not Prepared"
-                : gameProfile2.WorkspaceStrategy switch
-                {
-                    WorkspaceStrategy.SymlinkOnly => "Symlinked",
-                    WorkspaceStrategy.FullCopy => "Copied",
-                    WorkspaceStrategy.HybridCopySymlink => "Hybrid",
-                    WorkspaceStrategy.HardLink => "Hard Linked",
-                    _ => "Prepared",
-                };
+            InitializeWorkspaceState(gameProfile2);
         }
     }
 
@@ -631,10 +605,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
             ResolveProfileVersionAndPublisher(gameProfile);
 
-            if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
-            {
-                ColorValue = gameProfile.ThemeColor;
-            }
+            ColorValue = ResolveInitialColorValue(gameProfile, ColorValue);
 
             UpdateDescription(gameProfile);
         }
@@ -953,20 +924,36 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ApplyPublisherBranding(string publisherSegment)
     {
+        var hasCustomCover = !string.IsNullOrEmpty(CoverPath) &&
+            !string.Equals(CoverPath, IconPath, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(CoverPath, UriConstants.DefaultIconUri, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(CoverPath, SuperHackersConstants.ZeroHourCoverSource, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(CoverPath, GeneralsOnlineConstants.CoverSource, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(CoverPath, CommunityOutpostConstants.CoverSource, StringComparison.OrdinalIgnoreCase);
+
         if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
         {
             ColorValue = SuperHackersConstants.ZeroHourThemeColor;
-            CoverImagePath = SuperHackersConstants.ZeroHourCoverSource;
+            if (!hasCustomCover)
+            {
+                CoverImagePath = SuperHackersConstants.ZeroHourCoverSource;
+            }
         }
         else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
         {
             ColorValue = GeneralsOnlineConstants.ThemeColor;
-            CoverImagePath = GeneralsOnlineConstants.CoverSource;
+            if (!hasCustomCover)
+            {
+                CoverImagePath = GeneralsOnlineConstants.CoverSource;
+            }
         }
         else if (publisherSegment == CommunityOutpostConstants.PublisherType)
         {
             ColorValue = CommunityOutpostConstants.ThemeColor;
-            CoverImagePath = CommunityOutpostConstants.CoverSource;
+            if (!hasCustomCover)
+            {
+                CoverImagePath = CommunityOutpostConstants.CoverSource;
+            }
         }
     }
 
@@ -985,6 +972,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
             ResolveFromInstallationManifest(gameProfile.EnabledContentIds);
         }
 
+        if (gameProfile.IsCommunityOutpostProfile())
+        {
+            Publisher = CommunityOutpostConstants.PublisherName;
+            ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
+        }
+
         if (gameProfile.EnabledContentIds is not { Count: > 0 } enabledIds)
         {
             return;
@@ -997,6 +990,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         TryResolveFromPatchManifest(enabledIds, isPublisherClient);
+
+        if (gameProfile.IsCommunityOutpostProfile())
+        {
+            Publisher = CommunityOutpostConstants.PublisherName;
+            ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
+        }
     }
 
     private void TryResolveFromEnabledGameClient(IReadOnlyList<string> enabledContentIds)
@@ -1042,15 +1041,23 @@ public partial class GameProfileItemViewModel : ViewModelBase
     {
         ExtractManifestInfo(gameClient.Id);
 
-        if (!string.IsNullOrEmpty(gameClient.PublisherType))
+        if (CommunityOutpostConstants.IsCommunityOutpostIdentity(gameClient.PublisherType, gameClient.Id, gameClient.Name))
         {
-            var pub = gameClient.PublisherType.ToLowerInvariant();
-            Publisher = MapPublisherName(pub, gameClient.PublisherType);
-            ApplyPublisherBranding(pub);
+            Publisher = CommunityOutpostConstants.PublisherName;
+            ApplyPublisherBranding(CommunityOutpostConstants.PublisherType);
         }
-        else if (string.IsNullOrEmpty(Publisher))
+        else
         {
-            ResolvePublisherFromGameClient(gameClient);
+            if (!string.IsNullOrEmpty(gameClient.PublisherType))
+            {
+                var pub = gameClient.PublisherType.ToLowerInvariant();
+                Publisher = MapPublisherName(pub, gameClient.PublisherType);
+                ApplyPublisherBranding(pub);
+            }
+            else if (string.IsNullOrEmpty(Publisher))
+            {
+                ResolvePublisherFromGameClient(gameClient);
+            }
         }
 
         if (string.IsNullOrEmpty(GameVersion) &&
@@ -1064,13 +1071,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private void ResolvePublisherFromGameClient(GameClient gameClient)
     {
-        if (!string.IsNullOrEmpty(gameClient.PublisherType))
-        {
-            var pub = gameClient.PublisherType.ToLowerInvariant();
-            Publisher = MapPublisherName(pub, gameClient.PublisherType);
-            ApplyPublisherBranding(pub);
-        }
-        else if (gameClient.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase))
+        if (gameClient.Name?.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) == true)
         {
             Publisher = PublisherInfoConstants.GeneralsOnline.Name;
             ApplyPublisherBranding(PublisherTypeConstants.GeneralsOnline);
@@ -1232,5 +1233,53 @@ public partial class GameProfileItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(CoverPath));
         OnPropertyChanged(nameof(CoverImagePath));
         OnPropertyChanged(nameof(CommandLineArguments));
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as instance method to adhere to StyleCop SA1204 ordering rules.")]
+    private string ResolveInitialColorValue(IGameProfile profile, string? currentColorValue)
+    {
+        if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
+        {
+            if (gp.IsCommunityOutpostProfile() &&
+                (string.Equals(gp.ThemeColor, SuperHackersConstants.ZeroHourThemeColor, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(gp.ThemeColor, SuperHackersConstants.GeneralsThemeColor, StringComparison.OrdinalIgnoreCase)))
+            {
+                return CommunityOutpostConstants.ThemeColor;
+            }
+
+            return gp.ThemeColor;
+        }
+
+        if (string.IsNullOrEmpty(currentColorValue))
+        {
+            return GetDefaultColorForGameType(profile.GameClient?.GameType);
+        }
+
+        return currentColorValue;
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
+    private void InitializeWorkspaceState(GameProfile gameProfile)
+    {
+        ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
+        IsProcessRunning = false; // Will be updated by LauncherViewModel
+
+        // Determine if this is a Steam installation by checking the publisher in the manifest ID
+        IsSteamInstallation = gameProfile.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
+
+        // Initialize Steam launch mode settings
+        var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(IsSteamInstallation, gameProfile.GameClient);
+        UseSteamLaunch = isEligibleForSteam && (gameProfile.UseSteamLaunch ?? true);
+
+        WorkspaceStatus = string.IsNullOrEmpty(gameProfile.ActiveWorkspaceId)
+            ? "Not Prepared"
+            : gameProfile.WorkspaceStrategy switch
+            {
+                WorkspaceStrategy.SymlinkOnly => "Symlinked",
+                WorkspaceStrategy.FullCopy => "Copied",
+                WorkspaceStrategy.HybridCopySymlink => "Hybrid",
+                WorkspaceStrategy.HardLink => "Hard Linked",
+                _ => "Prepared",
+            };
     }
 }

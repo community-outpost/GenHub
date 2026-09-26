@@ -1745,6 +1745,32 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.Single(Directory.GetFiles(desert2Dir, "*.map"));
     }
 
+    /// <summary>
+    /// Verifies that in a single-map payload, a root generic map.ini is copied to the map folder.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SingleMapPayloadWithGenericMapIni_CopiesGenericIniToMapFolderAsync()
+    {
+        // Arrange: Only Desert.map and generic map.ini
+        Directory.CreateDirectory(_stagingDirectory);
+        var desertMap = Path.Combine(_stagingDirectory, "Desert.map");
+        var genericIni = Path.Combine(_stagingDirectory, "map.ini");
+
+        await File.WriteAllTextAsync(desertMap, "desert-map-data");
+        await File.WriteAllTextAsync(genericIni, "WaterTransparency = 50%");
+
+        // Act
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        // Assert
+        var desertFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.True(Directory.Exists(desertFolder));
+        Assert.True(File.Exists(Path.Combine(desertFolder, "map.ini")));
+        Assert.Equal("WaterTransparency = 50%", await File.ReadAllTextAsync(Path.Combine(desertFolder, "map.ini")));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

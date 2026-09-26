@@ -539,6 +539,26 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
     }
 
+    /// <summary>
+    /// Checks if a profile uses a SuperHackers game client.
+    /// </summary>
+    /// <param name="profile">The profile to check.</param>
+    /// <returns>True if the profile uses SuperHackers, false otherwise.</returns>
+    private static bool IsSuperHackersProfile(GameProfile profile)
+    {
+        return profile.IsTheSuperHackersProfile();
+    }
+
+    /// <summary>
+    /// Checks if a profile uses a Community Outpost game client.
+    /// </summary>
+    /// <param name="profile">The profile to check.</param>
+    /// <returns>True if the profile uses Community Outpost, false otherwise.</returns>
+    private static bool IsCommunityOutpostProfile(GameProfile profile)
+    {
+        return profile.IsCommunityOutpostProfile();
+    }
+
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(
         GameProfile profile,
         string profileId,
@@ -1053,31 +1073,28 @@ public class ProfileLauncherFacade(
         IPublisherReconciler? reconciler = null;
         string? publisherType = profile.GameClient?.PublisherType;
 
-        if (!string.IsNullOrWhiteSpace(publisherType))
+        if (profile.IsCommunityOutpostProfile())
+        {
+            publisherType = CommunityOutpostConstants.PublisherType;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected Community Outpost profile, using reconciler");
+        }
+        else if (profile.IsGeneralsOnlineProfile())
+        {
+            publisherType = PublisherTypeConstants.GeneralsOnline;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
+        }
+        else if (!string.IsNullOrWhiteSpace(publisherType))
         {
             logger.LogDebug("[Launch] Looking up reconciler for publisher: {PublisherType}", publisherType);
             reconciler = reconcilerRegistry.GetReconciler(publisherType);
         }
-        else
+        else if (IsSuperHackersProfile(profile))
         {
-            if (profile.IsGeneralsOnlineProfile())
-            {
-                publisherType = PublisherTypeConstants.GeneralsOnline;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
-            }
-            else if (IsSuperHackersProfile(profile))
-            {
-                publisherType = PublisherTypeConstants.TheSuperHackers;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
-            }
-            else if (IsCommunityOutpostProfile(profile))
-            {
-                publisherType = CommunityOutpostConstants.PublisherType;
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                logger.LogDebug("[Launch] Detected legacy CommunityOutpost profile, using reconciler");
-            }
+            publisherType = PublisherTypeConstants.TheSuperHackers;
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
         }
 
         if (reconciler != null && publisherType != null)
@@ -1608,72 +1625,6 @@ public class ProfileLauncherFacade(
         }
 
         return parts.Count > 0 ? $"({string.Join(" and ", parts)})" : string.Empty;
-    }
-
-    /// <summary>
-    /// Checks if a profile uses a SuperHackers game client.
-    /// </summary>
-    /// <param name="profile">The profile to check.</param>
-    /// <returns>True if the profile uses SuperHackers, false otherwise.</returns>
-    private bool IsSuperHackersProfile(GameProfile profile)
-    {
-        if (IsCommunityOutpostProfile(profile))
-        {
-            return false;
-        }
-
-        // Check PublisherType first
-        if (profile.GameClient?.PublisherType?.Equals(
-            PublisherTypeConstants.TheSuperHackers,
-            StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Check if Name contains "SuperHackers"
-        if (profile.GameClient?.Name?.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Final fallback: Check enabled content for SuperHackers manifests
-        if (profile.EnabledContentIds?.Any(id => id.Contains("thesuperhackers", StringComparison.OrdinalIgnoreCase)) == true)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if a profile uses a Community Outpost game client.
-    /// </summary>
-    /// <param name="profile">The profile to check.</param>
-    /// <returns>True if the profile uses Community Outpost, false otherwise.</returns>
-    private bool IsCommunityOutpostProfile(GameProfile profile)
-    {
-        // Check PublisherType
-        if (profile.GameClient?.PublisherType?.Equals(
-            CommunityOutpostConstants.PublisherType,
-            StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Check if Name contains "Community Outpost" or "Community Patch"
-        if (profile.GameClient?.Name?.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) == true ||
-            profile.GameClient?.Name?.Contains("Community Patch", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Fallback: manifests
-        if (profile.EnabledContentIds?.Any(id => id.Contains("communityoutpost", StringComparison.OrdinalIgnoreCase)) == true)
-        {
-            return true;
-        }
-
-        return false;
     }
 
     /// <summary>

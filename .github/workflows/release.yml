@@ -437,7 +437,7 @@ jobs:
       - name: Run Release Tests
         run: |
           dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj \
-            -c ${{ env.BUILD_CONFIGURATION }}
+            -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork"
 
       - name: Publish macOS App
         run: |

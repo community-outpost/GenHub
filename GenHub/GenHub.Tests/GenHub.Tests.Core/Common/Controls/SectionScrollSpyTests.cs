@@ -286,6 +286,77 @@ public class SectionScrollSpyTests
         }
     }
 
+    /// <summary>
+    /// Verifies that when an animated scroll completes, subsequent user scrolling
+    /// is not suppressed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ScrollToSection_WhenAnimationCompletes_DoesNotSuppressSubsequentUserScrollAsync()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+            reported.Clear();
+
+            // Animate scroll to "second" section
+            spy.ScrollToSection("second");
+            Assert.True(spy.IsScrollingProgrammatically);
+
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (DateTime.UtcNow < deadline && spy.IsScrollingProgrammatically)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(25);
+            }
+
+            Assert.False(spy.IsScrollingProgrammatically);
+            Assert.Equal("second", reported[^1]);
+            reported.Clear();
+
+            // Simulate genuine user scroll to "third" section
+            host.ScrollViewer.Offset = new Vector(0, 850);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Contains("third", reported);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when at the top of the scroll viewer, bottom catch-up does not
+    /// prematurely report an unreachable bottom section.
+    /// </summary>
+    [AvaloniaFact]
+    public void ScrollChanged_AtTop_WithUnreachableBottomSection_ReportsFirstSection()
+    {
+        var host = CreateBottomClampedHost();
+        try
+        {
+            host.ScrollViewer.Offset = new Vector(0, 20);
+            Dispatcher.UIThread.RunJobs();
+
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            // Explicitly set offset back to 0 to trigger scroll event at the very top
+            host.ScrollViewer.Offset = new Vector(0, 0);
+            Dispatcher.UIThread.RunJobs();
+
+            // When at the top, first section must be reported, never third
+            Assert.Equal("first", Assert.Single(reported));
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
     private static ScrollSpyHost CreateHost()
     {
         var first = new Border { Height = 400 };
