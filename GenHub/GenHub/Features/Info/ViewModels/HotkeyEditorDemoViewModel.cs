@@ -68,6 +68,7 @@ public partial class HotkeyEditorDemoViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether any conflicts exist.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable property ConflictCount in partial view model")]
     public bool HasConflicts => ConflictCount > 0;
 
     /// <summary>
@@ -102,6 +103,9 @@ public partial class HotkeyEditorDemoViewModel : ObservableObject
 
         SelectedSlot.Hotkey = string.Empty;
         UpdateConflicts();
+        StatusMessage = ConflictCount > 0
+            ? DemoText("Info.Demo.Tools.HotkeyEditor.Status.Conflict", "Conflict: slots share a key. Pick distinct keys to clear it.")
+            : DemoText("Info.Demo.Tools.HotkeyEditor.Status.Clear", "Key cleared. No conflicts.");
     }
 
     /// <summary>

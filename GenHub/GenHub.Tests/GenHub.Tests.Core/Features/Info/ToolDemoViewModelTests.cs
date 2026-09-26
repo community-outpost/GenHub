@@ -1,6 +1,7 @@
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Features.Info.ViewModels;
+using System;
 using System.Linq;
 using Xunit;
 
@@ -138,5 +139,52 @@ public class ToolDemoViewModelTests
 
         viewModel.HasConflicts.Should().BeFalse();
         viewModel.StatusMessage.Should().Contain("No conflicts");
+    }
+
+    /// <summary>
+    /// Verifies that clearing a slot refreshes the status message instead of leaving the previous state.
+    /// </summary>
+    [Fact]
+    public void HotkeyEditorDemo_ClearKey_RefreshesStatusMessage()
+    {
+        var viewModel = new HotkeyEditorDemoViewModel();
+        viewModel.SelectedSlot = viewModel.Slots.Last();
+        viewModel.AssignKeyCommand.Execute("V");
+
+        viewModel.ClearKeyCommand.Execute(null);
+
+        viewModel.SelectedSlot.Should().NotBeNull();
+        viewModel.SelectedSlot!.Hotkey.Should().BeEmpty();
+        viewModel.HasConflicts.Should().BeFalse();
+        viewModel.StatusMessage.Should().Contain("cleared");
+    }
+
+    /// <summary>
+    /// Verifies that converting textures to DDS also rewrites the target path extension.
+    /// </summary>
+    [Fact]
+    public void ModBuilderDemo_ConvertAllToDds_UpdatesTargetPathExtension()
+    {
+        var viewModel = new ModBuilderDemoViewModel();
+        viewModel.SelectedPack = viewModel.BundlePacks[1];
+
+        viewModel.ConvertAllToDdsCommand.Execute(null);
+
+        var converted = viewModel.BundlePacks[1].Items.Where(i => i.Conversion == "TGA->DDS").ToList();
+        converted.Should().NotBeEmpty();
+        converted.Select(i => i.TargetPath).Should().OnlyContain(p => p.EndsWith(".dds", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that the demo factory returns a WND editor with a placeholder layout instead of empty collections.
+    /// </summary>
+    [Fact]
+    public void CreateDemoWndEditor_ReturnsPopulatedLayout()
+    {
+        var viewModel = DemoViewModelFactory.CreateDemoWndEditor();
+
+        viewModel.RootNodes.Should().ContainSingle();
+        viewModel.CanvasNodes.Should().HaveCount(6);
+        viewModel.SelectedNode.Should().NotBeNull();
     }
 }

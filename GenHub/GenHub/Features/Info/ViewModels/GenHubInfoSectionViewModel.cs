@@ -64,6 +64,9 @@ public partial class GenHubInfoSectionViewModel(
     private InfoSectionViewModel? _selectedSection;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDemoSizeCompact))]
+    [NotifyPropertyChangedFor(nameof(IsDemoSizeStandard))]
+    [NotifyPropertyChangedFor(nameof(IsDemoSizeExpanded))]
     private double _demoSettingsWidth = 840;
 
     [ObservableProperty]
@@ -395,9 +398,6 @@ public partial class GenHubInfoSectionViewModel(
     {
         DemoSettingsWidth = 720;
         DemoSettingsHeight = 480;
-        OnPropertyChanged(nameof(IsDemoSizeCompact));
-        OnPropertyChanged(nameof(IsDemoSizeStandard));
-        OnPropertyChanged(nameof(IsDemoSizeExpanded));
     }
 
     /// <summary>
@@ -408,9 +408,6 @@ public partial class GenHubInfoSectionViewModel(
     {
         DemoSettingsWidth = 840;
         DemoSettingsHeight = 580;
-        OnPropertyChanged(nameof(IsDemoSizeCompact));
-        OnPropertyChanged(nameof(IsDemoSizeStandard));
-        OnPropertyChanged(nameof(IsDemoSizeExpanded));
     }
 
     /// <summary>
@@ -421,9 +418,6 @@ public partial class GenHubInfoSectionViewModel(
     {
         DemoSettingsWidth = 980;
         DemoSettingsHeight = 680;
-        OnPropertyChanged(nameof(IsDemoSizeCompact));
-        OnPropertyChanged(nameof(IsDemoSizeStandard));
-        OnPropertyChanged(nameof(IsDemoSizeExpanded));
     }
 
     /// <summary>
@@ -566,11 +560,23 @@ public partial class GenHubInfoSectionViewModel(
             }
         }
 
+        // The awaits above may have allowed Dispose to run; do not attach handlers on a disposed instance.
+        if (_disposed)
+        {
+            return;
+        }
+
         changelogsViewModel.Releases.CollectionChanged -= OnChangelogsReleasesChanged;
         changelogsViewModel.Releases.CollectionChanged += OnChangelogsReleasesChanged;
 
         goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
         goChangelogViewModel.PatchNotes.CollectionChanged += OnGoPatchNotesChanged;
+
+        changelogsViewModel.PropertyChanged -= OnChangelogLoadingChanged;
+        changelogsViewModel.PropertyChanged += OnChangelogLoadingChanged;
+
+        goChangelogViewModel.PropertyChanged -= OnChangelogLoadingChanged;
+        goChangelogViewModel.PropertyChanged += OnChangelogLoadingChanged;
 
         SyncChangelogCards();
         SyncGoChangelogCards();
@@ -704,6 +710,8 @@ public partial class GenHubInfoSectionViewModel(
 
             changelogsViewModel.Releases.CollectionChanged -= OnChangelogsReleasesChanged;
             goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
+            changelogsViewModel.PropertyChanged -= OnChangelogLoadingChanged;
+            goChangelogViewModel.PropertyChanged -= OnChangelogLoadingChanged;
             if (_selectedSectionCards != null && _cardsCollectionChangedHandler != null)
             {
                 _selectedSectionCards.CollectionChanged -= _cardsCollectionChangedHandler;
@@ -815,15 +823,33 @@ public partial class GenHubInfoSectionViewModel(
 
     private void OnChangelogsReleasesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        SyncChangelogCards();
+        // Releases stream in one item at a time while a bulk load runs; sync silently and notify once on completion.
+        SyncChangelogCards(raiseLoadedEvent: !changelogsViewModel.IsLoading);
     }
 
     private void OnGoPatchNotesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        SyncGoChangelogCards();
+        SyncGoChangelogCards(raiseLoadedEvent: !goChangelogViewModel.IsLoading);
     }
 
-    private void SyncChangelogCards()
+    private void OnChangelogLoadingChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ChangelogsViewModel.IsLoading))
+        {
+            return;
+        }
+
+        if (ReferenceEquals(sender, changelogsViewModel) && !changelogsViewModel.IsLoading)
+        {
+            SyncChangelogCards();
+        }
+        else if (ReferenceEquals(sender, goChangelogViewModel) && !goChangelogViewModel.IsLoading)
+        {
+            SyncGoChangelogCards();
+        }
+    }
+
+    private void SyncChangelogCards(bool raiseLoadedEvent = true)
     {
         var section = _allSections.FirstOrDefault(s => s.Id == InfoConstants.SectionChangelogs);
         if (section == null)
@@ -845,8 +871,8 @@ public partial class GenHubInfoSectionViewModel(
             var cardVm = new InfoCardViewModel(
                 new InfoCard
                 {
-                    Id = "release-" + (release.Release.TagName ?? release.Release.Name ?? Guid.NewGuid().ToString()),
-                    Title = release.Release.Name ?? release.Release.TagName ?? "Release",
+                    Id = InfoConstants.CardChangelogsReleasePrefix + (release.Release.TagName ?? release.Release.Name ?? Guid.NewGuid().ToString()),
+                    Title = release.Release.Name ?? release.Release.TagName ?? localizationService?.GetString("Info.Changelog.UntitledRelease") ?? "Release",
                     Content = release.Release.PublishedAt?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
                     Type = InfoCardType.Feature,
                     DetailedContent = release.Release.Body,
@@ -865,10 +891,13 @@ public partial class GenHubInfoSectionViewModel(
             UpdateCardsPaneLengthForSection(SelectedSection);
         }
 
-        ChangelogsLoaded?.Invoke();
+        if (raiseLoadedEvent)
+        {
+            ChangelogsLoaded?.Invoke();
+        }
     }
 
-    private void SyncGoChangelogCards()
+    private void SyncGoChangelogCards(bool raiseLoadedEvent = true)
     {
         var section = _allSections.FirstOrDefault(s => s.Id == InfoConstants.SectionGoChangelog);
         if (section == null)
@@ -891,7 +920,7 @@ public partial class GenHubInfoSectionViewModel(
             var cardVm = new InfoCardViewModel(
                 new InfoCard
                 {
-                    Id = "go-patch-" + cardId,
+                    Id = InfoConstants.CardGoPatchNotesPrefix + cardId,
                     Title = note.Title ?? string.Empty,
                     Content = note.Date ?? string.Empty,
                     Type = InfoCardType.Feature,
@@ -911,7 +940,10 @@ public partial class GenHubInfoSectionViewModel(
             UpdateCardsPaneLengthForSection(SelectedSection);
         }
 
-        ChangelogsLoaded?.Invoke();
+        if (raiseLoadedEvent)
+        {
+            ChangelogsLoaded?.Invoke();
+        }
     }
 
     private void UpdateCardsPaneLengthForSection(InfoSectionViewModel? section)

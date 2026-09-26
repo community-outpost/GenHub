@@ -54,5 +54,6 @@ public partial class WndDemoNode : ObservableObject
     /// <summary>
     /// Gets the display label combining name and control type.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable properties Name and ControlType in partial view model")]
     public string DisplayLabel => $"{Name} : {ControlType}";
 }

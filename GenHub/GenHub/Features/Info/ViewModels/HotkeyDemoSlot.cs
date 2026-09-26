@@ -30,5 +30,6 @@ public partial class HotkeyDemoSlot : ObservableObject
     /// <summary>
     /// Gets the display label combining action name and hotkey.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable properties ActionName and Hotkey in partial view model")]
     public string DisplayLabel => string.IsNullOrEmpty(Hotkey) ? ActionName : $"{ActionName} [{Hotkey}]";
 }

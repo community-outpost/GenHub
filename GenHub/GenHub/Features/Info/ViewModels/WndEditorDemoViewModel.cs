@@ -16,6 +16,9 @@ namespace GenHub.Features.Info.ViewModels;
 /// </summary>
 public partial class WndEditorDemoViewModel : ObservableObject
 {
+    private const string ToastTitleKey = "Info.Demo.Tools.WndEditor.Toast.Title";
+    private const string ButtonControlType = "Button";
+
     private readonly INotificationService? _notificationService;
     private readonly ILocalizationService? _localizationService;
     private int _newWindowCounter;
@@ -75,25 +78,11 @@ public partial class WndEditorDemoViewModel : ObservableObject
     /// <summary>
     /// Gets the zoom level as a display percentage.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable property Zoom in partial view model")]
     public string ZoomDisplay => $"{Math.Round(Zoom * 100)}%";
 
-    private static bool RemoveFromParents(IEnumerable<WndDemoNode> parents, WndDemoNode target)
-    {
-        foreach (var parent in parents)
-        {
-            if (parent.Children.Remove(target))
-            {
-                return true;
-            }
-
-            if (RemoveFromParents(parent.Children, target))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    private static bool RemoveFromParents(IEnumerable<WndDemoNode> parents, WndDemoNode target) =>
+        parents.Any(parent => parent.Children.Remove(target) || RemoveFromParents(parent.Children, target));
 
     private static IEnumerable<WndDemoNode> Flatten(WndDemoNode node)
     {
@@ -138,7 +127,7 @@ public partial class WndEditorDemoViewModel : ObservableObject
         {
             ValidationMessage = DemoText("Info.Demo.Tools.WndEditor.Status.Invalid", "Some windows have empty geometry.");
             _notificationService?.ShowWarning(
-                DemoText("Info.Demo.Tools.WndEditor.Toast.Title", "Demo"),
+                DemoText(ToastTitleKey, "Demo"),
                 ValidationMessage,
                 NotificationDurations.Short);
             return;
@@ -146,7 +135,7 @@ public partial class WndEditorDemoViewModel : ObservableObject
 
         ValidationMessage = DemoText("Info.Demo.Tools.WndEditor.Status.Valid", "Document is valid: 0 errors.");
         _notificationService?.ShowSuccess(
-            DemoText("Info.Demo.Tools.WndEditor.Toast.Title", "Demo"),
+            DemoText(ToastTitleKey, "Demo"),
             ValidationMessage,
             NotificationDurations.Short);
     }
@@ -164,7 +153,7 @@ public partial class WndEditorDemoViewModel : ObservableObject
         }
 
         _newWindowCounter++;
-        var child = new WndDemoNode($"NewButton{_newWindowCounter}", "Button", parent.X + 20, parent.Y + 20, 120, 32);
+        var child = new WndDemoNode($"NewButton{_newWindowCounter}", ButtonControlType, parent.X + 20, parent.Y + 20, 120, 32);
         parent.Children.Add(child);
         RefreshCanvas();
         SelectedNode = child;
@@ -180,7 +169,7 @@ public partial class WndEditorDemoViewModel : ObservableObject
         if (SelectedNode == null || RootNodes.Contains(SelectedNode))
         {
             _notificationService?.ShowWarning(
-                DemoText("Info.Demo.Tools.WndEditor.Toast.Title", "Demo"),
+                DemoText(ToastTitleKey, "Demo"),
                 DemoText("Info.Demo.Tools.WndEditor.Toast.DeleteRootMessage", "Select a child window to delete. The root screen cannot be removed."),
                 NotificationDurations.Short);
             return;
@@ -262,17 +251,17 @@ public partial class WndEditorDemoViewModel : ObservableObject
             root.Children.Add(new WndDemoNode("AudioTab", "TabButton", 190, 90, 140, 36));
             root.Children.Add(new WndDemoNode("ResolutionList", "ComboBox", 40, 150, 290, 30));
             root.Children.Add(new WndDemoNode("VolumeSlider", "Slider", 40, 200, 290, 28));
-            root.Children.Add(new WndDemoNode("BtnBack", "Button", 40, 520, 120, 36));
+            root.Children.Add(new WndDemoNode("BtnBack", ButtonControlType, 40, 520, 120, 36));
             RootNodes.Add(root);
         }
         else
         {
             var root = new WndDemoNode("MainMenuScreen", "Window", 0, 0, 800, 600);
             root.Children.Add(new WndDemoNode("TitleLabel", "StaticText", 250, 60, 300, 48));
-            root.Children.Add(new WndDemoNode("BtnSinglePlayer", "Button", 300, 180, 200, 40));
-            root.Children.Add(new WndDemoNode("BtnMultiPlayer", "Button", 300, 230, 200, 40));
-            root.Children.Add(new WndDemoNode("BtnOptions", "Button", 300, 280, 200, 40));
-            root.Children.Add(new WndDemoNode("BtnExit", "Button", 300, 330, 200, 40));
+            root.Children.Add(new WndDemoNode("BtnSinglePlayer", ButtonControlType, 300, 180, 200, 40));
+            root.Children.Add(new WndDemoNode("BtnMultiPlayer", ButtonControlType, 300, 230, 200, 40));
+            root.Children.Add(new WndDemoNode("BtnOptions", ButtonControlType, 300, 280, 200, 40));
+            root.Children.Add(new WndDemoNode("BtnExit", ButtonControlType, 300, 330, 200, 40));
             RootNodes.Add(root);
         }
 
@@ -293,7 +282,7 @@ public partial class WndEditorDemoViewModel : ObservableObject
     private void Notify(string messageKey, string messageFallback)
     {
         _notificationService?.ShowInfo(
-            DemoText("Info.Demo.Tools.WndEditor.Toast.Title", "Demo"),
+            DemoText(ToastTitleKey, "Demo"),
             DemoText(messageKey, messageFallback),
             NotificationDurations.Short);
     }

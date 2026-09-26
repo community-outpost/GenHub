@@ -4315,6 +4315,9 @@
   <data name="Info.Changelog.LoadError" xml:space="preserve">
     <value>حدث خطأ أثناء تحميل سجلات التغيير.</value>
   </data>
+  <data name="Info.Changelog.UntitledRelease" xml:space="preserve">
+    <value>إصدار</value>
+  </data>
   <data name="AppUpdate.Action.ViewChangelog" xml:space="preserve">
     <value>عرض التغييرات</value>
   </data>
@@ -14531,7 +14534,7 @@ https://example.com/screenshot2.png</value>
 * **ContentBundle وPublisherReferral وContentReferral:** مجموعات وروابط تجمع المحتوى أو تشير إليه بدل شحن الملفات مباشرة.
 
 **معرفات البيانات.**
-تتبع المعرفات الصيغة {version}.{publisherId}.{contentType}.{contentId} وتدعم المطابقة بالبادئة، فيكتشف متصفح التنزيلات حالات المثبت والقديم والقابل للتحديث دون تنزيل أي شيء.</value>
+تتبع المعرفات الصيغة `version.publisherId.contentType.contentId` وتدعم المطابقة بالبادئة، فيكتشف متصفح التنزيلات حالات المثبت والقديم والقابل للتحديث دون تنزيل أي شيء.</value>
   </data>
   <data name="Info.Card.content-manifests.manifest-pipeline.Title" xml:space="preserve">
     <value>من التنزيل إلى التشغيل</value>
@@ -14691,7 +14694,60 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
     <value>حدث خطأ أثناء استيراد الملفات المسحوبة</value>
   </data>
-<data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve"><value>مفتاح رئيسي لتمكين أو تعطيل كافة مخرجات الصوت في اللعبة.</value></data><data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve"><value>عدد قنوات خلط الصوت المتزامنة. القيم الأعلى تمنع انقطاع الصوت أثناء المعارك الكبيرة.</value></data><data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve"><value>يقيد حركة مؤشر الفأرة داخل حدود نافذة اللعبة لمنع النقر العرضي خارجها.</value></data><data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve"><value>يمكّن تحريك الكاميرا عند تحريك مؤشر الفأرة إلى حافة نافذة اللعبة.</value></data><data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve"><value>يضبط حجم خط ساعة النظام المعروضة داخل اللعبة.</value></data><data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve"><value>يضبط حجم خط عرض زمن استجابة الشبكة (البنج).</value></data><data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve"><value>يضبط حجم خط عداد معدل الإطارات في الثانية.</value></data><data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve"><value>يضبط حجم خط واجهة المستخدم بما يتناسب مع دقة الشاشة.</value></data><data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve"><value>يتحكم في مستوى صوت المعاملات المالية والمكافآت.</value></data><data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve"><value>يضبط سرعة انتقال القوائم وحركات الواجهة.</value></data><data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve"><value>يضبط سرعة استجابة حركة الكاميرا والتحريك البانورامي.</value></data><data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve"><value>يحدد أدنى ارتفاع مسموح به للكاميرا عند التقريب.</value></data><data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve"><value>يفرض حداً أقصى لارتفاع الكاميرا عند استضافة مباراة متعددة اللاعبين.</value></data><data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve"><value>مفتاح رئيسي لتمكين أو تعطيل إشعارات سطح المكتب واللعبة.</value></data><data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve"><value>تشغيل تنبيه صوتي عند تلقي طلبات الصداقة أو الرسائل.</value></data><data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve"><value>يضبط حجم خط الدردشة في الردهة وأثناء المباراة.</value></data><data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve"><value>المدة بالثواني قبل تلاشي رسائل الدردشة داخل اللعبة.</value></data><data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve"><value>عنوان IP مخصص يُستخدم لاكتشاف شبكة بروتوكول GameSpy والتوجيه المحلي.</value></data>
+  <data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve">
+    <value>مفتاح رئيسي لتمكين أو تعطيل كافة مخرجات الصوت في اللعبة.</value>
+  </data>
+  <data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve">
+    <value>عدد قنوات خلط الصوت المتزامنة. القيم الأعلى تمنع انقطاع الصوت أثناء المعارك الكبيرة.</value>
+  </data>
+  <data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve">
+    <value>يقيد حركة مؤشر الفأرة داخل حدود نافذة اللعبة لمنع النقر العرضي خارجها.</value>
+  </data>
+  <data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve">
+    <value>يمكّن تحريك الكاميرا عند تحريك مؤشر الفأرة إلى حافة نافذة اللعبة.</value>
+  </data>
+  <data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve">
+    <value>يضبط حجم خط ساعة النظام المعروضة داخل اللعبة.</value>
+  </data>
+  <data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve">
+    <value>يضبط حجم خط عرض زمن استجابة الشبكة (البنج).</value>
+  </data>
+  <data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve">
+    <value>يضبط حجم خط عداد معدل الإطارات في الثانية.</value>
+  </data>
+  <data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve">
+    <value>يضبط حجم خط واجهة المستخدم بما يتناسب مع دقة الشاشة.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve">
+    <value>يتحكم في مستوى صوت المعاملات المالية والمكافآت.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve">
+    <value>يضبط سرعة انتقال القوائم وحركات الواجهة.</value>
+  </data>
+  <data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve">
+    <value>يضبط سرعة استجابة حركة الكاميرا والتحريك البانورامي.</value>
+  </data>
+  <data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve">
+    <value>يحدد أدنى ارتفاع مسموح به للكاميرا عند التقريب.</value>
+  </data>
+  <data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve">
+    <value>يفرض حداً أقصى لارتفاع الكاميرا عند استضافة مباراة متعددة اللاعبين.</value>
+  </data>
+  <data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve">
+    <value>مفتاح رئيسي لتمكين أو تعطيل إشعارات سطح المكتب واللعبة.</value>
+  </data>
+  <data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve">
+    <value>تشغيل تنبيه صوتي عند تلقي طلبات الصداقة أو الرسائل.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve">
+    <value>يضبط حجم خط الدردشة في الردهة وأثناء المباراة.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve">
+    <value>المدة بالثواني قبل تلاشي رسائل الدردشة داخل اللعبة.</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve">
+    <value>عنوان IP مخصص يُستخدم لاكتشاف شبكة بروتوكول GameSpy والتوجيه المحلي.</value>
+  </data>
   <data name="Info.Demo.WidthLabel" xml:space="preserve">
     <value>العرض:</value>
   </data>

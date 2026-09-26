@@ -4315,6 +4315,9 @@ This will modify game files and configuration settings at:
   <data name="Info.Changelog.LoadError" xml:space="preserve">
     <value>An error occurred while loading changelogs.</value>
   </data>
+  <data name="Info.Changelog.UntitledRelease" xml:space="preserve">
+    <value>Release</value>
+  </data>
   <data name="AppUpdate.Action.ViewChangelog" xml:space="preserve">
     <value>View Changelog</value>
   </data>
@@ -14587,7 +14590,7 @@ Every manifest carries a Manifest ID (such as 1.0.shockwave.mod.shockwave-chaos-
 * **ContentBundle, PublisherReferral, ContentReferral:** Collections and links that group or point at other content instead of shipping files directly.
 
 **Manifest IDs.**
-IDs follow {version}.{publisherId}.{contentType}.{contentId} and support prefix matching, so the Downloads browser can detect installed, outdated, and updateable states without downloading anything.</value>
+IDs follow `version.publisherId.contentType.contentId` and support prefix matching, so the Downloads browser can detect installed, outdated, and updateable states without downloading anything.</value>
   </data>
   <data name="Info.Card.content-manifests.manifest-pipeline.Title" xml:space="preserve">
     <value>From Download to Launch</value>
@@ -14747,7 +14750,60 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="GameProfiles.Settings.LocalContent.ImportError" xml:space="preserve">
     <value>Error importing dropped files</value>
   </data>
-<data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve"><value>Master toggle to enable or disable all game audio output.</value></data><data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve"><value>Number of simultaneous sound mixing channels (DirectSound buffers). Higher values prevent sound cutouts during intense battles.</value></data><data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve"><value>Restricts mouse cursor movement within game window or screen boundaries to prevent accidentally clicking outside.</value></data><data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve"><value>Enables camera panning when moving mouse cursor to the border of the game window.</value></data><data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve"><value>Scales the font size of the in-game system clock overlay.</value></data><data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve"><value>Scales the font size of the multiplayer latency (ping) display.</value></data><data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve"><value>Scales the font size of the in-game frames-per-second counter.</value></data><data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve"><value>Adjusts on-screen interface font sizing relative to display resolution.</value></data><data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve"><value>Controls audio volume for cash transactions, bounties, and economic events.</value></data><data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve"><value>Adjusts UI transition and menu animation speeds.</value></data><data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve"><value>Scales camera movement and panning responsiveness.</value></data><data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve"><value>Sets the minimum allowable camera altitude when zooming in.</value></data><data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve"><value>Enforces maximum camera altitude limit when hosting a multiplayer match.</value></data><data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve"><value>Master switch to enable or disable desktop and in-game social notifications.</value></data><data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve"><value>Plays audio chimes when receiving friend invites or messages.</value></data><data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve"><value>Adjusts the font size of multiplayer lobby and match chat.</value></data><data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve"><value>Duration in seconds before in-game chat messages fade from view.</value></data><data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve"><value>Custom IP address used for GameSpy protocol network discovery and LAN routing.</value></data>
+  <data name="GameSettings.Audio.AudioEnabledToolTip" xml:space="preserve">
+    <value>Master toggle to enable or disable all game audio output.</value>
+  </data>
+  <data name="GameSettings.Audio.AudioChannelsToolTip" xml:space="preserve">
+    <value>Number of simultaneous sound mixing channels (DirectSound buffers). Higher values prevent sound cutouts during intense battles.</value>
+  </data>
+  <data name="GameSettings.Tsh.CursorCaptureToolTip" xml:space="preserve">
+    <value>Restricts mouse cursor movement within game window or screen boundaries to prevent accidentally clicking outside.</value>
+  </data>
+  <data name="GameSettings.Tsh.ScreenEdgeScrollToolTip" xml:space="preserve">
+    <value>Enables camera panning when moving mouse cursor to the border of the game window.</value>
+  </data>
+  <data name="GameSettings.Tsh.SystemTimeToolTip" xml:space="preserve">
+    <value>Scales the font size of the in-game system clock overlay.</value>
+  </data>
+  <data name="GameSettings.Tsh.PingDisplayToolTip" xml:space="preserve">
+    <value>Scales the font size of the multiplayer latency (ping) display.</value>
+  </data>
+  <data name="GameSettings.Tsh.FpsDisplayToolTip" xml:space="preserve">
+    <value>Scales the font size of the in-game frames-per-second counter.</value>
+  </data>
+  <data name="GameSettings.Tsh.ResolutionFontOffsetToolTip" xml:space="preserve">
+    <value>Adjusts on-screen interface font sizing relative to display resolution.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransactionVolumeToolTip" xml:space="preserve">
+    <value>Controls audio volume for cash transactions, bounties, and economic events.</value>
+  </data>
+  <data name="GameSettings.Tsh.TransitionSpeedToolTip" xml:space="preserve">
+    <value>Adjusts UI transition and menu animation speeds.</value>
+  </data>
+  <data name="GameSettings.Go.CameraMoveSpeedToolTip" xml:space="preserve">
+    <value>Scales camera movement and panning responsiveness.</value>
+  </data>
+  <data name="GameSettings.Go.MinCameraHeightToolTip" xml:space="preserve">
+    <value>Sets the minimum allowable camera altitude when zooming in.</value>
+  </data>
+  <data name="GameSettings.Go.MaxCameraHeightToolTip" xml:space="preserve">
+    <value>Enforces maximum camera altitude limit when hosting a multiplayer match.</value>
+  </data>
+  <data name="GameSettings.Go.GlobalNotificationsToolTip" xml:space="preserve">
+    <value>Master switch to enable or disable desktop and in-game social notifications.</value>
+  </data>
+  <data name="GameSettings.Go.SoundNotificationsToolTip" xml:space="preserve">
+    <value>Plays audio chimes when receiving friend invites or messages.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFontSizeToolTip" xml:space="preserve">
+    <value>Adjusts the font size of multiplayer lobby and match chat.</value>
+  </data>
+  <data name="GameSettings.Go.ChatFadeoutToolTip" xml:space="preserve">
+    <value>Duration in seconds before in-game chat messages fade from view.</value>
+  </data>
+  <data name="GameSettings.Go.GameSpyIpOverrideToolTip" xml:space="preserve">
+    <value>Custom IP address used for GameSpy protocol network discovery and LAN routing.</value>
+  </data>
   <data name="Info.Demo.WidthLabel" xml:space="preserve">
     <value>W:</value>
   </data>

@@ -571,6 +571,21 @@ public static class InfoConstants
     public const string CardGoChangelogOverview = "go-patch-notes-overview";
 
     /// <summary>
+    /// Card ID for Generals Online Relays and Edge Infrastructure.
+    /// </summary>
+    public const string CardGoChangelogNetcode = "go-patch-notes-netcode";
+
+    /// <summary>
+    /// Prefix for dynamically created changelog release card IDs.
+    /// </summary>
+    public const string CardChangelogsReleasePrefix = "release-";
+
+    /// <summary>
+    /// Prefix for dynamically created Generals Online patch note card IDs.
+    /// </summary>
+    public const string CardGoPatchNotesPrefix = "go-patch-";
+
+    /// <summary>
     /// Card ID for Changelog Overview.
     /// </summary>
     public const string CardChangelogsOverview = "changelogs-overview";

@@ -1598,7 +1598,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              **Generals Online Service Updates:**
              Stay informed about multiplayer network changes, matchmaker improvements, balance adjustments, and anti-cheat updates deployed to the Generals Online network.
              """),
-            ("go-patch-notes-netcode",
+            (InfoConstants.CardGoChangelogNetcode,
              "Relays & Edge Infrastructure",
              "Low-latency UDP edge routing, NAT traversal, and disconnect protection.",
              InfoCardType.Concept,

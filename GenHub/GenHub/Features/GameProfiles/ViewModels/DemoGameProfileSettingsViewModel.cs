@@ -81,7 +81,6 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
             }
         };
 
-        // Shadowed SelectTabCommand to route demo tabs to Info section navigation
         // Base SelectTabCommand invokes virtual OnTabSelected to route demo tabs to Info section navigation
 
         // Initialize with default mock data AFTER base class initialization
@@ -155,6 +154,10 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         GameSettingsViewModel.MoveScrollAnchor = true;
         GameSettingsViewModel.GameTimeFontSize = 10;
         GameSettingsViewModel.LanguageFilter = false;
+
+        // Enable visibility for all extended client sections before assigning mock values:
+        // Generals Online visibility resets the camera bounds to their defaults.
+        GameSettingsViewModel.UpdateApplicableClientVisibility(true, true);
         GameSettingsViewModel.CameraMinHeight = 200;
         GameSettingsViewModel.CameraMaxHeight = 850;
 
@@ -176,9 +179,6 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         GameSettingsViewModel.GoEnableNotifications = true;
         GameSettingsViewModel.GoEnableSoundNotifications = true;
         GameSettingsViewModel.GoChatFontSize = 14;
-
-        // Enable visibility for all extended client sections
-        GameSettingsViewModel.UpdateApplicableClientVisibility(true, true);
 
         // Populate Mock Content Synchronously
         PopulateMockContent();

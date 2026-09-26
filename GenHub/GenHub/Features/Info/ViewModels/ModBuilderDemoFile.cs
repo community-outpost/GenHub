@@ -37,5 +37,6 @@ public partial class ModBuilderDemoFile : ObservableObject
     /// <summary>
     /// Gets the display label combining name and size.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable properties Name and SizeKb in partial view model")]
     public string DisplayLabel => $"{Name} ({SizeKb} KB)";
 }

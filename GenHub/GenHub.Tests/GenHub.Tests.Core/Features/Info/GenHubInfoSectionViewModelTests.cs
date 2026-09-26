@@ -3,13 +3,17 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Info;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Info;
 using GenHub.Features.Info.Services;
 using GenHub.Features.Info.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -198,6 +202,64 @@ public class GenHubInfoSectionViewModelTests
         vm.SelectedSection = new InfoSectionViewModel(sectionLong, _localizationServiceMock.Object);
         vm.CardsOpenPaneLength.Should().BeGreaterThan(220);
         vm.CardsOpenPaneLength.Should().BeLessOrEqualTo(380);
+    }
+
+    /// <summary>
+    /// Verifies that changing the demo width notifies the size preset flags used by the preset highlight.
+    /// </summary>
+    [Fact]
+    public void DemoSettingsWidth_Change_NotifiesDemoSizePresets()
+    {
+        var vm = CreateViewModel();
+        vm.IsDemoSizeStandard.Should().BeTrue();
+
+        var notified = new List<string?>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+        vm.DemoSettingsWidth = 980;
+
+        vm.IsDemoSizeExpanded.Should().BeTrue();
+        vm.IsDemoSizeStandard.Should().BeFalse();
+        notified.Should().Contain(nameof(GenHubInfoSectionViewModel.IsDemoSizeCompact));
+        notified.Should().Contain(nameof(GenHubInfoSectionViewModel.IsDemoSizeStandard));
+        notified.Should().Contain(nameof(GenHubInfoSectionViewModel.IsDemoSizeExpanded));
+    }
+
+    /// <summary>
+    /// Verifies that reloading changelogs raises a single loaded notification instead of one per streamed item.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReloadChangelogs_RaisesChangelogsLoadedOnceAsync()
+    {
+        var releases = new List<GitHubRelease>
+        {
+            new() { TagName = "v1", Name = "R1", PublishedAt = DateTime.UtcNow, Body = "B1" },
+            new() { TagName = "v2", Name = "R2", PublishedAt = DateTime.UtcNow.AddDays(-1), Body = "B2" },
+        };
+        _gitHubMock
+            .Setup(g => g.GetReleasesAsync("community-outpost", "GenHub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(releases);
+        _contentProviderMock
+            .Setup(p => p.GetAllSectionsAsync())
+            .ReturnsAsync(new List<InfoSection>
+            {
+                new() { Id = InfoConstants.SectionChangelogs, Title = "Changelogs", Cards = new List<InfoCard>() },
+            });
+
+        var vm = CreateViewModel();
+        await vm.InitializeAsync();
+        vm.Changelogs.Releases.Should().HaveCount(2);
+
+        var raised = 0;
+        vm.ChangelogsLoaded += () => raised++;
+
+        await vm.Changelogs.LoadChangelogsAsync();
+
+        raised.Should().Be(1);
+        var section = vm.Sections.Single(s => s.Id == InfoConstants.SectionChangelogs);
+        section.Cards.Should().HaveCount(2);
+        section.Cards.Select(c => c.Id).Should().OnlyContain(id => id.StartsWith(InfoConstants.CardChangelogsReleasePrefix, StringComparison.Ordinal));
     }
 
     private GenHubInfoSectionViewModel CreateViewModel()

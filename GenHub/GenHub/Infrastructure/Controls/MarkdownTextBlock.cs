@@ -23,6 +23,8 @@ public class MarkdownTextBlock : UserControl
     public static readonly StyledProperty<string?> MarkdownProperty =
         AvaloniaProperty.Register<MarkdownTextBlock, string?>(nameof(Markdown));
 
+    private const int TabWidth = 4;
+
     private static readonly IValueConverter PositiveWidthConverter =
         new FuncValueConverter<double, double>(w => w > 1.0 ? w : double.PositiveInfinity);
 
@@ -319,6 +321,26 @@ public class MarkdownTextBlock : UserControl
         return stackPanel;
     }
 
+    private static bool IsFenceDelimiter(string trimmedLine) =>
+        trimmedLine.StartsWith("```", StringComparison.Ordinal) ||
+        trimmedLine.StartsWith("~~~", StringComparison.Ordinal);
+
+    private static string ExpandLeadingTabs(string line)
+    {
+        var leadingEnd = 0;
+        while (leadingEnd < line.Length && (line[leadingEnd] == ' ' || line[leadingEnd] == '\t'))
+        {
+            leadingEnd++;
+        }
+
+        if (leadingEnd == 0)
+        {
+            return line;
+        }
+
+        return line[..leadingEnd].Replace("\t", new string(' ', TabWidth), StringComparison.Ordinal) + line[leadingEnd..];
+    }
+
     private static int CalculateCommonIndent(string[] lines)
     {
         var minIndent = int.MaxValue;
@@ -327,7 +349,7 @@ public class MarkdownTextBlock : UserControl
         foreach (var rawLine in lines)
         {
             var trimmed = rawLine.TrimStart();
-            if (trimmed.StartsWith("```", StringComparison.Ordinal))
+            if (IsFenceDelimiter(trimmed))
             {
                 inFencedCode = !inFencedCode;
                 continue;
@@ -354,6 +376,11 @@ public class MarkdownTextBlock : UserControl
         }
 
         var lines = text.Replace("\r\n", "\n").Split('\n');
+        for (var i = 0; i < lines.Length; i++)
+        {
+            lines[i] = ExpandLeadingTabs(lines[i]);
+        }
+
         var minIndent = CalculateCommonIndent(lines);
 
         if (minIndent > 0 && minIndent < int.MaxValue)

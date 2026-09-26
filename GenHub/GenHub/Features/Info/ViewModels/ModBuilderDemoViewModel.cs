@@ -7,6 +7,7 @@ using GenHub.Infrastructure.Converters;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -181,6 +182,7 @@ public partial class ModBuilderDemoViewModel : ObservableObject
                 !string.Equals(item.Conversion, "TGA->DDS", StringComparison.Ordinal))
             {
                 item.Conversion = "TGA->DDS";
+                item.TargetPath = Path.ChangeExtension(item.TargetPath, ".dds");
                 converted++;
             }
         }
