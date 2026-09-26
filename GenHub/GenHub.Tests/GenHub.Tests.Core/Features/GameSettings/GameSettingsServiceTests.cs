@@ -14,6 +14,12 @@ namespace GenHub.Tests.Core.Features.GameSettings;
 /// </summary>
 public class GameSettingsServiceTests
 {
+    private sealed class GeneralsOnlinePathProbe(ILogger<GameSettingsService> logger, IGamePathProvider pathProvider)
+        : GameSettingsService(logger, pathProvider)
+    {
+        public string SettingsPath => GetGeneralsOnlineSettingsPath();
+    }
+
     private readonly Mock<ILogger<GameSettingsService>> _loggerMock = new();
     private readonly Mock<IGamePathProvider> _pathProviderMock = new();
     private readonly GameSettingsService _service;
@@ -704,11 +710,5 @@ MoneyTransactionVolume = 70
         };
         mockService.Protected().Setup<string>("GetGeneralsOnlineSettingsPath").Returns(settingsPath);
         return mockService.Object;
-    }
-
-    private sealed class GeneralsOnlinePathProbe(ILogger<GameSettingsService> logger, IGamePathProvider pathProvider)
-        : GameSettingsService(logger, pathProvider)
-    {
-        public string SettingsPath => GetGeneralsOnlineSettingsPath();
     }
 }
