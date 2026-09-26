@@ -1035,35 +1035,39 @@ public partial class PublisherStudioViewModel(
     {
         try
         {
-            if (!File.Exists(_settingsPath))
+            var legacySettings = Path.Combine(
+                configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
+                AppConstants.AppName,
+                PublisherStudioConstants.SettingsFileName);
+
+            if (!File.Exists(_settingsPath) && File.Exists(legacySettings))
             {
-                var legacySettings = Path.Combine(
-                    configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
-                    AppConstants.AppName,
-                    PublisherStudioConstants.SettingsFileName);
-
-                if (File.Exists(legacySettings))
+                try
                 {
-                    try
+                    var dir = Path.GetDirectoryName(_settingsPath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     {
-                        var dir = Path.GetDirectoryName(_settingsPath);
-                        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                        {
-                            Directory.CreateDirectory(dir);
-                        }
+                        Directory.CreateDirectory(dir);
+                    }
 
-                        File.Move(legacySettings, _settingsPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "Failed to migrate legacy settings file {File}", legacySettings);
-                    }
+                    File.Move(legacySettings, _settingsPath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to migrate legacy settings file {File}", legacySettings);
                 }
             }
 
-            if (!File.Exists(_settingsPath))
+            var activeSettingsPath = File.Exists(_settingsPath)
+                ? _settingsPath
+                : (File.Exists(legacySettings) ? legacySettings : null);
+
+            if (activeSettingsPath == null)
+            {
                 return null;
-            var json = await File.ReadAllTextAsync(_settingsPath);
+            }
+
+            var json = await File.ReadAllTextAsync(activeSettingsPath);
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             return doc.RootElement.TryGetProperty("LastProjectPath", out var prop) ? prop.GetString() : null;
         }

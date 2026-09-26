@@ -44,8 +44,14 @@ public class StorageMaintenanceService(
             }
 
             MigratePublisherStudioSettings(dataRoot);
-            MigrateImageCache(dataRoot);
-            MigrateModBuilderSampleCache(dataRoot);
+            MigrateDirectoryFiles(
+                Path.Combine(dataRoot, "Images"),
+                Path.Combine(dataRoot, DirectoryNames.Cache, "Images"),
+                "Images");
+            MigrateDirectoryFiles(
+                Path.Combine(dataRoot, ModBuilderConstants.SampleCacheDirName),
+                Path.Combine(dataRoot, DirectoryNames.Cache, ModBuilderConstants.SampleCacheDirName),
+                ModBuilderConstants.SampleCacheDirName);
             CleanOrphanedExecutables(dataRoot);
             CleanEmptyGhostDirectories(dataRoot);
         }
@@ -74,8 +80,16 @@ public class StorageMaintenanceService(
                 }
                 else
                 {
+                    // Target file already exists. If legacy file is newer, back it up to prevent data loss.
+                    if (File.GetLastWriteTimeUtc(legacyFile) > File.GetLastWriteTimeUtc(targetFile))
+                    {
+                        var backupFile = Path.Combine(targetDir, $"{PublisherStudioConstants.SettingsFileName}.legacy.bak");
+                        File.Copy(legacyFile, backupFile, overwrite: true);
+                        _logger?.LogInformation("Backed up newer legacy publisher studio settings to {BackupFile}", backupFile);
+                    }
+
                     File.Delete(legacyFile);
-                    _logger?.LogInformation("Removed redundant legacy publisher studio settings file at {LegacyFile}", legacyFile);
+                    _logger?.LogInformation("Removed migrated legacy publisher studio settings file at {LegacyFile}", legacyFile);
                 }
             }
 
@@ -92,17 +106,15 @@ public class StorageMaintenanceService(
         }
     }
 
-    private void MigrateImageCache(string dataRoot)
+    private void MigrateDirectoryFiles(string legacyDir, string targetDir, string logName)
     {
         try
         {
-            var legacyDir = Path.Combine(dataRoot, "Images");
             if (!Directory.Exists(legacyDir))
             {
                 return;
             }
 
-            var targetDir = Path.Combine(dataRoot, DirectoryNames.Cache, "Images");
             Directory.CreateDirectory(targetDir);
 
             foreach (var filePath in Directory.GetFiles(legacyDir, "*", SearchOption.TopDirectoryOnly))
@@ -122,65 +134,19 @@ public class StorageMaintenanceService(
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    _logger?.LogDebug(ex, "Failed to migrate image cache file {File}", filePath);
+                    _logger?.LogDebug(ex, "Failed to migrate {Name} cache file {File}", logName, filePath);
                 }
             }
 
             if (!Directory.EnumerateFileSystemEntries(legacyDir).Any())
             {
                 Directory.Delete(legacyDir, recursive: false);
-                _logger?.LogInformation("Migrated legacy Images cache to {TargetDir} and removed legacy folder", targetDir);
+                _logger?.LogInformation("Migrated legacy {Name} to {TargetDir} and removed legacy folder", logName, targetDir);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger?.LogWarning(ex, "Failed to migrate legacy Images cache directory");
-        }
-    }
-
-    private void MigrateModBuilderSampleCache(string dataRoot)
-    {
-        try
-        {
-            var legacyDir = Path.Combine(dataRoot, ModBuilderConstants.SampleCacheDirName);
-            if (!Directory.Exists(legacyDir))
-            {
-                return;
-            }
-
-            var targetDir = Path.Combine(dataRoot, DirectoryNames.Cache, ModBuilderConstants.SampleCacheDirName);
-            Directory.CreateDirectory(targetDir);
-
-            foreach (var filePath in Directory.GetFiles(legacyDir, "*", SearchOption.TopDirectoryOnly))
-            {
-                try
-                {
-                    var fileName = Path.GetFileName(filePath);
-                    var destPath = Path.Combine(targetDir, fileName);
-                    if (!File.Exists(destPath))
-                    {
-                        File.Move(filePath, destPath);
-                    }
-                    else
-                    {
-                        File.Delete(filePath);
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    _logger?.LogDebug(ex, "Failed to migrate modbuilder sample cache file {File}", filePath);
-                }
-            }
-
-            if (!Directory.EnumerateFileSystemEntries(legacyDir).Any())
-            {
-                Directory.Delete(legacyDir, recursive: false);
-                _logger?.LogInformation("Migrated legacy ModBuilderSampleCache to {TargetDir} and removed legacy folder", targetDir);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger?.LogWarning(ex, "Failed to migrate legacy ModBuilderSampleCache directory");
+            _logger?.LogWarning(ex, "Failed to migrate legacy {Name} directory", logName);
         }
     }
 

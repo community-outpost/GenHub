@@ -61,16 +61,13 @@ public class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task RunMaintenanceAsync_MigratesPublisherStudioSettings_AndDeletesEmptyLegacyDir()
     {
-        // Arrange
         var legacyDir = Path.Combine(_testRoot, AppConstants.AppName);
         Directory.CreateDirectory(legacyDir);
         var legacySettings = Path.Combine(legacyDir, PublisherStudioConstants.SettingsFileName);
         await File.WriteAllTextAsync(legacySettings, "{\"LastProjectPath\":\"C:/project/catalog.json\"}");
 
-        // Act
         await _service.RunMaintenanceAsync();
 
-        // Assert
         var targetSettings = Path.Combine(_testRoot, PublisherStudioConstants.StudioFolderName, PublisherStudioConstants.SettingsFileName);
         File.Exists(targetSettings).Should().BeTrue();
         (await File.ReadAllTextAsync(targetSettings)).Should().Contain("C:/project/catalog.json");
@@ -78,49 +75,55 @@ public class StorageMaintenanceServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that images in the root Images directory are moved to Cache/Images and the legacy folder is deleted.
+    /// Verifies that when target settings already exist and legacy settings are newer, a backup file is created before removing legacy.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RunMaintenanceAsync_MigratesImageCache_AndDeletesEmptyLegacyDir()
+    public async Task RunMaintenanceAsync_BacksUpNewerLegacySettings_WhenTargetAlreadyExists()
     {
-        // Arrange
-        var legacyImagesDir = Path.Combine(_testRoot, "Images");
-        Directory.CreateDirectory(legacyImagesDir);
-        var dummyImage = Path.Combine(legacyImagesDir, "test-icon.png");
-        await File.WriteAllBytesAsync(dummyImage, [1, 2, 3, 4]);
+        var legacyDir = Path.Combine(_testRoot, AppConstants.AppName);
+        Directory.CreateDirectory(legacyDir);
+        var legacySettings = Path.Combine(legacyDir, PublisherStudioConstants.SettingsFileName);
+        await File.WriteAllTextAsync(legacySettings, "{\"LastProjectPath\":\"C:/newer/catalog.json\"}");
 
-        // Act
+        var targetDir = Path.Combine(_testRoot, PublisherStudioConstants.StudioFolderName);
+        Directory.CreateDirectory(targetDir);
+        var targetSettings = Path.Combine(targetDir, PublisherStudioConstants.SettingsFileName);
+        await File.WriteAllTextAsync(targetSettings, "{\"LastProjectPath\":\"C:/older/catalog.json\"}");
+
+        File.SetLastWriteTimeUtc(targetSettings, DateTime.UtcNow.AddHours(-2));
+        File.SetLastWriteTimeUtc(legacySettings, DateTime.UtcNow);
+
         await _service.RunMaintenanceAsync();
 
-        // Assert
-        var targetImage = Path.Combine(_testRoot, DirectoryNames.Cache, "Images", "test-icon.png");
-        File.Exists(targetImage).Should().BeTrue();
-        (await File.ReadAllBytesAsync(targetImage)).Should().Equal(1, 2, 3, 4);
-        Directory.Exists(legacyImagesDir).Should().BeFalse();
+        var backupFile = Path.Combine(targetDir, $"{PublisherStudioConstants.SettingsFileName}.legacy.bak");
+        File.Exists(backupFile).Should().BeTrue();
+        (await File.ReadAllTextAsync(backupFile)).Should().Contain("C:/newer/catalog.json");
+        File.Exists(legacySettings).Should().BeFalse();
     }
 
     /// <summary>
-    /// Verifies that ModBuilder sample caches are migrated to Cache/ModBuilderSampleCache.
+    /// Verifies that legacy cache folders are relocated into the centralized Cache directory and legacy folders are cleaned up.
     /// </summary>
+    /// <param name="legacyFolderName">The name of the legacy cache directory.</param>
+    /// <param name="fileName">The test file name.</param>
     /// <returns>A task representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task RunMaintenanceAsync_MigratesModBuilderSampleCache_AndDeletesEmptyLegacyDir()
+    [Theory]
+    [InlineData("Images", "test-icon.png")]
+    [InlineData(ModBuilderConstants.SampleCacheDirName, "sample-project.zip")]
+    public async Task RunMaintenanceAsync_MigratesLegacyCachesToCentralizedCacheFolder(string legacyFolderName, string fileName)
     {
-        // Arrange
-        var legacyCacheDir = Path.Combine(_testRoot, ModBuilderConstants.SampleCacheDirName);
-        Directory.CreateDirectory(legacyCacheDir);
-        var dummyZip = Path.Combine(legacyCacheDir, "sample-project.zip");
-        await File.WriteAllBytesAsync(dummyZip, [5, 6, 7, 8]);
+        var legacyDir = Path.Combine(_testRoot, legacyFolderName);
+        Directory.CreateDirectory(legacyDir);
+        var sourceFile = Path.Combine(legacyDir, fileName);
+        await File.WriteAllBytesAsync(sourceFile, [10, 20, 30, 40]);
 
-        // Act
         await _service.RunMaintenanceAsync();
 
-        // Assert
-        var targetZip = Path.Combine(_testRoot, DirectoryNames.Cache, ModBuilderConstants.SampleCacheDirName, "sample-project.zip");
-        File.Exists(targetZip).Should().BeTrue();
-        (await File.ReadAllBytesAsync(targetZip)).Should().Equal(5, 6, 7, 8);
-        Directory.Exists(legacyCacheDir).Should().BeFalse();
+        var targetFile = Path.Combine(_testRoot, DirectoryNames.Cache, legacyFolderName, fileName);
+        File.Exists(targetFile).Should().BeTrue();
+        (await File.ReadAllBytesAsync(targetFile)).Should().Equal(10, 20, 30, 40);
+        Directory.Exists(legacyDir).Should().BeFalse();
     }
 
     /// <summary>
@@ -130,7 +133,6 @@ public class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task RunMaintenanceAsync_CleansEmptyGhostDirectories()
     {
-        // Arrange
         var backupsDir = Path.Combine(_testRoot, "Backups");
         var mappacksDir = Path.Combine(_testRoot, "mappacks");
         var subMarkersDir = Path.Combine(_testRoot, "sub_markers");
@@ -139,10 +141,8 @@ public class StorageMaintenanceServiceTests : IDisposable
         Directory.CreateDirectory(mappacksDir);
         Directory.CreateDirectory(subMarkersDir);
 
-        // Act
         await _service.RunMaintenanceAsync();
 
-        // Assert
         Directory.Exists(backupsDir).Should().BeFalse();
         Directory.Exists(mappacksDir).Should().BeFalse();
         Directory.Exists(subMarkersDir).Should().BeFalse();
@@ -155,16 +155,13 @@ public class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task RunMaintenanceAsync_PreservesGhostDirectoriesIfNotEmpty()
     {
-        // Arrange
         var backupsDir = Path.Combine(_testRoot, "Backups");
         Directory.CreateDirectory(backupsDir);
         var keepFile = Path.Combine(backupsDir, "user-backup.zip");
         await File.WriteAllTextAsync(keepFile, "keep me");
 
-        // Act
         await _service.RunMaintenanceAsync();
 
-        // Assert
         Directory.Exists(backupsDir).Should().BeTrue();
         File.Exists(keepFile).Should().BeTrue();
     }
@@ -176,16 +173,13 @@ public class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task RunMaintenanceAsync_DeletesOrphanedGenHubWindowsExe_WhenCanonicalExeExists()
     {
-        // Arrange
         var canonicalExe = Path.Combine(_testRoot, "GenHub.exe");
         var orphanedExe = Path.Combine(_testRoot, "GenHub.Windows.exe");
         await File.WriteAllTextAsync(canonicalExe, "new exe");
         await File.WriteAllTextAsync(orphanedExe, "old exe");
 
-        // Act
         await _service.RunMaintenanceAsync();
 
-        // Assert
         File.Exists(canonicalExe).Should().BeTrue();
         File.Exists(orphanedExe).Should().BeFalse();
     }
@@ -197,14 +191,11 @@ public class StorageMaintenanceServiceTests : IDisposable
     [Fact]
     public async Task RunMaintenanceAsync_PreservesGenHubWindowsExe_WhenCanonicalExeDoesNotExist()
     {
-        // Arrange
         var orphanedExe = Path.Combine(_testRoot, "GenHub.Windows.exe");
         await File.WriteAllTextAsync(orphanedExe, "only exe");
 
-        // Act
         await _service.RunMaintenanceAsync();
 
-        // Assert
         File.Exists(orphanedExe).Should().BeTrue();
     }
 }

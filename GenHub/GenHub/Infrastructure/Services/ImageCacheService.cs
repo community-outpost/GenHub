@@ -891,23 +891,13 @@ public sealed class ImageCacheService : IImageCacheService
     {
         try
         {
-            foreach (var file in Directory.GetFiles(legacyDir, "*", SearchOption.TopDirectoryOnly))
+            foreach (var source in Directory.EnumerateFiles(legacyDir))
             {
-                var dest = Path.Combine(targetDir, Path.GetFileName(file));
-                if (!File.Exists(dest))
-                {
-                    File.Move(file, dest);
-                }
-                else
-                {
-                    File.Delete(file);
-                }
+                var destination = Path.Combine(targetDir, Path.GetFileName(source));
+                File.Move(source, destination, overwrite: true);
             }
 
-            if (!Directory.EnumerateFileSystemEntries(legacyDir).Any())
-            {
-                Directory.Delete(legacyDir, recursive: false);
-            }
+            Directory.Delete(legacyDir, recursive: false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
