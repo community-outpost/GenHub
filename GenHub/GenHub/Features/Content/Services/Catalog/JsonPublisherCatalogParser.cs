@@ -283,6 +283,75 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
+    private static void ValidateBasicProperties(CatalogContentItem content, int index, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(content.Id))
+        {
+            errors.Add($"Content item {index} is missing ID");
+        }
+
+        if (string.IsNullOrWhiteSpace(content.Name))
+        {
+            errors.Add($"Content item '{content.Id}' is missing name");
+        }
+    }
+
+    private static void ValidatePublisherType(CatalogContentItem content, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(content.PublisherType))
+        {
+            return;
+        }
+
+        var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(content);
+        if (!content.PublisherType.Equals(declaredPublisher, StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add($"Content item '{content.Id}' has unknown publisherType '{content.PublisherType}'");
+        }
+    }
+
+    private static void ValidateBundleItem(CatalogContentItem content, List<string> errors)
+    {
+        if (content.ContentType != ContentType.ContentBundle)
+        {
+            return;
+        }
+
+        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
+        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r.Dependencies != null && r.Dependencies.Count > 0);
+
+        if (!hasBundledItems && !hasReleaseDependencies)
+        {
+            errors.Add($"Content bundle '{content.Id}' has no bundled items");
+        }
+    }
+
+    private static void ValidateUpstreamItem(CatalogContentItem content, List<string> errors)
+    {
+        if (!CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content) || content.UpstreamSync == null)
+        {
+            return;
+        }
+
+        var provider = CatalogConstants.UpstreamProviders.Normalize(
+            !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ? content.UpstreamSync.Provider : content.PublisherType);
+
+        if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase))
+        {
+            var repo = content.UpstreamSync.Repository;
+            if (string.IsNullOrWhiteSpace(repo) || !IsValidOwnerRepo(repo))
+            {
+                errors.Add($"Upstream GitHub item '{content.Id}' must declare a valid repository in 'owner/repo' format");
+            }
+        }
+    }
+
+    private static bool IsValidOwnerRepo(string repo)
+    {
+        var parts = repo.Split('/');
+        return parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]);
+    }
+
     private void ValidateContentItems(PublisherCatalog catalog, List<string> errors)
     {
         if (catalog.Content == null || catalog.Content.Count == 0)
@@ -324,50 +393,21 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         string? hostPublisherId,
         List<string> errors)
     {
-        if (string.IsNullOrWhiteSpace(content.Id))
-        {
-            errors.Add($"Content item {index} is missing ID");
-        }
+        ValidateBasicProperties(content, index, errors);
+        ValidatePublisherType(content, errors);
+        ValidateBundleItem(content, errors);
+        ValidateUpstreamItem(content, errors);
+        ValidateItemReleases(content, itemsById, hostPublisherId, errors);
+    }
 
-        if (string.IsNullOrWhiteSpace(content.Name))
-        {
-            errors.Add($"Content item '{content.Id}' is missing name");
-        }
-
-        if (!string.IsNullOrWhiteSpace(content.PublisherType))
-        {
-            var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(content);
-            if (!content.PublisherType.Equals(declaredPublisher, StringComparison.OrdinalIgnoreCase))
-            {
-                errors.Add($"Content item '{content.Id}' has unknown publisherType '{content.PublisherType}'");
-            }
-        }
-
+    private void ValidateItemReleases(
+        CatalogContentItem content,
+        Dictionary<string, CatalogContentItem> itemsById,
+        string? hostPublisherId,
+        List<string> errors)
+    {
         var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
         var isBundle = content.ContentType == ContentType.ContentBundle;
-
-        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
-        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r.Dependencies != null && r.Dependencies.Count > 0);
-
-        if (isBundle && !hasBundledItems && !hasReleaseDependencies)
-        {
-            errors.Add($"Content bundle '{content.Id}' has no bundled items");
-        }
-
-        if (isUpstreamTracked && content.UpstreamSync != null)
-        {
-            var provider = CatalogConstants.UpstreamProviders.Normalize(
-                !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ? content.UpstreamSync.Provider : content.PublisherType);
-
-            if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase))
-            {
-                var repo = content.UpstreamSync.Repository;
-                if (string.IsNullOrWhiteSpace(repo) || repo.Split('/').Length != 2 || string.IsNullOrWhiteSpace(repo.Split('/')[0]) || string.IsNullOrWhiteSpace(repo.Split('/')[1]))
-                {
-                    errors.Add($"Upstream GitHub item '{content.Id}' must declare a valid repository in 'owner/repo' format");
-                }
-            }
-        }
 
         if (content.Releases == null || content.Releases.Count == 0)
         {

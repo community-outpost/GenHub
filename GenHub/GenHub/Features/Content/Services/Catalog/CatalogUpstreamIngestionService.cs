@@ -188,9 +188,24 @@ public class CatalogUpstreamIngestionService(
                 VariantAxis = "game-type",
                 IsDefaultVariant = isZh,
                 IsPrimary = isZh,
-                TargetGame = isZh ? GameType.ZeroHour : (isGen ? GameType.Generals : GameType.Unknown),
+                TargetGame = ResolveArtifactTargetGame(isZh, isGen),
             });
         }
+    }
+
+    private static GameType ResolveArtifactTargetGame(bool isZh, bool isGen)
+    {
+        if (isZh)
+        {
+            return GameType.ZeroHour;
+        }
+
+        if (isGen)
+        {
+            return GameType.Generals;
+        }
+
+        return GameType.Unknown;
     }
 
     private static void PopulateGenericGitHubArtifacts(
@@ -212,92 +227,18 @@ public class CatalogUpstreamIngestionService(
         }
     }
 
-    private async Task IngestSingleItemAsync(CatalogContentItem item, CancellationToken cancellationToken)
-    {
-        var sync = item.UpstreamSync;
-        var declaredProvider = !string.IsNullOrWhiteSpace(sync?.Provider) ? sync.Provider : item.PublisherType;
-        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
+    private static bool IsTrackPrereleaseChannel(string? channel) =>
+        string.Equals(channel, "prerelease", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(channel, "beta", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(channel, "nightly", StringComparison.OrdinalIgnoreCase);
 
-        if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-        {
-            await IngestGitHubItemAsync(item, sync, provider, cancellationToken);
-        }
-        else if (string.Equals(provider, CatalogConstants.UpstreamProviders.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
-        {
-            await IngestFromDiscovererAsync(generalsOnlineDiscoverer, "GeneralsOnline", item, cancellationToken);
-        }
-        else if (string.Equals(provider, CatalogConstants.UpstreamProviders.CommunityOutpost, StringComparison.OrdinalIgnoreCase))
-        {
-            await IngestFromDiscovererAsync(communityOutpostDiscoverer, "CommunityOutpost", item, cancellationToken);
-        }
-    }
-
-    private async Task IngestGitHubItemAsync(
-        CatalogContentItem item,
+    private static ContentRelease SynthesizeGitHubRelease(
+        GitHubRelease release,
+        bool isTrackPrerelease,
         CatalogUpstreamSync? sync,
         string? provider,
-        CancellationToken cancellationToken)
+        ILogger logger)
     {
-        var repo = sync?.Repository;
-        if (string.IsNullOrWhiteSpace(repo))
-        {
-            repo = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
-        }
-
-        var parts = repo.Split('/');
-        if (parts.Length != 2)
-        {
-            logger.LogWarning("Invalid GitHub repository format '{Repo}' on item '{ItemId}'", repo, item.Id);
-            return;
-        }
-
-        var isTrackPrerelease = string.Equals(sync?.Channel, "prerelease", StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(sync?.Channel, "beta", StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(sync?.Channel, "nightly", StringComparison.OrdinalIgnoreCase);
-
-        var cacheKey = $"{repo}:{sync?.Channel ?? "stable"}";
-        GitHubRelease? release = null;
-
-        if (GitHubReleaseCache.TryGetValue(cacheKey, out var cached) && (DateTime.UtcNow - cached.CachedAt) < CacheTtl)
-        {
-            release = cached.Release;
-        }
-        else
-        {
-            if (isTrackPrerelease)
-            {
-                var allReleases = await gitHubClient.GetReleasesAsync(parts[0], parts[1], cancellationToken);
-                release = allReleases?
-                    .Where(r => !r.IsDraft)
-                    .OrderByDescending(r => r.PublishedAt ?? r.CreatedAt)
-                    .FirstOrDefault();
-            }
-            else
-            {
-                release = await gitHubClient.GetLatestReleaseAsync(parts[0], parts[1], cancellationToken);
-                if (release == null)
-                {
-                    // Fall back to newest release including prerelease so item does not disappear completely
-                    var allReleases = await gitHubClient.GetReleasesAsync(parts[0], parts[1], cancellationToken);
-                    release = allReleases?
-                        .Where(r => !r.IsDraft)
-                        .OrderByDescending(r => r.PublishedAt ?? r.CreatedAt)
-                        .FirstOrDefault();
-                }
-            }
-
-            if (release != null)
-            {
-                GitHubReleaseCache[cacheKey] = (release, DateTime.UtcNow);
-            }
-        }
-
-        if (release == null)
-        {
-            return;
-        }
-
         var version = NormalizeReleaseVersion(release);
         var synthesized = new ContentRelease
         {
@@ -321,23 +262,135 @@ public class CatalogUpstreamIngestionService(
             PopulateGenericGitHubArtifacts(synthesized, release.Assets);
         }
 
-        // Add EA base game dependency for GameClient items if not already declared
-        if (item.ContentType == ContentType.GameClient &&
-            (item.TargetGame is GameType.Generals or GameType.ZeroHour ||
-             string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase)))
-        {
-            var baseGameId = item.TargetGame == GameType.Generals ? CatalogConstants.GeneralsContentId : CatalogConstants.ZeroHourContentId;
-            var baseGameVersion = item.TargetGame == GameType.Generals ? ManifestConstants.GeneralsManifestVersion : ManifestConstants.ZeroHourManifestVersion;
+        return synthesized;
+    }
 
-            synthesized.Dependencies.Add(new CatalogDependency
-            {
-                PublisherId = CatalogConstants.EaPublisherId,
-                ContentId = baseGameId,
-                VersionConstraint = baseGameVersion,
-                ContentType = ContentType.GameInstallation.ToString(),
-                IsOptional = false,
-            });
+    private static void AttachEaBaseGameDependency(
+        CatalogContentItem item,
+        ContentRelease synthesized,
+        string? provider)
+    {
+        if (item.ContentType != ContentType.GameClient)
+        {
+            return;
         }
+
+        var isZhOrGen = item.TargetGame is GameType.Generals or GameType.ZeroHour;
+        var isSuperHackers = string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+
+        if (!isZhOrGen && !isSuperHackers)
+        {
+            return;
+        }
+
+        var isGenerals = item.TargetGame == GameType.Generals;
+        var baseGameId = isGenerals ? CatalogConstants.GeneralsContentId : CatalogConstants.ZeroHourContentId;
+        var baseGameVersion = isGenerals ? ManifestConstants.GeneralsManifestVersion : ManifestConstants.ZeroHourManifestVersion;
+
+        synthesized.Dependencies.Add(new CatalogDependency
+        {
+            PublisherId = CatalogConstants.EaPublisherId,
+            ContentId = baseGameId,
+            VersionConstraint = baseGameVersion,
+            ContentType = ContentType.GameInstallation.ToString(),
+            IsOptional = false,
+        });
+    }
+
+    private async Task IngestSingleItemAsync(CatalogContentItem item, CancellationToken cancellationToken)
+    {
+        var sync = item.UpstreamSync;
+        var declaredProvider = !string.IsNullOrWhiteSpace(sync?.Provider) ? sync.Provider : item.PublisherType;
+        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
+
+        if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            await IngestGitHubItemAsync(item, sync, provider, cancellationToken);
+        }
+        else if (string.Equals(provider, CatalogConstants.UpstreamProviders.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            await IngestFromDiscovererAsync(generalsOnlineDiscoverer, "GeneralsOnline", item, cancellationToken);
+        }
+        else if (string.Equals(provider, CatalogConstants.UpstreamProviders.CommunityOutpost, StringComparison.OrdinalIgnoreCase))
+        {
+            await IngestFromDiscovererAsync(communityOutpostDiscoverer, "CommunityOutpost", item, cancellationToken);
+        }
+    }
+
+    private async Task<GitHubRelease?> FetchGitHubReleaseAsync(
+        string owner,
+        string repoName,
+        bool isTrackPrerelease,
+        string cacheKey,
+        CancellationToken cancellationToken)
+    {
+        if (GitHubReleaseCache.TryGetValue(cacheKey, out var cached) && (DateTime.UtcNow - cached.CachedAt) < CacheTtl)
+        {
+            return cached.Release;
+        }
+
+        GitHubRelease? release;
+        if (isTrackPrerelease)
+        {
+            release = await FetchNewestReleaseAsync(owner, repoName, cancellationToken);
+        }
+        else
+        {
+            release = await gitHubClient.GetLatestReleaseAsync(owner, repoName, cancellationToken);
+            release ??= await FetchNewestReleaseAsync(owner, repoName, cancellationToken);
+        }
+
+        if (release != null)
+        {
+            GitHubReleaseCache[cacheKey] = (release, DateTime.UtcNow);
+        }
+
+        return release;
+    }
+
+    private async Task<GitHubRelease?> FetchNewestReleaseAsync(
+        string owner,
+        string repoName,
+        CancellationToken cancellationToken)
+    {
+        var allReleases = await gitHubClient.GetReleasesAsync(owner, repoName, cancellationToken);
+        return allReleases?
+            .Where(r => !r.IsDraft)
+            .OrderByDescending(r => r.PublishedAt ?? r.CreatedAt)
+            .FirstOrDefault();
+    }
+
+    private async Task IngestGitHubItemAsync(
+        CatalogContentItem item,
+        CatalogUpstreamSync? sync,
+        string? provider,
+        CancellationToken cancellationToken)
+    {
+        var repo = sync?.Repository;
+        if (string.IsNullOrWhiteSpace(repo))
+        {
+            repo = $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}";
+        }
+
+        var parts = repo.Split('/');
+        if (parts.Length != 2)
+        {
+            logger.LogWarning("Invalid GitHub repository format '{Repo}' on item '{ItemId}'", repo, item.Id);
+            return;
+        }
+
+        var isTrackPrerelease = IsTrackPrereleaseChannel(sync?.Channel);
+        var cacheKey = $"{repo}:{sync?.Channel ?? "stable"}";
+
+        var release = await FetchGitHubReleaseAsync(parts[0], parts[1], isTrackPrerelease, cacheKey, cancellationToken);
+        if (release == null)
+        {
+            return;
+        }
+
+        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, logger);
+        AttachEaBaseGameDependency(item, synthesized, provider);
 
         if (synthesized.Artifacts.Count > 0)
         {
@@ -346,7 +399,7 @@ public class CatalogUpstreamIngestionService(
         }
         else
         {
-            logger.LogWarning("No artifacts matched upstream release '{Version}' for item '{ItemId}', keeping existing releases", version, item.Id);
+            logger.LogWarning("No artifacts matched upstream release '{Version}' for item '{ItemId}', keeping existing releases", synthesized.Version, item.Id);
         }
     }
 

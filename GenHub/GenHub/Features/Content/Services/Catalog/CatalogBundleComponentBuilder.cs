@@ -154,41 +154,48 @@ public static class CatalogBundleComponentBuilder
         };
     }
 
-    private static CatalogBundleComponentDescriptor BuildDependencyDescriptor(
+    private static CatalogBundleComponentDescriptor BuildMissingSiblingDescriptor(
         CatalogDependency dependency,
         CatalogContentItem parent,
         Dictionary<string, CatalogContentItem> itemsById)
     {
-        if (CatalogManifestIdentity.IsBaseGameDependency(dependency))
+        return new CatalogBundleComponentDescriptor
         {
-            return BuildBaseGameDescriptor(dependency);
+            PublisherId = dependency.PublisherId ?? string.Empty,
+            ContentId = dependency.ContentId,
+            Name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId),
+            ContentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById).ToString(),
+            IsOptional = dependency.IsOptional,
+            IsBaseGame = false,
+            IsAvailable = false,
+            UnavailableReason = $"Item '{dependency.ContentId}' not found in catalog",
+        };
+    }
+
+    private static ContentRelease? ResolveSiblingRelease(
+        CatalogContentItem sibling,
+        string? versionConstraint,
+        out bool isSyntheticPlaceholder)
+    {
+        isSyntheticPlaceholder = false;
+        var siblingRelease = SelectRelease(sibling, versionConstraint);
+        if (siblingRelease != null)
+        {
+            return siblingRelease;
         }
 
-        itemsById.TryGetValue(dependency.ContentId, out var sibling);
-        if (sibling == null)
+        var isConstraintLatestOrEmpty = string.IsNullOrWhiteSpace(versionConstraint) ||
+                                        string.Equals(versionConstraint.Trim(), CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase);
+
+        if (!isConstraintLatestOrEmpty)
         {
-            return new CatalogBundleComponentDescriptor
-            {
-                PublisherId = dependency.PublisherId ?? string.Empty,
-                ContentId = dependency.ContentId,
-                Name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId),
-                ContentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById).ToString(),
-                IsOptional = dependency.IsOptional,
-                IsBaseGame = false,
-                IsAvailable = false,
-                UnavailableReason = $"Item '{dependency.ContentId}' not found in catalog",
-            };
+            return null;
         }
 
-        var siblingRelease = SelectRelease(sibling, dependency.VersionConstraint);
-        var isConstraintLatestOrEmpty = string.IsNullOrWhiteSpace(dependency.VersionConstraint) ||
-                                        string.Equals(dependency.VersionConstraint.Trim(), CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase);
-
-        var isSyntheticPlaceholder = false;
-        if (siblingRelease == null && isConstraintLatestOrEmpty && sibling.UpstreamSync?.AssetRules is { Count: > 0 })
+        if (sibling.UpstreamSync?.AssetRules is { Count: > 0 })
         {
             isSyntheticPlaceholder = true;
-            siblingRelease = new ContentRelease
+            return new ContentRelease
             {
                 Version = "latest",
                 IsLatest = true,
@@ -202,41 +209,73 @@ public static class CatalogBundleComponentBuilder
                 }).ToList(),
             };
         }
-        else if (siblingRelease == null && isConstraintLatestOrEmpty && (string.Equals(sibling.PublisherType, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                                           string.Equals(sibling.UpstreamSync?.Provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase)))
+
+        var isSuperHackers = string.Equals(sibling.PublisherType, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(sibling.UpstreamSync?.Provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+
+        if (isSuperHackers)
         {
             isSyntheticPlaceholder = true;
-            siblingRelease = new ContentRelease
+            return new ContentRelease
             {
                 Version = "latest",
                 IsLatest = true,
             };
         }
 
+        return null;
+    }
+
+    private static CatalogBundleComponentDescriptor BuildUnavailableReleaseDescriptor(
+        CatalogDependency dependency,
+        CatalogContentItem parent,
+        CatalogContentItem sibling,
+        Dictionary<string, CatalogContentItem> itemsById)
+    {
+        var declaredPub = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
+        var resolvedType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
+        var displayName = !string.IsNullOrWhiteSpace(sibling.Name)
+            ? sibling.Name
+            : CatalogManifestIdentity.HumanizeContentId(dependency.ContentId);
+
+        var unavailableReason = !string.IsNullOrWhiteSpace(dependency.VersionConstraint)
+            ? $"No release of '{dependency.ContentId}' matches constraint '{dependency.VersionConstraint}'"
+            : $"Item '{dependency.ContentId}' has no releases";
+
+        return new CatalogBundleComponentDescriptor
+        {
+            PublisherId = declaredPub,
+            ContentId = dependency.ContentId,
+            Name = displayName,
+            ContentType = resolvedType.ToString(),
+            IsOptional = dependency.IsOptional,
+            IsBaseGame = false,
+            IsAvailable = false,
+            UnavailableReason = unavailableReason,
+            CatalogItemJson = JsonSerializer.Serialize(sibling),
+        };
+    }
+
+    private static CatalogBundleComponentDescriptor BuildDependencyDescriptor(
+        CatalogDependency dependency,
+        CatalogContentItem parent,
+        Dictionary<string, CatalogContentItem> itemsById)
+    {
+        if (CatalogManifestIdentity.IsBaseGameDependency(dependency))
+        {
+            return BuildBaseGameDescriptor(dependency);
+        }
+
+        itemsById.TryGetValue(dependency.ContentId, out var sibling);
+        if (sibling == null)
+        {
+            return BuildMissingSiblingDescriptor(dependency, parent, itemsById);
+        }
+
+        var siblingRelease = ResolveSiblingRelease(sibling, dependency.VersionConstraint, out var isSyntheticPlaceholder);
         if (siblingRelease == null)
         {
-            var declaredPub = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
-            var resolvedType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
-            var displayName = !string.IsNullOrWhiteSpace(sibling.Name)
-                ? sibling.Name
-                : CatalogManifestIdentity.HumanizeContentId(dependency.ContentId);
-
-            var unavailableReason = !string.IsNullOrWhiteSpace(dependency.VersionConstraint)
-                ? $"No release of '{dependency.ContentId}' matches constraint '{dependency.VersionConstraint}'"
-                : $"Item '{dependency.ContentId}' has no releases";
-
-            return new CatalogBundleComponentDescriptor
-            {
-                PublisherId = declaredPub,
-                ContentId = dependency.ContentId,
-                Name = displayName,
-                ContentType = resolvedType.ToString(),
-                IsOptional = dependency.IsOptional,
-                IsBaseGame = false,
-                IsAvailable = false,
-                UnavailableReason = unavailableReason,
-                CatalogItemJson = JsonSerializer.Serialize(sibling),
-            };
+            return BuildUnavailableReleaseDescriptor(dependency, parent, sibling, itemsById);
         }
 
         var hasDownloadableArtifacts = siblingRelease.Artifacts != null && siblingRelease.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
