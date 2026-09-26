@@ -202,6 +202,7 @@ public sealed class ProfileSharingImportInstallationManifestTests
         }
 
         PoolInstallationManifest(UnknownVersionInstallationManifestId, GameInstallationType.Custom, sourcePath);
+        PoolInstallationManifest(PooledInstallationManifestId, GameInstallationType.Custom);
         PoolClientManifest();
         SetUpInstallation("1.04");
         using var sharingService = CreateSharingService();
@@ -268,6 +269,7 @@ public sealed class ProfileSharingImportInstallationManifestTests
                 DisplayName = "Orphan Mod",
                 Version = "1.0",
                 ContentType = ContentType.Mod,
+                PackageHash = new string('a', 64),
             },
         ]);
 

@@ -1458,8 +1458,7 @@ public class ProfileSharingService(
 
     private static bool HasAcquisitionSource(SharedManifestDependency dependency)
     {
-        if (!string.IsNullOrWhiteSpace(dependency.PackageUrl) ||
-            !string.IsNullOrWhiteSpace(dependency.PackageHash))
+        if (!string.IsNullOrWhiteSpace(dependency.PackageUrl))
         {
             return true;
         }
