@@ -300,8 +300,8 @@ public class CasStorage(
         {
             try
             {
-                var lockStream = new FileStream(lockPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                var casLock = new CasLock(lockPath, lockStream);
+                var lockStream = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+                var casLock = new CasLock(lockStream);
                 try
                 {
                     await lockStream.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()), cancellationToken);
@@ -354,25 +354,10 @@ public class CasStorage(
         }
     }
 
-    private class CasLock(string lockPath, FileStream lockStream) : IAsyncDisposable
+    // Keep the lock file: unlinking it after closing permits another writer to acquire
+    // the old inode while a third writer locks a replacement file at the same path.
+    private sealed class CasLock(FileStream lockStream) : IAsyncDisposable
     {
-        private readonly string _lockPath = lockPath;
-        private readonly FileStream _lockStream = lockStream;
-
-        public async ValueTask DisposeAsync()
-        {
-            try
-            {
-                _lockStream?.Dispose();
-                if (File.Exists(_lockPath))
-                {
-                    await Task.Run(() => File.Delete(_lockPath));
-                }
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
-        }
+        public ValueTask DisposeAsync() => lockStream.DisposeAsync();
     }
 }

@@ -44,6 +44,19 @@ public class ContentManifestPoolTests : IDisposable
         Directory.CreateDirectory(_tempDirectory);
     }
 
+    /// <summary>Metadata updates preserve cancellation from the storage layer.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task AddManifestAsync_MetadataCancellationPropagatesAsync()
+    {
+        var manifest = CreateTestManifest();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _manifestPool.AddManifestAsync(manifest, cts.Token));
+    }
+
     /// <summary>
     /// Should add manifest successfully when content is already stored.
     /// </summary>

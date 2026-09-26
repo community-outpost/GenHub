@@ -48,7 +48,7 @@ public class CasStoreCancellationTests : IDisposable
     ];
 
     /// <summary>
-    /// Verifies that cancelling mid-copy throws and leaves no temp file, object, or lock behind.
+    /// Verifies that cancelling mid-copy throws and leaves no temporary content or held lock behind.
     /// </summary>
     /// <param name="verifyIntegrity">Whether the store verifies the hash while copying.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
@@ -221,7 +221,13 @@ public class CasStoreCancellationTests : IDisposable
         var casRoot = Path.Combine(_tempPath, "cas");
         Assert.False(File.Exists(storage.GetObjectPath(_hash)));
         Assert.True(Directory.Exists(casRoot));
-        Assert.Empty(Directory.GetFiles(casRoot, "*", SearchOption.AllDirectories));
+        var files = Directory.GetFiles(casRoot, "*", SearchOption.AllDirectories);
+        Assert.Single(files);
+        foreach (var file in files)
+        {
+            Assert.Equal(".lock", Path.GetExtension(file));
+            using var releasedLock = new FileStream(file, System.IO.FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        }
     }
 
     private sealed class CancellingStream(byte[] content, CancellationTokenSource cts) : MemoryStream(content)

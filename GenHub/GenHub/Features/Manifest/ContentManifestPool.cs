@@ -90,7 +90,7 @@ public class ContentManifestPool(
             logger.LogDebug("Updated manifest {ManifestId} in storage and refreshed CAS tracking", manifest.Id);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to add manifest {ManifestId}", manifest.Id);
             return OperationResult<bool>.CreateFailure($"Failed to add manifest: {ex.Message}");
