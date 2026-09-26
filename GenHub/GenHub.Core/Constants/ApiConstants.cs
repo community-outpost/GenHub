@@ -423,9 +423,10 @@ public static class ApiConstants
     /// <returns>The override, the advertised host, or the default, in that order.</returns>
     public static string ResolveRelayHost(string? advertisedHost)
     {
-        if (Environment.GetEnvironmentVariable(OnlineRelayHostEnvVar) is { Length: > 0 } customHost)
+        if (Environment.GetEnvironmentVariable(OnlineRelayHostEnvVar) is { Length: > 0 } customHost &&
+            !string.IsNullOrWhiteSpace(customHost))
         {
-            return customHost;
+            return customHost.Trim();
         }
 
         if (!string.IsNullOrWhiteSpace(advertisedHost))

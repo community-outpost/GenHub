@@ -122,7 +122,11 @@ public sealed class LinuxTunSetup(ILogger<LinuxTunSetup> logger) : ITunInterface
         int mtu,
         string user)
     {
-        var escapedUser = user.Replace("\"", "\\\"", StringComparison.Ordinal);
+        var escapedUser = user
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal)
+            .Replace("$", "\\$", StringComparison.Ordinal)
+            .Replace("`", "\\`", StringComparison.Ordinal);
         var ip = OnlineConstants.TunIpBinary;
         var address = string.Join(' ', BuildAddressArgs(interfaceName, overlayIp, prefixLength));
         var linkUp = string.Join(' ', BuildLinkUpArgs(interfaceName, mtu));
