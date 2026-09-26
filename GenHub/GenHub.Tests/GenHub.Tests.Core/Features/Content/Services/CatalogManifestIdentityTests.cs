@@ -161,10 +161,19 @@ public sealed class CatalogManifestIdentityTests
     /// <param name="expected">The expected normalized publisherType.</param>
     [Theory]
     [InlineData("thesuperhackers", "thesuperhackers")]
+    [InlineData("the-super-hackers", "thesuperhackers")]
+    [InlineData("The Super Hackers", "thesuperhackers")]
     [InlineData("communityoutpost", "communityoutpost")]
+    [InlineData("community-outpost", "communityoutpost")]
+    [InlineData("Community Outpost", "communityoutpost")]
     [InlineData("generalsonline", "generalsonline")]
+    [InlineData("generals-online", "generalsonline")]
+    [InlineData("Generals Online", "generalsonline")]
     [InlineData("github", "github")]
+    [InlineData("github-releases", "github")]
+    [InlineData("GitHub Releases", "github")]
     [InlineData("moddb", "moddb")]
+    [InlineData("mod-db", "moddb")]
     [InlineData("generic-catalog", "generic-catalog")]
     [InlineData(null, "generic-catalog")]
     [InlineData("", "generic-catalog")]
@@ -179,6 +188,25 @@ public sealed class CatalogManifestIdentityTests
         };
 
         Assert.Equal(expected, CatalogManifestIdentity.ResolveDeclaredPublisherType(item));
+    }
+
+    /// <summary>
+    /// Tests that ResolveDeclaredPublisherType falls back to UpstreamSync.Provider when publisherType is missing.
+    /// </summary>
+    [Fact]
+    public void ResolveDeclaredPublisherType_FallsBackToUpstreamSyncProvider()
+    {
+        var item = new CatalogContentItem
+        {
+            Id = "test-item",
+            PublisherType = null,
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = "GitHubReleases",
+            },
+        };
+
+        Assert.Equal(PublisherTypeConstants.GitHub, CatalogManifestIdentity.ResolveDeclaredPublisherType(item));
     }
 
     /// <summary>

@@ -56,13 +56,13 @@ public partial class ImageInputBox : UserControl
         new("AOD Maps", "avares://GenHub/Assets/Logos/aodmaps-logo.png"),
     ];
 
-    private void OnBuiltInAssetSelected(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnBuiltInAssetSelected(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string url)
         {
-            Text = url;
             var assetBtn = this.FindControl<Button>("AssetPickerButton");
             assetBtn?.Flyout?.Hide();
+            await ProcessIncomingInputAsync(url);
         }
     }
 

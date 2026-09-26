@@ -320,6 +320,26 @@ public sealed class JsonPublisherCatalogParserTests
     }
 
     /// <summary>
+    /// The dominator mappacks catalog must parse and validate end-to-end.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_DominatorMappacksCatalog_SucceedsAsync()
+    {
+        var path = FindDominatorMappacksCatalogPath();
+        Assert.True(File.Exists(path), $"Sample catalog not found at {path}");
+
+        var json = await File.ReadAllTextAsync(path);
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = await parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal("dominator-mappacks", result.Data!.Publisher.Id);
+        Assert.NotEmpty(result.Data.Content);
+        Assert.Contains(result.Data.Content, c => c.ContentType == ContentType.MapPack);
+    }
+
+    /// <summary>
     /// The community competitive ecosystem catalog must parse and validate end-to-end.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -381,6 +401,38 @@ public sealed class JsonPublisherCatalogParserTests
 
         Assert.False(result.Success);
         Assert.Contains(result.Errors, e => e.Contains("must declare a valid repository in 'owner/repo' format", StringComparison.Ordinal));
+    }
+
+    private static string FindDominatorMappacksCatalogPath()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "GenHub", "GenHub", "SampleCatalogs", "dominator-mappacks.catalog.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            candidate = Path.Combine(dir.FullName, "GenHub", "SampleCatalogs", "dominator-mappacks.catalog.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        return Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            "..",
+            "GenHub",
+            "SampleCatalogs",
+            "dominator-mappacks.catalog.json"));
     }
 
     private static string FindCommunityCompetitiveCatalogPath()
