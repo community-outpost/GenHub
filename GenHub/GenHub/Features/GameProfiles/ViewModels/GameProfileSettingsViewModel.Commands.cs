@@ -131,7 +131,10 @@ public partial class GameProfileSettingsViewModel
                 _logger?.LogInformation("Added dropped local content via dialog: {Name}", contentItem.DisplayName);
 
                 NotifyLocalContentAdded(contentItem.DisplayName);
-                await EnableContentInternal(contentItem, bypassLoadingGuard: true, cancellationToken: cancellationToken);
+
+                // The confirmed dialog result is a committed operation: enabling runs to completion
+                // so cancellation cannot leave the profile and displayed collections partially updated.
+                await EnableContentInternal(contentItem, bypassLoadingGuard: true, cancellationToken: CancellationToken.None);
 
                 await RefreshFiltersAndContentAsync();
             }
