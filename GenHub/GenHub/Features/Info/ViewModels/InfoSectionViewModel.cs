@@ -1,9 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Info;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace GenHub.Features.Info.ViewModels;
@@ -29,6 +31,29 @@ public partial class InfoSectionViewModel(InfoSection model, ILocalizationServic
     /// Gets the underlying model.
     /// </summary>
     public InfoSection Model => model;
+
+    /// <summary>
+    /// Gets the icon kind representing this section.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads observable instance property Id for UI binding")]
+    public Material.Icons.MaterialIconKind IconKind => Id switch
+    {
+        InfoConstants.SectionQuickstart => Material.Icons.MaterialIconKind.RocketLaunchOutline,
+        InfoConstants.SectionGameProfiles => Material.Icons.MaterialIconKind.AccountMultipleOutline,
+        InfoConstants.SectionGameSettings => Material.Icons.MaterialIconKind.TuneVariant,
+        InfoConstants.SectionGameProfileContent => Material.Icons.MaterialIconKind.FolderCogOutline,
+        InfoConstants.SectionShortcuts => Material.Icons.MaterialIconKind.Launch,
+        InfoConstants.SectionSteam => Material.Icons.MaterialIconKind.Steam,
+        InfoConstants.SectionLocalContent => Material.Icons.MaterialIconKind.FolderEyeOutline,
+        InfoConstants.SectionTools => Material.Icons.MaterialIconKind.HammerWrench,
+        InfoConstants.SectionScanGames => Material.Icons.MaterialIconKind.FolderSearchOutline,
+        InfoConstants.SectionWorkspaces => Material.Icons.MaterialIconKind.LayersOutline,
+        InfoConstants.SectionAppUpdates => Material.Icons.MaterialIconKind.Update,
+        InfoConstants.SectionChangelogs => Material.Icons.MaterialIconKind.History,
+        InfoConstants.SectionFaq => Material.Icons.MaterialIconKind.HelpCircleOutline,
+        InfoConstants.SectionGoChangelog => Material.Icons.MaterialIconKind.ClipboardTextClockOutline,
+        _ => Material.Icons.MaterialIconKind.InformationOutline,
+    };
 
     /// <summary>
     /// Gets the collection of cards in this section.

@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -80,6 +81,9 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
             }
         };
 
+        // Shadowed SelectTabCommand to route demo tabs to Info section navigation
+        // Base SelectTabCommand invokes virtual OnTabSelected to route demo tabs to Info section navigation
+
         // Initialize with default mock data AFTER base class initialization
         InitializeMockMetadata();
 
@@ -107,15 +111,74 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         OnPropertyChanged(nameof(CoverPath));
         OnPropertyChanged(nameof(ColorValue));
 
-        // Initialize GameSettings properties
+        // Initialize comprehensive GameSettings properties
         GameSettingsViewModel.SelectedGameType = Core.Models.Enums.GameType.ZeroHour;
         GameSettingsViewModel.ColorValue = ColorValue;
         GameSettingsViewModel.ResolutionWidth = 1920;
         GameSettingsViewModel.ResolutionHeight = 1080;
-        GameSettingsViewModel.GoCameraMaxHeightOnlyWhenLobbyHost = 450;
         GameSettingsViewModel.Windowed = true;
         GameSettingsViewModel.TextureQuality = TextureQuality.High;
         GameSettingsViewModel.Shadows = true;
+        GameSettingsViewModel.UseShadowDecals = true;
+        GameSettingsViewModel.ParticleEffects = true;
+        GameSettingsViewModel.BuildingAnimations = true;
+        GameSettingsViewModel.BuildingOcclusion = true;
+        GameSettingsViewModel.ShowProps = true;
+        GameSettingsViewModel.ExtraAnimations = true;
+        GameSettingsViewModel.DynamicLOD = false;
+        GameSettingsViewModel.StaticGameLOD = "Custom";
+        GameSettingsViewModel.IdealStaticGameLOD = "VeryHigh";
+        GameSettingsViewModel.AntiAliasing = 2;
+        GameSettingsViewModel.MaxParticleCount = 5000;
+        GameSettingsViewModel.ShowSoftWaterEdge = true;
+        GameSettingsViewModel.ShowTrees = true;
+        GameSettingsViewModel.UseCloudMap = true;
+        GameSettingsViewModel.UseLightMap = true;
+        GameSettingsViewModel.HeatEffects = true;
+        GameSettingsViewModel.SkipEALogo = true;
+
+        // Audio
+        GameSettingsViewModel.SoundVolume = 85;
+        GameSettingsViewModel.ThreeDSoundVolume = 80;
+        GameSettingsViewModel.SpeechVolume = 85;
+        GameSettingsViewModel.MusicVolume = 70;
+        GameSettingsViewModel.AudioEnabled = true;
+        GameSettingsViewModel.NumSounds = 64;
+
+        // Controls & Camera
+        GameSettingsViewModel.ScrollFactor = 50;
+        GameSettingsViewModel.AlternateMouseSetup = true;
+        GameSettingsViewModel.UseDoubleClickAttackMove = true;
+        GameSettingsViewModel.Retaliation = true;
+        GameSettingsViewModel.SendDelay = false;
+        GameSettingsViewModel.DrawScrollAnchor = true;
+        GameSettingsViewModel.MoveScrollAnchor = true;
+        GameSettingsViewModel.GameTimeFontSize = 10;
+        GameSettingsViewModel.LanguageFilter = false;
+        GameSettingsViewModel.CameraMinHeight = 200;
+        GameSettingsViewModel.CameraMaxHeight = 850;
+
+        // TheSuperHackers extensions
+        GameSettingsViewModel.TshArchiveReplays = true;
+        GameSettingsViewModel.TshShowMoneyPerMinute = true;
+        GameSettingsViewModel.TshPlayerObserverEnabled = true;
+        GameSettingsViewModel.TshCursorCaptureEnabledInFullscreenGame = true;
+        GameSettingsViewModel.TshCursorCaptureEnabledInWindowedGame = true;
+        GameSettingsViewModel.TshScreenEdgeScrollEnabledInWindowedApp = true;
+        GameSettingsViewModel.TshMoneyTransactionVolume = 75;
+
+        // Generals Online modern client extensions
+        GameSettingsViewModel.GoShowFps = true;
+        GameSettingsViewModel.GoShowPing = true;
+        GameSettingsViewModel.GoShowPlayerRanks = true;
+        GameSettingsViewModel.GoAutoLogin = true;
+        GameSettingsViewModel.GoRememberUsername = true;
+        GameSettingsViewModel.GoEnableNotifications = true;
+        GameSettingsViewModel.GoEnableSoundNotifications = true;
+        GameSettingsViewModel.GoChatFontSize = 14;
+
+        // Enable visibility for all extended client sections
+        GameSettingsViewModel.UpdateApplicableClientVisibility(true, true);
 
         // Populate Mock Content Synchronously
         PopulateMockContent();
@@ -226,6 +289,32 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     }
 
     /// <summary>
+    /// Gets or sets an action invoked when tab selection in demo mode requests section navigation.
+    /// </summary>
+    public Action<string>? NavigationRequested { get; set; }
+
+    /// <summary>
+    /// Synchronizes the active tab with the given info section ID.
+    /// </summary>
+    /// <param name="sectionId">The target info section ID.</param>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance property SelectedTabIndex")]
+    public void SyncTabToSection(string sectionId)
+    {
+        int targetIndex = sectionId switch
+        {
+            InfoConstants.SectionGameProfileContent => 0,
+            InfoConstants.SectionGameProfiles => 1,
+            InfoConstants.SectionGameSettings => 2,
+            _ => -1,
+        };
+
+        if (targetIndex >= 0 && SelectedTabIndex != targetIndex)
+        {
+            SelectedTabIndex = targetIndex;
+        }
+    }
+
+    /// <summary>
     /// Gets a value indicating whether the Content tab is visible.
     /// </summary>
     public new bool IsContentTabVisible => SelectedTabIndex == 0;
@@ -276,6 +365,24 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         // Logic moved to PopulateMockContent()
         PopulateMockContent();
         return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnTabSelected(int tabIndex)
+    {
+        base.OnTabSelected(tabIndex);
+        string? targetSection = tabIndex switch
+        {
+            0 => InfoConstants.SectionGameProfileContent,
+            1 => InfoConstants.SectionGameProfiles,
+            2 => InfoConstants.SectionGameSettings,
+            _ => null,
+        };
+
+        if (targetSection != null)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => NavigationRequested?.Invoke(targetSection));
+        }
     }
 
     /// <summary>

@@ -62,19 +62,31 @@
                 <ContentControl.DataTemplates>
                     <!-- Guide Section Item -->
                     <DataTemplate DataType="vm:InfoSectionViewModel">
-                        <Grid ColumnDefinitions="*" Margin="4,2">
-                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14" FontWeight="Medium" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
+                        <Grid ColumnDefinitions="Auto,*" Margin="4,2">
+                            <material:MaterialIcon Kind="{Binding IconKind}"
+                                                   Width="18"
+                                                   Height="18"
+                                                   Foreground="{DynamicResource AccentBrush}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,10,0"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Title}"
+                                       VerticalAlignment="Center"
+                                       FontSize="14"
+                                       FontWeight="Medium"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextPrimary}"/>
                         </Grid>
                     </DataTemplate>
                     <!-- Zero Hour FAQ Category -->
                     <DataTemplate DataType="vm:FaqCategoryViewModel">
                         <Grid ColumnDefinitions="Auto,*" Margin="4,2">
                              <material:MaterialIcon Kind="HelpCircleOutline"
-                                                    Width="20"
-                                                    Height="20"
+                                                    Width="18"
+                                                    Height="18"
                                                     Foreground="{DynamicResource AccentBrush}"
                                                     VerticalAlignment="Center"
-                                                    Margin="0,0,12,0"/>
+                                                    Margin="0,0,10,0"/>
                              <TextBlock Grid.Column="1"
                                         Text="{Binding Title}"
                                         VerticalAlignment="Center"

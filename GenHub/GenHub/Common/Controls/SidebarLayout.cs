@@ -4,6 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using System;
@@ -24,6 +25,14 @@ public class SidebarLayout : ContentControl
             nameof(IsPaneOpen),
             defaultValue: true,
             defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
+
+    /// <summary>
+    /// Defines the <see cref="PanePlacement"/> property.
+    /// </summary>
+    public static readonly StyledProperty<Dock> PanePlacementProperty =
+        AvaloniaProperty.Register<SidebarLayout, Dock>(
+            nameof(PanePlacement),
+            defaultValue: Dock.Left);
 
     /// <summary>
     /// Defines the <see cref="PaneTitle"/> property.
@@ -88,11 +97,14 @@ public class SidebarLayout : ContentControl
     public static readonly StyledProperty<IDataTemplate?> ItemTemplateProperty =
         AvaloniaProperty.Register<SidebarLayout, IDataTemplate?>(nameof(ItemTemplate));
 
+    private Grid? _rootGrid;
     private ColumnDefinition? _sidebarColumn;
     private ColumnDefinition? _splitterColumn;
     private Control? _sidebarPane;
     private GridSplitter? _splitter;
     private Control? _triggerZone;
+    private Border? _expandTab;
+    private Control? _contentPresenter;
 
     static SidebarLayout()
     {
@@ -100,6 +112,7 @@ public class SidebarLayout : ContentControl
         OpenPaneLengthProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnOpenPaneLengthChanged());
         MinPaneLengthProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnMinMaxPaneLengthChanged());
         MaxPaneLengthProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnMinMaxPaneLengthChanged());
+        PanePlacementProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnPanePlacementChanged());
     }
 
     /// <summary>
@@ -119,6 +132,15 @@ public class SidebarLayout : ContentControl
     {
         get => GetValue(IsPaneOpenProperty);
         set => SetValue(IsPaneOpenProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the placement of the sidebar pane (Left or Right).
+    /// </summary>
+    public Dock PanePlacement
+    {
+        get => GetValue(PanePlacementProperty);
+        set => SetValue(PanePlacementProperty, value);
     }
 
     /// <summary>
@@ -158,7 +180,7 @@ public class SidebarLayout : ContentControl
     }
 
     /// <summary>
-    /// Gets or sets the content to be displayed in the header of the sidebar pane.
+    /// Gets or sets additional content displayed at the top of the sidebar pane.
     /// </summary>
     public object? PaneHeader
     {
@@ -167,7 +189,7 @@ public class SidebarLayout : ContentControl
     }
 
     /// <summary>
-    /// Gets or sets the content to be displayed in the footer of the sidebar pane.
+    /// Gets or sets additional content displayed at the bottom of the sidebar pane.
     /// </summary>
     public object? PaneFooter
     {
@@ -236,24 +258,15 @@ public class SidebarLayout : ContentControl
         base.OnApplyTemplate(e);
         UnsubscribeEvents();
 
-        var rootGrid = e.NameScope.Find<Grid>("PART_RootGrid");
-        if (rootGrid != null && rootGrid.ColumnDefinitions.Count >= 2)
-        {
-            _sidebarColumn = rootGrid.ColumnDefinitions[0];
-            _splitterColumn = rootGrid.ColumnDefinitions[1];
-        }
-        else
-        {
-            _sidebarColumn = null;
-            _splitterColumn = null;
-        }
-
+        _rootGrid = e.NameScope.Find<Grid>("PART_RootGrid");
         _sidebarPane = e.NameScope.Find<Control>("PART_SidebarPane");
         _splitter = e.NameScope.Find<GridSplitter>("PART_Splitter");
         _triggerZone = e.NameScope.Find<Control>("PART_TriggerZone");
+        _expandTab = e.NameScope.Find<Border>("PART_ExpandTab");
+        _contentPresenter = e.NameScope.Find<Control>("PART_ContentPresenter");
 
+        ConfigurePlacement();
         SubscribeEvents();
-        UpdateLayoutState();
     }
 
     /// <inheritdoc/>
@@ -288,6 +301,92 @@ public class SidebarLayout : ContentControl
         if (control != null)
         {
             control.IsVisible = isVisible;
+        }
+    }
+
+    private void ConfigurePlacement()
+    {
+        if (_rootGrid == null || _rootGrid.ColumnDefinitions.Count < 3)
+        {
+            _sidebarColumn = _rootGrid is { ColumnDefinitions.Count: >= 1 } ? _rootGrid.ColumnDefinitions[0] : null;
+            _splitterColumn = _rootGrid is { ColumnDefinitions.Count: >= 2 } ? _rootGrid.ColumnDefinitions[1] : null;
+            UpdateLayoutState();
+            return;
+        }
+
+        var isRight = PanePlacement == Dock.Right;
+        var (min, max) = GetSanitizedBounds(MinPaneLength, MaxPaneLength);
+        var length = ClampPaneLength(OpenPaneLength, min, max);
+        var contentIndex = isRight ? 0 : 2;
+        var sidebarIndex = isRight ? 2 : 0;
+
+        SetupColumns(contentIndex, sidebarIndex, min, max, length);
+        SetupPlacementChildren(isRight, contentIndex, sidebarIndex);
+        UpdateLayoutState();
+    }
+
+    private void SetupColumns(int contentIndex, int sidebarIndex, double min, double max, double length)
+    {
+        if (_rootGrid == null)
+        {
+            return;
+        }
+
+        var contentColumn = _rootGrid.ColumnDefinitions[contentIndex];
+        contentColumn.Width = new GridLength(1, GridUnitType.Star);
+        contentColumn.MinWidth = 0;
+        contentColumn.MaxWidth = double.PositiveInfinity;
+
+        _splitterColumn = _rootGrid.ColumnDefinitions[1];
+        _splitterColumn.Width = new GridLength(IsPaneOpen ? SidebarConstants.SplitterWidth : 0, GridUnitType.Pixel);
+
+        _sidebarColumn = _rootGrid.ColumnDefinitions[sidebarIndex];
+        _sidebarColumn.Width = new GridLength(IsPaneOpen ? length : 0, GridUnitType.Pixel);
+        _sidebarColumn.MinWidth = IsPaneOpen ? min : 0;
+        _sidebarColumn.MaxWidth = IsPaneOpen ? max : 0;
+    }
+
+    private void SetupPlacementChildren(bool isRight, int contentIndex, int sidebarIndex)
+    {
+        if (_contentPresenter != null)
+        {
+            Grid.SetColumn(_contentPresenter, contentIndex);
+        }
+
+        if (_splitter != null)
+        {
+            Grid.SetColumn(_splitter, 1);
+        }
+
+        UpdateSidebarPanePlacement(isRight, sidebarIndex);
+        UpdateTriggerAndTabPlacement(isRight);
+    }
+
+    private void UpdateSidebarPanePlacement(bool isRight, int sidebarIndex)
+    {
+        if (_sidebarPane == null)
+        {
+            return;
+        }
+
+        Grid.SetColumn(_sidebarPane, sidebarIndex);
+        if (_sidebarPane is Border border)
+        {
+            border.BorderThickness = isRight ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0);
+        }
+    }
+
+    private void UpdateTriggerAndTabPlacement(bool isRight)
+    {
+        if (_triggerZone is Border trigger)
+        {
+            trigger.HorizontalAlignment = isRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        }
+
+        if (_expandTab != null)
+        {
+            _expandTab.HorizontalAlignment = isRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            _expandTab.CornerRadius = isRight ? new CornerRadius(3, 0, 0, 3) : new CornerRadius(0, 3, 3, 0);
         }
     }
 
@@ -334,6 +433,11 @@ public class SidebarLayout : ContentControl
     private void OnIsPaneOpenChanged()
     {
         UpdateLayoutState();
+    }
+
+    private void OnPanePlacementChanged()
+    {
+        ConfigurePlacement();
     }
 
     private void OnOpenPaneLengthChanged()

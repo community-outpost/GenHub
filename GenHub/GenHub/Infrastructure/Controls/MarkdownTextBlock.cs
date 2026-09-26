@@ -26,6 +26,13 @@ public class MarkdownTextBlock : UserControl
     private static readonly IValueConverter PositiveWidthConverter =
         new FuncValueConverter<double, double>(w => w > 1.0 ? w : double.PositiveInfinity);
 
+    private static readonly Lazy<MarkdownPipeline> CachedPipeline = new(() =>
+    {
+        var builder = new MarkdownPipelineBuilder().UseAdvancedExtensions();
+        builder.BlockParsers.RemoveAll(p => p is Markdig.Parsers.IndentedCodeBlockParser);
+        return builder.Build();
+    });
+
     /// <summary>
     /// Gets or sets the Markdown text to render.
     /// </summary>
@@ -40,7 +47,7 @@ public class MarkdownTextBlock : UserControl
         MarkdownProperty.Changed.AddClassHandler<MarkdownTextBlock>((control, _) => control.UpdateContent());
     }
 
-    private static Control RenderCodeBlock(CodeBlock code)
+    private static Control RenderCodeBlock(FencedCodeBlock fenced)
     {
         var border = new Border
         {
@@ -51,7 +58,7 @@ public class MarkdownTextBlock : UserControl
 
         var textBlock = new TextBlock
         {
-            Text = code is FencedCodeBlock fenced ? fenced.Lines.ToString() : code.Lines.ToString(),
+            Text = fenced.Lines.ToString(),
             FontFamily = new FontFamily("Consolas,Courier New,monospace"),
             Foreground = new SolidColorBrush(Color.Parse("#ABB2BF")),
             FontSize = 13,
@@ -65,6 +72,20 @@ public class MarkdownTextBlock : UserControl
             Content = border,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             Margin = new Thickness(0, 8, 0, 8),
+        };
+    }
+
+    private static Control RenderFallbackCodeBlock(CodeBlock code)
+    {
+        var text = code.Lines.ToString().TrimEnd();
+        return new TextBlock
+        {
+            Text = text,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Color.Parse("#DDDDDD")),
+            FontSize = 14,
+            LineHeight = 22,
+            Margin = new Thickness(0, 0, 0, 8),
         };
     }
 
@@ -235,7 +256,8 @@ public class MarkdownTextBlock : UserControl
             HeadingBlock heading => RenderHeading(heading),
             ParagraphBlock paragraph => RenderParagraph(paragraph),
             ListBlock list => RenderList(list),
-            CodeBlock code => RenderCodeBlock(code),
+            FencedCodeBlock fenced => RenderCodeBlock(fenced),
+            CodeBlock code => RenderFallbackCodeBlock(code),
             _ => new TextBlock { Text = block.ToString(), TextWrapping = TextWrapping.Wrap, },
         };
     }
@@ -297,6 +319,63 @@ public class MarkdownTextBlock : UserControl
         return stackPanel;
     }
 
+    private static int CalculateCommonIndent(string[] lines)
+    {
+        var minIndent = int.MaxValue;
+        var inFencedCode = false;
+
+        foreach (var rawLine in lines)
+        {
+            var trimmed = rawLine.TrimStart();
+            if (trimmed.StartsWith("```", StringComparison.Ordinal))
+            {
+                inFencedCode = !inFencedCode;
+                continue;
+            }
+
+            if (!inFencedCode && !string.IsNullOrWhiteSpace(rawLine))
+            {
+                var indent = rawLine.Length - trimmed.Length;
+                if (indent < minIndent)
+                {
+                    minIndent = indent;
+                }
+            }
+        }
+
+        return minIndent;
+    }
+
+    private static string NormalizeMarkdown(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        var minIndent = CalculateCommonIndent(lines);
+
+        if (minIndent > 0 && minIndent < int.MaxValue)
+        {
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var leadingSpaces = lines[i].Length - lines[i].TrimStart().Length;
+                var spacesToStrip = Math.Min(leadingSpaces, minIndent);
+                if (spacesToStrip > 0)
+                {
+                    lines[i] = lines[i][spacesToStrip..];
+                }
+                else if (string.IsNullOrWhiteSpace(lines[i]))
+                {
+                    lines[i] = string.Empty;
+                }
+            }
+        }
+
+        return string.Join("\n", lines);
+    }
+
     private void UpdateContent()
     {
         if (string.IsNullOrWhiteSpace(Markdown))
@@ -305,8 +384,8 @@ public class MarkdownTextBlock : UserControl
             return;
         }
 
-        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-        var document = Markdig.Markdown.Parse(Markdown, pipeline);
+        var normalized = NormalizeMarkdown(Markdown);
+        var document = Markdig.Markdown.Parse(normalized, CachedPipeline.Value);
 
         var stackPanel = new StackPanel { Spacing = 8, };
 

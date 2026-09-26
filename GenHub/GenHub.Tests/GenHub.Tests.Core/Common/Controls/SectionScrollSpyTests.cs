@@ -287,6 +287,136 @@ public class SectionScrollSpyTests
     }
 
     /// <summary>
+    /// Verifies that ClearSections removes all registered sections and resets tracking.
+    /// </summary>
+    [AvaloniaFact]
+    public void ClearSections_ClearsAllRegisteredSections()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            spy.ClearSections();
+
+            host.ScrollViewer.Offset = new Vector(0, 450);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Empty(reported);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that RemoveSection removes only the specified section.
+    /// </summary>
+    [AvaloniaFact]
+    public void RemoveSection_RemovesTargetSection()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            spy.RemoveSection("second");
+
+            spy.ScrollToSection("second");
+            Assert.False(spy.IsScrollingProgrammatically);
+
+            reported.Clear();
+            spy.ScrollToSection("first");
+            Assert.False(spy.IsScrollingProgrammatically);
+            Assert.Equal("first", Assert.Single(reported));
+
+            reported.Clear();
+            host.ScrollViewer.Offset = new Vector(0, 850);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("third", Assert.Single(reported));
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that RemoveControl removes the section associated with the control.
+    /// </summary>
+    [AvaloniaFact]
+    public void RemoveControl_RemovesAssociatedSection()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            spy.RemoveControl(host.Second);
+
+            spy.ScrollToSection("second");
+            Assert.False(spy.IsScrollingProgrammatically);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that removing a section while it is the active animation target stops programmatic scrolling.
+    /// </summary>
+    [AvaloniaFact]
+    public void RemoveSection_ActiveTarget_StopsAnimation()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            spy.ScrollToSection("second");
+            Assert.True(spy.IsScrollingProgrammatically);
+
+            spy.RemoveSection("second");
+            Assert.False(spy.IsScrollingProgrammatically);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that removing a control while it is the active animation target stops programmatic scrolling.
+    /// </summary>
+    [AvaloniaFact]
+    public void RemoveControl_ActiveTarget_StopsAnimation()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            spy.ScrollToSection("second");
+            Assert.True(spy.IsScrollingProgrammatically);
+
+            spy.RemoveControl(host.Second);
+            Assert.False(spy.IsScrollingProgrammatically);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
     /// Verifies that when an animated scroll completes, subsequent user scrolling
     /// is not suppressed.
     /// </summary>

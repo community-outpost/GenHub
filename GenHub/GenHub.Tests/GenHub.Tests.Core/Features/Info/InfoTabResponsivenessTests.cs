@@ -135,7 +135,7 @@ public class InfoTabResponsivenessTests
         var localContentSection = sections.FirstOrDefault(s => s.Id == InfoConstants.SectionLocalContent);
 
         localContentSection.Should().NotBeNull();
-        localContentSection!.Cards.Should().HaveCount(4);
+        localContentSection!.Cards.Should().HaveCount(5);
 
         var allContent = string.Join(" ", localContentSection.Cards.Select(c => $"{c.Title} {c.Content} {c.DetailedContent}"));
 

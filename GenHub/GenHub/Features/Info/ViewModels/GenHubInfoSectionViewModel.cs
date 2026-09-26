@@ -16,6 +16,7 @@ using GenHub.Features.Tools.ReplayManager.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -38,6 +39,133 @@ public partial class GenHubInfoSectionViewModel(
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null) : ObservableObject, IInfoSectionViewModel, IDisposable
 {
+    private readonly List<InfoSectionViewModel> _allSections = [];
+    private bool _disposed;
+    private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
+    private ObservableCollection<InfoCardViewModel>? _selectedSectionCards;
+    private NotifyCollectionChangedEventHandler? _cardsCollectionChangedHandler;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameSettingsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameProfileContentSelected))]
+    [NotifyPropertyChangedFor(nameof(IsShortcutsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsToolsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsLocalContentSelected))]
+    [NotifyPropertyChangedFor(nameof(IsScanForGamesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsAppUpdatesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsChangelogsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsWorkspaceSelected))]
+    [NotifyPropertyChangedFor(nameof(IsFaqSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGoChangelogSelected))]
+    [NotifyPropertyChangedFor(nameof(IsQuickStartSelected))]
+    [NotifyPropertyChangedFor(nameof(FaqCardsLeft))]
+    [NotifyPropertyChangedFor(nameof(FaqCardsRight))]
+    private InfoSectionViewModel? _selectedSection;
+
+    [ObservableProperty]
+    private double _demoSettingsWidth = 840;
+
+    [ObservableProperty]
+    private double _demoSettingsHeight = 580;
+
+    [ObservableProperty]
+    private InfoCardViewModel? _selectedCard;
+
+    [ObservableProperty]
+    private bool _isCardsPaneOpen = true;
+
+    [ObservableProperty]
+    private double _cardsOpenPaneLength = SidebarConstants.DefaultOpenPaneLength;
+
+    // Tools section expandable state
+    [ObservableProperty]
+    private bool _replayFeaturesExpanded;
+
+    [ObservableProperty]
+    private bool _replayInterfaceExpanded;
+
+    [ObservableProperty]
+    private bool _replayImportingExpanded;
+
+    [ObservableProperty]
+    private bool _replayManagingExpanded;
+
+    [ObservableProperty]
+    private bool _replayExportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapFeaturesExpanded;
+
+    [ObservableProperty]
+    private bool _mapInterfaceExpanded;
+
+    [ObservableProperty]
+    private bool _mapImportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapManagingExpanded;
+
+    [ObservableProperty]
+    private bool _mapExportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapPacksExpanded;
+
+    [ObservableProperty]
+    private bool _gsDisplayExpanded;
+
+    [ObservableProperty]
+    private bool _gsGraphicsExpanded;
+
+    [ObservableProperty]
+    private bool _gsAudioExpanded;
+
+    [ObservableProperty]
+    private bool _gsControlExpanded;
+
+    [ObservableProperty]
+    private bool _gsAdvancedExpanded;
+
+    [ObservableProperty]
+    private string _searchQuery = string.Empty;
+
+    [ObservableProperty]
+    private bool _isPaneOpen;
+
+    /// <summary>
+    /// Event raised when changelogs or patch notes collections are updated, allowing the view to refresh scroll spy registrations.
+    /// </summary>
+    public event Action? ChangelogsLoaded;
+
+    /// <summary>
+    /// Gets a value indicating whether the compact demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeCompact => Math.Abs(DemoSettingsWidth - 720) < 1;
+
+    /// <summary>
+    /// Gets a value indicating whether the standard demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeStandard => Math.Abs(DemoSettingsWidth - 840) < 1;
+
+    /// <summary>
+    /// Gets a value indicating whether the expanded demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeExpanded => Math.Abs(DemoSettingsWidth - 980) < 1;
+
+    /// <summary>
+    /// Navigates to an info section by its unique identifier.
+    /// </summary>
+    /// <param name="sectionId">The target section ID.</param>
+    public void NavigateToSectionById(string sectionId)
+    {
+        var target = Sections.FirstOrDefault(s => s.Id == sectionId);
+        if (target != null)
+        {
+            SelectedSection = target;
+        }
+    }
+
     /// <summary>
     /// Gets the icon key.
     /// </summary>
@@ -60,27 +188,6 @@ public partial class GenHubInfoSectionViewModel(
     /// </summary>
     public GeneralsOnlineChangelogViewModel GoChangelog => goChangelogViewModel;
 
-    private readonly List<InfoSectionViewModel> _allSections = [];
-    private bool _disposed;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
-    [NotifyPropertyChangedFor(nameof(IsGameSettingsSelected))]
-    [NotifyPropertyChangedFor(nameof(IsGameProfileContentSelected))]
-    [NotifyPropertyChangedFor(nameof(IsShortcutsSelected))]
-    [NotifyPropertyChangedFor(nameof(IsToolsSelected))]
-    [NotifyPropertyChangedFor(nameof(IsLocalContentSelected))]
-    [NotifyPropertyChangedFor(nameof(IsScanForGamesSelected))]
-    [NotifyPropertyChangedFor(nameof(IsAppUpdatesSelected))]
-    [NotifyPropertyChangedFor(nameof(IsChangelogsSelected))]
-    [NotifyPropertyChangedFor(nameof(IsWorkspaceSelected))]
-    [NotifyPropertyChangedFor(nameof(IsFaqSelected))]
-    [NotifyPropertyChangedFor(nameof(IsGoChangelogSelected))]
-    [NotifyPropertyChangedFor(nameof(IsQuickStartSelected))]
-    [NotifyPropertyChangedFor(nameof(FaqCardsLeft))]
-    [NotifyPropertyChangedFor(nameof(FaqCardsRight))]
-    private InfoSectionViewModel? _selectedSection;
-
     /// <summary>
     /// Gets the FAQ cards for the left column.
     /// </summary>
@@ -90,48 +197,6 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the FAQ cards for the right column.
     /// </summary>
     public IEnumerable<InfoCardViewModel> FaqCardsRight => SelectedSection?.Cards.Where((_, i) => i % 2 != 0) ?? [];
-
-    // Tools section expandable state
-    [ObservableProperty]
-    private bool _replayFeaturesExpanded = false;
-    [ObservableProperty]
-    private bool _replayInterfaceExpanded = false;
-    [ObservableProperty]
-    private bool _replayImportingExpanded = false;
-    [ObservableProperty]
-    private bool _replayManagingExpanded = false;
-    [ObservableProperty]
-    private bool _replayExportingExpanded = false;
-    [ObservableProperty]
-    private bool _mapFeaturesExpanded = false;
-    [ObservableProperty]
-    private bool _mapInterfaceExpanded = false;
-    [ObservableProperty]
-    private bool _mapImportingExpanded = false;
-    [ObservableProperty]
-    private bool _mapManagingExpanded = false;
-    [ObservableProperty]
-    private bool _mapExportingExpanded = false;
-    [ObservableProperty]
-    private bool _mapPacksExpanded = false;
-    [ObservableProperty]
-    private bool _gsDisplayExpanded = false;
-    [ObservableProperty]
-    private bool _gsGraphicsExpanded = false;
-    [ObservableProperty]
-    private bool _gsAudioExpanded = false;
-    [ObservableProperty]
-    private bool _gsControlExpanded = false;
-    [ObservableProperty]
-    private bool _gsAdvancedExpanded = false;
-
-    [ObservableProperty]
-    private string _searchQuery = string.Empty;
-
-    [ObservableProperty]
-    private bool _isPaneOpen;
-
-    private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
 
     /// <inheritdoc/>
     public string Id => "guide";
@@ -143,19 +208,6 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the available info sections for the current module context.
     /// </summary>
     public ObservableCollection<InfoSectionViewModel> Sections { get; } = [];
-
-    /// <summary>
-    /// Sets the current module context and filters the displayed sections.
-    /// </summary>
-    /// <param name="module">The module to switch to.</param>
-    public void SetModuleContext(GeneralsHubModule module)
-    {
-        if (_currentModule == module && Sections.Any()) return;
-
-        _currentModule = module;
-        OnPropertyChanged(nameof(Title));
-        FilterSections();
-    }
 
     /// <summary>
     /// Gets the demo profile card for interactive demonstrations (General/Shortcuts).
@@ -211,6 +263,153 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the demo scan wizard view model for the game detection demonstration.
     /// </summary>
     public ScanWizardDemoViewModel? DemoScanWizard { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the Quickstart section is selected.
+    /// </summary>
+    public bool IsQuickStartSelected => SelectedSection?.Id == InfoConstants.SectionQuickstart;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profiles section is selected.
+    /// </summary>
+    public bool IsGameProfilesSelected => SelectedSection?.Id == InfoConstants.SectionGameProfiles;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Settings section is selected.
+    /// </summary>
+    public bool IsGameSettingsSelected => SelectedSection?.Id == InfoConstants.SectionGameSettings;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profile Content section is selected.
+    /// </summary>
+    public bool IsGameProfileContentSelected => SelectedSection?.Id == InfoConstants.SectionGameProfileContent;
+
+    /// <summary>
+    /// Gets a value indicating whether the Shortcuts section is selected.
+    /// </summary>
+    public bool IsShortcutsSelected => SelectedSection?.Id == InfoConstants.SectionShortcuts;
+
+    /// <summary>
+    /// Gets a value indicating whether the Tools section is selected.
+    /// </summary>
+    public bool IsToolsSelected => SelectedSection?.Id == InfoConstants.SectionTools;
+
+    /// <summary>
+    /// Gets a value indicating whether the Add Local Content section is selected.
+    /// </summary>
+    public bool IsLocalContentSelected => SelectedSection?.Id == InfoConstants.SectionLocalContent;
+
+    /// <summary>
+    /// Gets a value indicating whether the Scan for Games section is selected.
+    /// </summary>
+    public bool IsScanForGamesSelected => SelectedSection?.Id == InfoConstants.SectionScanGames;
+
+    /// <summary>
+    /// Gets a value indicating whether the App Updates section is selected.
+    /// </summary>
+    public bool IsAppUpdatesSelected => SelectedSection?.Id == InfoConstants.SectionAppUpdates;
+
+    /// <summary>
+    /// Gets a value indicating whether the Changelogs section is selected.
+    /// </summary>
+    public bool IsChangelogsSelected => SelectedSection?.Id == InfoConstants.SectionChangelogs;
+
+    /// <summary>
+    /// Gets a value indicating whether the Workspace (Filesystem Magic) section is selected.
+    /// </summary>
+    public bool IsWorkspaceSelected => SelectedSection?.Id == InfoConstants.SectionWorkspaces;
+
+    /// <summary>
+    /// Gets a value indicating whether the FAQ section is selected.
+    /// </summary>
+    public bool IsFaqSelected => SelectedSection?.Id == InfoConstants.SectionFaq;
+
+    /// <summary>
+    /// Gets a value indicating whether the Generals Online Changelog section is selected.
+    /// </summary>
+    public bool IsGoChangelogSelected => SelectedSection?.Id == InfoConstants.SectionGoChangelog;
+
+    /// <summary>
+    /// Updates the selected card from scroll-spy tracking.
+    /// </summary>
+    /// <param name="card">The newly activated card.</param>
+    public void UpdateCardFromScroll(InfoCardViewModel card)
+    {
+        if (SelectedSection != null && SelectedSection.Cards.Contains(card))
+        {
+            SelectedCard = card;
+        }
+    }
+
+    /// <summary>
+    /// Selects a specific card within the currently active section.
+    /// </summary>
+    /// <param name="card">The card to select.</param>
+    [RelayCommand]
+    public void SelectCard(InfoCardViewModel? card)
+    {
+        if (card == null)
+        {
+            return;
+        }
+
+        SelectedCard = card;
+    }
+
+    /// <summary>
+    /// Sets the current module context and filters the displayed sections.
+    /// </summary>
+    /// <param name="module">The module to switch to.</param>
+    public void SetModuleContext(GeneralsHubModule module)
+    {
+        if (_currentModule == module && Sections.Any())
+        {
+            return;
+        }
+
+        _currentModule = module;
+        OnPropertyChanged(nameof(Title));
+        FilterSections();
+    }
+
+    /// <summary>
+    /// Sets demo size to compact (720x480).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoCompact()
+    {
+        DemoSettingsWidth = 720;
+        DemoSettingsHeight = 480;
+        OnPropertyChanged(nameof(IsDemoSizeCompact));
+        OnPropertyChanged(nameof(IsDemoSizeStandard));
+        OnPropertyChanged(nameof(IsDemoSizeExpanded));
+    }
+
+    /// <summary>
+    /// Sets demo size to standard (840x580).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoStandard()
+    {
+        DemoSettingsWidth = 840;
+        DemoSettingsHeight = 580;
+        OnPropertyChanged(nameof(IsDemoSizeCompact));
+        OnPropertyChanged(nameof(IsDemoSizeStandard));
+        OnPropertyChanged(nameof(IsDemoSizeExpanded));
+    }
+
+    /// <summary>
+    /// Sets demo size to expanded (980x680).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoExpanded()
+    {
+        DemoSettingsWidth = 980;
+        DemoSettingsHeight = 680;
+        OnPropertyChanged(nameof(IsDemoSizeCompact));
+        OnPropertyChanged(nameof(IsDemoSizeStandard));
+        OnPropertyChanged(nameof(IsDemoSizeExpanded));
+    }
 
     /// <summary>
     /// Toggles the expanded state of the replay features section.
@@ -308,71 +507,6 @@ public partial class GenHubInfoSectionViewModel(
     [RelayCommand]
     public void ToggleGsAdvancedExpanded() => GsAdvancedExpanded = !GsAdvancedExpanded;
 
-    /// <summary>
-    /// Gets a value indicating whether the Quickstart section is selected.
-    /// </summary>
-    public bool IsQuickStartSelected => SelectedSection?.Id == InfoConstants.SectionQuickstart;
-
-    /// <summary>
-    /// Gets a value indicating whether the Game Profiles section is selected.
-    /// </summary>
-    public bool IsGameProfilesSelected => SelectedSection?.Id == InfoConstants.SectionGameProfiles;
-
-    /// <summary>
-    /// Gets a value indicating whether the Game Settings section is selected.
-    /// </summary>
-    public bool IsGameSettingsSelected => SelectedSection?.Id == InfoConstants.SectionGameSettings;
-
-    /// <summary>
-    /// Gets a value indicating whether the Game Profile Content section is selected.
-    /// </summary>
-    public bool IsGameProfileContentSelected => SelectedSection?.Id == InfoConstants.SectionGameProfileContent;
-
-    /// <summary>
-    /// Gets a value indicating whether the Shortcuts section is selected.
-    /// </summary>
-    public bool IsShortcutsSelected => SelectedSection?.Id == InfoConstants.SectionShortcuts;
-
-    /// <summary>
-    /// Gets a value indicating whether the Tools section is selected.
-    /// </summary>
-    public bool IsToolsSelected => SelectedSection?.Id == InfoConstants.SectionTools;
-
-    /// <summary>
-    /// Gets a value indicating whether the Add Local Content section is selected.
-    /// </summary>
-    public bool IsLocalContentSelected => SelectedSection?.Id == InfoConstants.SectionLocalContent;
-
-    /// <summary>
-    /// Gets a value indicating whether the Scan for Games section is selected.
-    /// </summary>
-    public bool IsScanForGamesSelected => SelectedSection?.Id == InfoConstants.SectionScanGames;
-
-    /// <summary>
-    /// Gets a value indicating whether the App Updates section is selected.
-    /// </summary>
-    public bool IsAppUpdatesSelected => SelectedSection?.Id == InfoConstants.SectionAppUpdates;
-
-    /// <summary>
-    /// Gets a value indicating whether the Changelogs section is selected.
-    /// </summary>
-    public bool IsChangelogsSelected => SelectedSection?.Id == InfoConstants.SectionChangelogs;
-
-    /// <summary>
-    /// Gets a value indicating whether the Workspace (Filesystem Magic) section is selected.
-    /// </summary>
-    public bool IsWorkspaceSelected => SelectedSection?.Id == InfoConstants.SectionWorkspaces;
-
-    /// <summary>
-    /// Gets a value indicating whether the FAQ section is selected.
-    /// </summary>
-    public bool IsFaqSelected => SelectedSection?.Id == InfoConstants.SectionFaq;
-
-    /// <summary>
-    /// Gets a value indicating whether the Generals Online Changelog section is selected.
-    /// </summary>
-    public bool IsGoChangelogSelected => SelectedSection?.Id == InfoConstants.SectionGoChangelog;
-
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
@@ -399,18 +533,32 @@ public partial class GenHubInfoSectionViewModel(
             }
 
             FilterSections();
+            SyncChangelogCards();
+            SyncGoChangelogCards();
 
             // Load changelogs automatically
             await Changelogs.LoadChangelogsAsync();
         }
         else
         {
+            SyncChangelogCards();
+            SyncGoChangelogCards();
+
             // Already initialized, but load changelogs if not loaded
             if (Changelogs.Releases.Count == 0)
             {
                 await Changelogs.LoadChangelogsAsync();
             }
         }
+
+        changelogsViewModel.Releases.CollectionChanged -= OnChangelogsReleasesChanged;
+        changelogsViewModel.Releases.CollectionChanged += OnChangelogsReleasesChanged;
+
+        goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
+        goChangelogViewModel.PatchNotes.CollectionChanged += OnGoPatchNotesChanged;
+
+        SyncChangelogCards();
+        SyncGoChangelogCards();
 
         // Ensure Demo ViewModels are initialized (even if Sections were already loaded)
         // Check each property individually to be robust against partial initialization failures
@@ -444,10 +592,20 @@ public partial class GenHubInfoSectionViewModel(
             OnPropertyChanged(nameof(DemoGameSettings_ContentTab));
         }
 
+        if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel cTab)
+        {
+            cTab.NavigationRequested = NavigateToSectionById;
+        }
+
         if (DemoGameSettings_SettingsTab == null)
         {
             DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
             OnPropertyChanged(nameof(DemoGameSettings_SettingsTab));
+        }
+
+        if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel sTab)
+        {
+            sTab.NavigationRequested = NavigateToSectionById;
         }
 
         if (DemoReplayManager == null)
@@ -504,6 +662,13 @@ public partial class GenHubInfoSectionViewModel(
             if (localizationService != null)
             {
                 localizationService.PropertyChanged -= OnLocalizationChanged;
+            }
+
+            changelogsViewModel.Releases.CollectionChanged -= OnChangelogsReleasesChanged;
+            goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
+            if (_selectedSectionCards != null && _cardsCollectionChangedHandler != null)
+            {
+                _selectedSectionCards.CollectionChanged -= _cardsCollectionChangedHandler;
             }
 
             DemoReplayManager?.Dispose();
@@ -566,6 +731,15 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
+    /// <summary>
+    /// Navigates to the tools tab.
+    /// </summary>
+    [RelayCommand]
+    private void OpenToolsTab()
+    {
+        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Tools));
+    }
+
     private InfoSectionViewModel MapToViewModel(InfoSection section)
     {
         var vm = new InfoSectionViewModel(section, localizationService);
@@ -601,8 +775,141 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
-    partial void OnSelectedSectionChanged(InfoSectionViewModel? value)
+    private void OnChangelogsReleasesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        SyncChangelogCards();
+    }
+
+    private void OnGoPatchNotesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        SyncGoChangelogCards();
+    }
+
+    private void SyncChangelogCards()
+    {
+        var section = _allSections.FirstOrDefault(s => s.Id == InfoConstants.SectionChangelogs);
+        if (section == null)
+        {
+            return;
+        }
+
+        for (var i = section.Cards.Count - 1; i >= 0; i--)
+        {
+            var card = section.Cards[i];
+            if (card.TargetItem is ChangelogItemViewModel releaseItem && !Changelogs.Releases.Contains(releaseItem))
+            {
+                section.Cards.RemoveAt(i);
+            }
+        }
+
+        foreach (var release in Changelogs.Releases.Where(r => !section.Cards.Any(c => ReferenceEquals(c.TargetItem, r))))
+        {
+            var cardVm = new InfoCardViewModel(
+                new InfoCard
+                {
+                    Id = "release-" + (release.Release.TagName ?? release.Release.Name ?? Guid.NewGuid().ToString()),
+                    Title = release.Release.Name ?? release.Release.TagName ?? "Release",
+                    Content = release.Release.PublishedAt?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    Type = InfoCardType.Feature,
+                    DetailedContent = release.Release.Body,
+                },
+                InfoConstants.SectionChangelogs,
+                localizationService)
+            {
+                TargetItem = release,
+                CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+            };
+            section.Cards.Add(cardVm);
+        }
+
+        if (SelectedSection?.Id == InfoConstants.SectionChangelogs)
+        {
+            UpdateCardsPaneLengthForSection(SelectedSection);
+        }
+
+        ChangelogsLoaded?.Invoke();
+    }
+
+    private void SyncGoChangelogCards()
+    {
+        var section = _allSections.FirstOrDefault(s => s.Id == InfoConstants.SectionGoChangelog);
+        if (section == null)
+        {
+            return;
+        }
+
+        for (var i = section.Cards.Count - 1; i >= 0; i--)
+        {
+            var card = section.Cards[i];
+            if (card.TargetItem is PatchNote patchNote && !GoChangelog.PatchNotes.Contains(patchNote))
+            {
+                section.Cards.RemoveAt(i);
+            }
+        }
+
+        foreach (var note in GoChangelog.PatchNotes.Where(n => !section.Cards.Any(c => ReferenceEquals(c.TargetItem, n))))
+        {
+            var cardId = string.IsNullOrEmpty(note.Id) ? (note.Title ?? Guid.NewGuid().ToString()) : note.Id;
+            var cardVm = new InfoCardViewModel(
+                new InfoCard
+                {
+                    Id = "go-patch-" + cardId,
+                    Title = note.Title ?? string.Empty,
+                    Content = note.Date ?? string.Empty,
+                    Type = InfoCardType.Feature,
+                    DetailedContent = note.Summary,
+                },
+                InfoConstants.SectionGoChangelog,
+                localizationService)
+            {
+                TargetItem = note,
+                CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+            };
+            section.Cards.Add(cardVm);
+        }
+
+        if (SelectedSection?.Id == InfoConstants.SectionGoChangelog)
+        {
+            UpdateCardsPaneLengthForSection(SelectedSection);
+        }
+
+        ChangelogsLoaded?.Invoke();
+    }
+
+    private void UpdateCardsPaneLengthForSection(InfoSectionViewModel? section)
+    {
+        if (section == null || section.Cards.Count == 0)
+        {
+            CardsOpenPaneLength = SidebarConstants.DefaultOpenPaneLength;
+            return;
+        }
+
+        var maxTitleLength = section.Cards.Max(c => c.Title?.Length ?? 0);
+        double estimatedWidth = 60 + (maxTitleLength * 8.0);
+        CardsOpenPaneLength = Math.Clamp(estimatedWidth, 180, 380);
+    }
+
+    partial void OnSelectedSectionChanged(InfoSectionViewModel? oldValue, InfoSectionViewModel? newValue)
+    {
+        if (oldValue?.Cards != null && _cardsCollectionChangedHandler != null)
+        {
+            oldValue.Cards.CollectionChanged -= _cardsCollectionChangedHandler;
+        }
+
+        SelectedCard = newValue?.Cards.FirstOrDefault();
+        UpdateCardsPaneLengthForSection(newValue);
+
+        if (newValue?.Cards != null)
+        {
+            _cardsCollectionChangedHandler ??= (_, _) => UpdateCardsPaneLengthForSection(SelectedSection);
+            newValue.Cards.CollectionChanged += _cardsCollectionChangedHandler;
+            _selectedSectionCards = newValue.Cards;
+        }
+        else
+        {
+            _selectedSectionCards = null;
+        }
+
         OnPropertyChanged(nameof(IsQuickStartSelected));
         OnPropertyChanged(nameof(IsGameProfilesSelected));
         OnPropertyChanged(nameof(IsGameSettingsSelected));
@@ -616,6 +923,19 @@ public partial class GenHubInfoSectionViewModel(
         OnPropertyChanged(nameof(IsWorkspaceSelected));
         OnPropertyChanged(nameof(IsFaqSelected));
         OnPropertyChanged(nameof(IsGoChangelogSelected));
+
+        if (newValue != null)
+        {
+            if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel demoSettings)
+            {
+                demoSettings.SyncTabToSection(newValue.Id);
+            }
+
+            if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel demoContent)
+            {
+                demoContent.SyncTabToSection(newValue.Id);
+            }
+        }
 
         if (IsChangelogsSelected && !Changelogs.Releases.Any() && !Changelogs.IsLoading)
         {

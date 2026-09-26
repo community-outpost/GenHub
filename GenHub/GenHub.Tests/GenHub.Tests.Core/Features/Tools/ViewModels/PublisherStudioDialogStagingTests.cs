@@ -4,6 +4,7 @@ using GenHub.Features.Tools.ViewModels.Dialogs;
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -28,7 +29,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         var first = WriteTempFile("controlbar-a.big", "first-payload");
         var second = WriteTempFile("controlbar-b.big", "second-payload");
         CatalogContentItem? created = null;
-        var vm = new AddContentDialogViewModel(item => created = item);
+        using var vm = new AddContentDialogViewModel(item => created = item);
 
         vm.PopulateFromPaths([first, second]);
 
@@ -61,7 +62,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     {
         var file = WriteTempFile("single-mod.big", "payload");
         CatalogContentItem? created = null;
-        var vm = new AddContentDialogViewModel(item => created = item);
+        using var vm = new AddContentDialogViewModel(item => created = item);
 
         vm.PopulateFromPath(file);
         await WaitForComputeAsync(vm);
@@ -80,8 +81,9 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     /// Staging a zip archive must surface its entry count and the automatic
     /// extraction note so publishers know installs unpack it.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public void PopulateFromPath_ZipFile_ShowsArchiveNote()
+    public async Task PopulateFromPath_ZipFile_ShowsArchiveNoteAsync()
     {
         var zipPath = Path.Combine(TempDir(), "bundle.zip");
         using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
@@ -90,8 +92,9 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
             archive.CreateEntry("b.big");
         }
 
-        var vm = new AddContentDialogViewModel(_ => { });
+        using var vm = new AddContentDialogViewModel(_ => { });
         vm.PopulateFromPath(zipPath);
+        await WaitForComputeAsync(vm);
 
         var entry = Assert.Single(vm.StagedFiles);
         Assert.True(entry.IsArchive);
@@ -102,13 +105,15 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     /// <summary>
     /// Removing a staged file must drop its entry and re-sync the primary path.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public void RemoveStagedFile_RemovesEntryAndSyncsPrimary()
+    public async Task RemoveStagedFile_RemovesEntryAndSyncsPrimaryAsync()
     {
         var first = WriteTempFile("one.big", "one");
         var second = WriteTempFile("two.big", "two");
-        var vm = new AddContentDialogViewModel(_ => { });
+        using var vm = new AddContentDialogViewModel(_ => { });
         vm.PopulateFromPaths([first, second]);
+        await WaitForComputeAsync(vm);
 
         vm.RemoveStagedFileCommand.Execute(vm.StagedFiles[0]);
 
@@ -121,13 +126,16 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     /// <summary>
     /// Switching to direct-URL mode must clear staged files and primary metadata.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public void ToggleToDirectUrl_ClearsStagedFiles()
+    public async Task ToggleToDirectUrl_ClearsStagedFilesAsync()
     {
         var file = WriteTempFile("mod.big", "payload");
-        var vm = new AddContentDialogViewModel(_ => { });
+        using var vm = new AddContentDialogViewModel(_ => { });
         vm.PopulateFromPath(file);
         Assert.NotEmpty(vm.StagedFiles);
+
+        await WaitForComputeAsync(vm);
 
         vm.UseDirectUrl = true;
 
@@ -142,7 +150,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     [Fact]
     public void SelectAccentColor_SetsAccentColor()
     {
-        var vm = new AddContentDialogViewModel(_ => { });
+        using var vm = new AddContentDialogViewModel(_ => { });
 
         vm.SelectAccentColorCommand.Execute("#DC2626");
 
@@ -170,7 +178,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         };
 
         CatalogContentItem? savedItem = null;
-        var vm = new AddContentDialogViewModel(existingItem, item => savedItem = item);
+        using var vm = new AddContentDialogViewModel(existingItem, item => savedItem = item);
 
         // Clear the icon in edit mode
         vm.IconArtwork = string.Empty;
@@ -186,9 +194,36 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        if (!Directory.Exists(_tempDir))
         {
-            Directory.Delete(_tempDir, recursive: true);
+            return;
+        }
+
+        for (var i = 0; i < 5; i++)
+        {
+            try
+            {
+                Directory.Delete(_tempDir, recursive: true);
+                break;
+            }
+            catch (IOException)
+            {
+                if (i == 4)
+                {
+                    break;
+                }
+
+                Thread.Sleep(50);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                if (i == 4)
+                {
+                    break;
+                }
+
+                Thread.Sleep(50);
+            }
         }
     }
 
