@@ -455,8 +455,14 @@ public static class ReplayCrcMatchingHelper
             customExe = profile.ExecutablePath;
         }
 
+        var workingDir = (profile as GameProfile)?.WorkingDirectory;
+        if (string.IsNullOrWhiteSpace(workingDir))
+        {
+            workingDir = profile.GameClient.WorkingDirectory;
+        }
+
         var effectiveGameType = IsExplicitGeneralsClient(profile.GameClient) ? GameType.Generals : GameType.ZeroHour;
-        if (!ValidateCustomExecutablePath(customExe, effectiveGameType))
+        if (!ValidateCustomExecutablePath(customExe, workingDir, effectiveGameType))
         {
             return false;
         }
@@ -643,7 +649,13 @@ public static class ReplayCrcMatchingHelper
             effectiveExePath = profile.ExecutablePath;
         }
 
-        if (!ValidateCustomExecutablePath(effectiveExePath, effectiveGameType))
+        var workingDir = profile.WorkingDirectory;
+        if (string.IsNullOrWhiteSpace(workingDir))
+        {
+            workingDir = client.WorkingDirectory;
+        }
+
+        if (!ValidateCustomExecutablePath(effectiveExePath, workingDir, effectiveGameType))
         {
             return false;
         }
@@ -1051,14 +1063,23 @@ public static class ReplayCrcMatchingHelper
         return IsOfficialSteamClient(client) && MatchesGameDat(actualPath, isRetailExeCrc, isRetailExeSha);
     }
 
-    private static bool ValidateCustomExecutablePath(string? customExePath, GameType effectiveGameType)
+    private static bool ValidateCustomExecutablePath(
+        string? customExePath,
+        string? workingDirectory,
+        GameType effectiveGameType)
     {
         if (string.IsNullOrWhiteSpace(customExePath))
         {
             return true;
         }
 
-        if (!customExePath.TryGetFileCaseInsensitive(out var actualCustomExePath))
+        var candidatePath = customExePath;
+        if (!Path.IsPathRooted(candidatePath) && !string.IsNullOrWhiteSpace(workingDirectory))
+        {
+            candidatePath = Path.Combine(workingDirectory, candidatePath);
+        }
+
+        if (!candidatePath.TryGetFileCaseInsensitive(out var actualCustomExePath))
         {
             return false;
         }
@@ -1134,11 +1155,6 @@ public static class ReplayCrcMatchingHelper
     /// </summary>
     private static string? ResolveProfileVerificationDirectory(GameProfile profile, GameClient client)
     {
-        if (!string.IsNullOrWhiteSpace(profile.WorkingDirectory) && Directory.Exists(profile.WorkingDirectory))
-        {
-            return profile.WorkingDirectory;
-        }
-
         var exePath = profile.CustomExecutablePath;
         if (string.IsNullOrWhiteSpace(exePath))
         {
@@ -1149,6 +1165,16 @@ public static class ReplayCrcMatchingHelper
         {
             exePath = ResolveProfileFullExePath(client);
         }
+        else if (!Path.IsPathRooted(exePath))
+        {
+            var workingDir = !string.IsNullOrWhiteSpace(profile.WorkingDirectory)
+                ? profile.WorkingDirectory
+                : client.WorkingDirectory;
+            if (!string.IsNullOrWhiteSpace(workingDir))
+            {
+                exePath = Path.Combine(workingDir, exePath);
+            }
+        }
 
         if (!string.IsNullOrEmpty(exePath))
         {
@@ -1157,6 +1183,11 @@ public static class ReplayCrcMatchingHelper
             {
                 return dir;
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.WorkingDirectory) && Directory.Exists(profile.WorkingDirectory))
+        {
+            return profile.WorkingDirectory;
         }
 
         if (!string.IsNullOrWhiteSpace(client.WorkingDirectory) && Directory.Exists(client.WorkingDirectory))
@@ -1368,19 +1399,19 @@ public static class ReplayCrcMatchingHelper
         }
 
         var ver = client.Version?.Trim().TrimStart('v', 'V').Trim() ?? string.Empty;
-        var id = client.Id ?? string.Empty;
-        var name = client.Name ?? string.Empty;
+        var id = client.Id?.Trim() ?? string.Empty;
+        var name = client.Name?.Trim() ?? string.Empty;
 
-        if (string.IsNullOrEmpty(ver))
-        {
-            return false;
-        }
+        var hasVersionEvidence =
+            (!string.IsNullOrEmpty(ver) && (
+                versionPrefixes.Any(prefix => ver.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) ||
+                exactVersions.Any(exact => string.Equals(ver, exact, StringComparison.OrdinalIgnoreCase)))) ||
+            versionPrefixes.Any(prefix => name.Contains(prefix, StringComparison.OrdinalIgnoreCase)) ||
+            idTokens.Any(idToken => id.Contains(idToken, StringComparison.OrdinalIgnoreCase)) ||
+            string.Equals(id, "steam", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(id, "ea", StringComparison.OrdinalIgnoreCase);
 
-        return versionPrefixes.Any(prefix =>
-                   ver.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-                   name.Contains(prefix, StringComparison.OrdinalIgnoreCase)) ||
-               exactVersions.Any(exact => string.Equals(ver, exact, StringComparison.OrdinalIgnoreCase)) ||
-               idTokens.Any(idToken => id.Contains(idToken, StringComparison.OrdinalIgnoreCase));
+        return hasVersionEvidence;
     }
 
     private static bool IsGeneralsRetailVersion(GameClient? client) =>
