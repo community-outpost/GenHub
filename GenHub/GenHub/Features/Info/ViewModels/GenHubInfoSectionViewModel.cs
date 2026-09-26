@@ -298,7 +298,7 @@ public partial class GenHubInfoSectionViewModel(
     /// <param name="card">The newly activated card.</param>
     public void UpdateCardFromScroll(InfoCardViewModel card)
     {
-        if (SelectedSection?.Cards.Contains(card) == true)
+        if (SelectedSection != null && SelectedSection.Cards.Contains(card))
         {
             SelectedCard = card;
         }

@@ -100,7 +100,6 @@ public class SidebarLayout : ContentControl
     private Grid? _rootGrid;
     private ColumnDefinition? _sidebarColumn;
     private ColumnDefinition? _splitterColumn;
-    private ColumnDefinition? _contentColumn;
     private Control? _sidebarPane;
     private GridSplitter? _splitter;
     private Control? _triggerZone;
@@ -309,110 +308,85 @@ public class SidebarLayout : ContentControl
     {
         if (_rootGrid == null || _rootGrid.ColumnDefinitions.Count < 3)
         {
-            _sidebarColumn = _rootGrid?.ColumnDefinitions.Count >= 1 ? _rootGrid.ColumnDefinitions[0] : null;
-            _splitterColumn = _rootGrid?.ColumnDefinitions.Count >= 2 ? _rootGrid.ColumnDefinitions[1] : null;
-            _contentColumn = null;
+            _sidebarColumn = _rootGrid is { ColumnDefinitions.Count: >= 1 } ? _rootGrid.ColumnDefinitions[0] : null;
+            _splitterColumn = _rootGrid is { ColumnDefinitions.Count: >= 2 } ? _rootGrid.ColumnDefinitions[1] : null;
             return;
         }
 
         var isRight = PanePlacement == Dock.Right;
         var (min, max) = GetSanitizedBounds(MinPaneLength, MaxPaneLength);
         var length = ClampPaneLength(OpenPaneLength, min, max);
+        var contentIndex = isRight ? 0 : 2;
+        var sidebarIndex = isRight ? 2 : 0;
 
-        if (isRight)
-        {
-            _contentColumn = _rootGrid.ColumnDefinitions[0];
-            _splitterColumn = _rootGrid.ColumnDefinitions[1];
-            _sidebarColumn = _rootGrid.ColumnDefinitions[2];
-
-            _contentColumn.Width = new GridLength(1, GridUnitType.Star);
-            _contentColumn.MinWidth = 0;
-            _contentColumn.MaxWidth = double.PositiveInfinity;
-
-            _splitterColumn.Width = new GridLength(IsPaneOpen ? SidebarConstants.SplitterWidth : 0, GridUnitType.Pixel);
-
-            _sidebarColumn.Width = new GridLength(IsPaneOpen ? length : 0, GridUnitType.Pixel);
-            _sidebarColumn.MinWidth = IsPaneOpen ? min : 0;
-            _sidebarColumn.MaxWidth = IsPaneOpen ? max : 0;
-
-            if (_contentPresenter != null)
-            {
-                Grid.SetColumn(_contentPresenter, 0);
-            }
-
-            if (_splitter != null)
-            {
-                Grid.SetColumn(_splitter, 1);
-            }
-
-            if (_sidebarPane != null)
-            {
-                Grid.SetColumn(_sidebarPane, 2);
-                if (_sidebarPane is Border border)
-                {
-                    border.BorderThickness = new Thickness(1, 0, 0, 0);
-                }
-            }
-
-            if (_triggerZone is Border trigger)
-            {
-                trigger.HorizontalAlignment = HorizontalAlignment.Right;
-            }
-
-            if (_expandTab != null)
-            {
-                _expandTab.HorizontalAlignment = HorizontalAlignment.Right;
-                _expandTab.CornerRadius = new CornerRadius(3, 0, 0, 3);
-            }
-        }
-        else
-        {
-            _sidebarColumn = _rootGrid.ColumnDefinitions[0];
-            _splitterColumn = _rootGrid.ColumnDefinitions[1];
-            _contentColumn = _rootGrid.ColumnDefinitions[2];
-
-            _sidebarColumn.Width = new GridLength(IsPaneOpen ? length : 0, GridUnitType.Pixel);
-            _sidebarColumn.MinWidth = IsPaneOpen ? min : 0;
-            _sidebarColumn.MaxWidth = IsPaneOpen ? max : 0;
-
-            _splitterColumn.Width = new GridLength(IsPaneOpen ? SidebarConstants.SplitterWidth : 0, GridUnitType.Pixel);
-
-            _contentColumn.Width = new GridLength(1, GridUnitType.Star);
-            _contentColumn.MinWidth = 0;
-            _contentColumn.MaxWidth = double.PositiveInfinity;
-
-            if (_sidebarPane != null)
-            {
-                Grid.SetColumn(_sidebarPane, 0);
-                if (_sidebarPane is Border border)
-                {
-                    border.BorderThickness = new Thickness(0, 0, 1, 0);
-                }
-            }
-
-            if (_splitter != null)
-            {
-                Grid.SetColumn(_splitter, 1);
-            }
-
-            if (_contentPresenter != null)
-            {
-                Grid.SetColumn(_contentPresenter, 2);
-            }
-
-            if (_triggerZone is Border trigger)
-            {
-                trigger.HorizontalAlignment = HorizontalAlignment.Left;
-            }
-
-            if (_expandTab != null)
-            {
-                _expandTab.HorizontalAlignment = HorizontalAlignment.Left;
-                _expandTab.CornerRadius = new CornerRadius(0, 3, 3, 0);
-            }
-        }
-
+        SetupColumns(contentIndex, sidebarIndex, min, max, length);
+        SetupPlacementChildren(isRight, contentIndex, sidebarIndex);
         UpdateLayoutState();
+    }
+
+    private void SetupColumns(int contentIndex, int sidebarIndex, double min, double max, double length)
+    {
+        if (_rootGrid == null)
+        {
+            return;
+        }
+
+        var contentColumn = _rootGrid.ColumnDefinitions[contentIndex];
+        contentColumn.Width = new GridLength(1, GridUnitType.Star);
+        contentColumn.MinWidth = 0;
+        contentColumn.MaxWidth = double.PositiveInfinity;
+
+        _splitterColumn = _rootGrid.ColumnDefinitions[1];
+        _splitterColumn.Width = new GridLength(IsPaneOpen ? SidebarConstants.SplitterWidth : 0, GridUnitType.Pixel);
+
+        _sidebarColumn = _rootGrid.ColumnDefinitions[sidebarIndex];
+        _sidebarColumn.Width = new GridLength(IsPaneOpen ? length : 0, GridUnitType.Pixel);
+        _sidebarColumn.MinWidth = IsPaneOpen ? min : 0;
+        _sidebarColumn.MaxWidth = IsPaneOpen ? max : 0;
+    }
+
+    private void SetupPlacementChildren(bool isRight, int contentIndex, int sidebarIndex)
+    {
+        if (_contentPresenter != null)
+        {
+            Grid.SetColumn(_contentPresenter, contentIndex);
+        }
+
+        if (_splitter != null)
+        {
+            Grid.SetColumn(_splitter, 1);
+        }
+
+        UpdateSidebarPanePlacement(isRight, sidebarIndex);
+        UpdateTriggerAndTabPlacement(isRight);
+    }
+
+    private void UpdateSidebarPanePlacement(bool isRight, int sidebarIndex)
+    {
+        if (_sidebarPane == null)
+        {
+            return;
+        }
+
+        Grid.SetColumn(_sidebarPane, sidebarIndex);
+        if (_sidebarPane is Border border)
+        {
+            border.BorderThickness = isRight ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0);
+        }
+    }
+
+    private void UpdateTriggerAndTabPlacement(bool isRight)
+    {
+        if (_triggerZone is Border trigger)
+        {
+            trigger.HorizontalAlignment = isRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        }
+
+        if (_expandTab != null)
+        {
+            _expandTab.HorizontalAlignment = isRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            _expandTab.CornerRadius = isRight ? new CornerRadius(3, 0, 0, 3) : new CornerRadius(0, 3, 3, 0);
+        }
     }
 
     private void SubscribeEvents()
