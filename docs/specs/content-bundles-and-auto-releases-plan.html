@@ -172,7 +172,7 @@
     .badge-blue { background: var(--accent-blue-faint); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
     .badge-green { background: var(--accent-green-faint); color: var(--accent-green); border: 1px solid rgba(168, 185, 129, 0.3); }
     .badge-amber { background: var(--accent-amber-faint); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.4); }
-    .badge-gold { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid #fbbf24; }
+    .badge-gold { background: #78350f; color: #fef3c7; border: 1px solid #f59e0b; }
     .badge-purple { background: var(--accent-purple-faint); color: var(--accent-purple); border: 1px solid rgba(168, 85, 247, 0.3); }
     .badge-red { background: var(--accent-red-faint); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.3); }
 
@@ -621,8 +621,8 @@
 
               <!-- Component 1: Game Client Dropdown -->
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="color: #fff;">Game Client:</span>
-                <select style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                <label for="mock-game-client" style="color: #fff;">Game Client:</label>
+                <select id="mock-game-client" aria-label="Game Client" style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
                   <option selected>Zero Hour (Default)</option>
                   <option>Generals</option>
                 </select>
@@ -630,8 +630,8 @@
 
               <!-- Component 2: ControlBar Dropdown -->
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="color: #fff;">HD Control Bar:</span>
-                <select style="background: #181822; color: #f59e0b; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                <label for="mock-control-bar" style="color: #fff;">HD Control Bar:</label>
+                <select id="mock-control-bar" aria-label="HD Control Bar" style="background: #181822; color: #f59e0b; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
                   <option selected>1080p (FHD)</option>
                   <option>1440p (2K)</option>
                   <option>4K (UHD)</option>
@@ -640,8 +640,8 @@
 
               <!-- Component 3: Menus Dropdown -->
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="color: #fff;">Menus:</span>
-                <select style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                <label for="mock-menus" style="color: #fff;">Menus:</label>
+                <select id="mock-menus" aria-label="Menus" style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
                   <option selected>English</option>
                   <option>German</option>
                   <option>French</option>
@@ -650,8 +650,8 @@
 
               <!-- Component 4: Hotkeys Dropdown -->
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: #fff;">Hotkeys:</span>
-                <select style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                <label for="mock-hotkeys" style="color: #fff;">Hotkeys:</label>
+                <select id="mock-hotkeys" aria-label="Hotkeys" style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
                   <option selected>QWERTY</option>
                   <option>QWERTZ</option>
                   <option>Grid</option>
@@ -762,9 +762,9 @@
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
           <div style="font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; color: #f8fafc;">
             <span>📄 community-competitive-ecosystem.catalog.json</span>
-            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 500;">Direct Test Ready</span>
+            <span style="font-size: 0.75rem; background: #064e3b; color: #ffffff; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600;">Direct Test Ready</span>
           </div>
-          <button id="copyCatalogBtn" type="button" style="background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s;">
+          <button id="copyCatalogBtn" type="button" style="background: #1d4ed8; color: #ffffff; border: none; border-radius: 6px; padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span id="copyBtnText">Copy Catalog JSON</span>
           </button>
