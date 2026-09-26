@@ -14,6 +14,7 @@
              xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             xmlns:controls="clr-namespace:GenHub.Common.Controls;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="800"
              x:Class="GenHub.Features.Info.Views.GenHubInfoSectionView"
              x:DataType="vm:GenHubInfoSectionViewModel">
@@ -184,7 +185,38 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="0,16,0,0" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <controls:SidebarLayout x:Name="CardsSidebarLayout"
+                          PanePlacement="Right"
+                          PaneTitle="{localization:Localize Info.Sidebar.CardsTitle}"
+                          ItemsSource="{Binding SelectedSection.Cards}"
+                          SelectedItem="{Binding SelectedCard, Mode=TwoWay}"
+                          IsPaneOpen="{Binding IsCardsPaneOpen, Mode=TwoWay}"
+                          OpenPaneLength="{Binding CardsOpenPaneLength, Mode=TwoWay}"
+                          MinPaneLength="160"
+                          MaxPaneLength="360">
+    <controls:SidebarLayout.ItemTemplate>
+      <DataTemplate x:DataType="vm:InfoCardViewModel">
+        <DockPanel LastChildFill="True">
+          <material:MaterialIcon DockPanel.Dock="Left"
+                                 Kind="FileDocumentOutline"
+                                 Width="14" Height="14"
+                                 Foreground="{DynamicResource TextSecondary}"
+                                 Margin="0,0,8,0"
+                                 VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding Title}"
+                     FontSize="12"
+                     Foreground="{DynamicResource TextPrimary}"
+                     VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis"/>
+        </DockPanel>
+      </DataTemplate>
+    </controls:SidebarLayout.ItemTemplate>
+
+    <ScrollViewer x:Name="InfoContentScrollViewer"
+                  Padding="0,16,0,0"
+                  ClipToBounds="False"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
       <StackPanel Margin="32,0,32,48" Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
 
         <!-- Main Section Header -->
@@ -579,6 +611,86 @@
                     </Border>
                 </StackPanel>
 
+                <!-- 3. PUBLISHER STUDIO -->
+                <StackPanel Spacing="24">
+                    <!-- Header -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioTitle}" Classes="demo-title"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioSubtitle}" Classes="demo-subtitle"/>
+                    </StackPanel>
+
+                    <!-- Showcase Card -->
+                    <Border Classes="demo-container">
+                        <Border Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="28,24">
+                            <StackPanel Spacing="18">
+                                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                    <material:MaterialIcon Kind="Publish" Width="28" Height="28" Foreground="{DynamicResource AccentBrush}"/>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioShowcaseHeading}"
+                                                   FontSize="16" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimary}"/>
+                                        <TextBlock Text="Tier 1 (Publisher Manifest) → Tier 2 (Content Catalogs) → Tier 3 (Artifact Archives)"
+                                                   FontSize="12" Foreground="{DynamicResource TextMuted}"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioShowcaseDesc}"
+                                           FontSize="13" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           LineHeight="20"/>
+
+                                <Grid ColumnDefinitions="*,*,*" Margin="0,6,0,6">
+                                    <!-- Step 1 -->
+                                    <Border Grid.Column="0" Margin="0,0,6,0" Padding="14,12" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
+                                        <StackPanel Spacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <material:MaterialIcon Kind="PackageVariantClosed" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+                                                <TextBlock Text="1. Catalog Authoring" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Package content, hash files, configure variants, and specify dependencies." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- Step 2 -->
+                                    <Border Grid.Column="1" Margin="3,0,3,0" Padding="14,12" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
+                                        <StackPanel Spacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <material:MaterialIcon Kind="CloudUploadOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+                                                <TextBlock Text="2. External CDN Hosting" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Host manifests &amp; archives on GitHub Releases, Google Drive, Dropbox, or custom CDNs." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- Step 3 -->
+                                    <Border Grid.Column="2" Margin="6,0,0,0" Padding="14,12" Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
+                                        <StackPanel Spacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <material:MaterialIcon Kind="BellRingOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+                                                <TextBlock Text="3. Player Notifications" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Subscribed players poll manifests every 30m, get notified, and download updates CAS-verified." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextMuted}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <DockPanel LastChildFill="False">
+                                    <Button DockPanel.Dock="Left"
+                                            Classes="preset-btn preset-active"
+                                            Command="{Binding OpenToolsTabCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <material:MaterialIcon Kind="RocketLaunch" Width="16" Height="16"/>
+                                            <TextBlock Text="{localization:Localize Info.Demo.Tools.LaunchPublisherStudio}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+                </StackPanel>
+
             </StackPanel>
         </Border>
 
@@ -740,7 +852,8 @@
         <!-- ============================================== -->
 
         <!-- Standard Layout (Single Column) -->
-        <ItemsControl ItemsSource="{Binding SelectedSection.Cards}"
+        <ItemsControl x:Name="CardsItemsControl"
+                      ItemsSource="{Binding SelectedSection.Cards}"
                       IsVisible="{Binding !IsFaqSelected}"
                       Margin="0,0,0,32"
                       ClipToBounds="False">
@@ -836,7 +949,7 @@
         <!-- FAQ Layout (Independent Columns for Staggered/Masonry Look) -->
         <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,32" ClipToBounds="False">
             <!-- Left Column -->
-            <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}" ClipToBounds="False">
+            <ItemsControl x:Name="FaqLeftItemsControl" Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}" ClipToBounds="False">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
@@ -893,7 +1006,7 @@
             </ItemsControl>
 
             <!-- Right Column -->
-            <ItemsControl Grid.Column="1" ItemsSource="{Binding FaqCardsRight}" ClipToBounds="False">
+            <ItemsControl x:Name="FaqRightItemsControl" Grid.Column="1" ItemsSource="{Binding FaqCardsRight}" ClipToBounds="False">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
@@ -952,5 +1065,6 @@
 
         <Border Height="120"/> <!-- Bottom padding to prevent clipping of card drop-shadows and hover scaling -->
       </StackPanel>
-  </ScrollViewer>
+    </ScrollViewer>
+  </controls:SidebarLayout>
 </UserControl>

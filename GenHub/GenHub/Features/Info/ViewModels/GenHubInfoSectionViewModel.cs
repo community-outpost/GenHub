@@ -38,6 +38,92 @@ public partial class GenHubInfoSectionViewModel(
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null) : ObservableObject, IInfoSectionViewModel, IDisposable
 {
+    private readonly List<InfoSectionViewModel> _allSections = [];
+    private bool _disposed;
+    private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameSettingsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameProfileContentSelected))]
+    [NotifyPropertyChangedFor(nameof(IsShortcutsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsToolsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsLocalContentSelected))]
+    [NotifyPropertyChangedFor(nameof(IsScanForGamesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsAppUpdatesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsChangelogsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsWorkspaceSelected))]
+    [NotifyPropertyChangedFor(nameof(IsFaqSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGoChangelogSelected))]
+    [NotifyPropertyChangedFor(nameof(IsQuickStartSelected))]
+    [NotifyPropertyChangedFor(nameof(FaqCardsLeft))]
+    [NotifyPropertyChangedFor(nameof(FaqCardsRight))]
+    private InfoSectionViewModel? _selectedSection;
+
+    [ObservableProperty]
+    private InfoCardViewModel? _selectedCard;
+
+    [ObservableProperty]
+    private bool _isCardsPaneOpen = true;
+
+    [ObservableProperty]
+    private double _cardsOpenPaneLength = SidebarConstants.DefaultOpenPaneLength;
+
+    // Tools section expandable state
+    [ObservableProperty]
+    private bool _replayFeaturesExpanded;
+
+    [ObservableProperty]
+    private bool _replayInterfaceExpanded;
+
+    [ObservableProperty]
+    private bool _replayImportingExpanded;
+
+    [ObservableProperty]
+    private bool _replayManagingExpanded;
+
+    [ObservableProperty]
+    private bool _replayExportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapFeaturesExpanded;
+
+    [ObservableProperty]
+    private bool _mapInterfaceExpanded;
+
+    [ObservableProperty]
+    private bool _mapImportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapManagingExpanded;
+
+    [ObservableProperty]
+    private bool _mapExportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapPacksExpanded;
+
+    [ObservableProperty]
+    private bool _gsDisplayExpanded;
+
+    [ObservableProperty]
+    private bool _gsGraphicsExpanded;
+
+    [ObservableProperty]
+    private bool _gsAudioExpanded;
+
+    [ObservableProperty]
+    private bool _gsControlExpanded;
+
+    [ObservableProperty]
+    private bool _gsAdvancedExpanded;
+
+    [ObservableProperty]
+    private string _searchQuery = string.Empty;
+
+    [ObservableProperty]
+    private bool _isPaneOpen;
+
     /// <summary>
     /// Gets the icon key.
     /// </summary>
@@ -60,27 +146,6 @@ public partial class GenHubInfoSectionViewModel(
     /// </summary>
     public GeneralsOnlineChangelogViewModel GoChangelog => goChangelogViewModel;
 
-    private readonly List<InfoSectionViewModel> _allSections = [];
-    private bool _disposed;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
-    [NotifyPropertyChangedFor(nameof(IsGameSettingsSelected))]
-    [NotifyPropertyChangedFor(nameof(IsGameProfileContentSelected))]
-    [NotifyPropertyChangedFor(nameof(IsShortcutsSelected))]
-    [NotifyPropertyChangedFor(nameof(IsToolsSelected))]
-    [NotifyPropertyChangedFor(nameof(IsLocalContentSelected))]
-    [NotifyPropertyChangedFor(nameof(IsScanForGamesSelected))]
-    [NotifyPropertyChangedFor(nameof(IsAppUpdatesSelected))]
-    [NotifyPropertyChangedFor(nameof(IsChangelogsSelected))]
-    [NotifyPropertyChangedFor(nameof(IsWorkspaceSelected))]
-    [NotifyPropertyChangedFor(nameof(IsFaqSelected))]
-    [NotifyPropertyChangedFor(nameof(IsGoChangelogSelected))]
-    [NotifyPropertyChangedFor(nameof(IsQuickStartSelected))]
-    [NotifyPropertyChangedFor(nameof(FaqCardsLeft))]
-    [NotifyPropertyChangedFor(nameof(FaqCardsRight))]
-    private InfoSectionViewModel? _selectedSection;
-
     /// <summary>
     /// Gets the FAQ cards for the left column.
     /// </summary>
@@ -90,48 +155,6 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the FAQ cards for the right column.
     /// </summary>
     public IEnumerable<InfoCardViewModel> FaqCardsRight => SelectedSection?.Cards.Where((_, i) => i % 2 != 0) ?? [];
-
-    // Tools section expandable state
-    [ObservableProperty]
-    private bool _replayFeaturesExpanded = false;
-    [ObservableProperty]
-    private bool _replayInterfaceExpanded = false;
-    [ObservableProperty]
-    private bool _replayImportingExpanded = false;
-    [ObservableProperty]
-    private bool _replayManagingExpanded = false;
-    [ObservableProperty]
-    private bool _replayExportingExpanded = false;
-    [ObservableProperty]
-    private bool _mapFeaturesExpanded = false;
-    [ObservableProperty]
-    private bool _mapInterfaceExpanded = false;
-    [ObservableProperty]
-    private bool _mapImportingExpanded = false;
-    [ObservableProperty]
-    private bool _mapManagingExpanded = false;
-    [ObservableProperty]
-    private bool _mapExportingExpanded = false;
-    [ObservableProperty]
-    private bool _mapPacksExpanded = false;
-    [ObservableProperty]
-    private bool _gsDisplayExpanded = false;
-    [ObservableProperty]
-    private bool _gsGraphicsExpanded = false;
-    [ObservableProperty]
-    private bool _gsAudioExpanded = false;
-    [ObservableProperty]
-    private bool _gsControlExpanded = false;
-    [ObservableProperty]
-    private bool _gsAdvancedExpanded = false;
-
-    [ObservableProperty]
-    private string _searchQuery = string.Empty;
-
-    [ObservableProperty]
-    private bool _isPaneOpen;
-
-    private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
 
     /// <inheritdoc/>
     public string Id => "guide";
@@ -143,19 +166,6 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the available info sections for the current module context.
     /// </summary>
     public ObservableCollection<InfoSectionViewModel> Sections { get; } = [];
-
-    /// <summary>
-    /// Sets the current module context and filters the displayed sections.
-    /// </summary>
-    /// <param name="module">The module to switch to.</param>
-    public void SetModuleContext(GeneralsHubModule module)
-    {
-        if (_currentModule == module && Sections.Any()) return;
-
-        _currentModule = module;
-        OnPropertyChanged(nameof(Title));
-        FilterSections();
-    }
 
     /// <summary>
     /// Gets the demo profile card for interactive demonstrations (General/Shortcuts).
@@ -211,6 +221,120 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the demo scan wizard view model for the game detection demonstration.
     /// </summary>
     public ScanWizardDemoViewModel? DemoScanWizard { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the Quickstart section is selected.
+    /// </summary>
+    public bool IsQuickStartSelected => SelectedSection?.Id == InfoConstants.SectionQuickstart;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profiles section is selected.
+    /// </summary>
+    public bool IsGameProfilesSelected => SelectedSection?.Id == InfoConstants.SectionGameProfiles;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Settings section is selected.
+    /// </summary>
+    public bool IsGameSettingsSelected => SelectedSection?.Id == InfoConstants.SectionGameSettings;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profile Content section is selected.
+    /// </summary>
+    public bool IsGameProfileContentSelected => SelectedSection?.Id == InfoConstants.SectionGameProfileContent;
+
+    /// <summary>
+    /// Gets a value indicating whether the Shortcuts section is selected.
+    /// </summary>
+    public bool IsShortcutsSelected => SelectedSection?.Id == InfoConstants.SectionShortcuts;
+
+    /// <summary>
+    /// Gets a value indicating whether the Tools section is selected.
+    /// </summary>
+    public bool IsToolsSelected => SelectedSection?.Id == InfoConstants.SectionTools;
+
+    /// <summary>
+    /// Gets a value indicating whether the Add Local Content section is selected.
+    /// </summary>
+    public bool IsLocalContentSelected => SelectedSection?.Id == InfoConstants.SectionLocalContent;
+
+    /// <summary>
+    /// Gets a value indicating whether the Scan for Games section is selected.
+    /// </summary>
+    public bool IsScanForGamesSelected => SelectedSection?.Id == InfoConstants.SectionScanGames;
+
+    /// <summary>
+    /// Gets a value indicating whether the App Updates section is selected.
+    /// </summary>
+    public bool IsAppUpdatesSelected => SelectedSection?.Id == InfoConstants.SectionAppUpdates;
+
+    /// <summary>
+    /// Gets a value indicating whether the Changelogs section is selected.
+    /// </summary>
+    public bool IsChangelogsSelected => SelectedSection?.Id == InfoConstants.SectionChangelogs;
+
+    /// <summary>
+    /// Gets a value indicating whether the Workspace (Filesystem Magic) section is selected.
+    /// </summary>
+    public bool IsWorkspaceSelected => SelectedSection?.Id == InfoConstants.SectionWorkspaces;
+
+    /// <summary>
+    /// Gets a value indicating whether the FAQ section is selected.
+    /// </summary>
+    public bool IsFaqSelected => SelectedSection?.Id == InfoConstants.SectionFaq;
+
+    /// <summary>
+    /// Gets a value indicating whether the Generals Online Changelog section is selected.
+    /// </summary>
+    public bool IsGoChangelogSelected => SelectedSection?.Id == InfoConstants.SectionGoChangelog;
+
+    /// <summary>
+    /// Event raised when a card scroll is requested by selection.
+    /// </summary>
+    public event Action<InfoCardViewModel>? ScrollToCardRequested;
+
+    /// <summary>
+    /// Updates the selected card from scroll-spy tracking.
+    /// </summary>
+    /// <param name="card">The newly activated card.</param>
+    public void UpdateCardFromScroll(InfoCardViewModel card)
+    {
+        if (SelectedSection?.Cards.Contains(card) == true)
+        {
+            SelectedCard = card;
+        }
+    }
+
+    /// <summary>
+    /// Selects a card and requests scrolling to it.
+    /// </summary>
+    /// <param name="card">The card to select.</param>
+    [RelayCommand]
+    public void SelectCard(InfoCardViewModel? card)
+    {
+        if (card == null)
+        {
+            return;
+        }
+
+        SelectedCard = card;
+        ScrollToCardRequested?.Invoke(card);
+    }
+
+    /// <summary>
+    /// Sets the current module context and filters the displayed sections.
+    /// </summary>
+    /// <param name="module">The module to switch to.</param>
+    public void SetModuleContext(GeneralsHubModule module)
+    {
+        if (_currentModule == module && Sections.Any())
+        {
+            return;
+        }
+
+        _currentModule = module;
+        OnPropertyChanged(nameof(Title));
+        FilterSections();
+    }
 
     /// <summary>
     /// Toggles the expanded state of the replay features section.
@@ -307,71 +431,6 @@ public partial class GenHubInfoSectionViewModel(
     /// </summary>
     [RelayCommand]
     public void ToggleGsAdvancedExpanded() => GsAdvancedExpanded = !GsAdvancedExpanded;
-
-    /// <summary>
-    /// Gets a value indicating whether the Quickstart section is selected.
-    /// </summary>
-    public bool IsQuickStartSelected => SelectedSection?.Id == InfoConstants.SectionQuickstart;
-
-    /// <summary>
-    /// Gets a value indicating whether the Game Profiles section is selected.
-    /// </summary>
-    public bool IsGameProfilesSelected => SelectedSection?.Id == InfoConstants.SectionGameProfiles;
-
-    /// <summary>
-    /// Gets a value indicating whether the Game Settings section is selected.
-    /// </summary>
-    public bool IsGameSettingsSelected => SelectedSection?.Id == InfoConstants.SectionGameSettings;
-
-    /// <summary>
-    /// Gets a value indicating whether the Game Profile Content section is selected.
-    /// </summary>
-    public bool IsGameProfileContentSelected => SelectedSection?.Id == InfoConstants.SectionGameProfileContent;
-
-    /// <summary>
-    /// Gets a value indicating whether the Shortcuts section is selected.
-    /// </summary>
-    public bool IsShortcutsSelected => SelectedSection?.Id == InfoConstants.SectionShortcuts;
-
-    /// <summary>
-    /// Gets a value indicating whether the Tools section is selected.
-    /// </summary>
-    public bool IsToolsSelected => SelectedSection?.Id == InfoConstants.SectionTools;
-
-    /// <summary>
-    /// Gets a value indicating whether the Add Local Content section is selected.
-    /// </summary>
-    public bool IsLocalContentSelected => SelectedSection?.Id == InfoConstants.SectionLocalContent;
-
-    /// <summary>
-    /// Gets a value indicating whether the Scan for Games section is selected.
-    /// </summary>
-    public bool IsScanForGamesSelected => SelectedSection?.Id == InfoConstants.SectionScanGames;
-
-    /// <summary>
-    /// Gets a value indicating whether the App Updates section is selected.
-    /// </summary>
-    public bool IsAppUpdatesSelected => SelectedSection?.Id == InfoConstants.SectionAppUpdates;
-
-    /// <summary>
-    /// Gets a value indicating whether the Changelogs section is selected.
-    /// </summary>
-    public bool IsChangelogsSelected => SelectedSection?.Id == InfoConstants.SectionChangelogs;
-
-    /// <summary>
-    /// Gets a value indicating whether the Workspace (Filesystem Magic) section is selected.
-    /// </summary>
-    public bool IsWorkspaceSelected => SelectedSection?.Id == InfoConstants.SectionWorkspaces;
-
-    /// <summary>
-    /// Gets a value indicating whether the FAQ section is selected.
-    /// </summary>
-    public bool IsFaqSelected => SelectedSection?.Id == InfoConstants.SectionFaq;
-
-    /// <summary>
-    /// Gets a value indicating whether the Generals Online Changelog section is selected.
-    /// </summary>
-    public bool IsGoChangelogSelected => SelectedSection?.Id == InfoConstants.SectionGoChangelog;
 
     /// <inheritdoc/>
     public async Task InitializeAsync()
@@ -566,6 +625,15 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
+    /// <summary>
+    /// Navigates to the tools tab.
+    /// </summary>
+    [RelayCommand]
+    private static void OpenToolsTab()
+    {
+        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Tools));
+    }
+
     private InfoSectionViewModel MapToViewModel(InfoSection section)
     {
         var vm = new InfoSectionViewModel(section, localizationService);
@@ -603,6 +671,8 @@ public partial class GenHubInfoSectionViewModel(
 
     partial void OnSelectedSectionChanged(InfoSectionViewModel? value)
     {
+        SelectedCard = value?.Cards.FirstOrDefault();
+
         OnPropertyChanged(nameof(IsQuickStartSelected));
         OnPropertyChanged(nameof(IsGameProfilesSelected));
         OnPropertyChanged(nameof(IsGameSettingsSelected));

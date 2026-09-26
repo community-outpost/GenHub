@@ -36,13 +36,73 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     public bool IsScrollingProgrammatically { get; private set; }
 
     /// <summary>
-    /// Registers a section anchor in top-to-bottom visual order.
+    /// Registers or updates a section anchor in top-to-bottom visual order.
     /// </summary>
     /// <param name="key">The section identifier.</param>
     /// <param name="control">The section anchor control.</param>
     public void RegisterSection(TKey key, Control control)
     {
+        for (var i = 0; i < _sections.Count; i++)
+        {
+            if (EqualityComparer<TKey>.Default.Equals(_sections[i].Key, key))
+            {
+                _sections[i] = (key, control);
+                return;
+            }
+        }
+
         _sections.Add((key, control));
+    }
+
+    /// <summary>
+    /// Removes a section by its key identifier.
+    /// </summary>
+    /// <param name="key">The section identifier to remove.</param>
+    public void RemoveSection(TKey key)
+    {
+        for (var i = _sections.Count - 1; i >= 0; i--)
+        {
+            if (EqualityComparer<TKey>.Default.Equals(_sections[i].Key, key))
+            {
+                if (ReferenceEquals(_animTargetControl, _sections[i].Control))
+                {
+                    StopAnimation();
+                }
+
+                _sections.RemoveAt(i);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes a section by its associated control reference.
+    /// </summary>
+    /// <param name="control">The control reference to remove.</param>
+    public void RemoveControl(Control control)
+    {
+        for (var i = _sections.Count - 1; i >= 0; i--)
+        {
+            if (ReferenceEquals(_sections[i].Control, control))
+            {
+                if (ReferenceEquals(_animTargetControl, control))
+                {
+                    StopAnimation();
+                }
+
+                _sections.RemoveAt(i);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Clears all registered sections and resets tracking state.
+    /// </summary>
+    public void ClearSections()
+    {
+        StopAnimation();
+        _sections.Clear();
+        _hasReportedKey = false;
+        _lastReportedKey = default!;
     }
 
     /// <summary>
@@ -62,6 +122,18 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     {
         DetachHandlers();
         StopAnimation();
+    }
+
+    /// <summary>
+    /// Stops any programmatic scroll animation currently in progress.
+    /// </summary>
+    public void StopAnimation()
+    {
+        _animationGeneration++;
+        _animTargetKey = default;
+        _suppressProgrammaticTargetOffset = null;
+        StopAnimationTimer();
+        IsScrollingProgrammatically = false;
     }
 
     /// <summary>
@@ -95,6 +167,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         }
 
         _disposed = true;
+        ClearSections();
         Detach();
     }
 
@@ -355,15 +428,6 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
         }
 
         _animTargetControl = null;
-    }
-
-    private void StopAnimation()
-    {
-        _animationGeneration++;
-        _animTargetKey = default;
-        _suppressProgrammaticTargetOffset = null;
-        StopAnimationTimer();
-        IsScrollingProgrammatically = false;
     }
 
     private void UpdateDynamicTargetOffset()
