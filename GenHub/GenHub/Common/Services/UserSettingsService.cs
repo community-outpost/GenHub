@@ -2,11 +2,13 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Linq;
 using System.Security;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -47,6 +49,7 @@ public class UserSettingsService : IUserSettingsService
     private readonly ILogger<UserSettingsService> _logger;
     private readonly IAppConfiguration _appConfig;
     private readonly object _lock = new();
+    private readonly SemaphoreSlim _saveLock = new(1, 1);
     private SettingsFileTarget _target = SettingsFileTarget.Unverified(string.Empty);
     private UserSettings _settings = new();
 
@@ -178,51 +181,14 @@ public class UserSettingsService : IUserSettingsService
     /// </exception>
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
-        var settingsToSave = new UserSettings();
-        var target = SettingsFileTarget.Unverified(string.Empty);
-        lock (_lock)
-        {
-            target = _target;
-            settingsToSave = Get();
-        }
-
-        var pathToSave = target.Path;
-        if (!target.CanWrite)
-        {
-            _logger.LogError(
-                "Refusing to save settings to {Path}: the settings held in memory were not read from it, so saving would replace its contents with unrelated values",
-                pathToSave);
-            throw new InvalidOperationException(
-                $"The settings file '{pathToSave}' was never read into the current settings; saving would overwrite it with values that did not come from it.");
-        }
-
+        await _saveLock.WaitAsync(cancellationToken);
         try
         {
-            var directory = Path.GetDirectoryName(pathToSave);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-                _logger.LogDebug("Created settings directory: {Directory}", directory);
-            }
-
-            var json = JsonSerializer.Serialize(settingsToSave, JsonOptions);
-            await File.WriteAllTextAsync(pathToSave, json, cancellationToken);
-            _logger.LogInformation("Settings saved successfully to {Path}", pathToSave);
+            await WriteSettingsFileAsync(cancellationToken);
         }
-        catch (IOException ex)
+        finally
         {
-            _logger.LogError(ex, "IO error occurred while saving settings to {Path}", pathToSave);
-            throw;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger.LogError(ex, "Access denied when saving settings to {Path}", pathToSave);
-            throw;
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "JSON serialization error when saving settings");
-            throw;
+            _saveLock.Release();
         }
     }
 
@@ -497,6 +463,56 @@ public class UserSettingsService : IUserSettingsService
             "Refusing to adopt {Path} as the settings file: it already holds settings that the settings in memory were not read from, so saving there would replace them",
             path);
         _target = moved;
+    }
+
+    private async Task WriteSettingsFileAsync(CancellationToken cancellationToken)
+    {
+        var settingsToSave = new UserSettings();
+        var target = SettingsFileTarget.Unverified(string.Empty);
+        lock (_lock)
+        {
+            target = _target;
+            settingsToSave = Get();
+        }
+
+        var pathToSave = target.Path;
+        if (!target.CanWrite)
+        {
+            _logger.LogError(
+                "Refusing to save settings to {Path}: the settings held in memory were not read from it, so saving would replace its contents with unrelated values",
+                pathToSave);
+            throw new InvalidOperationException(
+                $"The settings file '{pathToSave}' was never read into the current settings; saving would overwrite it with values that did not come from it.");
+        }
+
+        try
+        {
+            var directory = Path.GetDirectoryName(pathToSave);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+                _logger.LogDebug("Created settings directory: {Directory}", directory);
+            }
+
+            var json = JsonSerializer.Serialize(settingsToSave, JsonOptions);
+            await FileOperationsService.WriteAllBytesAtomicAsync(pathToSave, Encoding.UTF8.GetBytes(json), cancellationToken);
+            _logger.LogInformation("Settings saved successfully to {Path}", pathToSave);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "IO error occurred while saving settings to {Path}", pathToSave);
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Access denied when saving settings to {Path}", pathToSave);
+            throw;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "JSON serialization error when saving settings");
+            throw;
+        }
     }
 
     private string GetDefaultSettingsFilePath()

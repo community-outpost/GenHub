@@ -45,7 +45,7 @@ public class UserDataIndex
     public Dictionary<string, List<string>> ManifestInstallations { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets the ID of the currently active profile whose user data is materialized.
+    /// Gets or sets the ID of the profile whose user data was most recently prepared, even when it has none.
     /// </summary>
     public string? ActiveProfileId { get; set; }
 }

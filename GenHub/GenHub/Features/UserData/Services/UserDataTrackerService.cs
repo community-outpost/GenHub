@@ -281,19 +281,7 @@ public class UserDataTrackerService(
 
             logger.LogInformation("[UserData] Activated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
 
-            await IndexLock.WaitAsync(cancellationToken);
-            try
-            {
-                var index = await LoadIndexUnlockedAsync(cancellationToken);
-                index.ActiveProfileId = profileId;
-                await SaveIndexAsync(index, cancellationToken);
-            }
-            finally
-            {
-                IndexLock.Release();
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
+            return await SetActiveProfileIdAsync(profileId, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -415,6 +403,40 @@ public class UserDataTrackerService(
         {
             logger.LogError(ex, "[UserData] Failed to deactivate user data for profile {ProfileId}", profileId);
             return OperationResult<bool>.CreateFailure($"Failed to deactivate user data: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<bool>> SetActiveProfileIdAsync(
+        string profileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+
+        await IndexLock.WaitAsync(cancellationToken);
+        try
+        {
+            var index = await LoadIndexUnlockedAsync(cancellationToken);
+            if (!string.Equals(index.ActiveProfileId, profileId, StringComparison.Ordinal))
+            {
+                index.ActiveProfileId = profileId;
+                await SaveIndexAsync(index, cancellationToken);
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[UserData] Failed to record profile {ProfileId} as active", profileId);
+            return OperationResult<bool>.CreateFailure($"Failed to record the active profile: {ex.Message}");
+        }
+        finally
+        {
+            IndexLock.Release();
         }
     }
 
@@ -636,6 +658,21 @@ public class UserDataTrackerService(
                     uninstallErrors.Count,
                     _backupsPath);
                 return OperationResult<bool>.CreateFailure(uninstallErrors);
+            }
+
+            await IndexLock.WaitAsync(cancellationToken);
+            try
+            {
+                var unlockedIndex = await LoadIndexUnlockedAsync(cancellationToken);
+                if (string.Equals(unlockedIndex.ActiveProfileId, profileId, StringComparison.OrdinalIgnoreCase))
+                {
+                    unlockedIndex.ActiveProfileId = null;
+                    await SaveIndexAsync(unlockedIndex, cancellationToken);
+                }
+            }
+            finally
+            {
+                IndexLock.Release();
             }
 
             logger.LogInformation("[UserData] Cleaned up {Count} manifests for profile {ProfileId}", manifests.Count, profileId);

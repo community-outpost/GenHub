@@ -479,6 +479,15 @@ public class ProfileContentLinkerService(
                 logger.LogDebug("[ProfileContentLinker] No user data manifests for profile {ProfileId}", profileId);
             }
 
+            var recordResult = await userDataTracker.SetActiveProfileIdAsync(profileId, cancellationToken);
+            if (recordResult?.Success != true)
+            {
+                logger.LogWarning(
+                    "[ProfileContentLinker] Could not record profile {ProfileId} as active; after a restart the next launch will not know which profile ran last: {Error}",
+                    profileId,
+                    recordResult?.FirstError ?? UnknownErrorMessage);
+            }
+
             _activeProfileByGame[targetGame] = profileId;
             logger.LogInformation("[ProfileContentLinker] Successfully prepared user data for profile {ProfileId}", profileId);
             return OperationResult<bool>.CreateSuccess(true);
