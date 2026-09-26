@@ -1061,6 +1061,48 @@ public class SettingsViewModelTests
             Times.Never);
     }
 
+    /// <summary>Partial cancellation still refreshes profile listeners and danger-zone counts.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteProfilesCommand_CancelledAfterDeletion_RefreshesStateAsync()
+    {
+        SetupDeletableData();
+        _mockCasService.Setup(x => x.GetStatsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new CasStats());
+        var profiles = new List<GameProfile>
+        {
+            new() { Id = "first", Name = "First" },
+            new() { Id = "second", Name = "Second" },
+        };
+        _mockProfileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(profiles.ToList()));
+        _mockDialogService.Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        using var viewModel = CreateViewModel();
+        _mockProfileManager.Setup(x => x.DeleteProfileAsync("first", It.IsAny<CancellationToken>()))
+            .Returns((string id, CancellationToken token) =>
+            {
+                profiles.RemoveAt(0);
+                viewModel.DeleteProfilesCommand.Cancel();
+                return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+            });
+        _mockProfileManager.Setup(x => x.DeleteProfileAsync("second", It.IsAny<CancellationToken>()))
+            .Returns((string id, CancellationToken token) => Task.FromCanceled<OperationResult<bool>>(token));
+        var recipient = new object();
+        var notified = false;
+        WeakReferenceMessenger.Default.Register<ProfileListUpdatedMessage>(recipient, (_, _) => notified = true);
+        try
+        {
+            await viewModel.DeleteProfilesCommand.ExecuteAsync(null);
+            Assert.True(notified);
+            Assert.Equal("1 items", viewModel.ProfilesInfo);
+            _mockProfileManager.Verify(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()), Times.AtLeast(2));
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ProfileListUpdatedMessage>(recipient);
+        }
+    }
+
     /// <summary>
     /// Verifies that accepting the profile deletion confirmation removes all profiles.
     /// </summary>

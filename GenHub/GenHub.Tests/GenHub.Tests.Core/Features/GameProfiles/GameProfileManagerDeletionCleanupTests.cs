@@ -167,6 +167,24 @@ public sealed class GameProfileManagerDeletionCleanupTests : IDisposable
         Assert.True(File.Exists(_fixture.WorkspaceRefsPath));
     }
 
+    /// <summary>An unrecorded installation-specific workspace must retain its CAS references.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupWorkspaceAsync_UnrecordedCustomRoot_RetainsReferencesAsync()
+    {
+        await _fixture.ArrangeProfileWithDataAsync();
+        var alternate = Path.Combine(_fixture.RootPath, "custom-workspace");
+        Directory.Move(_fixture.WorkspacePath, alternate);
+        File.Delete(Path.Combine(_fixture.AppDataPath, FileTypes.WorkspaceMetadataFileName));
+
+        var result = await _fixture.CreateWorkspaceManager().CleanupWorkspaceAsync(_fixture.Profile.Id);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.False(result.Data);
+        Assert.True(Directory.Exists(alternate));
+        Assert.True(File.Exists(_fixture.WorkspaceRefsPath));
+    }
+
     /// <summary>Cancellation after reference removal still completes directory and metadata cleanup.</summary>
     /// <returns>The asynchronous test.</returns>
     [Fact]

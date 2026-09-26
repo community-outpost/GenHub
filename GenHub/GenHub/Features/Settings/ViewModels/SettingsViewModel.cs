@@ -2660,14 +2660,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     ShowProfileDeletionResult(deletedCount, failedProfileNames);
                 }
             }
-
-            // Notify listeners that profile list has changed
-            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
-
-            if (updateDangerZone)
-            {
-                await UpdateDangerZoneDataAsync();
-            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -2679,6 +2671,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (showToast)
             {
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete profiles: {ex.Message}", 5000);
+            }
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
+            if (updateDangerZone && !_disposed)
+            {
+                await UpdateDangerZoneDataAsync();
             }
         }
     }

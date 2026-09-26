@@ -158,19 +158,18 @@ public class WorkspaceManager(
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var workspacesResult = await GetAllWorkspacesAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!workspacesResult.Success)
-            {
-                return OperationResult<bool>.CreateFailure($"Failed to get workspaces for cleanup: {workspacesResult.FirstError}");
-            }
 
-            var workspaces = workspacesResult.Data!.ToList();
+            // Keep recorded paths even when their directories are already gone. The listing API
+            // filters these entries, which would lose the evidence needed to release their refs.
+            var workspaces = File.Exists(_workspaceMetadataPath)
+                ? JsonSerializer.Deserialize<List<WorkspaceInfo>>(await File.ReadAllTextAsync(_workspaceMetadataPath, cancellationToken)) ?? []
+                : [];
+            cancellationToken.ThrowIfCancellationRequested();
             var workspace = workspaces.FirstOrDefault(w => w.Id == workspaceId);
 
             if (workspace == null)
             {
-                return await CleanupUnrecordedWorkspaceAsync(workspaceId, cancellationToken);
+                return CleanupUnrecordedWorkspace(workspaceId);
             }
 
             // CRITICAL: Untrack CAS references BEFORE deleting workspace to prevent reference counting leak.
@@ -292,9 +291,9 @@ public class WorkspaceManager(
         }
     }
 
-    private async Task<OperationResult<bool>> CleanupUnrecordedWorkspaceAsync(string workspaceId, CancellationToken cancellationToken)
+    private OperationResult<bool> CleanupUnrecordedWorkspace(string workspaceId)
     {
-        logger.LogDebug("Workspace {Id} not found for cleanup; removing any leftover CAS references", workspaceId);
+        logger.LogDebug("Workspace {Id} has no recorded path; checking the default location", workspaceId);
         if (string.IsNullOrWhiteSpace(workspaceId))
         {
             return OperationResult<bool>.CreateSuccess(false);
@@ -315,18 +314,17 @@ public class WorkspaceManager(
         }
         catch (FileNotFoundException)
         {
-            // Confirmed absent; leftover references can be removed.
+            // The default location is absent, but other roots remain unknown.
         }
         catch (DirectoryNotFoundException)
         {
-            // Confirmed absent; leftover references can be removed.
+            // The default location is absent, but other roots remain unknown.
         }
 
-        var orphanUntrackResult = await casReferenceTracker.UntrackWorkspaceAsync(workspaceId, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        return orphanUntrackResult.Success
-            ? OperationResult<bool>.CreateSuccess(false)
-            : OperationResult<bool>.CreateFailure($"Failed to untrack CAS references: {orphanUntrackResult.FirstError}");
+        // The default root cannot prove absence from installation-specific or historical roots.
+        // Without recorded metadata retain all CAS references; this is a no-op, not an untrack.
+        logger.LogWarning("No recorded path for workspace {Id}; retaining any CAS references", workspaceId);
+        return OperationResult<bool>.CreateSuccess(false);
     }
 
     private async Task SaveAllWorkspacesAsync(IEnumerable<WorkspaceInfo> workspaces, CancellationToken cancellationToken)
