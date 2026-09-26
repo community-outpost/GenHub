@@ -320,6 +320,43 @@ public class PublishSharePartialPublishTests
             definitionFails ? Times.Never() : Times.Once());
     }
 
+    /// <summary>
+    /// A single catalog clears pending definition state only after a confirmed definition upload.
+    /// </summary>
+    /// <param name="cancelDefinition">Whether definition upload is canceled.</param>
+    /// <param name="failDefinition">Whether definition upload fails.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task SingleCatalog_DefinitionOutcomeControlsStaleStateAsync(bool cancelDefinition, bool failDefinition)
+    {
+        PublishShareViewModel? vm = null;
+        vm = CreateViewModel(
+            [],
+            cancelDefinitionUpload: cancelDefinition,
+            failDefinitionUpload: failDefinition,
+            definitionCanceling: () => vm!.CancelUploadCommand.Execute(null));
+        vm.HasDefinitionChanges = false;
+
+        await vm.PublishCatalogCommand.ExecuteAsync(vm.CatalogStatuses.First().Catalog);
+
+        Assert.Equal(cancelDefinition || failDefinition, vm.HasDefinitionChanges);
+        Assert.False(vm.IsUploading);
+        if (cancelDefinition)
+        {
+            Assert.Contains("cancel", vm.UploadStatusMessage, StringComparison.OrdinalIgnoreCase);
+            _mockNotificationService.Verify(
+                n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Never);
+        }
+        else if (!failDefinition)
+        {
+            Assert.Single(_definitionUploads);
+        }
+    }
+
     private static NamedCatalog CreateCatalog(string id, string name) => new()
     {
         Id = id,
@@ -328,7 +365,7 @@ public class PublishSharePartialPublishTests
         Catalog = new PublisherCatalog(),
     };
 
-    private PublishShareViewModel CreateViewModel(string[] failingCatalogFiles, bool definitionGenerates = true, bool cancelDefinitionUpload = false, bool failDefinitionUpload = false, Action? catalogUploaded = null)
+    private PublishShareViewModel CreateViewModel(string[] failingCatalogFiles, bool definitionGenerates = true, bool cancelDefinitionUpload = false, bool failDefinitionUpload = false, Action? catalogUploaded = null, Action? definitionCanceling = null)
     {
         var project = new PublisherStudioProject
         {
@@ -366,6 +403,7 @@ public class PublishSharePartialPublishTests
             {
                 if (cancelDefinitionUpload)
                 {
+                    definitionCanceling?.Invoke();
                     throw new OperationCanceledException();
                 }
 

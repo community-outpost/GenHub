@@ -2626,6 +2626,9 @@ public partial class PublishShareViewModel(
                 return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
             }
 
+            // An attempted upload can change remote state even if its response is lost.
+            NotifyDefinitionStale();
+
             // 1. Upload Pending Artifacts and Artwork
             CurrentPublishStep = 1;
             var pendingUploadResult = await UploadPendingContentAsync(SelectedHostingProvider, cancellationToken, suppressNotifications);
@@ -4505,8 +4508,6 @@ public partial class PublishShareViewModel(
             cancellationToken.ThrowIfCancellationRequested();
             var catalog = catalogs[i];
 
-            // An attempted upload can change remote state even if its response is lost.
-            NotifyDefinitionStale();
             var (success, error) = await PublishCatalogItemAsync(catalog, i + 1, catalogs.Count, cancellationToken, uploadDefinition: false);
             if (success)
             {
@@ -5299,6 +5300,7 @@ public partial class PublishShareViewModel(
 
     private void NotifyDefinitionUploaded()
     {
+        HasDefinitionChanges = false;
         try
         {
             DefinitionUploadedCallback?.Invoke();
