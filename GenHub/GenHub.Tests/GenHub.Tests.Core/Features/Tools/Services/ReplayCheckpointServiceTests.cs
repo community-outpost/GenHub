@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
@@ -24,6 +25,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
 {
     private readonly Mock<IProfileLauncherFacade> _mockLauncherFacade = new();
     private readonly Mock<IGameProcessManager> _mockProcessManager = new();
+    private readonly Mock<IGamePathProvider> _mockGamePathProvider = new();
     private readonly string _tempSaveDir;
     private readonly ReplayCheckpointService _service;
 
@@ -42,6 +44,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         _service = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
             NullLogger<ReplayCheckpointService>.Instance,
             _tempSaveDir);
     }
@@ -63,24 +66,43 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that GetSaveDirectory returns the native Save directory in Documents for both game types when no override is provided.
+    /// Verifies that GetSaveDirectory resolves the Save directory under the platform game user-data
+    /// directory when no override is provided.
     /// </summary>
     [Fact]
-    public void GetSaveDirectory_ReturnsSavePathUnderDocuments()
+    public void GetSaveDirectory_ResolvesUnderGamePathProviderDirectory()
     {
+        var zeroHourData = Path.Combine(_tempSaveDir, "provider", GameSettingsConstants.FolderNames.ZeroHour);
+        var generalsData = Path.Combine(_tempSaveDir, "provider", GameSettingsConstants.FolderNames.Generals);
+        _mockGamePathProvider.Setup(p => p.GetOptionsDirectory(GameType.ZeroHour)).Returns(zeroHourData);
+        _mockGamePathProvider.Setup(p => p.GetOptionsDirectory(GameType.Generals)).Returns(generalsData);
+
         var defaultService = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
             NullLogger<ReplayCheckpointService>.Instance);
 
-        var zhPath = defaultService.GetSaveDirectory(GameType.ZeroHour);
-        var genPath = defaultService.GetSaveDirectory(GameType.Generals);
+        Assert.Equal(Path.Combine(zeroHourData, ReplayManagerConstants.SaveFolderName), defaultService.GetSaveDirectory(GameType.ZeroHour));
+        Assert.Equal(Path.Combine(generalsData, ReplayManagerConstants.SaveFolderName), defaultService.GetSaveDirectory(GameType.Generals));
+    }
 
-        Assert.Contains(GameSettingsConstants.FolderNames.ZeroHour, zhPath);
-        Assert.EndsWith(ReplayManagerConstants.SaveFolderName, zhPath);
+    /// <summary>Unavailable or relative platform directories preserve an absolute checkpoint fallback.</summary>
+    /// <param name="directory">The invalid platform directory.</param>
+    [Theory]
+    [InlineData("")]
+    [InlineData("relative-data")]
+    public void GetSaveDirectory_InvalidProviderDirectory_UsesAbsoluteFallback(string directory)
+    {
+        _mockGamePathProvider.Setup(p => p.GetOptionsDirectory(GameType.ZeroHour)).Returns(directory);
+        using var service = new ReplayCheckpointService(
+            _mockLauncherFacade.Object,
+            _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
+            NullLogger<ReplayCheckpointService>.Instance);
 
-        Assert.Contains(GameSettingsConstants.FolderNames.Generals, genPath);
-        Assert.EndsWith(ReplayManagerConstants.SaveFolderName, genPath);
+        var expected = Path.Combine(AppContext.BaseDirectory, GameSettingsConstants.FolderNames.ZeroHour, ReplayManagerConstants.SaveFolderName);
+        Assert.Equal(expected, service.GetSaveDirectory(GameType.ZeroHour));
     }
 
     /// <summary>
@@ -408,6 +430,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         var serviceWithShortTimeout = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
             NullLogger<ReplayCheckpointService>.Instance,
             customSaveDirectory: _tempSaveDir,
             mintTimeout: TimeSpan.FromMilliseconds(50));
@@ -471,6 +494,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         var serviceWithShortTimeout = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
             NullLogger<ReplayCheckpointService>.Instance,
             customSaveDirectory: _tempSaveDir,
             mintTimeout: TimeSpan.FromMilliseconds(50));
@@ -648,6 +672,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         var serviceWithShortTimeout = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
             NullLogger<ReplayCheckpointService>.Instance,
             customSaveDirectory: _tempSaveDir,
             mintTimeout: TimeSpan.FromMilliseconds(50));
@@ -1018,6 +1043,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         var localService = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
             NullLogger<ReplayCheckpointService>.Instance,
             customSaveDirectory: _tempSaveDir);
 
@@ -1041,6 +1067,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         var localService = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
             NullLogger<ReplayCheckpointService>.Instance,
             customSaveDirectory: badSaveDir);
 
@@ -1080,6 +1107,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         var localService = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
+            _mockGamePathProvider.Object,
             NullLogger<ReplayCheckpointService>.Instance,
             customSaveDirectory: _tempSaveDir);
 

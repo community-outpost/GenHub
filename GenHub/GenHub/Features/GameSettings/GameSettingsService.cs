@@ -342,8 +342,12 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     /// <returns>The full path to settings.json.</returns>
     protected virtual string GetGeneralsOnlineSettingsPath()
     {
-        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var zeroHourDataPath = Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour);
+        var zeroHourDataPath = _pathProvider.GetOptionsDirectory(GameType.ZeroHour);
+        if (string.IsNullOrWhiteSpace(zeroHourDataPath) || !Path.IsPathFullyQualified(zeroHourDataPath))
+        {
+            zeroHourDataPath = Path.Combine(AppContext.BaseDirectory, GameSettingsConstants.FolderNames.ZeroHour);
+        }
+
         var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
         return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
     }
