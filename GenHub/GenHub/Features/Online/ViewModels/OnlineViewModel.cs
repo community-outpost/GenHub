@@ -782,7 +782,10 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
         ConfigureProfileSelectionDialog(profileVm);
 
-        var (expectedFp, expectedClientKey) = ResolveExpectedProfileKeys();
+        var (expectedFp, expectedClientKey) = ResolveExpectedProfileKeys(
+            ExpectedProfileFingerprint,
+            ExpectedGameClientId,
+            SelectedDetail);
         var targetGame = ResolveTargetGame(expectedClientKey, SelectedPlayProfile);
         var compatibleProfileIds = await FindCompatibleProfileIdsAsync(expectedFp, expectedClientKey, cancellationToken);
 
@@ -1321,6 +1324,23 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         return GameType.ZeroHour;
     }
 
+    private static (string? ExpectedFp, string ExpectedClientKey) ResolveExpectedProfileKeys(
+        string? expectedFp,
+        string? expectedClientKey,
+        OnlineNetworkDetail? selectedDetail)
+    {
+        var resolvedFp = expectedFp;
+        var resolvedClientKey = expectedClientKey ?? string.Empty;
+
+        if (string.IsNullOrEmpty(resolvedFp) && selectedDetail != null)
+        {
+            resolvedFp = selectedDetail.ExpectedProfileFingerprint;
+            resolvedClientKey = selectedDetail.ExpectedProfileId ?? string.Empty;
+        }
+
+        return (resolvedFp, resolvedClientKey);
+    }
+
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates generated MVVM properties Sonar cannot see.")]
 #pragma warning disable S2325
     private void UpdateAvailableProfilesList(GameProfile updatedProfile)
@@ -1408,20 +1428,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         profileVm.HeaderTitle = GetLocalizedString("Online.ProfileSelection.HeaderTitle", "Select Game Profile");
         profileVm.HeaderSubtitle = GetLocalizedString("Online.ProfileSelection.HeaderSubtitle", "Choose a profile for online play with lobby compatibility");
         profileVm.ActionBadgeText = GetLocalizedString("Online.ProfileSelection.SelectAction", "Select");
-    }
-
-    private (string? ExpectedFp, string ExpectedClientKey) ResolveExpectedProfileKeys()
-    {
-        var expectedFp = ExpectedProfileFingerprint;
-        var expectedClientKey = ExpectedGameClientId ?? string.Empty;
-
-        if (string.IsNullOrEmpty(expectedFp) && SelectedDetail != null)
-        {
-            expectedFp = SelectedDetail.ExpectedProfileFingerprint;
-            expectedClientKey = SelectedDetail.ExpectedProfileId ?? string.Empty;
-        }
-
-        return (expectedFp, expectedClientKey);
     }
 
     private async Task<HashSet<string>?> FindCompatibleProfileIdsAsync(
