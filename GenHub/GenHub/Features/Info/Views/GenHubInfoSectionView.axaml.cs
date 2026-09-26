@@ -172,6 +172,10 @@ public partial class GenHubInfoSectionView : UserControl
             () =>
             {
                 RegisterAllCardContainers();
+                if (_boundViewModel?.SelectedCard is { } selectedCard)
+                {
+                    ScrollToCard(selectedCard);
+                }
             },
             DispatcherPriority.Loaded);
     }
