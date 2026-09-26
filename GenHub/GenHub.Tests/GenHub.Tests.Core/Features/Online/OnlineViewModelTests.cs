@@ -1213,6 +1213,54 @@ public class OnlineViewModelTests
         Assert.True(condition(), "Timed out waiting for the background match.");
     }
 
+    /// <summary>
+    /// Tests that profile setup results are cached and invalidated when a profile updated message arrives.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task FindCompatibleProfileIds_UsesCache_AndInvalidatesOnProfileUpdatedMessageAsync()
+    {
+        // Arrange
+        var profile = ProfileWithClient("p1", "Profile 1", GameType.ZeroHour, "client-1", "1.04", "mod-a");
+        var manifests = new List<ContentManifest>
+        {
+            new() { Id = new ManifestId("mod-a"), ContentType = GenHub.Core.Models.Enums.ContentType.Mod },
+        };
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        profiles.Setup(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess(manifests));
+
+        var vm = CreateViewModel(profiles: profiles.Object);
+        vm.IsCurrentUserHost = false;
+
+        var expectedFp = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);
+        var method = typeof(OnlineViewModel).GetMethod("FindCompatibleProfileIdsAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+
+        // Act 1: Initial call populates cache
+        var task1 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
+        var result1 = await task1;
+        Assert.NotNull(result1);
+        Assert.Contains("p1", result1);
+
+        // Verify GetAvailableContentAsync was called once
+        profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        // Act 2: Second call uses cache, so GetAvailableContentAsync is not called again
+        var task2 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
+        var result2 = await task2;
+        Assert.NotNull(result2);
+        profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        // Act 3: Profile updated message invalidates cache
+        WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
+        var task3 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
+        var result3 = await task3;
+        Assert.NotNull(result3);
+        profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
     private static GameProfile ProfileWithClient(
         string id,
         string name,
@@ -1262,54 +1310,6 @@ public class OnlineViewModelTests
             .ReturnsAsync(OperationResult<OnlineNetworkDetail>.CreateSuccess(detail));
         network = networkMock;
         return CreateViewModel(networkMock.Object, profiles: profiles.Object);
-    }
-
-    /// <summary>
-    /// Tests that profile setup results are cached and invalidated when a profile updated message arrives.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task FindCompatibleProfileIds_UsesCache_AndInvalidatesOnProfileUpdatedMessageAsync()
-    {
-        // Arrange
-        var profile = ProfileWithClient("p1", "Profile 1", GameType.ZeroHour, "client-1", "1.04", "mod-a");
-        var manifests = new List<ContentManifest>
-        {
-            new() { Id = new ManifestId("mod-a"), ContentType = GenHub.Core.Models.Enums.ContentType.Mod }
-        };
-        var profiles = new Mock<IGameProfileManager>();
-        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
-        profiles.Setup(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess(manifests));
-
-        var vm = CreateViewModel(profiles: profiles.Object);
-        vm.IsCurrentUserHost = false;
-
-        var expectedFp = OnlineProfileMatcher.CreateFingerprint("ZeroHour|1.04|client-1", ["mod-a"]);
-        var method = typeof(OnlineViewModel).GetMethod("FindCompatibleProfileIdsAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-
-        // Act 1: Initial call populates cache
-        var task1 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
-        var result1 = await task1;
-        Assert.NotNull(result1);
-        Assert.Contains("p1", result1);
-
-        // Verify GetAvailableContentAsync was called once
-        profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Once);
-
-        // Act 2: Second call uses cache, so GetAvailableContentAsync is not called again
-        var task2 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
-        var result2 = await task2;
-        Assert.NotNull(result2);
-        profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Once);
-
-        // Act 3: Profile updated message invalidates cache
-        WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
-        var task3 = (Task<HashSet<string>?>)method.Invoke(vm, [expectedFp, "ZeroHour|1.04|client-1", CancellationToken.None])!;
-        var result3 = await task3;
-        Assert.NotNull(result3);
-        profiles.Verify(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     private static OnlineViewModel CreateViewModel(

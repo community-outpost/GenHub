@@ -246,6 +246,7 @@ public sealed class OnlinePresenceServiceTests : IDisposable
         Assert.Null(exception);
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         _service.Dispose();
