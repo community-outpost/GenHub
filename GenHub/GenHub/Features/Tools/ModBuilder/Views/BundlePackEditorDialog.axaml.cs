@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using GenHub.Common.Helpers;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
 
@@ -14,6 +15,7 @@ public partial class BundlePackEditorDialog : Window
     public BundlePackEditorDialog()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <inheritdoc/>

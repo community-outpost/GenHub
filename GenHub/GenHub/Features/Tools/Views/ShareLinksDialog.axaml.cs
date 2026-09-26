@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Helpers;
 using GenHub.Features.Tools.ViewModels;
 using System;
 
@@ -31,6 +32,7 @@ public partial class ShareLinksDialog : Window
     public ShareLinksDialog()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
         DataContextChanged += OnDataContextChanged;
     }
 

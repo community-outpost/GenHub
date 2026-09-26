@@ -5,6 +5,7 @@
         xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
         xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
         xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        xmlns:helpers="clr-namespace:GenHub.Common.Helpers"
         mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="700"
         x:Class="GenHub.Features.GameProfiles.Views.ImportProfileInspectionWindow"
         x:DataType="vm:ImportProfileInspectionViewModel"
@@ -18,7 +19,8 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
         TransparencyLevelHint="AcrylicBlur"
-        Background="Transparent">
+        Background="Transparent"
+        helpers:WindowChromeHelper.AdaptForPlatform="True">
 
     <Window.Resources>
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />

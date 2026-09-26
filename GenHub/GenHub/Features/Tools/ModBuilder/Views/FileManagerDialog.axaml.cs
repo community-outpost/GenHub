@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using GenHub.Common.Helpers;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
@@ -16,6 +17,7 @@ public partial class FileManagerDialog : Window
     public FileManagerDialog()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <summary>

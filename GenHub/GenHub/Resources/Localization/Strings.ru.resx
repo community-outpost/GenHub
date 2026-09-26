@@ -14496,6 +14496,51 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Успешно удалено профилей: {0}.</value>
   </data>
+  <data name="Common.Dismiss" xml:space="preserve">
+    <value>Dismiss</value>
+  </data>
+  <data name="Downloads.Subscription.SubscribedNotificationBody" xml:space="preserve">
+    <value>Catalog subscription added successfully.</value>
+  </data>
+  <data name="Tools.ModBuilder.BundlePack.PickerTitle" xml:space="preserve">
+    <value>Add Files to Bundle</value>
+  </data>
+  <data name="Tools.ModBuilder.Filter.AllFiles" xml:space="preserve">
+    <value>All Files</value>
+  </data>
+  <data name="Tools.ModBuilder.Filter.ImageFiles" xml:space="preserve">
+    <value>Image Files</value>
+  </data>
+  <data name="Tools.ModBuilder.Filter.TextFiles" xml:space="preserve">
+    <value>Text Files</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AddFilesFailed.Title" xml:space="preserve">
+    <value>Add Files Failed</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AddFilesFailed.Message" xml:space="preserve">
+    <value>Failed to add files: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BundlePackSaved.Title" xml:space="preserve">
+    <value>Bundle Pack Saved</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BundlePackSaved.Message" xml:space="preserve">
+    <value>Changes to '{0}' have been saved</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ConversionQueued.Title" xml:space="preserve">
+    <value>Conversion Queued</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ConversionQueued.Message" xml:space="preserve">
+    <value>{0} TGA file(s) will be converted to DDS during build</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoTgaFiles.Title" xml:space="preserve">
+    <value>No TGA Files</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoTgaFiles.Message" xml:space="preserve">
+    <value>No TGA files found to convert</value>
+  </data>
+  <data name="Tools.ReplayManager.Status.ImportCancelled" xml:space="preserve">
+    <value>Import cancelled.</value>
+  </data>
   <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
     <value>Открыть студию издателя</value>
   </data>

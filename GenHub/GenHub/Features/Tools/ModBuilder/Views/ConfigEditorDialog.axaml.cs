@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using GenHub.Common.Helpers;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
@@ -15,6 +16,7 @@ public partial class ConfigEditorDialog : Window
     public ConfigEditorDialog()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <summary>

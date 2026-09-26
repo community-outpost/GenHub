@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Helpers;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
 
@@ -19,6 +20,7 @@ public partial class ShareProfileDialogWindow : Window
     public ShareProfileDialogWindow()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
         DataContextChanged += OnDataContextChanged;
         Closed += (s, e) => (DataContext as IDisposable)?.Dispose();
     }

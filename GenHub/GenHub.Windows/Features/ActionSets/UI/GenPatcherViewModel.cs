@@ -748,15 +748,15 @@ public partial class GenPatcherViewModel(
 
             notificationService.ShowSuccess(
                 "All Fixes Applied Successfully",
-                $"✓ Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!");
+                $"OK: Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!");
         }
         else
         {
             var errorDetails = string.Join("\n", batchResult.Errors);
             logger.LogWarning("Batch completed with errors: {Errors}", errorDetails);
             var failureSummary = notAttemptedCount > 0
-                ? $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n⚠ Not attempted: {notAttemptedCount}\n\nErrors:\n{errorDetails}"
-                : $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n\nErrors:\n{errorDetails}";
+                ? $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\nOK: Successfully applied: {successCount}\nError: Failed: {errorCount}\nWarning: Not attempted: {notAttemptedCount}\n\nErrors:\n{errorDetails}"
+                : $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\nOK: Successfully applied: {successCount}\nError: Failed: {errorCount}\n\nErrors:\n{errorDetails}";
 
             notificationService.ShowError(
                 $"Fixes Completed with Errors ({successCount}/{totalApplicable} successful)",

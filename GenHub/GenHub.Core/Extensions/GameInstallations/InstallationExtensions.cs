@@ -170,8 +170,9 @@ public static class InstallationExtensions
     /// </summary>
     /// <param name="installation">The platform installation.</param>
     /// <param name="logger">Optional logger instance.</param>
+    /// <param name="loggerFactory">Optional logger factory used to create the domain model logger.</param>
     /// <returns>Domain model game installation.</returns>
-    public static GameInstallation ToDomain(this IGameInstallation installation, ILogger? logger = null)
+    public static GameInstallation ToDomain(this IGameInstallation installation, ILogger? logger = null, ILoggerFactory? loggerFactory = null)
     {
         logger?.LogTrace(
             "Converting {InstallationType} installation to domain model",
@@ -186,7 +187,7 @@ public static class InstallationExtensions
             installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
         }
 
-        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>)
+        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, loggerFactory?.CreateLogger<GameInstallation>())
         {
             Id = installation.Id,
             DisplayName = installation.DisplayName,

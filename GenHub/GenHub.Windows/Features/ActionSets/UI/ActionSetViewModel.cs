@@ -370,7 +370,7 @@ public partial class ActionSetViewModel(
         HasActionResultDetails = true;
 
         logger.LogInformation(
-            isForce ? "✓ {Title} force applied successfully in {Duration}ms - {Details}" : "✓ {Title} applied successfully in {Duration}ms - {Details}",
+            isForce ? "OK: {Title} force applied successfully in {Duration}ms - {Details}" : "OK: {Title} applied successfully in {Duration}ms - {Details}",
             ActionSet.Title,
             (int)duration,
             result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details provided");
@@ -390,7 +390,7 @@ public partial class ActionSetViewModel(
         HasActionResultDetails = true;
 
         logger.LogError(
-            isForce ? "✗ [GENPATCHER_FIX_014] {Title} force apply failed in {Duration}ms - {Error} - {Details}" : "✗ [GENPATCHER_FIX_010] {Title} failed in {Duration}ms - {Error} - {Details}",
+            isForce ? "Error: [GENPATCHER_FIX_014] {Title} force apply failed in {Duration}ms - {Error} - {Details}" : "Error: [GENPATCHER_FIX_010] {Title} failed in {Duration}ms - {Error} - {Details}",
             ActionSet.Title,
             (int)duration,
             result.ErrorMessage ?? "Unknown error",

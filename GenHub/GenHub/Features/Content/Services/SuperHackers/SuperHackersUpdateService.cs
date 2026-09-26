@@ -135,7 +135,7 @@ public class SuperHackersUpdateService(
                 // Ensure User-Agent is set globally or here (GitHub requires it)
                 if (httpClient.DefaultRequestHeaders.UserAgent.Count == 0)
                 {
-                    httpClient.DefaultRequestHeaders.Add("User-Agent", "GenHub-Agent");
+                    httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
                 }
             }
 

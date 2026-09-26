@@ -20,7 +20,7 @@ namespace GenHub.Windows.GameInstallations;
 /// <summary>
 /// Windows-specific game installation detector.
 /// </summary>
-public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> logger) : IGameInstallationDetector
+public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> logger, ILoggerFactory? loggerFactory = null) : IGameInstallationDetector
 {
     /// <summary>
     /// Gets the human-readable name for logs/UI.
@@ -51,10 +51,10 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         {
             // Check Steam installations
             logger.LogDebug("Checking Steam installations");
-            var steam = new SteamInstallation(fetch: true, logger: logger as ILogger<SteamInstallation>);
+            var steam = new SteamInstallation(fetch: true, logger: loggerFactory?.CreateLogger<SteamInstallation>());
             if (steam.IsSteamInstalled && (steam.HasGenerals || steam.HasZeroHour))
             {
-                installs.Add(steam.ToDomain(logger));
+                installs.Add(steam.ToDomain(logger, loggerFactory));
                 logger.LogInformation(
                     "Detected Steam installation with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour installations",
                     steam.HasGenerals ? 1 : 0,
@@ -67,10 +67,10 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
             // Check EA App installations
             logger.LogDebug("Checking EA App installations");
-            var ea = new EaAppInstallation(fetch: true, logger: logger as ILogger<EaAppInstallation>);
+            var ea = new EaAppInstallation(fetch: true, logger: loggerFactory?.CreateLogger<EaAppInstallation>());
             if (ea.IsEaAppInstalled && (ea.HasGenerals || ea.HasZeroHour))
             {
-                installs.Add(ea.ToDomain(logger));
+                installs.Add(ea.ToDomain(logger, loggerFactory));
                 logger.LogInformation(
                     "Detected EA App installation with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour installations",
                     ea.HasGenerals ? 1 : 0,
@@ -83,10 +83,10 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
             // Check CD/ISO installations
             logger.LogDebug("Checking CD/ISO installations");
-            var cdiso = new CdisoInstallation(fetch: true, logger: logger as ILogger<CdisoInstallation>);
+            var cdiso = new CdisoInstallation(fetch: true, logger: loggerFactory?.CreateLogger<CdisoInstallation>());
             if (cdiso.IsCdisoInstalled && (cdiso.HasGenerals || cdiso.HasZeroHour))
             {
-                installs.Add(cdiso.ToDomain(logger));
+                installs.Add(cdiso.ToDomain(logger, loggerFactory));
                 logger.LogInformation(
                     "Detected CD/ISO installation with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour installations",
                     cdiso.HasGenerals ? 1 : 0,

@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:GenHub.Features.Tools.ViewModels"
         xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        xmlns:helpers="clr-namespace:GenHub.Common.Helpers"
         mc:Ignorable="d"
         d:DesignWidth="580" d:DesignHeight="520"
         x:Class="GenHub.Features.Tools.Views.ShareLinksDialog"
@@ -19,7 +20,8 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
         TransparencyLevelHint="AcrylicBlur"
-        Background="Transparent">
+        Background="Transparent"
+        helpers:WindowChromeHelper.AdaptForPlatform="True">
 
     <Border Background="{DynamicResource CardBackground}"
             BorderBrush="{DynamicResource BorderBrush}"

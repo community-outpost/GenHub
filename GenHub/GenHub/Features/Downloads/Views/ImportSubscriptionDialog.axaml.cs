@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Helpers;
 using GenHub.Features.Downloads.ViewModels;
 using System;
 
@@ -17,6 +18,7 @@ public partial class ImportSubscriptionDialog : Window
     public ImportSubscriptionDialog()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <inheritdoc />
