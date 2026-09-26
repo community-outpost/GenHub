@@ -16,7 +16,7 @@
       "contentType": "GameClient",
       "publisherType": "thesuperhackers",
       "targetGame": 1,
-      "isStandalone": false,
+      "isStandalone": true,
       "upstreamSync": {
         "provider": "GitHubReleases",
         "repository": "TheSuperHackers/GeneralsGameCode",
@@ -87,7 +87,7 @@
       "contentType": "GameClient",
       "publisherType": "generalsonline",
       "targetGame": 1,
-      "isStandalone": false,
+      "isStandalone": true,
       "upstreamSync": {
         "provider": "GeneralsOnline",
         "channel": "stable"
@@ -133,7 +133,7 @@
       "contentType": "GameClient",
       "publisherType": "communityoutpost",
       "targetGame": 1,
-      "isStandalone": false,
+      "isStandalone": true,
       "tags": [
         "gentool",
         "genpatcher",
@@ -183,7 +183,7 @@
       "description": "Clean, high-definition competitive control bar overlay designed by L3M. Supports multiple display resolutions with pixel-perfect mini-map scaling and unit command cards.",
       "contentType": "Addon",
       "targetGame": 1,
-      "isStandalone": false,
+      "isStandalone": true,
       "tags": [
         "controlbar",
         "hd",
@@ -258,7 +258,7 @@
       "description": "A comprehensive ergonomic hotkey set by Leikeze. Supports multiple languages (English, German, Russian) and balanced for efficiency and ease of use.",
       "contentType": "Addon",
       "targetGame": 1,
-      "isStandalone": false,
+      "isStandalone": true,
       "tags": [
         "addon",
         "hotkeys",
@@ -322,7 +322,7 @@
       "description": "High-resolution widescreen menu interface with responsive button layouts and enhanced typography by ElTioRata.",
       "contentType": "Addon",
       "targetGame": 1,
-      "isStandalone": false,
+      "isStandalone": true,
       "tags": [
         "addon",
         "menus",

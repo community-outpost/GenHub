@@ -14,7 +14,10 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.GenLauncher;
 using GenHub.Core.Models.GitHub;
@@ -4769,13 +4772,21 @@ public partial class ContentDetailViewModel(
         {
             if (dialogService != null)
             {
-                var versionText = !string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version)
-                    ? $" ({_updateTargetSearchResult.Version})"
-                    : string.Empty;
+                var promptTitle = FormatLocalizedString("Downloads.UpdateDialog.Title", "{0} Update Available", Name);
+                var promptMessage = !string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version)
+                    ? FormatLocalizedString(
+                        "Downloads.UpdateDialog.MessageWithVersion",
+                        "{0} has an update available ({1}).\n\nHow do you want to apply this update?",
+                        Name,
+                        _updateTargetSearchResult.Version)
+                    : FormatLocalizedString(
+                        "Downloads.UpdateDialog.Message",
+                        "{0} has an update available.\n\nHow do you want to apply this update?",
+                        Name);
 
                 var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
-                    $"{Name} Update Available",
-                    $"A new version of **{Name}** is available{versionText}.\n\nHow do you want to apply this update?",
+                    promptTitle,
+                    promptMessage,
                     initialDeleteOldVersions: true);
 
                 if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
@@ -4899,38 +4910,59 @@ public partial class ContentDetailViewModel(
             .Where(c => !c.IsBaseGame && c.EffectiveState == ContentState.UpdateAvailable)
             .ToList();
 
+        var componentUpdates = new Dictionary<string, (UpdateDialogResult PromptResult, string? OldManifestId)>(StringComparer.OrdinalIgnoreCase);
+
         if (updateCandidates.Count > 0 && dialogService != null)
         {
             foreach (var updateComp in updateCandidates)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var searchResult = updateComp.GetSelectedSearchResult();
-                if (searchResult == null)
+                var candidateResult = updateComp.GetSelectedSearchResult();
+                if (candidateResult == null)
                 {
                     continue;
                 }
 
-                var isGameClient = searchResult.ContentType == ContentType.GameClient;
+                var isGameClient = candidateResult.ContentType == ContentType.GameClient;
                 var contentTypeLabel = isGameClient ? "GameClient" : "Addon";
-                var versionText = !string.IsNullOrWhiteSpace(searchResult.Version)
-                    ? $" ({searchResult.Version})"
+                var versionText = !string.IsNullOrWhiteSpace(candidateResult.Version)
+                    ? $" ({candidateResult.Version})"
                     : string.Empty;
 
                 var message = isGameClient
-                    ? $"A new version of GameClient **{updateComp.SelectedDisplayName}** is available{versionText}.\n\nWould you like to update it as part of this bundle installation?\n\n*(Note: For GameClients, unchecking 'Delete older versions' lets you keep previous client versions installed side-by-side)*"
-                    : $"A new version of {contentTypeLabel} **{updateComp.SelectedDisplayName}** is available{versionText}.\n\nWould you like to update and replace it in the profile as part of this bundle installation?";
+                    ? FormatLocalizedString(
+                        "Downloads.ContentDetail.BundleUpdateGameClientMessageFormat",
+                        "A new version of GameClient **{0}** is available{1}.\n\nWould you like to update it as part of this bundle installation?\n\n*(Note: For GameClients, unchecking 'Delete older versions' lets you keep previous client versions installed side-by-side)*",
+                        updateComp.SelectedDisplayName,
+                        versionText)
+                    : FormatLocalizedString(
+                        "Downloads.ContentDetail.BundleUpdateComponentMessageFormat",
+                        "A new version of {0} **{1}** is available{2}.\n\nWould you like to update and replace it in the profile as part of this bundle installation?",
+                        contentTypeLabel,
+                        updateComp.SelectedDisplayName,
+                        versionText);
 
                 var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
-                    $"{updateComp.Name} Update Available",
+                    FormatLocalizedString("Downloads.UpdateDialog.Title", "{0} Update Available", updateComp.Name),
                     message,
                     initialDeleteOldVersions: !isGameClient);
 
-                if (promptResult != null && !string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+                if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!targets.Any(t => string.Equals(t.Id, searchResult.Id, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        targets.Add(searchResult);
-                    }
+                    continue;
+                }
+
+                var oldManifestId = await updateComp.GetAcquiredManifestIdAsync(contentStateService, cancellationToken)
+                    ?? await contentStateService.GetLocalManifestIdAsync(candidateResult, cancellationToken);
+
+                if (!string.IsNullOrEmpty(candidateResult.Id))
+                {
+                    componentUpdates[candidateResult.Id] = (promptResult, oldManifestId);
+                }
+
+                if (!targets.Any(t => string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase)))
+                {
+                    targets.Add(candidateResult);
                 }
             }
         }
@@ -4995,9 +5027,18 @@ public partial class ContentDetailViewModel(
                     return;
                 }
 
+                var newManifest = result.Data;
+                var newManifestId = newManifest.Id.Value;
+
                 foreach (var component in BundleComponents)
                 {
-                    component.MarkDownloaded(originalContentId, result.Data.Id.Value);
+                    component.MarkDownloaded(originalContentId, newManifestId);
+                }
+
+                if (componentUpdates.TryGetValue(originalContentId, out var updateInfo) ||
+                    (!string.IsNullOrEmpty(target.Id) && componentUpdates.TryGetValue(target.Id, out updateInfo)))
+                {
+                    await ApplyBundleComponentUpdateStrategyAsync(target, updateInfo.OldManifestId, newManifest, updateInfo.PromptResult, cancellationToken);
                 }
 
                 completed++;
@@ -5042,6 +5083,121 @@ public partial class ContentDetailViewModel(
                         DownloadStatusMessage = null;
                     }
                 });
+            }
+        }
+    }
+
+    private async Task ApplyBundleComponentUpdateStrategyAsync(
+        ContentSearchResult target,
+        string? oldManifestId,
+        ContentManifest newManifest,
+        UpdateDialogResult promptResult,
+        CancellationToken cancellationToken)
+    {
+        var newManifestId = newManifest.Id.Value;
+
+        if (profileManager != null && !string.IsNullOrEmpty(oldManifestId))
+        {
+            try
+            {
+                var profilesResult = await profileManager.GetAllProfilesAsync(cancellationToken);
+                if (profilesResult.Success && profilesResult.Data != null)
+                {
+                    foreach (var profile in profilesResult.Data)
+                    {
+                        var isGameClientMatch = profile.GameClient != null &&
+                            string.Equals(profile.GameClient.Id, oldManifestId, StringComparison.OrdinalIgnoreCase);
+                        var hasContentMatch = profile.EnabledContentIds.Contains(oldManifestId, StringComparer.OrdinalIgnoreCase);
+
+                        if (!isGameClientMatch && !hasContentMatch)
+                        {
+                            continue;
+                        }
+
+                        GameClient? updatedClient = profile.GameClient;
+                        if (isGameClientMatch)
+                        {
+                            updatedClient = new GameClient
+                            {
+                                Id = newManifest.Id.Value,
+                                Name = newManifest.Name,
+                                Version = newManifest.Version ?? string.Empty,
+                                GameType = newManifest.TargetGame,
+                                SourceType = newManifest.ContentType,
+                                PublisherType = newManifest.Publisher?.PublisherType,
+                                InstallationId = profile.GameClient?.InstallationId,
+                            };
+                        }
+
+                        var updatedContentIds = profile.EnabledContentIds
+                            .Select(id => string.Equals(id, oldManifestId, StringComparison.OrdinalIgnoreCase) ? newManifestId : id)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        if (promptResult.Strategy == UpdateStrategy.ReplaceCurrent)
+                        {
+                            var updateRequest = new UpdateProfileRequest
+                            {
+                                Name = profile.Name,
+                                Description = profile.Description,
+                                WorkspaceStrategy = profile.WorkspaceStrategy,
+                                EnabledContentIds = updatedContentIds,
+                                GameClient = updatedClient,
+                            };
+
+                            await profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
+                        }
+                        else if (promptResult.Strategy == UpdateStrategy.CreateNewProfile)
+                        {
+                            var versionText = !string.IsNullOrWhiteSpace(newManifest.Version)
+                                ? newManifest.Version
+                                : (!string.IsNullOrWhiteSpace(target.Version) ? target.Version : "Updated");
+
+                            var createRequest = new CreateProfileRequest
+                            {
+                                Name = $"{profile.Name} ({versionText})",
+                                Description = profile.Description,
+                                GameInstallationId = profile.GameInstallationId,
+                                WorkspaceStrategy = profile.WorkspaceStrategy,
+                                EnabledContentIds = updatedContentIds,
+                                GameClient = updatedClient,
+                            };
+
+                            await profileManager.CreateProfileAsync(createRequest, cancellationToken);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to apply profile update strategy for bundle component {Name}", target.Name);
+            }
+        }
+
+        if (promptResult.DeleteOldVersions && !string.IsNullOrEmpty(oldManifestId) &&
+            !string.Equals(oldManifestId, newManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(oldManifestId), cancellationToken: cancellationToken);
+                if (removeResult.Success)
+                {
+                    if (artworkService != null)
+                    {
+                        await artworkService.PurgeArtworkAsync(oldManifestId, cancellationToken);
+                    }
+
+                    if (profileManager != null)
+                    {
+                        await profileManager.ScrubDeletedManifestReferencesAsync([oldManifestId], cancellationToken);
+                    }
+
+                    contentStateService.NotifyStateChanged(target.Id ?? string.Empty, ContentState.NotDownloaded, oldManifestId);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete old manifest {OldManifestId} for bundle component {Name}", oldManifestId, target.Name);
             }
         }
     }

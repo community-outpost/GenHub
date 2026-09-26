@@ -86,7 +86,7 @@ public sealed partial class PublisherProfileViewModel(
         }
 
         if (Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
-            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || string.Equals(uri.Scheme, "avares", StringComparison.OrdinalIgnoreCase)))
         {
             return ValidationResult.Success;
         }
@@ -224,7 +224,7 @@ public sealed partial class PublisherProfileViewModel(
 
     private static bool IsRemoteUrl(string text) =>
         Uri.TryCreate(text, UriKind.Absolute, out var uri) &&
-        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || string.Equals(uri.Scheme, "avares", StringComparison.OrdinalIgnoreCase));
 
     private void ApplyRemoteAvatarUrl(string url)
     {

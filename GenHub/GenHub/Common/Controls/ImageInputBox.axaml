@@ -70,9 +70,9 @@
                             CornerRadius="8" Padding="12">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Spacing="12">
-                                <TextBlock Text="Built-in GenHub Assets" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Common.AssetPicker.Title}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
 
-                                <TextBlock Text="Covers &amp; Banners" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
+                                <TextBlock Text="{localization:Localize Common.AssetPicker.CoversAndBanners}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
                                 <ItemsControl ItemsSource="{x:Static local:ImageInputBox.BuiltInCovers}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -92,7 +92,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
-                                <TextBlock Text="Logos &amp; Icons" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
+                                <TextBlock Text="{localization:Localize Common.AssetPicker.LogosAndIcons}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
                                 <ItemsControl ItemsSource="{x:Static local:ImageInputBox.BuiltInLogos}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>

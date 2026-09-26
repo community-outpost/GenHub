@@ -268,8 +268,7 @@ public class CatalogUpstreamIngestionService(
 
     private static void AttachEaBaseGameDependency(
         CatalogContentItem item,
-        ContentRelease synthesized,
-        string? provider)
+        ContentRelease synthesized)
     {
         if (item.ContentType != ContentType.GameClient)
         {
@@ -277,9 +276,8 @@ public class CatalogUpstreamIngestionService(
         }
 
         var isZhOrGen = item.TargetGame is GameType.Generals or GameType.ZeroHour;
-        var isSuperHackers = string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
 
-        if (!isZhOrGen && !isSuperHackers)
+        if (!isZhOrGen)
         {
             return;
         }
@@ -391,7 +389,7 @@ public class CatalogUpstreamIngestionService(
         }
 
         var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, logger);
-        AttachEaBaseGameDependency(item, synthesized, provider);
+        AttachEaBaseGameDependency(item, synthesized);
 
         if (synthesized.Artifacts.Count > 0)
         {

@@ -229,6 +229,15 @@
   <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
     <value>Выбрать встроенный ресурс GenHub (обложка или логотип)</value>
   </data>
+  <data name="Common.AssetPicker.Title" xml:space="preserve">
+    <value>Встроенные ресурсы GenHub</value>
+  </data>
+  <data name="Common.AssetPicker.CoversAndBanners" xml:space="preserve">
+    <value>Обложки и баннеры</value>
+  </data>
+  <data name="Common.AssetPicker.LogosAndIcons" xml:space="preserve">
+    <value>Логотипы и значки</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>Вставить изображение или файл из буфера обмена (Ctrl+V)</value>
   </data>
@@ -5103,6 +5112,18 @@
   </data>
   <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
     <value>{0} элементов</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateGameClientMessageFormat" xml:space="preserve">
+    <value>Доступна новая версия игрового клиента **{0}**{1}.
+
+Хотите обновить его в рамках установки этого набора?
+
+*(Примечание: для игровых клиентов отключение опции «Удалить старые версии» позволяет сохранить предыдущие версии клиента рядом)*</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateComponentMessageFormat" xml:space="preserve">
+    <value>Доступна новая версия {0} **{1}**{2}.
+
+Хотите обновить и заменить ее в профиле в рамках установки этого набора?</value>
   </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>Автор: {0}</value>

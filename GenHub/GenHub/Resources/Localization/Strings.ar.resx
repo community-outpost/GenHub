@@ -229,6 +229,15 @@
   <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
     <value>اختيار أصل GenHub مدمج (غلاف أو شعار)</value>
   </data>
+  <data name="Common.AssetPicker.Title" xml:space="preserve">
+    <value>أصول GenHub المدمجة</value>
+  </data>
+  <data name="Common.AssetPicker.CoversAndBanners" xml:space="preserve">
+    <value>الأغلفة واللافتات</value>
+  </data>
+  <data name="Common.AssetPicker.LogosAndIcons" xml:space="preserve">
+    <value>الشعارات والأيقونات</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>لصق صورة أو ملف من الحافظة (Ctrl+V)</value>
   </data>
@@ -5103,6 +5112,18 @@
   </data>
   <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
     <value>{0} عناصر</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateGameClientMessageFormat" xml:space="preserve">
+    <value>يتوفر إصدار جديد من عميل اللعبة **{0}**{1}.
+
+هل ترغب في تحديثه كجزء من تثبيت هذه الحزمة؟
+
+*(ملاحظة: بالنسبة لعملاء اللعبة، يؤدي إلغاء تحديد 'حذف الإصدارات القديمة' إلى الاحتفاظ بإصدارات العميل السابقة جنباً إلى جنب)*</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateComponentMessageFormat" xml:space="preserve">
+    <value>يتوفر إصدار جديد من {0} **{1}**{2}.
+
+هل ترغب في تحديثه واستبداله في ملف التعريف كجزء من تثبيت هذه الحزمة؟</value>
   </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>بواسطة: {0}</value>

@@ -22,6 +22,17 @@ public static class CatalogManifestIdentity
     private const string WeeklyPrefix = "weekly-";
     private static readonly NumericVersionScheme VersionScheme = new();
 
+    private static readonly Dictionary<string, string> PublisherTypeAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["communityoutpost"] = CommunityOutpostConstants.PublisherType,
+        ["generalsonline"] = PublisherTypeConstants.GeneralsOnline,
+        ["thesuperhackers"] = PublisherTypeConstants.TheSuperHackers,
+        ["github"] = PublisherTypeConstants.GitHub,
+        ["githubreleases"] = PublisherTypeConstants.GitHub,
+        ["moddb"] = PublisherTypeConstants.ModDB,
+        ["generic"] = CatalogConstants.GenericCatalogResolverId,
+    };
+
     private static readonly string[] KnownVariantPrefixes =
     [
         "resolution",
@@ -159,43 +170,15 @@ public static class CatalogManifestIdentity
     /// <returns>The normalized publisher type string.</returns>
     public static string ResolveDeclaredPublisherType(string? publisherType)
     {
-        if (!string.IsNullOrWhiteSpace(publisherType))
+        if (string.IsNullOrWhiteSpace(publisherType))
         {
-            var raw = publisherType.Trim();
-            var normalized = raw.ToLowerInvariant().Replace("-", string.Empty).Replace(" ", string.Empty);
-
-            if (normalized == "communityoutpost" || raw.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-            {
-                return CommunityOutpostConstants.PublisherType;
-            }
-
-            if (normalized == "generalsonline" || raw.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
-            {
-                return PublisherTypeConstants.GeneralsOnline;
-            }
-
-            if (normalized == "thesuperhackers" || raw.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-            {
-                return PublisherTypeConstants.TheSuperHackers;
-            }
-
-            if (normalized == "github" || normalized == "githubreleases" || raw.Equals(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase))
-            {
-                return PublisherTypeConstants.GitHub;
-            }
-
-            if (normalized == "moddb" || raw.Equals(PublisherTypeConstants.ModDB, StringComparison.OrdinalIgnoreCase))
-            {
-                return PublisherTypeConstants.ModDB;
-            }
-
-            if (raw.Equals(CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))
-            {
-                return CatalogConstants.GenericCatalogResolverId;
-            }
+            return CatalogConstants.GenericCatalogResolverId;
         }
 
-        return CatalogConstants.GenericCatalogResolverId;
+        var normalized = publisherType.Trim().ToLowerInvariant().Replace("-", string.Empty).Replace(" ", string.Empty).Replace("_", string.Empty);
+        return PublisherTypeAliases.TryGetValue(normalized, out var canonical)
+            ? canonical
+            : CatalogConstants.GenericCatalogResolverId;
     }
 
     /// <summary>
