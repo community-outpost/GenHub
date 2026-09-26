@@ -1122,6 +1122,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             ?? ResolveStandardGameBranding(displayName, gameType);
     }
 
+    private bool HasUnchangedBrandingSelection(string selectionKey) =>
+        !string.IsNullOrEmpty(CurrentProfileId) &&
+        string.Equals(selectionKey, _brandingSelectionKey, StringComparison.Ordinal);
+
     private void ApplyPrimaryBranding()
     {
         if (IsInitializing)
@@ -1130,8 +1134,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         var selectionKey = GetClientSelectionKey();
-        if (!string.IsNullOrEmpty(CurrentProfileId) &&
-            string.Equals(selectionKey, _brandingSelectionKey, StringComparison.Ordinal))
+        if (HasUnchangedBrandingSelection(selectionKey))
         {
             return;
         }
