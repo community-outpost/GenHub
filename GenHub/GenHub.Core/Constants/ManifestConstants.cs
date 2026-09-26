@@ -195,6 +195,24 @@ public static class ManifestConstants
     public const char ManifestIdSegmentSeparator = '.';
 
     /// <summary>
+    /// Zero-based segment index of the publisher identifier in a structured manifest ID
+    /// (schemaVersion.userVersion.publisher.contentType.contentName).
+    /// </summary>
+    public const int ManifestPublisherSegmentIndex = 2;
+
+    /// <summary>
+    /// Zero-based segment index of the content type in a structured manifest ID.
+    /// </summary>
+    public const int ManifestContentTypeSegmentIndex = 3;
+
+    /// <summary>
+    /// Lenient minimum segment count for treating an ID as structured when classifying
+    /// publisher and content type segments. Full manifest IDs carry <see cref="MinManifestSegments"/>
+    /// segments; classification accepts shorter structured IDs.
+    /// </summary>
+    public const int ManifestStructuredIdMinimumSegments = 4;
+
+    /// <summary>
     /// Separator used to append variant identifiers to content names.
     /// </summary>
     public const string VariantSeparator = "-";

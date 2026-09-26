@@ -1127,9 +1127,9 @@ public static class ReplayCrcMatchingHelper
         }
 
         var segments = id.Split(ManifestConstants.ManifestIdSegmentSeparator);
-        if (segments.Length >= 4)
+        if (segments.Length >= ManifestConstants.ManifestStructuredIdMinimumSegments)
         {
-            var typeSegment = segments[3].Trim();
+            var typeSegment = segments[ManifestConstants.ManifestContentTypeSegmentIndex].Trim();
             if (string.Equals(typeSegment, ManifestConstants.ModContentTypeName, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -1207,6 +1207,35 @@ public static class ReplayCrcMatchingHelper
         return null;
     }
 
+    /// <summary>
+    /// Resolves the publisher identifier for a game client, falling back to the publisher
+    /// segment of a structured manifest ID when <c>PublisherType</c> is empty.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns>The publisher identifier, or <c>null</c> when it cannot be resolved.</returns>
+    private static string? ResolvePublisherIdentifier(GameClient? client)
+    {
+        if (client == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrEmpty(client.PublisherType))
+        {
+            return client.PublisherType;
+        }
+
+        if (string.IsNullOrEmpty(client.Id))
+        {
+            return null;
+        }
+
+        var segments = client.Id.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
+        return segments.Length >= ManifestConstants.ManifestStructuredIdMinimumSegments
+            ? segments[ManifestConstants.ManifestPublisherSegmentIndex]
+            : null;
+    }
+
     private static bool IsOfficialSteamClient(GameClient? client)
     {
         if (client == null)
@@ -1214,17 +1243,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var pub = client.PublisherType;
-        if (string.IsNullOrEmpty(pub) && !string.IsNullOrEmpty(client.Id))
-        {
-            var segments = client.Id.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
-            if (segments.Length >= 4)
-            {
-                pub = segments[2];
-            }
-        }
-
-        return string.Equals(pub, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(ResolvePublisherIdentifier(client), PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool MatchesGameDat(
@@ -1342,15 +1361,7 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var pub = client.PublisherType;
-        if (string.IsNullOrEmpty(pub) && !string.IsNullOrEmpty(client.Id))
-        {
-            var segments = client.Id.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
-            if (segments.Length >= 4)
-            {
-                pub = segments[2];
-            }
-        }
+        var pub = ResolvePublisherIdentifier(client);
 
         var normalizedPub = pub?.Trim().ToLowerInvariant() ?? string.Empty;
         if (string.IsNullOrEmpty(normalizedPub))
