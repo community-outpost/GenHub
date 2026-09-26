@@ -294,6 +294,9 @@ public class PublishSharePartialPublishTests
             Assert.False((await vm.UploadProviderDefinitionAsync()).Success);
         }
 
+        Assert.Contains("Alpha: Quota exceeded", vm.UploadStatusMessage);
+        Assert.Contains("Beta: Quota exceeded", vm.UploadStatusMessage);
+        Assert.Contains("Gamma: Quota exceeded", vm.UploadStatusMessage);
         Assert.True(vm.HasDefinitionChanges);
         Assert.Empty(_definitionUploads);
     }

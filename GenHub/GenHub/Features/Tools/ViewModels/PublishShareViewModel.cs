@@ -4525,10 +4525,7 @@ public partial class PublishShareViewModel(
 
     private string BuildAllCatalogsFailedMessage(List<(string Name, string Error)> failedCatalogs)
     {
-        var distinctErrors = failedCatalogs.Select(f => f.Error).Distinct().ToList();
-        var combinedError = distinctErrors.Count == 1
-            ? distinctErrors[0]
-            : string.Join(Environment.NewLine, failedCatalogs.Select(f => $"{f.Name}: {f.Error}"));
+        var combinedError = string.Join(Environment.NewLine, failedCatalogs.Select(f => $"{f.Name}: {f.Error}"));
         return string.IsNullOrWhiteSpace(combinedError)
             ? GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllFailed", "Publishing all catalogs failed.")
             : combinedError;
