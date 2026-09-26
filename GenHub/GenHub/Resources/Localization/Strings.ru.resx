@@ -226,6 +226,18 @@
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>Очистить поле</value>
   </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>Выбрать встроенный ресурс GenHub (обложка или логотип)</value>
+  </data>
+  <data name="Common.AssetPicker.Title" xml:space="preserve">
+    <value>Встроенные ресурсы GenHub</value>
+  </data>
+  <data name="Common.AssetPicker.CoversAndBanners" xml:space="preserve">
+    <value>Обложки и баннеры</value>
+  </data>
+  <data name="Common.AssetPicker.LogosAndIcons" xml:space="preserve">
+    <value>Логотипы и значки</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>Вставить изображение или файл из буфера обмена (Ctrl+V)</value>
   </data>
@@ -5100,6 +5112,18 @@
   </data>
   <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
     <value>{0} элементов</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateGameClientMessageFormat" xml:space="preserve">
+    <value>Доступна новая версия игрового клиента **{0}**{1}.
+
+Хотите обновить его в рамках установки этого набора?
+
+*(Примечание: для игровых клиентов отключение опции «Удалить старые версии» позволяет сохранить предыдущие версии клиента рядом)*</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateComponentMessageFormat" xml:space="preserve">
+    <value>Доступна новая версия {0} **{1}**{2}.
+
+Хотите обновить и заменить ее в профиле в рамках установки этого набора?</value>
   </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>Автор: {0}</value>
@@ -12798,7 +12822,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Название каталога не должно быть пустым</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
-    <value>{0} должен быть допустимым URL-адресом http или https.</value>
+    <value>{0} должен быть допустимым URL-адресом http, https или avares.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
     <value>Контактный адрес должен быть допустимым адресом электронной почты.</value>
@@ -13570,5 +13594,47 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Успешно удалено профилей: {0}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
+    <value>Отметить как золотой избранный</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
+    <value>Текст значка избранного</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
+    <value>★ ИЗБРАННЫЙ НАБОР</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
+    <value>Матрица компонентов набора</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrixDesc" xml:space="preserve">
+    <value>Выберите элементы каталога для объединения с опциональными вариантами по умолчанию.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DefaultVariant" xml:space="preserve">
+    <value>Вариант по умолчанию:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamTrack" xml:space="preserve">
+    <value>Отслеживать апстрим-источник (автономные релизы)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamProvider" xml:space="preserve">
+    <value>Апстрим-провайдер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepo" xml:space="preserve">
+    <value>Репозиторий (владелец/репозиторий для GitHub)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepoPlaceholder" xml:space="preserve">
+    <value>TheSuperHackers/GeneralsGameCode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannel" xml:space="preserve">
+    <value>Канал релиза</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
+    <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
+    <value>Ось вариантов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
+    <value>game-type</value>
   </data>
 </root>

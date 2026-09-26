@@ -73,7 +73,7 @@ public sealed partial class PublisherProfileViewModel(
     private string _tagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
 
     /// <summary>
-    /// Validates that a string is either empty or a valid HTTP/HTTPS URL.
+    /// Validates that a string is either empty or a valid HTTP, HTTPS, or avares URL.
     /// </summary>
     /// <param name="value">The string value to validate.</param>
     /// <param name="context">The validation context.</param>
@@ -86,12 +86,12 @@ public sealed partial class PublisherProfileViewModel(
         }
 
         if (Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
-            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || string.Equals(uri.Scheme, "avares", StringComparison.OrdinalIgnoreCase)))
         {
             return ValidationResult.Success;
         }
 
-        return new ValidationResult(ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.ValidHttpUrlFormat", "{0} must be a valid http or https URL.", context.DisplayName));
+        return new ValidationResult(ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.ValidHttpUrlFormat", "{0} must be a valid http, https, or avares URL.", context.DisplayName));
     }
 
     /// <summary>
@@ -224,7 +224,7 @@ public sealed partial class PublisherProfileViewModel(
 
     private static bool IsRemoteUrl(string text) =>
         Uri.TryCreate(text, UriKind.Absolute, out var uri) &&
-        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || string.Equals(uri.Scheme, "avares", StringComparison.OrdinalIgnoreCase));
 
     private void ApplyRemoteAvatarUrl(string url)
     {
@@ -262,7 +262,8 @@ public sealed partial class PublisherProfileViewModel(
 
             await using var stream = File.OpenRead(filePath);
             var fileName = Path.GetFileName(filePath);
-            var result = await provider.UploadFileAsync(stream, fileName, folderPath: null, cancellationToken: cancellationToken);
+            var folderPath = string.Equals(provider.ProviderId, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) ? "avatars" : null;
+            var result = await provider.UploadFileAsync(stream, fileName, folderPath: folderPath, cancellationToken: cancellationToken);
 
             if (result.Success && result.Data != null)
             {

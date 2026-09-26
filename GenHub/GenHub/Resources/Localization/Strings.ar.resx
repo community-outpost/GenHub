@@ -226,6 +226,18 @@
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>مسح الإدخال</value>
   </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>اختيار أصل GenHub مدمج (غلاف أو شعار)</value>
+  </data>
+  <data name="Common.AssetPicker.Title" xml:space="preserve">
+    <value>أصول GenHub المدمجة</value>
+  </data>
+  <data name="Common.AssetPicker.CoversAndBanners" xml:space="preserve">
+    <value>الأغلفة واللافتات</value>
+  </data>
+  <data name="Common.AssetPicker.LogosAndIcons" xml:space="preserve">
+    <value>الشعارات والأيقونات</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>لصق صورة أو ملف من الحافظة (Ctrl+V)</value>
   </data>
@@ -5100,6 +5112,18 @@
   </data>
   <data name="Downloads.ContentDetail.BundleComponentsCountFormat" xml:space="preserve">
     <value>{0} عناصر</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateGameClientMessageFormat" xml:space="preserve">
+    <value>يتوفر إصدار جديد من عميل اللعبة **{0}**{1}.
+
+هل ترغب في تحديثه كجزء من تثبيت هذه الحزمة؟
+
+*(ملاحظة: بالنسبة لعملاء اللعبة، يؤدي إلغاء تحديد 'حذف الإصدارات القديمة' إلى الاحتفاظ بإصدارات العميل السابقة جنباً إلى جنب)*</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleUpdateComponentMessageFormat" xml:space="preserve">
+    <value>يتوفر إصدار جديد من {0} **{1}**{2}.
+
+هل ترغب في تحديثه واستبداله في ملف التعريف كجزء من تثبيت هذه الحزمة؟</value>
   </data>
   <data name="Downloads.ContentDetail.ByAuthorFormat" xml:space="preserve">
     <value>بواسطة: {0}</value>
@@ -12798,7 +12822,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>لا يمكن أن يكون اسم الكتالوج فارغًا</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
-    <value>يجب أن يكون {0} رابط http أو https صالحًا.</value>
+    <value>يجب أن يكون {0} رابط http أو https أو avares صالحًا.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
     <value>يجب أن يكون البريد الإلكتروني للتواصل عنوانًا صالحًا.</value>
@@ -13570,5 +13594,47 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
+    <value>تمييز كعنصر مميز ذهبي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
+    <value>تسمية شارة التميز</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
+    <value>★ حزمة مميزة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
+    <value>مصفوفة مكونات الحزمة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrixDesc" xml:space="preserve">
+    <value>حدد عناصر الدليل لتضمينها مع متغيرات افتراضية اختيارية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DefaultVariant" xml:space="preserve">
+    <value>المتغير الافتراضي:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamTrack" xml:space="preserve">
+    <value>تتبع مزود المصدر المباشر (إصدارات تلقائية)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamProvider" xml:space="preserve">
+    <value>مزود المصدر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepo" xml:space="preserve">
+    <value>المستودع (المالك/المستودع لـ GitHub)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepoPlaceholder" xml:space="preserve">
+    <value>TheSuperHackers/GeneralsGameCode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannel" xml:space="preserve">
+    <value>قناة الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
+    <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
+    <value>محور المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
+    <value>game-type</value>
   </data>
 </root>

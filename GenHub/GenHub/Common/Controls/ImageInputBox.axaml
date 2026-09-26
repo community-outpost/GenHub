@@ -19,7 +19,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
         <TextBox Name="InputTextBox"
                  Grid.Column="0"
                  DragDrop.AllowDrop="True"
@@ -52,8 +52,73 @@
                       Width="14" Height="14"
                       Foreground="{DynamicResource TextSecondary}"/>
         </Button>
-        <Border Name="PreviewBorder"
+        <Button Name="AssetPickerButton"
                 Grid.Column="3"
+                Margin="6,0,0,0"
+                Padding="6"
+                Width="34" Height="34"
+                Classes="glass-btn"
+                VerticalAlignment="Center"
+                ToolTip.Tip="{localization:Localize Common.Tooltip.PickBuiltInAsset}">
+            <PathIcon Data="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z"
+                      Width="14" Height="14"
+                      Foreground="{DynamicResource TextSecondary}"/>
+            <Button.Flyout>
+                <Flyout Placement="BottomEdgeAlignedRight">
+                    <Border Width="340" MaxHeight="380" Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="12">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="{localization:Localize Common.AssetPicker.Title}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+
+                                <TextBlock Text="{localization:Localize Common.AssetPicker.CoversAndBanners}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
+                                <ItemsControl ItemsSource="{x:Static local:ImageInputBox.BuiltInCovers}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Classes="glass-btn" Margin="0,2" Padding="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                    Click="OnBuiltInAssetSelected" Tag="{Binding Url}">
+                                                <Grid ColumnDefinitions="44,*" VerticalAlignment="Center">
+                                                    <Border Width="40" Height="24" CornerRadius="4" ClipToBounds="True" Background="{DynamicResource GlassFillSubtleBrush}">
+                                                        <Image controls:ImageLoader.Source="{Binding Url}" Stretch="UniformToFill"/>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                                                        <TextBlock Text="{Binding Url}" FontSize="9" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock Text="{localization:Localize Common.AssetPicker.LogosAndIcons}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0"/>
+                                <ItemsControl ItemsSource="{x:Static local:ImageInputBox.BuiltInLogos}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Classes="glass-btn" Margin="0,2" Padding="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                    Click="OnBuiltInAssetSelected" Tag="{Binding Url}">
+                                                <Grid ColumnDefinitions="28,*" VerticalAlignment="Center">
+                                                    <Border Width="24" Height="24" CornerRadius="4" ClipToBounds="True" Background="{DynamicResource GlassFillSubtleBrush}">
+                                                        <Image controls:ImageLoader.Source="{Binding Url}" Stretch="UniformToFill"/>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                                                        <TextBlock Text="{Binding Url}" FontSize="9" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Flyout>
+            </Button.Flyout>
+        </Button>
+        <Border Name="PreviewBorder"
+                Grid.Column="4"
                 Margin="6,0,0,0"
                 Width="34" Height="34"
                 CornerRadius="{Binding PreviewCornerRadius, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"

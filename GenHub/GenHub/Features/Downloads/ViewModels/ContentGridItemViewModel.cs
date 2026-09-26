@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
@@ -13,6 +14,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.Services;
+using GenHub.Infrastructure.Converters;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
@@ -32,16 +34,19 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="contentStateService">The content state service.</param>
 /// <param name="logger">The logger.</param>
 /// <param name="downloadCoordinator">The optional download coordinator.</param>
+/// <param name="localizationService">The optional localization service.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods and properties bound to UI and MVVM bindings.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content grid item VM coordinates download, installation, and multi-component bundle state.")]
 public sealed partial class ContentGridItemViewModel(
     ContentSearchResult searchResult,
     IContentStateService contentStateService,
     ILogger<ContentGridItemViewModel> logger,
-    IContentDownloadCoordinator? downloadCoordinator = null) : ObservableObject, IDisposable
+    IContentDownloadCoordinator? downloadCoordinator = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     private const string UnknownValue = "Unknown";
 
+    private readonly ILocalizationService? _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
     private bool _disposed;
 
     /// <summary>
@@ -188,6 +193,23 @@ public sealed partial class ContentGridItemViewModel(
     /// Gets a value indicating whether a short description should be shown on the card.
     /// </summary>
     public bool HasShortDescription => !HasBundleComponents && !string.IsNullOrWhiteSpace(ShortDescription);
+
+    /// <summary>
+    /// Gets a value indicating whether this content item is featured.
+    /// </summary>
+    public bool IsFeatured => SearchResult.IsFeatured;
+
+    /// <summary>
+    /// Gets the custom badge text for a featured item.
+    /// </summary>
+    public string FeaturedBadge => !string.IsNullOrWhiteSpace(SearchResult.FeaturedBadge)
+        ? SearchResult.FeaturedBadge
+        : LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Tools.PublisherStudio.Content.FeaturedBadgePlaceholder", "★ FEATURED BUNDLE");
+
+    /// <summary>
+    /// Gets a value indicating whether the featured badge should be displayed.
+    /// </summary>
+    public bool HasFeaturedBadge => IsFeatured;
 
     /// <summary>
     /// Gets the content version.
@@ -1301,6 +1323,9 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(EffectiveCurrentState));
         OnPropertyChanged(nameof(EffectiveIsDownloaded));
+        OnPropertyChanged(nameof(IsFeatured));
+        OnPropertyChanged(nameof(HasFeaturedBadge));
+        OnPropertyChanged(nameof(FeaturedBadge));
 
         _ = LoadIconAsync();
     }

@@ -56,4 +56,30 @@ public class PublisherStudioDialogAndHostingFixTests
         Assert.Empty(vm.FileSizeDisplay);
         Assert.Null(vm.Sha256Hash);
     }
+
+    /// <summary>
+    /// Verifies that PublisherProfileViewModel.ValidateUrl accepts http, https, and avares schemes.
+    /// </summary>
+    /// <param name="url">The URL string under test.</param>
+    /// <param name="expectedValid">Whether the URL is expected to be considered valid.</param>
+    [Theory]
+    [InlineData("https://example.com/logo.png", true)]
+    [InlineData("http://example.com/logo.png", true)]
+    [InlineData("avares://GenHub/Assets/Logos/tsh-logo.png", true)]
+    [InlineData("", true)]
+    [InlineData(null, true)]
+    [InlineData("ftp://example.com/logo.png", false)]
+    [InlineData("not-a-valid-url", false)]
+    public void PublisherProfileViewModel_ValidateUrl_HandlesAvaresAndHttpSchemes(string? url, bool expectedValid)
+    {
+        var result = GenHub.Features.Tools.ViewModels.PublisherProfileViewModel.ValidateUrl(url, new System.ComponentModel.DataAnnotations.ValidationContext(new object()));
+        if (expectedValid)
+        {
+            Assert.Equal(System.ComponentModel.DataAnnotations.ValidationResult.Success, result);
+        }
+        else
+        {
+            Assert.NotEqual(System.ComponentModel.DataAnnotations.ValidationResult.Success, result);
+        }
+    }
 }

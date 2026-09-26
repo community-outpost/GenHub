@@ -53,6 +53,24 @@
             <Setter Property="MaxHeight" Value="560" />
         </Style>
 
+        <Style Selector="Border.content-card.featured-card">
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningHighlightBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BoxShadow" Value="0 10 35 0 #59F59E0B" />
+        </Style>
+
+        <Style Selector="Border.content-card.featured-card:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}" />
+            <Setter Property="BoxShadow" Value="0 14 42 0 #80F59E0B" />
+        </Style>
+
+        <Style Selector="Border.featured-badge">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="7,3" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
+        </Style>
+
         <Style Selector="Border.content-card:pointerover">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BoxShadow" Value="0 10 28 0 #60000000" />
@@ -167,7 +185,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}">
+    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}" Classes.featured-card="{Binding IsFeatured}">
         <Panel>
             <!-- 1. Acrylic blur -->
             <ExperimentalAcrylicBorder CornerRadius="12" IsHitTestVisible="False">
@@ -268,15 +286,38 @@
                                        VerticalAlignment="Top"
                                        Margin="6"
                                        MaxWidth="228">
+                                <Border Classes="type-badge featured-badge"
+                                        Background="{DynamicResource WarningHighlightBrush}"
+                                        BorderBrush="{DynamicResource PendingActionHoverBrush}"
+                                        IsVisible="{Binding HasFeaturedBadge}"
+                                        Margin="0,0,4,4"
+                                        ToolTip.Tip="{Binding FeaturedBadge}">
+                                    <TextBlock Text="{Binding FeaturedBadge}"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource WarningForegroundBrush}" />
+                                </Border>
                                 <Border Classes="type-badge"
                                         Background="{DynamicResource CardBackground}"
                                         BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
                                         Margin="0,0,4,4"
+                                        IsVisible="{Binding !HasAccentColor}"
                                         ToolTip.Tip="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}">
                                     <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
                                                FontSize="10"
                                                FontWeight="Bold"
                                                Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />
+                                </Border>
+                                <Border Classes="type-badge"
+                                        Background="{DynamicResource CardBackground}"
+                                        BorderBrush="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        Margin="0,0,4,4"
+                                        IsVisible="{Binding HasAccentColor}"
+                                        ToolTip.Tip="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}">
+                                    <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}" />
                                 </Border>
                                 <Border Classes="type-badge variant-count-badge"
                                         IsVisible="{Binding HasVariantCountBadge}"

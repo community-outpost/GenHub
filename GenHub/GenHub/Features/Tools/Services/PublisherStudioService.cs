@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
@@ -22,6 +23,8 @@ public class PublisherStudioService(
     ILogger<PublisherStudioService> logger,
     IPublisherCatalogParser catalogParser) : IPublisherStudioService
 {
+    private const string DefaultCatalogId = "default";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -30,6 +33,7 @@ public class PublisherStudioService(
 
     private static readonly JsonSerializerOptions ExportJsonOptions = new()
     {
+        PropertyNameCaseInsensitive = true,
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
@@ -204,10 +208,13 @@ public class PublisherStudioService(
 
         try
         {
-            var catalogToExport = catalog?.Catalog ?? project.Catalog;
-            var catalogName = catalog?.Name ?? "default";
+            var sourceCatalog = catalog?.Catalog ?? project.Catalog;
+            var catalogName = catalog?.Name ?? DefaultCatalogId;
+            var catalogToExport = JsonSerializer.Deserialize<PublisherCatalog>(
+                JsonSerializer.Serialize(sourceCatalog, ExportJsonOptions),
+                JsonOptions) ?? sourceCatalog;
 
-            if (catalog != null)
+            if (catalog != null && !string.IsNullOrWhiteSpace(catalog.IconUrl))
             {
                 catalogToExport.IconUrl = catalog.IconUrl;
                 catalogToExport.AvatarUrl = catalog.IconUrl;
@@ -303,7 +310,9 @@ public class PublisherStudioService(
             }
 
             var catalogEntries = new List<CatalogEntry>();
-            foreach (var catalog in project.Catalogs)
+            var candidateCatalogs = ResolveCandidateCatalogs(project, projectCatalog, catalogHostingInfo);
+
+            foreach (var catalog in candidateCatalogs)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -433,36 +442,145 @@ public class PublisherStudioService(
 
         foreach (var content in catalog.Content)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (string.IsNullOrWhiteSpace(content.Id))
+            var result = ValidateContentItem(content, seenIds, allowPendingArtifacts, cancellationToken);
+            if (!result.Success)
             {
-                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
-            }
-
-            if (!seenIds.Add(content.Id))
-            {
-                return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
-            }
-
-            if (content.Releases.Count == 0)
-            {
-                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
-            }
-
-            var releaseResult = ValidateSingleContentReleases(content, allowPendingArtifacts, cancellationToken);
-            if (!releaseResult.Success)
-            {
-                return releaseResult;
+                return result;
             }
         }
 
         return OperationResult<bool>.CreateSuccess(true);
     }
 
+    private static IEnumerable<NamedCatalog> ResolveCandidateCatalogs(
+        PublisherStudioProject project,
+        PublisherCatalog projectCatalog,
+        Dictionary<string, string> catalogHostingInfo)
+    {
+        if (project.Catalogs.Count > 0)
+        {
+            return project.Catalogs;
+        }
+
+        var projectName = project.ProjectName ?? DefaultCatalogId;
+        if (catalogHostingInfo.Count > 0)
+        {
+            return catalogHostingInfo.Keys.Select(k => new NamedCatalog
+            {
+                Id = k,
+                Name = projectName,
+                Catalog = projectCatalog,
+            });
+        }
+
+        return
+        [
+            new NamedCatalog
+            {
+                Id = DefaultCatalogId,
+                Name = projectName,
+                Catalog = projectCatalog,
+            },
+        ];
+    }
+
+    private static OperationResult<bool> ValidateContentItem(
+        CatalogContentItem content,
+        HashSet<string> seenIds,
+        bool allowPendingArtifacts,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(content.Id))
+        {
+            return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
+        }
+
+        if (!seenIds.Add(content.Id))
+        {
+            return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
+        }
+
+        var bundleValidation = ValidateContentBundleItem(content);
+        if (!bundleValidation.Success)
+        {
+            return bundleValidation;
+        }
+
+        var upstreamValidation = ValidateUpstreamSyncItem(content);
+        if (!upstreamValidation.Success)
+        {
+            return upstreamValidation;
+        }
+
+        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
+        var isBundle = content.ContentType == ContentType.ContentBundle;
+
+        if (content.Releases.Count == 0)
+        {
+            if (!isUpstreamTracked && !isBundle)
+            {
+                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        return ValidateSingleContentReleases(content, allowPendingArtifacts, isBundle, cancellationToken);
+    }
+
+    private static OperationResult<bool> ValidateContentBundleItem(CatalogContentItem content)
+    {
+        if (content.ContentType != ContentType.ContentBundle)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
+        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r?.Dependencies is { Count: > 0 });
+
+        if (!hasBundledItems && !hasReleaseDependencies)
+        {
+            return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has no bundled items");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidateUpstreamSyncItem(CatalogContentItem content)
+    {
+        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
+        if (!isUpstreamTracked || content.UpstreamSync == null)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var provider = CatalogConstants.UpstreamProviders.Normalize(
+            !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ? content.UpstreamSync.Provider : content.PublisherType);
+
+        if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase))
+        {
+            var repo = content.UpstreamSync.Repository;
+            if (string.IsNullOrWhiteSpace(repo) || !IsValidOwnerRepo(repo))
+            {
+                return OperationResult<bool>.CreateFailure($"Upstream GitHub item '{content.Name}' must declare a valid repository in 'owner/repo' format");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static bool IsValidOwnerRepo(string repo)
+    {
+        var parts = repo.Split('/');
+        return parts.Length == 2 && parts.All(part => part.Length > 0 && part.All(c => !char.IsWhiteSpace(c)));
+    }
+
     private static OperationResult<bool> ValidateSingleContentReleases(
         CatalogContentItem content,
         bool allowPendingArtifacts,
+        bool isBundle,
         CancellationToken cancellationToken)
     {
         foreach (var release in content.Releases)
@@ -474,31 +592,42 @@ public class PublisherStudioService(
                 return OperationResult<bool>.CreateFailure($"Release in '{content.Name}' is missing a version");
             }
 
-            if (release.Artifacts.Count == 0)
+            if (release.Artifacts.Count == 0 && !isBundle)
             {
                 return OperationResult<bool>.CreateFailure($"Release {release.Version} in '{content.Name}' has no artifacts");
             }
 
             if (allowPendingArtifacts)
             {
-                var missingFilenameArtifact = release.Artifacts.FirstOrDefault(artifact =>
-                    IsPendingLocalArtifact(artifact) && string.IsNullOrWhiteSpace(artifact?.Filename));
-
-                if (missingFilenameArtifact != null)
+                var pendingResult = ValidatePendingArtifacts(content.Name, release);
+                if (!pendingResult.Success)
                 {
-                    return OperationResult<bool>.CreateFailure($"Pending local artifact in '{content.Name}' {release.Version} is missing a filename");
-                }
-
-                var missingArtifact = release.Artifacts.FirstOrDefault(artifact =>
-                    IsPendingLocalArtifact(artifact) &&
-                    !File.Exists(artifact?.LocalFilePath) &&
-                    !Directory.Exists(artifact?.LocalFilePath));
-
-                if (missingArtifact != null)
-                {
-                    return OperationResult<bool>.CreateFailure($"Local artifact file not found: '{missingArtifact.LocalFilePath}'");
+                    return pendingResult;
                 }
             }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidatePendingArtifacts(string contentName, ContentRelease release)
+    {
+        var missingFilenameArtifact = release.Artifacts.FirstOrDefault(artifact =>
+            IsPendingLocalArtifact(artifact) && string.IsNullOrWhiteSpace(artifact?.Filename));
+
+        if (missingFilenameArtifact != null)
+        {
+            return OperationResult<bool>.CreateFailure($"Pending local artifact in '{contentName}' {release.Version} is missing a filename");
+        }
+
+        var missingArtifact = release.Artifacts.FirstOrDefault(artifact =>
+            IsPendingLocalArtifact(artifact) &&
+            !File.Exists(artifact?.LocalFilePath) &&
+            !Directory.Exists(artifact?.LocalFilePath));
+
+        if (missingArtifact != null)
+        {
+            return OperationResult<bool>.CreateFailure($"Local artifact file not found: '{missingArtifact.LocalFilePath}'");
         }
 
         return OperationResult<bool>.CreateSuccess(true);
@@ -650,7 +779,7 @@ public class PublisherStudioService(
         {
             if (!visited.Add(currentId))
             {
-                var chain = string.Join(" \u2192 ", visited) + $" \u2192 {currentId}";
+                var chain = string.Join(" → ", visited) + $" → {currentId}";
                 cycleError = $"Circular addon dependency detected: {chain}";
                 return true;
             }

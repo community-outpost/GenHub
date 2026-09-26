@@ -39,12 +39,16 @@ public static class CatalogBundleComponentBuilder
 
         var components = new List<CatalogBundleComponentDescriptor>();
 
-        if (release.Dependencies == null)
+        var dependencies = (release.Dependencies != null && release.Dependencies.Count > 0)
+            ? release.Dependencies
+            : parent.BundledItems;
+
+        if (dependencies == null || dependencies.Count == 0)
         {
             return components;
         }
 
-        foreach (var dependency in release.Dependencies)
+        foreach (var dependency in dependencies)
         {
             if (string.IsNullOrWhiteSpace(dependency.ContentId))
             {
@@ -96,6 +100,7 @@ public static class CatalogBundleComponentBuilder
                 VariantAxis = a.VariantAxis,
                 Variant = a.Variant,
                 IsDefaultVariant = a.IsDefaultVariant,
+                TargetGame = a.TargetGame,
             }).ToList() ?? [],
             Dependencies = [.. (release.Dependencies ?? []).Select(dependency => new CatalogDependency
             {
@@ -109,6 +114,29 @@ public static class CatalogBundleComponentBuilder
                     : dependency.ContentType,
             })],
         };
+    }
+
+    /// <summary>
+    /// Ensures content bundles and items with bundled components have at least one synthetic release
+    /// so version selectors and download views can surface them.
+    /// </summary>
+    /// <param name="items">The catalog content items to check and hydrate.</param>
+    public static void HydrateSyntheticBundleReleases(IEnumerable<CatalogContentItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        foreach (var item in items.Where(i => (i.ContentType == ContentType.ContentBundle || i.BundledItems is { Count: > 0 }) && (i.Releases == null || i.Releases.Count == 0)))
+        {
+            item.Releases ??= [];
+            var bundleRelease = new ContentRelease
+            {
+                Version = "1.0.0",
+                ReleaseDate = DateTime.UtcNow,
+                IsLatest = true,
+                Dependencies = item.BundledItems != null ? [.. item.BundledItems] : [],
+            };
+            item.Releases.Add(bundleRelease);
+        }
     }
 
     private static CatalogBundleComponentDescriptor BuildBaseGameDescriptor(CatalogDependency dependency)
@@ -126,6 +154,108 @@ public static class CatalogBundleComponentBuilder
         };
     }
 
+    private static CatalogBundleComponentDescriptor BuildMissingSiblingDescriptor(
+        CatalogDependency dependency,
+        CatalogContentItem parent,
+        Dictionary<string, CatalogContentItem> itemsById)
+    {
+        return new CatalogBundleComponentDescriptor
+        {
+            PublisherId = dependency.PublisherId ?? string.Empty,
+            ContentId = dependency.ContentId,
+            Name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId),
+            ContentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById).ToString(),
+            IsOptional = dependency.IsOptional,
+            IsBaseGame = false,
+            IsAvailable = false,
+            UnavailableReason = $"Item '{dependency.ContentId}' not found in catalog",
+        };
+    }
+
+    private static ContentRelease? ResolveSiblingRelease(
+        CatalogContentItem sibling,
+        string? versionConstraint,
+        out bool isSyntheticPlaceholder)
+    {
+        isSyntheticPlaceholder = false;
+        var siblingRelease = SelectRelease(sibling, versionConstraint);
+        if (siblingRelease != null)
+        {
+            return siblingRelease;
+        }
+
+        var isConstraintLatestOrEmpty = string.IsNullOrWhiteSpace(versionConstraint) ||
+                                        string.Equals(versionConstraint.Trim(), CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase);
+
+        if (!isConstraintLatestOrEmpty)
+        {
+            return null;
+        }
+
+        if (sibling.UpstreamSync?.AssetRules is { Count: > 0 })
+        {
+            isSyntheticPlaceholder = true;
+            return new ContentRelease
+            {
+                Version = "latest",
+                IsLatest = true,
+                Artifacts = sibling.UpstreamSync.AssetRules.Select(r => new ReleaseArtifact
+                {
+                    Filename = r.Pattern,
+                    Variant = r.Variant,
+                    VariantAxis = sibling.UpstreamSync.VariantAxis ?? "variant",
+                    IsDefaultVariant = r.IsDefault,
+                    TargetGame = r.TargetGame,
+                }).ToList(),
+            };
+        }
+
+        var isSuperHackers = string.Equals(sibling.PublisherType, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(sibling.UpstreamSync?.Provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+
+        if (isSuperHackers)
+        {
+            isSyntheticPlaceholder = true;
+            return new ContentRelease
+            {
+                Version = "latest",
+                IsLatest = true,
+            };
+        }
+
+        return null;
+    }
+
+    private static CatalogBundleComponentDescriptor BuildUnavailableReleaseDescriptor(
+        CatalogDependency dependency,
+        CatalogContentItem parent,
+        CatalogContentItem sibling,
+        Dictionary<string, CatalogContentItem> itemsById)
+    {
+        var declaredPub = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
+        var resolvedType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
+        var displayName = !string.IsNullOrWhiteSpace(sibling.Name)
+            ? sibling.Name
+            : CatalogManifestIdentity.HumanizeContentId(dependency.ContentId);
+
+        var unavailableReason = !string.IsNullOrWhiteSpace(dependency.VersionConstraint)
+            ? $"No release of '{dependency.ContentId}' matches constraint '{dependency.VersionConstraint}'"
+            : $"Item '{dependency.ContentId}' has no releases";
+
+        return new CatalogBundleComponentDescriptor
+        {
+            PublisherId = declaredPub,
+            ContentId = dependency.ContentId,
+            Name = displayName,
+            ContentType = resolvedType.ToString(),
+            IsOptional = dependency.IsOptional,
+            IsBaseGame = false,
+            IsAvailable = false,
+            UnavailableReason = unavailableReason,
+            CatalogItemJson = JsonSerializer.Serialize(sibling),
+        };
+    }
+
     private static CatalogBundleComponentDescriptor BuildDependencyDescriptor(
         CatalogDependency dependency,
         CatalogContentItem parent,
@@ -139,45 +269,18 @@ public static class CatalogBundleComponentBuilder
         itemsById.TryGetValue(dependency.ContentId, out var sibling);
         if (sibling == null)
         {
-            return new CatalogBundleComponentDescriptor
-            {
-                PublisherId = dependency.PublisherId ?? string.Empty,
-                ContentId = dependency.ContentId,
-                Name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId),
-                ContentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById).ToString(),
-                IsOptional = dependency.IsOptional,
-                IsBaseGame = false,
-                IsAvailable = false,
-                UnavailableReason = $"Item '{dependency.ContentId}' not found in catalog",
-            };
+            return BuildMissingSiblingDescriptor(dependency, parent, itemsById);
         }
 
-        var siblingRelease = SelectRelease(sibling, dependency.VersionConstraint);
+        var siblingRelease = ResolveSiblingRelease(sibling, dependency.VersionConstraint, out var isSyntheticPlaceholder);
         if (siblingRelease == null)
         {
-            var declaredPub = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
-            var resolvedType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
-            var displayName = !string.IsNullOrWhiteSpace(sibling.Name)
-                ? sibling.Name
-                : CatalogManifestIdentity.HumanizeContentId(dependency.ContentId);
-
-            var unavailableReason = (sibling.Releases == null || sibling.Releases.Count == 0)
-                ? $"Item '{dependency.ContentId}' has no releases"
-                : $"No release of '{dependency.ContentId}' matches constraint '{dependency.VersionConstraint}'";
-
-            return new CatalogBundleComponentDescriptor
-            {
-                PublisherId = declaredPub,
-                ContentId = dependency.ContentId,
-                Name = displayName,
-                ContentType = resolvedType.ToString(),
-                IsOptional = dependency.IsOptional,
-                IsBaseGame = false,
-                IsAvailable = false,
-                UnavailableReason = unavailableReason,
-                CatalogItemJson = JsonSerializer.Serialize(sibling),
-            };
+            return BuildUnavailableReleaseDescriptor(dependency, parent, sibling, itemsById);
         }
+
+        var hasDownloadableArtifacts = siblingRelease.Artifacts != null && siblingRelease.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
+        var hasAssetRules = sibling.UpstreamSync?.AssetRules is { Count: > 0 };
+        var isComponentAvailable = !isSyntheticPlaceholder || hasDownloadableArtifacts || hasAssetRules;
 
         var contentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
         var name = !string.IsNullOrWhiteSpace(sibling.Name)
@@ -194,7 +297,8 @@ public static class CatalogBundleComponentBuilder
             ContentType = contentType.ToString(),
             IsOptional = dependency.IsOptional,
             IsBaseGame = false,
-            IsAvailable = true,
+            IsAvailable = isComponentAvailable,
+            UnavailableReason = isComponentAvailable ? null : $"Item '{dependency.ContentId}' upstream releases have not been ingested yet",
             ReleaseVersion = siblingRelease.Version,
             CatalogItemJson = JsonSerializer.Serialize(sibling),
         };
@@ -203,7 +307,7 @@ public static class CatalogBundleComponentBuilder
         var variantArtifacts = CatalogManifestIdentity.GetVariantArtifacts(resolvedSiblingRelease);
         variantArtifacts = FilterVariantArtifactsByTargetGame(variantArtifacts, parent.TargetGame);
 
-        PopulateComponentVariants(descriptor, sibling, resolvedSiblingRelease, variantArtifacts);
+        PopulateComponentVariants(descriptor, sibling, resolvedSiblingRelease, variantArtifacts, dependency);
 
         return descriptor;
     }
@@ -249,7 +353,8 @@ public static class CatalogBundleComponentBuilder
         CatalogBundleComponentDescriptor descriptor,
         CatalogContentItem sibling,
         ContentRelease resolvedSiblingRelease,
-        IReadOnlyList<ReleaseArtifact> variantArtifacts)
+        IReadOnlyList<ReleaseArtifact> variantArtifacts,
+        CatalogDependency? dependency = null)
     {
         if (variantArtifacts.Count > 0)
         {
@@ -281,12 +386,35 @@ public static class CatalogBundleComponentBuilder
                 });
             }
 
-            CatalogManifestIdentity.SelectDefaultVariant(
-                descriptor.Variants,
-                v => v.Label,
-                v => v.Axis,
-                v => v.IsDefault,
-                (v, isDefault) => v.IsDefault = isDefault);
+            if (!string.IsNullOrWhiteSpace(dependency?.DefaultVariant))
+            {
+                var matched = descriptor.Variants.FirstOrDefault(v => string.Equals(v.Label, dependency.DefaultVariant, StringComparison.OrdinalIgnoreCase));
+                if (matched != null)
+                {
+                    foreach (var v in descriptor.Variants)
+                    {
+                        v.IsDefault = v == matched;
+                    }
+                }
+                else
+                {
+                    CatalogManifestIdentity.SelectDefaultVariant(
+                        descriptor.Variants,
+                        v => v.Label,
+                        v => v.Axis,
+                        v => v.IsDefault,
+                        (v, isDefault) => v.IsDefault = isDefault);
+                }
+            }
+            else
+            {
+                CatalogManifestIdentity.SelectDefaultVariant(
+                    descriptor.Variants,
+                    v => v.Label,
+                    v => v.Axis,
+                    v => v.IsDefault,
+                    (v, isDefault) => v.IsDefault = isDefault);
+            }
         }
         else
         {
@@ -373,6 +501,7 @@ public static class CatalogBundleComponentBuilder
                 VariantAxis = a.VariantAxis,
                 Variant = a.Variant,
                 IsDefaultVariant = a.IsDefaultVariant,
+                TargetGame = a.TargetGame,
             }).ToList(),
             Dependencies = release.Dependencies,
         };

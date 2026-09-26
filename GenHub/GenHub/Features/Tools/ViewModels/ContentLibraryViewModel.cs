@@ -43,9 +43,44 @@ public partial class ContentLibraryViewModel(
     private const int DetailTabMedia = 3;
 
     [ObservableProperty]
-    private ObservableCollection<CatalogContentItem> _contentItems = activeCatalog?.Catalog?.Content != null
-        ? [.. activeCatalog.Catalog.Content]
-        : [];
+    private ObservableCollection<CatalogContentItem> _contentItems = InitializeContentItems(activeCatalog, parentViewModel);
+
+    private static (string? CatalogIconUrl, string? PublisherAvatarUrl) ResolveCatalogPresentationUrls(
+        NamedCatalog? catalog,
+        PublisherStudioViewModel? parentViewModel)
+    {
+        var catalogIcon = catalog?.IconUrl
+            ?? catalog?.Catalog?.IconUrl
+            ?? catalog?.Catalog?.AvatarUrl
+            ?? catalog?.Catalog?.Publisher?.AvatarUrl;
+        var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl
+            ?? catalog?.Catalog?.Publisher?.AvatarUrl
+            ?? catalogIcon;
+
+        return (catalogIcon, publisherAvatar);
+    }
+
+    private static ObservableCollection<CatalogContentItem> InitializeContentItems(
+        NamedCatalog? activeCatalog,
+        PublisherStudioViewModel? parentViewModel)
+    {
+        var items = new ObservableCollection<CatalogContentItem>();
+        var catalog = activeCatalog;
+        var content = catalog?.Catalog?.Content;
+        if (catalog != null && content != null)
+        {
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(catalog, parentViewModel);
+
+            foreach (var item in content)
+            {
+                item.CatalogIconUrl = catalogIcon;
+                item.PublisherAvatarUrl = publisherAvatar;
+                items.Add(item);
+            }
+        }
+
+        return items;
+    }
 
     [ObservableProperty]
     private CatalogContentItem? _selectedContent;
@@ -247,8 +282,9 @@ public partial class ContentLibraryViewModel(
                 return;
             }
 
-            newContent.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
-            newContent.PublisherAvatarUrl ??= parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(activeCatalog, parentViewModel);
+            newContent.CatalogIconUrl = catalogIcon;
+            newContent.PublisherAvatarUrl ??= publisherAvatar;
             activeCatalog.Catalog?.Content.Add(newContent);
             ContentItems.Add(newContent);
             OnPropertyChanged(nameof(FilteredContent));
@@ -286,25 +322,30 @@ public partial class ContentLibraryViewModel(
         var importedCount = 0;
         CatalogContentItem? lastCreated = null;
 
-        foreach (var path in validPaths)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var item = await CreateBatchContentItemAsync(path, cancellationToken);
-            if (item == null)
+            foreach (var path in validPaths)
             {
-                continue;
+                cancellationToken.ThrowIfCancellationRequested();
+                var item = await CreateBatchContentItemAsync(path, cancellationToken);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                activeCatalog.Catalog.Content.Add(item);
+                ContentItems.Add(item);
+                lastCreated = item;
+                importedCount++;
+                logger.LogInformation("Batch imported content item '{ContentId}' from '{Path}'", item.Id, path);
             }
-
-            activeCatalog.Catalog.Content.Add(item);
-            ContentItems.Add(item);
-            lastCreated = item;
-            importedCount++;
-            logger.LogInformation("Batch imported content item '{ContentId}' from '{Path}'", item.Id, path);
         }
-
-        if (importedCount > 0)
+        finally
         {
-            await FinalizeBatchImportAsync(importedCount, lastCreated);
+            if (importedCount > 0)
+            {
+                await FinalizeBatchImportAsync(importedCount, lastCreated);
+            }
         }
 
         return importedCount;
@@ -713,8 +754,9 @@ public partial class ContentLibraryViewModel(
             target.Tags = edited.Tags;
             target.ExtendsContentId = edited.ExtendsContentId;
             target.Metadata = edited.Metadata;
-            target.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
-            target.PublisherAvatarUrl = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(activeCatalog, parentViewModel);
+            target.CatalogIconUrl = catalogIcon;
+            target.PublisherAvatarUrl = publisherAvatar;
             target.NotifyPresentationChanged();
 
             // Trigger UI update
@@ -1429,8 +1471,7 @@ public partial class ContentLibraryViewModel(
         var content = catalog?.Catalog?.Content;
         if (catalog != null && content != null)
         {
-            var catalogIcon = catalog.IconUrl ?? catalog.Catalog.IconUrl;
-            var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(catalog, parentViewModel);
 
             foreach (var item in content)
             {

@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using GenHub.Common.Helpers;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,6 +20,59 @@ namespace GenHub.Common.Controls;
 /// </summary>
 public partial class ImageInputBox : UserControl
 {
+    /// <summary>
+    /// Represents a selectable built-in asset.
+    /// </summary>
+    public record BuiltInAssetItem(string Name, string Url);
+
+    /// <summary>
+    /// Gets the list of built-in covers and banners available in GenHub.
+    /// </summary>
+    public static IReadOnlyList<BuiltInAssetItem> BuiltInCovers { get; } =
+    [
+        new("Zero Hour Cover", "avares://GenHub/Assets/Covers/zerohour-cover.png"),
+        new("Generals Cover", "avares://GenHub/Assets/Covers/generals-cover.png"),
+        new("Generals Cover 2", "avares://GenHub/Assets/Covers/generals-cover-2.png"),
+        new("USA Cover", "avares://GenHub/Assets/Covers/usa-cover.jpg"),
+        new("China Cover", "avares://GenHub/Assets/Covers/china-cover.jpg"),
+        new("GLA Cover", "avares://GenHub/Assets/Covers/gla-cover.jpg"),
+    ];
+
+    /// <summary>
+    /// Gets the list of built-in publisher and community logos available in GenHub.
+    /// </summary>
+    public static IReadOnlyList<BuiltInAssetItem> BuiltInLogos { get; } =
+    [
+        new("Dominator Logo", "avares://GenHub/Assets/Logos/dominator-logo.png"),
+        new("Community Outpost", "avares://GenHub/Assets/Logos/communityoutpost-logo.png"),
+        new("Generals Online", "avares://GenHub/Assets/Logos/generalsonline-logo.png"),
+        new("TheSuperHackers", "avares://GenHub/Assets/Logos/thesuperhackers-logo.png"),
+        new("GenLauncher", "avares://GenHub/Assets/Logos/genlauncher-logo.png"),
+        new("GenPatcher", "avares://GenHub/Assets/Logos/genpatcher-logo.png"),
+        new("Generals Hub", "avares://GenHub/Assets/Logos/generalshub-logo.png"),
+        new("CnC Labs", "avares://GenHub/Assets/Logos/cnclabs-logo.png"),
+        new("ModDB", "avares://GenHub/Assets/Logos/moddb-logo.png"),
+        new("GitHub", "avares://GenHub/Assets/Logos/github-logo.png"),
+        new("AOD Maps", "avares://GenHub/Assets/Logos/aodmaps-logo.png"),
+    ];
+
+    private async void OnBuiltInAssetSelected(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string url)
+        {
+            var assetBtn = this.FindControl<Button>("AssetPickerButton");
+            assetBtn?.Flyout?.Hide();
+            try
+            {
+                await ProcessIncomingInputAsync(url);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to apply built-in asset: {ex.Message}");
+            }
+        }
+    }
+
     /// <summary>
     /// Defines the <see cref="Text"/> property.
     /// </summary>

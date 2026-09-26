@@ -790,7 +790,10 @@ public sealed partial class DownloadsBrowserViewModel(
             }
         }
 
-        return grouped;
+        return grouped
+            .OrderByDescending(g => g.Any(i => i.IsFeatured))
+            .ThenByDescending(g => g.Any(i => i.ContentType == ContentType.ContentBundle))
+            .ToList();
     }
 
     private static ContentSearchResult ResolveDefaultVariant(IReadOnlyList<ContentSearchResult> groupItems, ContentSearchResult primaryItem)
@@ -2488,6 +2491,22 @@ public sealed partial class DownloadsBrowserViewModel(
             if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
             {
                 ReconcileReleaseUpdateStates(ContentItems);
+                if (ContentItems.Any(ci => ci.IsFeatured || ci.ContentType == ContentType.ContentBundle))
+                {
+                    var sorted = ContentItems
+                        .OrderByDescending(ci => ci.IsFeatured)
+                        .ThenByDescending(ci => ci.ContentType == ContentType.ContentBundle)
+                        .ToList();
+
+                    for (var i = 0; i < sorted.Count; i++)
+                    {
+                        var oldIdx = ContentItems.IndexOf(sorted[i]);
+                        if (oldIdx != i && oldIdx >= 0)
+                        {
+                            ContentItems.Move(oldIdx, i);
+                        }
+                    }
+                }
             }
         });
 
@@ -2537,6 +2556,10 @@ public sealed partial class DownloadsBrowserViewModel(
                 if (append)
                 {
                     existingState.Items.AddRange(newVms);
+                    existingState.Items = existingState.Items
+                        .OrderByDescending(vm => vm.IsFeatured)
+                        .ThenByDescending(vm => vm.ContentType == ContentType.ContentBundle)
+                        .ToList();
                     existingState.CurrentPage = query.Page ?? existingState.CurrentPage;
                     existingState.CanLoadMore = hasMoreItems;
                 }
@@ -2549,7 +2572,11 @@ public sealed partial class DownloadsBrowserViewModel(
                     }
 
                     existingState.Items.Clear();
-                    existingState.Items.AddRange(newVms);
+                    var sortedNewVms = newVms
+                        .OrderByDescending(vm => vm.IsFeatured)
+                        .ThenByDescending(vm => vm.ContentType == ContentType.ContentBundle)
+                        .ToList();
+                    existingState.Items.AddRange(sortedNewVms);
                     existingState.CurrentPage = query.Page ?? 1;
                     existingState.CanLoadMore = hasMoreItems;
                 }
@@ -2584,6 +2611,15 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         var defaultVariant = ResolveDefaultVariant(groupItems, primaryItem);
+        if (groupItems.Any(i => i.IsFeatured))
+        {
+            defaultVariant.IsFeatured = true;
+            if (string.IsNullOrWhiteSpace(defaultVariant.FeaturedBadge))
+            {
+                defaultVariant.FeaturedBadge = groupItems.FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.FeaturedBadge))?.FeaturedBadge;
+            }
+        }
+
         var variantVm = CreateBaseGridItemViewModel(defaultVariant);
         try
         {
@@ -2920,7 +2956,8 @@ public sealed partial class DownloadsBrowserViewModel(
             item,
             contentStateService,
             loggerFactory.CreateLogger<ContentGridItemViewModel>(),
-            _downloadCoordinator)
+            _downloadCoordinator,
+            _localizationService)
         {
             ViewCommand = ViewContentCommand,
             DownloadCommand = DownloadContentCommand,
@@ -3023,7 +3060,7 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             // Best-effort persistence; results were already delivered.
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex)
         {
             logger.LogDebug(ex, "Failed to persist refreshed subscription data for {PublisherId}", publisherId);
         }

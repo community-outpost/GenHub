@@ -3066,7 +3066,15 @@ public partial class PublishShareViewModel(
             return false;
         }
 
-        return !Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("avares://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return !Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps);
     }
 

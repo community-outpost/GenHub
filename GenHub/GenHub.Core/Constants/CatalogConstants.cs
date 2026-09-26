@@ -1,3 +1,7 @@
+using GenHub.Core.Models.Providers;
+using System;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -305,4 +309,104 @@ public static class CatalogConstants
     /// Status badge color for an up-to-date published catalog (#10B981).
     /// </summary>
     public const string CatalogStatusPublishedColor = "#10B981";
+
+    /// <summary>
+    /// Well-known upstream sync provider identifiers.
+    /// </summary>
+    public static class UpstreamProviders
+    {
+        /// <summary>
+        /// TheSuperHackers dynamic releases provider.
+        /// </summary>
+        public const string TheSuperHackers = "TheSuperHackers";
+
+        /// <summary>
+        /// GeneralsOnline ladder releases provider.
+        /// </summary>
+        public const string GeneralsOnline = "GeneralsOnline";
+
+        /// <summary>
+        /// CommunityOutpost GenPatcher releases provider.
+        /// </summary>
+        public const string CommunityOutpost = "CommunityOutpost";
+
+        /// <summary>
+        /// Generic GitHub Releases provider.
+        /// </summary>
+        public const string GitHubReleases = "GitHubReleases";
+
+        /// <summary>
+        /// Wire alias for generic GitHub Releases provider.
+        /// </summary>
+        public const string GitHubReleasesAlias = "github-releases";
+
+        /// <summary>
+        /// Normalizes provider aliases to canonical upstream provider identifiers.
+        /// </summary>
+        /// <param name="provider">The provider name or alias to normalize.</param>
+        /// <returns>The canonical provider identifier, or <c>null</c> if unsupported.</returns>
+        public static string? Normalize(string? provider)
+        {
+            if (string.IsNullOrWhiteSpace(provider))
+            {
+                return null;
+            }
+
+            if (string.Equals(provider, TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase))
+            {
+                return TheSuperHackers;
+            }
+
+            if (string.Equals(provider, GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnline;
+            }
+
+            if (string.Equals(provider, CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
+            {
+                return CommunityOutpost;
+            }
+
+            if (string.Equals(provider, GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, GitHubReleasesAlias, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase))
+            {
+                return GitHubReleases;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Determines whether the specified provider name represents a supported upstream provider.
+        /// </summary>
+        /// <param name="provider">The provider name to check.</param>
+        /// <returns><c>true</c> if supported; otherwise <c>false</c>.</returns>
+        public static bool IsSupported(string? provider) => Normalize(provider) != null;
+
+        /// <summary>
+        /// Determines whether the specified content item is configured as an upstream-synced source.
+        /// </summary>
+        /// <param name="content">The content item to check.</param>
+        /// <returns><c>true</c> if configured as a supported upstream source; otherwise <c>false</c>.</returns>
+        public static bool IsConfiguredUpstreamSource(CatalogContentItem? content)
+        {
+            if (content?.UpstreamSync == null)
+            {
+                return false;
+            }
+
+            var provider = !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider)
+                ? content.UpstreamSync.Provider
+                : content.PublisherType;
+
+            return IsSupported(provider);
+        }
+    }
 }

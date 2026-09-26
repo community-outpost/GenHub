@@ -358,9 +358,6 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         return result;
     }
 
-    [GeneratedRegex(@"\b(\d{4})[-.](\d{2})[-.](\d{2})\b", RegexOptions.CultureInvariant)]
-    private static partial Regex IsoDateRegex();
-
     private static DateTime ResolveReleaseDate(GitHubRelease release)
     {
         if (release.PublishedAt.HasValue && release.PublishedAt.Value.DateTime > DateTime.MinValue)
@@ -378,37 +375,8 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             ?? DateTime.MinValue;
     }
 
-    private static DateTime? TryExtractDateFromTagOrName(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return null;
-        }
-
-        var match = IsoDateRegex().Match(input);
-        if (match.Success &&
-            int.TryParse(match.Groups[1].Value, out var y) &&
-            int.TryParse(match.Groups[2].Value, out var m) &&
-            int.TryParse(match.Groups[3].Value, out var d) &&
-            m >= 1 && m <= 12 && d >= 1 && d <= 31)
-        {
-            return new DateTime(y, m, d, 0, 0, 0, DateTimeKind.Utc);
-        }
-
-        var versionNum = SuperHackersConstants.ExtractVersionFromReleaseTag(input);
-        if (versionNum is >= 19900101 and <= 21001231)
-        {
-            var year = versionNum / 10000;
-            var month = (versionNum % 10000) / 100;
-            var day = versionNum % 100;
-            if (month is >= 1 and <= 12 && day is >= 1 and <= 31)
-            {
-                return new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
-            }
-        }
-
-        return null;
-    }
+    private static DateTime? TryExtractDateFromTagOrName(string? input) =>
+        SuperHackersConstants.TryExtractDate(input);
 
     private async Task<IEnumerable<GitHubRelease>> FetchReleasesForRepoAsync(
         string owner,

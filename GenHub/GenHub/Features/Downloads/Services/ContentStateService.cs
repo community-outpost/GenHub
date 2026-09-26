@@ -1856,23 +1856,22 @@ public sealed partial class ContentStateService(
             ?? SanitizeSegmentForManifest(item.Id, UnknownSegment)
             ?? UnknownSegment;
 
+        var userVersion = CatalogManifestIdentity.ExtractVersionNumber(item.Version);
+
         string prospectiveId = string.Empty;
         try
         {
             prospectiveId = hasRealDate
                 ? ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, releaseDate)
-                : ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, userVersion: 0);
+                : ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, userVersion: userVersion);
         }
         catch (ArgumentException)
         {
-            prospectiveId = $"1.0.{providerName}.{item.ContentType.ToString().ToLowerInvariant()}.{contentName}";
+            prospectiveId = $"1.{userVersion}.{providerName}.{item.ContentType.ToString().ToLowerInvariant()}.{contentName}";
         }
 
         return (prospectiveId, releaseDate, hasRealDate);
     }
-
-    [GeneratedRegex(@"\b(\d{4})[-.](\d{2})[-.](\d{2})\b", RegexOptions.CultureInvariant)]
-    private static partial Regex IsoDateRegex();
 
     [GeneratedRegex(@"^([a-zA-Z]+)[._-]?(\d+)$")]
     private static partial Regex PrefixedDigitsRegex();
@@ -1890,37 +1889,8 @@ public sealed partial class ContentStateService(
             ?? TryExtractDateFromString(item.Id);
     }
 
-    private static DateTime? TryExtractDateFromString(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return null;
-        }
-
-        var match = IsoDateRegex().Match(input);
-        if (match.Success &&
-            int.TryParse(match.Groups[1].Value, out var y) &&
-            int.TryParse(match.Groups[2].Value, out var m) &&
-            int.TryParse(match.Groups[3].Value, out var d) &&
-            m >= 1 && m <= 12 && d >= 1 && d <= 31)
-        {
-            return new DateTime(y, m, d, 0, 0, 0, DateTimeKind.Utc);
-        }
-
-        var versionNum = SuperHackersConstants.ExtractVersionFromReleaseTag(input);
-        if (versionNum is >= 19900101 and <= 21001231)
-        {
-            var year = versionNum / 10000;
-            var month = (versionNum % 10000) / 100;
-            var day = versionNum % 100;
-            if (month is >= 1 and <= 12 && day is >= 1 and <= 31)
-            {
-                return new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
-            }
-        }
-
-        return null;
-    }
+    private static DateTime? TryExtractDateFromString(string? input) =>
+        SuperHackersConstants.TryExtractDate(input);
 
     private static string? SanitizeSegmentForManifest(string? input, string? fallback)
     {

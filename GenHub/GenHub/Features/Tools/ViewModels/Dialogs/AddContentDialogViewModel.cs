@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
@@ -33,6 +34,54 @@ public partial class AddContentDialogViewModel(
     PublisherCatalog? catalog = null,
     INotificationService? notificationService = null) : ObservableValidator, IDisposable
 {
+    /// <summary>
+    /// Represents an option in the ContentBundle component matrix.
+    /// </summary>
+    public partial class BundleComponentOption : ObservableObject
+    {
+        /// <summary>
+        /// Backing field for <see cref="IsSelected"/>.
+        /// </summary>
+        [ObservableProperty]
+        private bool _isSelected;
+
+        /// <summary>
+        /// Backing field for <see cref="SelectedVariant"/>.
+        /// </summary>
+        [ObservableProperty]
+        private string? _selectedVariant;
+
+        /// <summary>
+        /// Gets the content ID of the bundled item.
+        /// </summary>
+        public string ContentId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the display name of the bundled item.
+        /// </summary>
+        public string Name { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the content type of the bundled item.
+        /// </summary>
+        public ContentType ContentType { get; init; }
+
+        /// <summary>
+        /// Gets the display string for the content type.
+        /// </summary>
+        public string ContentTypeDisplay => ContentType.ToString();
+
+        /// <summary>
+        /// Gets available variants for this bundled item.
+        /// </summary>
+        public ObservableCollection<string> AvailableVariants { get; } = [];
+
+        /// <summary>
+        /// Gets a value indicating whether multiple variants are available.
+        /// </summary>
+        public bool HasVariants => AvailableVariants.Count > 0;
+    }
+
     /// <summary>
     /// A local file or folder staged for the initial release.
     /// Each staged entry becomes one release artifact; multiple entries are
@@ -116,7 +165,65 @@ public partial class AddContentDialogViewModel(
     private string _description = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanExtend))]
+    [NotifyPropertyChangedFor(nameof(ShowAddonParentSelection))]
+    [NotifyPropertyChangedFor(nameof(IsBundleType))]
+    [NotifyPropertyChangedFor(nameof(CanShowInitialRelease))]
     private ContentType _selectedContentType = ContentType.Mod;
+
+    /// <summary>
+    /// Gets sibling options for ContentBundle composition.
+    /// </summary>
+    public ObservableCollection<BundleComponentOption> BundleComponentOptions { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanShowInitialRelease))]
+    [NotifyPropertyChangedFor(nameof(IsUpstreamTracked))]
+    private bool _isUpstreamSource;
+
+    /// <summary>
+    /// Gets a value indicating whether this item tracks a live upstream source.
+    /// </summary>
+    public bool IsUpstreamTracked => IsUpstreamSource;
+
+    /// <summary>
+    /// Gets the list of available upstream providers.
+    /// </summary>
+    public IReadOnlyList<string> AvailableUpstreamProviders { get; } =
+    [
+        CatalogConstants.UpstreamProviders.TheSuperHackers,
+        CatalogConstants.UpstreamProviders.GeneralsOnline,
+        CatalogConstants.UpstreamProviders.CommunityOutpost,
+        CatalogConstants.UpstreamProviders.GitHubReleases,
+    ];
+
+    [ObservableProperty]
+    private string _selectedUpstreamProvider = CatalogConstants.UpstreamProviders.TheSuperHackers;
+
+    [ObservableProperty]
+    private string? _upstreamRepository = "TheSuperHackers/GeneralsGameCode";
+
+    [ObservableProperty]
+    private string? _upstreamChannel = "stable";
+
+    [ObservableProperty]
+    private string? _upstreamVariantAxis = "game-type";
+
+    [ObservableProperty]
+    private bool _isFeatured;
+
+    [ObservableProperty]
+    private string? _featuredBadge = localizationService?.GetString("Tools.PublisherStudio.Content.FeaturedBadgePlaceholder") ?? "★ FEATURED BUNDLE";
+
+    /// <summary>
+    /// Gets a value indicating whether the current content type is ContentBundle.
+    /// </summary>
+    public bool IsBundleType => SelectedContentType == ContentType.ContentBundle;
+
+    /// <summary>
+    /// Gets a value indicating whether initial release controls should be shown.
+    /// </summary>
+    public bool CanShowInitialRelease => !IsEditMode && !IsBundleType && !IsUpstreamSource;
 
     [ObservableProperty]
     private GameType _selectedTargetGame = GameType.ZeroHour;
@@ -283,6 +390,133 @@ public partial class AddContentDialogViewModel(
         else if (!string.IsNullOrWhiteSpace(existing.Metadata?.VideoUrl))
         {
             Videos.Add(existing.Metadata.VideoUrl);
+        }
+
+        IsFeatured = existing.IsFeatured || (existing.Metadata?.IsFeatured ?? false);
+        FeaturedBadge = existing.FeaturedBadge ?? existing.Metadata?.FeaturedBadge ?? (localizationService?.GetString("Tools.PublisherStudio.Content.FeaturedBadgePlaceholder") ?? "★ FEATURED BUNDLE");
+
+        if (existing.UpstreamSync != null)
+        {
+            IsUpstreamSource = true;
+            SelectedUpstreamProvider = existing.UpstreamSync.Provider;
+            UpstreamRepository = existing.UpstreamSync.Repository;
+            UpstreamChannel = existing.UpstreamSync.Channel;
+            UpstreamVariantAxis = existing.UpstreamSync.VariantAxis;
+        }
+
+        if (existing.ContentType == ContentType.ContentBundle)
+        {
+            RefreshBundleComponentOptions();
+        }
+    }
+
+    private void RefreshBundleComponentOptions()
+    {
+        BundleComponentOptions.Clear();
+        if (catalog?.Content == null)
+        {
+            PopulateFallbackBundleComponentOptions();
+            return;
+        }
+
+        var candidates = catalog.Content
+            .Where(item => !string.Equals(item.Id, _existingItem?.Id, StringComparison.OrdinalIgnoreCase) &&
+                           item.ContentType != ContentType.ContentBundle);
+
+        foreach (var item in candidates)
+        {
+            BundleComponentOptions.Add(CreateBundleComponentOption(item));
+        }
+
+        PopulateFallbackBundleComponentOptions();
+    }
+
+    private List<string> CollectItemVariants(CatalogContentItem item)
+    {
+        var releaseVariants = item.Releases != null
+            ? item.Releases
+                .Where(rel => rel.Artifacts != null)
+                .SelectMany(rel => rel.Artifacts)
+                .Select(art => art.Variant)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+            : Enumerable.Empty<string?>();
+
+        var ruleVariants = item.UpstreamSync?.AssetRules != null
+            ? item.UpstreamSync.AssetRules
+                .Select(rule => rule.Variant)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+            : Enumerable.Empty<string?>();
+
+        return releaseVariants
+            .Concat(ruleVariants)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private BundleComponentOption CreateBundleComponentOption(CatalogContentItem item)
+    {
+        var option = new BundleComponentOption
+        {
+            ContentId = item.Id,
+            Name = !string.IsNullOrWhiteSpace(item.Name) ? item.Name : item.Id,
+            ContentType = item.ContentType,
+        };
+
+        var variants = CollectItemVariants(item);
+        foreach (var v in variants)
+        {
+            option.AvailableVariants.Add(v);
+        }
+
+        var existingDep = _existingItem?.BundledItems.FirstOrDefault(b => string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase));
+        if (existingDep != null)
+        {
+            option.IsSelected = true;
+            if (!string.IsNullOrWhiteSpace(existingDep.DefaultVariant) && !option.AvailableVariants.Contains(existingDep.DefaultVariant))
+            {
+                option.AvailableVariants.Add(existingDep.DefaultVariant);
+            }
+
+            option.SelectedVariant = existingDep.DefaultVariant ?? variants.FirstOrDefault();
+        }
+        else
+        {
+            option.SelectedVariant = variants.FirstOrDefault();
+        }
+
+        return option;
+    }
+
+    private void PopulateFallbackBundleComponentOptions()
+    {
+        if (_existingItem?.BundledItems is not { Count: > 0 })
+        {
+            return;
+        }
+
+        foreach (var bundledItem in _existingItem.BundledItems)
+        {
+            if (BundleComponentOptions.Any(o => string.Equals(o.ContentId, bundledItem.ContentId, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var option = new BundleComponentOption
+            {
+                ContentId = bundledItem.ContentId,
+                Name = bundledItem.ContentId,
+                ContentType = Enum.TryParse<ContentType>(bundledItem.ContentType, out var ct) ? ct : ContentType.Addon,
+                IsSelected = true,
+                SelectedVariant = bundledItem.DefaultVariant,
+            };
+
+            if (!string.IsNullOrWhiteSpace(bundledItem.DefaultVariant))
+            {
+                option.AvailableVariants.Add(bundledItem.DefaultVariant);
+            }
+
+            BundleComponentOptions.Add(option);
         }
     }
 
@@ -630,12 +864,15 @@ public partial class AddContentDialogViewModel(
     {
         return new ContentRelease
         {
+            Title = source.Title,
+            Category = source.Category,
             Version = source.Version,
             ReleaseDate = source.ReleaseDate,
             IsPrerelease = source.IsPrerelease,
             IsLatest = source.IsLatest,
             IsFeatured = source.IsFeatured,
             Changelog = source.Changelog,
+            EntryPoint = source.EntryPoint,
             BundleArtifacts = source.BundleArtifacts,
             Artifacts = source.Artifacts.Select(CloneArtifact).ToList(),
             Dependencies = source.Dependencies.Select(CloneDependency).ToList(),
@@ -692,11 +929,37 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    private static bool IsRemoteArtworkUrl(string value)
+    {
+        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private static bool IsBuiltInArtworkUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.StartsWith("avares://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase);
+    }
+
     partial void OnSelectedContentTypeChanged(ContentType value)
     {
-        _ = value;
         OnPropertyChanged(nameof(CanExtend));
         OnPropertyChanged(nameof(ShowAddonParentSelection));
+        OnPropertyChanged(nameof(IsBundleType));
+        OnPropertyChanged(nameof(CanShowInitialRelease));
+        if (value == ContentType.ContentBundle)
+        {
+            IncludeInitialRelease = false;
+            IsUpstreamSource = false;
+            RefreshBundleComponentOptions();
+        }
     }
 
     partial void OnIsVariantsModeChanged(bool value)
@@ -1250,6 +1513,7 @@ public partial class AddContentDialogViewModel(
         if (!string.IsNullOrWhiteSpace(url))
         {
             Screenshots.Remove(url);
+            ScreenshotUrlsInput = string.Join(Environment.NewLine, Screenshots);
         }
     }
 
@@ -1449,6 +1713,47 @@ public partial class AddContentDialogViewModel(
             Metadata = MergeArtworkMetadata(),
         };
 
+        contentItem.IsFeatured = IsFeatured;
+        contentItem.FeaturedBadge = FeaturedBadge;
+        if (contentItem.Metadata != null)
+        {
+            contentItem.Metadata.IsFeatured = IsFeatured;
+            contentItem.Metadata.FeaturedBadge = FeaturedBadge;
+        }
+
+        if (IsUpstreamSource)
+        {
+            contentItem.UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = SelectedUpstreamProvider,
+                Repository = UpstreamRepository,
+                Channel = UpstreamChannel,
+                VariantAxis = UpstreamVariantAxis,
+            };
+            contentItem.PublisherType = SelectedUpstreamProvider switch
+            {
+                CatalogConstants.UpstreamProviders.TheSuperHackers => "thesuperhackers",
+                CatalogConstants.UpstreamProviders.GeneralsOnline => "generalsonline",
+                CatalogConstants.UpstreamProviders.CommunityOutpost => "communityoutpost",
+                _ => contentItem.PublisherType,
+            };
+        }
+
+        if (SelectedContentType == ContentType.ContentBundle)
+        {
+            contentItem.BundledItems.Clear();
+            foreach (var opt in BundleComponentOptions.Where(o => o.IsSelected))
+            {
+                contentItem.BundledItems.Add(new CatalogDependency
+                {
+                    ContentId = opt.ContentId,
+                    IsOptional = false,
+                    DefaultVariant = opt.SelectedVariant,
+                    ContentType = opt.ContentType.ToString(),
+                });
+            }
+        }
+
         if (!IsEditMode)
         {
             if (!ValidateInitialRelease())
@@ -1481,25 +1786,31 @@ public partial class AddContentDialogViewModel(
         return $"{contentId}-{version}.zip";
     }
 
-    private bool ValidateInitialRelease()
+    private bool ValidateDownloadUrl(out bool hasValidUrl)
     {
-        var hasValidUrl = false;
-        if (!string.IsNullOrWhiteSpace(DownloadUrl))
+        hasValidUrl = false;
+        if (string.IsNullOrWhiteSpace(DownloadUrl))
         {
-            if (!Uri.TryCreate(DownloadUrl.Trim(), UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            {
-                ValidationError = GetLocalizedString(
-                    "Tools.PublisherStudio.Validation.DownloadUrlInvalid",
-                    "Download URL must be a valid HTTP or HTTPS link.");
-                IsValid = false;
-                return false;
-            }
-
-            hasValidUrl = true;
+            return true;
         }
 
-        var hasValidFile = false;
+        if (!Uri.TryCreate(DownloadUrl.Trim(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Validation.DownloadUrlInvalid",
+                "Download URL must be a valid HTTP or HTTPS link.");
+            IsValid = false;
+            return false;
+        }
+
+        hasValidUrl = true;
+        return true;
+    }
+
+    private bool ValidateStagedOrLocalFiles(out bool hasValidFile)
+    {
+        hasValidFile = false;
         if (StagedFiles.Count > 0)
         {
             var missing = StagedFiles.FirstOrDefault(e => !File.Exists(e.LocalPath) && !Directory.Exists(e.LocalPath));
@@ -1515,10 +1826,12 @@ public partial class AddContentDialogViewModel(
             }
 
             hasValidFile = true;
+            return true;
         }
-        else if (!string.IsNullOrWhiteSpace(LocalFilePath))
+
+        if (!string.IsNullOrWhiteSpace(LocalFilePath))
         {
-            if (!System.IO.File.Exists(LocalFilePath) && !System.IO.Directory.Exists(LocalFilePath))
+            if (!File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath))
             {
                 ValidationError = string.Format(
                     GetLocalizedString(
@@ -1530,6 +1843,26 @@ public partial class AddContentDialogViewModel(
             }
 
             hasValidFile = true;
+        }
+
+        return true;
+    }
+
+    private bool ValidateInitialRelease()
+    {
+        if (SelectedContentType == ContentType.ContentBundle || IsUpstreamSource)
+        {
+            return true;
+        }
+
+        if (!ValidateDownloadUrl(out var hasValidUrl))
+        {
+            return false;
+        }
+
+        if (!ValidateStagedOrLocalFiles(out var hasValidFile))
+        {
+            return false;
         }
 
         var hasExistingArtifacts = ReleaseArtifacts.Count > 0;
@@ -1556,12 +1889,6 @@ public partial class AddContentDialogViewModel(
         };
     }
 
-    private bool IsRemoteArtworkUrl(string value)
-    {
-        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
-            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-    }
-
     private string? NormalizeArtworkValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -1583,7 +1910,7 @@ public partial class AddContentDialogViewModel(
                 continue;
             }
 
-            if (!IsRemoteArtworkUrl(value) && !File.Exists(value))
+            if (!IsRemoteArtworkUrl(value) && !IsBuiltInArtworkUrl(value) && !File.Exists(value))
             {
                 ValidationError = string.Format(
                     GetLocalizedString(
@@ -1704,6 +2031,11 @@ public partial class AddContentDialogViewModel(
 
     private void AttachInitialRelease(CatalogContentItem contentItem)
     {
+        if (SelectedContentType == ContentType.ContentBundle || IsUpstreamSource)
+        {
+            return;
+        }
+
         var version = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
         var release = new ContentRelease
         {
@@ -1825,6 +2157,11 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
+        if (!IsUpstreamSource && _existingItem.UpstreamSync == null)
+        {
+            contentItem.PublisherType = _existingItem.PublisherType;
+        }
+
         // Preserve existing releases & dependencies as deep copies so the edited
         // item never aliases the source item's mutable lists.
         foreach (var release in _existingItem.Releases)
@@ -1832,9 +2169,12 @@ public partial class AddContentDialogViewModel(
             contentItem.Releases.Add(CloneRelease(release));
         }
 
-        foreach (var dependency in _existingItem.BundledItems)
+        if (contentItem.ContentType != ContentType.ContentBundle && _existingItem.ContentType != ContentType.ContentBundle)
         {
-            contentItem.BundledItems.Add(CloneDependency(dependency));
+            foreach (var dependency in _existingItem.BundledItems)
+            {
+                contentItem.BundledItems.Add(CloneDependency(dependency));
+            }
         }
 
         foreach (var addon in _existingItem.Addons)

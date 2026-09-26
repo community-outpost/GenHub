@@ -42,7 +42,8 @@ public class GenericCatalogDiscoverer(
     IHttpClientFactory httpClientFactory,
     IPublisherCatalogParser catalogParser,
     IVersionSelector versionSelector,
-    IGitHubApiClient gitHubClient) : IContentDiscoverer
+    IGitHubApiClient gitHubClient,
+    ICatalogUpstreamIngestionService? upstreamIngestionService) : IContentDiscoverer
 {
     private readonly record struct VariantSiblingContext(
         ContentRelease OriginalRelease,
@@ -61,6 +62,24 @@ public class GenericCatalogDiscoverer(
     private Core.Models.Providers.PublisherSubscription? _subscription;
     private string? _refreshedCatalogUrl;
     private string? _refreshedAvatarUrl;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenericCatalogDiscoverer"/> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="httpClientFactory">The HTTP client factory.</param>
+    /// <param name="catalogParser">The catalog parser.</param>
+    /// <param name="versionSelector">The version selector.</param>
+    /// <param name="gitHubClient">The GitHub API client.</param>
+    public GenericCatalogDiscoverer(
+        ILogger<GenericCatalogDiscoverer> logger,
+        IHttpClientFactory httpClientFactory,
+        IPublisherCatalogParser catalogParser,
+        IVersionSelector versionSelector,
+        IGitHubApiClient gitHubClient)
+        : this(logger, httpClientFactory, catalogParser, versionSelector, gitHubClient, null)
+    {
+    }
 
     /// <summary>
     /// Gets the unique identifier of the resolver used by this discoverer.
@@ -144,8 +163,18 @@ public class GenericCatalogDiscoverer(
                 return OperationResult<ContentDiscoveryResult>.CreateFailure("Catalog data is null");
             }
 
-            // Dynamically hydrate upstream releases (e.g. TheSuperHackers latest release)
-            await HydrateDynamicReleasesAsync(catalog, cancellationToken);
+            // Dynamically hydrate upstream releases (e.g. TheSuperHackers, GeneralsOnline, CommunityOutpost)
+            if (upstreamIngestionService != null)
+            {
+                await upstreamIngestionService.IngestCatalogAsync(catalog, cancellationToken);
+            }
+            else
+            {
+                await HydrateDynamicReleasesAsync(catalog, cancellationToken);
+            }
+
+            // Ensure bundle items with empty releases have a synthetic release so versionSelector includes them
+            CatalogBundleComponentBuilder.HydrateSyntheticBundleReleases(catalog.Content ?? []);
 
             // Convert catalog items to search results
             var searchResults = ConvertCatalogToSearchResults(catalog, query).ToList();
@@ -197,8 +226,9 @@ public class GenericCatalogDiscoverer(
         {
             var targetGame = query.TargetGame.Value;
             var hasGameVariant = release?.Artifacts?.Any(a =>
-                string.Equals(a.VariantAxis, CatalogConstants.GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase) &&
-                ResolveSiblingTargetGame(GameType.Unknown, a.VariantAxis ?? string.Empty, a.Variant ?? string.Empty) == targetGame) == true;
+                (a.TargetGame != GameType.Unknown && a.TargetGame == targetGame) ||
+                (string.Equals(a.VariantAxis, CatalogConstants.GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase) &&
+                ResolveSiblingTargetGame(GameType.Unknown, a.VariantAxis ?? string.Empty, a.Variant ?? string.Empty) == targetGame)) == true;
 
             if (content.TargetGame != targetGame && !hasGameVariant)
             {
@@ -598,6 +628,11 @@ public class GenericCatalogDiscoverer(
         {
             ContentCardBadgeHelper.ApplyPlayerCount(searchResult, playerCount);
         }
+
+        searchResult.IsFeatured = contentItem.IsFeatured || (contentItem.Metadata?.IsFeatured ?? false);
+        searchResult.FeaturedBadge = !string.IsNullOrWhiteSpace(contentItem.FeaturedBadge)
+            ? contentItem.FeaturedBadge
+            : contentItem.Metadata?.FeaturedBadge;
 
         ContentCardBadgeHelper.ApplyCategory(searchResult, contentItem.Metadata?.Category);
         ContentCardBadgeHelper.PromoteFromTags(searchResult);
@@ -1192,7 +1227,9 @@ public class GenericCatalogDiscoverer(
             variantLabel = ImplicitFileVariantLabel(artifact, siblingIndex);
         }
 
-        var siblingTargetGame = ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
+        var siblingTargetGame = artifact.TargetGame != GameType.Unknown
+            ? artifact.TargetGame
+            : ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
 
         var (effectiveProviderName, authorName, iconUrl) = ResolvePresentationIdentity(catalog, contentItem);
 

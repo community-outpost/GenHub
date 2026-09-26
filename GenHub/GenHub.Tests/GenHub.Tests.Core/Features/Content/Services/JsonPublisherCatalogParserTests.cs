@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.Catalog;
@@ -316,6 +317,154 @@ public sealed class JsonPublisherCatalogParserTests
         var verified = parser.VerifySignature("{}", catalog);
 
         Assert.True(verified);
+    }
+
+    /// <summary>
+    /// The dominator mappacks catalog must parse and validate end-to-end.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_DominatorMappacksCatalog_SucceedsAsync()
+    {
+        var path = FindDominatorMappacksCatalogPath();
+        Assert.True(File.Exists(path), $"Sample catalog not found at {path}");
+
+        var json = await File.ReadAllTextAsync(path);
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = await parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal("dominator-mappacks", result.Data!.Publisher.Id);
+        Assert.NotEmpty(result.Data.Content);
+        Assert.Contains(result.Data.Content, c => c.ContentType == ContentType.MapPack);
+    }
+
+    /// <summary>
+    /// The community competitive ecosystem catalog must parse and validate end-to-end.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_CommunityCompetitiveEcosystemCatalog_SucceedsAsync()
+    {
+        var path = FindCommunityCompetitiveCatalogPath();
+        Assert.True(File.Exists(path), $"Sample catalog not found at {path}");
+
+        var json = await File.ReadAllTextAsync(path);
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = await parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal("community-competitive-hub", result.Data!.Publisher.Id);
+        Assert.Contains(result.Data.Content, c => c.ContentType == ContentType.ContentBundle);
+        var bundle = Assert.Single(result.Data.Content, c => c.Id == "thesuperhackers-competitive-bundle");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "thesuperhackers-client");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "l3m-controlbar");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "leikeze-hotkeys");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "eliorata-improved-menus");
+    }
+
+    /// <summary>
+    /// Upstream GitHub items with whitespace in owner or repository identifier must fail validation.
+    /// </summary>
+    /// <param name="invalidRepo">The invalid repository string with whitespace.</param>
+    [Theory]
+    [InlineData("owner/ repo")]
+    [InlineData("owner/repo\n")]
+    [InlineData(" owner/repo")]
+    [InlineData("owner /repo")]
+    [InlineData("owner/")]
+    [InlineData("/repo")]
+    public void ValidateCatalog_GitHubUpstreamRepository_WhitespaceRejected(string invalidRepo)
+    {
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "item-gh",
+                    Name = "GitHub Item",
+                    ContentType = ContentType.GameClient,
+                    UpstreamSync = new CatalogUpstreamSync
+                    {
+                        Provider = CatalogConstants.UpstreamProviders.GitHubReleasesAlias,
+                        Repository = invalidRepo,
+                    },
+                },
+            ],
+        };
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = parser.ValidateCatalog(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("must declare a valid repository in 'owner/repo' format", StringComparison.Ordinal));
+    }
+
+    private static string FindDominatorMappacksCatalogPath()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "GenHub", "GenHub", "SampleCatalogs", "dominator-mappacks.catalog.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            candidate = Path.Combine(dir.FullName, "GenHub", "SampleCatalogs", "dominator-mappacks.catalog.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        return Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            "..",
+            "GenHub",
+            "SampleCatalogs",
+            "dominator-mappacks.catalog.json"));
+    }
+
+    private static string FindCommunityCompetitiveCatalogPath()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "GenHub", "GenHub", "SampleCatalogs", "community-competitive-ecosystem.catalog.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            candidate = Path.Combine(dir.FullName, "GenHub", "SampleCatalogs", "community-competitive-ecosystem.catalog.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        return Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            "..",
+            "GenHub",
+            "SampleCatalogs",
+            "community-competitive-ecosystem.catalog.json"));
     }
 
     private static string FindSampleCatalogPath()
