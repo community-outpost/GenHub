@@ -454,5 +454,4 @@ public sealed class GameClientEntryDetectorTests : IDisposable
 
         return Directory.CreateDirectory(Path.Combine(contents, "MacOS")).FullName;
     }
-
 }
