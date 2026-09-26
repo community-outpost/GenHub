@@ -26,6 +26,7 @@ public class TelemetryServiceTests : IDisposable
     private readonly Mock<ILogger<TelemetryService>> _mockLogger = new();
     private readonly Mock<IUserSettingsService> _mockUserSettingsService = new();
     private readonly TelemetrySanitizer _sanitizer = new();
+    private static readonly object EnvironmentLock = new();
     private readonly Mock<ITelemetrySink> _mockSink = new();
     private readonly UserSettings _settings = new()
     {
@@ -288,23 +289,28 @@ public class TelemetryServiceTests : IDisposable
     [InlineData("on")]
     public async Task CurrentLevel_WhenDoNotTrackEnvironmentVariableIsSet_ReturnsDisabledAsync(string optOutValue)
     {
-        var original = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack);
-        Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, optOutValue);
-        try
+        lock (EnvironmentLock)
         {
-            await using var service = new TelemetryService(
-                _mockLogger.Object,
-                _sanitizer,
-                _mockUserSettingsService.Object,
-                [_mockSink.Object]);
+            var original = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack);
+            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, optOutValue);
+            try
+            {
+                using var service = new TelemetryService(
+                    _mockLogger.Object,
+                    _sanitizer,
+                    _mockUserSettingsService.Object,
+                    [_mockSink.Object]);
 
-            Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
-            Assert.False(service.IsEnabled(TelemetryLevel.AnonymousMetrics));
+                Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
+                Assert.False(service.IsEnabled(TelemetryLevel.AnonymousMetrics));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, original);
+            }
         }
-        finally
-        {
-            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, original);
-        }
+
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -322,23 +328,28 @@ public class TelemetryServiceTests : IDisposable
     [InlineData("on")]
     public async Task CurrentLevel_WhenGenHubOptOutEnvironmentVariableIsSet_ReturnsDisabledAsync(string optOutValue)
     {
-        var original = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
-        Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, optOutValue);
-        try
+        lock (EnvironmentLock)
         {
-            await using var service = new TelemetryService(
-                _mockLogger.Object,
-                _sanitizer,
-                _mockUserSettingsService.Object,
-                [_mockSink.Object]);
+            var original = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
+            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, optOutValue);
+            try
+            {
+                using var service = new TelemetryService(
+                    _mockLogger.Object,
+                    _sanitizer,
+                    _mockUserSettingsService.Object,
+                    [_mockSink.Object]);
 
-            Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
-            Assert.False(service.IsEnabled(TelemetryLevel.AnonymousMetrics));
+                Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
+                Assert.False(service.IsEnabled(TelemetryLevel.AnonymousMetrics));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, original);
+            }
         }
-        finally
-        {
-            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, original);
-        }
+
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -348,24 +359,29 @@ public class TelemetryServiceTests : IDisposable
     [Fact]
     public async Task CurrentLevel_WhenDoNotTrackIsSetAndGenHubOptOutIsZero_ReturnsDisabledAsync()
     {
-        var originalDnt = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack);
-        var originalOptOut = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
-        Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, "1");
-        Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, "0");
-        try
+        lock (EnvironmentLock)
         {
-            await using var service = new TelemetryService(
-                _mockLogger.Object,
-                _sanitizer,
-                _mockUserSettingsService.Object,
-                [_mockSink.Object]);
+            var originalDnt = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack);
+            var originalOptOut = Environment.GetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut);
+            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, "1");
+            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, "0");
+            try
+            {
+                using var service = new TelemetryService(
+                    _mockLogger.Object,
+                    _sanitizer,
+                    _mockUserSettingsService.Object,
+                    [_mockSink.Object]);
 
-            Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
+                Assert.Equal(TelemetryLevel.Disabled, service.CurrentLevel);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, originalDnt);
+                Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, originalOptOut);
+            }
         }
-        finally
-        {
-            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.DoNotTrack, originalDnt);
-            Environment.SetEnvironmentVariable(TelemetryConstants.EnvironmentVariables.GenHubTelemetryOptOut, originalOptOut);
-        }
+
+        await Task.CompletedTask;
     }
 }
