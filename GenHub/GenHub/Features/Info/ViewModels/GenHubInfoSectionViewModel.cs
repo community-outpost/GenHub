@@ -589,23 +589,23 @@ public partial class GenHubInfoSectionViewModel(
         if (DemoGameSettings_ContentTab == null)
         {
             DemoGameSettings_ContentTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
-            if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel cTab)
-            {
-                cTab.NavigationRequested = NavigateToSectionById;
-            }
-
             OnPropertyChanged(nameof(DemoGameSettings_ContentTab));
+        }
+
+        if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel cTab)
+        {
+            cTab.NavigationRequested = NavigateToSectionById;
         }
 
         if (DemoGameSettings_SettingsTab == null)
         {
             DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
-            if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel sTab)
-            {
-                sTab.NavigationRequested = NavigateToSectionById;
-            }
-
             OnPropertyChanged(nameof(DemoGameSettings_SettingsTab));
+        }
+
+        if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel sTab)
+        {
+            sTab.NavigationRequested = NavigateToSectionById;
         }
 
         if (DemoReplayManager == null)
@@ -735,7 +735,7 @@ public partial class GenHubInfoSectionViewModel(
     /// Navigates to the tools tab.
     /// </summary>
     [RelayCommand]
-    private static void OpenToolsTab()
+    private void OpenToolsTab()
     {
         WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Tools));
     }
@@ -811,7 +811,7 @@ public partial class GenHubInfoSectionViewModel(
                     {
                         Id = "release-" + (release.Release.TagName ?? release.Release.Name ?? Guid.NewGuid().ToString()),
                         Title = release.Release.Name ?? release.Release.TagName ?? "Release",
-                        Content = release.Release.PublishedAt?.ToString("yyyy-MM-dd") ?? string.Empty,
+                        Content = release.Release.PublishedAt?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
                         Type = InfoCardType.Feature,
                         DetailedContent = release.Release.Body,
                     },
@@ -886,7 +886,7 @@ public partial class GenHubInfoSectionViewModel(
     {
         if (section == null || section.Cards.Count == 0)
         {
-            CardsOpenPaneLength = 220;
+            CardsOpenPaneLength = SidebarConstants.DefaultOpenPaneLength;
             return;
         }
 

@@ -27,6 +27,7 @@ public partial class GenHubInfoSectionView : UserControl
     private ChangelogsView? _changelogsView;
     private GeneralsOnlineChangelogView? _goChangelogView;
     private bool _syncingSelectionFromScroll;
+    private bool _isSwitchingSection;
     private bool _deferredScrollPending;
 
     /// <summary>
@@ -171,12 +172,15 @@ public partial class GenHubInfoSectionView : UserControl
     {
         if (e.PropertyName == nameof(GenHubInfoSectionViewModel.SelectedSection))
         {
+            _isSwitchingSection = true;
+
             // Save the outgoing section scroll offset
             if (!string.IsNullOrEmpty(_currentSectionId) && _contentScrollViewer != null)
             {
                 _sectionScrollOffsets[_currentSectionId] = _contentScrollViewer.Offset;
             }
 
+            _scrollSpy?.StopAnimation();
             _scrollSpy?.ClearSections();
 
             var newSectionId = _boundViewModel?.SelectedSection?.Id;
@@ -192,10 +196,11 @@ public partial class GenHubInfoSectionView : UserControl
                 {
                     RegisterAllCardContainers();
                     _contentScrollViewer?.SetCurrentValue(ScrollViewer.OffsetProperty, targetOffset);
+                    _isSwitchingSection = false;
                 },
                 DispatcherPriority.Loaded);
         }
-        else if (e.PropertyName == nameof(GenHubInfoSectionViewModel.SelectedCard) && _boundViewModel?.SelectedCard != null && !_syncingSelectionFromScroll)
+        else if (e.PropertyName == nameof(GenHubInfoSectionViewModel.SelectedCard) && _boundViewModel?.SelectedCard != null && !_syncingSelectionFromScroll && !_isSwitchingSection)
         {
             ScrollToCard(_boundViewModel.SelectedCard);
         }
@@ -235,6 +240,8 @@ public partial class GenHubInfoSectionView : UserControl
         InfoConstants.CardScanDemo => this.FindControl<Control>("ScanDemoContainer"),
         InfoConstants.CardWorkspaceDemo => this.FindControl<Control>("WorkspacesDemoContainer"),
         InfoConstants.CardUpdatesDemo => this.FindControl<Control>("AppUpdatesDemoContainer"),
+        InfoConstants.CardChangelogsOverview or InfoConstants.CardChangelogsDemo => this.FindControl<Control>("GenHubChangelogsView"),
+        InfoConstants.CardGoChangelogOverview or InfoConstants.CardGoChangelogDemo => this.FindControl<Control>("GenHubGoChangelogView"),
         _ => null,
     };
 
@@ -314,7 +321,7 @@ public partial class GenHubInfoSectionView : UserControl
 
     private void OnSpyCardActivated(InfoCardViewModel card)
     {
-        if (_boundViewModel == null || _scrollSpy == null || _scrollSpy.IsScrollingProgrammatically)
+        if (_isSwitchingSection || _boundViewModel == null || _scrollSpy == null || _scrollSpy.IsScrollingProgrammatically)
         {
             return;
         }

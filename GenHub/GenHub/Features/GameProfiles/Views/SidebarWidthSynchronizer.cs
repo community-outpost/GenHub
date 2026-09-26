@@ -28,7 +28,7 @@ public sealed class SidebarWidthSynchronizer : IDisposable
             }
             else
             {
-                _sidebarColumn.Width = GridLength.Auto;
+                _sidebarColumn.Width = new GridLength(170, GridUnitType.Pixel);
             }
 
             _sidebarColumn.PropertyChanged += OnColumnPropertyChanged;

@@ -219,7 +219,7 @@
                             <Separator Background="#20FFFFFF" Height="1" />
 
                             <Grid ColumnDefinitions="180,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Audio.AudioChannels}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.AudioChannels}" VerticalAlignment="Center" TextWrapping="Wrap" ToolTip.Tip="{localization:Localize GameSettings.Audio.AudioChannelsToolTip}" />
                                 <Slider Grid.Column="1" Value="{Binding NumSounds}" Minimum="16" Maximum="64" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding NumSounds}" Minimum="16" Maximum="64" Classes="slider-input" />
                             </Grid>
@@ -347,7 +347,7 @@
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <TextBlock Text="{localization:Localize GameSettings.Tsh.CursorCapture}" FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                            <TextBlock Text="{localization:Localize GameSettings.Tsh.CursorCapture}" FontWeight="SemiBold" FontSize="12" Opacity="0.7" ToolTip.Tip="{localization:Localize GameSettings.Tsh.CursorCaptureToolTip}" />
                             <WrapPanel HorizontalAlignment="Left">
                                 <CheckBox Content="{localization:Localize GameSettings.Tsh.FullscreenGame}" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenGame}" Margin="0,0,20,4" />
                                 <CheckBox Content="{localization:Localize GameSettings.Tsh.FullscreenMenu}" IsChecked="{Binding TshCursorCaptureEnabledInFullscreenMenu}" Margin="0,0,20,4" />
@@ -357,7 +357,7 @@
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <TextBlock Text="{localization:Localize GameSettings.Tsh.ScreenEdgeScroll}" FontWeight="SemiBold" FontSize="12" Opacity="0.7" />
+                            <TextBlock Text="{localization:Localize GameSettings.Tsh.ScreenEdgeScroll}" FontWeight="SemiBold" FontSize="12" Opacity="0.7" ToolTip.Tip="{localization:Localize GameSettings.Tsh.ScreenEdgeScrollToolTip}" />
                             <WrapPanel HorizontalAlignment="Left">
                                 <CheckBox Content="{localization:Localize GameSettings.Tsh.InFullscreen}" IsChecked="{Binding TshScreenEdgeScrollEnabledInFullscreenApp}" Margin="0,0,24,4" />
                                 <CheckBox Content="{localization:Localize GameSettings.Tsh.InWindowed}" IsChecked="{Binding TshScreenEdgeScrollEnabledInWindowedApp}" Margin="0,0,24,4" />
@@ -390,12 +390,12 @@
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
                             <Grid ColumnDefinitions="180,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransactionVolume}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransactionVolume}" VerticalAlignment="Center" TextWrapping="Wrap" ToolTip.Tip="{localization:Localize GameSettings.Tsh.TransactionVolumeToolTip}" />
                                 <Slider Grid.Column="1" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="180,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransitionSpeed}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransitionSpeed}" VerticalAlignment="Center" TextWrapping="Wrap" ToolTip.Tip="{localization:Localize GameSettings.Tsh.TransitionSpeedToolTip}" />
                                 <Slider Grid.Column="1" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="4.0" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.5" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="4.0" Increment="0.05" FormatString="F2" Classes="slider-input" />
                             </Grid>
@@ -440,17 +440,17 @@
 
                             <TextBlock Text="{localization:Localize GameSettings.Go.CameraSettings}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
                             <Grid ColumnDefinitions="180,*,Auto" Margin="0,0,0,8">
-                                <TextBlock Text="{localization:Localize GameSettings.Go.MinCameraHeight}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Text="{localization:Localize GameSettings.Go.MinCameraHeight}" VerticalAlignment="Center" TextWrapping="Wrap" ToolTip.Tip="{localization:Localize GameSettings.Go.MinCameraHeightToolTip}" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" FormatString="0" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="180,*,Auto" Margin="0,0,0,8">
-                                <TextBlock Text="{localization:Localize GameSettings.Go.MaxCameraHeight}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Text="{localization:Localize GameSettings.Go.MaxCameraHeight}" VerticalAlignment="Center" TextWrapping="Wrap" ToolTip.Tip="{localization:Localize GameSettings.Go.MaxCameraHeightToolTip}" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" FormatString="0" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="180,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Go.CameraMoveSpeed}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Text="{localization:Localize GameSettings.Go.CameraMoveSpeed}" VerticalAlignment="Center" TextWrapping="Wrap" ToolTip.Tip="{localization:Localize GameSettings.Go.CameraMoveSpeedToolTip}" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" IsSnapToTickEnabled="True" TickFrequency="0.1" VerticalAlignment="Center" Margin="10,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" Increment="0.1" FormatString="0.#" Classes="slider-input" />
                             </Grid>
@@ -459,17 +459,17 @@
 
                             <TextBlock Text="{localization:Localize GameSettings.Go.SocialAndNotifications}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
                             <WrapPanel HorizontalAlignment="Left" Margin="0,0,0,8">
-                                <CheckBox Content="{localization:Localize GameSettings.Go.GlobalNotifications}" IsChecked="{Binding GoEnableNotifications}" Margin="0,0,24,4" />
-                                <CheckBox Content="{localization:Localize GameSettings.Go.SoundNotifications}" IsChecked="{Binding GoEnableSoundNotifications}" Margin="0,0,24,4" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.GlobalNotifications}" IsChecked="{Binding GoEnableNotifications}" Margin="0,0,24,4" ToolTip.Tip="{localization:Localize GameSettings.Go.GlobalNotificationsToolTip}" />
+                                <CheckBox Content="{localization:Localize GameSettings.Go.SoundNotifications}" IsChecked="{Binding GoEnableSoundNotifications}" Margin="0,0,24,4" ToolTip.Tip="{localization:Localize GameSettings.Go.SoundNotificationsToolTip}" />
                             </WrapPanel>
 
                             <Grid ColumnDefinitions="*,24,*">
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.ChatFontSize}" />
+                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.ChatFontSize}" ToolTip.Tip="{localization:Localize GameSettings.Go.ChatFontSizeToolTip}" />
                                     <NumericUpDown Value="{Binding GoChatFontSize}" Minimum="{Binding MinGoChatFontSize}" Maximum="{Binding MaxGoChatFontSize}" ClipValueToMinMax="True" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
-                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.ChatFadeout}" />
+                                    <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.ChatFadeout}" ToolTip.Tip="{localization:Localize GameSettings.Go.ChatFadeoutToolTip}" />
                                     <NumericUpDown Value="{Binding GoChatDurationSecondsUntilFadeOut}" Minimum="5" Maximum="300" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                             </Grid>
@@ -493,7 +493,7 @@
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
                             <StackPanel Spacing="8">
-                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.GameSpyIpOverride}" />
+                                <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.GameSpyIpOverride}" ToolTip.Tip="{localization:Localize GameSettings.Go.GameSpyIpOverrideToolTip}" />
                                 <TextBox Text="{Binding GameSpyIPAddress}" Watermark="{localization:Localize GameSettings.Go.GameSpyIpWatermark}" />
                             </StackPanel>
                         </StackPanel>

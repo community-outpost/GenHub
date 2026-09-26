@@ -82,7 +82,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         };
 
         // Shadowed SelectTabCommand to route demo tabs to Info section navigation
-        SelectTabCommand = new RelayCommand<string?>(HandleTabSelection);
+        // Base SelectTabCommand invokes virtual OnTabSelected to route demo tabs to Info section navigation
 
         // Initialize with default mock data AFTER base class initialization
         InitializeMockMetadata();
@@ -126,7 +126,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         GameSettingsViewModel.ShowProps = true;
         GameSettingsViewModel.ExtraAnimations = true;
         GameSettingsViewModel.DynamicLOD = false;
-        GameSettingsViewModel.StaticGameLOD = "High";
+        GameSettingsViewModel.StaticGameLOD = "Custom";
         GameSettingsViewModel.IdealStaticGameLOD = "VeryHigh";
         GameSettingsViewModel.AntiAliasing = 2;
         GameSettingsViewModel.MaxParticleCount = 5000;
@@ -289,12 +289,6 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     }
 
     /// <summary>
-    /// Gets the select tab command for demo navigation.
-    /// Shadows the base class SelectTabCommand to route demo tabs to info section navigation.
-    /// </summary>
-    public new IRelayCommand<string?> SelectTabCommand { get; }
-
-    /// <summary>
     /// Gets or sets an action invoked when tab selection in demo mode requests section navigation.
     /// </summary>
     public Action<string>? NavigationRequested { get; set; }
@@ -316,26 +310,6 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         if (targetIndex >= 0 && SelectedTabIndex != targetIndex)
         {
             SelectedTabIndex = targetIndex;
-        }
-    }
-
-    private void HandleTabSelection(string? tabIndexStr)
-    {
-        if (int.TryParse(tabIndexStr, out var tabIndex))
-        {
-            SelectedTabIndex = tabIndex;
-            string? targetSection = tabIndex switch
-            {
-                0 => InfoConstants.SectionGameProfileContent,
-                1 => InfoConstants.SectionGameProfiles,
-                2 => InfoConstants.SectionGameSettings,
-                _ => null,
-            };
-
-            if (targetSection != null)
-            {
-                NavigationRequested?.Invoke(targetSection);
-            }
         }
     }
 
@@ -390,6 +364,24 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         // Logic moved to PopulateMockContent()
         PopulateMockContent();
         return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnTabSelected(int tabIndex)
+    {
+        base.OnTabSelected(tabIndex);
+        string? targetSection = tabIndex switch
+        {
+            0 => InfoConstants.SectionGameProfileContent,
+            1 => InfoConstants.SectionGameProfiles,
+            2 => InfoConstants.SectionGameSettings,
+            _ => null,
+        };
+
+        if (targetSection != null)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => NavigationRequested?.Invoke(targetSection));
+        }
     }
 
     /// <summary>

@@ -33,14 +33,29 @@ public partial class ChangelogsView : UserControl
             return container;
         }
 
-        if (item is ChangelogItemViewModel chItem && ReleasesItemsControl?.ItemsSource is IEnumerable<ChangelogItemViewModel> releases)
+        if (ReleasesItemsControl?.ItemsSource is IEnumerable<ChangelogItemViewModel> releases)
         {
-            var matched = releases.FirstOrDefault(r =>
-                (!string.IsNullOrEmpty(r.Release.TagName) && string.Equals(r.Release.TagName, chItem.Release.TagName, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(r.Release.Name) && string.Equals(r.Release.Name, chItem.Release.Name, StringComparison.OrdinalIgnoreCase)));
-            if (matched != null)
+            var releaseList = releases.ToList();
+            int index = -1;
+
+            if (item is ChangelogItemViewModel chItem)
             {
-                return ReleasesItemsControl.ContainerFromItem(matched);
+                index = releaseList.FindIndex(r =>
+                    (!string.IsNullOrEmpty(r.Release.TagName) && string.Equals(r.Release.TagName, chItem.Release.TagName, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(r.Release.Name) && string.Equals(r.Release.Name, chItem.Release.Name, StringComparison.OrdinalIgnoreCase)));
+                if (index < 0)
+                {
+                    index = releaseList.IndexOf(chItem);
+                }
+            }
+
+            if (index >= 0)
+            {
+                var indexedContainer = ReleasesItemsControl.ContainerFromIndex(index);
+                if (indexedContainer != null)
+                {
+                    return indexedContainer;
+                }
             }
         }
 
