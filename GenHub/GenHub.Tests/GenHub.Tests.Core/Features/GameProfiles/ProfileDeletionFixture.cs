@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -61,6 +62,7 @@ internal sealed class ProfileDeletionFixture : IDisposable
         Directory.CreateDirectory(OptionsPath);
 
         _configProvider.Setup(c => c.GetApplicationDataPath()).Returns(AppDataPath);
+        _configProvider.Setup(c => c.GetWorkspacePath()).Returns(WorkspacesPath);
         _pathProvider.Setup(p => p.GetOptionsDirectory(It.IsAny<GameType>())).Returns(OptionsPath);
 
         _fileOperations
@@ -212,12 +214,13 @@ internal sealed class ProfileDeletionFixture : IDisposable
     }
 
     /// <summary>Creates the workspace manager over the fixture's private storage.</summary>
+    /// <param name="referenceTracker">Optional tracker override for cancellation boundary tests.</param>
     /// <returns>The workspace manager.</returns>
-    public WorkspaceManager CreateWorkspaceManager() => new(
+    public WorkspaceManager CreateWorkspaceManager(ICasReferenceTracker? referenceTracker = null) => new(
         [],
         _configProvider.Object,
         NullLogger<WorkspaceManager>.Instance,
-        CreateReferenceTracker(),
+        referenceTracker ?? CreateReferenceTracker(),
         Mock.Of<IWorkspaceValidator>(),
         new WorkspaceReconciler(NullLogger<WorkspaceReconciler>.Instance, _fileOperations.Object));
 
@@ -316,10 +319,12 @@ internal sealed class ProfileDeletionFixture : IDisposable
     private void AssertArranged()
     {
         var tempRoot = Path.GetFullPath(Path.GetTempPath());
-        Assert.StartsWith(tempRoot, Path.GetFullPath(RootPath), StringComparison.Ordinal);
+        var root = Path.GetFullPath(RootPath);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        Assert.StartsWith(tempRoot, root, comparison);
         foreach (var path in new[] { AppDataPath, ProfilesPath, CasRootPath, OptionsPath, WorkspacePath, DeployedMapPath, UserDataManifestPath, WorkspaceRefsPath })
         {
-            Assert.StartsWith(RootPath, Path.GetFullPath(path), StringComparison.Ordinal);
+            Assert.StartsWith(root + Path.DirectorySeparatorChar, Path.GetFullPath(path), comparison);
         }
 
         Assert.True(Directory.Exists(WorkspacePath));

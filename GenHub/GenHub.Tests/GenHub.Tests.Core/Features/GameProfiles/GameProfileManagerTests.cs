@@ -77,6 +77,8 @@ public class GameProfileManagerTests
         finally
         {
             gate.Release();
+            GenHub.Features.Launching.GameLauncher.ProfileLaunchLocks.TryRemove(id, out _);
+            gate.Dispose();
         }
     }
 

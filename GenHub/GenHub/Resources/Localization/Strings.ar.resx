@@ -13533,7 +13533,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
 كيف ترغب في تطبيق هذا التحديث؟</value>
   </data>
   <data name="Settings.Profiles.DeleteIncomplete" xml:space="preserve">
-    <value>تم حذف {0} ملف تعريف. تعذر حذف {1}: {2}.</value>
+    <value>عدد ملفات التعريف المحذوفة: {0}. عدد ملفات التعريف التي تعذر حذفها: {1}: {2}.</value>
   </data>
   <data name="Settings.Profiles.DeleteFailedTitle" xml:space="preserve">
     <value>فشل حذف ملفات التعريف</value>
@@ -13545,6 +13545,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>تم حذف ملفات التعريف</value>
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
-    <value>تم حذف {0} ملف تعريف بنجاح.</value>
+    <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
   </data>
 </root>

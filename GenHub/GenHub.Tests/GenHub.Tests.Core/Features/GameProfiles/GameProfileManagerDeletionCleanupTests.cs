@@ -1,6 +1,9 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Results;
 using Moq;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;
@@ -146,6 +149,48 @@ public sealed class GameProfileManagerDeletionCleanupTests : IDisposable
 
         Assert.True(result.Success, result.FirstError);
         await _fixture.AssertProfileAndDataRemovedAsync();
+    }
+
+    /// <summary>Missing metadata must not orphan an existing directory or release its CAS references.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupWorkspaceAsync_MissingMetadata_KeepsDirectoryAndReferencesAsync()
+    {
+        await _fixture.ArrangeProfileWithDataAsync();
+        File.Delete(Path.Combine(_fixture.AppDataPath, FileTypes.WorkspaceMetadataFileName));
+
+        var result = await _fixture.CreateWorkspaceManager().CleanupWorkspaceAsync(_fixture.Profile.Id);
+
+        Assert.False(result.Success);
+        Assert.Contains("metadata is missing", result.FirstError);
+        Assert.True(Directory.Exists(_fixture.WorkspacePath));
+        Assert.True(File.Exists(_fixture.WorkspaceRefsPath));
+    }
+
+    /// <summary>Cancellation after reference removal still completes directory and metadata cleanup.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupWorkspaceAsync_CancelledAfterUntracking_CompletesCleanupAsync()
+    {
+        await _fixture.ArrangeProfileWithDataAsync();
+        using var cts = new CancellationTokenSource();
+        var tracker = new Mock<ICasReferenceTracker>();
+        tracker.Setup(t => t.UntrackWorkspaceAsync(_fixture.Profile.Id, It.IsAny<CancellationToken>()))
+            .Returns((string id, CancellationToken token) =>
+            {
+                File.Delete(_fixture.WorkspaceRefsPath);
+                cts.Cancel();
+                return Task.FromResult(OperationResult.CreateSuccess());
+            });
+
+        var manager = _fixture.CreateWorkspaceManager(tracker.Object);
+        var cleanup = await manager.CleanupWorkspaceAsync(_fixture.Profile.Id, cts.Token);
+
+        Assert.True(cleanup.Success, cleanup.FirstError);
+        Assert.False(Directory.Exists(_fixture.WorkspacePath));
+        Assert.False(File.Exists(_fixture.WorkspaceRefsPath));
+        var metadata = await File.ReadAllTextAsync(Path.Combine(_fixture.AppDataPath, FileTypes.WorkspaceMetadataFileName));
+        Assert.DoesNotContain(_fixture.Profile.Id, metadata);
     }
 
     /// <summary>Workspace cleanup propagates a cancelled token rather than returning a failure.</summary>

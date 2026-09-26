@@ -13631,7 +13631,7 @@ How do you want to apply this update?</value>
 How do you want to apply this update?</value>
   </data>
   <data name="Settings.Profiles.DeleteIncomplete" xml:space="preserve">
-    <value>Deleted {0} profile(s). Could not delete {1}: {2}.</value>
+    <value>Deleted {0} profile(s). Could not delete {1} profile(s): {2}.</value>
   </data>
   <data name="Settings.Profiles.DeleteFailedTitle" xml:space="preserve">
     <value>Profile Deletion Failed</value>

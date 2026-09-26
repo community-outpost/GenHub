@@ -2689,7 +2689,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             var message = string.Format(
                 CultureInfo.CurrentCulture,
-                _localizationService?.GetString("Settings.Profiles.DeleteIncomplete") ?? "Deleted {0} profile(s). Could not delete {1}: {2}.",
+                _localizationService?.GetString("Settings.Profiles.DeleteIncomplete") ?? "Deleted {0} profile(s). Could not delete {1} profile(s): {2}.",
                 deletedCount,
                 failedProfileNames.Count,
                 string.Join(", ", failedProfileNames));
