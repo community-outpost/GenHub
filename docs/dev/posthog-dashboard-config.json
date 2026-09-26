@@ -62,12 +62,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "launch_source"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "launch_source"
+                }
+              ]
             }
           }
         },
@@ -137,12 +141,16 @@
                 "math": "dau"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "full_display_version"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "full_display_version"
+                }
+              ]
             }
           }
         },
@@ -160,12 +168,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "to_version"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "to_version"
+                }
+              ]
             }
           }
         },
@@ -235,12 +247,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "game_type"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "game_type"
+                }
+              ]
             }
           }
         },
@@ -258,12 +274,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "runner"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "runner"
+                }
+              ]
             }
           }
         },
@@ -301,12 +321,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "was_graceful"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "was_graceful"
+                }
+              ]
             }
           }
         }
@@ -332,12 +356,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "share_format"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "share_format"
+                }
+              ]
             }
           }
         },
@@ -355,12 +383,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "success"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "success"
+                }
+              ]
             }
           }
         },
@@ -411,12 +443,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "publisher_id"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "publisher_id"
+                }
+              ]
             }
           }
         },
@@ -435,12 +471,16 @@
                 "math_property": "speed_mbps"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "source_provider"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "source_provider"
+                }
+              ]
             }
           }
         },
@@ -478,12 +518,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "publisher_id"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "publisher_id"
+                }
+              ]
             }
           }
         },
@@ -501,12 +545,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "content_name"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "content_name"
+                }
+              ]
             }
           }
         },
@@ -557,12 +605,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "fix_name"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "fix_name"
+                }
+              ]
             }
           }
         },
@@ -580,12 +632,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "success"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "success"
+                }
+              ]
             }
           }
         },
@@ -603,12 +659,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "content_type"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "content_type"
+                }
+              ]
             }
           }
         },
@@ -626,12 +686,16 @@
                 "math": "total"
               }
             ],
-            "breakdown": {
-              "type": "event",
-              "property": "success"
-            },
             "dateRange": {
               "date_from": "-30d"
+            },
+            "breakdownFilter": {
+              "breakdowns": [
+                {
+                  "type": "event",
+                  "property": "success"
+                }
+              ]
             }
           }
         },
