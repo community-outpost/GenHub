@@ -229,6 +229,79 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         Assert.Contains(savedItem.BundledItems, b => b.ContentId == "zh-community-patch" && b.DefaultVariant == "1.06");
     }
 
+    /// <summary>
+    /// When catalog sibling has releases without variant annotations but defines UpstreamSync.AssetRules,
+    /// RefreshBundleComponentOptions must inspect AssetRules and populate available variants.
+    /// </summary>
+    [Fact]
+    public void EditContentBundle_WithCatalogSiblingHavingReleasesAndAssetRules_PopulatesAssetRulesVariants()
+    {
+        var siblingItem = new CatalogContentItem
+        {
+            Id = "thesuperhackers-zh",
+            Name = "TheSuperHackers ZH",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            Releases =
+            [
+                new ContentRelease
+                {
+                    Version = "1.0.0",
+                    Artifacts =
+                    [
+                        new ReleaseArtifact
+                        {
+                            Filename = "release.zip",
+                        },
+                    ],
+                },
+            ],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = "GitHub",
+                Repository = "TheSuperHackers/GeneralsGamePatch",
+                AssetRules =
+                [
+                    new CatalogUpstreamAssetRule
+                    {
+                        Pattern = ".*Gentool.*",
+                        Variant = "Gentool",
+                    },
+                ],
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            Content = [siblingItem],
+        };
+
+        var existingBundle = new CatalogContentItem
+        {
+            Id = "competitive-pack",
+            Name = "Competitive Pack",
+            Description = "A complete competitive package for Zero Hour.",
+            ContentType = GenHub.Core.Models.Enums.ContentType.ContentBundle,
+            BundledItems =
+            [
+                new CatalogDependency
+                {
+                    ContentId = "thesuperhackers-zh",
+                    DefaultVariant = "Gentool",
+                    ContentType = nameof(GenHub.Core.Models.Enums.ContentType.GameClient),
+                },
+            ],
+        };
+
+        CatalogContentItem? savedItem = null;
+        var vm = new AddContentDialogViewModel(existingBundle, item => savedItem = item, catalog: catalog);
+
+        Assert.Single(vm.BundleComponentOptions);
+        var opt = vm.BundleComponentOptions[0];
+        Assert.True(opt.IsSelected);
+        Assert.Contains("Gentool", opt.AvailableVariants);
+        Assert.Equal("Gentool", opt.SelectedVariant);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
