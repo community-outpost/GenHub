@@ -205,10 +205,13 @@ public class PublisherStudioService(
 
         try
         {
-            var catalogToExport = catalog?.Catalog ?? project.Catalog;
+            var sourceCatalog = catalog?.Catalog ?? project.Catalog;
             var catalogName = catalog?.Name ?? "default";
+            var catalogToExport = JsonSerializer.Deserialize<PublisherCatalog>(
+                JsonSerializer.Serialize(sourceCatalog, ExportJsonOptions),
+                ExportJsonOptions) ?? sourceCatalog;
 
-            if (catalog != null)
+            if (catalog != null && !string.IsNullOrWhiteSpace(catalog.IconUrl))
             {
                 catalogToExport.IconUrl = catalog.IconUrl;
                 catalogToExport.AvatarUrl = catalog.IconUrl;
@@ -304,7 +307,13 @@ public class PublisherStudioService(
             }
 
             var catalogEntries = new List<CatalogEntry>();
-            foreach (var catalog in project.Catalogs)
+            var candidateCatalogs = project.Catalogs.Count > 0
+                ? (IEnumerable<NamedCatalog>)project.Catalogs
+                : (catalogHostingInfo.Count > 0
+                    ? catalogHostingInfo.Keys.Select(k => new NamedCatalog { Id = k, Name = project.ProjectName ?? "default", Catalog = projectCatalog })
+                    : [new NamedCatalog { Id = "default", Name = project.ProjectName ?? "default", Catalog = projectCatalog }]);
+
+            foreach (var catalog in candidateCatalogs)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -444,13 +453,6 @@ public class PublisherStudioService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private static bool IsConfiguredUpstreamSource(CatalogContentItem content)
-    {
-        return content.UpstreamSync != null &&
-               (string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ||
-                CatalogConstants.UpstreamProviders.IsSupported(content.UpstreamSync.Provider));
-    }
-
     private static OperationResult<bool> ValidateContentItem(
         CatalogContentItem content,
         HashSet<string> seenIds,
@@ -469,8 +471,28 @@ public class PublisherStudioService(
             return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
         }
 
-        var isUpstreamTracked = IsConfiguredUpstreamSource(content);
+        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
         var isBundle = content.ContentType == ContentType.ContentBundle;
+
+        if (isBundle && (content.BundledItems == null || content.BundledItems.Count == 0))
+        {
+            return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has no bundled items");
+        }
+
+        if (isUpstreamTracked && content.UpstreamSync != null)
+        {
+            var provider = CatalogConstants.UpstreamProviders.Normalize(
+                !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ? content.UpstreamSync.Provider : content.PublisherType);
+
+            if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase))
+            {
+                var repo = content.UpstreamSync.Repository;
+                if (string.IsNullOrWhiteSpace(repo) || repo.Split('/').Length != 2 || string.IsNullOrWhiteSpace(repo.Split('/')[0]) || string.IsNullOrWhiteSpace(repo.Split('/')[1]))
+                {
+                    return OperationResult<bool>.CreateFailure($"Upstream GitHub item '{content.Name}' must declare a valid repository in 'owner/repo' format");
+                }
+            }
+        }
 
         if (content.Releases.Count == 0)
         {

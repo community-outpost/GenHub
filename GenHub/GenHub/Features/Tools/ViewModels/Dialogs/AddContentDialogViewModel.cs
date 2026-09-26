@@ -1494,6 +1494,7 @@ public partial class AddContentDialogViewModel(
         if (!string.IsNullOrWhiteSpace(url))
         {
             Screenshots.Remove(url);
+            ScreenshotUrlsInput = string.Join(Environment.NewLine, Screenshots);
         }
     }
 
@@ -1968,9 +1969,12 @@ public partial class AddContentDialogViewModel(
     private List<string> CollectAllScreenshots()
     {
         var allScreenshots = new List<string>(Screenshots);
-        foreach (var s in ParseUrls(ScreenshotUrlsInput).Where(s => !allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase)))
+        if (!IsEditMode)
         {
-            allScreenshots.Add(s);
+            foreach (var s in ParseUrls(ScreenshotUrlsInput).Where(s => !allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase)))
+            {
+                allScreenshots.Add(s);
+            }
         }
 
         return allScreenshots;
@@ -2141,6 +2145,11 @@ public partial class AddContentDialogViewModel(
         if (_existingItem == null)
         {
             return;
+        }
+
+        if (!IsUpstreamSource && _existingItem.UpstreamSync == null)
+        {
+            contentItem.PublisherType = _existingItem.PublisherType;
         }
 
         // Preserve existing releases & dependencies as deep copies so the edited

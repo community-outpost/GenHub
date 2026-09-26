@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GenHub Reference Test Catalog — Community Competitive Ecosystem</title>
+  <style>
+    :root {
+      --bg: #090a0f;
+      --card-bg: #12141c;
+      --card-border: #1f2333;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-gold: #f59e0b;
+      --accent-green: #10b981;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --code-bg: #0d0e15;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 32px 24px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    header {
+      margin-bottom: 28px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-gold);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 24px;
+    }
+    .actions-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover {
+      background: #334155;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .stat-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .viewer-container {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .viewer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: #12141e;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .filename {
+      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      color: #93c5fd;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    pre {
+      padding: 20px;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      max-height: 800px;
+      overflow-y: auto;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #10b981;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="badge">GenHub v2 Test Specification</span>
+      <h1>Community Competitive Ecosystem Catalog</h1>
+      <p class="subtitle">Reference publisher catalog (<code>community-competitive-ecosystem.catalog.json</code>) with dynamic upstream clients, static addons, and 3 composite competitive bundles.</p>
+    </header>
+
+    <div class="actions-bar">
+      <button id="copyFullJsonBtn" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        <span id="btnLabel">Copy Full Catalog JSON</span>
+      </button>
+      <button id="downloadJsonBtn" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Download .catalog.json
+      </button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-title">Publisher</div>
+        <div class="stat-value" style="font-size: 16px;">Competitive Hub</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Dynamic Upstreams</div>
+        <div class="stat-value" style="color: #60a5fa;">3 Clients</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Static Addons</div>
+        <div class="stat-value" style="color: #34d399;">4 Items</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Composite Bundles</div>
+        <div class="stat-value" style="color: #fbbf24;">3 Suites</div>
+      </div>
+    </div>
+
+    <div class="viewer-container">
+      <div class="viewer-header">
+        <div class="filename">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          community-competitive-ecosystem.catalog.json
+        </div>
+      </div>
+      <pre><code id="rawJsonContent">{
+  &quot;$schemaVersion&quot;: 1,
+  &quot;publisher&quot;: {
+    &quot;id&quot;: &quot;community-competitive-hub&quot;,
+    &quot;name&quot;: &quot;Command &amp; Conquer Community Competitive Hub&quot;,
+    &quot;website&quot;: &quot;https://github.com/community-outpost&quot;,
+    &quot;avatarUrl&quot;: &quot;avares://GenHub/Assets/Logos/communityoutpost-logo.png&quot;,
+    &quot;supportUrl&quot;: &quot;https://github.com/community-outpost/GenHub/issues&quot;,
+    &quot;contactEmail&quot;: &quot;competitive@genhub.community&quot;
+  },
+  &quot;content&quot;: [
+    {
+      &quot;id&quot;: &quot;thesuperhackers-client&quot;,
+      &quot;name&quot;: &quot;TheSuperHackers Engine Game Code&quot;,
+      &quot;description&quot;: &quot;Continuous weekly builds of the open-source Command &amp; Conquer Generals and Zero Hour game engine from TheSuperHackers.\n\nIncludes 60FPS physics updates, high-refresh rate support, and anti-cheat fixes.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;thesuperhackers&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;GitHubReleases&quot;,
+        &quot;repository&quot;: &quot;TheSuperHackers/GeneralsGameCode&quot;,
+        &quot;variantAxis&quot;: &quot;game-type&quot;,
+        &quot;assetRules&quot;: [
+          {
+            &quot;pattern&quot;: &quot;generalszh-.*\\.zip$&quot;,
+            &quot;variant&quot;: &quot;Zero Hour&quot;,
+            &quot;isDefault&quot;: true,
+            &quot;targetGame&quot;: 1
+          },
+          {
+            &quot;pattern&quot;: &quot;generals-.*\\.zip$&quot;,
+            &quot;variant&quot;: &quot;Generals&quot;,
+            &quot;isDefault&quot;: false,
+            &quot;targetGame&quot;: 0
+          }
+        ]
+      },
+      &quot;tags&quot;: [
+        &quot;engine&quot;,
+        &quot;thesuperhackers&quot;,
+        &quot;gameclient&quot;,
+        &quot;dynamic-upstream&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;TheSuperHackers&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/TheSuperHackers/GeneralsGameCode&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;generalsonline-client&quot;,
+      &quot;name&quot;: &quot;Generals Online 60Hz Client&quot;,
+      &quot;description&quot;: &quot;Modern multiplayer ladder client for C&amp;C Generals Zero Hour featuring built-in matchmaker, instant replay synchronization, and 60Hz tickrate engine.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;generalsonline&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;GeneralsOnline&quot;,
+        &quot;channel&quot;: &quot;stable&quot;
+      },
+      &quot;tags&quot;: [
+        &quot;ladder&quot;,
+        &quot;multiplayer&quot;,
+        &quot;generalsonline&quot;,
+        &quot;gameclient&quot;,
+        &quot;dynamic-upstream&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Generals Online Team&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://generals-online.com&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;communityoutpost-client&quot;,
+      &quot;name&quot;: &quot;Community Outpost GenPatcher Client&quot;,
+      &quot;description&quot;: &quot;The standardized community competitive client baseline curated by Community Outpost with GenPatcher and GenTool integrated.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;communityoutpost&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;CommunityOutpost&quot;,
+        &quot;channel&quot;: &quot;release&quot;
+      },
+      &quot;tags&quot;: [
+        &quot;gentool&quot;,
+        &quot;genpatcher&quot;,
+        &quot;communityoutpost&quot;,
+        &quot;gameclient&quot;,
+        &quot;dynamic-upstream&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Outpost&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;l3m-controlbar&quot;,
+      &quot;name&quot;: &quot;L3M Modern HD Control Bar&quot;,
+      &quot;description&quot;: &quot;Clean, high-definition competitive control bar overlay designed by L3M. Supports multiple display resolutions with pixel-perfect mini-map scaling and unit command cards.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [
+        &quot;controlbar&quot;,
+        &quot;hd&quot;,
+        &quot;ui&quot;,
+        &quot;l3m&quot;,
+        &quot;resolutions&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;L3M&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;1.3&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-10T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all resolution packs.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_1920x1080.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip&quot;,
+              &quot;size&quot;: 1224544,
+              &quot;sha256&quot;: &quot;e0972cde7eaf4a01483eee5239b6ade7fab46f4907b9ed597b96d66447c1d940&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1080p&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_2560x1440.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip&quot;,
+              &quot;size&quot;: 4993590,
+              &quot;sha256&quot;: &quot;a1d00b2def19786aa40ffe270c00c73e693ada3f6c8273a5555097f55ac04d13&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1440p&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_3840x2160.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip&quot;,
+              &quot;size&quot;: 4993603,
+              &quot;sha256&quot;: &quot;4dc5b9cd4df5565c5f5417dbab7c87c3f3457dae40b4f843f630b7e07f306a90&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;4K&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;gentool&quot;,
+      &quot;name&quot;: &quot;GenTool Anti-Cheat &amp; Engine Fixes&quot;,
+      &quot;description&quot;: &quot;Essential competitive expansion adding anti-cheat validation, high-resolution widescreen rendering, observer broadcast mode, and enhanced stability.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [
+        &quot;addon&quot;,
+        &quot;gentool&quot;,
+        &quot;utility&quot;,
+        &quot;competitive&quot;,
+        &quot;anticheat&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Xezon&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://www.gentool.net&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;8.9&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-15T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;GenTool 8.9 release with enhanced anti-cheat and high-resolution support.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;gentool_v8.9.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://legi.cc/gp2/f/gent.dat&quot;,
+              &quot;size&quot;: 4194304,
+              &quot;sha256&quot;: &quot;62bb0380ae14c570b6fad92b31784bec188dc22ac5ac9e11d3c524e08fa434e4&quot;,
+              &quot;contentType&quot;: &quot;application/x-7z-compressed&quot;,
+              &quot;isPrimary&quot;: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;competitive-hotkeys&quot;,
+      &quot;name&quot;: &quot;Legionnaire Competitive Hotkeys&quot;,
+      &quot;description&quot;: &quot;Ergonomic QWERTY build and command grid layout modeled after modern RTS control schemes with built-in HUD unit command indicators.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [
+        &quot;addon&quot;,
+        &quot;hotkeys&quot;,
+        &quot;legionnaire&quot;,
+        &quot;qwerty&quot;,
+        &quot;competitive&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Legionnaire&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://legi.cc/patch&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;2026.07.01&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-01T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Updated hotkey indicators for all ZH factions. Synchronized shortcut layout with latest GenPatcher profile standard.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;hleg.dat&quot;,
+              &quot;downloadUrl&quot;: &quot;https://legi.cc/gp2/f/hleg.dat&quot;,
+              &quot;size&quot;: 136899,
+              &quot;sha256&quot;: &quot;69693e098b309bbdb67968926234f725580bb7401cf350cce325542e361b4530&quot;,
+              &quot;contentType&quot;: &quot;application/x-7z-compressed&quot;,
+              &quot;isPrimary&quot;: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;thesuperhackers-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;TheSuperHackers Pro Competitive Suite&quot;,
+      &quot;description&quot;: &quot;Complete all-in-one suite featuring the latest TheSuperHackers game engine, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire Pro Hotkeys.\n\nFully customizable with per-component variant selection for game type and screen resolution.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;featured&quot;,
+        &quot;thesuperhackers&quot;,
+        &quot;l3m&quot;,
+        &quot;gentool&quot;,
+        &quot;hotkeys&quot;,
+        &quot;competitive&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;\u2605 PRO COMPETITIVE SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/thesuperhackers&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;thesuperhackers-client&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;Zero Hour&quot;,
+          &quot;allowedVariantAxes&quot;: [
+            &quot;game-type&quot;
+          ]
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.3&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [
+            &quot;resolution&quot;
+          ]
+        },
+        {
+          &quot;contentId&quot;: &quot;gentool&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 8.9&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;competitive-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2026.07.01&quot;,
+          &quot;isOptional&quot;: false
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;generalsonline-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;Generals Online Matchmaking Pro Suite&quot;,
+      &quot;description&quot;: &quot;The official Generals Online ladder bundle with 60Hz high-tick client, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire competitive hotkeys.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;featured&quot;,
+        &quot;generalsonline&quot;,
+        &quot;ladder&quot;,
+        &quot;60hz&quot;,
+        &quot;l3m&quot;,
+        &quot;gentool&quot;,
+        &quot;hotkeys&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;\u2605 LADDER 60HZ SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/generalsonline&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;generalsonline-client&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.3&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [
+            &quot;resolution&quot;
+          ]
+        },
+        {
+          &quot;contentId&quot;: &quot;gentool&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 8.9&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;competitive-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2026.07.01&quot;,
+          &quot;isOptional&quot;: false
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;communityoutpost-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;Community Outpost Standardized Tournament Suite&quot;,
+      &quot;description&quot;: &quot;Standard tournament-ready package containing the GenPatcher client, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire Pro Hotkeys.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;featured&quot;,
+        &quot;communityoutpost&quot;,
+        &quot;tournament&quot;,
+        &quot;gentool&quot;,
+        &quot;l3m&quot;,
+        &quot;hotkeys&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;\u2605 TOURNAMENT SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/tournament&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;communityoutpost-client&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.3&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [
+            &quot;resolution&quot;
+          ]
+        },
+        {
+          &quot;contentId&quot;: &quot;gentool&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 8.9&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;competitive-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2026.07.01&quot;,
+          &quot;isOptional&quot;: false
+        }
+      ]
+    }
+  ]
+}</code></pre>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    Catalog JSON copied to clipboard!
+  </div>
+
+  <textarea id="copyBuffer" style="position: fixed; left: -9999px; top: 0;">{
+  &quot;$schemaVersion&quot;: 1,
+  &quot;publisher&quot;: {
+    &quot;id&quot;: &quot;community-competitive-hub&quot;,
+    &quot;name&quot;: &quot;Command &amp; Conquer Community Competitive Hub&quot;,
+    &quot;website&quot;: &quot;https://github.com/community-outpost&quot;,
+    &quot;avatarUrl&quot;: &quot;avares://GenHub/Assets/Logos/communityoutpost-logo.png&quot;,
+    &quot;supportUrl&quot;: &quot;https://github.com/community-outpost/GenHub/issues&quot;,
+    &quot;contactEmail&quot;: &quot;competitive@genhub.community&quot;
+  },
+  &quot;content&quot;: [
+    {
+      &quot;id&quot;: &quot;thesuperhackers-client&quot;,
+      &quot;name&quot;: &quot;TheSuperHackers Engine Game Code&quot;,
+      &quot;description&quot;: &quot;Continuous weekly builds of the open-source Command &amp; Conquer Generals and Zero Hour game engine from TheSuperHackers.\n\nIncludes 60FPS physics updates, high-refresh rate support, and anti-cheat fixes.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;thesuperhackers&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;GitHubReleases&quot;,
+        &quot;repository&quot;: &quot;TheSuperHackers/GeneralsGameCode&quot;,
+        &quot;variantAxis&quot;: &quot;game-type&quot;,
+        &quot;assetRules&quot;: [
+          {
+            &quot;pattern&quot;: &quot;generalszh-.*\\.zip$&quot;,
+            &quot;variant&quot;: &quot;Zero Hour&quot;,
+            &quot;isDefault&quot;: true,
+            &quot;targetGame&quot;: 1
+          },
+          {
+            &quot;pattern&quot;: &quot;generals-.*\\.zip$&quot;,
+            &quot;variant&quot;: &quot;Generals&quot;,
+            &quot;isDefault&quot;: false,
+            &quot;targetGame&quot;: 0
+          }
+        ]
+      },
+      &quot;tags&quot;: [
+        &quot;engine&quot;,
+        &quot;thesuperhackers&quot;,
+        &quot;gameclient&quot;,
+        &quot;dynamic-upstream&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;TheSuperHackers&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/TheSuperHackers/GeneralsGameCode&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;generalsonline-client&quot;,
+      &quot;name&quot;: &quot;Generals Online 60Hz Client&quot;,
+      &quot;description&quot;: &quot;Modern multiplayer ladder client for C&amp;C Generals Zero Hour featuring built-in matchmaker, instant replay synchronization, and 60Hz tickrate engine.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;generalsonline&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;GeneralsOnline&quot;,
+        &quot;channel&quot;: &quot;stable&quot;
+      },
+      &quot;tags&quot;: [
+        &quot;ladder&quot;,
+        &quot;multiplayer&quot;,
+        &quot;generalsonline&quot;,
+        &quot;gameclient&quot;,
+        &quot;dynamic-upstream&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Generals Online Team&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://generals-online.com&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;communityoutpost-client&quot;,
+      &quot;name&quot;: &quot;Community Outpost GenPatcher Client&quot;,
+      &quot;description&quot;: &quot;The standardized community competitive client baseline curated by Community Outpost with GenPatcher and GenTool integrated.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;communityoutpost&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;CommunityOutpost&quot;,
+        &quot;channel&quot;: &quot;release&quot;
+      },
+      &quot;tags&quot;: [
+        &quot;gentool&quot;,
+        &quot;genpatcher&quot;,
+        &quot;communityoutpost&quot;,
+        &quot;gameclient&quot;,
+        &quot;dynamic-upstream&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Outpost&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;l3m-controlbar&quot;,
+      &quot;name&quot;: &quot;L3M Modern HD Control Bar&quot;,
+      &quot;description&quot;: &quot;Clean, high-definition competitive control bar overlay designed by L3M. Supports multiple display resolutions with pixel-perfect mini-map scaling and unit command cards.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [
+        &quot;controlbar&quot;,
+        &quot;hd&quot;,
+        &quot;ui&quot;,
+        &quot;l3m&quot;,
+        &quot;resolutions&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;L3M&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;1.3&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-10T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all resolution packs.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_1920x1080.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip&quot;,
+              &quot;size&quot;: 1224544,
+              &quot;sha256&quot;: &quot;e0972cde7eaf4a01483eee5239b6ade7fab46f4907b9ed597b96d66447c1d940&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1080p&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_2560x1440.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip&quot;,
+              &quot;size&quot;: 4993590,
+              &quot;sha256&quot;: &quot;a1d00b2def19786aa40ffe270c00c73e693ada3f6c8273a5555097f55ac04d13&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1440p&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_3840x2160.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip&quot;,
+              &quot;size&quot;: 4993603,
+              &quot;sha256&quot;: &quot;4dc5b9cd4df5565c5f5417dbab7c87c3f3457dae40b4f843f630b7e07f306a90&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;4K&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;gentool&quot;,
+      &quot;name&quot;: &quot;GenTool Anti-Cheat &amp; Engine Fixes&quot;,
+      &quot;description&quot;: &quot;Essential competitive expansion adding anti-cheat validation, high-resolution widescreen rendering, observer broadcast mode, and enhanced stability.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [
+        &quot;addon&quot;,
+        &quot;gentool&quot;,
+        &quot;utility&quot;,
+        &quot;competitive&quot;,
+        &quot;anticheat&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Xezon&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://www.gentool.net&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;8.9&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-15T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;GenTool 8.9 release with enhanced anti-cheat and high-resolution support.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;gentool_v8.9.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://legi.cc/gp2/f/gent.dat&quot;,
+              &quot;size&quot;: 4194304,
+              &quot;sha256&quot;: &quot;62bb0380ae14c570b6fad92b31784bec188dc22ac5ac9e11d3c524e08fa434e4&quot;,
+              &quot;contentType&quot;: &quot;application/x-7z-compressed&quot;,
+              &quot;isPrimary&quot;: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;competitive-hotkeys&quot;,
+      &quot;name&quot;: &quot;Legionnaire Competitive Hotkeys&quot;,
+      &quot;description&quot;: &quot;Ergonomic QWERTY build and command grid layout modeled after modern RTS control schemes with built-in HUD unit command indicators.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: false,
+      &quot;tags&quot;: [
+        &quot;addon&quot;,
+        &quot;hotkeys&quot;,
+        &quot;legionnaire&quot;,
+        &quot;qwerty&quot;,
+        &quot;competitive&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Legionnaire&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://legi.cc/patch&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;2026.07.01&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-01T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Updated hotkey indicators for all ZH factions. Synchronized shortcut layout with latest GenPatcher profile standard.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;hleg.dat&quot;,
+              &quot;downloadUrl&quot;: &quot;https://legi.cc/gp2/f/hleg.dat&quot;,
+              &quot;size&quot;: 136899,
+              &quot;sha256&quot;: &quot;69693e098b309bbdb67968926234f725580bb7401cf350cce325542e361b4530&quot;,
+              &quot;contentType&quot;: &quot;application/x-7z-compressed&quot;,
+              &quot;isPrimary&quot;: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;thesuperhackers-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;TheSuperHackers Pro Competitive Suite&quot;,
+      &quot;description&quot;: &quot;Complete all-in-one suite featuring the latest TheSuperHackers game engine, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire Pro Hotkeys.\n\nFully customizable with per-component variant selection for game type and screen resolution.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;featured&quot;,
+        &quot;thesuperhackers&quot;,
+        &quot;l3m&quot;,
+        &quot;gentool&quot;,
+        &quot;hotkeys&quot;,
+        &quot;competitive&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;\u2605 PRO COMPETITIVE SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/thesuperhackers&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;thesuperhackers-client&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;Zero Hour&quot;,
+          &quot;allowedVariantAxes&quot;: [
+            &quot;game-type&quot;
+          ]
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.3&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [
+            &quot;resolution&quot;
+          ]
+        },
+        {
+          &quot;contentId&quot;: &quot;gentool&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 8.9&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;competitive-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2026.07.01&quot;,
+          &quot;isOptional&quot;: false
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;generalsonline-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;Generals Online Matchmaking Pro Suite&quot;,
+      &quot;description&quot;: &quot;The official Generals Online ladder bundle with 60Hz high-tick client, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire competitive hotkeys.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;featured&quot;,
+        &quot;generalsonline&quot;,
+        &quot;ladder&quot;,
+        &quot;60hz&quot;,
+        &quot;l3m&quot;,
+        &quot;gentool&quot;,
+        &quot;hotkeys&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;\u2605 LADDER 60HZ SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/generalsonline&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;generalsonline-client&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.3&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [
+            &quot;resolution&quot;
+          ]
+        },
+        {
+          &quot;contentId&quot;: &quot;gentool&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 8.9&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;competitive-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2026.07.01&quot;,
+          &quot;isOptional&quot;: false
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;communityoutpost-competitive-bundle&quot;,
+      &quot;name&quot;: &quot;Community Outpost Standardized Tournament Suite&quot;,
+      &quot;description&quot;: &quot;Standard tournament-ready package containing the GenPatcher client, L3M HD Control Bar, GenTool anti-cheat, and Legionnaire Pro Hotkeys.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isFeatured&quot;: true,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;featured&quot;,
+        &quot;communityoutpost&quot;,
+        &quot;tournament&quot;,
+        &quot;gentool&quot;,
+        &quot;l3m&quot;,
+        &quot;hotkeys&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Community Competitive Hub&quot;,
+        &quot;isFeatured&quot;: true,
+        &quot;featuredBadge&quot;: &quot;\u2605 TOURNAMENT SUITE&quot;,
+        &quot;accentColor&quot;: &quot;#F59E0B&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://community-outpost.com/suites/tournament&quot;
+      },
+      &quot;bundledItems&quot;: [
+        {
+          &quot;contentId&quot;: &quot;communityoutpost-client&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 1.3&quot;,
+          &quot;isOptional&quot;: false,
+          &quot;defaultVariant&quot;: &quot;1080p&quot;,
+          &quot;allowedVariantAxes&quot;: [
+            &quot;resolution&quot;
+          ]
+        },
+        {
+          &quot;contentId&quot;: &quot;gentool&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 8.9&quot;,
+          &quot;isOptional&quot;: false
+        },
+        {
+          &quot;contentId&quot;: &quot;competitive-hotkeys&quot;,
+          &quot;versionConstraint&quot;: &quot;&gt;= 2026.07.01&quot;,
+          &quot;isOptional&quot;: false
+        }
+      ]
+    }
+  ]
+}</textarea>
+
+  <script>
+    const jsonText = document.getElementById('copyBuffer').value;
+
+    document.getElementById('copyFullJsonBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(jsonText).then(() => {
+        const btn = document.getElementById('btnLabel');
+        const original = btn.innerText;
+        btn.innerText = 'Copied to Clipboard!';
+        const toast = document.getElementById('toast');
+        toast.style.display = 'flex';
+        setTimeout(() => {
+          btn.innerText = original;
+          toast.style.display = 'none';
+        }, 2500);
+      }).catch(err => {
+        // Fallback
+        const textarea = document.getElementById('copyBuffer');
+        textarea.select();
+        document.execCommand('copy');
+        alert('Copied to clipboard!');
+      });
+    });
+
+    document.getElementById('downloadJsonBtn').addEventListener('click', () => {
+      const blob = new Blob([jsonText], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'community-competitive-ecosystem.catalog.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

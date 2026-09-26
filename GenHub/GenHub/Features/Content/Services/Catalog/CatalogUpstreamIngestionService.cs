@@ -12,6 +12,7 @@ using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.GitHub;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -30,6 +31,8 @@ public class CatalogUpstreamIngestionService(
     CommunityOutpostDiscoverer? communityOutpostDiscoverer = null) : ICatalogUpstreamIngestionService
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+    private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> GitHubReleaseCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public async Task IngestCatalogAsync(PublisherCatalog catalog, CancellationToken cancellationToken = default)
@@ -63,6 +66,11 @@ public class CatalogUpstreamIngestionService(
         CatalogBundleComponentBuilder.HydrateSyntheticBundleReleases(catalog.Content);
     }
 
+    /// <summary>
+    /// Clears the in-memory GitHub release cache (primarily for unit tests).
+    /// </summary>
+    internal static void ClearReleaseCache() => GitHubReleaseCache.Clear();
+
     private static string NormalizeReleaseVersion(GitHubRelease release)
     {
         var rawVersion = release.TagName;
@@ -83,10 +91,9 @@ public class CatalogUpstreamIngestionService(
     private static bool IsAssetRuleMatch(
         string assetName,
         CatalogUpstreamAssetRule rule,
-        GameType itemTargetGame,
         ILogger log)
     {
-        if (rule.TargetGame != GameType.Unknown && itemTargetGame != GameType.Unknown && rule.TargetGame != itemTargetGame)
+        if (string.IsNullOrWhiteSpace(rule.Pattern))
         {
             return false;
         }
@@ -95,10 +102,18 @@ public class CatalogUpstreamIngestionService(
         {
             return Regex.IsMatch(assetName, rule.Pattern, RegexOptions.IgnoreCase, RegexTimeout);
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
-            log.LogWarning(ex, "Invalid asset rule regex pattern '{Pattern}'", rule.Pattern);
-            return false;
+            try
+            {
+                var convertedGlob = "^" + Regex.Escape(rule.Pattern).Replace("\\*", ".*").Replace("\\?", ".") + "$";
+                return Regex.IsMatch(assetName, convertedGlob, RegexOptions.IgnoreCase, RegexTimeout);
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning(ex, "Invalid asset rule pattern '{Pattern}'", rule.Pattern);
+                return false;
+            }
         }
         catch (RegexMatchTimeoutException ex)
         {
@@ -111,13 +126,12 @@ public class CatalogUpstreamIngestionService(
         ContentRelease release,
         IEnumerable<GitHubReleaseAsset> assets,
         CatalogUpstreamSync sync,
-        CatalogContentItem item,
         ILogger log)
     {
         foreach (var asset in assets)
         {
             var matchedRule = sync.AssetRules.FirstOrDefault(r =>
-                IsAssetRuleMatch(asset.Name, r, item.TargetGame, log));
+                IsAssetRuleMatch(asset.Name, r, log));
 
             if (matchedRule != null)
             {
@@ -130,6 +144,7 @@ public class CatalogUpstreamIngestionService(
                     VariantAxis = sync.VariantAxis ?? "game-type",
                     IsDefaultVariant = matchedRule.IsDefault,
                     IsPrimary = matchedRule.IsDefault,
+                    TargetGame = matchedRule.TargetGame,
                 });
             }
         }
@@ -173,19 +188,40 @@ public class CatalogUpstreamIngestionService(
                 VariantAxis = "game-type",
                 IsDefaultVariant = isZh,
                 IsPrimary = isZh,
+                TargetGame = isZh ? GameType.ZeroHour : (isGen ? GameType.Generals : GameType.Unknown),
             });
+        }
+    }
+
+    private static void PopulateGenericGitHubArtifacts(
+        ContentRelease release,
+        IEnumerable<GitHubReleaseAsset> assets)
+    {
+        var isFirst = true;
+        foreach (var asset in assets)
+        {
+            release.Artifacts.Add(new ReleaseArtifact
+            {
+                Filename = asset.Name,
+                DownloadUrl = asset.BrowserDownloadUrl,
+                Size = asset.Size,
+                ContentType = asset.ContentType,
+                IsPrimary = isFirst,
+            });
+            isFirst = false;
         }
     }
 
     private async Task IngestSingleItemAsync(CatalogContentItem item, CancellationToken cancellationToken)
     {
         var sync = item.UpstreamSync;
-        var provider = CatalogConstants.UpstreamProviders.Normalize(sync?.Provider ?? item.PublisherType);
+        var declaredProvider = !string.IsNullOrWhiteSpace(sync?.Provider) ? sync.Provider : item.PublisherType;
+        var provider = CatalogConstants.UpstreamProviders.Normalize(declaredProvider);
 
         if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
         {
-            await IngestGitHubItemAsync(item, sync, cancellationToken);
+            await IngestGitHubItemAsync(item, sync, provider, cancellationToken);
         }
         else if (string.Equals(provider, CatalogConstants.UpstreamProviders.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
         {
@@ -200,6 +236,7 @@ public class CatalogUpstreamIngestionService(
     private async Task IngestGitHubItemAsync(
         CatalogContentItem item,
         CatalogUpstreamSync? sync,
+        string? provider,
         CancellationToken cancellationToken)
     {
         var repo = sync?.Repository;
@@ -215,7 +252,47 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var release = await gitHubClient.GetLatestReleaseAsync(parts[0], parts[1], cancellationToken);
+        var isTrackPrerelease = string.Equals(sync?.Channel, "prerelease", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(sync?.Channel, "beta", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(sync?.Channel, "nightly", StringComparison.OrdinalIgnoreCase);
+
+        var cacheKey = $"{repo}:{sync?.Channel ?? "stable"}";
+        GitHubRelease? release = null;
+
+        if (GitHubReleaseCache.TryGetValue(cacheKey, out var cached) && (DateTime.UtcNow - cached.CachedAt) < CacheTtl)
+        {
+            release = cached.Release;
+        }
+        else
+        {
+            if (isTrackPrerelease)
+            {
+                var allReleases = await gitHubClient.GetReleasesAsync(parts[0], parts[1], cancellationToken);
+                release = allReleases?
+                    .Where(r => !r.IsDraft)
+                    .OrderByDescending(r => r.PublishedAt ?? r.CreatedAt)
+                    .FirstOrDefault();
+            }
+            else
+            {
+                release = await gitHubClient.GetLatestReleaseAsync(parts[0], parts[1], cancellationToken);
+                if (release == null)
+                {
+                    // Fall back to newest release including prerelease so item does not disappear completely
+                    var allReleases = await gitHubClient.GetReleasesAsync(parts[0], parts[1], cancellationToken);
+                    release = allReleases?
+                        .Where(r => !r.IsDraft)
+                        .OrderByDescending(r => r.PublishedAt ?? r.CreatedAt)
+                        .FirstOrDefault();
+                }
+            }
+
+            if (release != null)
+            {
+                GitHubReleaseCache[cacheKey] = (release, DateTime.UtcNow);
+            }
+        }
+
         if (release == null)
         {
             return;
@@ -226,18 +303,40 @@ public class CatalogUpstreamIngestionService(
         {
             Version = version,
             ReleaseDate = release.PublishedAt?.UtcDateTime ?? DateTime.UtcNow,
-            IsLatest = !release.IsPrerelease || string.Equals(sync?.Channel, "prerelease", StringComparison.OrdinalIgnoreCase),
+            IsLatest = !release.IsPrerelease || isTrackPrerelease,
             IsPrerelease = release.IsPrerelease,
             Changelog = release.Body,
         };
 
         if (sync?.AssetRules is { Count: > 0 })
         {
-            PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, item, logger);
+            PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, logger);
+        }
+        else if (string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            PopulateDefaultSuperHackersArtifacts(synthesized, release.Assets);
         }
         else
         {
-            PopulateDefaultSuperHackersArtifacts(synthesized, release.Assets);
+            PopulateGenericGitHubArtifacts(synthesized, release.Assets);
+        }
+
+        // Add EA base game dependency for GameClient items if not already declared
+        if (item.ContentType == ContentType.GameClient &&
+            (item.TargetGame is GameType.Generals or GameType.ZeroHour ||
+             string.Equals(provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase)))
+        {
+            var baseGameId = item.TargetGame == GameType.Generals ? CatalogConstants.GeneralsContentId : CatalogConstants.ZeroHourContentId;
+            var baseGameVersion = item.TargetGame == GameType.Generals ? ManifestConstants.GeneralsManifestVersion : ManifestConstants.ZeroHourManifestVersion;
+
+            synthesized.Dependencies.Add(new CatalogDependency
+            {
+                PublisherId = CatalogConstants.EaPublisherId,
+                ContentId = baseGameId,
+                VersionConstraint = baseGameVersion,
+                ContentType = ContentType.GameInstallation.ToString(),
+                IsOptional = false,
+            });
         }
 
         if (synthesized.Artifacts.Count > 0)
@@ -276,8 +375,9 @@ public class CatalogUpstreamIngestionService(
 
         var matched = items.FirstOrDefault(i =>
             string.Equals(i.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase)) ??
-            items.FirstOrDefault(i => item.TargetGame != GameType.Unknown && i.TargetGame == item.TargetGame);
+            string.Equals(i.Name, item.Name, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(i.Name) &&
+             (item.Name.Contains(i.Name, StringComparison.OrdinalIgnoreCase) || i.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase))));
 
         if (matched == null)
         {

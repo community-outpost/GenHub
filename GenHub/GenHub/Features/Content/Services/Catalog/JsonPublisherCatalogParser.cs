@@ -343,10 +343,31 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             }
         }
 
-        var isUpstreamTracked = content.UpstreamSync != null &&
-            (string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ||
-             CatalogConstants.UpstreamProviders.IsSupported(content.UpstreamSync.Provider));
+        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
         var isBundle = content.ContentType == ContentType.ContentBundle;
+
+        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
+        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r.Dependencies != null && r.Dependencies.Count > 0);
+
+        if (isBundle && !hasBundledItems && !hasReleaseDependencies)
+        {
+            errors.Add($"Content bundle '{content.Id}' has no bundled items");
+        }
+
+        if (isUpstreamTracked && content.UpstreamSync != null)
+        {
+            var provider = CatalogConstants.UpstreamProviders.Normalize(
+                !string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ? content.UpstreamSync.Provider : content.PublisherType);
+
+            if (string.Equals(provider, CatalogConstants.UpstreamProviders.GitHubReleases, StringComparison.OrdinalIgnoreCase))
+            {
+                var repo = content.UpstreamSync.Repository;
+                if (string.IsNullOrWhiteSpace(repo) || repo.Split('/').Length != 2 || string.IsNullOrWhiteSpace(repo.Split('/')[0]) || string.IsNullOrWhiteSpace(repo.Split('/')[1]))
+                {
+                    errors.Add($"Upstream GitHub item '{content.Id}' must declare a valid repository in 'owner/repo' format");
+                }
+            }
+        }
 
         if (content.Releases == null || content.Releases.Count == 0)
         {
