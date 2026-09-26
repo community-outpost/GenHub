@@ -820,6 +820,26 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return null;
     }
 
+    private static void AppendContentResource(
+        List<ProfileResourceItem> items,
+        string id,
+        string? path,
+        string displayName,
+        string gameType)
+    {
+        if (!string.IsNullOrEmpty(path) && items.All(i => i.Path != path))
+        {
+            items.Add(new ProfileResourceItem
+            {
+                Id = id,
+                Path = path,
+                DisplayName = displayName,
+                IsBuiltIn = false,
+                GameType = gameType,
+            });
+        }
+    }
+
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
     {
         var (isLocked, canToggle) = GetItemHotswapState(IsHotswapMode, coreItem.ContentType, coreItem.Manifest);
@@ -1876,7 +1896,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         try
         {
-            if (_profileResourceService == null) return;
+            if (_profileResourceService == null)
+            {
+                return;
+            }
 
             var icons = _profileResourceService.GetIconsForGameType(gameType).ToList();
             var covers = _profileResourceService.GetAvailableCovers().ToList();
@@ -1885,31 +1908,20 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             {
                 foreach (var content in AvailableContent)
                 {
-                    var iconPath = content.Manifest?.Metadata?.IconUrl ?? (!string.IsNullOrEmpty(content.IconPath) ? content.IconPath : null);
-                    if (!string.IsNullOrEmpty(iconPath) && icons.All(i => i.Path != iconPath))
-                    {
-                        icons.Add(new ProfileResourceItem
-                        {
-                            Id = $"content-icon-{content.Id}",
-                            Path = iconPath,
-                            DisplayName = $"{content.DisplayName} Icon",
-                            IsBuiltIn = false,
-                            GameType = content.GameType.ToString(),
-                        });
-                    }
+                    var gameTypeStr = content.GameType.ToString();
+                    AppendContentResource(
+                        icons,
+                        $"content-icon-{content.Id}",
+                        content.Manifest?.Metadata?.IconUrl,
+                        $"{content.DisplayName} Icon",
+                        gameTypeStr);
 
-                    var coverPath = content.Manifest?.Metadata?.CoverUrl ?? (!string.IsNullOrEmpty(content.CoverPath) ? content.CoverPath : null);
-                    if (!string.IsNullOrEmpty(coverPath) && covers.All(c => c.Path != coverPath))
-                    {
-                        covers.Add(new ProfileResourceItem
-                        {
-                            Id = $"content-cover-{content.Id}",
-                            Path = coverPath,
-                            DisplayName = $"{content.DisplayName} Cover",
-                            IsBuiltIn = false,
-                            GameType = content.GameType.ToString(),
-                        });
-                    }
+                    AppendContentResource(
+                        covers,
+                        $"content-cover-{content.Id}",
+                        content.Manifest?.Metadata?.CoverUrl,
+                        $"{content.DisplayName} Cover",
+                        gameTypeStr);
                 }
             }
 

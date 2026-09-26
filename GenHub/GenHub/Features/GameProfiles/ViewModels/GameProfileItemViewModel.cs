@@ -547,7 +547,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         _executablePath = profile.ExecutablePath;
         _displayOrder = profile.DisplayOrder;
         _createdAt = profile.CreatedAt;
-        _lastPlayedAt = profile.LastPlayedAt;
+        _lastPlayedAt = profile.LastPlayedAt == default || profile.LastPlayedAt == DateTime.MinValue ? null : profile.LastPlayedAt;
 
         // Handle icon path with fallback
         _iconPath = !string.IsNullOrEmpty(iconPath)
@@ -689,7 +689,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         ExecutablePath = updatedProfile.ExecutablePath;
         DisplayOrder = updatedProfile.DisplayOrder;
         CreatedAt = updatedProfile.CreatedAt;
-        LastPlayedAt = updatedProfile.LastPlayedAt;
+        LastPlayedAt = updatedProfile.LastPlayedAt == default || updatedProfile.LastPlayedAt == DateTime.MinValue ? null : updatedProfile.LastPlayedAt;
 
         // Re-extract version, branding and publisher info from updated profile
         if (updatedProfile is GameProfile gameProfile)

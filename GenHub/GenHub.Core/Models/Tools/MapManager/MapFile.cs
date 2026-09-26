@@ -97,7 +97,18 @@ public class MapFile : INotifyPropertyChanged
     /// <summary>
     /// Gets the display text for the map format or type.
     /// </summary>
-    public string MapTypeDisplay => !IsDirectory && FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? "Archive" : (IsDirectory ? "Directory" : "Map");
+    public string MapTypeDisplay
+    {
+        get
+        {
+            if (!IsDirectory && FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Archive";
+            }
+
+            return IsDirectory ? "Directory" : "Map";
+        }
+    }
 
     /// <summary>
     /// Gets or sets the path to the thumbnail image file (.tga).

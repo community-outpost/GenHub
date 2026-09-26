@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
@@ -190,6 +191,8 @@ public sealed class InstallationRestartRebindTests : IDisposable
             installationService,
             manifestPool.Object,
             Mock.Of<IGameSettingsService>(),
+            Mock.Of<IWorkspaceManager>(),
+            Mock.Of<IProfileContentLinker>(),
             NullLogger<GameProfileManager>.Instance);
     }
 

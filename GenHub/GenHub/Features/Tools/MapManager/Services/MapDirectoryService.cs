@@ -168,7 +168,7 @@ public sealed class MapDirectoryService(
                         try
                         {
                             var fileInfo = new FileInfo(zipPath);
-                            var playerCount = mapNameParser.ParsePlayerCount(fileInfo.FullName, fileInfo.Name);
+                            var playerCount = MapNameParser.ExtractPlayerCountFromString(fileInfo.Name);
                             mapFiles.Add(new MapFile
                             {
                                 FileName = fileInfo.Name,

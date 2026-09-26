@@ -4,6 +4,7 @@ using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace GenHub.Features.GameProfiles.Views;
 
@@ -50,40 +51,40 @@ public partial class GameProfileLauncherView : UserControl
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        if (DataContext is not GameProfileLauncherViewModel vm) return;
+        if (DataContext is not GameProfileLauncherViewModel vm)
+        {
+            return;
+        }
 
         var files = e.Data.GetFiles();
-        if (files != null)
+        if (files == null)
         {
-            var profilePaths = new System.Collections.Generic.List<string>();
-            var otherPaths = new System.Collections.Generic.List<string>();
+            return;
+        }
 
-            foreach (var file in files)
-            {
-                if (file?.Path?.LocalPath is { } path)
-                {
-                    if (path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
-                        path.EndsWith(FileTypes.JsonFileExtension, StringComparison.OrdinalIgnoreCase))
-                    {
-                        profilePaths.Add(path);
-                    }
-                    else
-                    {
-                        otherPaths.Add(path);
-                    }
-                }
-            }
+        var paths = files
+            .Select(f => f.Path?.LocalPath)
+            .Where(p => !string.IsNullOrEmpty(p))
+            .Cast<string>()
+            .ToList();
 
-            if (profilePaths.Count > 0)
-            {
-                e.Handled = true;
-                await vm.ImportProfileFromFileOrUriAsync(profilePaths[0]);
-            }
-            else if (otherPaths.Count > 0)
-            {
-                e.Handled = true;
-                await vm.HandleDroppedContentAsync(otherPaths);
-            }
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        var profilePath = paths.FirstOrDefault(p =>
+            p.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
+            p.EndsWith(FileTypes.JsonFileExtension, StringComparison.OrdinalIgnoreCase));
+
+        e.Handled = true;
+        if (profilePath != null)
+        {
+            await vm.ImportProfileFromFileOrUriAsync(profilePath);
+        }
+        else
+        {
+            await vm.HandleDroppedContentAsync(paths);
         }
     }
 }

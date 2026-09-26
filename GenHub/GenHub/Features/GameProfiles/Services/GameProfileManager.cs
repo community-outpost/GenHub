@@ -214,9 +214,8 @@ public class GameProfileManager(
                 }
             }
 
-var fallbackResult = await ResolveFallbackGameClientAsync(profile, request, cancellationToken);
+            var fallbackResult = await ResolveFallbackGameClientAsync(profile, request, cancellationToken);
             if (fallbackResult != null)
-
             {
                 return fallbackResult;
             }

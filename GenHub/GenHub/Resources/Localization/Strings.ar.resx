@@ -13569,27 +13569,27 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
-    <value>Move Left</value>
+    <value>تحريك لليسار</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.MoveRight" xml:space="preserve">
-    <value>Move Right</value>
+    <value>تحريك لليمين</value>
   </data>
   <data name="GameProfiles.Launcher.Tooltip.Sort" xml:space="preserve">
-    <value>Sort Profiles</value>
+    <value>فرز ملفات التعريف</value>
   </data>
   <data name="GameProfiles.Sort.LastPlayed" xml:space="preserve">
-    <value>Recently Played</value>
+    <value>تم تشغيلها مؤخراً</value>
   </data>
   <data name="GameProfiles.Sort.DateCreated" xml:space="preserve">
-    <value>Date Created</value>
+    <value>تاريخ الإنشاء</value>
   </data>
   <data name="GameProfiles.Sort.Alphabetical" xml:space="preserve">
-    <value>Name (A to Z)</value>
+    <value>الاسم (أ إلى ي)</value>
   </data>
   <data name="GameProfiles.Sort.AlphabeticalDesc" xml:space="preserve">
-    <value>Name (Z to A)</value>
+    <value>الاسم (ي إلى أ)</value>
   </data>
   <data name="GameProfiles.Sort.Free" xml:space="preserve">
-    <value>Custom Order</value>
+    <value>ترتيب مخصص</value>
   </data>
 </root>

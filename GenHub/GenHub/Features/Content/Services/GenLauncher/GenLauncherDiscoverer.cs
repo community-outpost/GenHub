@@ -259,13 +259,7 @@ public class GenLauncherDiscoverer(
 
     private static string ResolveSourceUrl(string? modLink, string? parentManifestUrl)
     {
-        var rawSourceUrl = !string.IsNullOrWhiteSpace(modLink)
-            ? modLink
-            : parentManifestUrl ?? string.Empty;
-
-        return !string.IsNullOrWhiteSpace(rawSourceUrl) && IsValidHttpUrl(rawSourceUrl, out _)
-            ? rawSourceUrl
-            : string.Empty;
+        return GenLauncherConstants.ResolveEffectiveSourceUrl(modLink, parentManifestUrl);
     }
 
     private static string? ResolveFileDownloadUrl(string? simpleDownloadLink, string? fallbackUrl)
@@ -358,6 +352,32 @@ public class GenLauncherDiscoverer(
             Filename: fileName));
     }
 
+    private static bool IsValidChildManifest(
+        string manifestUrl,
+        GenLauncherVersionManifest versionManifest,
+        ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(versionManifest.Name))
+        {
+            logger.LogWarning("Rejecting child manifest from {Url} with missing or empty Name", manifestUrl);
+            return false;
+        }
+
+        if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
+        {
+            logger.LogDebug("Skipping advertising entry: {Name}", versionManifest.Name);
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(versionManifest.SimpleDownloadLink) && !IsValidHttpUrl(versionManifest.SimpleDownloadLink, out _))
+        {
+            logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
+            return false;
+        }
+
+        return true;
+    }
+
     private string GetLocalizedString(string key, string fallback)
     {
         return localizationService?.GetString(key) ?? fallback;
@@ -418,22 +438,6 @@ public class GenLauncherDiscoverer(
         if (!string.IsNullOrEmpty(manifest.NewsLink))
         {
             result.ResolverMetadata[GenLauncherConstants.NewsLinkMetadataKey] = manifest.NewsLink;
-            if (!GenLauncherConstants.IsYamlDescriptorPath(manifest.NewsLink))
-            {
-                result.SourceUrl = manifest.NewsLink;
-            }
-        }
-        else if (!string.IsNullOrEmpty(manifest.ModDBLink) && !GenLauncherConstants.IsYamlDescriptorPath(manifest.ModDBLink))
-        {
-            result.SourceUrl = manifest.ModDBLink;
-        }
-        else if (!string.IsNullOrEmpty(manifest.DiscordLink) && !GenLauncherConstants.IsYamlDescriptorPath(manifest.DiscordLink))
-        {
-            result.SourceUrl = manifest.DiscordLink;
-        }
-        else if (GenLauncherConstants.IsYamlDescriptorPath(result.SourceUrl))
-        {
-            result.SourceUrl = string.Empty;
         }
 
         if (!string.IsNullOrEmpty(manifest.SupportLink))
@@ -450,6 +454,12 @@ public class GenLauncherDiscoverer(
         {
             result.ResolverMetadata[GenLauncherConstants.ModDbLinkMetadataKey] = manifest.ModDBLink;
         }
+
+        result.SourceUrl = GenLauncherConstants.ResolveEffectiveSourceUrl(
+            manifest.NewsLink,
+            manifest.ModDBLink,
+            manifest.DiscordLink,
+            result.SourceUrl);
 
         if (!string.IsNullOrEmpty(manifest.DependenceName))
         {
@@ -905,21 +915,8 @@ public class GenLauncherDiscoverer(
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(versionManifest.Name))
+        if (!IsValidChildManifest(manifestUrl, versionManifest, logger))
         {
-            logger.LogWarning("Rejecting child manifest from {Url} with missing or empty Name", manifestUrl);
-            return null;
-        }
-
-        if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
-        {
-            logger.LogDebug("Skipping advertising entry: {Name}", versionManifest.Name);
-            return null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(versionManifest.SimpleDownloadLink) && !IsValidHttpUrl(versionManifest.SimpleDownloadLink, out _))
-        {
-            logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
             return null;
         }
 
@@ -946,11 +943,10 @@ public class GenLauncherDiscoverer(
             TargetGame = context.Game,
             ProviderName = PublisherTypeConstants.GenLauncher,
             ResolverId = GenLauncherConstants.PublisherId,
-            SourceUrl = !string.IsNullOrWhiteSpace(versionManifest.NewsLink) && !GenLauncherConstants.IsYamlDescriptorPath(versionManifest.NewsLink)
-                ? versionManifest.NewsLink
-                : (!string.IsNullOrWhiteSpace(versionManifest.ModDBLink) && !GenLauncherConstants.IsYamlDescriptorPath(versionManifest.ModDBLink)
-                    ? versionManifest.ModDBLink
-                    : (!string.IsNullOrWhiteSpace(versionManifest.DiscordLink) ? versionManifest.DiscordLink : string.Empty)),
+            SourceUrl = GenLauncherConstants.ResolveEffectiveSourceUrl(
+                versionManifest.NewsLink,
+                versionManifest.ModDBLink,
+                versionManifest.DiscordLink),
             IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, context.ParentIconUrl),
             RequiresResolution = true,
             VariantGroupId = $"{context.Game.ToString().ToLowerInvariant()}-{context.ParentModSlug}",
