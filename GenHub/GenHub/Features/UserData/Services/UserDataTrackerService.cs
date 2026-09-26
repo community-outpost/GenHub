@@ -886,29 +886,10 @@ public class UserDataTrackerService(
         IReadOnlyList<string>? candidateMapNames)
     {
         var isTga = ext.Equals(".tga", StringComparison.OrdinalIgnoreCase);
-        var isIni = ext.Equals(".ini", StringComparison.OrdinalIgnoreCase);
-        var isStr = ext.Equals(".str", StringComparison.OrdinalIgnoreCase);
-
-        var isGenericThumbnail = isTga &&
-            (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
-             baseName.Equals("preview", StringComparison.OrdinalIgnoreCase));
-
-        var isGenericIni = isIni && baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
-        var isGenericStr = isStr && baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
-
-        if (isGenericThumbnail && !string.IsNullOrEmpty(fallbackMapName))
+        var genericFileName = ResolveGenericMapFileName(baseName, ext, fallbackMapName);
+        if (genericFileName != null && !string.IsNullOrEmpty(fallbackMapName))
         {
-            return (fallbackMapName, fallbackMapName + ".tga");
-        }
-
-        if (isGenericIni && !string.IsNullOrEmpty(fallbackMapName))
-        {
-            return (fallbackMapName, MapManagerConstants.MapIniFileName);
-        }
-
-        if (isGenericStr && !string.IsNullOrEmpty(fallbackMapName))
-        {
-            return (fallbackMapName, MapManagerConstants.MapStrFileName);
+            return (fallbackMapName, genericFileName);
         }
 
         if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
@@ -927,6 +908,28 @@ public class UserDataTrackerService(
         }
 
         return (baseName, originalFileName);
+    }
+
+    private static string? ResolveGenericMapFileName(string baseName, string ext, string? mapName)
+    {
+        if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
+            (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+             baseName.Equals("preview", StringComparison.OrdinalIgnoreCase)))
+        {
+            return mapName + ".tga";
+        }
+
+        if (!baseName.Equals("map", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return ext.ToLowerInvariant() switch
+        {
+            ".ini" => MapManagerConstants.MapIniFileName,
+            ".str" => MapManagerConstants.MapStrFileName,
+            _ => null,
+        };
     }
 
     private static string? FindMatchingCandidateMap(string baseName, IReadOnlyList<string>? candidateMapNames)

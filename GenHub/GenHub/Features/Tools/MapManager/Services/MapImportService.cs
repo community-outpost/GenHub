@@ -307,6 +307,11 @@ public sealed class MapImportService(
             }
         }
 
+        if (result.FilesImported == 0 && result.Errors.Count == 0)
+        {
+            result.Errors.Add("No map files were found to import.");
+        }
+
         result.Success = result.FilesImported > 0;
         return result;
     }

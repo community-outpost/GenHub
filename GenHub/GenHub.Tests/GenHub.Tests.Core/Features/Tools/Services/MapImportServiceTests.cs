@@ -48,6 +48,23 @@ public sealed class MapImportServiceTests : IDisposable
             NullLogger<MapImportService>.Instance);
     }
 
+    /// <summary>Companions without a map report a useful import failure.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromFilesAsync_CompanionsOnly_ReportsMissingMapAsync()
+    {
+        var source = Path.Combine(_workingDirectory, "companions");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "map.str"), "strings");
+        await File.WriteAllTextAsync(Path.Combine(source, "preview.tga"), "preview");
+
+        var result = await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Equal(0, result.FilesImported);
+        Assert.Contains("No map files were found to import.", result.Errors);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
