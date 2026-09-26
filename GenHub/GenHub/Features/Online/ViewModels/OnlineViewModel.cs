@@ -1456,8 +1456,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return (profile.Id, setup);
         });
 
-        var results = await Task.WhenAll(tasks);
-        foreach (var (profileId, setup) in results)
+        foreach (var (profileId, setup) in await Task.WhenAll(tasks))
         {
             var match = OnlineProfileMatcher.Compare(expectedFp, expectedClientKey, setup.Fingerprint, setup.ClientKey);
             if (match == OnlineProfileMatch.Exact)
