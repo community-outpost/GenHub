@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -53,7 +54,8 @@ public class ProfileSharingService(
     ILogger<ProfileSharingService> logger,
     ICasService? casService = null,
     IUploadThingService? uploadThingService = null,
-    IUploadHistoryService? uploadHistoryService = null) : IProfileSharingService, IDisposable
+    IUploadHistoryService? uploadHistoryService = null,
+    ITelemetryService? telemetryService = null) : IProfileSharingService, IDisposable
 {
     private sealed record ManifestInspectionSummary(
         List<SharedManifestDependency> Manifests,
@@ -108,6 +110,12 @@ public class ProfileSharingService(
             }
 
             string shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encodedPayload}";
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileShared, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.ShareFormat] = "uri",
+                [TelemetryConstants.Properties.FileSizeBytes] = Encoding.UTF8.GetByteCount(shareUri),
+            });
             return OperationResult<string>.CreateSuccess(shareUri);
         }
         catch (OperationCanceledException)
@@ -152,6 +160,12 @@ public class ProfileSharingService(
 
             await File.WriteAllTextAsync(destinationPath, json, cancellationToken);
             logger?.LogInformation("Exported profile {ProfileId} to file: {DestinationPath}", profileId, destinationPath);
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileShared, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.ShareFormat] = "file",
+                [TelemetryConstants.Properties.FileSizeBytes] = new FileInfo(destinationPath).Length,
+            });
             return OperationResult<string>.CreateSuccess(destinationPath);
         }
         catch (OperationCanceledException)
@@ -183,6 +197,12 @@ public class ProfileSharingService(
             }
 
             var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileShared, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.ShareFormat] = "json",
+                [TelemetryConstants.Properties.FileSizeBytes] = Encoding.UTF8.GetByteCount(json),
+            });
             return OperationResult<string>.CreateSuccess(json);
         }
         catch (OperationCanceledException)
@@ -309,6 +329,13 @@ public class ProfileSharingService(
 
             logger?.LogInformation("Successfully imported profile: {ProfileName} ({ProfileId})", newProfile.Name, newProfile.Id);
             WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(saveResult.Data));
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileImported, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = saveResult.Data.Id,
+                [TelemetryConstants.Properties.GameType] = saveResult.Data.GameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.Success] = true,
+                [TelemetryConstants.Properties.FileCount] = request.Package.RequiredManifests.Sum(manifest => manifest.Files?.Count ?? 0),
+            });
             return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)

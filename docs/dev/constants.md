@@ -1909,6 +1909,59 @@ folder under `Documents`.
 
 ---
 
+## TelemetryConstants Class
+
+Constants for telemetry event names, properties, data scrubbing masks, and queue buffering limits.
+
+| Constant                             | Value/Type | Description                                                   |
+| ------------------------------------ | ---------- | ------------------------------------------------------------- |
+| `AppName`                            | `"GenHub"` | Application identifier for telemetry                          |
+| `DefaultFlushIntervalSeconds`        | `30`       | Default flush interval in seconds for background batching     |
+| `MaxQueueCapacity`                   | `500`      | Maximum capacity of the bounded event channel queue           |
+| `SessionHeartbeatIntervalMinutes`    | `5`        | Heartbeat interval in minutes for active game sessions        |
+| `MaxBreadcrumbsCount`                | `50`       | Maximum number of breadcrumbs in circular buffer for crashes  |
+| `UserDirectoryMask`                  | `"<USER_DIR>"` | Replacement mask for user directories                     |
+| `WorkspaceDirectoryMask`             | `"<WORKSPACE_DIR>"` | Replacement mask for workspace paths                   |
+| `WinePrefixMask`                     | `"<WINE_PREFIX>"` | Replacement mask for Wine prefixes                     |
+| `IpAddressMask`                      | `"<IP_MASKED>"` | Replacement mask for IP addresses                         |
+| `SecretTokenMask`                    | `"<TOKEN_MASKED>"` | Replacement mask for sensitive tokens and keys         |
+| `DefaultSentryDsn`                   | `"https://06a9...ingest.de.sentry.io/4511943606927440"` | Default Sentry DSN endpoint for crash reporting |
+| `DefaultPostHogApiKey`               | `"phc_yJwFR...K98g"` | Default PostHog project API key for anonymous analytics |
+| `DefaultPostHogHost`                 | `"https://us.i.posthog.com"` | Default PostHog host URL                   |
+| `DefaultPostHogCaptureEndpoint`      | `"https://us.i.posthog.com/capture/"` | Default PostHog event capture endpoint   |
+| `DefaultPostHogProjectId`            | `"567732"` | Default PostHog project identifier                          |
+
+### Telemetry Events (`TelemetryConstants.Events`)
+
+- `GameSessionStarted`: `"game_session_started"` - Emitted when a game process starts.
+- `GameSessionHeartbeat`: `"game_session_heartbeat"` - Emitted periodically while a game process is running.
+- `GameSessionEnded`: `"game_session_ended"` - Emitted when a game process exits.
+- `ProfileLaunched`: `"profile_launched"` - Emitted when a game profile is launched from the UI.
+- `ProfileLaunchedFromShortcut`: `"profile_launched_from_shortcut"` - Emitted when a game profile is launched directly from a desktop shortcut or command line.
+- `ProfilePinned`: `"profile_pinned"` - Emitted when a desktop or start menu shortcut is created/pinned for a profile.
+- `ProfileShared`: `"profile_shared"` - Emitted when a game profile package is exported or shared.
+- `ProfileImported`: `"profile_imported"` - Emitted when a game profile package is imported.
+- `ContentDownloadCompleted`: `"content_download_completed"` - Emitted when a content or mod download completes.
+- `ContentDownloadFailed`: `"content_download_failed"` - Emitted when a content or mod download fails.
+- `ContentUpdateApplied`: `"content_update_applied"` - Emitted when a publisher content update (e.g. GeneralsOnline, SuperHackers) is applied.
+- `ContentUpdateFailed`: `"content_update_failed"` - Emitted when a publisher content update fails.
+- `AppUpdateChecked`: `"app_update_checked"` - Emitted when an application update check finishes.
+- `AppUpdateDownloaded`: `"app_update_downloaded"` - Emitted when an application update package finishes downloading.
+- `AppUpdateApplied`: `"app_update_applied"` - Emitted when an application update is applied.
+- `UploadThingUploadCompleted`: `"uploadthing_upload_completed"` - Emitted when an upload to UploadThing completes successfully.
+- `UploadThingUploadFailed`: `"uploadthing_upload_failed"` - Emitted when an upload to UploadThing fails.
+- `GenPatcherFixApplied`: `"genpatcher_fix_applied"` - Emitted when a GenPatcher fix or action set is applied.
+- `ModProjectCreated`: `"modbuilder_project_created"` - Emitted when a new ModBuilder project is initialized.
+- `ModBuilt`: `"modbuilder_mod_built"` - Emitted when a ModBuilder build pipeline execution completes.
+- `CasReconcileCompleted`: `"cas_reconcile_completed"` - Emitted when CAS workspace reconciliation completes.
+- `AppCrash`: `"app_unhandled_crash"` - Emitted when an unhandled application exception or crash occurs.
+
+### Telemetry Properties (`TelemetryConstants.Properties`)
+
+Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `LaunchSource`, `ShortcutType`, `ShareFormat`, `ImportSource`, `FixId`, `FixName`, `IsCrucial`, `Success`, `ErrorMessage`, `ProjectName`, `BuildSteps`, `ToolSource`, `FileName`, `FileSizeBytes`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `ProfilesUpdated`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
+
+---
+
 ## Related Documentation
 
 - [Manifest ID System](manifest-id-system.md)

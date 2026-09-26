@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,8 @@ public class DownloadService(
     ILogger<DownloadService> logger,
     HttpClient httpClient,
     IFileHashProvider hashProvider,
-    IDownloadUrlValidator? urlValidator = null) : IDownloadService
+    IDownloadUrlValidator? urlValidator = null,
+    ITelemetryService? telemetryService = null) : IDownloadService
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(2);
 
@@ -664,6 +666,7 @@ public class DownloadService(
             catch (InvalidDataException ex)
             {
                 logger.LogError(ex, "Download for {Url} failed with non-retryable invalid data error: {Message}", configuration.Url, ex.Message);
+                TrackDownloadFailure(configuration, ex.Message);
                 return DownloadResult.CreateFailure(ex.Message, 0, TimeSpan.Zero);
             }
             catch (Exception ex)
@@ -671,7 +674,9 @@ public class DownloadService(
                 if (attempt == maxAttempts)
                 {
                     logger.LogError(ex, "Download failed after {Attempts} attempts for {Url}", maxAttempts, configuration.Url);
-                    return DownloadResult.CreateFailure(ex.Message, 0, TimeSpan.Zero);
+                    var errorMessage = $"Download failed after {maxAttempts} attempts: {ex.Message}";
+                    TrackDownloadFailure(configuration, errorMessage);
+                    return DownloadResult.CreateFailure(errorMessage, 0, TimeSpan.Zero);
                 }
 
                 logger.LogWarning(ex, "Download attempt {Attempt} failed for {Url}, retrying...", attempt, configuration.Url);
@@ -679,7 +684,9 @@ public class DownloadService(
             }
         }
 
-        return DownloadResult.CreateFailure("Download failed.", 0, TimeSpan.Zero);
+        var finalError = $"Download failed after {maxAttempts} attempts (unexpected error)";
+        TrackDownloadFailure(configuration, finalError);
+        return DownloadResult.CreateFailure(finalError, 0, TimeSpan.Zero);
     }
 
     private async Task<DownloadResult> PerformDownloadAsync(
@@ -690,6 +697,7 @@ public class DownloadService(
         var destFileInfo = new FileInfo(configuration.DestinationPath);
         if (destFileInfo.Exists && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
         {
+            TrackDownloadCompleted(configuration, destFileInfo.Length, TimeSpan.Zero);
             return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
         }
 
@@ -895,6 +903,7 @@ public class DownloadService(
 
         if (string.IsNullOrWhiteSpace(configuration.ExpectedHash))
         {
+            TrackDownloadCompleted(configuration, downloadedBytes, elapsed);
             return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, false);
         }
 
@@ -903,13 +912,16 @@ public class DownloadService(
         if (!hashVerified)
         {
             TryDeleteFile(configuration.DestinationPath);
+            var hashError = $"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}";
+            TrackDownloadFailure(configuration, hashError, elapsed);
 
             return DownloadResult.CreateFailure(
-                $"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}",
+                hashError,
                 downloadedBytes,
                 elapsed);
         }
 
+        TrackDownloadCompleted(configuration, downloadedBytes, elapsed);
         return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, true);
     }
 
@@ -1036,5 +1048,58 @@ public class DownloadService(
         }
 
         return action;
+    }
+
+    private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed)
+    {
+        var fileName = Path.GetFileName(configuration.DestinationPath);
+        var totalElapsedSeconds = elapsed.TotalSeconds;
+        var sizeMb = downloadedBytes / (1024.0 * 1024.0);
+        var speedMbps = totalElapsedSeconds > 0 ? (sizeMb * 8.0) / totalElapsedSeconds : 0.0;
+
+        var contentName = !string.IsNullOrWhiteSpace(configuration.ContentName) ? configuration.ContentName : fileName;
+        var contentId = !string.IsNullOrWhiteSpace(configuration.ContentId) ? configuration.ContentId : fileName;
+        var publisherId = !string.IsNullOrWhiteSpace(configuration.PublisherId) ? configuration.PublisherId : configuration.Url.Host;
+        var contentType = !string.IsNullOrWhiteSpace(configuration.ContentType) ? configuration.ContentType : "Package";
+
+        var downloadProperties = new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
+            [TelemetryConstants.Properties.DurationSeconds] = Math.Round(totalElapsedSeconds, 2),
+            [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
+            [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
+            [TelemetryConstants.Properties.ContentName] = contentName,
+            [TelemetryConstants.Properties.ContentId] = contentId,
+            [TelemetryConstants.Properties.PublisherId] = publisherId,
+            [TelemetryConstants.Properties.ContentType] = contentType,
+        };
+
+        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, downloadProperties);
+    }
+
+    private void TrackDownloadFailure(DownloadConfiguration configuration, string errorMessage, TimeSpan? elapsed = null)
+    {
+        var fileName = Path.GetFileName(configuration.DestinationPath);
+        var contentName = !string.IsNullOrWhiteSpace(configuration.ContentName) ? configuration.ContentName : fileName;
+        var contentId = !string.IsNullOrWhiteSpace(configuration.ContentId) ? configuration.ContentId : fileName;
+        var publisherId = !string.IsNullOrWhiteSpace(configuration.PublisherId) ? configuration.PublisherId : configuration.Url.Host;
+        var contentType = !string.IsNullOrWhiteSpace(configuration.ContentType) ? configuration.ContentType : "Package";
+
+        var properties = new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
+            [TelemetryConstants.Properties.ContentName] = contentName,
+            [TelemetryConstants.Properties.ContentId] = contentId,
+            [TelemetryConstants.Properties.PublisherId] = publisherId,
+            [TelemetryConstants.Properties.ContentType] = contentType,
+            [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
+        };
+
+        if (elapsed.HasValue)
+        {
+            properties[TelemetryConstants.Properties.DurationSeconds] = Math.Round(elapsed.Value.TotalSeconds, 2);
+        }
+
+        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadFailed, properties);
     }
 }

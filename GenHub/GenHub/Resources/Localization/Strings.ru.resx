@@ -2283,6 +2283,26 @@
     <value>Выберите расположение файла настроек</value>
     <comment>Title for file picker dialog when selecting settings file location</comment>
   </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Description" xml:space="preserve">
+    <value>Выберите, какими анонимными данными об использовании и диагностикой сбоев делиться для улучшения GenHub. Пути и личные идентификаторы, распознаваемые системой очистки, очищаются перед отправкой.</value>
+    <comment>Description for telemetry and crash reporting level setting.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Label" xml:space="preserve">
+    <value>Уровень телеметрии и отчетов о сбоях</value>
+    <comment>Label for telemetry and crash reporting level setting.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Disabled" xml:space="preserve">
+    <value>Отключено</value>
+    <comment>Label for disabled telemetry level option.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.CrashReportsOnly" xml:space="preserve">
+    <value>Только отчеты о сбоях</value>
+    <comment>Label for crash reports only telemetry level option.</comment>
+  </data>
+  <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.AnonymousMetrics" xml:space="preserve">
+    <value>Анонимная статистика и отчеты о сбоях</value>
+    <comment>Label for anonymous usage metrics and crash reports telemetry level option.</comment>
+  </data>
   <data name="Settings.Download.AllowBackgroundDownloads" xml:space="preserve">
     <value>Разрешить фоновые загрузки</value>
     <comment>Label for allow background downloads checkbox</comment>
@@ -2550,6 +2570,10 @@
   <data name="Settings.Section.DataDirectories" xml:space="preserve">
     <value>Каталоги данных</value>
     <comment>Data directories settings section header.</comment>
+  </data>
+  <data name="Settings.Section.DiagnosticsPrivacy" xml:space="preserve">
+    <value>Диагностика и конфиденциальность</value>
+    <comment>Diagnostics and privacy settings section header.</comment>
   </data>
   <data name="Settings.Section.Downloads" xml:space="preserve">
     <value>Загрузки</value>

@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameClients;
@@ -700,6 +701,76 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a successful launch emits ProfileLaunched with game client and timing telemetry.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_OnSuccess_TracksProfileLaunchedWithGameClientAndTimingAsync()
+    {
+        var notificationService = new Mock<INotificationService>();
+        var launcherFacade = new Mock<IProfileLauncherFacade>();
+        var telemetryService = new Mock<ITelemetryService>();
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "profile-1",
+            WorkspaceId = "profile-1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 123 },
+        };
+        launcherFacade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var vm = CreateLauncherViewModel(launcherFacade, notificationService, telemetryService);
+        var client = new GameClient { Id = "thesuperhackers.zh", Name = "TheSuperHackers Zero Hour", Version = "1.06", GameType = GameType.ZeroHour };
+        var profileItem = CreateProfileItemWithClient("profile-1", "Test Profile", client);
+
+        await vm.LaunchProfileCommand.ExecuteAsync(profileItem);
+
+        telemetryService.Verify(
+            x => x.TrackEvent(
+                TelemetryConstants.Events.ProfileLaunched,
+                It.Is<IReadOnlyDictionary<string, object?>>(props =>
+                    (string?)props[TelemetryConstants.Properties.ProfileId] == "profile-1" &&
+                    (string?)props[TelemetryConstants.Properties.GameClientId] == "thesuperhackers.zh" &&
+                    (string?)props[TelemetryConstants.Properties.GameClientName] == "TheSuperHackers Zero Hour" &&
+                    props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs)),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a failed launch emits ProfileLaunchFailed with game client and error telemetry.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_OnFailure_TracksProfileLaunchFailedWithGameClientAndErrorsAsync()
+    {
+        var notificationService = new Mock<INotificationService>();
+        var launcherFacade = new Mock<IProfileLauncherFacade>();
+        var telemetryService = new Mock<ITelemetryService>();
+
+        launcherFacade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateFailure("Process start failed"));
+
+        var vm = CreateLauncherViewModel(launcherFacade, notificationService, telemetryService);
+        var client = new GameClient { Id = "thesuperhackers.zh", Name = "TheSuperHackers Zero Hour", Version = "1.06", GameType = GameType.ZeroHour };
+        var profileItem = CreateProfileItemWithClient("profile-1", "Test Profile", client);
+
+        await vm.LaunchProfileCommand.ExecuteAsync(profileItem);
+
+        telemetryService.Verify(
+            x => x.TrackEvent(
+                TelemetryConstants.Events.ProfileLaunchFailed,
+                It.Is<IReadOnlyDictionary<string, object?>>(props =>
+                    (string?)props[TelemetryConstants.Properties.ProfileId] == "profile-1" &&
+                    (string?)props[TelemetryConstants.Properties.GameClientId] == "thesuperhackers.zh" &&
+                    ((string?)props[TelemetryConstants.Properties.ErrorMessage])!.Contains("Process start failed") &&
+                    props.ContainsKey(TelemetryConstants.Properties.TimeToLaunchMs)),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that receiving ProfileStoppedMessage with mismatched PID is ignored as stale.
     /// </summary>
     [AvaloniaFact]
@@ -1347,16 +1418,26 @@ public class GameProfileLauncherViewModelTests
         return new GameProfileItemViewModel(profileId, profile.Object, "icon.png", "cover.jpg");
     }
 
+    private static GameProfileItemViewModel CreateProfileItemWithClient(string profileId, string name, GameClient gameClient)
+    {
+        var profile = new Mock<IGameProfile>();
+        profile.Setup(x => x.Name).Returns(name);
+        profile.Setup(x => x.GameClient).Returns(gameClient);
+        return new GameProfileItemViewModel(profileId, profile.Object, "icon.png", "cover.jpg");
+    }
+
     /// <summary>
     /// Creates a GameProfileLauncherViewModel wired to the given launcher facade and
     /// notification service, with everything else mocked.
     /// </summary>
     /// <param name="launcherFacade">The launcher facade mock.</param>
     /// <param name="notificationService">The notification service mock.</param>
+    /// <param name="telemetryService">The optional telemetry service mock.</param>
     /// <returns>The view model.</returns>
     private static GameProfileLauncherViewModel CreateLauncherViewModel(
         Mock<IProfileLauncherFacade> launcherFacade,
-        Mock<INotificationService> notificationService)
+        Mock<INotificationService> notificationService,
+        Mock<ITelemetryService>? telemetryService = null)
     {
         return new GameProfileLauncherViewModel(
             new Mock<IGameInstallationService>().Object,
@@ -1375,7 +1456,8 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
-            CreateLocalizationService());
+            CreateLocalizationService(),
+            telemetryService: telemetryService?.Object);
     }
 
     /// <summary>

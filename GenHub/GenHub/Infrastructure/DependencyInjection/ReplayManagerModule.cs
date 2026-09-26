@@ -1,6 +1,7 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
@@ -80,7 +81,8 @@ public static class ReplayManagerModule
                 serviceProvider.GetService<ILogger<DownloadService>>() ?? NullLogger<DownloadService>.Instance,
                 httpClient,
                 serviceProvider.GetRequiredService<IFileHashProvider>(),
-                serviceProvider.GetRequiredService<IDownloadUrlValidator>());
+                serviceProvider.GetRequiredService<IDownloadUrlValidator>(),
+                serviceProvider.GetService<ITelemetryService>());
             return ActivatorUtilities.CreateInstance<ReplayImportService>(serviceProvider, downloadService);
         });
         services.AddSingleton<IReplayExportService, ReplayExportService>();

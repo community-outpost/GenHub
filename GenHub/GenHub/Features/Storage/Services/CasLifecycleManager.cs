@@ -1,6 +1,9 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
@@ -9,6 +12,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -21,6 +25,16 @@ namespace GenHub.Features.Storage.Services;
 /// Owns garbage collection so it only runs after references are properly untracked,
 /// and only deletes blobs that no tracked reference and no persisted manifest link.
 /// </summary>
+/// <param name="referenceTracker">The CAS reference tracker.</param>
+/// <param name="manifestPool">The content manifest pool.</param>
+/// <param name="casStorage">The primary CAS storage.</param>
+/// <param name="config">The CAS configuration options.</param>
+/// <param name="logger">The logger instance.</param>
+/// <param name="writeFence">The write fence for collection locking.</param>
+/// <param name="poolManager">The optional CAS pool manager.</param>
+/// <param name="telemetryService">The optional telemetry service.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies and optional telemetry service for CAS lifecycle management.")]
+[method: SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies and optional telemetry service for CAS lifecycle management.")]
 public class CasLifecycleManager(
     ICasReferenceTracker referenceTracker,
     IContentManifestPool manifestPool,
@@ -28,7 +42,8 @@ public class CasLifecycleManager(
     IOptions<CasConfiguration> config,
     ILogger<CasLifecycleManager> logger,
     CasWriteFence writeFence,
-    ICasPoolManager? poolManager = null) : ICasLifecycleManager, IDisposable
+    ICasPoolManager? poolManager = null,
+    ITelemetryService? telemetryService = null) : ICasLifecycleManager, IDisposable
 {
     private readonly SemaphoreSlim _gcLock = new(1, 1);
 
@@ -171,6 +186,7 @@ public class CasLifecycleManager(
         }
 
         IDisposable? collectionLease = null;
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             // Forced collection bypasses the grace period, so hold the exclusive
@@ -183,7 +199,6 @@ public class CasLifecycleManager(
                     "Cannot clean CAS storage while content is being imported. Try again when the import finishes.");
             }
 
-            var stopwatch = Stopwatch.StartNew();
             logger.LogInformation("Starting garbage collection (force={Force})", force);
 
             var liveSet = await BuildLiveSetAsync(cancellationToken);
@@ -198,6 +213,23 @@ public class CasLifecycleManager(
                 stats.ObjectsDeleted,
                 stats.BytesFreed);
 
+            try
+            {
+                telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.ObjectsScanned] = stats.ObjectsScanned,
+                    [TelemetryConstants.Properties.ObjectsReferenced] = stats.ObjectsReferenced,
+                    [TelemetryConstants.Properties.ObjectsDeleted] = stats.ObjectsDeleted,
+                    [TelemetryConstants.Properties.BytesFreed] = stats.BytesFreed,
+                    [TelemetryConstants.Properties.Success] = true,
+                });
+            }
+            catch (Exception teleEx)
+            {
+                logger.LogWarning(teleEx, "Failed to track CAS garbage collection success telemetry");
+            }
+
             return OperationResult<GarbageCollectionStats>.CreateSuccess(stats);
         }
         catch (OperationCanceledException)
@@ -207,6 +239,20 @@ public class CasLifecycleManager(
         }
         catch (Exception ex)
         {
+            try
+            {
+                telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.Success] = false,
+                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                });
+            }
+            catch (Exception teleEx)
+            {
+                logger.LogWarning(teleEx, "Failed to track CAS garbage collection failure telemetry");
+            }
+
             logger.LogError(ex, "Garbage collection failed");
             return OperationResult<GarbageCollectionStats>.CreateFailure($"GC failed: {ex.Message}");
         }

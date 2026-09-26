@@ -489,8 +489,7 @@
       </Expander>
 
       <!-- Migrate Installation -->
-      <Expander x:Name="Expander_MigrateInstallation" IsExpanded="False" HorizontalAlignment="Stretch">
-        <Expander.Header>
+      <Expander x:Name="Expander_MigrateInstallation" IsExpanded="False" HorizontalAlignment="Stretch">        <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M12,17L8,13H11V9H13V13H16L12,17Z"
                           Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
@@ -550,6 +549,37 @@
                     Classes="danger-button"
                     IsEnabled="{Binding !IsMigrating}"
                     Margin="0,8,0,0" />
+          </StackPanel>
+        </Border>
+      </Expander>
+
+      <!-- Diagnostics & Privacy Settings -->
+      <Expander x:Name="Expander_DiagnosticsPrivacy" IsExpanded="False" HorizontalAlignment="Stretch">
+        <Expander.Header>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <PathIcon Data="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,14C14.67,14 20,15.34 20,18V20H4V18C4,15.34 9.33,14 12,14Z"
+                          Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Text="{localization:Localize Settings.Section.DiagnosticsPrivacy}" Classes="section-header" Margin="0"/>
+            </StackPanel>
+        </Expander.Header>
+        <Border Padding="20">
+          <StackPanel Spacing="20">
+            <!-- Telemetry Consent Level -->
+            <StackPanel Spacing="8">
+              <TextBlock Text="{localization:Localize Settings.DiagnosticsPrivacy.TelemetryLevel.Label}" Classes="setting-label" />
+              <ComboBox ItemsSource="{Binding AvailableTelemetryLevels}"
+                        SelectedItem="{Binding TelemetryPreference}"
+                        HorizontalAlignment="Left"
+                        MinWidth="280">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource LocalizedTelemetryLevelConverter}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Text="{localization:Localize Settings.DiagnosticsPrivacy.TelemetryLevel.Description}"
+                         Classes="setting-description" />
+            </StackPanel>
           </StackPanel>
         </Border>
       </Expander>

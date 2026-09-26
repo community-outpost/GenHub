@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
@@ -38,7 +39,8 @@ public class CommunityOutpostProfileReconciler(
     INotificationService notificationService,
     IDialogService dialogService,
     IUserSettingsService userSettingsService,
-    IGameProfileManager profileManager)
+    IGameProfileManager profileManager,
+    ITelemetryService? telemetryService = null)
     : ICommunityOutpostProfileReconciler, IPublisherReconciler
 {
     /// <inheritdoc/>
@@ -127,6 +129,16 @@ public class CommunityOutpostProfileReconciler(
                 var acquireResult = await AcquireLatestVersionAsync(oldManifests, progressNotificationId, cancellationToken);
                 if (!acquireResult.Success)
                 {
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherId] = CommunityOutpostConstants.PublisherType,
+                        [TelemetryConstants.Properties.ContentName] = CommunityOutpostConstants.CommunityPatchRetailDisplayName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                        [TelemetryConstants.Properties.ErrorMessage] = acquireResult.FirstError,
+                    });
+
                     notificationService.ShowError(
                         "Community Patch Update Failed",
                         $"Failed to download update: {acquireResult.FirstError}",
@@ -168,6 +180,16 @@ public class CommunityOutpostProfileReconciler(
 
                 if (!updateOutcome.Proceed)
                 {
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherId] = CommunityOutpostConstants.PublisherType,
+                        [TelemetryConstants.Properties.ContentName] = CommunityOutpostConstants.CommunityPatchRetailDisplayName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                        [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Update strategy execution failed",
+                    });
+
                     return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.Error ?? "Update strategy execution failed");
                 }
 
@@ -184,6 +206,17 @@ public class CommunityOutpostProfileReconciler(
                 {
                     logger.LogWarning("[CO Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
                 }
+
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherId] = CommunityOutpostConstants.PublisherType,
+                    [TelemetryConstants.Properties.ContentName] = CommunityOutpostConstants.CommunityPatchRetailDisplayName,
+                    [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                    [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                    [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                    [TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated,
+                    [TelemetryConstants.Properties.Success] = !anyFailure,
+                });
 
                 // Step 7: Show success notification
                 notificationService.ShowSuccess(

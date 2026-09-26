@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -16,10 +18,12 @@ namespace GenHub.Core.Features.ActionSets;
 /// <param name="actionSets">The initial collection of action sets.</param>
 /// <param name="providers">The collection of action set providers.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="telemetryService">The optional telemetry service.</param>
 public class ActionSetOrchestrator(
     IEnumerable<IActionSet> actionSets,
     IEnumerable<IActionSetProvider> providers,
-    ILogger<ActionSetOrchestrator> logger) : IActionSetOrchestrator
+    ILogger<ActionSetOrchestrator> logger,
+    ITelemetryService? telemetryService = null) : IActionSetOrchestrator
 {
     private enum ExecutionOutcome
     {
@@ -242,6 +246,24 @@ public class ActionSetOrchestrator(
         List<string> errors,
         CancellationToken ct)
     {
+        string gameType;
+        if (installation.HasZeroHour && installation.HasGenerals)
+        {
+            gameType = "Both";
+        }
+        else if (installation.HasZeroHour)
+        {
+            gameType = "ZeroHour";
+        }
+        else if (installation.HasGenerals)
+        {
+            gameType = "Generals";
+        }
+        else
+        {
+            gameType = "Unknown";
+        }
+
         try
         {
             logger.LogInformation("Applying action set {Index}/{Total}: {Title}", index, totalCount, actionSet.Title);
@@ -250,12 +272,14 @@ public class ActionSetOrchestrator(
             if (result.Success)
             {
                 logger.LogInformation("Successfully applied {Title}", actionSet.Title);
+                SafeTrackFixApplied(actionSet, gameType, success: true);
                 return ExecutionOutcome.Success;
             }
 
             var errorMessage = result.ErrorMessage ?? "Unknown error";
             logger.LogWarning("Failed to apply {Title}: {Error}", actionSet.Title, errorMessage);
             errors.Add($"{actionSet.Title}: {errorMessage}");
+            SafeTrackFixApplied(actionSet, gameType, success: false, errorMessage);
 
             if (actionSet.IsCrucialFix)
             {
@@ -274,6 +298,7 @@ public class ActionSetOrchestrator(
         {
             logger.LogError(ex, "Unexpected error applying {Title}", actionSet.Title);
             errors.Add($"{actionSet.Title}: {ex.Message}");
+            SafeTrackFixApplied(actionSet, gameType, success: false, ex.Message);
 
             if (actionSet.IsCrucialFix)
             {
@@ -283,6 +308,32 @@ public class ActionSetOrchestrator(
             }
 
             return ExecutionOutcome.FailedNonCritical;
+        }
+    }
+
+    private void SafeTrackFixApplied(IActionSet actionSet, string gameType, bool success, string? errorMessage = null)
+    {
+        try
+        {
+            var properties = new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.FixId] = actionSet.Id,
+                [TelemetryConstants.Properties.FixName] = actionSet.Title,
+                [TelemetryConstants.Properties.GameType] = gameType,
+                [TelemetryConstants.Properties.IsCrucial] = actionSet.IsCrucialFix,
+                [TelemetryConstants.Properties.Success] = success,
+            };
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                properties[TelemetryConstants.Properties.ErrorMessage] = errorMessage;
+            }
+
+            telemetryService?.TrackEvent(TelemetryConstants.Events.GenPatcherFixApplied, properties);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to emit fix telemetry for {Title}", actionSet.Title);
         }
     }
 }

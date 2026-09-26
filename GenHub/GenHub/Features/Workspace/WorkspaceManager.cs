@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -31,7 +32,8 @@ public class WorkspaceManager(
     ILogger<WorkspaceManager> logger,
     ICasReferenceTracker casReferenceTracker,
     IWorkspaceValidator workspaceValidator,
-    WorkspaceReconciler reconciler
+    WorkspaceReconciler reconciler,
+    ITelemetryService? telemetryService = null
 ) : IWorkspaceManager
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -104,6 +106,17 @@ public class WorkspaceManager(
 
             var errorMessage = string.Join(", ", messages);
             logger.LogError("[Workspace] Strategy preparation failed: {Errors}", errorMessage);
+
+            telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.WorkspaceId] = configuration.Id,
+                [TelemetryConstants.Properties.Strategy] = configuration.Strategy.ToString(),
+                [TelemetryConstants.Properties.ManifestCount] = configuration.Manifests?.Count ?? 0,
+                [TelemetryConstants.Properties.IsReused] = false,
+                [TelemetryConstants.Properties.Success] = false,
+                [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
+            });
+
             return OperationResult<WorkspaceInfo>.CreateFailure(errorMessage);
         }
 
@@ -544,6 +557,16 @@ public class WorkspaceManager(
                     logger.LogInformation(
                         "[Workspace] Reusing existing workspace {Id} for fast launch",
                         configuration.Id);
+
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.WorkspaceId] = workspace.Id,
+                        [TelemetryConstants.Properties.Strategy] = workspace.Strategy.ToString(),
+                        [TelemetryConstants.Properties.ManifestCount] = configuration.Manifests?.Count ?? 0,
+                        [TelemetryConstants.Properties.IsReused] = true,
+                        [TelemetryConstants.Properties.Success] = true,
+                    });
+
                     return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
                 }
                 catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException)
@@ -705,6 +728,16 @@ public class WorkspaceManager(
         await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
 
         logger.LogInformation("[Workspace] === Workspace {Id} prepared successfully at {Path} ===", workspaceInfo.Id, workspaceInfo.WorkspacePath);
+
+        telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.WorkspaceId] = workspaceInfo.Id,
+            [TelemetryConstants.Properties.Strategy] = workspaceInfo.Strategy.ToString(),
+            [TelemetryConstants.Properties.ManifestCount] = configuration.Manifests?.Count ?? 0,
+            [TelemetryConstants.Properties.IsReused] = false,
+            [TelemetryConstants.Properties.Success] = true,
+        });
+
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
     }
 }
