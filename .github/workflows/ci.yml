@@ -703,7 +703,7 @@ jobs:
       - name: Run macOS Tests
         run: |
           dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj \
-            -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+            -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
 
   # Launches the real native engine with no game data at all and requires the abort the
   # engine is known to produce (exit code 1 once INI loading finds nothing to read). No

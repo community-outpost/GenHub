@@ -335,9 +335,9 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
                 if (!_disposed && _animationGeneration == gen)
                 {
                     IsScrollingProgrammatically = false;
+                    _suppressNextScrollChanged = false;
                     if (targetKey.HasValue && targetKey.Value is not null)
                     {
-                        _suppressNextScrollChanged = true;
                         ReportActiveKey(targetKey.Value);
                     }
                     else

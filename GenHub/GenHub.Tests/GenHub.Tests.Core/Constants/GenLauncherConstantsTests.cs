@@ -41,4 +41,43 @@ public class GenLauncherConstantsTests
     {
         GenLauncherConstants.IsUsableArchiveFileName(fileName).Should().BeFalse();
     }
+
+    /// <summary>
+    /// Verifies that <see cref="GenLauncherConstants.IsSupportedPayloadExtension"/> accepts supported archive, checksum, and inactive BIG extensions.
+    /// </summary>
+    /// <param name="extension">The extension to test.</param>
+    [Theory]
+    [InlineData(".zip")]
+    [InlineData(".rar")]
+    [InlineData(".7z")]
+    [InlineData(".big")]
+    [InlineData(".gib")]
+    [InlineData(".md5")]
+    [InlineData(".sha256")]
+    [InlineData(".ctr")]
+    [InlineData(".skw")]
+    [InlineData(".CTR")]
+    [InlineData(".SKW")]
+    public void IsSupportedPayloadExtension_WithSupportedExtension_ShouldReturnTrue(string extension)
+    {
+        GenLauncherConstants.IsSupportedPayloadExtension(extension).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="GenLauncherConstants.IsSupportedPayloadExtension"/> rejects unsupported or blank extensions.
+    /// </summary>
+    /// <param name="extension">The extension to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(".exe")]
+    [InlineData(".dll")]
+    [InlineData(".txt")]
+    [InlineData(".yaml")]
+    [InlineData(".json")]
+    public void IsSupportedPayloadExtension_WithUnsupportedExtension_ShouldReturnFalse(string? extension)
+    {
+        GenLauncherConstants.IsSupportedPayloadExtension(extension).Should().BeFalse();
+    }
 }

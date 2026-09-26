@@ -286,6 +286,48 @@ public class SectionScrollSpyTests
         }
     }
 
+    /// <summary>
+    /// Verifies that when an animated scroll completes, subsequent user scrolling
+    /// is not suppressed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ScrollToSection_WhenAnimationCompletes_DoesNotSuppressSubsequentUserScrollAsync()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+            reported.Clear();
+
+            // Animate scroll to "second" section
+            spy.ScrollToSection("second");
+            Assert.True(spy.IsScrollingProgrammatically);
+
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (DateTime.UtcNow < deadline && spy.IsScrollingProgrammatically)
+            {
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(25);
+            }
+
+            Assert.False(spy.IsScrollingProgrammatically);
+            Assert.Equal("second", reported[^1]);
+            reported.Clear();
+
+            // Simulate genuine user scroll to "third" section
+            host.ScrollViewer.Offset = new Vector(0, 850);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Contains("third", reported);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
     private static ScrollSpyHost CreateHost()
     {
         var first = new Border { Height = 400 };
