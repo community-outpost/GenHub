@@ -312,10 +312,11 @@ public sealed partial class ProfileSelectionViewModel(
         _cts.Dispose();
     }
 
-    private (bool IsMatch, string? WarningMessage) EvaluateCompatibility(
+    private static (bool IsMatch, string? WarningMessage) EvaluateCompatibility(
         GameProfile profile,
         GameType targetGame,
-        ISet<string>? compatibleProfileIds)
+        ISet<string>? compatibleProfileIds,
+        ILocalizationService? localizationService)
     {
         if (compatibleProfileIds != null)
         {
@@ -325,8 +326,8 @@ public sealed partial class ProfileSelectionViewModel(
             }
 
             var warning = profile.GameClient?.GameType != targetGame
-                ? GetIncompatibleGameWarning(profile.GameClient?.GameType, targetGame)
-                : GetIncompatibleLobbyWarning();
+                ? GetIncompatibleGameWarning(profile.GameClient?.GameType, targetGame, localizationService)
+                : GetIncompatibleLobbyWarning(localizationService);
 
             return (false, warning);
         }
@@ -336,19 +337,22 @@ public sealed partial class ProfileSelectionViewModel(
             return (true, null);
         }
 
-        return (false, GetIncompatibleGameWarning(profile.GameClient?.GameType, targetGame));
+        return (false, GetIncompatibleGameWarning(profile.GameClient?.GameType, targetGame, localizationService));
     }
 
-    private string GetIncompatibleLobbyWarning()
+    private static string GetIncompatibleLobbyWarning(ILocalizationService? localizationService)
     {
-        return _localizationService?.GetString("Downloads.ProfileSelection.IncompatibleLobby")
+        return localizationService?.GetString("Downloads.ProfileSelection.IncompatibleLobby")
             ?? "Profile does not match lobby or requirements";
     }
 
-    private string GetIncompatibleGameWarning(GameType? profileGameType, GameType targetGame)
+    private static string GetIncompatibleGameWarning(
+        GameType? profileGameType,
+        GameType targetGame,
+        ILocalizationService? localizationService)
     {
         var profileGameTypeName = profileGameType?.ToString() ?? "Tool";
-        var template = _localizationService?.GetString("Downloads.ProfileSelection.IncompatibleGameFormat");
+        var template = localizationService?.GetString("Downloads.ProfileSelection.IncompatibleGameFormat");
         if (!string.IsNullOrEmpty(template))
         {
             return string.Format(template, profileGameTypeName, targetGame);
@@ -423,7 +427,7 @@ public sealed partial class ProfileSelectionViewModel(
         foreach (var profile in profiles)
         {
             var option = new ProfileOptionViewModel(profile, contentNames);
-            var (isMatch, warningMessage) = EvaluateCompatibility(profile, targetGame, compatibleProfileIds);
+            var (isMatch, warningMessage) = EvaluateCompatibility(profile, targetGame, compatibleProfileIds, _localizationService);
 
             if (!isMatch)
             {
