@@ -276,6 +276,7 @@ public class TelemetryServiceTests : IDisposable
 
     /// Verifies that DO_NOT_TRACK environment variable disables telemetry collection.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CurrentLevel_WhenDoNotTrackEnvironmentVariableIsSet_ReturnsDisabledAsync()
     {
@@ -300,6 +301,7 @@ public class TelemetryServiceTests : IDisposable
     /// <summary>
     /// Verifies that GENHUB_TELEMETRY_OPTOUT environment variable disables telemetry collection.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CurrentLevel_WhenGenHubOptOutEnvironmentVariableIsSet_ReturnsDisabledAsync()
     {
