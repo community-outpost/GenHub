@@ -4036,6 +4036,11 @@ public partial class PublishShareViewModel(
 
             return result;
         }
+        catch (OperationCanceledException)
+        {
+            NotifyDefinitionStale();
+            throw;
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat", "Error uploading definition: {0}", ex.Message);
