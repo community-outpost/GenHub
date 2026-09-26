@@ -554,23 +554,6 @@ public class OnlineProfileMatcherTests
         Assert.Equal("1.0.0.steam.mod.generals-plus", gameplayIds[0]);
     }
 
-    private static GameProfile ProfileWith(params string[] contentIds)
-    {
-        return new GameProfile
-        {
-            Id = Guid.NewGuid().ToString(),
-            Name = "Test",
-            GameClient = new GameClient
-            {
-                Id = "zerohour-client",
-                Name = "Zero Hour",
-                Version = "1.04",
-                GameType = GameType.ZeroHour,
-            },
-            EnabledContentIds = [.. contentIds],
-        };
-    }
-
     /// <summary>
     /// Tests that dot-delimited non-gameplay segments (map, mappack, mission, customasset)
     /// are excluded from gameplay content IDs.
@@ -613,4 +596,20 @@ public class OnlineProfileMatcherTests
         Assert.Contains(contentId, ids);
     }
 
+    private static GameProfile ProfileWith(params string[] contentIds)
+    {
+        return new GameProfile
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "Test",
+            GameClient = new GameClient
+            {
+                Id = "zerohour-client",
+                Name = "Zero Hour",
+                Version = "1.04",
+                GameType = GameType.ZeroHour,
+            },
+            EnabledContentIds = [.. contentIds],
+        };
+    }
 }

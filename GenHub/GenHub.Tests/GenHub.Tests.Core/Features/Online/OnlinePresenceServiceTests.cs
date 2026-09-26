@@ -228,8 +228,6 @@ public sealed class OnlinePresenceServiceTests : IDisposable
         Assert.False(_service.IsConnected);
     }
 
-    /// <inheritdoc/>
-
     /// <summary>
     /// Tests that concurrent calls to UpdateAdvertisedProfile do not throw SemaphoreFullException.
     /// </summary>

@@ -475,6 +475,7 @@ public sealed class ProfileSelectionViewModelTests
     /// <summary>
     /// Tests that EvaluateCompatibility sets warning message and ShowWarning on incompatible profiles.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task LoadProfilesAsync_WithIncompatibleLobby_SetsWarningMessageAndFlagAsync()
     {
@@ -504,6 +505,7 @@ public sealed class ProfileSelectionViewModelTests
             GameType.ZeroHour,
             "mod-1",
             "Mod",
+            additionalManifestIds: null,
             compatibleProfileIds: new HashSet<string>(["zh-other"]));
 
         // Assert
@@ -514,5 +516,4 @@ public sealed class ProfileSelectionViewModelTests
         Assert.False(string.IsNullOrWhiteSpace(option.WarningMessage));
         Assert.Contains("match lobby", option.WarningMessage, StringComparison.OrdinalIgnoreCase);
     }
-
 }
