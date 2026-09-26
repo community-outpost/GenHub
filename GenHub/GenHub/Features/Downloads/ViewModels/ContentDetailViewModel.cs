@@ -4892,7 +4892,49 @@ public partial class ContentDetailViewModel(
 
     private async Task DownloadBundleComponentsAsync(CancellationToken cancellationToken)
     {
-        var targets = BundleComponentViewModel.GetRequiredDownloadTargets(BundleComponents);
+        var targets = BundleComponentViewModel.GetRequiredDownloadTargets(BundleComponents).ToList();
+
+        // Prompt user if any bundled components have an update available
+        var updateCandidates = BundleComponents
+            .Where(c => !c.IsBaseGame && c.EffectiveState == ContentState.UpdateAvailable)
+            .ToList();
+
+        if (updateCandidates.Count > 0 && dialogService != null)
+        {
+            foreach (var updateComp in updateCandidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var searchResult = updateComp.GetSelectedSearchResult();
+                if (searchResult == null)
+                {
+                    continue;
+                }
+
+                var isGameClient = searchResult.ContentType == ContentType.GameClient;
+                var contentTypeLabel = isGameClient ? "GameClient" : "Addon";
+                var versionText = !string.IsNullOrWhiteSpace(searchResult.Version)
+                    ? $" ({searchResult.Version})"
+                    : string.Empty;
+
+                var message = isGameClient
+                    ? $"A new version of GameClient **{updateComp.SelectedDisplayName}** is available{versionText}.\n\nWould you like to update it as part of this bundle installation?\n\n*(Note: For GameClients, unchecking 'Delete older versions' lets you keep previous client versions installed side-by-side)*"
+                    : $"A new version of {contentTypeLabel} **{updateComp.SelectedDisplayName}** is available{versionText}.\n\nWould you like to update and replace it in the profile as part of this bundle installation?";
+
+                var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
+                    $"{updateComp.Name} Update Available",
+                    message,
+                    initialDeleteOldVersions: !isGameClient);
+
+                if (promptResult != null && !string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!targets.Any(t => string.Equals(t.Id, searchResult.Id, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        targets.Add(searchResult);
+                    }
+                }
+            }
+        }
+
         if (targets.Count == 0)
         {
             if (!_disposed)

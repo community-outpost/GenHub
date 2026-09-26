@@ -53,6 +53,16 @@ public class NamedCatalog
                 return IconUrl;
             }
 
+            if (!string.IsNullOrWhiteSpace(Catalog?.IconUrl))
+            {
+                return Catalog.IconUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Catalog?.AvatarUrl))
+            {
+                return Catalog.AvatarUrl;
+            }
+
             if (!string.IsNullOrWhiteSpace(Catalog?.Publisher?.AvatarUrl))
             {
                 return Catalog.Publisher.AvatarUrl;

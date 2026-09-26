@@ -22,6 +22,7 @@
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
         <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
         <converters:ValidColorToVisibilityConverter x:Key="ValidColorToVisibilityConverter"/>
+        <converters:ContrastTextColorConverter x:Key="ContrastTextColorConverter"/>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -456,7 +457,7 @@
                                                  <TextBlock Text="{Binding Metadata.AccentColor}"
                                                             FontSize="11"
                                                             FontWeight="Bold"
-                                                            Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
+                                                            Foreground="{Binding Metadata.AccentColor, Converter={StaticResource ContrastTextColorConverter}}"/>
                                             </Border>
                                         </StackPanel>
                                         <TextBlock FontSize="13" Foreground="{DynamicResource TextSecondary}">

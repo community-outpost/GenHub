@@ -43,9 +43,35 @@ public partial class ContentLibraryViewModel(
     private const int DetailTabMedia = 3;
 
     [ObservableProperty]
-    private ObservableCollection<CatalogContentItem> _contentItems = activeCatalog?.Catalog?.Content != null
-        ? [.. activeCatalog.Catalog.Content]
-        : [];
+    private ObservableCollection<CatalogContentItem> _contentItems = InitializeContentItems(activeCatalog, parentViewModel);
+
+    private static ObservableCollection<CatalogContentItem> InitializeContentItems(
+        NamedCatalog? activeCatalog,
+        PublisherStudioViewModel? parentViewModel)
+    {
+        var items = new ObservableCollection<CatalogContentItem>();
+        var catalog = activeCatalog;
+        var content = catalog?.Catalog?.Content;
+        if (catalog != null && content != null)
+        {
+            var catalogIcon = catalog.IconUrl
+                ?? catalog.Catalog?.IconUrl
+                ?? catalog.Catalog?.AvatarUrl
+                ?? catalog.Catalog?.Publisher?.AvatarUrl;
+            var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl
+                ?? catalog.Catalog?.Publisher?.AvatarUrl
+                ?? catalogIcon;
+
+            foreach (var item in content)
+            {
+                item.CatalogIconUrl = catalogIcon;
+                item.PublisherAvatarUrl = publisherAvatar;
+                items.Add(item);
+            }
+        }
+
+        return items;
+    }
 
     [ObservableProperty]
     private CatalogContentItem? _selectedContent;
@@ -247,7 +273,7 @@ public partial class ContentLibraryViewModel(
                 return;
             }
 
-            newContent.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
+            newContent.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl ?? activeCatalog.Catalog?.AvatarUrl ?? activeCatalog.Catalog?.Publisher?.AvatarUrl;
             newContent.PublisherAvatarUrl ??= parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
             activeCatalog.Catalog?.Content.Add(newContent);
             ContentItems.Add(newContent);
@@ -718,7 +744,7 @@ public partial class ContentLibraryViewModel(
             target.Tags = edited.Tags;
             target.ExtendsContentId = edited.ExtendsContentId;
             target.Metadata = edited.Metadata;
-            target.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl;
+            target.CatalogIconUrl = activeCatalog.IconUrl ?? activeCatalog.Catalog?.IconUrl ?? activeCatalog.Catalog?.AvatarUrl ?? activeCatalog.Catalog?.Publisher?.AvatarUrl;
             target.PublisherAvatarUrl = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
             target.NotifyPresentationChanged();
 
@@ -1434,8 +1460,13 @@ public partial class ContentLibraryViewModel(
         var content = catalog?.Catalog?.Content;
         if (catalog != null && content != null)
         {
-            var catalogIcon = catalog.IconUrl ?? catalog.Catalog.IconUrl;
-            var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl;
+            var catalogIcon = catalog.IconUrl
+                ?? catalog.Catalog?.IconUrl
+                ?? catalog.Catalog?.AvatarUrl
+                ?? catalog.Catalog?.Publisher?.AvatarUrl;
+            var publisherAvatar = parentViewModel?.CurrentProject?.Catalog?.Publisher?.AvatarUrl
+                ?? catalog.Catalog?.Publisher?.AvatarUrl
+                ?? catalogIcon;
 
             foreach (var item in content)
             {

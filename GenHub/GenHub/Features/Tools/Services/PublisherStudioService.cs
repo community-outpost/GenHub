@@ -33,6 +33,7 @@ public class PublisherStudioService(
 
     private static readonly JsonSerializerOptions ExportJsonOptions = new()
     {
+        PropertyNameCaseInsensitive = true,
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
@@ -211,7 +212,7 @@ public class PublisherStudioService(
             var catalogName = catalog?.Name ?? DefaultCatalogId;
             var catalogToExport = JsonSerializer.Deserialize<PublisherCatalog>(
                 JsonSerializer.Serialize(sourceCatalog, ExportJsonOptions),
-                ExportJsonOptions) ?? sourceCatalog;
+                JsonOptions) ?? sourceCatalog;
 
             if (catalog != null && !string.IsNullOrWhiteSpace(catalog.IconUrl))
             {

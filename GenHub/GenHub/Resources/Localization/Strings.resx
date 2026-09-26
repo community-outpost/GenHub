@@ -226,6 +226,9 @@
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>Clear input</value>
   </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>Pick built-in GenHub asset (cover or logo)</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>Paste image or file from clipboard (Ctrl+V)</value>
   </data>

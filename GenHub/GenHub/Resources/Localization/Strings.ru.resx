@@ -226,6 +226,9 @@
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>Очистить поле</value>
   </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>Выбрать встроенный ресурс GenHub (обложка или логотип)</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>Вставить изображение или файл из буфера обмена (Ctrl+V)</value>
   </data>

@@ -301,11 +301,23 @@
                                         Background="{DynamicResource CardBackground}"
                                         BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
                                         Margin="0,0,4,4"
+                                        IsVisible="{Binding !HasAccentColor}"
                                         ToolTip.Tip="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}">
                                     <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
                                                FontSize="10"
                                                FontWeight="Bold"
                                                Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />
+                                </Border>
+                                <Border Classes="type-badge"
+                                        Background="{DynamicResource CardBackground}"
+                                        BorderBrush="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        Margin="0,0,4,4"
+                                        IsVisible="{Binding HasAccentColor}"
+                                        ToolTip.Tip="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}">
+                                    <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}" />
                                 </Border>
                                 <Border Classes="type-badge variant-count-badge"
                                         IsVisible="{Binding HasVariantCountBadge}"

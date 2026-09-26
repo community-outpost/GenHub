@@ -226,6 +226,9 @@
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>مسح الإدخال</value>
   </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>اختيار أصل GenHub مدمج (غلاف أو شعار)</value>
+  </data>
   <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
     <value>لصق صورة أو ملف من الحافظة (Ctrl+V)</value>
   </data>

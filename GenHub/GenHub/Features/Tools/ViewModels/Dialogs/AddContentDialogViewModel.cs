@@ -929,6 +929,25 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    private static bool IsRemoteArtworkUrl(string value)
+    {
+        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private static bool IsBuiltInArtworkUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.StartsWith("avares://", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase);
+    }
+
     partial void OnSelectedContentTypeChanged(ContentType value)
     {
         OnPropertyChanged(nameof(CanExtend));
@@ -1870,12 +1889,6 @@ public partial class AddContentDialogViewModel(
         };
     }
 
-    private bool IsRemoteArtworkUrl(string value)
-    {
-        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
-            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-    }
-
     private string? NormalizeArtworkValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -1897,7 +1910,7 @@ public partial class AddContentDialogViewModel(
                 continue;
             }
 
-            if (!IsRemoteArtworkUrl(value) && !File.Exists(value))
+            if (!IsRemoteArtworkUrl(value) && !IsBuiltInArtworkUrl(value) && !File.Exists(value))
             {
                 ValidationError = string.Format(
                     GetLocalizedString(

@@ -336,9 +336,10 @@ public sealed class JsonPublisherCatalogParserTests
         Assert.Equal("community-competitive-hub", result.Data!.Publisher.Id);
         Assert.Contains(result.Data.Content, c => c.ContentType == ContentType.ContentBundle);
         var bundle = Assert.Single(result.Data.Content, c => c.Id == "thesuperhackers-competitive-bundle");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "thesuperhackers-client");
         Assert.Contains(bundle.BundledItems, d => d.ContentId == "l3m-controlbar");
-        Assert.Contains(bundle.BundledItems, d => d.ContentId == "gentool");
-        Assert.Contains(bundle.BundledItems, d => d.ContentId == "competitive-hotkeys");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "leikeze-hotkeys");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "eliorata-improved-menus");
     }
 
     /// <summary>

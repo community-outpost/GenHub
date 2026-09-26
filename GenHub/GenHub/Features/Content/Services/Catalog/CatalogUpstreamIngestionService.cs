@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
@@ -437,7 +438,19 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var downloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl;
+        string? downloadUrl = null;
+        long downloadSize = matched.DownloadSize;
+
+        if (matched.Data is GeneralsOnlineRelease goRelease)
+        {
+            downloadUrl = goRelease.PortableUrl;
+            if (goRelease.PortableSize.HasValue && goRelease.PortableSize.Value > 0)
+            {
+                downloadSize = goRelease.PortableSize.Value;
+            }
+        }
+
+        downloadUrl ??= matched.SelectedDownloadUrl ?? matched.SourceUrl;
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
             logger.LogWarning("{Provider} item '{ItemId}' has no usable download URL, keeping existing releases", providerDisplayName, item.Id);
@@ -455,7 +468,7 @@ public class CatalogUpstreamIngestionService(
         {
             Filename = $"{item.Id}-{synthesized.Version}.zip",
             DownloadUrl = downloadUrl,
-            Size = matched.DownloadSize,
+            Size = downloadSize,
             IsPrimary = true,
         });
 

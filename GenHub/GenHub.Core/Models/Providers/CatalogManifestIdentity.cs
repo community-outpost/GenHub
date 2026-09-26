@@ -162,14 +162,36 @@ public static class CatalogManifestIdentity
         if (!string.IsNullOrWhiteSpace(publisherType))
         {
             var raw = publisherType.Trim();
-            if (raw.Equals(CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) ||
-                raw.Equals(PublisherTypeConstants.ModDB, StringComparison.OrdinalIgnoreCase))
+            var normalized = raw.ToLowerInvariant().Replace("-", string.Empty).Replace(" ", string.Empty);
+
+            if (normalized == "communityoutpost" || raw.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
             {
-                return raw.ToLowerInvariant();
+                return CommunityOutpostConstants.PublisherType;
+            }
+
+            if (normalized == "generalsonline" || raw.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+            {
+                return PublisherTypeConstants.GeneralsOnline;
+            }
+
+            if (normalized == "thesuperhackers" || raw.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+            {
+                return PublisherTypeConstants.TheSuperHackers;
+            }
+
+            if (normalized == "github" || normalized == "githubreleases" || raw.Equals(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase))
+            {
+                return PublisherTypeConstants.GitHub;
+            }
+
+            if (normalized == "moddb" || raw.Equals(PublisherTypeConstants.ModDB, StringComparison.OrdinalIgnoreCase))
+            {
+                return PublisherTypeConstants.ModDB;
+            }
+
+            if (raw.Equals(CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))
+            {
+                return CatalogConstants.GenericCatalogResolverId;
             }
         }
 
@@ -178,12 +200,38 @@ public static class CatalogManifestIdentity
 
     /// <summary>
     /// Resolves the declared publisher type / native pipeline for a catalog item.
+    /// Checks the item's declared publisher type, falling back to upstream provider if present.
     /// Returns an allowlisted publisher type or defaults to <see cref="CatalogConstants.GenericCatalogResolverId"/>.
     /// </summary>
     /// <param name="item">The catalog content item.</param>
     /// <returns>The normalized publisher type string.</returns>
-    public static string ResolveDeclaredPublisherType(CatalogContentItem? item) =>
-        ResolveDeclaredPublisherType(item?.PublisherType);
+    public static string ResolveDeclaredPublisherType(CatalogContentItem? item)
+    {
+        if (item == null)
+        {
+            return CatalogConstants.GenericCatalogResolverId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.PublisherType))
+        {
+            var resolved = ResolveDeclaredPublisherType(item.PublisherType);
+            if (resolved != CatalogConstants.GenericCatalogResolverId)
+            {
+                return resolved;
+            }
+        }
+
+        if (item.UpstreamSync != null && !string.IsNullOrWhiteSpace(item.UpstreamSync.Provider))
+        {
+            var resolvedFromProvider = ResolveDeclaredPublisherType(item.UpstreamSync.Provider);
+            if (resolvedFromProvider != CatalogConstants.GenericCatalogResolverId)
+            {
+                return resolvedFromProvider;
+            }
+        }
+
+        return CatalogConstants.GenericCatalogResolverId;
+    }
 
     /// <summary>
     /// Converts a hyphen- or dot-separated slug into a human-readable title.
