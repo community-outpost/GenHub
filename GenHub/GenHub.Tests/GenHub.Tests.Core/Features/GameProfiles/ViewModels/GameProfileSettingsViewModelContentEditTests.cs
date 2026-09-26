@@ -198,6 +198,55 @@ public class GameProfileSettingsViewModelContentEditTests
         Assert.Equal("/games/edited", request.GameClient?.WorkingDirectory);
     }
 
+    /// <summary>Manifest refreshes do not turn a subsequent map edit into a client selection change.</summary>
+    /// <param name="replaceClient">Whether to replace the client instead of the installation.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SaveAsync_AfterManifestReplacementAndMapEdit_PreservesNameAsync(bool replaceClient)
+    {
+        SetupProfile(isRunning: false, includeClient: replaceClient);
+        await _viewModel.InitializeForProfileAsync(ProfileId);
+        var oldId = replaceClient ? TshClientId : InstallId;
+        var newId = replaceClient
+            ? "1.20260102.thesuperhackers.gameclient.zerohour"
+            : "1.105.steam.gameinstallation.zerohour";
+        var replacement = new CoreContentDisplayItem
+        {
+            Id = newId,
+            ManifestId = newId,
+            DisplayName = "Updated manifest name",
+            ContentType = replaceClient ? ContentType.GameClient : ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            SourceId = InstallSourceId,
+            GameClient = new GameClient
+            {
+                Id = newId,
+                Name = "Updated manifest name",
+                GameType = GameType.ZeroHour,
+                ExecutablePath = "/games/updated/generalszh",
+            },
+        };
+        _contentLoaderMock.Setup(c => c.CreateManifestDisplayItem(
+            It.Is<ContentManifest>(m => m.Id.Value == newId),
+            It.IsAny<string?>(),
+            It.IsAny<string?>(),
+            It.IsAny<bool>()))
+            .Returns(replacement);
+
+        await _viewModel.HandleManifestReplacementAsync(oldId, newId);
+        await EnableMapAsync();
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        var request = Assert.Single(_updateRequests);
+        Assert.Equal(ProfileName, request.Name);
+        Assert.Contains(newId, request.EnabledContentIds!);
+        Assert.Equal(replaceClient ? newId : TshClientId, request.GameClient?.Id);
+        Assert.Equal(replaceClient ? "/games/updated/generalszh" : TshExecutablePath, request.GameClient?.ExecutablePath);
+    }
+
     private static GameLaunchInfo CreateActiveLaunch(string profileId) => new()
     {
         LaunchId = "launch-1",

@@ -852,6 +852,7 @@ public partial class GameProfileSettingsViewModel
         return updateRequest;
     }
 
+    /// <summary>Preserves a stored client for unchanged selections while accepting explicit client edits.</summary>
     private GameClient? ResolveGameClientForUpdate()
     {
         if (_originalProfile?.GameClient != null &&

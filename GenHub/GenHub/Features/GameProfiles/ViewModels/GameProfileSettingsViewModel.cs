@@ -356,6 +356,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                         var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
                         var viewModelItem = ConvertToViewModelContentDisplayItem(coreItem);
                         viewModelItem.IsEnabled = true;
+                        RemapClientSelectionSnapshots(oldId, newId);
                         EnabledContent[index] = viewModelItem;
                         affected = true;
                     }
@@ -381,6 +382,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 if (manifestResult.Success && manifestResult.Data != null)
                 {
                     var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
+                    RemapClientSelectionSnapshots(oldId, newId);
                     SelectedGameInstallation = ConvertToViewModelContentDisplayItem(coreItem);
                     SelectedGameInstallation.IsEnabled = true;
                     affected = true;
@@ -407,6 +409,26 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         await RefreshVisibleFiltersAsync();
         await LoadAvailableContentAsync();
+    }
+
+    /// <summary>Replaces only matching manifest components, retaining any unsaved selection differences.</summary>
+    private static string? RemapSelectionKey(string? key, string oldId, string newId)
+    {
+        if (key == null)
+        {
+            return null;
+        }
+
+        var parts = key.Split('|');
+        for (var index = 0; index < 2; index++)
+        {
+            if (string.Equals(parts[index], oldId, StringComparison.Ordinal))
+            {
+                parts[index] = newId;
+            }
+        }
+
+        return string.Join("|", parts);
     }
 
     private static string NormalizeResourcePath(string? path, string defaultUri = "")
@@ -1080,6 +1102,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
+    /// <summary>Returns the enabled client and installation used for branding and persistence.</summary>
     private (ContentDisplayItem? Client, ContentDisplayItem? Installation) GetActiveClientSelection()
     {
         var activeClientItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
@@ -1088,18 +1111,28 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return (activeClientItem, activeInstallationItem);
     }
 
+    /// <summary>Preserves selection identity when a manifest is replaced without a user selection change.</summary>
+    private void RemapClientSelectionSnapshots(string oldId, string newId)
+    {
+        _loadedClientSelectionKey = RemapSelectionKey(_loadedClientSelectionKey, oldId, newId);
+        _brandingSelectionKey = RemapSelectionKey(_brandingSelectionKey, oldId, newId);
+    }
+
+    /// <summary>Identifies the selected manifests and installation source independently of other content.</summary>
     private string GetClientSelectionKey()
     {
         var (client, installation) = GetActiveClientSelection();
         return $"{client?.ManifestId.Value}|{installation?.ManifestId.Value}|{SelectedGameInstallation?.SourceId}";
     }
 
+    /// <summary>Records the loaded or restored selection as the baseline for subsequent edits.</summary>
     private void CaptureLoadedClientSelection()
     {
         _loadedClientSelectionKey = GetClientSelectionKey();
         _brandingSelectionKey = _loadedClientSelectionKey;
     }
 
+    /// <summary>Determines whether the user selected a different client or installation since loading.</summary>
     private bool HasClientSelectionChangedSinceLoad() =>
         _loadedClientSelectionKey == null ||
         !string.Equals(GetClientSelectionKey(), _loadedClientSelectionKey, StringComparison.Ordinal);
@@ -1122,6 +1155,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             ?? ResolveStandardGameBranding(displayName, gameType);
     }
 
+    /// <summary>Preserves existing profile branding when only unrelated content changes.</summary>
     private bool HasUnchangedBrandingSelection(string selectionKey) =>
         !string.IsNullOrEmpty(CurrentProfileId) &&
         string.Equals(selectionKey, _brandingSelectionKey, StringComparison.Ordinal);
