@@ -807,12 +807,8 @@ public partial class GameProfileLauncherViewModel(
         var dialogLockAcquired = false;
         try
         {
-            if (!await _importDialogSemaphore.WaitAsync(0, cancellationToken))
+            if (!await TryAcquireDropImportLockAsync(cancellationToken))
             {
-                logger.LogWarning("A profile import is already in progress. Ignoring concurrent drop.");
-                notificationService.ShowWarning(
-                    localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressTitle") ?? "Import In Progress",
-                    localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressMsg") ?? "A profile import dialog is already open.");
                 return;
             }
 
@@ -828,65 +824,16 @@ public partial class GameProfileLauncherViewModel(
             var mainWindow = GetMainWindow();
             if (mainWindow != null)
             {
-                var settingsWindow = new GameProfileSettingsWindow
-                {
-                    DataContext = settingsViewModel,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                };
-
-                _lastOperationSuccess = false;
-                _expectedProfileIdForSuccess = null;
-                _isCreatingNewProfile = true;
-
-                settingsWindow.Opened += async (s, e) =>
-                {
-                    try
-                    {
-                        await settingsViewModel.ImportDroppedFilesAsync(paths, detectedContentType, detectedGameType, settingsWindow);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Failed to import dropped files into new profile");
-                    }
-                };
-
-                try
-                {
-                    await settingsWindow.ShowDialog(mainWindow);
-                    var outcomeMessage = _lastOperationSuccess
-                        ? localizationService["GameProfiles.Status.ProfileCreatedSuccess"]
-                        : localizationService["GameProfiles.Status.ProfileCreationCancelled"];
-                    StatusMessage = outcomeMessage;
-                    if (_lastOperationSuccess)
-                    {
-                        notificationService.ShowSuccess(
-                            localizationService["Messages.Success.ProfileCreated"],
-                            outcomeMessage,
-                            NotificationDurations.Medium);
-                    }
-                    else
-                    {
-                        notificationService.ShowInfo(outcomeMessage, outcomeMessage, NotificationDurations.Medium);
-                    }
-                }
-                finally
-                {
-                    _isCreatingNewProfile = false;
-                }
+                await ShowDropNewProfileDialogAsync(paths, detectedGameType, detectedContentType, mainWindow, cancellationToken);
             }
             else
             {
-                var mainWindowMissingMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
-                StatusMessage = mainWindowMissingMessage;
-                notificationService.ShowError(
-                    localizationService[NotificationErrorTitleKey],
-                    mainWindowMissingMessage,
-                    NotificationDurations.Long);
+                NotifyMainWindowMissing();
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation("Dropped content inspection was cancelled.");
+            logger.LogInformation(ex, "Dropped content inspection was cancelled.");
             StatusMessage = localizationService["GameProfiles.Status.ProfileCreationCancelled"];
         }
         catch (Exception ex)
@@ -1248,6 +1195,109 @@ public partial class GameProfileLauncherViewModel(
         }
 
         return current;
+    }
+
+    /// <summary>
+    /// Acquires the drop-import dialog lock, warning when another import is already in progress.
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the lock acquisition.</param>
+    /// <returns>True when the lock was acquired; otherwise false.</returns>
+    private async Task<bool> TryAcquireDropImportLockAsync(CancellationToken cancellationToken)
+    {
+        if (await _importDialogSemaphore.WaitAsync(0, cancellationToken))
+        {
+            return true;
+        }
+
+        logger.LogWarning("A profile import is already in progress. Ignoring concurrent drop.");
+        notificationService.ShowWarning(
+            localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressTitle") ?? "Import In Progress",
+            localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressMsg") ?? "A profile import dialog is already open.");
+        return false;
+    }
+
+    /// <summary>
+    /// Shows the new-profile dialog for dropped content and reports the outcome.
+    /// </summary>
+    /// <param name="paths">The dropped paths to stage once the dialog opens.</param>
+    /// <param name="detectedGameType">The detected game type suggestion.</param>
+    /// <param name="detectedContentType">The detected content type suggestion.</param>
+    /// <param name="mainWindow">The owning main window.</param>
+    /// <param name="cancellationToken">Token to cancel staging of the dropped paths.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task ShowDropNewProfileDialogAsync(
+        IReadOnlyList<string> paths,
+        GameType detectedGameType,
+        ContentType detectedContentType,
+        Window mainWindow,
+        CancellationToken cancellationToken)
+    {
+        var settingsWindow = new GameProfileSettingsWindow
+        {
+            DataContext = settingsViewModel,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+
+        _lastOperationSuccess = false;
+        _expectedProfileIdForSuccess = null;
+        _isCreatingNewProfile = true;
+
+        settingsWindow.Opened += async (s, e) =>
+        {
+            try
+            {
+                await settingsViewModel.ImportDroppedFilesAsync(paths, detectedContentType, detectedGameType, settingsWindow, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to import dropped files into new profile");
+            }
+        };
+
+        try
+        {
+            await settingsWindow.ShowDialog(mainWindow);
+            NotifyDropOutcome();
+        }
+        finally
+        {
+            _isCreatingNewProfile = false;
+        }
+    }
+
+    /// <summary>
+    /// Reports the new-profile drop outcome through the status message and a toast.
+    /// </summary>
+    private void NotifyDropOutcome()
+    {
+        var outcomeMessage = _lastOperationSuccess
+            ? localizationService["GameProfiles.Status.ProfileCreatedSuccess"]
+            : localizationService["GameProfiles.Status.ProfileCreationCancelled"];
+        StatusMessage = outcomeMessage;
+        if (_lastOperationSuccess)
+        {
+            notificationService.ShowSuccess(
+                localizationService["Messages.Success.ProfileCreated"],
+                outcomeMessage,
+                NotificationDurations.Medium);
+        }
+        else
+        {
+            notificationService.ShowInfo(outcomeMessage, outcomeMessage, NotificationDurations.Medium);
+        }
+    }
+
+    /// <summary>
+    /// Reports that the main window is unavailable for the drop dialog.
+    /// </summary>
+    private void NotifyMainWindowMissing()
+    {
+        var mainWindowMissingMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
+        StatusMessage = mainWindowMissingMessage;
+        notificationService.ShowError(
+            localizationService[NotificationErrorTitleKey],
+            mainWindowMissingMessage,
+            NotificationDurations.Long);
     }
 
     /// <summary>

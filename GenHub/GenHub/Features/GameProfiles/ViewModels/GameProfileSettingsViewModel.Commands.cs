@@ -109,7 +109,7 @@ public partial class GameProfileSettingsViewModel
             foreach (var p in paths.Where(p => System.IO.File.Exists(p) || System.IO.Directory.Exists(p)))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await vm.ImportContentAsync(p);
+                await vm.ImportContentAsync(p, cancellationToken);
             }
 
             var window = new Views.AddLocalContentWindow
@@ -131,14 +131,14 @@ public partial class GameProfileSettingsViewModel
                 _logger?.LogInformation("Added dropped local content via dialog: {Name}", contentItem.DisplayName);
 
                 NotifyLocalContentAdded(contentItem.DisplayName);
-                await EnableContentInternal(contentItem, bypassLoadingGuard: true);
+                await EnableContentInternal(contentItem, bypassLoadingGuard: true, cancellationToken: cancellationToken);
 
                 await RefreshFiltersAndContentAsync();
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
-            _logger?.LogInformation("Dropped file import was cancelled.");
+            _logger?.LogInformation(ex, "Dropped file import was cancelled.");
         }
         catch (Exception ex)
         {

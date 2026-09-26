@@ -80,13 +80,14 @@ public class MapFile : INotifyPropertyChanged
 
     /// <summary>
     /// Gets or sets the list of asset file paths associated with this map (.tga, .ini, .str, .txt).
+    /// Exposed read-only so in-place mutations cannot silently stale the cached type parts.
     /// </summary>
-    public List<string> AssetFiles
+    public IReadOnlyList<string> AssetFiles
     {
         get => _assetFiles;
         set
         {
-            _assetFiles = value;
+            _assetFiles = value?.ToList() ?? [];
             InvalidateMapTypeParts();
         }
     }

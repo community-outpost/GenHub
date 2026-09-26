@@ -134,8 +134,8 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
         // Load icons
         var iconFiles = new (string FileName, string BaseName, string? GameType)[]
         {
-            ("generals-icon.png", "Generals", GeneralsGameType),
-            ("zerohour-icon.png", "Zero Hour", ZeroHourGameType),
+            ("generals-icon.png", GeneralsGameType, GeneralsGameType),
+            ("zerohour-icon.png", ZeroHourGameType, ZeroHourGameType),
             ("generalshub-icon.png", "GenHub", null),
             ("steam-icon.png", "Steam", null),
             ("eaapp-icon.png", "EA App", null),
@@ -196,8 +196,8 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
         // Load game images as icons
         var imageFiles = new (string FileName, string BaseName, string? GameType)[]
         {
-            ("zero-hour-logo.png", "Zero Hour", ZeroHourGameType),
-            ("generals-logo.png", "Generals", GeneralsGameType),
+            ("zero-hour-logo.png", ZeroHourGameType, ZeroHourGameType),
+            ("generals-logo.png", GeneralsGameType, GeneralsGameType),
         };
 
         foreach (var (fileName, baseName, gameType) in imageFiles)
@@ -215,9 +215,9 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger, ILoc
         // Load covers
         var coverFiles = new[]
         {
-            ("generals-cover.png", "Generals", CoverFormatKey, "Generals"),
-            ("generals-cover-2.png", "Generals", CoverAltFormatKey, "Generals"),
-            ("zerohour-cover.png", "Zero Hour", CoverFormatKey, "ZeroHour"),
+            ("generals-cover.png", GeneralsGameType, CoverFormatKey, GeneralsGameType),
+            ("generals-cover-2.png", GeneralsGameType, CoverAltFormatKey, GeneralsGameType),
+            ("zerohour-cover.png", ZeroHourGameType, CoverFormatKey, ZeroHourGameType),
         };
 
         foreach (var (fileName, baseName, formatKey, gameType) in coverFiles)

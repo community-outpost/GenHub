@@ -324,8 +324,9 @@ public partial class AddLocalContentViewModel(
     /// Imports content from the specified path into the staging directory.
     /// </summary>
     /// <param name="path">The local path to the file or directory.</param>
+    /// <param name="cancellationToken">Token to cancel the staging operation.</param>
     /// <returns>A task representing the operation.</returns>
-    public async Task ImportContentAsync(string path)
+    public async Task ImportContentAsync(string path, CancellationToken cancellationToken = default)
     {
         logger?.LogDebug("ImportContentAsync called with path: {Path}", path);
 
@@ -349,7 +350,8 @@ public partial class AddLocalContentViewModel(
             _cts = new CancellationTokenSource();
         }
 
-        var cancellationToken = _cts.Token;
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+        var effectiveToken = linkedCts.Token;
 
         try
         {
@@ -362,7 +364,7 @@ public partial class AddLocalContentViewModel(
                 Directory.CreateDirectory(_stagingPath);
             }
 
-            var staged = await StageContentFromPathAsync(path, cancellationToken);
+            var staged = await StageContentFromPathAsync(path, effectiveToken);
             if (!staged)
             {
                 return;
@@ -370,7 +372,7 @@ public partial class AddLocalContentViewModel(
 
             CreateMapFoldersIfNeeded();
 
-            var normalizationSetStatus = await HandleGenLauncherNormalizationAsync(cancellationToken);
+            var normalizationSetStatus = await HandleGenLauncherNormalizationAsync(effectiveToken);
             if (normalizationSetStatus == null)
             {
                 return;

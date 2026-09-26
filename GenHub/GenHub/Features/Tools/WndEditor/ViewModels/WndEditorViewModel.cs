@@ -2510,10 +2510,15 @@ public sealed partial class WndEditorViewModel(
     {
         try
         {
+            // Default macOS volumes are case-insensitive, so explorer containment must ignore
+            // casing there; case-sensitive platforms keep ordinal semantics.
+            var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
             var normalizedPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var normalizedBase = Path.GetFullPath(basePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, PathHelper.PathComparison)
-                || string.Equals(normalizedPath, normalizedBase, PathHelper.PathComparison);
+            return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, comparison)
+                || string.Equals(normalizedPath, normalizedBase, comparison);
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
         {
