@@ -340,9 +340,12 @@ public class SectionScrollSpyTests
         {
             var reported = new List<string>();
             using var spy = CreateAttachedSpy(host, reported);
+
+            host.ScrollViewer.Offset = new Vector(0, 50);
+            Dispatcher.UIThread.RunJobs();
             reported.Clear();
 
-            // Explicitly set offset to 0 to trigger scroll event at the very top
+            // Explicitly set offset back to 0 to trigger scroll event at the very top
             host.ScrollViewer.Offset = new Vector(0, 0);
             Dispatcher.UIThread.RunJobs();
 
