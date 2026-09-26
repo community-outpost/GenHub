@@ -10,6 +10,11 @@ namespace GenHub.Core.Models.Telemetry;
 public sealed class TelemetryEvent
 {
     /// <summary>
+    /// Gets the unique event identifier.
+    /// </summary>
+    public string EventId { get; init; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>
     /// Gets the unique event name identifier.
     /// </summary>
     public string EventName { get; init; } = string.Empty;

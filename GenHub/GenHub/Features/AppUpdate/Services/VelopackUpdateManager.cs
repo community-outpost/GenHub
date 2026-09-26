@@ -397,7 +397,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             // Try fallback to exit-only mode
             try
             {
-                TrackUpdateAppliedAndFlush(updateInfo.TargetFullRelease.Version.ToString());
                 _updateManager.ApplyUpdatesAndExit(updateInfo.TargetFullRelease);
                 _logger.LogInformation("Fallback to ApplyUpdatesAndExit succeeded. Please restart the application manually.");
             }
@@ -448,7 +447,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             });
 
             using var flushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            _telemetryService?.FlushAsync(flushCts.Token).GetAwaiter().GetResult();
+            if (_telemetryService != null)
+            {
+                Task.Run(async () => await _telemetryService.FlushAsync(flushCts.Token).ConfigureAwait(false)).GetAwaiter().GetResult();
+            }
         }
         catch (Exception ex)
         {

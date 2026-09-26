@@ -100,6 +100,7 @@ public class TelemetryConstantsTests
             TelemetryConstants.Properties.FileSizeBytes,
             TelemetryConstants.Properties.DurationSeconds,
             TelemetryConstants.Properties.ExitCode,
+            TelemetryConstants.Properties.WasGraceful,
             TelemetryConstants.Properties.Platform,
             TelemetryConstants.Properties.Runner,
             TelemetryConstants.Properties.Resolution,

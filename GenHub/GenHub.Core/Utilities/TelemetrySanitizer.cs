@@ -159,35 +159,51 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
             return SanitizeString(strValue);
         }
 
+        if (value is Uri uri)
+        {
+            return SanitizeString(uri.ToString());
+        }
+
         var valType = value.GetType();
 
-        // For non-primitive reference types, track visited set to prevent cyclic recursion
-        if (!valType.IsValueType && value is not (string or System.Type) && !visited.Add(value))
+        // For non-primitive reference types, track visited set along the recursion path to prevent cyclic recursion
+        var tracked = !valType.IsValueType && value is not (string or System.Type or Uri);
+        if (tracked && !visited.Add(value))
         {
             return "[CircularReference]";
         }
 
-        if (value is IReadOnlyDictionary<string, object?> roDict)
+        try
         {
-            return SanitizeReadOnlyDictionary(roDict, visited, depth);
-        }
+            if (value is IReadOnlyDictionary<string, object?> roDict)
+            {
+                return SanitizeReadOnlyDictionary(roDict, visited, depth);
+            }
 
-        if (value is System.Collections.IDictionary dict)
+            if (value is System.Collections.IDictionary dict)
+            {
+                return SanitizeDictionary(dict, visited, depth);
+            }
+
+            if (valType.IsGenericType && valType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+            {
+                return SanitizeKeyValuePair(value, valType, visited, depth);
+            }
+
+            if (value is System.Collections.IEnumerable enumerable and not string)
+            {
+                return SanitizeEnumerable(enumerable, visited, depth);
+            }
+
+            return SanitizeCustomObject(value, valType, visited, depth);
+        }
+        finally
         {
-            return SanitizeDictionary(dict, visited, depth);
+            if (tracked)
+            {
+                visited.Remove(value);
+            }
         }
-
-        if (valType.IsGenericType && valType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
-        {
-            return SanitizeKeyValuePair(value, valType, visited, depth);
-        }
-
-        if (value is System.Collections.IEnumerable enumerable and not string)
-        {
-            return SanitizeEnumerable(enumerable, visited, depth);
-        }
-
-        return SanitizeCustomObject(value, valType, visited, depth);
     }
 
     private Dictionary<string, object?> SanitizeReadOnlyDictionary(

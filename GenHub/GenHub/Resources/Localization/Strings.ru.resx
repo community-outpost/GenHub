@@ -2284,7 +2284,7 @@
     <comment>Title for file picker dialog when selecting settings file location</comment>
   </data>
   <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Description" xml:space="preserve">
-    <value>Выберите, какими анонимными данными об использовании и диагностикой сбоев делиться для улучшения GenHub. Все пути и личные идентификаторы очищаются перед отправкой.</value>
+    <value>Выберите, какими анонимными данными об использовании и диагностикой сбоев делиться для улучшения GenHub. Пути и личные идентификаторы, распознаваемые системой очистки, очищаются перед отправкой.</value>
     <comment>Description for telemetry and crash reporting level setting.</comment>
   </data>
   <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Label" xml:space="preserve">

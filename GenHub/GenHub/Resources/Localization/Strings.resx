@@ -2288,7 +2288,7 @@
     <comment>Title for file picker dialog when selecting settings file location</comment>
   </data>
   <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Description" xml:space="preserve">
-    <value>Choose what anonymous usage metrics and crash diagnostics to share to help improve GenHub. All paths and personal identifiers are sanitized before transmission.</value>
+    <value>Choose what anonymous usage metrics and crash diagnostics to share to help improve GenHub. Paths and personal identifiers recognized by the sanitization system are sanitized before transmission.</value>
     <comment>Description for telemetry and crash reporting level setting.</comment>
   </data>
   <data name="Settings.DiagnosticsPrivacy.TelemetryLevel.Label" xml:space="preserve">

@@ -39,7 +39,7 @@ public sealed class AnalyticsTelemetrySink(
     /// Gets or sets the remote HTTP endpoint URL for analytics ingestion (e.g. PostHog capture endpoint).
     /// When null or empty, defaults to the configured default PostHog capture URL or buffers locally.
     /// </summary>
-    public string? EndpointUrl { get; set; } = Environment.GetEnvironmentVariable("POSTHOG_CAPTURE_URL") ?? (Environment.GetEnvironmentVariable("POSTHOG_HOST") != null ? $"{Environment.GetEnvironmentVariable("POSTHOG_HOST")?.TrimEnd('/')}/capture/" : TelemetryConstants.DefaultPostHogCaptureEndpoint);
+    public string? EndpointUrl { get; set; } = Environment.GetEnvironmentVariable("POSTHOG_CAPTURE_URL") ?? (Environment.GetEnvironmentVariable("POSTHOG_HOST") != null ? $"{Environment.GetEnvironmentVariable("POSTHOG_HOST")?.TrimEnd('/')}/i/v0/e/" : TelemetryConstants.DefaultPostHogCaptureEndpoint);
 
     /// <summary>
     /// Gets or sets the analytics project API token / key (e.g. PostHog project token).

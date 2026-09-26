@@ -63,6 +63,8 @@ A machine-readable configuration template is located at [`docs/dev/posthog-dashb
 
 ### HogQL & Trends Queries
 
+> **Note on Reporting Window**: By default, dashboard tiles apply a trailing 30-day window (`timestamp >= now() - INTERVAL 30 DAY`). The standalone HogQL snippets below can be run with or without the 30-day window constraint depending on whether cohort lifetime totals or trailing 30-day metrics are desired.
+
 #### Game Sessions by Game Type
 ```sql
 SELECT
@@ -87,8 +89,8 @@ GROUP BY runner
 #### Session Duration Distribution
 ```sql
 SELECT
-    round(avg(toFloat64OrNull(properties.session_duration_seconds)) / 60, 1) AS avg_duration_minutes,
-    median(toFloat64OrNull(properties.session_duration_seconds)) / 60 AS median_duration_minutes
+    round(avg(toFloat64OrNull(properties.duration_seconds)) / 60, 1) AS avg_duration_minutes,
+    median(toFloat64OrNull(properties.duration_seconds)) / 60 AS median_duration_minutes
 FROM events
 WHERE event = 'game_session_ended'
 ```

@@ -114,7 +114,7 @@ public class ProfileSharingService(
             {
                 [TelemetryConstants.Properties.ProfileId] = profileId,
                 [TelemetryConstants.Properties.ShareFormat] = "uri",
-                [TelemetryConstants.Properties.FileSizeBytes] = encodedPayload.Length,
+                [TelemetryConstants.Properties.FileSizeBytes] = Encoding.UTF8.GetByteCount(shareUri),
             });
             return OperationResult<string>.CreateSuccess(shareUri);
         }
@@ -164,7 +164,7 @@ public class ProfileSharingService(
             {
                 [TelemetryConstants.Properties.ProfileId] = profileId,
                 [TelemetryConstants.Properties.ShareFormat] = "file",
-                [TelemetryConstants.Properties.FileSizeBytes] = json.Length,
+                [TelemetryConstants.Properties.FileSizeBytes] = new FileInfo(destinationPath).Length,
             });
             return OperationResult<string>.CreateSuccess(destinationPath);
         }
@@ -201,7 +201,7 @@ public class ProfileSharingService(
             {
                 [TelemetryConstants.Properties.ProfileId] = profileId,
                 [TelemetryConstants.Properties.ShareFormat] = "json",
-                [TelemetryConstants.Properties.FileSizeBytes] = json.Length,
+                [TelemetryConstants.Properties.FileSizeBytes] = Encoding.UTF8.GetByteCount(json),
             });
             return OperationResult<string>.CreateSuccess(json);
         }

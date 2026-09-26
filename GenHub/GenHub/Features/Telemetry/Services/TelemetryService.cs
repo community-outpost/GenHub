@@ -34,7 +34,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     private string? _cachedInstallationId;
     private int _inFlightCount;
     private Task? _installationIdSaveTask;
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TelemetryService"/> class.
@@ -99,7 +99,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         IReadOnlyDictionary<string, object?>? properties = null,
         TelemetryLevel level = TelemetryLevel.AnonymousMetrics)
     {
-        if (string.IsNullOrWhiteSpace(eventName) || !IsEnabled(level) || _disposed)
+        if (string.IsNullOrWhiteSpace(eventName) || !IsEnabled(level) || Volatile.Read(ref _disposed) != 0)
         {
             return;
         }
@@ -158,7 +158,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        if (!IsEnabled(TelemetryLevel.CrashReportsOnly) || _disposed)
+        if (!IsEnabled(TelemetryLevel.CrashReportsOnly) || Volatile.Read(ref _disposed) != 0)
         {
             return;
         }
@@ -223,7 +223,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     /// <inheritdoc/>
     public void AddBreadcrumb(string message, string? category = null, IReadOnlyDictionary<string, object?>? data = null)
     {
-        if (string.IsNullOrWhiteSpace(message) || _disposed)
+        if (string.IsNullOrWhiteSpace(message) || Volatile.Read(ref _disposed) != 0)
         {
             return;
         }
@@ -266,7 +266,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             var spinCount = 0;
             while ((_channel.Reader.Count > 0 || Volatile.Read(ref _inFlightCount) > 0) && spinCount < 40 && !cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(25, cancellationToken);
+                await Task.Delay(25, cancellationToken).ConfigureAwait(false);
                 spinCount++;
             }
 
@@ -274,7 +274,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             {
                 try
                 {
-                    await saveTask.WaitAsync(cancellationToken);
+                    await saveTask.WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -283,7 +283,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             }
 
             var tasks = _sinks.Select(sink => sink.FlushAsync(cancellationToken));
-            var results = await Task.WhenAll(tasks);
+            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
             var failures = results.Where(r => !r.Success).ToList();
             if (failures.Count > 0)
             {
@@ -303,12 +303,11 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return;
         }
 
-        _disposed = true;
         _channel.Writer.TryComplete();
         _cts.CancelAfter(TimeSpan.FromSeconds(2));
 
@@ -327,26 +326,25 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return;
         }
 
-        _disposed = true;
         _channel.Writer.TryComplete();
 
         try
         {
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            await _processingTask.WaitAsync(timeoutCts.Token);
-            await FlushAsync(timeoutCts.Token);
+            await _processingTask.WaitAsync(timeoutCts.Token).ConfigureAwait(false);
+            await FlushAsync(timeoutCts.Token).ConfigureAwait(false);
         }
         catch
         {
             // Suppress background task cancellation exceptions on shutdown
         }
 
-        await _cts.CancelAsync();
+        await _cts.CancelAsync().ConfigureAwait(false);
         _cts.Dispose();
     }
 

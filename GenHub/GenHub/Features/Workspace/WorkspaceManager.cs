@@ -561,7 +561,7 @@ public class WorkspaceManager(
                     telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, new Dictionary<string, object?>
                     {
                         [TelemetryConstants.Properties.WorkspaceId] = workspace.Id,
-                        [TelemetryConstants.Properties.Strategy] = workspace.Strategy,
+                        [TelemetryConstants.Properties.Strategy] = workspace.Strategy.ToString(),
                         [TelemetryConstants.Properties.ManifestCount] = configuration.Manifests?.Count ?? 0,
                         [TelemetryConstants.Properties.IsReused] = true,
                         [TelemetryConstants.Properties.Success] = true,
@@ -732,7 +732,7 @@ public class WorkspaceManager(
         telemetryService?.TrackEvent(TelemetryConstants.Events.WorkspacePrepared, new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.WorkspaceId] = workspaceInfo.Id,
-            [TelemetryConstants.Properties.Strategy] = workspaceInfo.Strategy,
+            [TelemetryConstants.Properties.Strategy] = workspaceInfo.Strategy.ToString(),
             [TelemetryConstants.Properties.ManifestCount] = configuration.Manifests?.Count ?? 0,
             [TelemetryConstants.Properties.IsReused] = false,
             [TelemetryConstants.Properties.Success] = true,

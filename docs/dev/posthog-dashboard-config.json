@@ -10,7 +10,7 @@
       "pinned": true,
       "tiles": [
         {
-          "name": "Daily Active Installations (DAU)",
+          "name": "Daily Active Game Launchers (DAU)",
           "type": "Trends",
           "display": "ActionsLineGraph",
           "query": {
@@ -26,7 +26,10 @@
             "dateRange": {
               "date_from": "-30d"
             },
-            "interval": "day"
+            "interval": "day",
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
+            }
           }
         },
         {
@@ -45,6 +48,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
             }
           }
         },
@@ -72,6 +78,9 @@
                   "property": "launch_source"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
             }
           }
         },
@@ -91,6 +100,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
             }
           }
         },
@@ -151,6 +163,9 @@
                   "property": "full_display_version"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
             }
           }
         },
@@ -178,6 +193,9 @@
                   "property": "to_version"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
             }
           }
         },
@@ -197,6 +215,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
             }
           }
         },
@@ -222,6 +243,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
             }
           }
         }
@@ -257,6 +281,9 @@
                   "property": "game_type"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         },
@@ -284,11 +311,14 @@
                   "property": "runner"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBarValue"
             }
           }
         },
         {
-          "name": "Average Session Duration (Minutes)",
+          "name": "Average Session Duration (Seconds)",
           "type": "Trends",
           "display": "ActionsLineGraph",
           "query": {
@@ -297,13 +327,16 @@
               {
                 "kind": "EventsNode",
                 "event": "game_session_ended",
-                "name": "Avg Session Duration",
+                "name": "Avg Session Duration (Seconds)",
                 "math": "avg",
-                "math_property": "session_duration_seconds"
+                "math_property": "duration_seconds"
               }
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         },
@@ -331,6 +364,9 @@
                   "property": "was_graceful"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         }
@@ -366,6 +402,9 @@
                   "property": "share_format"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         },
@@ -393,6 +432,9 @@
                   "property": "success"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
             }
           }
         },
@@ -418,6 +460,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         }
@@ -453,6 +498,9 @@
                   "property": "publisher_id"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
             }
           }
         },
@@ -481,6 +529,9 @@
                   "property": "source_provider"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         },
@@ -501,6 +552,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
             }
           }
         },
@@ -528,6 +582,9 @@
                   "property": "publisher_id"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
             }
           }
         },
@@ -555,6 +612,9 @@
                   "property": "content_name"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
             }
           }
         },
@@ -580,6 +640,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         }
@@ -615,6 +678,9 @@
                   "property": "fix_name"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsTable"
             }
           }
         },
@@ -642,6 +708,9 @@
                   "property": "success"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         },
@@ -669,6 +738,9 @@
                   "property": "content_type"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
             }
           }
         },
@@ -696,6 +768,9 @@
                   "property": "success"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBarValue"
             }
           }
         },
@@ -716,6 +791,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         }
@@ -743,6 +821,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         },
@@ -763,6 +844,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
             }
           }
         },
@@ -790,6 +874,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         },
@@ -810,6 +897,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         },
@@ -837,6 +927,9 @@
                   "property": "success"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         }
@@ -864,6 +957,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
             }
           }
         },
@@ -891,6 +987,9 @@
                   "property": "strategy"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
             }
           }
         },
@@ -918,6 +1017,9 @@
                   "property": "is_reused"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         },
@@ -945,6 +1047,9 @@
                   "property": "success"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         }
@@ -972,6 +1077,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "ActionsLineGraph"
             }
           }
         },
@@ -999,6 +1107,9 @@
                   "property": "has_steam"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         },
@@ -1026,6 +1137,9 @@
                   "property": "has_ea_app"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         },
@@ -1053,6 +1167,9 @@
                   "property": "has_the_first_decade"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsPie"
             }
           }
         },
@@ -1072,6 +1189,9 @@
             ],
             "dateRange": {
               "date_from": "-30d"
+            },
+            "trendsFilter": {
+              "display": "BoldNumber"
             }
           }
         },
@@ -1099,6 +1219,9 @@
                   "property": "game_type"
                 }
               ]
+            },
+            "trendsFilter": {
+              "display": "ActionsBar"
             }
           }
         }

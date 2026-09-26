@@ -568,6 +568,7 @@ public class GameProcessManager(
         }
 
         _managedProcesses.Clear();
+        _sessionMetadata.Clear();
         _stderrBuffers.Clear();
         _requestedTerminations.Clear();
         _failedStartCleanups.Clear();
@@ -733,6 +734,7 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
                 [TelemetryConstants.Properties.DurationSeconds] = duration,
                 [TelemetryConstants.Properties.ExitCode] = exitCode,
+                [TelemetryConstants.Properties.WasGraceful] = exitCode == 0,
                 [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
                 [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
             });

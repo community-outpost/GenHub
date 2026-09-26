@@ -697,6 +697,7 @@ public class DownloadService(
         var destFileInfo = new FileInfo(configuration.DestinationPath);
         if (destFileInfo.Exists && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
         {
+            TrackDownloadCompleted(configuration, destFileInfo.Length, TimeSpan.Zero);
             return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
         }
 

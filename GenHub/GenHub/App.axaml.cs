@@ -569,7 +569,7 @@ public partial class App : Application
             logger?.LogInformation("Received IPC launch command for profile: {ProfileId}", profileId);
 
             // Handle the profile launch
-            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow), nameof(LaunchProfileByIdAsync));
+            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow, "ipc"), nameof(LaunchProfileByIdAsync));
         }
         else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -710,7 +710,7 @@ public partial class App : Application
             TaskContinuationOptions.OnlyOnFaulted);
     }
 
-    private async Task LaunchProfileByIdAsync(string profileId, MainWindow mainWindow)
+    private async Task LaunchProfileByIdAsync(string profileId, MainWindow mainWindow, string launchSource = "shortcut")
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();
 
@@ -730,12 +730,15 @@ public partial class App : Application
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
-                    [TelemetryConstants.Properties.LaunchSource] = "shortcut",
+                    [TelemetryConstants.Properties.LaunchSource] = launchSource,
                 });
-                _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchedFromShortcut, new Dictionary<string, object?>
+                if (string.Equals(launchSource, "shortcut", StringComparison.OrdinalIgnoreCase))
                 {
-                    [TelemetryConstants.Properties.ProfileId] = profileId,
-                });
+                    _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchedFromShortcut, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.ProfileId] = profileId,
+                    });
+                }
 
                 UpdateViewModelAfterLaunch(mainWindow, profileId, launchResult.Data.ProcessInfo.ProcessId);
             }

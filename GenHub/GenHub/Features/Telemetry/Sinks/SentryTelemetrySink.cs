@@ -171,7 +171,7 @@ public sealed class SentryTelemetrySink(
 
         var payload = new Dictionary<string, object?>
         {
-            ["event_id"] = Guid.NewGuid().ToString("N"),
+            ["event_id"] = telemetryEvent.EventId,
             ["timestamp"] = telemetryEvent.Timestamp.ToString("o"),
             ["platform"] = "csharp",
             ["level"] = isFatal ? "fatal" : "error",

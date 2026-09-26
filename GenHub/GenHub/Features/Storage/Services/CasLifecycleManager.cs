@@ -213,15 +213,22 @@ public class CasLifecycleManager(
                 stats.ObjectsDeleted,
                 stats.BytesFreed);
 
-            telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+            try
             {
-                [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
-                [TelemetryConstants.Properties.ObjectsScanned] = stats.ObjectsScanned,
-                [TelemetryConstants.Properties.ObjectsReferenced] = stats.ObjectsReferenced,
-                [TelemetryConstants.Properties.ObjectsDeleted] = stats.ObjectsDeleted,
-                [TelemetryConstants.Properties.BytesFreed] = stats.BytesFreed,
-                [TelemetryConstants.Properties.Success] = true,
-            });
+                telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.ObjectsScanned] = stats.ObjectsScanned,
+                    [TelemetryConstants.Properties.ObjectsReferenced] = stats.ObjectsReferenced,
+                    [TelemetryConstants.Properties.ObjectsDeleted] = stats.ObjectsDeleted,
+                    [TelemetryConstants.Properties.BytesFreed] = stats.BytesFreed,
+                    [TelemetryConstants.Properties.Success] = true,
+                });
+            }
+            catch (Exception teleEx)
+            {
+                logger.LogWarning(teleEx, "Failed to track CAS garbage collection success telemetry");
+            }
 
             return OperationResult<GarbageCollectionStats>.CreateSuccess(stats);
         }
@@ -232,12 +239,19 @@ public class CasLifecycleManager(
         }
         catch (Exception ex)
         {
-            telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+            try
             {
-                [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
-                [TelemetryConstants.Properties.Success] = false,
-                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
-            });
+                telemetryService?.TrackEvent(TelemetryConstants.Events.CasGarbageCollected, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.DurationSeconds] = stopwatch.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.Success] = false,
+                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                });
+            }
+            catch (Exception teleEx)
+            {
+                logger.LogWarning(teleEx, "Failed to track CAS garbage collection failure telemetry");
+            }
 
             logger.LogError(ex, "Garbage collection failed");
             return OperationResult<GarbageCollectionStats>.CreateFailure($"GC failed: {ex.Message}");

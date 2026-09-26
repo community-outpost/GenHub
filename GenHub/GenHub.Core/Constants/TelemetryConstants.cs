@@ -232,6 +232,9 @@ public static class TelemetryConstants
         /// <summary>Process exit code.</summary>
         public const string ExitCode = "exit_code";
 
+        /// <summary>Indicates whether game process exited gracefully (exit code 0).</summary>
+        public const string WasGraceful = "was_graceful";
+
         /// <summary>Operating system platform.</summary>
         public const string Platform = "platform";
 

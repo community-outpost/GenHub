@@ -1050,13 +1050,20 @@ public partial class ReplayManagerViewModel(
             var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
             sw.Stop();
 
-            TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
+            try
             {
-                [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
-                [TelemetryConstants.Properties.FileName] = result != null ? Path.GetFileName(result) : null,
-                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
-                [TelemetryConstants.Properties.Success] = result != null,
-            });
+                TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
+                    [TelemetryConstants.Properties.FileName] = result != null ? Path.GetFileName(result) : null,
+                    [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.Success] = result != null,
+                });
+            }
+            catch (Exception teleEx)
+            {
+                logger.LogWarning(teleEx, "Failed to track replay ZIP export telemetry");
+            }
 
             if (result != null)
             {
@@ -1084,14 +1091,21 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex)
         {
             sw.Stop();
-            TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
+            try
             {
-                [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
-                [TelemetryConstants.Properties.FileName] = null,
-                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
-                [TelemetryConstants.Properties.Success] = false,
-                [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
-            });
+                TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
+                    [TelemetryConstants.Properties.FileName] = null,
+                    [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.Success] = false,
+                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                });
+            }
+            catch (Exception teleEx)
+            {
+                logger.LogWarning(teleEx, "Failed to track replay ZIP export failure telemetry");
+            }
 
             logger.LogError(ex, "Failed to export ZIP directly");
             var exportErrorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ExportErrorTitle") ?? "Export Error";
@@ -2291,14 +2305,21 @@ public partial class ReplayManagerViewModel(
                 SelectedCompatibleProfile,
                 TargetCheckpointFrame);
 
-            TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayCheckpointMinted, new Dictionary<string, object?>
+            try
             {
-                [TelemetryConstants.Properties.GameType] = ActiveCheckpointReplay?.GameVersion.ToString(),
-                [TelemetryConstants.Properties.TargetFrame] = TargetCheckpointFrame,
-                [TelemetryConstants.Properties.ProfileId] = SelectedCompatibleProfile?.Id,
-                [TelemetryConstants.Properties.Success] = result.Success,
-                [TelemetryConstants.Properties.ErrorMessage] = result.FirstError,
-            });
+                TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayCheckpointMinted, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.GameType] = ActiveCheckpointReplay?.GameVersion.ToString(),
+                    [TelemetryConstants.Properties.TargetFrame] = TargetCheckpointFrame,
+                    [TelemetryConstants.Properties.ProfileId] = SelectedCompatibleProfile?.Id,
+                    [TelemetryConstants.Properties.Success] = result.Success,
+                    [TelemetryConstants.Properties.ErrorMessage] = result.FirstError,
+                });
+            }
+            catch (Exception teleEx)
+            {
+                logger.LogWarning(teleEx, "Failed to track replay checkpoint minting telemetry");
+            }
 
             if (result.Success && result.Data != null)
             {
