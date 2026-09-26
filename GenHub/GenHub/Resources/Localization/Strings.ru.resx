@@ -1819,9 +1819,6 @@
   <data name="Online.Action.CopyIp" xml:space="preserve">
     <value>Копировать IP</value>
   </data>
-  <data name="Online.Action.Report" xml:space="preserve">
-    <value>Жалоба</value>
-  </data>
   <data name="Online.Action.Retry" xml:space="preserve">
     <value>Повторить</value>
   </data>
@@ -1920,12 +1917,6 @@
   </data>
   <data name="Online.Error.ProfileRequired" xml:space="preserve">
     <value>Выберите игровой профиль для лобби.</value>
-  </data>
-  <data name="Online.Error.ReportFailed" xml:space="preserve">
-    <value>Не удалось отправить жалобу. Попробуйте снова.</value>
-  </data>
-  <data name="Online.Error.ReportTitle" xml:space="preserve">
-    <value>Не удалось отправить жалобу</value>
   </data>
   <data name="Online.Error.UpdateFailed" xml:space="preserve">
     <value>Не удалось сохранить. Настройки меняет только хост.</value>
@@ -2095,6 +2086,21 @@
   <data name="Online.Member.LaunchedBadge" xml:space="preserve">
     <value>Запущен</value>
   </data>
+  <data name="Online.ProfileSelection.Title" xml:space="preserve">
+    <value>Выбор профиля игры</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Выбор профиля игры</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Выберите профиль для сетевой игры с совместимостью лобби</value>
+  </data>
+  <data name="Online.ProfileSelection.SelectAction" xml:space="preserve">
+    <value>Выбрать</value>
+  </data>
+  <data name="Online.ProfileSelection.Placeholder" xml:space="preserve">
+    <value>Нажмите для выбора профиля...</value>
+  </data>
   <data name="Online.Nickname.Title" xml:space="preserve">
     <value>Никнейм игрока</value>
   </data>
@@ -2127,27 +2133,6 @@
   </data>
   <data name="Online.Quality.Unknown" xml:space="preserve">
     <value>Неизвестно</value>
-  </data>
-  <data name="Online.Report.DialogMessage" xml:space="preserve">
-    <value>Почему вы жалуетесь на {0}?</value>
-  </data>
-  <data name="Online.Report.DialogTitle" xml:space="preserve">
-    <value>Пожаловаться на участника</value>
-  </data>
-  <data name="Online.Report.Reason.Cheating" xml:space="preserve">
-    <value>Читерство</value>
-  </data>
-  <data name="Online.Report.Reason.Griefing" xml:space="preserve">
-    <value>Гриферство</value>
-  </data>
-  <data name="Online.Report.Reason.Harassment" xml:space="preserve">
-    <value>Оскорбления</value>
-  </data>
-  <data name="Online.Report.SuccessMessage" xml:space="preserve">
-    <value>Жалоба отправлена хосту. Причина: {0}.</value>
-  </data>
-  <data name="Online.Report.SuccessTitle" xml:space="preserve">
-    <value>Жалоба отправлена</value>
   </data>
   <data name="Online.List.Title" xml:space="preserve">
     <value>Сети</value>
@@ -11547,9 +11532,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
     <value>Играть с</value>
-  </data>
-  <data name="Online.Detail.LaunchProfilePlaceholder" xml:space="preserve">
-    <value>Автоподбор</value>
   </data>
   <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
     <value>Хост не задал игру — подойдёт любая конфигурация.</value>

@@ -1823,9 +1823,6 @@
   <data name="Online.Action.CopyIp" xml:space="preserve">
     <value>Copy IP</value>
   </data>
-  <data name="Online.Action.Report" xml:space="preserve">
-    <value>Report</value>
-  </data>
   <data name="Online.Action.Retry" xml:space="preserve">
     <value>Retry</value>
   </data>
@@ -1924,12 +1921,6 @@
   </data>
   <data name="Online.Error.ProfileRequired" xml:space="preserve">
     <value>Select a game profile for the lobby.</value>
-  </data>
-  <data name="Online.Error.ReportFailed" xml:space="preserve">
-    <value>Report failed. Please try again.</value>
-  </data>
-  <data name="Online.Error.ReportTitle" xml:space="preserve">
-    <value>Could not send report</value>
   </data>
   <data name="Online.Error.UpdateFailed" xml:space="preserve">
     <value>Save failed. Only the host can change network settings.</value>
@@ -2099,6 +2090,21 @@
   <data name="Online.Member.LaunchedBadge" xml:space="preserve">
     <value>Launched</value>
   </data>
+  <data name="Online.ProfileSelection.Title" xml:space="preserve">
+    <value>Select Game Profile</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Select Game Profile</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Choose a profile for online play with lobby compatibility</value>
+  </data>
+  <data name="Online.ProfileSelection.SelectAction" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="Online.ProfileSelection.Placeholder" xml:space="preserve">
+    <value>Click to select profile...</value>
+  </data>
   <data name="Online.Nickname.Title" xml:space="preserve">
     <value>Player nickname</value>
   </data>
@@ -2131,27 +2137,6 @@
   </data>
   <data name="Online.Quality.Unknown" xml:space="preserve">
     <value>Unknown</value>
-  </data>
-  <data name="Online.Report.DialogMessage" xml:space="preserve">
-    <value>Why are you reporting {0}?</value>
-  </data>
-  <data name="Online.Report.DialogTitle" xml:space="preserve">
-    <value>Report member</value>
-  </data>
-  <data name="Online.Report.Reason.Cheating" xml:space="preserve">
-    <value>Cheating</value>
-  </data>
-  <data name="Online.Report.Reason.Griefing" xml:space="preserve">
-    <value>Griefing</value>
-  </data>
-  <data name="Online.Report.Reason.Harassment" xml:space="preserve">
-    <value>Harassment</value>
-  </data>
-  <data name="Online.Report.SuccessMessage" xml:space="preserve">
-    <value>The host was notified about {0}.</value>
-  </data>
-  <data name="Online.Report.SuccessTitle" xml:space="preserve">
-    <value>Report sent</value>
   </data>
   <data name="Online.List.Title" xml:space="preserve">
     <value>Networks</value>
@@ -11645,9 +11630,6 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   </data>
   <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
     <value>Plays with</value>
-  </data>
-  <data name="Online.Detail.LaunchProfilePlaceholder" xml:space="preserve">
-    <value>Auto-match</value>
   </data>
   <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
     <value>Host set no game — any setup works.</value>

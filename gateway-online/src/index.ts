@@ -248,7 +248,7 @@ export const buildAdapterConfig = async (
     overlayIp: overlayIp ?? "",
     networkId,
     relay: {
-      host: env.RELAY_HOST ?? "130.61.202.35", // NOSONAR
+      host: env.RELAY_HOST ?? "141.144.254.124", // NOSONAR
       port: numVar(env.RELAY_PORT, 8088),
     },
     turn,

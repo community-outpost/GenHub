@@ -184,6 +184,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     private GameProfile? _selectedHostProfile;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedPlayProfileDisplayName))]
     private GameProfile? _selectedPlayProfile;
 
     [ObservableProperty]
@@ -252,6 +253,12 @@ public sealed partial class OnlineViewModel : ViewModelBase,
 
     [ObservableProperty]
     private string _joinPassword = string.Empty;
+
+    /// <summary>
+    /// Gets the display name for the selected play profile or a localized placeholder.
+    /// </summary>
+    public string SelectedPlayProfileDisplayName =>
+        SelectedPlayProfile?.Name ?? GetLocalizedString("Online.ProfileSelection.Placeholder", "Click to select profile...");
 
     /// <summary>
     /// Gets a value indicating whether the currently selected network requires a password.
@@ -2104,21 +2111,24 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return;
         }
 
-        for (var i = 0; i < Members.Count; i++)
+        RunOnUi(() =>
         {
-            var m = Members[i];
-            if (string.Equals(m.OverlayIp, localIp, StringComparison.OrdinalIgnoreCase))
+            for (var i = 0; i < Members.Count; i++)
             {
-                Members[i] = m with
+                var m = Members[i];
+                if (string.Equals(m.OverlayIp, localIp, StringComparison.OrdinalIgnoreCase))
                 {
-                    ProfileFingerprint = fingerprint,
-                    ProfileName = profileName,
-                    DisplayName = !string.IsNullOrWhiteSpace(displayName) ? displayName : m.DisplayName,
-                    IsLaunched = isLaunched,
-                };
-                break;
+                    Members[i] = m with
+                    {
+                        ProfileFingerprint = fingerprint,
+                        ProfileName = profileName,
+                        DisplayName = !string.IsNullOrWhiteSpace(displayName) ? displayName : m.DisplayName,
+                        IsLaunched = isLaunched,
+                    };
+                    break;
+                }
             }
-        }
+        });
     }
 
     private async Task UpdateMatchAndAdvertiseAsync(CancellationToken cancellationToken = default)

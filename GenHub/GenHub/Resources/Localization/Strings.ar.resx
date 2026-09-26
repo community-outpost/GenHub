@@ -1819,9 +1819,6 @@
   <data name="Online.Action.CopyIp" xml:space="preserve">
     <value>نسخ IP</value>
   </data>
-  <data name="Online.Action.Report" xml:space="preserve">
-    <value>إبلاغ</value>
-  </data>
   <data name="Online.Action.Retry" xml:space="preserve">
     <value>إعادة المحاولة</value>
   </data>
@@ -1920,12 +1917,6 @@
   </data>
   <data name="Online.Error.ProfileRequired" xml:space="preserve">
     <value>اختر ملف لعبة للردهة.</value>
-  </data>
-  <data name="Online.Error.ReportFailed" xml:space="preserve">
-    <value>فشل البلاغ. يرجى المحاولة مرة أخرى.</value>
-  </data>
-  <data name="Online.Error.ReportTitle" xml:space="preserve">
-    <value>تعذر إرسال البلاغ</value>
   </data>
   <data name="Online.Error.UpdateFailed" xml:space="preserve">
     <value>فشل الحفظ. فقط المضيف يمكنه تغيير إعدادات الشبكة.</value>
@@ -2095,6 +2086,21 @@
   <data name="Online.Member.LaunchedBadge" xml:space="preserve">
     <value>تم التشغيل</value>
   </data>
+  <data name="Online.ProfileSelection.Title" xml:space="preserve">
+    <value>تحديد ملف تعريف اللعبة</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>تحديد ملف تعريف اللعبة</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>اختر ملف تعريف للعب الجماعي المتوافق مع الردهة</value>
+  </data>
+  <data name="Online.ProfileSelection.SelectAction" xml:space="preserve">
+    <value>تحديد</value>
+  </data>
+  <data name="Online.ProfileSelection.Placeholder" xml:space="preserve">
+    <value>انقر لتحديد ملف التعريف...</value>
+  </data>
   <data name="Online.Nickname.Title" xml:space="preserve">
     <value>اسم اللاعب</value>
   </data>
@@ -2127,27 +2133,6 @@
   </data>
   <data name="Online.Quality.Unknown" xml:space="preserve">
     <value>غير معروف</value>
-  </data>
-  <data name="Online.Report.DialogMessage" xml:space="preserve">
-    <value>لماذا تبلغ عن {0}؟</value>
-  </data>
-  <data name="Online.Report.DialogTitle" xml:space="preserve">
-    <value>الإبلاغ عن عضو</value>
-  </data>
-  <data name="Online.Report.Reason.Cheating" xml:space="preserve">
-    <value>غش</value>
-  </data>
-  <data name="Online.Report.Reason.Griefing" xml:space="preserve">
-    <value>تخريب اللعب</value>
-  </data>
-  <data name="Online.Report.Reason.Harassment" xml:space="preserve">
-    <value>مضايقة</value>
-  </data>
-  <data name="Online.Report.SuccessMessage" xml:space="preserve">
-    <value>تم إشعار المضيف عن {0}.</value>
-  </data>
-  <data name="Online.Report.SuccessTitle" xml:space="preserve">
-    <value>تم إرسال البلاغ</value>
   </data>
   <data name="Online.List.Title" xml:space="preserve">
     <value>الشبكات</value>
@@ -11547,9 +11532,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
     <value>يلعب باستخدام</value>
-  </data>
-  <data name="Online.Detail.LaunchProfilePlaceholder" xml:space="preserve">
-    <value>مطابقة تلقائية</value>
   </data>
   <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
     <value>لم يحدد المضيف لعبة — أي إعداد يعمل.</value>

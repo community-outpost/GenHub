@@ -331,11 +331,6 @@ public static class ApiConstants
     public const string OnlineLeaveFormat = "/v1/networks/{0}/leave";
 
     /// <summary>
-    /// Format string for the member report endpoint (network id).
-    /// </summary>
-    public const string OnlineReportFormat = "/v1/networks/{0}/report";
-
-    /// <summary>
     /// Format string for the member ban endpoint (network id).
     /// </summary>
     public const string OnlineBanFormat = "/v1/networks/{0}/ban";
@@ -377,7 +372,7 @@ public static class ApiConstants
     /// Default relay hostname or IP for virtual LAN fallback tunneling.
     /// </summary>
     [SuppressMessage("Security", "S1313:Using hardcoded IP addresses is security-sensitive", Justification = "Default community fallback relay endpoint.")]
-    public const string DefaultOnlineRelayHost = "130.61.202.35"; // NOSONAR
+    public const string DefaultOnlineRelayHost = "141.144.254.124"; // NOSONAR
 
     /// <summary>
     /// Resolves the relay host to connect to. An explicit environment override
