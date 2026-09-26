@@ -127,7 +127,7 @@
           }
         },
         {
-          "name": "Master: Active Concurrent Gaming Sessions (Hourly Pulse)",
+          "name": "Master: Gaming Session Heartbeat Volume (Hourly Pulse)",
           "type": "Trends",
           "display": "ActionsLineGraph",
           "query": {
@@ -1853,6 +1853,10 @@
                 {
                   "type": "event",
                   "property": "app_version"
+                },
+                {
+                  "type": "event",
+                  "property": "build_channel"
                 }
               ],
               "breakdown_type": "event"

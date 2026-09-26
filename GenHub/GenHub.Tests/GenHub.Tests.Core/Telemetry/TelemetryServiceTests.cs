@@ -23,10 +23,10 @@ namespace GenHub.Tests.Core.Telemetry;
 /// </summary>
 public class TelemetryServiceTests : IDisposable
 {
+    private static readonly object EnvironmentLock = new();
     private readonly Mock<ILogger<TelemetryService>> _mockLogger = new();
     private readonly Mock<IUserSettingsService> _mockUserSettingsService = new();
     private readonly TelemetrySanitizer _sanitizer = new();
-    private static readonly object EnvironmentLock = new();
     private readonly Mock<ITelemetrySink> _mockSink = new();
     private readonly UserSettings _settings = new()
     {
