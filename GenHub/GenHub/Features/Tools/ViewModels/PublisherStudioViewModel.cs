@@ -1058,9 +1058,15 @@ public partial class PublisherStudioViewModel(
                 }
             }
 
-            var activeSettingsPath = File.Exists(_settingsPath)
-                ? _settingsPath
-                : (File.Exists(legacySettings) ? legacySettings : null);
+            string? activeSettingsPath = null;
+            if (File.Exists(_settingsPath))
+            {
+                activeSettingsPath = _settingsPath;
+            }
+            else if (File.Exists(legacySettings))
+            {
+                activeSettingsPath = legacySettings;
+            }
 
             if (activeSettingsPath == null)
             {
