@@ -200,15 +200,39 @@ public class GameProfileSettingsViewModelContentEditTests
 
     /// <summary>Manifest refreshes do not turn a subsequent map edit into a client selection change.</summary>
     /// <param name="replaceClient">Whether to replace the client instead of the installation.</param>
+    /// <param name="switchBeforeReplacement">Whether the user first selects another installation without saving.</param>
     /// <returns>The asynchronous test.</returns>
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task SaveAsync_AfterManifestReplacementAndMapEdit_PreservesNameAsync(bool replaceClient)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task SaveAsync_AfterManifestReplacementAndMapEdit_PreservesNameAsync(bool replaceClient, bool switchBeforeReplacement)
     {
         SetupProfile(isRunning: false, includeClient: replaceClient);
         await _viewModel.InitializeForProfileAsync(ProfileId);
         var oldId = replaceClient ? TshClientId : InstallId;
+        if (switchBeforeReplacement)
+        {
+            oldId = "1.106.steam.gameinstallation.zerohour";
+            _viewModel.SelectedGameInstallation = new ContentDisplayItem
+            {
+                ManifestId = ManifestId.Create(oldId),
+                DisplayName = "Selected installation",
+                ContentType = ContentType.GameInstallation,
+                GameType = GameType.ZeroHour,
+                InstallationType = GameInstallationType.Steam,
+                SourceId = InstallSourceId,
+                GameClient = new GameClient
+                {
+                    Id = oldId,
+                    Name = "Selected installation",
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = "/games/selected/generalszh",
+                },
+            };
+            Assert.Equal("Selected installation", _viewModel.Name);
+        }
+
         var newId = replaceClient
             ? "1.20260102.thesuperhackers.gameclient.zerohour"
             : "1.105.steam.gameinstallation.zerohour";
@@ -241,10 +265,11 @@ public class GameProfileSettingsViewModelContentEditTests
         await _viewModel.SaveCommand.ExecuteAsync(null);
 
         var request = Assert.Single(_updateRequests);
-        Assert.Equal(ProfileName, request.Name);
+        Assert.Equal(switchBeforeReplacement ? "Selected installation" : ProfileName, request.Name);
         Assert.Contains(newId, request.EnabledContentIds!);
-        Assert.Equal(replaceClient ? newId : TshClientId, request.GameClient?.Id);
-        Assert.Equal(replaceClient ? "/games/updated/generalszh" : TshExecutablePath, request.GameClient?.ExecutablePath);
+        var expectsReplacementClient = replaceClient || switchBeforeReplacement;
+        Assert.Equal(expectsReplacementClient ? newId : TshClientId, request.GameClient?.Id);
+        Assert.Equal(expectsReplacementClient ? "/games/updated/generalszh" : TshExecutablePath, request.GameClient?.ExecutablePath);
     }
 
     private static GameLaunchInfo CreateActiveLaunch(string profileId) => new()
