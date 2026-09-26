@@ -67,6 +67,8 @@ public static class VariantSwap
             Rating = source.Rating,
             IsInstalled = source.IsInstalled,
             HasUpdate = source.HasUpdate,
+            IsFeatured = source.IsFeatured,
+            FeaturedBadge = source.FeaturedBadge,
             RequiresResolution = source.RequiresResolution,
             ResolverId = source.ResolverId,
             SourceUrl = source.SourceUrl,

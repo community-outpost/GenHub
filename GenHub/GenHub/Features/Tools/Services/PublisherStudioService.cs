@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
@@ -445,12 +446,21 @@ public class PublisherStudioService(
                 return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
             }
 
+            var isUpstreamTracked = content.UpstreamSync != null ||
+                                    (!string.IsNullOrEmpty(content.PublisherType) && !string.Equals(content.PublisherType, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase));
+            var isBundle = content.ContentType == ContentType.ContentBundle;
+
             if (content.Releases.Count == 0)
             {
-                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
+                if (!isUpstreamTracked && !isBundle)
+                {
+                    return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
+                }
+
+                continue;
             }
 
-            var releaseResult = ValidateSingleContentReleases(content, allowPendingArtifacts, cancellationToken);
+            var releaseResult = ValidateSingleContentReleases(content, allowPendingArtifacts, isUpstreamTracked || isBundle, cancellationToken);
             if (!releaseResult.Success)
             {
                 return releaseResult;
@@ -463,6 +473,7 @@ public class PublisherStudioService(
     private static OperationResult<bool> ValidateSingleContentReleases(
         CatalogContentItem content,
         bool allowPendingArtifacts,
+        bool isUpstreamOrBundle,
         CancellationToken cancellationToken)
     {
         foreach (var release in content.Releases)
@@ -474,31 +485,42 @@ public class PublisherStudioService(
                 return OperationResult<bool>.CreateFailure($"Release in '{content.Name}' is missing a version");
             }
 
-            if (release.Artifacts.Count == 0)
+            if (release.Artifacts.Count == 0 && !isUpstreamOrBundle)
             {
                 return OperationResult<bool>.CreateFailure($"Release {release.Version} in '{content.Name}' has no artifacts");
             }
 
             if (allowPendingArtifacts)
             {
-                var missingFilenameArtifact = release.Artifacts.FirstOrDefault(artifact =>
-                    IsPendingLocalArtifact(artifact) && string.IsNullOrWhiteSpace(artifact?.Filename));
-
-                if (missingFilenameArtifact != null)
+                var pendingResult = ValidatePendingArtifacts(content.Name, release);
+                if (!pendingResult.Success)
                 {
-                    return OperationResult<bool>.CreateFailure($"Pending local artifact in '{content.Name}' {release.Version} is missing a filename");
-                }
-
-                var missingArtifact = release.Artifacts.FirstOrDefault(artifact =>
-                    IsPendingLocalArtifact(artifact) &&
-                    !File.Exists(artifact?.LocalFilePath) &&
-                    !Directory.Exists(artifact?.LocalFilePath));
-
-                if (missingArtifact != null)
-                {
-                    return OperationResult<bool>.CreateFailure($"Local artifact file not found: '{missingArtifact.LocalFilePath}'");
+                    return pendingResult;
                 }
             }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidatePendingArtifacts(string contentName, ContentRelease release)
+    {
+        var missingFilenameArtifact = release.Artifacts.FirstOrDefault(artifact =>
+            IsPendingLocalArtifact(artifact) && string.IsNullOrWhiteSpace(artifact?.Filename));
+
+        if (missingFilenameArtifact != null)
+        {
+            return OperationResult<bool>.CreateFailure($"Pending local artifact in '{contentName}' {release.Version} is missing a filename");
+        }
+
+        var missingArtifact = release.Artifacts.FirstOrDefault(artifact =>
+            IsPendingLocalArtifact(artifact) &&
+            !File.Exists(artifact?.LocalFilePath) &&
+            !Directory.Exists(artifact?.LocalFilePath));
+
+        if (missingArtifact != null)
+        {
+            return OperationResult<bool>.CreateFailure($"Local artifact file not found: '{missingArtifact.LocalFilePath}'");
         }
 
         return OperationResult<bool>.CreateSuccess(true);

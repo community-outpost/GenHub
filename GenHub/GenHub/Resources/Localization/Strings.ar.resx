@@ -13561,5 +13561,46 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>عدد ملفات التعريف المحذوفة بنجاح: {0}.</value>
+  <data name="Tools.PublisherStudio.Content.FeaturedMark" xml:space="preserve">
+    <value>تمييز كعنصر مميز ذهبي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgeLabel" xml:space="preserve">
+    <value>تسمية شارة التميز</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
+    <value>★ حزمة مميزة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrix" xml:space="preserve">
+    <value>مصفوفة مكونات الحزمة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BundleComponentMatrixDesc" xml:space="preserve">
+    <value>حدد عناصر الدليل لتضمينها مع متغيرات افتراضية اختيارية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DefaultVariant" xml:space="preserve">
+    <value>المتغير الافتراضي:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamTrack" xml:space="preserve">
+    <value>تتبع مزود المصدر المباشر (إصدارات تلقائية)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamProvider" xml:space="preserve">
+    <value>مزود المصدر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepo" xml:space="preserve">
+    <value>المستودع (المالك/المستودع لـ GitHub)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamRepoPlaceholder" xml:space="preserve">
+    <value>TheSuperHackers/GeneralsGameCode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannel" xml:space="preserve">
+    <value>قناة الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamChannelPlaceholder" xml:space="preserve">
+    <value>stable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxis" xml:space="preserve">
+    <value>محور المتغير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder" xml:space="preserve">
+    <value>game-type</value>
   </data>
 </root>

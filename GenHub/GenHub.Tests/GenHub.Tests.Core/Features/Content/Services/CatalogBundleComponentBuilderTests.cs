@@ -56,6 +56,89 @@ public sealed class CatalogBundleComponentBuilderTests
         Assert.Equal("720p", artifact.Variant, StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Verifies that when a bundle declares BundledItems at the item level and release.Dependencies is empty,
+    /// components are properly resolved from parent.BundledItems.
+    /// </summary>
+    [Fact]
+    public void Build_UsesBundledItemsWhenDependenciesEmpty_ResolvesComponents()
+    {
+        var catalog = CreateCatalogWithLemonBundle();
+        var bundle = catalog.Content.Single(item => item.Id == "bundle-stack");
+        bundle.BundledItems =
+        [
+            new CatalogDependency { ContentId = "lemon-controlbar", DefaultVariant = "1440p" },
+        ];
+        bundle.Releases[0].Dependencies.Clear();
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+
+        var lemon = Assert.Single(components, c => c.ContentId == "lemon-controlbar");
+        Assert.Equal(5, lemon.Variants.Count);
+        var defaultVariant = Assert.Single(lemon.Variants, v => v.IsDefault);
+        Assert.Equal("1440p", defaultVariant.Label);
+    }
+
+    /// <summary>
+    /// Verifies that dynamic upstream siblings with zero static releases are resolved as available
+    /// and their variants populated from UpstreamSync.AssetRules.
+    /// </summary>
+    [Fact]
+    public void Build_UpstreamSyncWithoutReleases_ResolvesVariantsFromAssetRules()
+    {
+        var upstreamItem = new CatalogContentItem
+        {
+            Id = "superhackers-client",
+            Name = "SuperHackers Game Client",
+            ContentType = ContentType.GameClient,
+            PublisherType = "thesuperhackers",
+            TargetGame = GameType.ZeroHour,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = "TheSuperHackers",
+                Repository = "TheSuperHackers/GeneralsGameCode",
+                VariantAxis = "channel",
+                AssetRules =
+                [
+                    new CatalogUpstreamAssetRule { Pattern = ".*stable.*", Variant = "Stable", IsDefault = true },
+                    new CatalogUpstreamAssetRule { Pattern = ".*nightly.*", Variant = "Nightly", IsDefault = false },
+                ],
+            },
+        };
+
+        var bundle = new CatalogContentItem
+        {
+            Id = "bundle-competitive",
+            Name = "Competitive Bundle",
+            ContentType = ContentType.ContentBundle,
+            TargetGame = GameType.ZeroHour,
+            BundledItems =
+            [
+                new CatalogDependency { ContentId = "superhackers-client", DefaultVariant = "Stable" },
+            ],
+            Releases =
+            [
+                new ContentRelease { Version = "1.0.0", IsLatest = true },
+            ],
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [upstreamItem, bundle],
+        };
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+
+        var upstreamComp = Assert.Single(components, c => c.ContentId == "superhackers-client");
+        Assert.True(upstreamComp.IsAvailable);
+        Assert.Equal(2, upstreamComp.Variants.Count);
+        var def = Assert.Single(upstreamComp.Variants, v => v.IsDefault);
+        Assert.Equal("Stable", def.Label);
+    }
+
     private static PublisherCatalog CreateCatalogWithLemonBundle()
     {
         var lemon = new CatalogContentItem
