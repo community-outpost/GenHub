@@ -854,7 +854,9 @@ public partial class GameProfileSettingsViewModel
 
     private GameClient? ResolveGameClientForUpdate()
     {
-        if (_originalProfile?.GameClient != null && !HasClientSelectionChangedSinceLoad())
+        if (_originalProfile?.GameClient != null &&
+            !HasClientSelectionChangedSinceLoad() &&
+            GetActiveClientSelection().Client?.GameClient == null)
         {
             return _originalProfile.GameClient.Clone();
         }

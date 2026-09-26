@@ -179,6 +179,25 @@ public class GameProfileSettingsViewModelContentEditTests
         Assert.Equal("/games/community/generals", request.GameClient?.ExecutablePath);
     }
 
+    /// <summary>Editing client data without changing its identity saves the edited client.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task SaveAsync_AfterEditingSelectedClientData_PreservesEditsAsync()
+    {
+        SetupProfile(isRunning: false, includeClient: true);
+        await _viewModel.InitializeForProfileAsync(ProfileId);
+        var client = Assert.Single(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameClient);
+        client.GameClient!.ExecutablePath = "/games/edited/generalszh";
+        client.GameClient.WorkingDirectory = "/games/edited";
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        var request = Assert.Single(_updateRequests);
+        Assert.Equal(TshClientId, request.GameClient?.Id);
+        Assert.Equal("/games/edited/generalszh", request.GameClient?.ExecutablePath);
+        Assert.Equal("/games/edited", request.GameClient?.WorkingDirectory);
+    }
+
     private static GameLaunchInfo CreateActiveLaunch(string profileId) => new()
     {
         LaunchId = "launch-1",
@@ -209,7 +228,7 @@ public class GameProfileSettingsViewModelContentEditTests
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == MapId && c.IsEnabled);
     }
 
-    private void SetupProfile(bool isRunning, string profileName = ProfileName)
+    private void SetupProfile(bool isRunning, string profileName = ProfileName, bool includeClient = false)
     {
         var profile = new GameProfile
         {
@@ -264,8 +283,22 @@ public class GameProfileSettingsViewModelContentEditTests
         _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
             .ReturnsAsync(isRunning ? [CreateActiveLaunch(ProfileId)] : []);
 
+        var enabled = new ObservableCollection<CoreContentDisplayItem> { installItem };
+        if (includeClient)
+        {
+            enabled.Add(new CoreContentDisplayItem
+            {
+                Id = TshClientId,
+                ManifestId = TshClientId,
+                DisplayName = ProfileName,
+                ContentType = ContentType.GameClient,
+                GameType = GameType.ZeroHour,
+                GameClient = profile.GameClient.Clone(),
+            });
+        }
+
         _contentLoaderMock.Setup(c => c.LoadEnabledContentForProfileAsync(profile))
-            .ReturnsAsync(new ObservableCollection<CoreContentDisplayItem> { installItem });
+            .ReturnsAsync(enabled);
         _contentLoaderMock.Setup(c => c.LoadAvailableGameInstallationsAsync())
             .ReturnsAsync([installItem]);
         _contentLoaderMock.Setup(c => c.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
