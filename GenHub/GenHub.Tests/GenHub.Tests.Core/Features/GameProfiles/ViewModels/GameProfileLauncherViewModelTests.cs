@@ -27,6 +27,7 @@ using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Collections.Specialized;
 using System.Resources;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
@@ -1448,6 +1449,39 @@ public class GameProfileLauncherViewModelTests
         Assert.True(itemA.CanMoveRight);
         Assert.True(itemB.CanMoveLeft);
         Assert.False(itemB.CanMoveRight);
+    }
+
+    /// <summary>
+    /// Sorting reorders the live collection in place so card visuals are preserved
+    /// instead of being torn down and rebuilt (which flashes a black frame).
+    /// </summary>
+    [Fact]
+    public void ApplySorting_ReordersInPlace_WithoutResettingCollection()
+    {
+        var vm = CreateViewModel();
+        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("Alpha");
+        var itemC = CreateProfileItem("Charlie");
+        var addCard = new AddProfileItemViewModel();
+
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemC);
+        vm.Profiles.Add(addCard);
+
+        var actions = new List<NotifyCollectionChangedAction>();
+        vm.Profiles.CollectionChanged += (s, e) => actions.Add(e.Action);
+
+        vm.SelectedSortMode = ProfileSortMode.Alphabetical;
+
+        Assert.Equal("Alpha", vm.Profiles[0].Name);
+        Assert.Equal("Bravo", vm.Profiles[1].Name);
+        Assert.Equal("Charlie", vm.Profiles[2].Name);
+        Assert.Same(addCard, vm.Profiles[3]);
+        Assert.Same(itemA, vm.Profiles[0]);
+        Assert.Same(itemB, vm.Profiles[1]);
+        Assert.Same(itemC, vm.Profiles[2]);
+        Assert.DoesNotContain(NotifyCollectionChangedAction.Reset, actions);
     }
 
     /// <summary>

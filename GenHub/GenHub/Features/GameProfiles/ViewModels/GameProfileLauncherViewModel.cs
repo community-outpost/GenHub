@@ -1237,8 +1237,9 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
-    /// Replaces the live collection order with the sorted order, keeping the Add card at the end.
-    /// Re-materializing the items lets the card entrance animation replay on sort and move.
+    /// Reorders the live collection in place to match the sorted order, keeping the Add card at the end.
+    /// Moving items preserves card visuals and loaded images; clearing and re-adding would tear down
+    /// every container, flash an empty frame, and force image reloads.
     /// </summary>
     /// <param name="sorted">The sorted profile items.</param>
     /// <param name="addCard">The trailing add-profile card, if present.</param>
@@ -1249,13 +1250,39 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
-        _profiles.Clear();
-        foreach (var item in sorted)
+        addCard ??= _profiles.OfType<AddProfileItemViewModel>().FirstOrDefault() ?? new AddProfileItemViewModel();
+        if (!_profiles.Contains(addCard))
         {
-            _profiles.Add(item);
+            _profiles.Add(addCard);
         }
 
-        _profiles.Add(addCard ?? new AddProfileItemViewModel());
+        for (int i = _profiles.Count - 1; i >= 0; i--)
+        {
+            var current = _profiles[i];
+            if (!ReferenceEquals(current, addCard) && !sorted.Contains(current))
+            {
+                _profiles.RemoveAt(i);
+            }
+        }
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            int currentIndex = _profiles.IndexOf(sorted[i]);
+            if (currentIndex < 0)
+            {
+                _profiles.Insert(Math.Min(i, _profiles.Count), sorted[i]);
+            }
+            else if (currentIndex != i)
+            {
+                _profiles.Move(currentIndex, i);
+            }
+        }
+
+        int addIndex = _profiles.IndexOf(addCard);
+        if (addIndex != _profiles.Count - 1)
+        {
+            _profiles.Move(addIndex, _profiles.Count - 1);
+        }
     }
 
     /// <summary>
