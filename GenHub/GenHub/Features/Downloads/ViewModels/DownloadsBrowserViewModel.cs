@@ -146,6 +146,8 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private readonly IPublisherReconcilerRegistry? _reconcilerRegistry =
         reconcilerRegistry ?? serviceProvider.GetService<IPublisherReconcilerRegistry>();
+    private readonly ITelemetryService? _telemetryService =
+        serviceProvider.GetService<ITelemetryService>();
 
     // GenericCatalogDiscoverer instances mapped by publisher ID for subscriber feeds.
     private readonly Dictionary<string, GenericCatalogDiscoverer> _subscribedDiscoverers =
@@ -2768,6 +2770,14 @@ public sealed partial class DownloadsBrowserViewModel(
         var downloadSuccess = await DownloadContentAsync(targetItem, ct);
         if (!downloadSuccess)
         {
+            var failedPublisherId = targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.PublisherId] = failedPublisherId,
+                [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+                [TelemetryConstants.Properties.ContentId] = oldManifestId ?? targetItem.Id,
+                [TelemetryConstants.Properties.ErrorMessage] = "Download failed during update",
+            });
             return false;
         }
 
@@ -2828,10 +2838,31 @@ public sealed partial class DownloadsBrowserViewModel(
                 {
                     await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
                 }
+
+                var publisherId = targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherId] = publisherId,
+                    [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+                    [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
+                    [TelemetryConstants.Properties.FromVersion] = oldManifestId,
+                    [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
+                    [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                    [TelemetryConstants.Properties.ProfilesUpdated] = updateOutcome.ProfilesUpdated,
+                    [TelemetryConstants.Properties.Success] = !updateOutcome.AnyFailure,
+                });
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
+                var publisherId = targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? "Content";
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherId] = publisherId,
+                    [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+                    [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
+                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                });
             }
         }
 

@@ -52,7 +52,8 @@ public class GameProcessManager(
         string? GameType = null,
         string? GameClientId = null,
         string? GameClientName = null,
-        string? GameClientVersion = null);
+        string? GameClientVersion = null,
+        string? GameClientPublisher = null);
 
     private readonly ConditionalWeakTable<Process, ExitFinalizationState> _exitFinalizations = new();
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
@@ -2085,6 +2086,7 @@ public class GameProcessManager(
         var gameClientId = config?.GameClientId;
         var gameClientName = config?.GameClientName;
         var gameClientVersion = config?.GameClientVersion;
+        var gameClientPublisher = config?.GameClientPublisher ?? "Retail";
 
         var meta = new GameSessionMeta(
             sessionId,
@@ -2094,7 +2096,8 @@ public class GameProcessManager(
             gameType,
             gameClientId,
             gameClientName,
-            gameClientVersion);
+            gameClientVersion,
+            gameClientPublisher);
 
         if (!_sessionMetadata.TryAdd(process, meta))
         {
@@ -2123,6 +2126,8 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.GameClientId] = gameClientId,
                 [TelemetryConstants.Properties.GameClientName] = gameClientName,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClientVersion,
+                [TelemetryConstants.Properties.GameClientPublisher] = gameClientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = gameClientPublisher,
             });
         }
     }
@@ -2144,6 +2149,8 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.Runner] = meta.Runner,
                 [TelemetryConstants.Properties.GameType] = meta.GameType,
                 [TelemetryConstants.Properties.GameClientId] = meta.GameClientId,
+                [TelemetryConstants.Properties.GameClientPublisher] = meta.GameClientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = meta.GameClientPublisher,
             });
         }
     }
@@ -2166,6 +2173,8 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.GameClientId] = sessionMeta.GameClientId,
                 [TelemetryConstants.Properties.GameClientName] = sessionMeta.GameClientName,
                 [TelemetryConstants.Properties.GameClientVersion] = sessionMeta.GameClientVersion,
+                [TelemetryConstants.Properties.GameClientPublisher] = sessionMeta.GameClientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = sessionMeta.GameClientPublisher,
             };
 
             // An unknown exit code is not a crash; omit both properties instead of reporting failure.

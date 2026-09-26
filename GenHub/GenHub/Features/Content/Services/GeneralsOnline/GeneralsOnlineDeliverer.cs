@@ -303,12 +303,26 @@ public class GeneralsOnlineDeliverer(
             : null;
 
         logger.LogDebug("Downloading ZIP from {Url} to {Path} (expected hash: {Hash})", zipFile.DownloadUrl, zipPath, expectedHash);
+        var publisherId = packageManifest.Publisher?.PublisherType
+            ?? packageManifest.Publisher?.Name
+            ?? packageManifest.OriginalProviderName
+            ?? "generalsonline";
+
+        var downloadConfig = new DownloadConfiguration
+        {
+            Url = new Uri(zipFile.DownloadUrl!),
+            DestinationPath = zipPath,
+            ExpectedHash = expectedHash,
+            PublisherId = publisherId,
+            ContentName = packageManifest.Name,
+            ContentId = packageManifest.Id.Value,
+            ContentType = packageManifest.ContentType.ToString(),
+        };
+
         var downloadResult = await downloadService.DownloadFileAsync(
-            new Uri(zipFile.DownloadUrl!),
-            zipPath,
-            expectedHash: expectedHash,
+            downloadConfig,
             progress: downloadProgress,
-            cancellationToken);
+            cancellationToken: cancellationToken);
 
         if (!downloadResult.Success)
         {

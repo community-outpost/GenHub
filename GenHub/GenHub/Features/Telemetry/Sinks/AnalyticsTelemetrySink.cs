@@ -50,7 +50,8 @@ public sealed class AnalyticsTelemetrySink(
     public bool CanHandle(TelemetryEvent telemetryEvent)
     {
         ArgumentNullException.ThrowIfNull(telemetryEvent);
-        return telemetryEvent.Level == TelemetryLevel.AnonymousMetrics;
+        return telemetryEvent.Level == TelemetryLevel.AnonymousMetrics ||
+               telemetryEvent.Level == TelemetryLevel.CrashReportsOnly;
     }
 
     /// <inheritdoc/>
@@ -83,6 +84,8 @@ public sealed class AnalyticsTelemetrySink(
                 ["$process_person_profile"] = false,
             };
 
+            postHogProperties.TryAdd(TelemetryConstants.Properties.Platform, telemetryEvent.Platform);
+            postHogProperties.TryAdd(TelemetryConstants.Properties.AppVersion, telemetryEvent.AppVersion);
             postHogProperties.TryAdd(TelemetryConstants.Properties.FullDisplayVersion, AppConstants.FullDisplayVersion);
             postHogProperties.TryAdd(TelemetryConstants.Properties.BuildChannel, AppConstants.BuildChannel);
 

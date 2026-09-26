@@ -482,6 +482,10 @@ public sealed class ReplayImportService(
                 DestinationPath = tempPath,
                 UserAgent = userAgent,
                 ValidateRedirectsManually = true,
+                PublisherId = "replay",
+                ContentName = Path.GetFileName(tempPath),
+                ContentId = Path.GetFileName(tempPath),
+                ContentType = "Replay",
             };
 
             var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);

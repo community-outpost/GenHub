@@ -125,8 +125,24 @@ public class GitHubContentDeliverer(
                     });
                 }
 
+                var publisherId = packageManifest.Publisher?.PublisherType
+                    ?? packageManifest.Publisher?.Name
+                    ?? packageManifest.OriginalProviderName
+                    ?? "github";
+
+                var downloadConfig = new DownloadConfiguration
+                {
+                    Url = new Uri(file.DownloadUrl!),
+                    DestinationPath = localPath,
+                    ExpectedHash = file.Hash,
+                    PublisherId = publisherId,
+                    ContentName = packageManifest.Name,
+                    ContentId = packageManifest.Id.Value,
+                    ContentType = packageManifest.ContentType.ToString(),
+                };
+
                 var downloadResult = await downloadService.DownloadFileAsync(
-                    new Uri(file.DownloadUrl!), localPath, file.Hash, downloadProgress, cancellationToken);
+                    downloadConfig, downloadProgress, cancellationToken);
 
                 if (!downloadResult.Success)
                 {

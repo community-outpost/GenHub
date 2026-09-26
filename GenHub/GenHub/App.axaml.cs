@@ -848,6 +848,10 @@ public partial class App : Application
                     profileId,
                     launchResult.Data.ProcessInfo.ProcessId);
 
+                var clientPublisher = !string.IsNullOrWhiteSpace(gameClient?.PublisherType)
+                    ? gameClient.PublisherType
+                    : (gameClient?.IsPublisherClient == true ? "Publisher" : "Retail");
+
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
                 {
                     [TelemetryConstants.Properties.ProfileId] = profileId,
@@ -855,6 +859,8 @@ public partial class App : Application
                     [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                     [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
                     [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
+                    [TelemetryConstants.Properties.PublisherId] = clientPublisher,
                     [TelemetryConstants.Properties.LaunchSource] = launchSource,
                     [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
                 });

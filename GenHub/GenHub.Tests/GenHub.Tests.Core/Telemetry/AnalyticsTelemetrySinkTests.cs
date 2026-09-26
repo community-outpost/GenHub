@@ -35,7 +35,7 @@ public class AnalyticsTelemetrySinkTests
     /// Verifies sink metadata and CanHandle predicate.
     /// </summary>
     [Fact]
-    public void CanHandle_OnlyHandlesAnonymousMetricsEvents()
+    public void CanHandle_HandlesAnonymousMetricsAndCrashReportsEvents()
     {
         var anonymousEvent = new TelemetryEvent
         {
@@ -49,8 +49,15 @@ public class AnalyticsTelemetrySinkTests
             Level = TelemetryLevel.CrashReportsOnly,
         };
 
+        var disabledEvent = new TelemetryEvent
+        {
+            EventName = TelemetryConstants.Events.AppCrash,
+            Level = TelemetryLevel.Disabled,
+        };
+
         Assert.True(_sink.CanHandle(anonymousEvent));
-        Assert.False(_sink.CanHandle(crashEvent));
+        Assert.True(_sink.CanHandle(crashEvent));
+        Assert.False(_sink.CanHandle(disabledEvent));
     }
 
     /// <summary>
@@ -168,6 +175,8 @@ public class AnalyticsTelemetrySinkTests
         Assert.Equal("GenHub", properties.GetProperty("$lib").GetString());
         Assert.Equal("sess-7777", properties.GetProperty("$session_id").GetString());
         Assert.Equal("ZeroHour", properties.GetProperty(TelemetryConstants.Properties.GameType).GetString());
+        Assert.Equal("Linux", properties.GetProperty(TelemetryConstants.Properties.Platform).GetString());
+        Assert.Equal("1.0.0", properties.GetProperty(TelemetryConstants.Properties.AppVersion).GetString());
         Assert.False(properties.GetProperty("$process_person_profile").GetBoolean());
     }
 

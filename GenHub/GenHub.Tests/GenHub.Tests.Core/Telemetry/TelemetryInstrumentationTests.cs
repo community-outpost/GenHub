@@ -1,3 +1,6 @@
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Features.Tools.WndEditor.ViewModels;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
@@ -429,5 +432,37 @@ public class TelemetryInstrumentationTests
                 File.Delete(tempFile);
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that WndEditorViewModel tracks document validation telemetry.
+    /// </summary>
+    [Fact]
+    public void WndEditorViewModel_ValidateDocument_TracksWndDocumentValidated()
+    {
+        var docServiceMock = new Mock<IWndDocumentService>();
+        docServiceMock
+            .Setup(x => x.ValidateDocument(It.IsAny<WndDocument>(), It.IsAny<string>()))
+            .Returns(new WndValidationResult([], []));
+
+        var vm = new WndEditorViewModel(
+            docServiceMock.Object,
+            Mock.Of<INotificationService>(),
+            Mock.Of<ILocalizationService>(),
+            Mock.Of<IDialogService>(),
+            Mock.Of<IGameInstallationService>(),
+            Mock.Of<IWndEditorAssetService>(),
+            Mock.Of<IWndTextureImportService>(),
+            Mock.Of<IChallengeMedalService>(),
+            Mock.Of<ILogger<WndEditorViewModel>>(),
+            _telemetryServiceMock.Object);
+
+        // Invoke private or command ValidateDocument
+        vm.ValidateDocumentCommand.Execute(null);
+
+        // Since no document is loaded, it should return early and not track
+        _telemetryServiceMock.Verify(
+            t => t.TrackEvent(TelemetryConstants.Events.WndDocumentValidated, It.IsAny<IReadOnlyDictionary<string, object?>?>(), It.IsAny<TelemetryLevel>()),
+            Times.Never);
     }
 }

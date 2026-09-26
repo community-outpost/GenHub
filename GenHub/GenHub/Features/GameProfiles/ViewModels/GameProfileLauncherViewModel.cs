@@ -2331,6 +2331,10 @@ public partial class GameProfileLauncherViewModel(
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
 
             var gameClient = liveProfile.Profile.GameClient;
+            var clientPublisher = !string.IsNullOrWhiteSpace(gameClient?.PublisherType)
+                ? gameClient.PublisherType
+                : (gameClient?.IsPublisherClient == true ? "Publisher" : "Retail");
+
             telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
@@ -2338,6 +2342,8 @@ public partial class GameProfileLauncherViewModel(
                 [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
                 [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
                 [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
+                [TelemetryConstants.Properties.PublisherId] = clientPublisher,
                 [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
                 [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
             });

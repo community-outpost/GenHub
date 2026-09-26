@@ -433,7 +433,7 @@ public class GenLauncherDeliverer(
 
         var fileStopwatch = Stopwatch.StartNew();
 
-        var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, totalFiles, cancellationToken);
+        var downloadResult = await DownloadAndValidateFileAsync(manifest, file, destinationPath, downloadUri, fileProgress, totalFiles, cancellationToken);
         fileStopwatch.Stop();
 
         if (!downloadResult.Success)
@@ -482,6 +482,7 @@ public class GenLauncherDeliverer(
     }
 
     private async Task<OperationResult<bool>> DownloadAndValidateFileAsync(
+        ContentManifest manifest,
         ManifestFile file,
         string destinationPath,
         Uri downloadUri,
@@ -515,6 +516,11 @@ public class GenLauncherDeliverer(
                 DownloadDefaults.MaxDeliveryConcurrency);
 
             var expectedEtag = !string.IsNullOrWhiteSpace(file.ETag) ? file.ETag : file.Hash;
+            var publisherId = manifest.Publisher?.PublisherType
+                ?? manifest.Publisher?.Name
+                ?? manifest.OriginalProviderName
+                ?? "genlauncher";
+
             var downloadConfig = new DownloadConfiguration
             {
                 Url = downloadUri,
@@ -524,6 +530,10 @@ public class GenLauncherDeliverer(
                 ParallelConcurrency = totalFiles <= 1
                     ? maxConcurrency
                     : Math.Min(maxConcurrency, 2),
+                PublisherId = publisherId,
+                ContentName = manifest.Name,
+                ContentId = manifest.Id.Value,
+                ContentType = manifest.ContentType.ToString(),
             };
 
             if (!string.IsNullOrWhiteSpace(expectedEtag))

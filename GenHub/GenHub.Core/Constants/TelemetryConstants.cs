@@ -210,6 +210,21 @@ public static class TelemetryConstants
         /// <summary>Emitted when a replay checkpoint is minted.</summary>
         public const string ReplayCheckpointMinted = "replay_checkpoint_minted";
 
+        /// <summary>Emitted when the WND Editor tool is opened.</summary>
+        public const string WndEditorOpened = "wnd_editor_opened";
+
+        /// <summary>Emitted when a window definition document is opened in the WND Editor.</summary>
+        public const string WndDocumentOpened = "wnd_document_opened";
+
+        /// <summary>Emitted when a window definition document is saved in the WND Editor.</summary>
+        public const string WndDocumentSaved = "wnd_document_saved";
+
+        /// <summary>Emitted when a window definition document is validated in the WND Editor.</summary>
+        public const string WndDocumentValidated = "wnd_document_validated";
+
+        /// <summary>Emitted when textures are imported into the WND Editor.</summary>
+        public const string WndTexturesImported = "wnd_textures_imported";
+
         /// <summary>Emitted when an unhandled application exception or crash occurs.</summary>
         public const string AppCrash = "app_unhandled_crash";
     }
@@ -239,6 +254,9 @@ public static class TelemetryConstants
 
         /// <summary>Game client version string.</summary>
         public const string GameClientVersion = "game_client_version";
+
+        /// <summary>Game client publisher identifier (e.g. "thesuperhackers", "communityoutpost", "generalsonline", "retail").</summary>
+        public const string GameClientPublisher = "game_client_publisher";
 
         /// <summary>Time taken to launch in milliseconds.</summary>
         public const string TimeToLaunchMs = "time_to_launch_ms";
@@ -424,7 +442,7 @@ public static class TelemetryConstants
         public const string HasSteam = "has_steam";
 
         /// <summary>Indicates whether EA App game installation is present.</summary>
-        public const string HasEaApp = "has_ea_app";
+        public const string HasEAApp = "has_ea_app";
 
         /// <summary>Indicates whether The First Decade game installation is present.</summary>
         public const string HasTheFirstDecade = "has_the_first_decade";
@@ -440,6 +458,18 @@ public static class TelemetryConstants
 
         /// <summary>Target frame number for replay checkpoint.</summary>
         public const string TargetFrame = "target_frame";
+
+        /// <summary>Number of windows in a window definition document.</summary>
+        public const string WindowCount = "window_count";
+
+        /// <summary>Indicates whether linked assets are configured in the WND Editor.</summary>
+        public const string HasLinkedAssets = "has_linked_assets";
+
+        /// <summary>Indicates whether validation succeeded without fatal errors.</summary>
+        public const string IsValid = "is_valid";
+
+        /// <summary>Number of textures imported.</summary>
+        public const string TextureCount = "texture_count";
     }
 
     /// <summary>

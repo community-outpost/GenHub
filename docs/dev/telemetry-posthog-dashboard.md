@@ -172,7 +172,20 @@ ORDER BY total_updates DESC
 
 #### Specific Content & Mod Downloads Clean Tracking
 
-Per-download attribution (`publisher_id`, `content_name`, `file_name`) was removed from `content_download_completed` for privacy; use the total and speed queries above for download volume.
+Per-download attribution (`publisher_id`, `content_name`, `file_name`, `content_type`) is cleanly populated on both `content_download_completed` and `content_download_failed`.
+
+#### Downloads by Publisher & Top Content
+```sql
+SELECT
+    properties.publisher_id AS publisher,
+    properties.content_name AS content,
+    count() AS download_count,
+    round(sum(toFloat64OrNull(properties.size_mb)), 2) AS total_mb
+FROM events
+WHERE event = "content_download_completed"
+GROUP BY publisher, content
+ORDER BY download_count DESC
+```
 
 #### Download Failures & Errors
 ```sql
@@ -187,7 +200,7 @@ ORDER BY failure_count DESC
 
 ---
 
-## 5. Dashboard 5: GenPatcher Fixes & ModBuilder Usage
+## 5. Dashboard 5: GenPatcher, ModBuilder & WND Editor Tools
 
 **Target Audience**: Modders, tools team, QA.
 
@@ -211,6 +224,25 @@ ORDER BY failure_count DESC
    - **Event**: `modbuilder_mod_built`
    - **Breakdown**: `success`
    - **Secondary Metric**: Average `duration_seconds` grouped by `build_steps`.
+
+5. **WND Editor Launches & Sessions**
+   - **Event**: `wnd_editor_opened`
+   - **Display**: Trend line graph tracking daily tool activations.
+
+6. **WND Documents Opened vs Saved**
+   - **Events**: `wnd_document_opened` & `wnd_document_saved`
+   - **Properties**: `file_path`, `window_count`, `has_linked_assets`
+   - **Display**: Multi-series line graph tracking file activity.
+
+7. **WND Document Validation Outcomes**
+   - **Event**: `wnd_document_validated`
+   - **Breakdown**: `is_valid` (`true` vs `false`)
+   - **Display**: Pie chart showing validation success and structural compliance.
+
+8. **WND Textures Imported**
+   - **Event**: `wnd_textures_imported`
+   - **Metric**: `sum(properties.texture_count)`
+   - **Display**: Trend graph for asset and texture additions.
 
 ---
 
