@@ -402,118 +402,130 @@ public class WineRunner(
         }
 
         var stateFilePath = Path.Combine(prefixDir, SyncStateFileName);
-        Dictionary<string, long>? previousSyncedFiles = null;
-        if (File.Exists(stateFilePath))
-        {
-            try
-            {
-                var json = File.ReadAllText(stateFilePath).Trim();
-                if (json.StartsWith("{"))
-                {
-                    previousSyncedFiles = JsonSerializer.Deserialize<Dictionary<string, long>>(json);
-                }
-                else if (json.StartsWith("["))
-                {
-                    var legacySet = JsonSerializer.Deserialize<HashSet<string>>(json);
-                    if (legacySet != null)
-                    {
-                        previousSyncedFiles = legacySet.ToDictionary(k => k, _ => 0L, StringComparer.OrdinalIgnoreCase);
-                    }
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-            {
-                logger?.LogWarning(ex, "[WineRunner] Failed to read sync state from '{StateFile}'.", stateFilePath);
-            }
-        }
+        var previousSyncedFiles = LoadSyncState(stateFilePath, logger);
 
         var nativeFiles = EnumerateFilesRelative(nativeDir);
         var prefixFiles = EnumerateFilesRelative(prefixDir);
 
         if (previousSyncedFiles != null)
         {
-            foreach (var (relPath, recordedTicks) in previousSyncedFiles)
-            {
-                var inNative = nativeFiles.ContainsKey(relPath);
-                var inPrefix = prefixFiles.ContainsKey(relPath);
-
-                if (!inNative && inPrefix)
-                {
-                    // Deleted on native side -> propagate deletion to prefix only if prefix file was not modified since last sync
-                    var prefixFileInfo = prefixFiles[relPath];
-                    if (recordedTicks > 0 && prefixFileInfo.LastWriteTimeUtc.Ticks > recordedTicks)
-                    {
-                        logger?.LogInformation("[WineRunner] Skipping deletion of '{RelativePath}' in Wine prefix because it was modified after last sync.", relPath);
-                    }
-                    else
-                    {
-                        try
-                        {
-                            File.Delete(prefixFileInfo.FullName);
-                            prefixFiles.Remove(relPath);
-                            logger?.LogInformation("[WineRunner] Propagated native deletion of '{RelativePath}' to Wine prefix.", relPath);
-                        }
-                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                        {
-                            logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from prefix during deletion propagation.", relPath);
-                        }
-                    }
-                }
-                else if (inNative && !inPrefix)
-                {
-                    // Deleted on prefix side -> propagate deletion to native only if native file was not modified since last sync
-                    var nativeFileInfo = nativeFiles[relPath];
-                    if (recordedTicks > 0 && nativeFileInfo.LastWriteTimeUtc.Ticks > recordedTicks)
-                    {
-                        logger?.LogInformation("[WineRunner] Skipping deletion of '{RelativePath}' in native directory because it was modified after last sync.", relPath);
-                    }
-                    else
-                    {
-                        try
-                        {
-                            File.Delete(nativeFileInfo.FullName);
-                            nativeFiles.Remove(relPath);
-                            logger?.LogInformation("[WineRunner] Propagated Wine prefix deletion of '{RelativePath}' to native documents.", relPath);
-                        }
-                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                        {
-                            logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from native directory during deletion propagation.", relPath);
-                        }
-                    }
-                }
-            }
+            PropagateDeletions(nativeFiles, prefixFiles, previousSyncedFiles, logger);
         }
 
         // Copy new or newer files from native to prefix
-        foreach (var (relPath, nativeFileInfo) in nativeFiles)
-        {
-            var destFile = Path.Combine(prefixDir, relPath);
-            if (!prefixFiles.TryGetValue(relPath, out var prefixFileInfo))
-            {
-                CopySyncFile(nativeFileInfo.FullName, destFile, logger);
-            }
-            else if (nativeFileInfo.LastWriteTimeUtc > prefixFileInfo.LastWriteTimeUtc)
-            {
-                CopySyncFile(nativeFileInfo.FullName, destFile, logger);
-            }
-        }
+        CopyNewerFiles(nativeFiles, prefixFiles, prefixDir, logger);
 
         // Copy new or newer files from prefix to native
-        foreach (var (relPath, prefixFileInfo) in prefixFiles)
-        {
-            var destFile = Path.Combine(nativeDir, relPath);
-            if (!nativeFiles.TryGetValue(relPath, out var nativeFileInfo))
-            {
-                CopySyncFile(prefixFileInfo.FullName, destFile, logger);
-            }
-            else if (prefixFileInfo.LastWriteTimeUtc > nativeFileInfo.LastWriteTimeUtc)
-            {
-                CopySyncFile(prefixFileInfo.FullName, destFile, logger);
-            }
-        }
+        CopyNewerFiles(prefixFiles, nativeFiles, nativeDir, logger);
 
         CleanEmptySubdirectories(prefixDir);
 
+        SaveSyncState(stateFilePath, prefixDir, nativeDir, logger);
+    }
+
+    private static Dictionary<string, long>? LoadSyncState(string stateFilePath, ILogger? logger)
+    {
+        if (!File.Exists(stateFilePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(stateFilePath).Trim();
+            if (json.StartsWith('{'))
+            {
+                return JsonSerializer.Deserialize<Dictionary<string, long>>(json);
+            }
+
+            if (json.StartsWith('['))
+            {
+                var legacySet = JsonSerializer.Deserialize<HashSet<string>>(json);
+                if (legacySet != null)
+                {
+                    return legacySet.ToDictionary(k => k, _ => 0L, StringComparer.OrdinalIgnoreCase);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to read sync state from '{StateFile}'.", stateFilePath);
+        }
+
+        return null;
+    }
+
+    private static void PropagateDeletions(
+        Dictionary<string, FileInfo> nativeFiles,
+        Dictionary<string, FileInfo> prefixFiles,
+        Dictionary<string, long> previousSyncedFiles,
+        ILogger? logger)
+    {
+        foreach (var (relPath, recordedTicks) in previousSyncedFiles)
+        {
+            var inNative = nativeFiles.ContainsKey(relPath);
+            var inPrefix = prefixFiles.ContainsKey(relPath);
+
+            if (!inNative && inPrefix)
+            {
+                PropagateFileDeletion(prefixFiles, relPath, recordedTicks, "Wine prefix", logger);
+            }
+            else if (inNative && !inPrefix)
+            {
+                PropagateFileDeletion(nativeFiles, relPath, recordedTicks, "native directory", logger);
+            }
+        }
+    }
+
+    private static void PropagateFileDeletion(
+        Dictionary<string, FileInfo> files,
+        string relPath,
+        long recordedTicks,
+        string locationName,
+        ILogger? logger)
+    {
+        var fileInfo = files[relPath];
+        if (recordedTicks > 0 && fileInfo.LastWriteTimeUtc.Ticks > recordedTicks)
+        {
+            logger?.LogInformation("[WineRunner] Skipping deletion of '{RelativePath}' in {Location} because it was modified after last sync.", relPath, locationName);
+            return;
+        }
+
+        try
+        {
+            File.Delete(fileInfo.FullName);
+            files.Remove(relPath);
+            logger?.LogInformation("[WineRunner] Propagated deletion of '{RelativePath}' to {Location}.", relPath, locationName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from {Location} during deletion propagation.", relPath, locationName);
+        }
+    }
+
+    private static void CopyNewerFiles(
+        Dictionary<string, FileInfo> sourceFiles,
+        Dictionary<string, FileInfo> targetFiles,
+        string targetDir,
+        ILogger? logger)
+    {
+        foreach (var (relPath, sourceFileInfo) in sourceFiles)
+        {
+            var destFile = Path.Combine(targetDir, relPath);
+            if (!targetFiles.TryGetValue(relPath, out var targetFileInfo) ||
+                sourceFileInfo.LastWriteTimeUtc > targetFileInfo.LastWriteTimeUtc)
+            {
+                CopySyncFile(sourceFileInfo.FullName, destFile, logger);
+            }
+        }
+    }
+
+    private static void SaveSyncState(
+        string stateFilePath,
+        string prefixDir,
+        string nativeDir,
+        ILogger? logger)
+    {
         try
         {
             var finalPrefixFiles = EnumerateFilesRelative(prefixDir);
@@ -643,31 +655,7 @@ public class WineRunner(
         {
             foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
             {
-                if (string.Equals(Path.GetFileName(file), SyncStateFileName, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var fullFilePath = Path.GetFullPath(file);
-                if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
-                {
-                    // Target directory is nested inside source directory; avoid recursive copy into target
-                    continue;
-                }
-
-                var relative = Path.GetRelativePath(sourceDir, file);
-                var destFile = Path.Combine(targetDir, relative);
-
-                var destDir = Path.GetDirectoryName(destFile);
-                if (!string.IsNullOrEmpty(destDir))
-                {
-                    Directory.CreateDirectory(destDir);
-                }
-
-                if (!File.Exists(destFile) || File.GetLastWriteTimeUtc(file) > File.GetLastWriteTimeUtc(destFile))
-                {
-                    File.Copy(file, destFile, overwrite: true);
-                }
+                MirrorSingleFile(file, sourceDir, targetDir, normalizedTarget);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
@@ -677,6 +665,34 @@ public class WineRunner(
         }
 
         return true;
+    }
+
+    private static void MirrorSingleFile(string file, string sourceDir, string targetDir, string normalizedTarget)
+    {
+        if (string.Equals(Path.GetFileName(file), SyncStateFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var fullFilePath = Path.GetFullPath(file);
+        if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
+        {
+            return;
+        }
+
+        var relative = Path.GetRelativePath(sourceDir, file);
+        var destFile = Path.Combine(targetDir, relative);
+
+        var destDir = Path.GetDirectoryName(destFile);
+        if (!string.IsNullOrEmpty(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        if (!File.Exists(destFile) || File.GetLastWriteTimeUtc(file) > File.GetLastWriteTimeUtc(destFile))
+        {
+            File.Copy(file, destFile, overwrite: true);
+        }
     }
 
     /// <summary>

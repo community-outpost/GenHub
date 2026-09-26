@@ -1600,7 +1600,7 @@ public class ProfileLauncherFacade(
     /// </summary>
     /// <param name="profile">The profile to check.</param>
     /// <returns>True if the profile uses SuperHackers, false otherwise.</returns>
-    private bool IsSuperHackersProfile(GameProfile profile)
+    private static bool IsSuperHackersProfile(GameProfile profile)
     {
         return profile.IsTheSuperHackersProfile();
     }
@@ -1610,7 +1610,7 @@ public class ProfileLauncherFacade(
     /// </summary>
     /// <param name="profile">The profile to check.</param>
     /// <returns>True if the profile uses Community Outpost, false otherwise.</returns>
-    private bool IsCommunityOutpostProfile(GameProfile profile)
+    private static bool IsCommunityOutpostProfile(GameProfile profile)
     {
         return profile.IsCommunityOutpostProfile();
     }
