@@ -148,7 +148,7 @@ public class CatalogUpstreamIngestionService(
 
     private static void PopulateArtifactsFromAssetRules(
         ContentRelease release,
-        IEnumerable<GitHubAsset> assets,
+        IEnumerable<GitHubReleaseAsset> assets,
         CatalogUpstreamSync sync,
         CatalogContentItem item)
     {
@@ -176,7 +176,7 @@ public class CatalogUpstreamIngestionService(
 
     private static void PopulateDefaultSuperHackersArtifacts(
         ContentRelease release,
-        IEnumerable<GitHubAsset> assets)
+        IEnumerable<GitHubReleaseAsset> assets)
     {
         foreach (var asset in assets)
         {
