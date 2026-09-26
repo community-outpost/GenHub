@@ -274,7 +274,7 @@ public sealed class MapImportService(
                     }
                 }
 
-                thumbnailPath = NormalizeMapThumbnail(mapDirPath, thumbnailPath, assetFiles);
+                thumbnailPath = NormalizeMapThumbnail(destPath, thumbnailPath, assetFiles);
 
                 var totalSize = fileInfo.Length + assetFiles.Sum(f => new FileInfo(f).Length);
 
@@ -313,7 +313,7 @@ public sealed class MapImportService(
 
         if (result.FilesImported == 0 && result.Errors.Count == 0)
         {
-            result.Errors.Add(localizationService?.GetString("Maps.Import.Notification.NoMapsFound") ?? "No map files were found to import.");
+            result.Errors.Add(localizationService?.GetString(MapManagerConstants.NoMapsFoundMessageKey) ?? MapManagerConstants.NoMapsFoundFallbackMessage);
         }
 
         result.Success = result.FilesImported > 0;
@@ -516,7 +516,7 @@ public sealed class MapImportService(
                                     }
                                 }
 
-                                thumbnailPath = NormalizeMapThumbnail(mapDirPath, thumbnailPath, assetFiles);
+                                thumbnailPath = NormalizeMapThumbnail(mapDestPath, thumbnailPath, assetFiles);
 
                                 expandedBytes += mapExpandedBytes;
                             }
@@ -980,17 +980,16 @@ public sealed class MapImportService(
                buffer[3] == 0xAF && buffer[4] == 0x27 && buffer[5] == 0x1C;
     }
 
-    private string? NormalizeMapThumbnail(string mapDirPath, string? thumbnailPath, List<string> assetFiles)
+    private string? NormalizeMapThumbnail(string mapFilePath, string? thumbnailPath, List<string> assetFiles)
     {
-        // C&C Generals & Zero Hour require <MapDirName>.tga inside the map directory to render the minimap preview
-        var actualDirName = Path.GetFileName(mapDirPath);
-        var expectedTgaPath = Path.Combine(mapDirPath, actualDirName + ".tga");
+        // The engine derives the preview path from the map file, even in a renamed directory.
+        var expectedTgaPath = Path.ChangeExtension(mapFilePath, ".tga");
         if (File.Exists(expectedTgaPath))
         {
             return expectedTgaPath;
         }
 
-        if (!File.Exists(expectedTgaPath) && thumbnailPath != null && File.Exists(thumbnailPath))
+        if (thumbnailPath != null && File.Exists(thumbnailPath))
         {
             try
             {
@@ -1171,6 +1170,11 @@ public sealed class MapImportService(
             result.Errors.Add($"Archive extraction failed: {ex.Message}");
         }
 
+        if (result.FilesImported == 0 && result.Errors.Count == 0)
+        {
+            result.Errors.Add(localizationService?.GetString(MapManagerConstants.NoMapsFoundMessageKey) ?? MapManagerConstants.NoMapsFoundFallbackMessage);
+        }
+
         result.Success = result.FilesImported > 0;
         return result;
     }
@@ -1246,7 +1250,7 @@ public sealed class MapImportService(
                 bytes => mapExpandedBytes += bytes,
                 context.CancellationToken);
 
-            thumbnailPath = NormalizeMapThumbnail(mapDirPath, thumbnailPath, assetFiles);
+            thumbnailPath = NormalizeMapThumbnail(mapDestPath, thumbnailPath, assetFiles);
 
             context.OnBytesExpanded(mapExpandedBytes);
         }

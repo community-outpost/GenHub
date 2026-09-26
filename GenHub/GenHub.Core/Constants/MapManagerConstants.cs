@@ -210,6 +210,12 @@ public static class MapManagerConstants
     /// <summary>Localization key for Invalid Input notification message.</summary>
     public const string InvalidInputMessageKey = "Maps.MapPack.Notification.InvalidInputMessage";
 
+    /// <summary>Localization key for an import containing no maps.</summary>
+    public const string NoMapsFoundMessageKey = "Maps.Import.Notification.NoMapsFound";
+
+    /// <summary>Diagnostic used when no localization service is supplied.</summary>
+    public const string NoMapsFoundFallbackMessage = "No map files were found to import.";
+
     /// <summary>
     /// Allowed file extensions for map packages.
     /// </summary>

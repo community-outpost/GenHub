@@ -49,16 +49,23 @@ public sealed class MapImportServiceTests : IDisposable
     }
 
     /// <summary>Companions without a map report a useful import failure.</summary>
+    /// <param name="archive">Whether to use the archive route.</param>
     /// <returns>The asynchronous test.</returns>
-    [Fact]
-    public async Task ImportFromFilesAsync_CompanionsOnly_ReportsMissingMapAsync()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ImportFromFilesOrArchiveAsync_CompanionsOnly_ReportsMissingMapAsync(bool archive)
     {
         var source = Path.Combine(_workingDirectory, "companions");
         Directory.CreateDirectory(source);
         await File.WriteAllTextAsync(Path.Combine(source, "map.str"), "strings");
         await File.WriteAllTextAsync(Path.Combine(source, "preview.tga"), "preview");
 
-        var result = await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
+        var zipPath = Path.Combine(_workingDirectory, "companions.zip");
+        ZipFile.CreateFromDirectory(source, zipPath);
+        var result = archive
+            ? await _service.ImportFromZipAsync(zipPath, GameType.ZeroHour)
+            : await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
 
         Assert.False(result.Success);
         Assert.Equal(0, result.FilesImported);
@@ -510,7 +517,7 @@ public sealed class MapImportServiceTests : IDisposable
     [InlineData("folder")]
     [InlineData("zip")]
     [InlineData("tar")]
-    public async Task ImportFromFilesAsync_FolderWithTwoMaps_CopiesNamedAndSharedAssetsAsync(string importFormat)
+    public async Task ImportFromFilesOrArchiveAsync_FolderWithTwoMaps_CopiesNamedAndSharedAssetsAsync(string importFormat)
     {
         var source = Path.Combine(_workingDirectory, "Source", "Pack");
         Directory.CreateDirectory(source);
@@ -539,22 +546,24 @@ public sealed class MapImportServiceTests : IDisposable
             }
         }
 
+        Directory.CreateDirectory(Path.Combine(_mapDirectory, "Alpha"));
+        Directory.CreateDirectory(Path.Combine(_mapDirectory, "Beta"));
         var result = importFormat == "folder"
             ? await _service.ImportFromFilesAsync([source], GameType.ZeroHour)
             : await _service.ImportFromZipAsync(importPath, GameType.ZeroHour);
 
         Assert.True(result.Success, string.Join(" ", result.Errors));
-        Assert.Equal("shared preview", await File.ReadAllTextAsync(Path.Combine(_mapDirectory, "Alpha", "Alpha.tga")));
-        Assert.Equal("beta tga", await File.ReadAllTextAsync(Path.Combine(_mapDirectory, "Beta", "Beta.tga")));
+        Assert.Equal("shared preview", await File.ReadAllTextAsync(Path.Combine(_mapDirectory, "Alpha (1)", "Alpha.tga")));
+        Assert.Equal("beta tga", await File.ReadAllTextAsync(Path.Combine(_mapDirectory, "Beta (1)", "Beta.tga")));
         Assert.Equal(2, result.ImportedMaps.Count);
-        Assert.Contains(result.ImportedMaps, map => map.ThumbnailPath == Path.Combine(_mapDirectory, "Alpha", "Alpha.tga"));
-        Assert.Contains(result.ImportedMaps, map => map.ThumbnailPath == Path.Combine(_mapDirectory, "Beta", "Beta.tga"));
+        Assert.Contains(result.ImportedMaps, map => map.ThumbnailPath == Path.Combine(_mapDirectory, "Alpha (1)", "Alpha.tga"));
+        Assert.Contains(result.ImportedMaps, map => map.ThumbnailPath == Path.Combine(_mapDirectory, "Beta (1)", "Beta.tga"));
         Assert.Equal(
             ["Alpha.map", "Alpha.tga", "Alpha.wak", "MAP.STR", "map.ini", "map.tga"],
-            Directory.GetFiles(Path.Combine(_mapDirectory, "Alpha")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+            Directory.GetFiles(Path.Combine(_mapDirectory, "Alpha (1)")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Equal(
             ["Beta.map", "Beta.tga", "MAP.STR", "map.ini", "map.tga"],
-            Directory.GetFiles(Path.Combine(_mapDirectory, "Beta")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+            Directory.GetFiles(Path.Combine(_mapDirectory, "Beta (1)")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
     }
 
     /// <summary>

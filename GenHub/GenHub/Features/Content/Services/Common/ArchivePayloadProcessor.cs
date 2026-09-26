@@ -2751,7 +2751,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         try
         {
-            foreach (var rootCompanion in Directory.EnumerateFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly))
+            foreach (var rootCompanion in Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly))
             {
                 var fileName = Path.GetFileName(rootCompanion);
                 if (IsSharedMapCompanion(fileName) || fileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase))
@@ -2798,9 +2798,23 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var isSharedCompanion = isDefaultThumbnail || IsSharedMapCompanion(fn);
                 try
                 {
-                    if (isSharedCompanion && File.Exists(targetAssetFile) && !FilesAreEqual(companion, targetAssetFile))
+                    if (isSharedCompanion)
                     {
-                        throw new InvalidDataException($"Conflicting shared map companion '{companion}' and '{targetAssetFile}'.");
+                        var existingTargets = Directory.GetFiles(targetFolder, "*", SearchOption.TopDirectoryOnly)
+                            .Where(path => Path.GetFileName(path).Equals(targetFileName, StringComparison.OrdinalIgnoreCase))
+                            .ToArray();
+                        foreach (var existingTarget in existingTargets)
+                        {
+                            if (!FilesAreEqual(companion, existingTarget))
+                            {
+                                throw new InvalidDataException($"Conflicting shared map companion '{companion}' and '{existingTarget}'.");
+                            }
+                        }
+
+                        if (existingTargets.Length > 0)
+                        {
+                            continue;
+                        }
                     }
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
