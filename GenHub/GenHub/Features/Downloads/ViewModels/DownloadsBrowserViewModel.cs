@@ -2101,6 +2101,10 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         var (opCts, inFlightOp) = SetupFetchOperation(publisherId, query, isCustomQuery, append, requestId);
 
+        // Capture the token once: a concurrent refresh can dispose the CTS while this fetch
+        // is still running, and re-accessing CTS.Token afterwards throws ObjectDisposedException.
+        var fetchToken = opCts.Token;
+
         var discoverer = GetDiscovererForPublisher(publisherId);
         if (discoverer == null)
         {
@@ -2118,9 +2122,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
         try
         {
-            var result = await discoverer.DiscoverAsync(query, opCts.Token);
+            var result = await discoverer.DiscoverAsync(query, fetchToken);
 
-            if (opCts.Token.IsCancellationRequested)
+            if (fetchToken.IsCancellationRequested)
             {
                 CleanupInFlight(publisherId, inFlightOp);
                 return false;
@@ -2128,7 +2132,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
             if (result.Success && result.Data != null)
             {
-                await PersistRefreshedSubscriptionUrlAsync(publisherId, discoverer, opCts.Token);
+                await PersistRefreshedSubscriptionUrlAsync(publisherId, discoverer, fetchToken);
 
                 var items = result.Data.Items
                     .Where(item => !query.ContentType.HasValue || item.ContentType == query.ContentType.Value)
@@ -2140,7 +2144,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     var newDiscoveredItems = items.Where(i => !prevItemIds.Contains(i.Id)).ToList();
                     if (newDiscoveredItems.Count > 0)
                     {
-                        var subResult = await subscriptionStore.GetSubscriptionAsync(publisherId, opCts.Token);
+                        var subResult = await subscriptionStore.GetSubscriptionAsync(publisherId, fetchToken);
                         var sub = subResult.Success ? subResult.Data : null;
                         if (sub?.NotifyNewReleases != false)
                         {
@@ -2209,9 +2213,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
                 var existingIds = append ? CollectExistingContentIds() : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var groups = GroupContentItemsByVariant(items);
-                var newVms = await ProcessDiscoveredGroupsAsync(groups, existingIds, inFlightOp, publisherId, requestId, opCts.Token);
+                var newVms = await ProcessDiscoveredGroupsAsync(groups, existingIds, inFlightOp, publisherId, requestId, fetchToken);
 
-                if (opCts.Token.IsCancellationRequested)
+                if (fetchToken.IsCancellationRequested)
                 {
                     CleanupInFlight(publisherId, inFlightOp);
                     return false;

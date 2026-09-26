@@ -45,13 +45,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-gla-campaign-by-tklyo-1/1280/720",
-            "https://picsum.photos/seed/dominator-gla-campaign-by-tklyo-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -68,8 +63,7 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
         "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
@@ -128,13 +122,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-gla-with-power-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-gla-with-power-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -151,19 +140,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/generals-cover.png",
         "accentColor": "#10B981",
-        "screenshotUrls": [
-          "https://picsum.photos/seed/dominator-gla-with-power-maps-1/1280/720",
-          "https://picsum.photos/seed/dominator-gla-with-power-maps-2/1280/720",
-          "https://picsum.photos/seed/dominator-gla-with-power-maps-3/1280/720"
-        ],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "screenshotUrls": [],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -216,13 +198,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-jhg-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-jhg-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -239,15 +216,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
         "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -300,13 +274,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-micro-challenge-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-micro-challenge-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -323,15 +292,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -384,13 +350,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-naval-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-naval-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -407,15 +368,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/generals-cover-2.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -468,13 +426,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-no-money-and-cxn-1/1280/720",
-            "https://picsum.photos/seed/dominator-no-money-and-cxn-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -491,15 +444,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/generals-cover.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -553,13 +503,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-pro-skills-dominator-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-pro-skills-dominator-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -576,15 +521,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/generals-cover.png",
         "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -637,13 +579,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-pvp-micro-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-pvp-micro-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -661,14 +598,11 @@
       ],
       "metadata": {
         "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -721,13 +655,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-race-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-race-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -744,15 +673,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -805,13 +731,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-random-multiplayer-maps-1-1/1280/720",
-            "https://picsum.photos/seed/dominator-random-multiplayer-maps-1-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -828,15 +749,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -889,13 +807,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-random-multiplayer-maps-3-1/1280/720",
-            "https://picsum.photos/seed/dominator-random-multiplayer-maps-3-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -912,15 +825,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -973,13 +883,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-random-multiplayer-maps-2-1/1280/720",
-            "https://picsum.photos/seed/dominator-random-multiplayer-maps-2-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -996,15 +901,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/generals-cover-2.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1057,13 +959,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-shellmaps-1/1280/720",
-            "https://picsum.photos/seed/dominator-shellmaps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1081,14 +978,11 @@
       ],
       "metadata": {
         "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1142,13 +1036,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-shkai-domis-toy-box-1/1280/720",
-            "https://picsum.photos/seed/dominator-shkai-domis-toy-box-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1165,15 +1054,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/generals-cover-2.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1226,13 +1112,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-starwars-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-starwars-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1249,15 +1130,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/generals-cover.png",
+        "backdropUrl": "avares://GenHub/Assets/Covers/generals-cover-2.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1310,13 +1188,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-troll-maps-april-fools-1/1280/720",
-            "https://picsum.photos/seed/dominator-troll-maps-april-fools-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1333,15 +1206,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1395,13 +1265,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-usa-campaign-by-cresty-1/1280/720",
-            "https://picsum.photos/seed/dominator-usa-campaign-by-cresty-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1418,15 +1283,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
         "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1480,13 +1342,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-usa-campaign-by-supakrid-1/1280/720",
-            "https://picsum.photos/seed/dominator-usa-campaign-by-supakrid-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1503,15 +1360,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/generals-cover-2.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1565,13 +1419,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-usa-campaign-by-tklyo-1/1280/720",
-            "https://picsum.photos/seed/dominator-usa-campaign-by-tklyo-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1588,15 +1437,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1650,13 +1496,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-usa-campaign-by-unicas-1/1280/720",
-            "https://picsum.photos/seed/dominator-usa-campaign-by-unicas-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1673,15 +1514,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/Covers/generals-cover.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1735,13 +1573,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-usa-campaign-by-xjoueuer50-1/1280/720",
-            "https://picsum.photos/seed/dominator-usa-campaign-by-xjoueuer50-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1758,15 +1591,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
-        "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+        "backdropUrl": "avares://GenHub/Assets/background.jpg",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,
@@ -1820,13 +1650,8 @@
             }
           ],
           "bundleArtifacts": false,
-          "imageUrls": [
-            "https://picsum.photos/seed/dominator-wbc-big-maps-1/1280/720",
-            "https://picsum.photos/seed/dominator-wbc-big-maps-2/1280/720"
-          ],
-          "videoUrls": [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-          ],
+          "imageUrls": [],
+          "videoUrls": [],
           "dependencies": [
             {
               "publisherId": "ea",
@@ -1843,15 +1668,12 @@
         }
       ],
       "metadata": {
-        "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
-        "iconUrl": "avares://GenHub/Assets/Logos/dominator-logo.png",
+        "bannerUrl": "avares://GenHub/Assets/Covers/generals-cover-2.png",
         "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
         "accentColor": "#10B981",
         "screenshotUrls": [],
-        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "videoUrls": [
-          "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ],
+        "videoUrl": null,
+        "videoUrls": [],
         "documentationUrl": "https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph",
         "author": "Dominator",
         "license": null,

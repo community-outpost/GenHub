@@ -469,7 +469,8 @@ public partial class AddContentDialogViewModel(
             option.AvailableVariants.Add(v);
         }
 
-        var existingDep = _existingItem?.BundledItems.FirstOrDefault(b => string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase));
+        var existingDep = _existingItem?.BundledItems.FirstOrDefault(b => string.Equals(b.ContentId, item.Id, StringComparison.OrdinalIgnoreCase))
+            ?? _existingItem?.Releases.SelectMany(r => r.Dependencies ?? []).FirstOrDefault(d => string.Equals(d.ContentId, item.Id, StringComparison.OrdinalIgnoreCase));
         if (existingDep != null)
         {
             option.IsSelected = true;
@@ -490,12 +491,15 @@ public partial class AddContentDialogViewModel(
 
     private void PopulateFallbackBundleComponentOptions()
     {
-        if (_existingItem?.BundledItems is not { Count: > 0 })
+        var bundledDeps = _existingItem?.BundledItems ?? [];
+        var releaseDeps = _existingItem?.Releases.SelectMany(r => r.Dependencies ?? []).ToList() ?? [];
+        var allDeps = bundledDeps.Concat(releaseDeps).Where(d => !string.IsNullOrWhiteSpace(d.ContentId)).ToList();
+        if (allDeps.Count == 0)
         {
             return;
         }
 
-        foreach (var bundledItem in _existingItem.BundledItems)
+        foreach (var bundledItem in allDeps)
         {
             if (BundleComponentOptions.Any(o => string.Equals(o.ContentId, bundledItem.ContentId, StringComparison.OrdinalIgnoreCase)))
             {

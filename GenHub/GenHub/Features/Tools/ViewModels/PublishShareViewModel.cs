@@ -1309,6 +1309,26 @@ public partial class PublishShareViewModel(
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
+    /// <summary>
+    /// Resolves a collision-free remote filename for a catalog. Catalogs imported from
+    /// identically named files would otherwise overwrite each other on the host and end
+    /// up sharing one download URL, which makes subscribers show the wrong items.
+    /// </summary>
+    private static string ResolveUniqueCatalogFileName(PublisherStudioProject project, NamedCatalog activeCatalog)
+    {
+        var fileName = activeCatalog.FileName;
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return $"catalog-{activeCatalog.Id}.json";
+        }
+
+        var collides = project.Catalogs.Any(c =>
+            !string.Equals(c.Id, activeCatalog.Id, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+
+        return collides ? $"catalog-{activeCatalog.Id}.json" : fileName;
+    }
+
     private static (string Name, string Url, long Size)? FindInArtifacts(IEnumerable<ReleaseArtifact>? artifacts, string sha256)
     {
         if (artifacts == null)
@@ -2739,6 +2759,13 @@ public partial class PublishShareViewModel(
         return true;
     }
 
+    private bool IsFileIdSharedWithOtherCatalog(string catalogId, string fileId)
+    {
+        return _currentHostingState?.Catalogs.Any(c =>
+            !string.Equals(c.CatalogId, catalogId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.FileId, fileId, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
     private async Task<OperationResult<HostingUploadResult>> PerformCatalogUploadAsync(IProgress<int> progress, CancellationToken cancellationToken = default)
     {
         if (SelectedHostingProvider == null || ActiveCatalog == null)
@@ -2753,11 +2780,14 @@ public partial class PublishShareViewModel(
             ? _currentHostingState!.Catalogs.FirstOrDefault(c => c.CatalogId == ActiveCatalog.Id)?.FileId
             : null;
 
-        var catalogFileName = string.IsNullOrEmpty(ActiveCatalog.FileName)
-            ? $"catalog-{ActiveCatalog.Id}.json"
-            : ActiveCatalog.FileName;
+        var catalogFileName = ResolveUniqueCatalogFileName(project, ActiveCatalog);
 
-        if (!string.IsNullOrEmpty(existingCatalogFileId) && SelectedHostingProvider.SupportsUpdate)
+        // A file ID shared with another catalog means a previous filename collision merged
+        // both catalogs into one remote file. Upload fresh so this catalog gets its own file.
+        var fileIdShared = !string.IsNullOrEmpty(existingCatalogFileId) &&
+            IsFileIdSharedWithOtherCatalog(ActiveCatalog.Id, existingCatalogFileId);
+
+        if (!string.IsNullOrEmpty(existingCatalogFileId) && SelectedHostingProvider.SupportsUpdate && !fileIdShared)
         {
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UpdatingCatalogFormat", "Updating existing catalog '{0}'...", ActiveCatalog.Name);
             using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(CatalogJson));

@@ -136,22 +136,36 @@
                                Classes="hint"/>
                 </StackPanel>
 
-                <!-- Featured Settings -->
-                <Border Background="{DynamicResource GlassFillSubtleBrush}"
-                        BorderBrush="{DynamicResource GlassBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="12">
-                    <StackPanel Spacing="8">
-                        <CheckBox Content="{localization:Localize Tools.PublisherStudio.Content.FeaturedMark}"
-                                  IsChecked="{Binding IsFeatured}"
-                                  FontWeight="SemiBold"/>
-                        <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgeLabel}" Classes="label"/>
-                            <TextBox Text="{Binding FeaturedBadge}" Watermark="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgePlaceholder}"/>
+                <!-- Featured + Upstream toggles -->
+                <Grid ColumnDefinitions="*,8,*">
+                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel Spacing="8">
+                            <CheckBox Content="{localization:Localize Tools.PublisherStudio.Content.FeaturedMark}"
+                                      IsChecked="{Binding IsFeatured}"
+                                      FontWeight="SemiBold"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgeLabel}" Classes="label"/>
+                                <TextBox Text="{Binding FeaturedBadge}" Watermark="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgePlaceholder}"/>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </Border>
+                    </Border>
+                    <Border Grid.Column="2"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12"
+                            IsVisible="{Binding !IsBundleType}">
+                        <CheckBox Content="{localization:Localize Tools.PublisherStudio.Content.UpstreamTrack}"
+                                  IsChecked="{Binding IsUpstreamSource}"
+                                  FontWeight="SemiBold"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
 
                 <!-- Component Matrix (visible when ContentType is ContentBundle) -->
                 <Border Background="{DynamicResource GlassFillSubtleBrush}"
@@ -194,18 +208,15 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Upstream Sync Configuration (visible when not ContentBundle) -->
+                <!-- Upstream Sync Configuration (visible when tracking an upstream provider) -->
                 <Border Background="{DynamicResource GlassFillSubtleBrush}"
                         BorderBrush="{DynamicResource GlassBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="12"
-                        IsVisible="{Binding !IsBundleType}">
+                        IsVisible="{Binding IsUpstreamSource}">
                     <StackPanel Spacing="8">
-                        <CheckBox Content="{localization:Localize Tools.PublisherStudio.Content.UpstreamTrack}"
-                                  IsChecked="{Binding IsUpstreamSource}"
-                                  FontWeight="SemiBold"/>
-                        <StackPanel Spacing="8" IsVisible="{Binding IsUpstreamSource}">
+                        <StackPanel Spacing="8">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamProvider}" Classes="label"/>
                             <ComboBox ItemsSource="{Binding AvailableUpstreamProviders}"
                                       SelectedItem="{Binding SelectedUpstreamProvider}"

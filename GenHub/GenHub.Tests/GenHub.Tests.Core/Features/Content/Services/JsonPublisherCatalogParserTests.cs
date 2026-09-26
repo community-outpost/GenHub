@@ -154,8 +154,9 @@ public sealed class JsonPublisherCatalogParserTests
             d => d.ContentId == "lemon-controlbar" && d.ContentType == "Addon");
         Assert.Contains(result.Data.Content, c => c.Id == "bundle-community-outpost-stack");
         Assert.Contains(result.Data.Content, c => c.Id == "bundle-generalsonline-complete-pack");
-        Assert.False(result.Data.Content.First(c => c.Id == "lemon-controlbar").IsStandalone);
+        Assert.True(result.Data.Content.First(c => c.Id == "lemon-controlbar").IsStandalone);
         Assert.True(stack.IsStandalone);
+        Assert.All(result.Data.Content, c => Assert.True(c.IsStandalone));
     }
 
     /// <summary>

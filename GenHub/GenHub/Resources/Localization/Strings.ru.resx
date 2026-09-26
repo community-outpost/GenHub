@@ -13912,6 +13912,12 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.PublisherStudio.Library.NoClipboardImageMessage" xml:space="preserve">
     <value>В буфере обмена не найдено изображение, файл или URL.</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamReleasesNote" xml:space="preserve">
+    <value>Релизы ниже синхронизируются из источника и недоступны для редактирования. Редактируйте сводку, медиа и дополнения.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UpstreamReleasesLoading" xml:space="preserve">
+    <value>Загрузка релизов из источника…</value>
+  </data>
   <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
     <value>Доступно обновление для {0}</value>
   </data>

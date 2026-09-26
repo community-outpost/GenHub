@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Helpers;
@@ -9,6 +10,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
@@ -18,6 +20,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,7 +39,8 @@ public partial class ContentLibraryViewModel(
     ILogger logger,
     IPublisherStudioDialogService dialogService,
     INotificationService? notificationService = null,
-    ILocalizationService? localizationService = null) : ObservableObject
+    ILocalizationService? localizationService = null,
+    ICatalogUpstreamIngestionService? upstreamIngestionService = null) : ObservableObject
 {
     private const int DetailTabReleases = 1;
     private const int DetailTabAddons = 2;
@@ -44,6 +48,18 @@ public partial class ContentLibraryViewModel(
 
     [ObservableProperty]
     private ObservableCollection<CatalogContentItem> _contentItems = InitializeContentItems(activeCatalog, parentViewModel);
+
+    private static CatalogContentItem? CloneForPreview(CatalogContentItem item)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<CatalogContentItem>(JsonSerializer.Serialize(item));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     private static (string? CatalogIconUrl, string? PublisherAvatarUrl) ResolveCatalogPresentationUrls(
         NamedCatalog? catalog,
@@ -91,6 +107,14 @@ public partial class ContentLibraryViewModel(
     [ObservableProperty]
     private int _selectedDetailTabIndex;
 
+    [ObservableProperty]
+    private ObservableCollection<ContentRelease> _upstreamPreviewReleases = [];
+
+    [ObservableProperty]
+    private bool _isUpstreamPreviewLoading;
+
+    private CancellationTokenSource? _upstreamPreviewCts;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentLibraryViewModel"/> class with default catalog.
     /// </summary>
@@ -103,7 +127,7 @@ public partial class ContentLibraryViewModel(
         PublisherStudioViewModel parentViewModel,
         ILogger logger,
         IPublisherStudioDialogService dialogService)
-        : this(project, project?.Catalogs.FirstOrDefault() ?? new NamedCatalog { Id = "default", Name = "Content", Catalog = project?.Catalog ?? new() }, parentViewModel, logger, dialogService, null, null)
+        : this(project, project?.Catalogs.FirstOrDefault() ?? new NamedCatalog { Id = "default", Name = "Content", Catalog = project?.Catalog ?? new() }, parentViewModel, logger, dialogService, null, null, null)
     {
     }
 
@@ -116,6 +140,11 @@ public partial class ContentLibraryViewModel(
     /// Gets the name of the active catalog.
     /// </summary>
     public string ActiveCatalogName => activeCatalog?.Name ?? string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether an upstream release preview is available for the selected content item.
+    /// </summary>
+    public bool HasUpstreamPreview => UpstreamPreviewReleases.Count > 0;
 
     /// <summary>
     /// Gets the localized catalog item count summary for the footer.
@@ -1342,8 +1371,87 @@ public partial class ContentLibraryViewModel(
 
     partial void OnSelectedContentChanged(CatalogContentItem? value)
     {
-        _ = value;
         RefreshHostingHint();
+        BeginUpstreamPreviewLoad(value);
+    }
+
+    private bool IsSelectedContentUpstream() =>
+        SelectedContent != null && CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(SelectedContent);
+
+    /// <summary>
+    /// Starts loading a read-only upstream release preview for the selected content item.
+    /// The preview is ingested from a clone so the catalog itself is never modified.
+    /// </summary>
+    private void BeginUpstreamPreviewLoad(CatalogContentItem? value)
+    {
+        _upstreamPreviewCts?.Cancel();
+        _upstreamPreviewCts?.Dispose();
+        _upstreamPreviewCts = null;
+        UpstreamPreviewReleases.Clear();
+        IsUpstreamPreviewLoading = false;
+        OnPropertyChanged(nameof(HasUpstreamPreview));
+
+        if (value == null || upstreamIngestionService == null || !IsSelectedContentUpstream())
+        {
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _upstreamPreviewCts = cts;
+        IsUpstreamPreviewLoading = true;
+        _ = LoadUpstreamPreviewAsync(value, cts);
+    }
+
+    private async Task LoadUpstreamPreviewAsync(CatalogContentItem item, CancellationTokenSource cts)
+    {
+        try
+        {
+            var clone = CloneForPreview(item);
+            if (clone == null)
+            {
+                return;
+            }
+
+            var preview = new PublisherCatalog { Content = [clone] };
+            await upstreamIngestionService!.IngestCatalogAsync(preview, cts.Token);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var releases = clone.Releases.ToList();
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (_upstreamPreviewCts != cts)
+                {
+                    return;
+                }
+
+                UpstreamPreviewReleases.Clear();
+                foreach (var release in releases)
+                {
+                    UpstreamPreviewReleases.Add(release);
+                }
+
+                OnPropertyChanged(nameof(HasUpstreamPreview));
+            });
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load upstream release preview for '{ContentId}'", item.Id);
+        }
+        finally
+        {
+            if (_upstreamPreviewCts == cts)
+            {
+                _upstreamPreviewCts = null;
+                cts.Dispose();
+                await Dispatcher.UIThread.InvokeAsync(() => IsUpstreamPreviewLoading = false);
+            }
+        }
     }
 
     /// <summary>

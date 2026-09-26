@@ -1,8 +1,10 @@
 {
     "$schemaVersion": 1,
+    "iconUrl": "avares://GenHub/Assets/Logos/generalshub-logo.png",
+    "avatarUrl": "avares://GenHub/Assets/Logos/generalshub-logo.png",
     "publisher": {
         "id": "genhub-test-publishers",
-        "name": "GenHub Test Publishers",
+        "name": "Content Bundles",
         "website": "https://github.com/thesuperhackers",
         "avatarUrl": "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
         "supportUrl": "https://github.com/thesuperhackers/GeneralsGameCode/issues",
@@ -15,7 +17,7 @@
             "description": "Weekly release of Command & Conquer: Generals Zero Hour game code from TheSuperHackers.\n\nKey Highlights:\n• Community-maintained game client with extensive engine bug fixes and anti-desync stability.\n• Modern OS compatibility fixes for Windows 10/11 including widescreen scaling and multi-monitor support.\n• Fully compatible with stock 1.04 replay system and multiplayer matchmaking services.",
             "contentType": "GameClient",
             "publisherType": "thesuperhackers",
-            "isStandalone": false,
+            "isStandalone": true,
             "targetGame": 1,
             "tags": [
                 "weekly",
@@ -28,6 +30,8 @@
             ],
             "metadata": {
                 "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/thesuperhackers-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
                 "screenshotUrls": [
                     "avares://GenHub/Assets/Covers/china-cover.jpg",
                     "avares://GenHub/Assets/Covers/usa-cover.jpg",
@@ -82,7 +86,26 @@
                         }
                     ]
                 }
-            ]
+            ],
+            "upstreamSync": {
+                "provider": "GitHubReleases",
+                "repository": "TheSuperHackers/GeneralsGameCode",
+                "variantAxis": "game-type",
+                "assetRules": [
+                    {
+                        "pattern": "generalszh-.*\\.zip$",
+                        "variant": "Zero Hour",
+                        "isDefault": true,
+                        "targetGame": 1
+                    },
+                    {
+                        "pattern": "generals-.*\\.zip$",
+                        "variant": "Generals",
+                        "isDefault": false,
+                        "targetGame": 0
+                    }
+                ]
+            }
         },
         {
             "id": "60hz",
@@ -90,7 +113,7 @@
             "description": "Community-driven multiplayer service and enhanced client for C&C Generals Zero Hour.\n\nKey Highlights:\n• 60Hz tick rate physics engine for buttery smooth unit movement and responsive micro-management.\n• Built-in quickmatch matchmaking service, ladder leaderboards, and automatic map synchronization.\n• Enhanced anti-cheat protections and seamless reconnection handling.",
             "contentType": "GameClient",
             "publisherType": "generalsonline",
-            "isStandalone": false,
+            "isStandalone": true,
             "targetGame": 1,
             "tags": [
                 "multiplayer",
@@ -102,6 +125,8 @@
             ],
             "metadata": {
                 "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/generalsonline-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/generals-cover.png",
                 "screenshotUrls": [
                     "avares://GenHub/Assets/Covers/usa-cover.jpg",
                     "avares://GenHub/Assets/Covers/china-cover.jpg",
@@ -139,122 +164,65 @@
                             "versionConstraint": "1.04",
                             "contentType": "GameInstallation",
                             "isOptional": false
-                        },
-                        {
-                            "publisherId": "generalsonline",
-                            "contentId": "quickmatch-maps",
-                            "versionConstraint": ">=081326",
-                            "contentType": "MapPack",
-                            "isOptional": false
                         }
                     ]
                 }
-            ]
+            ],
+            "upstreamSync": {
+                "provider": "GeneralsOnline",
+                "channel": "stable"
+            }
         },
         {
-            "id": "community-patch",
-            "name": "Community Outpost Game Client (Community Patch)",
-            "description": "Official community patch game client for Command & Conquer: Generals Zero Hour provided by Community Outpost (legi.cc). Includes engine bug fixes, balance updates, widescreen scaling, and anti-desync stability.",
+            "id": "community-patch-retail",
+            "name": "Community Patch (TheSuperHackers Build)",
+            "description": "Community Patch game client (Retail Compatible) from Community Outpost, synced from upstream legi.cc builds.\n\nKey Highlights:\n• TheSuperHackers engine build with desync fixes and modern OS support.\n• Automatic updates whenever a new upstream build is published.",
             "contentType": "GameClient",
             "publisherType": "communityoutpost",
-            "isStandalone": false,
+            "isStandalone": true,
             "targetGame": 1,
             "tags": [
-                "game-client",
-                "community",
-                "patch",
                 "communityoutpost",
-                "balance",
-                "zerohour",
-                "widescreen"
+                "community-patch",
+                "game-client",
+                "retail-compatible",
+                "dynamic-upstream"
             ],
             "metadata": {
                 "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
                 "screenshotUrls": [
                     "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                    "avares://GenHub/Assets/Covers/china-cover.jpg",
-                    "avares://GenHub/Assets/Covers/gla-cover.jpg",
                     "avares://GenHub/Assets/Covers/zerohour-cover.png"
                 ],
-                "videoUrl": "https://legi.cc/patch",
-                "documentationUrl": "https://legi.cc/patch",
+                "documentationUrl": "https://legi.cc/",
                 "author": "Community Outpost",
-                "license": "Freeware",
+                "license": "GPL-3.0",
                 "category": "Game Client",
                 "playerCount": 8
             },
-            "releases": [
-                {
-                    "version": "2026.08.02",
-                    "releaseDate": "2026-08-02T00:00:00Z",
-                    "isLatest": true,
-                    "isPrerelease": false,
-                    "changelog": "Community patch release. Engine stability enhancements, widescreen scaling, and anti-desync optimizations.",
-                    "artifacts": [
-                        {
-                            "filename": "community-patch.zip",
-                            "downloadUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-31/generalszh-weekly-2026-07-31.zip",
-                            "size": 33380692,
-                            "sha256": "b77fe45a6f073d2d280c4910cf10dc70f1d64580a5ab1e364c6775d7ce3fc338",
-                            "contentType": "application/zip",
-                            "isPrimary": true
-                        }
-                    ],
-                    "dependencies": [
-                        {
-                            "publisherId": "ea",
-                            "contentId": "zerohour",
-                            "versionConstraint": "1.04",
-                            "contentType": "GameInstallation",
-                            "isOptional": false
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "id": "quickmatch-maps",
-            "name": "Generals Online QuickMatch Maps",
-            "description": "Official map pack required for GeneralsOnline QuickMatch multiplayer. Contains competitively balanced maps used by the matchmaking service.",
-            "contentType": "MapPack",
-            "publisherType": "generalsonline",
-            "isStandalone": false,
-            "targetGame": 1,
-            "tags": [
-                "mappack",
-                "generalsonline",
-                "quickmatch",
-                "competitive"
-            ],
-            "metadata": {
-                "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                "screenshotUrls": [
-                    "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                    "avares://GenHub/Assets/Covers/china-cover.jpg",
-                    "avares://GenHub/Assets/Covers/gla-cover.jpg",
-                    "avares://GenHub/Assets/Covers/zerohour-cover.png"
-                ],
-                "videoUrl": "https://www.playgenerals.online/",
-                "documentationUrl": "https://www.playgenerals.online/",
-                "author": "Generals Online Team",
-                "license": "MIT",
-                "category": "Map Pack",
-                "playerCount": 8
+            "upstreamSync": {
+                "provider": "CommunityOutpost",
+                "channel": "stable"
             },
             "releases": [
                 {
-                    "version": "081326",
-                    "releaseDate": "2026-08-13T00:00:00Z",
+                    "version": "1.06",
+                    "releaseDate": "2026-09-11T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "Initial QuickMatch map pack release.",
+                    "changelog": "Fallback static release (Retail Compatible); replaced by upstream ingestion when online.",
                     "artifacts": [
                         {
-                            "filename": "GeneralsOnline_portable_081326.zip",
-                            "downloadUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip",
-                            "size": 30083309,
-                            "sha256": "f046a9284959b9b1d99630bf24a610a590afa9aef7e620aebea7b5eabb7231f9",
+                            "filename": "generalszh_23-07-2026.zip",
+                            "downloadUrl": "https://legi.cc/patch/generalszh_23-07-2026.zip",
+                            "size": 2716400,
+                            "sha256": "d307f0f8090c3c8bd64ba6effb46378e92c71d529e69fe69e543d60e3c8a035f",
                             "contentType": "application/zip",
+                            "variantAxis": "compatibility",
+                            "variant": "Retail Compatible",
+                            "isDefaultVariant": true,
                             "isPrimary": true
                         }
                     ],
@@ -271,110 +239,56 @@
             ]
         },
         {
-            "id": "shockwave-mod-zerohour",
-            "name": "ShockWave Mod v1.25",
-            "description": "Comprehensive gameplay overhaul mod for C&C Generals Zero Hour adding 3 new general sub-factions, hundreds of new units, buildings, and general powers.\n\nKey Highlights:\n• Introduces Armor General (USA), Laser General (China), and Demolition General (GLA).\n• Fully balanced multiplayer experience with custom voiceovers, sound effects, and high-fidelity unit textures.",
-            "contentType": "Mod",
-            "publisherType": "moddb",
-            "isStandalone": false,
-            "targetGame": 1,
-            "tags": [
-                "mod",
-                "overhaul",
-                "factions",
-                "units",
-                "shockwave",
-                "zerohour"
-            ],
-            "metadata": {
-                "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
-                "screenshotUrls": [
-                    "avares://GenHub/Assets/Covers/gla-cover.jpg",
-                    "avares://GenHub/Assets/Covers/china-cover.jpg",
-                    "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                    "avares://GenHub/Assets/Covers/zerohour-cover.png"
-                ],
-                "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                "documentationUrl": "https://www.moddb.com/mods/cc-generals-shockwave",
-                "author": "SWR Productions",
-                "license": "Freeware",
-                "category": "Overhaul Mod",
-                "playerCount": 8
-            },
-            "releases": [
-                {
-                    "version": "1.25",
-                    "releaseDate": "2026-06-15T00:00:00Z",
-                    "isLatest": true,
-                    "isPrerelease": false,
-                    "changelog": "Version 1.25 balance update. Adjusted GLA Demolition General SCUD launcher damage radiuses and updated USA Armor General Paladin tank laser intercept delay.",
-                    "artifacts": [
-                        {
-                            "filename": "ShockWave_v1.25_Full.zip",
-                            "downloadUrl": "https://www.moddb.com/mods/cc-generals-shockwave/downloads/shockwave-125",
-                            "size": 157286400,
-                            "sha256": "d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4",
-                            "contentType": "application/zip",
-                            "isPrimary": true
-                        }
-                    ],
-                    "dependencies": [
-                        {
-                            "publisherId": "ea",
-                            "contentId": "zerohour",
-                            "versionConstraint": "1.04",
-                            "contentType": "GameInstallation",
-                            "isOptional": false
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "id": "cbpr",
-            "name": "Community Outpost - Control Bar Pro",
-            "description": "Control Bar Pro UI add-on from GenPatcher (Community Outpost). Adds an enhanced widescreen command & control bar layout for Zero Hour.",
-            "contentType": "Addon",
+            "id": "community-patch-nonretail",
+            "name": "Community Patch (TheSuperHackers Non-Retail Build)",
+            "description": "Community Patch game client (Non-Retail) from Community Outpost, synced from upstream legi.cc builds.\n\nKey Highlights:\n• TheSuperHackers engine build with desync fixes and modern OS support.\n• Automatic updates whenever a new upstream build is published.",
+            "contentType": "GameClient",
             "publisherType": "communityoutpost",
-            "isStandalone": false,
+            "isStandalone": true,
             "targetGame": 1,
             "tags": [
-                "addon",
-                "community",
-                "genpatcher",
                 "communityoutpost",
-                "ui"
+                "community-patch",
+                "game-client",
+                "non-retail",
+                "dynamic-upstream"
             ],
             "metadata": {
-                "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
+                "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
                 "screenshotUrls": [
-                    "avares://GenHub/Assets/Covers/gla-cover.jpg",
                     "avares://GenHub/Assets/Covers/china-cover.jpg",
-                    "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                    "avares://GenHub/Assets/Covers/zerohour-cover.png"
+                    "avares://GenHub/Assets/Covers/usa-cover.jpg"
                 ],
-                "videoUrl": "https://legi.cc/patch",
-                "documentationUrl": "https://legi.cc/patch",
+                "documentationUrl": "https://legi.cc/",
                 "author": "Community Outpost",
-                "license": "Freeware",
-                "category": "UI Addon",
+                "license": "GPL-3.0",
+                "category": "Game Client",
                 "playerCount": 8
+            },
+            "upstreamSync": {
+                "provider": "CommunityOutpost",
+                "channel": "stable"
             },
             "releases": [
                 {
-                    "version": "2026.07.15",
-                    "releaseDate": "2026-07-15T00:00:00Z",
+                    "version": "1.06",
+                    "releaseDate": "2026-09-11T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "Weekly build of Control Bar Pro with resolution support.",
+                    "changelog": "Fallback static release (Non-Retail); replaced by upstream ingestion when online.",
                     "artifacts": [
                         {
-                            "filename": "ControlBarPro-ZH.zip",
-                            "downloadUrl": "https://legi.cc/gp2/f/cbpr.dat",
-                            "size": 10192472,
-                            "sha256": "1795229a27e651f84131291c9a8d22f2635e7f23aa28806826ae7928e900daf8",
-                            "contentType": "application/x-7z-compressed",
-                            "isPrimary": true
+                            "filename": "generalszh_11-09-2026_NonRet.zip",
+                            "downloadUrl": "https://legi.cc/patch/generalszh_11-09-2026_NonRet.zip",
+                            "size": 2724556,
+                            "sha256": "9ee3936bbb5afb4029c0414c541f611ae52e4cddf20e3694636f60bc68fc6693",
+                            "contentType": "application/zip",
+                            "variantAxis": "compatibility",
+                            "variant": "Non-Retail",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
                         }
                     ],
                     "dependencies": [
@@ -395,7 +309,7 @@
             "description": "Lemon-themed Control Bar Pro UI add-on for C&C Generals Zero Hour, shipping five tailored HUD resolution variants so you can select the exact match for your display.\n\nKey Highlights:\n• Re-designed Command & Control bar interface tuned for modern widescreen and high-resolution monitors.\n• Selectable resolution variants: 720p (HD), 900p (HD+), 1080p (Full HD - Recommended), 1440p (2K Quad HD), and 4K (2160p Ultra HD).\n• Lemon-edition custom unit portrait frames, optimized command build buttons, and expanded mini-map radar visibility.\n• Adjusted money and resource texture sizing for Observer, China, USA, and GLA control bars.\n• Fully compatible with standard SAGE engine .BIG packaging and profile managers.",
             "contentType": "Addon",
             "publisherType": "github",
-            "isStandalone": false,
+            "isStandalone": true,
             "targetGame": 1,
             "tags": [
                 "addon",
@@ -411,6 +325,8 @@
             ],
             "metadata": {
                 "bannerUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/github-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
                 "screenshotUrls": [
                     "avares://GenHub/Assets/Covers/gla-cover.jpg",
                     "avares://GenHub/Assets/Covers/china-cover.jpg",
@@ -501,94 +417,168 @@
             ]
         },
         {
-            "id": "gent",
-            "name": "GenTool 8.9 Suite",
-            "description": "Essential enhancement utility for C&C Generals & Zero Hour. Provides anti-cheat protection, widescreen resolution support, HUD scaling, and replay recording.",
+            "id": "l3m-controlbar",
+            "name": "L3M Modern HD Control Bar",
+            "description": "Clean, high-definition competitive control bar overlay designed by L3M. Supports multiple display resolutions with pixel-perfect mini-map scaling and unit command cards.",
             "contentType": "Addon",
-            "publisherType": "communityoutpost",
-            "isStandalone": false,
             "targetGame": 1,
+            "isStandalone": true,
             "tags": [
-                "addon",
-                "utility",
-                "gentool",
-                "communityoutpost",
-                "anticheat"
+                "controlbar",
+                "hd",
+                "ui",
+                "l3m",
+                "resolutions"
             ],
             "metadata": {
-                "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                "screenshotUrls": [
-                    "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                    "avares://GenHub/Assets/Covers/china-cover.jpg",
-                    "avares://GenHub/Assets/Covers/gla-cover.jpg",
-                    "avares://GenHub/Assets/Covers/zerohour-cover.png"
-                ],
-                "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                "documentationUrl": "https://www.gentool.net",
-                "author": "Xezon",
-                "license": "Freeware",
-                "category": "Utility Addon",
-                "playerCount": 8
+                "author": "L3M",
+                "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+                "documentationUrl": "https://github.com/L3-M/GeneralsControlBar",
+                "iconUrl": "avares://GenHub/Assets/Logos/github-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg"
             },
             "releases": [
                 {
-                    "version": "8.9",
-                    "releaseDate": "2026-07-15T00:00:00Z",
+                    "version": "1.3",
+                    "releaseDate": "2026-07-10T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "GenTool 8.9 release with enhanced anti-cheat and high-resolution support.",
+                    "changelog": "Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all resolution packs.",
                     "artifacts": [
                         {
-                            "filename": "gentool_v8.9.zip",
-                            "downloadUrl": "https://legi.cc/gp2/f/gent.dat",
-                            "size": 4194304,
-                            "sha256": "62bb0380ae14c570b6fad92b31784bec188dc22ac5ac9e11d3c524e08fa434e4",
-                            "contentType": "application/x-7z-compressed",
-                            "isPrimary": true
-                        }
-                    ],
-                    "dependencies": [
+                            "filename": "ControlBarProLemonEditionZH_v1.3_1280x720.zip",
+                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip",
+                            "size": 4993550,
+                            "sha256": "d79d8be0448461adeba69f4def5bf9a759bfea1266d7c0f5af6bd5287abeb221",
+                            "contentType": "application/zip",
+                            "variantAxis": "resolution",
+                            "variant": "720p",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
+                        },
                         {
-                            "publisherId": "ea",
-                            "contentId": "zerohour",
-                            "versionConstraint": "1.04",
-                            "contentType": "GameInstallation",
-                            "isOptional": false
+                            "filename": "ControlBarProLemonEditionZH_v1.3_1920x1080.zip",
+                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip",
+                            "size": 1224544,
+                            "sha256": "e0972cde7eaf4a01483eee5239b6ade7fab46f4907b9ed597b96d66447c1d940",
+                            "contentType": "application/zip",
+                            "variantAxis": "resolution",
+                            "variant": "1080p",
+                            "isDefaultVariant": true,
+                            "isPrimary": true
+                        },
+                        {
+                            "filename": "ControlBarProLemonEditionZH_v1.3_2560x1440.zip",
+                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip",
+                            "size": 4993590,
+                            "sha256": "a1d00b2def19786aa40ffe270c00c73e693ada3f6c8273a5555097f55ac04d13",
+                            "contentType": "application/zip",
+                            "variantAxis": "resolution",
+                            "variant": "1440p",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
+                        },
+                        {
+                            "filename": "ControlBarProLemonEditionZH_v1.3_3840x2160.zip",
+                            "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip",
+                            "size": 4993603,
+                            "sha256": "4dc5b9cd4df5565c5f5417dbab7c87c3f3457dae40b4f843f630b7e07f306a90",
+                            "contentType": "application/zip",
+                            "variantAxis": "resolution",
+                            "variant": "4K",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
                         }
                     ]
                 }
             ]
         },
         {
-            "id": "hleg",
-            "name": "Legionnaire's Hotkeys",
-            "description": "Grid-based competitive hotkey preset (QWERTY) for C&C Generals Zero Hour.\n\nKey Highlights:\n• Intuitive QWERTY build and command grid layout modeled after modern RTS control schemes.\n• Includes built-in HUD indicator overlays to display active hotkey bindings directly on unit command buttons.",
+            "id": "eliorata-improved-menus",
+            "name": "Improved Menus Widescreen",
+            "description": "High-resolution widescreen menu interface with responsive button layouts and enhanced typography by ElTioRata.",
             "contentType": "Addon",
-            "publisherType": "communityoutpost",
-            "isStandalone": false,
             "targetGame": 1,
+            "isStandalone": true,
+            "tags": [
+                "addon",
+                "menus",
+                "eliorata",
+                "ui",
+                "widescreen"
+            ],
+            "metadata": {
+                "author": "ElTioRata",
+                "bannerUrl": "avares://GenHub/Assets/Covers/zerohour-cover.png",
+                "documentationUrl": "https://github.com/ElTioRata/ImprovedMenus",
+                "iconUrl": "avares://GenHub/Assets/Logos/github-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/china-cover.jpg"
+            },
+            "releases": [
+                {
+                    "version": "1.3",
+                    "releaseDate": "2026-07-10T00:00:00Z",
+                    "isLatest": true,
+                    "isPrerelease": false,
+                    "changelog": "Widescreen menu layouts for Zero Hour supporting English, Russian, and Spanish.",
+                    "artifacts": [
+                        {
+                            "filename": "0_ImprovedMenusEnglish.zip",
+                            "downloadUrl": "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip",
+                            "size": 225401259,
+                            "sha256": "2e89f663d01709c848c69ac5124f07c194d67a82afd6f1edf1d9f444952f3f7a",
+                            "contentType": "application/zip",
+                            "variantAxis": "language",
+                            "variant": "English",
+                            "isDefaultVariant": true,
+                            "isPrimary": true
+                        },
+                        {
+                            "filename": "0_ImprovedMenusRussian.zip",
+                            "downloadUrl": "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusRussian.zip",
+                            "size": 225409964,
+                            "sha256": "861525886493ba82e02e56aba84527ffdaf2a53c018a68215da9d412d78e04bf",
+                            "contentType": "application/zip",
+                            "variantAxis": "language",
+                            "variant": "Russian",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
+                        },
+                        {
+                            "filename": "0_ImprovedMenusSpanish.zip",
+                            "downloadUrl": "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusSpanish.zip",
+                            "size": 225386806,
+                            "sha256": "b991b18fc1d1c4666d9db0b2e37b841520a81ebd2a76f50d5ada1f3a73df6cf3",
+                            "contentType": "application/zip",
+                            "variantAxis": "language",
+                            "variant": "Spanish",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "leikeze-hotkeys",
+            "name": "Leikeze Competitive Hotkeys",
+            "description": "A comprehensive ergonomic hotkey set by Leikeze and GenPatcher. Supports English (Compact Indicators), German, and English (Full) layouts.",
+            "contentType": "Addon",
+            "targetGame": 1,
+            "isStandalone": true,
             "tags": [
                 "addon",
                 "hotkeys",
-                "legionnaire",
+                "leikeze",
                 "qwerty",
-                "competitive",
-                "indicators"
+                "competitive"
             ],
             "metadata": {
-                "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
-                "screenshotUrls": [
-                    "avares://GenHub/Assets/Covers/china-cover.jpg",
-                    "avares://GenHub/Assets/Covers/usa-cover.jpg",
-                    "avares://GenHub/Assets/Covers/gla-cover.jpg",
-                    "avares://GenHub/Assets/Covers/zerohour-cover.png"
-                ],
-                "videoUrl": "https://legi.cc/patch",
+                "author": "Leikeze",
+                "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
                 "documentationUrl": "https://legi.cc/patch",
-                "author": "Legionnaire",
-                "license": "Freeware",
-                "category": "Hotkey Addon",
-                "playerCount": 8
+                "iconUrl": "avares://GenHub/Assets/Icons/hotkeyseditor-icon.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg"
             },
             "releases": [
                 {
@@ -596,24 +586,40 @@
                     "releaseDate": "2026-07-01T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "Updated hotkey indicators for all ZH factions. Synchronized shortcut layout with latest GenPatcher profile standard.",
+                    "changelog": "Leikeze and GenPatcher hotkey layout presets for English, German, and English (Full).",
                     "artifacts": [
                         {
-                            "filename": "hleg.dat",
-                            "downloadUrl": "https://legi.cc/gp2/f/hleg.dat",
-                            "size": 136899,
-                            "sha256": "69693e098b309bbdb67968926234f725580bb7401cf350cce325542e361b4530",
+                            "filename": "hlei.dat",
+                            "downloadUrl": "https://gentool.net/program_data/genpatcher/hlei.dat",
+                            "size": 293333,
+                            "sha256": "a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215",
                             "contentType": "application/x-7z-compressed",
+                            "variantAxis": "language",
+                            "variant": "English",
+                            "isDefaultVariant": true,
                             "isPrimary": true
-                        }
-                    ],
-                    "dependencies": [
+                        },
                         {
-                            "publisherId": "ea",
-                            "contentId": "zerohour",
-                            "versionConstraint": "1.04",
-                            "contentType": "GameInstallation",
-                            "isOptional": false
+                            "filename": "hlde.dat",
+                            "downloadUrl": "https://gentool.net/program_data/genpatcher/hlde.dat",
+                            "size": 13741307,
+                            "sha256": "4936447a0ad8813fde4062c06b1240c73a6e8e0aaa240c13080f4d074efd1be8",
+                            "contentType": "application/x-7z-compressed",
+                            "variantAxis": "language",
+                            "variant": "German",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
+                        },
+                        {
+                            "filename": "hlen.dat",
+                            "downloadUrl": "https://gentool.net/program_data/genpatcher/hlen.dat",
+                            "size": 20295471,
+                            "sha256": "60647478fc0494cac46934fad1a830e522f90475b21feca5bf896c3902a02033",
+                            "contentType": "application/x-7z-compressed",
+                            "variantAxis": "language",
+                            "variant": "English (Full)",
+                            "isDefaultVariant": false,
+                            "isPrimary": false
                         }
                     ]
                 }
@@ -641,6 +647,8 @@
             ],
             "metadata": {
                 "bannerUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/thesuperhackers-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/generals-cover-2.png",
                 "screenshotUrls": [
                     "avares://GenHub/Assets/Covers/china-cover.jpg",
                     "avares://GenHub/Assets/Covers/usa-cover.jpg",
@@ -660,7 +668,7 @@
                     "releaseDate": "2026-07-31T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "Full competitive stack release for Zero Hour. Synchronizes TheSuperHackers weekly build with GenTool 8.9, Control Bar Pro Lemon Edition (720p-4K resolution dropdown support), and Legionnaire Hotkeys. Ready for immediate one-click installation and profile deployment.",
+                    "changelog": "TheSuperHackers stack bundle. Unifies the TheSuperHackers Zero Hour game client with Leikeze Hotkeys, L3M Modern HD Control Bar, Eliorata Improved Menus, and Control Bar Pro Lemon Edition in a single synchronized setup.",
                     "artifacts": [],
                     "dependencies": [
                         {
@@ -673,28 +681,35 @@
                         {
                             "publisherId": "thesuperhackers",
                             "contentId": "zerohour",
-                            "versionConstraint": ">=2026.07.31",
+                            "versionConstraint": "latest",
                             "contentType": "GameClient",
                             "isOptional": false
                         },
                         {
-                            "publisherId": "communityoutpost",
-                            "contentId": "gent",
-                            "versionConstraint": ">=8.9",
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "leikeze-hotkeys",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
+                            "isOptional": false
+                        },
+                        {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "l3m-controlbar",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
+                            "isOptional": false
+                        },
+                        {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "eliorata-improved-menus",
+                            "versionConstraint": "latest",
                             "contentType": "Addon",
                             "isOptional": false
                         },
                         {
                             "publisherId": "github",
                             "contentId": "lemon-controlbar",
-                            "versionConstraint": ">=1.3",
-                            "contentType": "Addon",
-                            "isOptional": false
-                        },
-                        {
-                            "publisherId": "communityoutpost",
-                            "contentId": "hleg",
-                            "versionConstraint": ">=2026.07.01",
+                            "versionConstraint": "latest",
                             "contentType": "Addon",
                             "isOptional": false
                         }
@@ -723,6 +738,8 @@
             ],
             "metadata": {
                 "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/gla-cover.jpg",
                 "screenshotUrls": [
                     "avares://GenHub/Assets/Covers/usa-cover.jpg",
                     "avares://GenHub/Assets/Covers/china-cover.jpg",
@@ -742,7 +759,7 @@
                     "releaseDate": "2026-07-31T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "Community Outpost patch stack bundle. Unifies the official Community Outpost game client with GenTool 8.9, Control Bar by L3mon, and Legionnaire Hotkeys in a single synchronized setup.",
+                    "changelog": "Community Outpost patch stack bundle. Unifies the Community Outpost game clients (retail and non-retail) with Leikeze Hotkeys, L3M Modern HD Control Bar, Eliorata Improved Menus, and Control Bar Pro Lemon Edition in a single synchronized setup.",
                     "artifacts": [],
                     "dependencies": [
                         {
@@ -754,29 +771,43 @@
                         },
                         {
                             "publisherId": "communityoutpost",
-                            "contentId": "community-patch",
-                            "versionConstraint": ">=2026.08.02",
+                            "contentId": "community-patch-retail",
+                            "versionConstraint": "latest",
                             "contentType": "GameClient",
                             "isOptional": false
                         },
                         {
                             "publisherId": "communityoutpost",
-                            "contentId": "gent",
-                            "versionConstraint": ">=8.9",
+                            "contentId": "community-patch-nonretail",
+                            "versionConstraint": "latest",
+                            "contentType": "GameClient",
+                            "isOptional": false
+                        },
+                        {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "leikeze-hotkeys",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
+                            "isOptional": false
+                        },
+                        {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "l3m-controlbar",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
+                            "isOptional": false
+                        },
+                        {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "eliorata-improved-menus",
+                            "versionConstraint": "latest",
                             "contentType": "Addon",
                             "isOptional": false
                         },
                         {
                             "publisherId": "github",
                             "contentId": "lemon-controlbar",
-                            "versionConstraint": ">=1.3",
-                            "contentType": "Addon",
-                            "isOptional": false
-                        },
-                        {
-                            "publisherId": "communityoutpost",
-                            "contentId": "hleg",
-                            "versionConstraint": ">=2026.07.01",
+                            "versionConstraint": "latest",
                             "contentType": "Addon",
                             "isOptional": false
                         }
@@ -806,6 +837,8 @@
             ],
             "metadata": {
                 "bannerUrl": "avares://GenHub/Assets/Covers/usa-cover.jpg",
+                "iconUrl": "avares://GenHub/Assets/Logos/generalsonline-logo.png",
+                "backdropUrl": "avares://GenHub/Assets/Covers/china-cover.jpg",
                 "screenshotUrls": [
                     "avares://GenHub/Assets/Covers/usa-cover.jpg",
                     "avares://GenHub/Assets/Covers/china-cover.jpg",
@@ -825,7 +858,7 @@
                     "releaseDate": "2026-07-31T00:00:00Z",
                     "isLatest": true,
                     "isPrerelease": false,
-                    "changelog": "Generals Online complete multiplayer bundle. Bundles the 60Hz competitive client, official QuickMatch tournament map pack, GenTool 8.9, Control Bar Pro Lemon Edition, and Legionnaire Hotkeys for an out-of-the-box online experience.",
+                    "changelog": "Generals Online complete pack bundle. Unifies the Generals Online 60Hz client with Leikeze Hotkeys, L3M Modern HD Control Bar, Eliorata Improved Menus, and Control Bar Pro Lemon Edition in a single synchronized setup.",
                     "artifacts": [],
                     "dependencies": [
                         {
@@ -838,35 +871,35 @@
                         {
                             "publisherId": "generalsonline",
                             "contentId": "60hz",
-                            "versionConstraint": ">=081326",
+                            "versionConstraint": "latest",
                             "contentType": "GameClient",
                             "isOptional": false
                         },
                         {
-                            "publisherId": "generalsonline",
-                            "contentId": "quickmatch-maps",
-                            "versionConstraint": ">=081326",
-                            "contentType": "MapPack",
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "leikeze-hotkeys",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
                             "isOptional": false
                         },
                         {
-                            "publisherId": "communityoutpost",
-                            "contentId": "gent",
-                            "versionConstraint": ">=8.9",
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "l3m-controlbar",
+                            "versionConstraint": "latest",
+                            "contentType": "Addon",
+                            "isOptional": false
+                        },
+                        {
+                            "publisherId": "genhub-test-publishers",
+                            "contentId": "eliorata-improved-menus",
+                            "versionConstraint": "latest",
                             "contentType": "Addon",
                             "isOptional": false
                         },
                         {
                             "publisherId": "github",
                             "contentId": "lemon-controlbar",
-                            "versionConstraint": ">=1.3",
-                            "contentType": "Addon",
-                            "isOptional": false
-                        },
-                        {
-                            "publisherId": "communityoutpost",
-                            "contentId": "hleg",
-                            "versionConstraint": ">=2026.07.01",
+                            "versionConstraint": "latest",
                             "contentType": "Addon",
                             "isOptional": false
                         }
