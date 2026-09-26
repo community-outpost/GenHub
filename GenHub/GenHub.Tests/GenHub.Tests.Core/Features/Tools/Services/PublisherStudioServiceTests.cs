@@ -645,6 +645,116 @@ public class PublisherStudioServiceTests
     }
 
     /// <summary>
+    /// Verifies that ValidateCatalogAsync passes for zero-release items when configured with supported upstream sync.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateCatalogAsync_ContentWithZeroReleases_SupportedUpstream_SucceedsAsync()
+    {
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile
+            {
+                Id = "test-publisher",
+                Name = "Test Publisher",
+            },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "superhackers-client",
+                    Name = "SuperHackers Client",
+                    ContentType = ContentType.GameClient,
+                    Releases = [],
+                    UpstreamSync = new CatalogUpstreamSync
+                    {
+                        Provider = "TheSuperHackers",
+                        Repository = "TheSuperHackers/GeneralsGameCode",
+                    },
+                },
+            ],
+        };
+
+        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        var result = await _service.ValidateCatalogAsync(catalog);
+
+        Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateCatalogAsync passes for zero-release items when content type is ContentBundle.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateCatalogAsync_ContentWithZeroReleases_ContentBundle_SucceedsAsync()
+    {
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile
+            {
+                Id = "test-publisher",
+                Name = "Test Publisher",
+            },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "competitive-bundle",
+                    Name = "Competitive Bundle",
+                    ContentType = ContentType.ContentBundle,
+                    Releases = [],
+                    BundledItems =
+                    [
+                        new CatalogDependency { ContentId = "superhackers-client" },
+                    ],
+                },
+            ],
+        };
+
+        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        var result = await _service.ValidateCatalogAsync(catalog);
+
+        Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateCatalogAsync fails for zero-release items with an unsupported or typo publisher type.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateCatalogAsync_ContentWithZeroReleases_UnsupportedPublisherType_FailsAsync()
+    {
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile
+            {
+                Id = "test-publisher",
+                Name = "Test Publisher",
+            },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "unknown-item",
+                    Name = "Unknown Item",
+                    ContentType = ContentType.Mod,
+                    PublisherType = "typo-upstream-provider",
+                    Releases = [],
+                },
+            ],
+        };
+
+        var result = await _service.ValidateCatalogAsync(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains("has no releases", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Creates a temporary test file path.
     /// </summary>
     /// <returns>A temporary file path.</returns>

@@ -210,4 +210,72 @@ public sealed class CatalogUpstreamIngestionServiceTests
         Assert.False(synthRelease.IsLatest);
         Assert.Equal("3.0.0-beta.1", synthRelease.Version);
     }
+
+    /// <summary>
+    /// Tests that CatalogUpstreamAssetRule defaults TargetGame to Unknown to allow wildcard matching.
+    /// </summary>
+    [Fact]
+    public void CatalogUpstreamAssetRule_DefaultTargetGame_IsUnknown()
+    {
+        var rule = new CatalogUpstreamAssetRule();
+        Assert.Equal(GameType.Unknown, rule.TargetGame);
+    }
+
+    /// <summary>
+    /// Tests that an invalid regex pattern in upstream asset rules does not throw or crash ingestion.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_InvalidRegexPattern_DoesNotThrowAndPreservesSafety()
+    {
+        var release = new GitHubRelease
+        {
+            TagName = "v1.0.0",
+            Assets =
+            [
+                new GitHubReleaseAsset
+                {
+                    Name = "CorruptAsset.zip",
+                    BrowserDownloadUrl = "https://github.com/test/download/corrupt.zip",
+                },
+            ],
+        };
+
+        _gitHubClientMock
+            .Setup(c => c.GetLatestReleaseAsync("TheSuperHackers", "GeneralsGameCode", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        var existingRelease = new ContentRelease { Version = "0.9.0" };
+        var item = new CatalogContentItem
+        {
+            Id = "superhackers-client",
+            Name = "SuperHackers Game Client",
+            ContentType = ContentType.GameClient,
+            PublisherType = "thesuperhackers",
+            Releases = [existingRelease],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = "TheSuperHackers",
+                Repository = "TheSuperHackers/GeneralsGameCode",
+                AssetRules =
+                [
+                    new CatalogUpstreamAssetRule { Pattern = "[invalid-unclosed-regex", Variant = "Zero Hour" },
+                ],
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        // Act & Assert (must not throw ArgumentException / RegexParseException)
+        await _service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        // Since no artifacts matched due to invalid pattern, existing release is preserved
+        Assert.Single(item.Releases);
+        Assert.Equal("0.9.0", item.Releases[0].Version);
+    }
 }

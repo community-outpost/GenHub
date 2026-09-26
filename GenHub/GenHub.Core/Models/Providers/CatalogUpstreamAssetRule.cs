@@ -27,8 +27,8 @@ public class CatalogUpstreamAssetRule
     public bool IsDefault { get; set; }
 
     /// <summary>
-    /// Gets or sets the target game for matching assets.
+    /// Gets or sets the target game for matching assets. Defaults to <see cref="GameType.Unknown"/> (wildcard / match any game).
     /// </summary>
     [JsonPropertyName("targetGame")]
-    public GameType TargetGame { get; set; } = GameType.ZeroHour;
+    public GameType TargetGame { get; set; } = GameType.Unknown;
 }

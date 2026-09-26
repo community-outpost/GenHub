@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -330,5 +333,23 @@ public static class CatalogConstants
         /// Generic GitHub Releases provider.
         /// </summary>
         public const string GitHubReleases = "GitHubReleases";
+
+        private static readonly HashSet<string> SupportedProviders = new(StringComparer.OrdinalIgnoreCase)
+        {
+            TheSuperHackers,
+            GeneralsOnline,
+            CommunityOutpost,
+            GitHubReleases,
+            PublisherTypeConstants.GitHub,
+            SuperHackersConstants.PublisherId,
+        };
+
+        /// <summary>
+        /// Determines whether the specified provider name represents a supported upstream provider.
+        /// </summary>
+        /// <param name="provider">The provider name to check.</param>
+        /// <returns><c>true</c> if supported; otherwise <c>false</c>.</returns>
+        public static bool IsSupported(string? provider) =>
+            !string.IsNullOrWhiteSpace(provider) && SupportedProviders.Contains(provider);
     }
 }

@@ -213,7 +213,7 @@ public partial class AddContentDialogViewModel(
     private bool _isFeatured;
 
     [ObservableProperty]
-    private string? _featuredBadge = "★ FEATURED BUNDLE";
+    private string? _featuredBadge = localizationService?.GetString("Tools.PublisherStudio.Content.FeaturedBadgePlaceholder") ?? "★ FEATURED BUNDLE";
 
     /// <summary>
     /// Gets a value indicating whether the current content type is ContentBundle.
@@ -393,7 +393,7 @@ public partial class AddContentDialogViewModel(
         }
 
         IsFeatured = existing.IsFeatured || (existing.Metadata?.IsFeatured ?? false);
-        FeaturedBadge = existing.FeaturedBadge ?? existing.Metadata?.FeaturedBadge ?? "★ FEATURED BUNDLE";
+        FeaturedBadge = existing.FeaturedBadge ?? existing.Metadata?.FeaturedBadge ?? (localizationService?.GetString("Tools.PublisherStudio.Content.FeaturedBadgePlaceholder") ?? "★ FEATURED BUNDLE");
 
         if (existing.UpstreamSync != null)
         {
@@ -864,12 +864,15 @@ public partial class AddContentDialogViewModel(
     {
         return new ContentRelease
         {
+            Title = source.Title,
+            Category = source.Category,
             Version = source.Version,
             ReleaseDate = source.ReleaseDate,
             IsPrerelease = source.IsPrerelease,
             IsLatest = source.IsLatest,
             IsFeatured = source.IsFeatured,
             Changelog = source.Changelog,
+            EntryPoint = source.EntryPoint,
             BundleArtifacts = source.BundleArtifacts,
             Artifacts = source.Artifacts.Select(CloneArtifact).ToList(),
             Dependencies = source.Dependencies.Select(CloneDependency).ToList(),
