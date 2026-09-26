@@ -360,7 +360,7 @@ public class MarkdownTextBlock : UserControl
         {
             for (var i = 0; i < lines.Length; i++)
             {
-                var leadingSpaces = lines[i].Length - lines[i].TrimStart(' ').Length;
+                var leadingSpaces = lines[i].Length - lines[i].TrimStart().Length;
                 var spacesToStrip = Math.Min(leadingSpaces, minIndent);
                 if (spacesToStrip > 0)
                 {
