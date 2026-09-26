@@ -502,4 +502,64 @@ public class ImportProfileInspectionViewModelTests
         Assert.DoesNotContain("Cached Mod", vm.SecurityWarnings[0]);
         Assert.Contains("One or more required components", vm.SecurityWarnings[0]);
     }
+
+    /// <summary>
+    /// Verifies that MissingDownloadSource names only components import cannot acquire, not curated
+    /// components that import resolves through content providers.
+    /// </summary>
+    [Fact]
+    public void MissingDownloadSource_WithCuratedSourcelessManifest_NamesOnlyUnacquirableComponent()
+    {
+        var curatedDependency = new SharedManifestDependency
+        {
+            ManifestId = "1.0.aodmaps.mappack.aodmappack",
+            DisplayName = "AOD Map Pack",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.MapPack,
+            PublisherType = "aodmaps",
+            IsCachedLocally = false,
+        };
+        var orphanDependency = new SharedManifestDependency
+        {
+            ManifestId = "1.0.community.mod.orphanmod",
+            DisplayName = "Orphan Mod",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            IsCachedLocally = false,
+        };
+
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata { Name = "Curated Source Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [curatedDependency, orphanDependency],
+        };
+
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [curatedDependency, orphanDependency],
+            HasValidGameInstallation = true,
+            MatchedGameInstallationId = null,
+            CompatibleInstallations = [],
+            TotalDownloadBytesRequired = 0,
+            CachedManifestCount = 0,
+            MissingManifestCount = 2,
+            HasNameConflict = false,
+            SuggestedProfileName = "Curated Source Profile",
+            SecurityWarnings = [],
+            SecurityWarningCodes = [ProfileSecurityWarningCode.MissingDownloadSource],
+            Package = package,
+        };
+
+        var vm = new ImportProfileInspectionViewModel(
+            inspection,
+            _sharingServiceMock.Object,
+            _notificationServiceMock.Object,
+            NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+        var warning = Assert.Single(vm.SecurityWarnings, w => w.Contains("cannot be acquired", StringComparison.Ordinal));
+        Assert.Contains("Orphan Mod", warning);
+        Assert.DoesNotContain("AOD Map Pack", warning);
+    }
 }

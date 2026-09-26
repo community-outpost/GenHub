@@ -319,7 +319,7 @@ public class GameClientProfileService(
 
         if (baseGameClient != null)
         {
-            var version = CalculateManifestVersion(baseGameClient);
+            var version = GameVersionHelper.ResolveInstallationManifestVersion(baseGameClient.Version, baseGameClient.GameType);
             return ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, version);
         }
 
@@ -332,27 +332,6 @@ public class GameClientProfileService(
         // Check for known publisher markers in ID
         return !client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) &&
                !client.Id.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static int CalculateManifestVersion(GameClient gameClient)
-    {
-        if (GameVersionHelper.IsUnknownVersion(gameClient.Version))
-        {
-            // If version is unknown, use the default version for the game type (1.04/1.08)
-            // This ensures we match the ID generated during initial scan for standard installations
-            return GetDefaultVersion(gameClient.GameType);
-        }
-
-        return GameVersionHelper.NormalizeVersion(gameClient.Version);
-    }
-
-    private static int GetDefaultVersion(GameType gameType)
-    {
-        var fallbackVersion = gameType == GameType.ZeroHour
-            ? ManifestConstants.ZeroHourManifestVersion
-            : ManifestConstants.GeneralsManifestVersion;
-
-        return GameVersionHelper.NormalizeVersion(fallbackVersion);
     }
 
     private static string? GetThemeColorForGameType(GameType gameType, GameClient? gameClient = null)
@@ -529,7 +508,7 @@ public class GameClientProfileService(
         }
 
         // Generate the expected GameInstallation manifest ID
-        var version = CalculateManifestVersion(baseGameClient);
+        var version = GameVersionHelper.ResolveInstallationManifestVersion(baseGameClient.Version, baseGameClient.GameType);
         var expectedInstallId = ManifestIdGenerator.GenerateGameInstallationId(
             installation, targetGameType, version);
 

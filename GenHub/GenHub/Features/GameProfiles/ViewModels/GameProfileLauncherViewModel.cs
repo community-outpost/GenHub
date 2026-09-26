@@ -1218,37 +1218,10 @@ public partial class GameProfileLauncherViewModel(
 
             var preferredStrategy = configService.GetDefaultWorkspaceStrategy();
 
-            // Generate the GameInstallation manifest ID
-            string installationManifestId;
-            if (GameVersionHelper.IsUnknownVersion(gameClient.Version))
-            {
-                // For unknown/auto versions, use the default version for the game type (1.04/1.08)
-                // This ensures we match the ID generated during dependency resolution
-                var defaultVersion = gameClient.GameType == GameType.ZeroHour
-                    ? ManifestConstants.ZeroHourManifestVersion
-                    : ManifestConstants.GeneralsManifestVersion;
-
-                var normalizedVersion = GameVersionHelper.NormalizeVersion(defaultVersion);
-                installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, normalizedVersion);
-            }
-            else
-            {
-                try
-                {
-                    // Use string overload which handles normalization (e.g. "1.0" -> "100") consistent with ManifestIdGenerator rules
-                    installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, gameClient.Version);
-                }
-                catch (ArgumentException)
-                {
-                    // If normalization fails (invalid format), fallback to default version
-                    var defaultVersion = gameClient.GameType == GameType.ZeroHour
-                        ? ManifestConstants.ZeroHourManifestVersion
-                        : ManifestConstants.GeneralsManifestVersion;
-
-                    var normalizedVersion = GameVersionHelper.NormalizeVersion(defaultVersion);
-                    installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, normalizedVersion);
-                }
-            }
+            var installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(
+                installation,
+                gameClient.GameType,
+                GameVersionHelper.ResolveInstallationManifestVersion(gameClient.Version, gameClient.GameType));
 
             // Create enabled content list: GameInstallation manifest + GameClient manifest
             var enabledContentIds = new List<string>
