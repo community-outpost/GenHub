@@ -132,6 +132,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0xCAFEBABE"));
 
@@ -147,6 +149,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -257,6 +261,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0x87654321"));
 
@@ -284,6 +290,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -699,6 +707,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
 
@@ -748,6 +758,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once));
     }
@@ -844,6 +856,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
 
@@ -1018,6 +1032,8 @@ public class ReplayCrcMatchingHelperTests
                 GameType.ZeroHour,
                 It.IsAny<IReadOnlyList<string>?>(),
                 It.IsAny<string?>(),
+                It.IsAny<IReadOnlyCollection<string>?>(),
+                It.IsAny<IReadOnlyList<string>?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
 
@@ -1028,6 +1044,8 @@ public class ReplayCrcMatchingHelperTests
                 GameType.ZeroHour,
                 It.IsAny<IReadOnlyList<string>?>(),
                 It.IsAny<string?>(),
+                It.IsAny<IReadOnlyCollection<string>?>(),
+                It.IsAny<IReadOnlyList<string>?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -1069,6 +1087,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
 
@@ -1120,6 +1140,75 @@ public class ReplayCrcMatchingHelperTests
         }
     }
 
+    /// <summary>
+    /// Verifies that profile file-set scoping is forwarded to the CRC calculator.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsRetailCompatibleAsync_WithFileSet_ForwardsScopingToCalculator()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHub_AsyncFileSet_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var exePath = Path.Combine(tempDir, "generals.exe");
+        await File.WriteAllTextAsync(exePath, "dummy binary");
+
+        try
+        {
+            var profile = new GameProfile
+            {
+                Id = "test-profile-fileset",
+                Name = "File Set Profile",
+                GameClient = new GameClient
+                {
+                    Id = "1.104.steam.gameclient.zerohour",
+                    Name = "Command & Conquer Generals Zero Hour (Steam)",
+                    PublisherType = PublisherTypeConstants.Steam,
+                    Version = "1.04",
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = exePath,
+                },
+            };
+
+            IReadOnlyCollection<string>? capturedAllowed = null;
+            IReadOnlyList<string>? capturedOverlays = null;
+            var mockCalculator = new Mock<IGameCrcCalculatorService>();
+            mockCalculator
+                .Setup(c => c.CalculateIniCrcAsync(
+                    tempDir,
+                    GameType.ZeroHour,
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<string, GameType, IReadOnlyList<string>?, string?, IReadOnlyCollection<string>?, IReadOnlyList<string>?, CancellationToken>(
+                    (_, _, _, _, allowed, overlays, _) =>
+                    {
+                        capturedAllowed = allowed;
+                        capturedOverlays = overlays;
+                    })
+                .ReturnsAsync(OperationResult<string>.CreateSuccess(ReplayManagerConstants.RetailZeroHourIniCrcVanilla));
+
+            var allowed = new[] { "INIZH.big" };
+            var overlays = new[] { Path.Combine(tempDir, "Mod.big") };
+            Assert.True(await ReplayCrcMatchingHelper.IsRetailCompatibleAsync(
+                profile,
+                mockCalculator.Object,
+                allowedBaseRelativePaths: allowed,
+                overlayModPaths: overlays));
+
+            Assert.Same(allowed, capturedAllowed);
+            Assert.Same(overlays, capturedOverlays);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
     private static async Task RunProfileIniCompatibilityScenarioAsync(
         string clientId,
         string clientName,
@@ -1156,6 +1245,8 @@ public class ReplayCrcMatchingHelperTests
                     GameType.ZeroHour,
                     It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<string?>(),
+                    It.IsAny<IReadOnlyCollection<string>?>(),
+                    It.IsAny<IReadOnlyList<string>?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess(calculatedIniCrc));
 

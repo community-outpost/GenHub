@@ -40,6 +40,8 @@ public sealed class SageVirtualFileSystem
     private readonly Dictionary<string, int> _archiveMountOrder = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string?> _loosePathCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger? _logger;
+    private readonly string _gameRootFullPath;
+    private readonly HashSet<string>? _allowedBaseRelativePaths;
     private int _nextArchiveOrder;
 
     /// <summary>
@@ -51,16 +53,25 @@ public sealed class SageVirtualFileSystem
     /// <param name="cancellationToken">Optional cancellation token.</param>
     /// <param name="skipIniZhBig">Whether to skip INIZH.big during base archive discovery (used for CRC calculation).</param>
     /// <param name="initialTier">The storage tier to assign to the primary game root files.</param>
+    /// <param name="allowedBaseRelativePaths">
+    /// Optional allow-list of game-root-relative file paths (e.g. from installation manifests).
+    /// When provided, base archives and loose files under <paramref name="gameRoot"/> that are not
+    /// named in the set are skipped, so foreign files dropped into the folder do not pollute reads.
+    /// Explicitly mounted sideloads, mods, and fallback roots are unaffected.
+    /// </param>
     public SageVirtualFileSystem(
         string gameRoot,
         bool isZeroHour,
         ILogger? logger = null,
         CancellationToken cancellationToken = default,
         bool skipIniZhBig = false,
-        SageFileTier initialTier = SageFileTier.BaseGame)
+        SageFileTier initialTier = SageFileTier.BaseGame,
+        IReadOnlyCollection<string>? allowedBaseRelativePaths = null)
     {
         ArgumentNullException.ThrowIfNull(gameRoot);
         _logger = logger;
+        _gameRootFullPath = EnsureTrailingSeparator(Path.GetFullPath(gameRoot));
+        _allowedBaseRelativePaths = NormalizeAllowedSet(allowedBaseRelativePaths);
         _looseRoots.Add((gameRoot, initialTier));
 
         if (!Directory.Exists(gameRoot))
@@ -82,6 +93,12 @@ public sealed class SageVirtualFileSystem
             string rel = Path.GetRelativePath(gameRoot, bigFile).Replace('/', '\\');
             if (skipIniZhBig && isZeroHour && rel.EndsWith(SageChecksumConstants.IniZhBigRelativePath, StringComparison.OrdinalIgnoreCase))
             {
+                continue;
+            }
+
+            if (!IsBaseRelativePathAllowed(rel))
+            {
+                _logger?.LogDebug("[VFS] Skipping base archive not named in the expected file set: {RelativePath}", rel);
                 continue;
             }
 
@@ -172,6 +189,23 @@ public sealed class SageVirtualFileSystem
         {
             _logger?.LogWarning("[VFS] Mod path '{Path}' does not exist or is not a valid directory or .big archive.", path);
         }
+    }
+
+    /// <summary>
+    /// Adds a mod archive to the VFS with top override priority, without requiring a .big
+    /// file extension. The archive header is still validated before mounting, so this safely
+    /// accepts content-addressed blobs (e.g. CAS objects) that carry archive bytes.
+    /// </summary>
+    /// <param name="archivePath">Path to a .big archive file, with any file name.</param>
+    public void AddModArchive(string archivePath)
+    {
+        if (string.IsNullOrWhiteSpace(archivePath) || !File.Exists(archivePath))
+        {
+            _logger?.LogWarning("[VFS] Mod archive path '{Path}' does not exist.", archivePath);
+            return;
+        }
+
+        AddArchive(archivePath, SageFileTier.Mod, overwriteSameTier: true);
     }
 
     /// <summary>
@@ -556,6 +590,35 @@ public sealed class SageVirtualFileSystem
             && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\');
     }
 
+    private static HashSet<string>? NormalizeAllowedSet(IReadOnlyCollection<string>? allowedBaseRelativePaths)
+    {
+        if (allowedBaseRelativePaths == null)
+        {
+            return null;
+        }
+
+        var normalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in allowedBaseRelativePaths)
+        {
+            if (!string.IsNullOrWhiteSpace(entry))
+            {
+                normalized.Add(entry.Replace('/', '\\'));
+            }
+        }
+
+        return normalized;
+    }
+
+    private static string EnsureTrailingSeparator(string fullPath)
+    {
+        if (fullPath.EndsWith(Path.DirectorySeparatorChar))
+        {
+            return fullPath;
+        }
+
+        return fullPath + Path.DirectorySeparatorChar;
+    }
+
     private (BigArchiveEntry Entry, SageFileTier Tier)? FindArchiveEntryByName(string fileName, SageFileTier? minTier, SageFileTier? maxTier)
     {
         if (string.IsNullOrWhiteSpace(fileName))
@@ -616,6 +679,11 @@ public sealed class SageVirtualFileSystem
                 continue;
             }
 
+            if (!IsLoosePathAllowed(root, fsRel))
+            {
+                continue;
+            }
+
             string loosePath = Path.Combine(root, fsRel);
             var looseBytes = TryReadLoosePath(loosePath, root, fsRel);
             if (looseBytes != null)
@@ -650,6 +718,11 @@ public sealed class SageVirtualFileSystem
         {
             var (root, rootTier) = _looseRoots[i];
             if (rootTier != currentTier)
+            {
+                continue;
+            }
+
+            if (!IsLoosePathAllowed(root, fsRel))
             {
                 continue;
             }
@@ -804,6 +877,11 @@ public sealed class SageVirtualFileSystem
                 }
 
                 string rel = Path.GetRelativePath(root, file).Replace('/', '\\');
+                if (!IsLoosePathAllowed(root, rel))
+                {
+                    continue;
+                }
+
                 files[rel.ToLowerInvariant()] = rel;
             }
         }
@@ -823,6 +901,36 @@ public sealed class SageVirtualFileSystem
                 files.TryAdd(key, archivePair.Entry.Path);
             }
         }
+    }
+
+    private bool IsBaseRelativePathAllowed(string gameRootRelativePath)
+    {
+        return _allowedBaseRelativePaths == null || _allowedBaseRelativePaths.Contains(gameRootRelativePath);
+    }
+
+    private bool IsLoosePathAllowed(string root, string fileSystemRelativePath)
+    {
+        if (_allowedBaseRelativePaths == null)
+        {
+            return true;
+        }
+
+        string rootFullPath;
+        try
+        {
+            rootFullPath = EnsureTrailingSeparator(Path.GetFullPath(root));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return true;
+        }
+
+        if (!string.Equals(rootFullPath, _gameRootFullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return IsBaseRelativePathAllowed(fileSystemRelativePath.Replace(Path.DirectorySeparatorChar, '\\'));
     }
 
     private void AddArchive(string archivePath, SageFileTier tier, bool overwriteSameTier = false)

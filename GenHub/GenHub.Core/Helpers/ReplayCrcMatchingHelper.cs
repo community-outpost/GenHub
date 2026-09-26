@@ -618,12 +618,16 @@ public static class ReplayCrcMatchingHelper
     /// <param name="profile">The game profile to evaluate.</param>
     /// <param name="crcCalculator">Optional game CRC calculator service.</param>
     /// <param name="logger">Optional logger instance.</param>
+    /// <param name="allowedBaseRelativePaths">Optional allow-list of game-root-relative base file paths.</param>
+    /// <param name="overlayModPaths">Optional profile overlay mod directories or .big archive paths.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns><c>true</c> if compatible with retail gameplay; otherwise, <c>false</c>.</returns>
     public static async Task<bool> IsRetailCompatibleAsync(
         GameProfile? profile,
         IGameCrcCalculatorService? crcCalculator = null,
         ILogger? logger = null,
+        IReadOnlyCollection<string>? allowedBaseRelativePaths = null,
+        IReadOnlyList<string>? overlayModPaths = null,
         CancellationToken ct = default)
     {
         if (profile?.GameClient == null)
@@ -660,7 +664,15 @@ public static class ReplayCrcMatchingHelper
                 return false;
             }
 
-            return await CalculateAndVerifyIniCrcAsync(crcCalculator, targetDir, effectiveGameType, profile.Name, logger, ct).ConfigureAwait(false);
+            return await CalculateAndVerifyIniCrcAsync(
+                crcCalculator,
+                targetDir,
+                effectiveGameType,
+                profile.Name,
+                logger,
+                allowedBaseRelativePaths,
+                overlayModPaths,
+                ct).ConfigureAwait(false);
         }
 
         if (TryGetCachedIniCrc(client, effectiveGameType, out var cachedIniCrc) && !string.IsNullOrWhiteSpace(cachedIniCrc))
@@ -1102,10 +1114,17 @@ public static class ReplayCrcMatchingHelper
         GameType effectiveGameType,
         string? profileName,
         ILogger? logger,
+        IReadOnlyCollection<string>? allowedBaseRelativePaths,
+        IReadOnlyList<string>? overlayModPaths,
         CancellationToken ct)
     {
         logger?.LogDebug("Calculating INI CRC for profile '{Profile}' at '{Root}'", profileName, targetDir);
-        var iniResult = await crcCalculator.CalculateIniCrcAsync(targetDir, effectiveGameType, ct: ct).ConfigureAwait(false);
+        var iniResult = await crcCalculator.CalculateIniCrcAsync(
+            targetDir,
+            effectiveGameType,
+            allowedBaseRelativePaths: allowedBaseRelativePaths,
+            overlayModPaths: overlayModPaths,
+            ct: ct).ConfigureAwait(false);
         if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data))
         {
             return IsRetailIniCrc(iniResult.Data, effectiveGameType);

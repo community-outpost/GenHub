@@ -3644,7 +3644,7 @@ public sealed class ReplayDirectoryServiceTests
                 .Setup(c => c.CalculateExeCrcAsync(tempExe, It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0x88BEB180"));
             crcCalcMock
-                .Setup(c => c.CalculateIniCrcAsync(tempDir, GameType.ZeroHour, It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                .Setup(c => c.CalculateIniCrcAsync(tempDir, GameType.ZeroHour, It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<string>?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0xFEAAE3F3"));
 
             CrcMappingEntry? nullEntry = null;
