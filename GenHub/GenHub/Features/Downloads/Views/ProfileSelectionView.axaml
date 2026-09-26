@@ -289,7 +289,7 @@
                                         <Grid>
                                             <profileViews:GameProfileCardView DataContext="{Binding ProfileCard}" IsHitTestVisible="False" />
                                             <Border Classes="action-badge" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14" CornerRadius="12" Background="{DynamicResource WarningBrush}" Padding="9,5">
-                                                <TextBlock Text="{Binding WarningMessage, FallbackValue='Incompatible'}" FontSize="10" FontWeight="Bold" Foreground="White" />
+                                                <TextBlock Text="{Binding WarningMessage}" FontSize="10" FontWeight="Bold" Foreground="White" />
                                             </Border>
                                         </Grid>
                                     </Button>

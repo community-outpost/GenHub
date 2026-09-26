@@ -229,6 +229,25 @@ public sealed class OnlinePresenceServiceTests : IDisposable
     }
 
     /// <inheritdoc/>
+
+    /// <summary>
+    /// Tests that concurrent calls to UpdateAdvertisedProfile do not throw SemaphoreFullException.
+    /// </summary>
+    [Fact]
+    public void UpdateAdvertisedProfile_Concurrently_ShouldNotThrow()
+    {
+        // Act & Assert
+        var exception = Record.Exception(() =>
+        {
+            Parallel.For(0, 50, _ =>
+            {
+                _service.UpdateAdvertisedProfile("fp", "profile", "user", false);
+            });
+        });
+
+        Assert.Null(exception);
+    }
+
     public void Dispose()
     {
         _service.Dispose();

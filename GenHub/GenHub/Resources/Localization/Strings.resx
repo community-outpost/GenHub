@@ -5681,6 +5681,15 @@ This will modify game files and configuration settings at:
   <data name="Downloads.ProfileSelection.Error" xml:space="preserve">
     <value>Failed to load profiles</value>
   </data>
+  <data name="Downloads.ProfileSelection.Incompatible" xml:space="preserve">
+    <value>Incompatible</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleGameFormat" xml:space="preserve">
+    <value>This profile is for {0}, content is for {1}</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleLobby" xml:space="preserve">
+    <value>Profile does not match lobby or requirements</value>
+  </data>
   <data name="Downloads.ProfileSelection.Loading" xml:space="preserve">
     <value>Loading profiles...</value>
   </data>

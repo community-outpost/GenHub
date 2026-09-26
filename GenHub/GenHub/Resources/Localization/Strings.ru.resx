@@ -5677,6 +5677,15 @@
   <data name="Downloads.ProfileSelection.Error" xml:space="preserve">
     <value>Не удалось загрузить профили</value>
   </data>
+  <data name="Downloads.ProfileSelection.Incompatible" xml:space="preserve">
+    <value>Несовместимо</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleGameFormat" xml:space="preserve">
+    <value>Этот профиль предназначен для {0}, а контент — для {1}</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleLobby" xml:space="preserve">
+    <value>Профиль не соответствует лобби или требованиям</value>
+  </data>
   <data name="Downloads.ProfileSelection.Loading" xml:space="preserve">
     <value>Загрузка профилей...</value>
   </data>
