@@ -187,14 +187,14 @@ public sealed class ProfileSharingImportInstallationManifestTests
         }
     }
 
-    /// <summary>A fallback must not bind an unrelated or unidentified installation.</summary>
+    /// <summary>A verified expected manifest takes priority over an unrelated or unidentified candidate.</summary>
     /// <param name="sourcePath">The pooled manifest's source directory.</param>
     /// <returns>The asynchronous test.</returns>
     [Theory]
     [InlineData("/games/other-installation")]
     [InlineData(null)]
     [InlineData("relative-installation")]
-    public async Task ImportSharedProfileAsync_UnrelatedPooledManifest_IsNotSelectedAsync(string? sourcePath)
+    public async Task ImportSharedProfileAsync_VerifiedExpectedManifest_TakesPriorityOverUnrelatedCandidateAsync(string? sourcePath)
     {
         if (sourcePath == "/games/other-installation")
         {
