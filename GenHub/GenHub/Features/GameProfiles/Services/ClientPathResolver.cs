@@ -64,11 +64,20 @@ internal static class ClientPathResolver
     }
 
     /// <summary>
-    /// Determines whether the file extension indicates an archive or installer package that cannot be executed directly.
+    /// Determines whether the given file extension corresponds to an archive or package format.
     /// </summary>
-    internal static bool IsArchiveOrPackageExtension(string extension)
+    /// <param name="extension">The file extension including the leading dot.</param>
+    /// <returns>True if the extension is an archive or package; otherwise, false.</returns>
+    private static bool IsArchiveOrPackageExtension(string extension)
     {
-        return GenLauncherConstants.SupportedArchiveExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase) ||
-               GenLauncherConstants.PackageArchiveExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(extension))
+        {
+            return false;
+        }
+
+        return ContentFormatConstants.UnderstoodArchiveExtensions.Any(archiveExt =>
+                   string.Equals(extension, archiveExt, StringComparison.OrdinalIgnoreCase)) ||
+               ContentFormatConstants.GuidedRejectionExtensions.Any(pkgExt =>
+                   string.Equals(extension, pkgExt, StringComparison.OrdinalIgnoreCase));
     }
 }
