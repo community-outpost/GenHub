@@ -3332,8 +3332,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (result.Success)
             {
                 Subscriptions.Remove(subscription);
-                WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(subscription.PublisherId));
                 WeakReferenceMessenger.Default.Send(new PublisherSubscriptionRemovedMessage(subscription.PublisherId));
+                WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(subscription.PublisherId));
                 var removedTitle = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationTitle") ?? CatalogConstants.SubscriptionRemovedNotificationTitle;
                 var removedMessageFormat = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationMessage") ?? "Unsubscribed from {0}";
                 _notificationService.ShowSuccess(removedTitle, string.Format(CultureInfo.InvariantCulture, removedMessageFormat, subscription.PublisherName));

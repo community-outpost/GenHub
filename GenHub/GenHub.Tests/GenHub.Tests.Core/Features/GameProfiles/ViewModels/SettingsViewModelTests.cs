@@ -2192,7 +2192,10 @@ public class SettingsViewModelTests
 
         var recipient = new object();
         string? broadcastPublisherId = null;
+        var removedBeforeRefresh = false;
         WeakReferenceMessenger.Default.Register<PublisherSubscriptionRemovedMessage>(recipient, (_, message) => broadcastPublisherId = message.PublisherId);
+
+        WeakReferenceMessenger.Default.Register<PublisherSubscriptionsChangedMessage>(recipient, (_, _) => removedBeforeRefresh = broadcastPublisherId == "pub1");
 
         try
         {
@@ -2201,10 +2204,12 @@ public class SettingsViewModelTests
 
             // Assert
             Assert.Equal("pub1", broadcastPublisherId);
+            Assert.True(removedBeforeRefresh, "The final refresh must start after removal invalidates stale reads.");
         }
         finally
         {
             WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionRemovedMessage>(recipient);
+            WeakReferenceMessenger.Default.Unregister<PublisherSubscriptionsChangedMessage>(recipient);
         }
     }
 
