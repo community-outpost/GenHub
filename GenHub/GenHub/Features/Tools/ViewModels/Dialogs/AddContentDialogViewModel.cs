@@ -431,7 +431,7 @@ public partial class AddContentDialogViewModel(
         PopulateFallbackBundleComponentOptions();
     }
 
-    private static List<string> CollectItemVariants(CatalogContentItem item)
+    private List<string> CollectItemVariants(CatalogContentItem item)
     {
         var variants = new List<string>();
 
