@@ -64,7 +64,8 @@ When communicating and reasoning about GenHub, use this language:
 The most common defect in this repository is a change that works on one platform or layer and silently breaks another. Before calling your work done, walk this list:
 
 - **Platforms:** If you change launcher behavior, file materialization, or OS hooks, verify compatibility across Windows (`GenHub.Windows`), Linux (`GenHub.Linux`), and macOS (`GenHub.MacOS`).
-- **Composition Roots:** Register shared services in the applicable module under `GenHub/GenHub/Infrastructure/DependencyInjection/` and ensure that module is invoked by `AppServices.ConfigureApplicationServices`. Register platform-specific implementations in the applicable Windows (`WindowsServicesModule`), Linux (`LinuxServicesModule`), and macOS (`MacOSServicesModule`) service modules, and verify each host composes them through its `Program.cs`.\n- **Result Pattern:** Adhere strictly to `docs/dev/result-pattern.md`. All fallible operations (I/O, network, reconciliation, launch, validation) return `OperationResult<T>` or specialized domain result types (`LaunchResult`, `ValidationResult`, `DetectionResult<T>`) rather than throwing exceptions for control flow. Infallible lookups, getters, and predicates return direct types.
+- **Composition Roots:** Register shared services in the applicable module under `GenHub/GenHub/Infrastructure/DependencyInjection/` and ensure that module is invoked by `AppServices.ConfigureApplicationServices`. Register platform-specific implementations in the applicable Windows (`WindowsServicesModule`), Linux (`LinuxServicesModule`), and macOS (`MacOSServicesModule`) service modules, and verify each host composes them through its `Program.cs`.
+- **Result Pattern:** Adhere strictly to `docs/dev/result-pattern.md`. All fallible operations (I/O, network, reconciliation, launch, validation) return `OperationResult<T>` or specialized domain result types (`LaunchResult`, `ValidationResult`, `DetectionResult<T>`) rather than throwing exceptions for control flow. Infallible lookups, getters, and predicates return direct types.
 - **Constants:** Adhere strictly to `docs/dev/constants.md`. Put constants in `GenHub.Core.Constants` static classes.
 - **UI & Styling:** Adhere strictly to `docs/dev/ui-styling.md` and `docs/dev/window-styling.md`. All views and controls must bind to semantic theme tokens from `ThemeResources.axaml` via `{DynamicResource ...}` and use shared controls from `GenHub.Common.Controls` (such as `SidebarLayout`). Never use hardcoded color hexes or custom sidebars. When working on UI, views, or styling, use relevant UI, UX, and design skills to verify layout, accessibility, and visual consistency.
 - **User Feedback & Notification Toasts (`INotificationService`):** All user-facing operation results, completion notices (e.g., saves, downloads, deletions, hotkey updates, preset applications, installs), warnings, and error alerts MUST be delivered via `INotificationService` toast notifications (`ShowSuccess`, `ShowInfo`, `ShowWarning`, `ShowError`) with appropriate `NotificationDurations` constants. Never create or rely on ad-hoc status labels, status text blocks, or inline status properties (such as `<TextBlock Text="{Binding StatusMessage}" />` or `StatusText` labels at the bottom of views). Status labels are easily missed and fragment UX; `INotificationService` provides animated, auto-dismissing toasts and archives them into the persistent notification feed.
@@ -123,8 +124,49 @@ To avoid review roundtrips and CI Quality Gate failures from automated bots, adh
 - **Time Representation:** Always use `DateTime.UtcNow` or `DateTimeOffset.UtcNow` for timestamps, file manifests, and metrics. Never use machine-local `DateTime.Now`.
 - **Concurrency & Synchronization:** Never lock on `this`, `typeof(...)`, or string literals. Use a dedicated `private readonly object _syncLock = new();` or asynchronous synchronization primitives like `SemaphoreSlim`.
 - **CancellationToken Propagation:** Forward `CancellationToken` through every inner async call (`FileStream.ReadAsync`, `HttpClient.SendAsync`, `Task.Delay`), including per-file and per-item loops. Poll with `ThrowIfCancellationRequested` after each hash, verify, and wait stage. Do not drop cancellation tokens midway through async pipelines.
-- **Process-Spawn Lifecycle:** Every process spawn must drain stdout/stderr, guard `HasExited` before signaling, act on the `WaitForExit` return value, enforce a named `*Ms` timeout constant plus kill path, wrap Win32 errors in the domain Result, and propagate cancellation after each wait stage.\n\n## Dev & Verification\n\n- **Targeted verification:** Run tests for the specific scope you changed.\n\n  ```bash\n  # Core tests\n  dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj -c Release\n\n  # Platform-specific tests (on matching OS host)\n  dotnet test GenHub/GenHub.Tests/GenHub.Tests.Windows/GenHub.Tests.Windows.csproj -c Release\n  dotnet test GenHub/GenHub.Tests/GenHub.Tests.Linux/GenHub.Tests.Linux.csproj -c Release\n  dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj -c Release\n  ```\n\n- **Do not run repo-wide checks unprompted.** CI owns the full multi-platform matrix.
-- **Test-Injection Mandate:** Inject runners, clocks, and file-system abstractions so unit tests never depend on host executables. Assert every mapped field, and cover destructive branches (delete, move, migrate) rather than happy paths only.\n- **Solution build:**\n\n  ```bash\n  dotnet build GenHub/GenHub.sln -c Release\n  ```\n\n## Where code lives\n\n- `GenHub/GenHub.Core/` — Core interfaces (`ICasService`, `IContentReconciliationService`, `IToolPlugin`), domain models (`ContentManifest`, `ManifestId`), launcher/detector contracts, constants, and utilities.\n- `GenHub/GenHub/` — Avalonia MVVM application, ViewModels, Views, Converters, Dialogs, and feature implementations (`CasService`, `ContentReconciliationService`, `GameLauncher`, `GameProcessManager`).\n- `GenHub/GenHub.Windows/` — Windows platform host, composition root, registry discovery, Win32 shortcuts.\n- `GenHub/GenHub.Linux/` — Linux platform host, composition root, desktop entries, Wine/Proton runner.\n- `GenHub/GenHub.MacOS/` — macOS platform host, composition root, `.app` bundle hooks, quarantine `xattr` removal.\n- `GenHub/GenHub.Tests/` — Partitioned test suites (`Core`, `Windows`, `Linux`, `MacOS`).\n- `docs/` — Architecture documentation, Result pattern guide (`docs/dev/result-pattern.md`), Constants reference (`docs/dev/constants.md`), UI styling guide (`docs/dev/ui-styling.md`), Window styling standard (`docs/dev/window-styling.md`).\n\n## Pull requests\n\n- Never make a PR unless the developer explicitly asks you to do so.\n- Conventional commit titles, plain language: `fix(core): CAS pool pruning handles locked files`.\n- Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.\n- UI changes need before/after images. Motion or timing needs a short video.\n- **Never push while checks are running:** NEVER push new commits while CI workflows, platform builds (Windows, Linux, macOS), tests, DeepSource analyzers, or AI bot reviews (CodeRabbit, Kilo) are in progress or queued. Always wait until EVERY check run reaches `status == completed`. Consolidate all fixes and review resolutions into a single pass before pushing.\n- When babysitting: poll checks and all bot comments (including inline review threads and summary 'Outside diff range' findings) newer than the last push. Verify each finding against the source and fix real ones in code. For automated bot threads (DeepSource, Qodo, CodeRabbit, etc.), resolve the discussion directly without posting reply comments; only reply to human maintainers if discussion or clarification is needed. For extended PR workflows, invoke the `pull-request` and `babysit-pr` skills. Stay quiet when nothing is new. Stop when all checks pass on the latest commit with all threads resolved.\n
+- **Process-Spawn Lifecycle:** Every process spawn must drain stdout/stderr, guard `HasExited` before signaling, act on the `WaitForExit` return value, enforce a named `*Ms` timeout constant plus kill path, wrap Win32 errors in the domain Result, and propagate cancellation after each wait stage.
+
+## Dev & Verification
+
+- **Targeted verification:** Run tests for the specific scope you changed.
+
+  ```bash
+  # Core tests
+  dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj -c Release
+
+  # Platform-specific tests (on matching OS host)
+  dotnet test GenHub/GenHub.Tests/GenHub.Tests.Windows/GenHub.Tests.Windows.csproj -c Release
+  dotnet test GenHub/GenHub.Tests/GenHub.Tests.Linux/GenHub.Tests.Linux.csproj -c Release
+  dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj -c Release
+  ```
+
+- **Do not run repo-wide checks unprompted.** CI owns the full multi-platform matrix.
+- **Test-Injection Mandate:** Inject runners, clocks, and file-system abstractions so unit tests never depend on host executables. Assert every mapped field, and cover destructive branches (delete, move, migrate) rather than happy paths only.
+- **Solution build:**
+
+  ```bash
+  dotnet build GenHub/GenHub.sln -c Release
+  ```
+
+## Where code lives
+
+- `GenHub/GenHub.Core/` — Core interfaces (`ICasService`, `IContentReconciliationService`, `IToolPlugin`), domain models (`ContentManifest`, `ManifestId`), launcher/detector contracts, constants, and utilities.
+- `GenHub/GenHub/` — Avalonia MVVM application, ViewModels, Views, Converters, Dialogs, and feature implementations (`CasService`, `ContentReconciliationService`, `GameLauncher`, `GameProcessManager`).
+- `GenHub/GenHub.Windows/` — Windows platform host, composition root, registry discovery, Win32 shortcuts.
+- `GenHub/GenHub.Linux/` — Linux platform host, composition root, desktop entries, Wine/Proton runner.
+- `GenHub/GenHub.MacOS/` — macOS platform host, composition root, `.app` bundle hooks, quarantine `xattr` removal.
+- `GenHub/GenHub.Tests/` — Partitioned test suites (`Core`, `Windows`, `Linux`, `MacOS`).
+- `docs/` — Architecture documentation, Result pattern guide (`docs/dev/result-pattern.md`), Constants reference (`docs/dev/constants.md`), UI styling guide (`docs/dev/ui-styling.md`), Window styling standard (`docs/dev/window-styling.md`).
+
+## Pull requests
+
+- Never make a PR unless the developer explicitly asks you to do so.
+- Conventional commit titles, plain language: `fix(core): CAS pool pruning handles locked files`.
+- Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
+- UI changes need before/after images. Motion or timing needs a short video.
+- **Never push while checks are running:** NEVER push new commits while CI workflows, platform builds (Windows, Linux, macOS), tests, DeepSource analyzers, or AI bot reviews (CodeRabbit, Kilo) are in progress or queued. Always wait until EVERY check run reaches `status == completed`. Consolidate all fixes and review resolutions into a single pass before pushing.
+- When babysitting: poll checks and all bot comments (including inline review threads and summary 'Outside diff range' findings) newer than the last push. Verify each finding against the source and fix real ones in code. For automated bot threads (DeepSource, Qodo, CodeRabbit, etc.), resolve the discussion directly without posting reply comments; only reply to human maintainers if discussion or clarification is needed. For extended PR workflows, invoke the `pull-request` and `babysit-pr` skills. Stay quiet when nothing is new. Stop when all checks pass on the latest commit with all threads resolved.
+
 ### Pull Request Protocol & Changelog Labeling
 
 Every pull request opened by an agent or human contributor must be labeled upon creation so that Release Drafter and GenHub's in-app Changelogs service can categorize changes properly:
