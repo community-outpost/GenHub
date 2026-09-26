@@ -9,9 +9,11 @@ using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -492,6 +494,28 @@ public sealed class MapDirectoryServiceTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Equal("localized folder error", result.FirstError);
+    }
+
+    /// <summary>Cancellation between deletions is propagated, leaving later maps untouched.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteMapsAsync_CancelledBetweenMaps_DoesNotReportSuccessAsync()
+    {
+        var (service, mapsDir) = CreateServiceWithMapsDirectory("CancelDelete");
+        var first = await CreateDirectoryMapAsync(mapsDir, "First");
+        var second = await CreateDirectoryMapAsync(mapsDir, "Second");
+        using var cancellation = new CancellationTokenSource();
+
+        IEnumerable<MapFile> Maps()
+        {
+            yield return first;
+            cancellation.Cancel();
+            yield return second;
+        }
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.DeleteMapsAsync(Maps(), cancellation.Token));
+        Assert.False(File.Exists(first.FullPath));
+        Assert.True(File.Exists(second.FullPath));
     }
 
     private static async Task<MapFile> CreateDirectoryMapAsync(string mapsDir, string name)

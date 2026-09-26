@@ -2095,6 +2095,36 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.Equal("; existing untracked user map configuration", backupContent);
     }
 
+    /// <summary>Already matching files can be activated without changing immutable directory permissions.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task ActivateProfileUserDataAsync_MatchingImmutableMap_DoesNotRequireWriteAccessAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        const string profileId = "immutable-matching";
+        var installed = await _trackerService.InstallUserDataAsync(TestManifestId, profileId, GameType.ZeroHour, [CreateMapFile("Matching.map", "matching-hash")], TestVersion, TestManifestName, CancellationToken.None);
+        Assert.True(installed.Success, installed.FirstError);
+        var deactivated = await _trackerService.DeactivateProfileUserDataAsync(profileId, CancellationToken.None);
+        Assert.True(deactivated.Success, deactivated.FirstError);
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Matching");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(Path.Combine(mapDir, "Matching.map"), "cas-content-matching-hash");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.LockImmutable(mapDir);
+        _fileOperationsMock.Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), "matching-hash", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var activated = await _trackerService.ActivateProfileUserDataAsync(profileId, CancellationToken.None);
+
+        Assert.True(activated.Success, activated.FirstError);
+        _fileOperationsMock.Verify(f => f.VerifyFileHashAsync(It.IsAny<string>(), "matching-hash", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(mapDir));
+    }
+
     private static ManifestFile CreateMapFile(string relativePath, string hash) => new()
     {
         RelativePath = relativePath,

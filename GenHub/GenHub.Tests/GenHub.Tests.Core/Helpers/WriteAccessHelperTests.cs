@@ -47,8 +47,11 @@ public sealed class WriteAccessHelperTests : IDisposable
     /// <summary>
     /// Restores directory traversal without making ordinary files executable.
     /// </summary>
-    [Fact]
-    public void EnsureDirectoryWritable_WithoutUnixSearchPermission_RestoresTraversal()
+    /// <param name="initialMode">The initial directory permissions.</param>
+    [Theory]
+    [InlineData(UnixFileMode.None)]
+    [InlineData(UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead)]
+    public void EnsureDirectoryWritable_WithoutUnixSearchPermission_RestoresTraversal(UnixFileMode initialMode)
     {
         if (OperatingSystem.IsWindows())
         {
@@ -62,13 +65,13 @@ public sealed class WriteAccessHelperTests : IDisposable
         File.WriteAllText(file, "map");
         var readOnly = UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead;
         File.SetUnixFileMode(file, readOnly);
-        File.SetUnixFileMode(nested, readOnly);
-        File.SetUnixFileMode(folder, readOnly);
+        File.SetUnixFileMode(nested, initialMode);
+        File.SetUnixFileMode(folder, initialMode);
         try
         {
             WriteAccessHelper.EnsureDirectoryWritable(folder);
 
-            var directoryMode = readOnly | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+            var directoryMode = initialMode | UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
             Assert.Equal(directoryMode, File.GetUnixFileMode(folder));
             Assert.Equal(directoryMode, File.GetUnixFileMode(nested));
             Assert.Equal(readOnly | UnixFileMode.UserWrite, File.GetUnixFileMode(file));

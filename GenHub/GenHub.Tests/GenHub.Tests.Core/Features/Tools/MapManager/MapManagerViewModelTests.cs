@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -81,6 +82,31 @@ public sealed class MapManagerViewModelTests : IDisposable
             _imageParser,
             NullLogger<MapManagerViewModel>.Instance,
             localizationService: _mockLocalizationService.Object);
+    }
+
+    /// <summary>A partial delete failure refreshes the displayed maps while preserving the error.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task DeleteSelectedAsync_PartialFailure_ReloadsRemainingMapsAsync()
+    {
+        var deleted = new MapFile { FileName = "Deleted.map", FullPath = Path.Combine(_tempDirectory, "Deleted.map"), SizeBytes = 1, GameType = GameType.ZeroHour, LastModified = DateTime.UtcNow };
+        var remaining = new MapFile { FileName = "Remaining.map", FullPath = Path.Combine(_tempDirectory, "Remaining.map"), SizeBytes = 1, GameType = GameType.ZeroHour, LastModified = DateTime.UtcNow };
+        _viewModel.SelectedTab = GameType.ZeroHour;
+        _viewModel.ZeroHourMaps.Add(deleted);
+        _viewModel.ZeroHourMaps.Add(remaining);
+        _viewModel.SelectedMaps.Add(deleted);
+        _viewModel.SelectedMaps.Add(remaining);
+        _mockDirectoryService.Setup(d => d.DeleteMapsAsync(It.IsAny<IEnumerable<MapFile>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateFailure("folder locked"));
+        _mockDirectoryService.Setup(d => d.GetMapsAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<MapFile> { remaining });
+
+        await _viewModel.DeleteSelectedCommand.ExecuteAsync(null);
+
+        Assert.Same(remaining, Assert.Single(_viewModel.ZeroHourMaps));
+        Assert.Empty(_viewModel.SelectedMaps);
+        Assert.Equal("Deletion error.", _viewModel.StatusMessage);
+        Assert.False(_viewModel.IsBusy);
     }
 
     /// <inheritdoc />

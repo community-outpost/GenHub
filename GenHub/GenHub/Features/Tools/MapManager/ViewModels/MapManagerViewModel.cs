@@ -653,6 +653,8 @@ public partial class MapManagerViewModel(
         }
         else
         {
+            await LoadMapsAsync();
+            SelectedMaps.Clear();
             notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, result.FirstError ?? "Could not delete selected maps.");
             StatusMessage = "Deletion error.";
         }

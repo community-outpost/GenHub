@@ -208,10 +208,7 @@ public sealed class MapDirectoryService(
             {
                 foreach (var map in maps)
                 {
-                    if (ct.IsCancellationRequested)
-                    {
-                        break;
-                    }
+                    ct.ThrowIfCancellationRequested();
 
                     try
                     {
