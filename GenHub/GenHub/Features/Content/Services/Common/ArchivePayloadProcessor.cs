@@ -2698,34 +2698,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 .OfType<string>(),
             StringComparer.OrdinalIgnoreCase);
 
-        var looseMapList = looseMapFiles.ToList();
         foreach (var mapFile in looseMapFiles)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var mapBase = Path.GetFileNameWithoutExtension(mapFile);
-            var targetFolder = Path.Combine(extractedDirectory, mapBase);
-            var targetMapFile = Path.Combine(targetFolder, Path.GetFileName(mapFile));
-            if (Directory.Exists(targetFolder) && File.Exists(targetMapFile) && FilesAreEqual(mapFile, targetMapFile))
-            {
-                try
-                {
-                    File.Delete(mapFile);
-                    looseMapList.Remove(mapFile);
-                    logger.LogInformation("Deduplicated identical loose map {Source} matching existing {Target}", mapFile, targetMapFile);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to delete duplicate loose map {MapFile}", mapFile);
-                }
-            }
-        }
-
-        var allMapFiles = Directory.EnumerateFiles(extractedDirectory, "*", SearchOption.AllDirectories)
-            .Where(IsMapFile)
-            .ToList();
-        var isSingleMap = allMapFiles.Count == 1;
-
-        foreach (var mapFile in looseMapList)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var mapBase = Path.GetFileNameWithoutExtension(mapFile);
@@ -2742,7 +2715,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         {
                             File.Delete(mapFile);
                             logger.LogInformation("Deduplicated identical loose map {Source} matching existing {Target}", mapFile, targetMapFile);
-                            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, isSingleMap, cancellationToken);
+                            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
                             continue;
                         }
 
@@ -2763,7 +2736,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     File.Move(mapFile, targetMapFile);
                 }
 
-                OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, isSingleMap, cancellationToken);
+                OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -2797,7 +2770,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         string extractedDirectory,
         string targetFolder,
         string mapBase,
-        bool isSingleMap,
         CancellationToken cancellationToken)
     {
         var looseFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
@@ -2811,13 +2783,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             var fn = Path.GetFileName(companion);
             var ext = Path.GetExtension(fn);
-            var isGenericMapIni = fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase);
             var isCompanion =
                 fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
                 fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
                 fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
-                (isGenericMapIni && isSingleMap) ||
-                fn.Equals(MapManagerConstants.MapStrFileName, StringComparison.OrdinalIgnoreCase);
+                IsSharedMapCompanion(fn);
 
             if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
             {
@@ -2825,7 +2795,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var targetFileName = isDefaultThumbnail ? mapBase + ext : fn;
                 var targetAssetFile = Path.Combine(targetFolder, targetFileName);
 
-                var isSharedCompanion = isDefaultThumbnail || isGenericMapIni || fn.Equals(MapManagerConstants.MapStrFileName, StringComparison.OrdinalIgnoreCase);
+                var isSharedCompanion = isDefaultThumbnail || IsSharedMapCompanion(fn);
                 try
                 {
                     if (isSharedCompanion)
@@ -2854,7 +2824,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 {
                     try
                     {
-                        if (isSharedCompanion)
+                        if (isDefaultThumbnail || IsSharedMapCompanion(fn))
                         {
                             File.Copy(companion, targetAssetFile);
                         }
