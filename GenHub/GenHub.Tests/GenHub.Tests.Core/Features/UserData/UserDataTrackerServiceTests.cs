@@ -1999,7 +1999,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
                 InstallTarget = ContentInstallTarget.UserDataDirectory,
             },
         };
-        await _trackerService.InstallUserDataAsync(
+        var installResult = await _trackerService.InstallUserDataAsync(
             "switch-manifest",
             "profile-with-data",
             GameType.Generals,
@@ -2007,6 +2007,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             "1.0",
             "Switch Manifest",
             CancellationToken.None);
+        Assert.True(installResult.Success, installResult.FirstError);
         Assert.True((await _trackerService.ActivateProfileUserDataAsync("profile-with-data", CancellationToken.None)).Success);
 
         var linker = new ProfileContentLinkerService(_trackerService, new Mock<ILogger<ProfileContentLinkerService>>().Object);

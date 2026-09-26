@@ -1583,18 +1583,20 @@ public partial class GameProfileLauncherViewModel(
     private void PersistLastUsedProfileId(string profileId)
     {
         if (userSettingsService == null ||
-            string.Equals(userSettingsService.Get().LastUsedProfileId, profileId, StringComparison.Ordinal))
+            (LastUsedProfileSave.IsCompleted &&
+                string.Equals(userSettingsService.Get().LastUsedProfileId, profileId, StringComparison.Ordinal)))
         {
             return;
         }
 
-        LastUsedProfileSave = SaveLastUsedProfileIdAsync(userSettingsService, profileId);
+        LastUsedProfileSave = SaveLastUsedProfileIdAsync(userSettingsService, profileId, LastUsedProfileSave);
     }
 
-    private async Task SaveLastUsedProfileIdAsync(IUserSettingsService settingsService, string profileId)
+    private async Task SaveLastUsedProfileIdAsync(IUserSettingsService settingsService, string profileId, Task previousSave)
     {
         try
         {
+            await previousSave;
             await Task.Run(() => settingsService.TryUpdateAndSaveAsync(settings =>
             {
                 if (string.Equals(settings.LastUsedProfileId, profileId, StringComparison.Ordinal))

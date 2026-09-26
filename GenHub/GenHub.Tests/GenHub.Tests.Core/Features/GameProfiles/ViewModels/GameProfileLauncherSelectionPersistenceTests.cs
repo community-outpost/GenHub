@@ -132,6 +132,43 @@ public sealed class GameProfileLauncherSelectionPersistenceTests : IDisposable
         Assert.Equal(SecondProfileId, current.LastUsedProfileId);
     }
 
+    /// <summary>
+    /// Returning to the saved selection while an earlier save is pending keeps the latest choice.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SelectionChanges_WhileSaveIsPending_PreservesSelectionOrderAsync()
+    {
+        var current = new UserSettings { LastUsedProfileId = FirstProfileId };
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var settings = new Mock<IUserSettingsService>();
+        settings.Setup(s => s.Get()).Returns(() => (UserSettings)current.Clone());
+        settings.Setup(s => s.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(async apply =>
+            {
+                entered.TrySetResult();
+                await release.Task;
+                return apply(current);
+            });
+        var viewModel = CreateViewModel(settings.Object, out _);
+        await viewModel.InitializeAsync();
+        viewModel.SelectedProfile = viewModel.Profiles.Single(p => p.ProfileId == SecondProfileId);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            viewModel.SelectedProfile = viewModel.Profiles.Single(p => p.ProfileId == FirstProfileId);
+        }
+        finally
+        {
+            release.TrySetResult();
+            await viewModel.LastUsedProfileSave.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+
+        Assert.Equal(FirstProfileId, current.LastUsedProfileId);
+        settings.Verify(s => s.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()), Times.Exactly(2));
+    }
+
     private static GameProfileLauncherViewModel CreateViewModel(IUserSettingsService settings, out Mock<IProfileLauncherFacade> facade)
     {
         var profileManager = new Mock<IGameProfileManager>();
