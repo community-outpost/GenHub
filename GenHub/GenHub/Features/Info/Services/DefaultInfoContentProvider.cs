@@ -285,7 +285,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     Title = "Interactive Demo: Settings Window",
                     Content = "Live interactive game settings window with category navigation and live controls.",
                     Type = InfoCardType.Feature,
-                    IsExpandable = false,
+                    IsExpandable = true,
                     DetailedContent = """
                     **Interactive Game Settings Mockup:**
                     Test and explore all graphics, audio, control, and engine settings directly inside this live interactive window.
@@ -442,7 +442,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     Title = "Interactive Demo: Content Editor",
                     Content = "Live interactive content manager showing mod selection and priority ordering.",
                     Type = InfoCardType.Feature,
-                    IsExpandable = false,
+                    IsExpandable = true,
                     DetailedContent = """
                     **Live Content Manager Demo:**
                     Explore how mods, maps, game clients, and tools are structured and ordered inside a profile.
@@ -674,7 +674,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     Title = "Interactive Demo: Add Local Content",
                     Content = "Interactive dialog mockup with pre-configured mod, client, tool, and executable presets.",
                     Type = InfoCardType.Feature,
-                    IsExpandable = false,
+                    IsExpandable = true,
                     DetailedContent = """
                     **Interactive Local Content Importer:**
                     Test importing folders, archives, and executables into GenHub without touching your disk files.
@@ -1136,7 +1136,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     Title = "Interactive Demo: Filesystem Magic",
                     Content = "Live filesystem visualizer demonstrating hardlinks, symlinks, and junctions.",
                     Type = InfoCardType.Feature,
-                    IsExpandable = false,
+                    IsExpandable = true,
                     DetailedContent = """
                     **Interactive Workspace Visualizer:**
                     See exactly how files are linked when building a profile workspace.
