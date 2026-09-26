@@ -343,9 +343,18 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             }
         }
 
+        var isUpstreamTracked = content.UpstreamSync != null &&
+            (string.IsNullOrWhiteSpace(content.UpstreamSync.Provider) ||
+             CatalogConstants.UpstreamProviders.IsSupported(content.UpstreamSync.Provider));
+        var isBundle = content.ContentType == ContentType.ContentBundle;
+
         if (content.Releases == null || content.Releases.Count == 0)
         {
-            errors.Add($"Content item '{content.Id}' has no releases");
+            if (!isUpstreamTracked && !isBundle)
+            {
+                errors.Add($"Content item '{content.Id}' has no releases");
+            }
+
             return;
         }
 

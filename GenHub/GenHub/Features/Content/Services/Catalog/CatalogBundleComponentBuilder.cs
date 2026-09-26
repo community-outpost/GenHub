@@ -215,9 +215,9 @@ public static class CatalogBundleComponentBuilder
                 ? sibling.Name
                 : CatalogManifestIdentity.HumanizeContentId(dependency.ContentId);
 
-            var unavailableReason = (sibling.Releases == null || sibling.Releases.Count == 0)
-                ? $"Item '{dependency.ContentId}' has no releases"
-                : $"No release of '{dependency.ContentId}' matches constraint '{dependency.VersionConstraint}'";
+            var unavailableReason = !string.IsNullOrWhiteSpace(dependency.VersionConstraint)
+                ? $"No release of '{dependency.ContentId}' matches constraint '{dependency.VersionConstraint}'"
+                : $"Item '{dependency.ContentId}' has no releases";
 
             return new CatalogBundleComponentDescriptor
             {
