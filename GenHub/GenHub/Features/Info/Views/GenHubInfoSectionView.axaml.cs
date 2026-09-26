@@ -29,6 +29,7 @@ public partial class GenHubInfoSectionView : UserControl
     private bool _syncingSelectionFromScroll;
     private bool _isSwitchingSection;
     private bool _deferredScrollPending;
+    private int _sectionSwitchGeneration;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GenHubInfoSectionView"/> class.
@@ -150,6 +151,8 @@ public partial class GenHubInfoSectionView : UserControl
 
     private void UnhookViewModel()
     {
+        _sectionSwitchGeneration++;
+        _isSwitchingSection = false;
         if (_boundViewModel != null)
         {
             _boundViewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -191,9 +194,18 @@ public partial class GenHubInfoSectionView : UserControl
 
             _contentScrollViewer?.SetCurrentValue(ScrollViewer.OffsetProperty, targetOffset);
 
+            var generation = ++_sectionSwitchGeneration;
+            var expectedViewModel = _boundViewModel;
+            var expectedSectionId = newSectionId;
+
             Dispatcher.UIThread.Post(
                 () =>
                 {
+                    if (generation != _sectionSwitchGeneration || _boundViewModel != expectedViewModel || _boundViewModel?.SelectedSection?.Id != expectedSectionId)
+                    {
+                        return;
+                    }
+
                     RegisterAllCardContainers();
                     _contentScrollViewer?.SetCurrentValue(ScrollViewer.OffsetProperty, targetOffset);
                     _isSwitchingSection = false;
