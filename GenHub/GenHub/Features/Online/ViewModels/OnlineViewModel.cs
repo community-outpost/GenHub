@@ -74,7 +74,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
     private readonly OnlineViewModelDependencies? _dependencies;
     private readonly IGameCrcCalculatorService? _crcCalculator;
     private readonly IGameInstallationService? _installationService;
-    private readonly IServiceProvider? _serviceProvider;
     private readonly IContentManifestPool? _manifestPool;
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -128,7 +127,6 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         _dependencies = dependencies;
         _crcCalculator = dependencies?.CrcCalculator;
         _installationService = dependencies?.GameInstallationService;
-        _serviceProvider = dependencies?.ServiceProvider;
         _manifestPool = dependencies?.ManifestPool;
 
         WeakReferenceMessenger.Default.Register<ProfileCreatedMessage>(this);
@@ -782,49 +780,11 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             return;
         }
 
-        profileVm.DialogTitle = GetLocalizedString("Online.ProfileSelection.Title", "Select Game Profile");
-        profileVm.HeaderTitle = GetLocalizedString("Online.ProfileSelection.HeaderTitle", "Select Game Profile");
-        profileVm.HeaderSubtitle = GetLocalizedString("Online.ProfileSelection.HeaderSubtitle", "Choose a profile for online play with lobby compatibility");
-        profileVm.ActionBadgeText = GetLocalizedString("Online.ProfileSelection.SelectAction", "Select");
+        ConfigureProfileSelectionDialog(profileVm);
 
-        var targetGame = GameType.ZeroHour;
-        var expectedFp = ExpectedProfileFingerprint;
-        var expectedClientKey = ExpectedGameClientId;
-
-        if (string.IsNullOrEmpty(expectedFp) && SelectedDetail != null)
-        {
-            expectedFp = SelectedDetail.ExpectedProfileFingerprint;
-            expectedClientKey = SelectedDetail.ExpectedProfileId;
-        }
-
-        if (!string.IsNullOrEmpty(expectedClientKey))
-        {
-            var parts = expectedClientKey.Split(OnlineConstants.FingerprintSeparator);
-            if (parts.Length > 0 && Enum.TryParse<GameType>(parts[0], ignoreCase: true, out var parsedGame))
-            {
-                targetGame = parsedGame;
-            }
-        }
-        else if (SelectedPlayProfile?.GameClient != null)
-        {
-            targetGame = SelectedPlayProfile.GameClient.GameType;
-        }
-
-        HashSet<string>? compatibleProfileIds = null;
-        if (!IsCurrentUserHost && !string.IsNullOrEmpty(expectedFp))
-        {
-            compatibleProfileIds = new HashSet<string>(StringComparer.Ordinal);
-            await EnsureProfilesLoadedAsync(cancellationToken);
-            foreach (var profile in AvailableProfiles)
-            {
-                var setup = await DescribeProfileAsync(profile, cancellationToken, includeCompatibilityCrcs: true);
-                var match = OnlineProfileMatcher.Compare(expectedFp, expectedClientKey, setup.Fingerprint, setup.ClientKey);
-                if (match == OnlineProfileMatch.Exact)
-                {
-                    compatibleProfileIds.Add(profile.Id);
-                }
-            }
-        }
+        var (expectedFp, expectedClientKey) = ResolveExpectedProfileKeys();
+        var targetGame = ResolveTargetGame(expectedClientKey, SelectedPlayProfile);
+        var compatibleProfileIds = await FindCompatibleProfileIdsAsync(expectedFp, expectedClientKey, cancellationToken);
 
         await profileVm.LoadProfilesAsync(
             targetGame,
@@ -837,13 +797,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         var success = await ShowProfileSelectionDialogAsync(profileVm);
         if (success && profileVm.SelectedProfile != null)
         {
-            SelectedPlayProfile = profileVm.SelectedProfile;
-            if (!IsJoined || IsCurrentUserHost)
-            {
-                SelectedHostProfile = profileVm.SelectedProfile;
-            }
-
-            await RefreshMatchAfterPickerChangeAsync();
+            await ApplySelectedProfileAsync(profileVm.SelectedProfile);
         }
     }
 
@@ -1349,6 +1303,26 @@ public sealed partial class OnlineViewModel : ViewModelBase,
         profiles.Insert(insertIndex, profile);
     }
 
+    private static GameType ResolveTargetGame(string? expectedClientKey, GameProfile? selectedPlayProfile)
+    {
+        if (!string.IsNullOrEmpty(expectedClientKey))
+        {
+            var parts = expectedClientKey.Split(OnlineConstants.FingerprintSeparator);
+            if (parts.Length > 0 && Enum.TryParse<GameType>(parts[0], ignoreCase: true, out var parsedGame))
+            {
+                return parsedGame;
+            }
+        }
+        else if (selectedPlayProfile?.GameClient != null)
+        {
+            return selectedPlayProfile.GameClient.GameType;
+        }
+
+        return GameType.ZeroHour;
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates generated MVVM properties Sonar cannot see.")]
+#pragma warning disable S2325
     private void UpdateAvailableProfilesList(GameProfile updatedProfile)
     {
         var existing = AvailableProfiles.FirstOrDefault(p => string.Equals(p.Id, updatedProfile.Id, StringComparison.Ordinal));
@@ -1376,6 +1350,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             InsertProfileSorted(AvailableProfiles, updatedProfile);
         }
     }
+#pragma warning restore S2325
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates generated MVVM properties Sonar cannot see.")]
 #pragma warning disable S2325
@@ -1425,6 +1400,64 @@ public sealed partial class OnlineViewModel : ViewModelBase,
                 SelectedHostProfile = sorted.FirstOrDefault(p => string.Equals(p.Id, selectedHostId, StringComparison.Ordinal));
             }
         });
+    }
+
+    private void ConfigureProfileSelectionDialog(ProfileSelectionViewModel profileVm)
+    {
+        profileVm.DialogTitle = GetLocalizedString("Online.ProfileSelection.Title", "Select Game Profile");
+        profileVm.HeaderTitle = GetLocalizedString("Online.ProfileSelection.HeaderTitle", "Select Game Profile");
+        profileVm.HeaderSubtitle = GetLocalizedString("Online.ProfileSelection.HeaderSubtitle", "Choose a profile for online play with lobby compatibility");
+        profileVm.ActionBadgeText = GetLocalizedString("Online.ProfileSelection.SelectAction", "Select");
+    }
+
+    private (string? ExpectedFp, string ExpectedClientKey) ResolveExpectedProfileKeys()
+    {
+        var expectedFp = ExpectedProfileFingerprint;
+        var expectedClientKey = ExpectedGameClientId ?? string.Empty;
+
+        if (string.IsNullOrEmpty(expectedFp) && SelectedDetail != null)
+        {
+            expectedFp = SelectedDetail.ExpectedProfileFingerprint;
+            expectedClientKey = SelectedDetail.ExpectedProfileId ?? string.Empty;
+        }
+
+        return (expectedFp, expectedClientKey);
+    }
+
+    private async Task<HashSet<string>?> FindCompatibleProfileIdsAsync(
+        string? expectedFp,
+        string expectedClientKey,
+        CancellationToken cancellationToken)
+    {
+        if (IsCurrentUserHost || string.IsNullOrEmpty(expectedFp))
+        {
+            return null;
+        }
+
+        var compatibleProfileIds = new HashSet<string>(StringComparer.Ordinal);
+        await EnsureProfilesLoadedAsync(cancellationToken);
+        foreach (var profile in AvailableProfiles)
+        {
+            var setup = await DescribeProfileAsync(profile, cancellationToken, includeCompatibilityCrcs: true);
+            var match = OnlineProfileMatcher.Compare(expectedFp, expectedClientKey, setup.Fingerprint, setup.ClientKey);
+            if (match == OnlineProfileMatch.Exact)
+            {
+                compatibleProfileIds.Add(profile.Id);
+            }
+        }
+
+        return compatibleProfileIds;
+    }
+
+    private async Task ApplySelectedProfileAsync(GameProfile selectedProfile)
+    {
+        SelectedPlayProfile = selectedProfile;
+        if (!IsJoined || IsCurrentUserHost)
+        {
+            SelectedHostProfile = selectedProfile;
+        }
+
+        await RefreshMatchAfterPickerChangeAsync();
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
