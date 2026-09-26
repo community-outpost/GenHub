@@ -903,7 +903,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Title = "Tools & Utilities",
             Description = "Inspect replays, manage maps, rebind hotkeys, build mods, and publish community content catalogs.",
             Order = 6,
-            Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
+            Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed, c.Actions)).ToList(),
         };
     }
 
