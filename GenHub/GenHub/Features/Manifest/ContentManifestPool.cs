@@ -65,26 +65,30 @@ public class ContentManifestPool(
                 ? await File.ReadAllTextAsync(manifestPath, cancellationToken)
                 : null;
 
-            var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
-            await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
-
-            // Ensure CAS references are tracked even for metadata-only updates
-            var trackResult = await referenceTracker.TrackManifestReferencesAsync(manifest.Id, manifest, cancellationToken);
-            if (!trackResult.Success)
+            try
             {
-                logger.LogError("Failed to track CAS references for manifest {ManifestId}: {Error}. Rolling back manifest.", manifest.Id, trackResult.FirstError);
+                var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
+                await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
 
-                // Rollback: Restore previous metadata file or remove newly created file
-                if (previousManifestJson != null)
+                // Ensure CAS references are tracked even for metadata-only updates
+                var trackResult = await referenceTracker.TrackManifestReferencesAsync(manifest.Id, manifest, cancellationToken);
+                if (!trackResult.Success)
                 {
-                    await File.WriteAllTextAsync(manifestPath, previousManifestJson, cancellationToken);
-                }
-                else if (File.Exists(manifestPath))
-                {
-                    File.Delete(manifestPath);
-                }
+                    logger.LogError("Failed to track CAS references for manifest {ManifestId}: {Error}. Rolling back manifest.", manifest.Id, trackResult.FirstError);
 
-                return OperationResult<bool>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+                    // Rollback: Restore previous metadata file or remove newly created file
+                    await RestoreManifestMetadataAsync(manifestPath, previousManifestJson);
+
+                    return OperationResult<bool>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Reference tracking publishes atomically after its cancellable write. Restore
+                // metadata without the cancelled token so it still agrees with existing references.
+                await RestoreManifestMetadataAsync(manifestPath, previousManifestJson);
+
+                throw;
             }
 
             logger.LogDebug("Updated manifest {ManifestId} in storage and refreshed CAS tracking", manifest.Id);
@@ -326,6 +330,18 @@ public class ContentManifestPool(
         {
             logger.LogError(ex, "Failed to get content directory for manifest {ManifestId}", manifestId);
             return OperationResult<string?>.CreateFailure($"Failed to get content directory: {ex.Message}");
+        }
+    }
+
+    private static async Task RestoreManifestMetadataAsync(string manifestPath, string? previousManifestJson)
+    {
+        if (previousManifestJson != null)
+        {
+            await File.WriteAllTextAsync(manifestPath, previousManifestJson, CancellationToken.None);
+        }
+        else if (File.Exists(manifestPath))
+        {
+            File.Delete(manifestPath);
         }
     }
 

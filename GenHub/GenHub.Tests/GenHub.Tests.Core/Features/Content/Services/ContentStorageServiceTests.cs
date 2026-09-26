@@ -680,12 +680,6 @@ public class ContentStorageServiceTests : IDisposable
                 cts.Token.ThrowIfCancellationRequested();
                 return OperationResult<string>.CreateSuccess("unreachable_hash");
             });
-        _casServiceMock
-            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), ContentType.Addon, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
-        _casServiceMock
-            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _service.StoreContentAsync(manifest, sourceDir, null, cts.Token));
