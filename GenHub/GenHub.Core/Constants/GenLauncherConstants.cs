@@ -446,17 +446,24 @@ public static class GenLauncherConstants
 
         foreach (var url in candidateUrls)
         {
-            if (string.IsNullOrWhiteSpace(url) || IsYamlDescriptorPath(url))
+            if (string.IsNullOrWhiteSpace(url))
             {
                 continue;
             }
 
             var trimmed = url.Trim();
-            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
-                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
-                return trimmed;
+                continue;
             }
+
+            if (IsYamlDescriptorPath(uri.AbsolutePath))
+            {
+                continue;
+            }
+
+            return trimmed;
         }
 
         return string.Empty;

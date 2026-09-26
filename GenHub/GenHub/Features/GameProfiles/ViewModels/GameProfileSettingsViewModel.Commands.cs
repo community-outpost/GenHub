@@ -1279,7 +1279,7 @@ public partial class GameProfileSettingsViewModel
     /// <returns>The path when it is a supported image; otherwise null after notifying the user.</returns>
     private string? ValidateCustomImagePath(string? localPath)
     {
-        if (!string.IsNullOrEmpty(localPath) && MediaFileHelper.IsImageFile(localPath))
+        if (!string.IsNullOrEmpty(localPath) && MediaFileHelper.IsImageFile(localPath) && MediaFileHelper.HasImageContent(localPath))
         {
             return localPath;
         }

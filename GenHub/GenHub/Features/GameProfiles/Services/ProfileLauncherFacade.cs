@@ -142,20 +142,24 @@ public class ProfileLauncherFacade(
 
             if (launchResult.Success)
             {
+                // Reconciliation may have cloned the profile, so stamp the profile that actually launched.
+                var playedProfileId = !string.IsNullOrWhiteSpace(launchResult.Data?.ProfileId)
+                    ? launchResult.Data!.ProfileId
+                    : profileId;
                 try
                 {
                     var updateResult = await profileManager.UpdateProfileAsync(
-                        profileId,
+                        playedProfileId,
                         new UpdateProfileRequest { LastPlayedAt = DateTime.UtcNow },
                         cancellationToken);
                     if (!updateResult.Success)
                     {
-                        logger.LogWarning("[Launch] Failed to update LastPlayedAt for profile {ProfileId}: {Errors}", profileId, string.Join(", ", updateResult.Errors));
+                        logger.LogWarning("[Launch] Failed to update LastPlayedAt for profile {ProfileId}: {Errors}", playedProfileId, string.Join(", ", updateResult.Errors));
                     }
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "[Launch] Failed to update LastPlayedAt for profile {ProfileId}", profileId);
+                    logger.LogWarning(ex, "[Launch] Failed to update LastPlayedAt for profile {ProfileId}", playedProfileId);
                 }
             }
 

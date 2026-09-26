@@ -5,6 +5,7 @@ using GenHub.Features.GameProfiles.ViewModels;
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 namespace GenHub.Features.GameProfiles.Views;
 
@@ -21,6 +22,39 @@ public partial class GameProfileLauncherView : UserControl
         InitializeComponent();
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
+    }
+
+    /// <summary>
+    /// Determines whether a JSON file has the structure of a shared profile package.
+    /// </summary>
+    /// <param name="path">The local file path to inspect.</param>
+    /// <returns>True when the file contains a profile package object; otherwise false.</returns>
+    private static bool IsProfilePackageJson(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            using var document = JsonDocument.Parse(stream);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (string.Equals(property.Name, "profile", StringComparison.OrdinalIgnoreCase) &&
+                    property.Value.ValueKind == JsonValueKind.Object)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return false;
+        }
     }
 
     private static void OnDragOver(object? sender, DragEventArgs e)
@@ -75,7 +109,7 @@ public partial class GameProfileLauncherView : UserControl
 
         var profilePath = paths.FirstOrDefault(p =>
             p.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
-            p.EndsWith(FileTypes.JsonFileExtension, StringComparison.OrdinalIgnoreCase));
+            (p.EndsWith(FileTypes.JsonFileExtension, StringComparison.OrdinalIgnoreCase) && IsProfilePackageJson(p)));
 
         e.Handled = true;
         if (profilePath != null)

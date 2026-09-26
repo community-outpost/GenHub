@@ -1519,6 +1519,44 @@ public class GameProfileLauncherViewModelTests
             Times.Once);
     }
 
+    /// <summary>
+    /// A partially failed move writes saved orders back so disk matches the restored in-memory order.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task MoveProfileRelative_PartialFailure_WritesBackSavedOrdersAsync()
+    {
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        var persistedOrders = new List<int>();
+        var results = new Queue<ProfileOperationResult<GameProfile>>(
+        [
+            ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()),
+            ProfileOperationResult<GameProfile>.CreateFailure("disk error"),
+            ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()),
+        ]);
+        gameProfileManager
+            .Setup(m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<string, UpdateProfileRequest, CancellationToken>((_, request, _) => persistedOrders.Add(request.DisplayOrder ?? -1))
+            .ReturnsAsync(() => results.Dequeue());
+        var vm = CreateViewModelWithProfileManager(gameProfileManager, new Mock<IGameProcessManager>(), new Mock<INotificationService>());
+
+        var itemA = CreateProfileItem("Alpha");
+        var itemB = CreateProfileItem("Bravo");
+        itemA.DisplayOrder = 0;
+        itemB.DisplayOrder = 1;
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+        vm.SelectedSortMode = ProfileSortMode.Free;
+        vm.ApplySorting();
+
+        await itemA.MoveRightAction!(itemA);
+
+        Assert.Same(itemA, vm.Profiles[0]);
+        Assert.Same(itemB, vm.Profiles[1]);
+        Assert.Equal(new List<int> { 0, 1, 1 }, persistedOrders);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);

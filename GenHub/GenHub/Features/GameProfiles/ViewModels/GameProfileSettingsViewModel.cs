@@ -412,7 +412,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         await RefreshVisibleFiltersAsync();
         await LoadAvailableContentAsync();
-        LoadAvailableIconsAndCovers(GameType);
+        LoadAvailableIconsAndCovers(GameTypeFilter.ToString());
     }
 
     private static string NormalizeResourcePath(string? path, string defaultUri = "")

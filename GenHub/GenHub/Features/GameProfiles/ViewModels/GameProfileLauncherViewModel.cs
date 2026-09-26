@@ -93,6 +93,7 @@ public partial class GameProfileLauncherViewModel(
 
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
+    private bool _isLoadingSortMode;
     private bool _isHovering;
     private bool _isTimersConfigured;
     private bool _lastOperationSuccess;
@@ -150,10 +151,15 @@ public partial class GameProfileLauncherViewModel(
     /// <param name="mode">The sort mode to persist.</param>
     private async Task PersistSortModeAsync(IUserSettingsService settingsService, ProfileSortMode mode)
     {
+        if (_isLoadingSortMode)
+        {
+            return;
+        }
+
         await _sortPersistLock.WaitAsync();
         try
         {
-            if (SelectedSortMode != mode)
+            if (_isLoadingSortMode || SelectedSortMode != mode)
             {
                 return;
             }
@@ -337,6 +343,7 @@ public partial class GameProfileLauncherViewModel(
             {
                 try
                 {
+                    _isLoadingSortMode = true;
                     var settings = userSettingsService.Get();
                     SelectedSortMode = settings.ProfileSortMode;
                     SelectedSortModeItem = AvailableSortModes.FirstOrDefault(o => o.Mode == SelectedSortMode);
@@ -344,6 +351,10 @@ public partial class GameProfileLauncherViewModel(
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "Failed to load user sort mode setting");
+                }
+                finally
+                {
+                    _isLoadingSortMode = false;
                 }
             }
 
@@ -2738,6 +2749,27 @@ public partial class GameProfileLauncherViewModel(
         }
     }
 
+    /// <summary>
+    /// Writes previously saved display orders back to storage after a failed reorder.
+    /// </summary>
+    /// <param name="profileItems">The reordered profile items.</param>
+    /// <param name="originalOrders">The display orders before the reorder.</param>
+    /// <param name="savedIndexes">The indexes that were already persisted.</param>
+    private async Task RestoreSavedDisplayOrdersAsync(List<GameProfileItemViewModel> profileItems, List<int> originalOrders, List<int> savedIndexes)
+    {
+        foreach (var i in savedIndexes)
+        {
+            try
+            {
+                await gameProfileManager.UpdateProfileAsync(profileItems[i].ProfileId, new UpdateProfileRequest { DisplayOrder = originalOrders[i] });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to restore display order for profile {ProfileId}", profileItems[i].ProfileId);
+            }
+        }
+    }
+
     private async Task MoveProfileRelativeAsync(GameProfileItemViewModel item, int delta)
     {
         if (SelectedSortMode != ProfileSortMode.Free)
@@ -2765,15 +2797,22 @@ public partial class GameProfileLauncherViewModel(
             profileItems.Insert(newIndex, item);
 
             var originalOrders = profileItems.Select(p => p.DisplayOrder).ToList();
+            for (int i = 0; i < profileItems.Count; i++)
+            {
+                profileItems[i].DisplayOrder = i;
+                if (profileItems[i].Profile is GameProfile gp)
+                {
+                    gp.DisplayOrder = i;
+                }
+            }
+
+            var savedIndexes = new List<int>();
             bool persistFailed = false;
             for (int i = 0; i < profileItems.Count; i++)
             {
-                var p = profileItems[i];
-                p.DisplayOrder = i;
-
-                if (p.Profile is GameProfile gp)
+                if (originalOrders[i] == i)
                 {
-                    gp.DisplayOrder = i;
+                    continue;
                 }
 
                 try
@@ -2782,22 +2821,26 @@ public partial class GameProfileLauncherViewModel(
                     {
                         DisplayOrder = i,
                     };
-                    var updateResult = await gameProfileManager.UpdateProfileAsync(p.ProfileId, updateRequest);
-                    if (!updateResult.Success)
+                    var updateResult = await gameProfileManager.UpdateProfileAsync(profileItems[i].ProfileId, updateRequest);
+                    if (updateResult.Success)
                     {
-                        persistFailed = true;
-                        logger.LogWarning("Failed to persist new DisplayOrder for profile {ProfileId}: {Errors}", p.ProfileId, string.Join(", ", updateResult.Errors));
+                        savedIndexes.Add(i);
+                        continue;
                     }
+
+                    persistFailed = true;
+                    logger.LogWarning("Failed to persist new DisplayOrder for profile {ProfileId}: {Errors}", profileItems[i].ProfileId, string.Join(", ", updateResult.Errors));
                 }
                 catch (Exception ex)
                 {
                     persistFailed = true;
-                    logger.LogWarning(ex, "Failed to persist new DisplayOrder for profile {ProfileId}", p.ProfileId);
+                    logger.LogWarning(ex, "Failed to persist new DisplayOrder for profile {ProfileId}", profileItems[i].ProfileId);
                 }
             }
 
             if (persistFailed)
             {
+                await RestoreSavedDisplayOrdersAsync(profileItems, originalOrders, savedIndexes);
                 for (int i = 0; i < profileItems.Count && i < originalOrders.Count; i++)
                 {
                     profileItems[i].DisplayOrder = originalOrders[i];

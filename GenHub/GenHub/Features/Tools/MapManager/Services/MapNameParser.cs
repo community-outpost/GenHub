@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Globalization;
@@ -256,6 +257,11 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
         try
         {
             if (!File.Exists(mapFilePath))
+            {
+                return null;
+            }
+
+            if (new FileInfo(mapFilePath).Length > MapManagerConstants.MaxMapSizeBytes)
             {
                 return null;
             }

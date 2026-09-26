@@ -119,6 +119,24 @@ public class GenLauncherConstantsTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="GenLauncherConstants.ResolveEffectiveSourceUrl"/> rejects YAML descriptors with query strings or fragments.
+    /// </summary>
+    [Fact]
+    public void ResolveEffectiveSourceUrl_WithYamlQueryString_ShouldSkipDescriptor()
+    {
+        // Arrange
+        var queryDescriptor = "https://example.com/repos/mod/manifest.yaml?raw=1";
+        var fragmentDescriptor = "https://example.com/repos/mod/versions.yml#section";
+        var validUrl = "https://discord.gg/generals";
+
+        // Act
+        var result = GenLauncherConstants.ResolveEffectiveSourceUrl(queryDescriptor, fragmentDescriptor, validUrl);
+
+        // Assert
+        result.Should().Be("https://discord.gg/generals");
+    }
+
+    /// <summary>
     /// Verifies that <see cref="GenLauncherConstants.ResolveEffectiveSourceUrl"/> returns an empty string when all candidates are invalid.
     /// </summary>
     [Fact]

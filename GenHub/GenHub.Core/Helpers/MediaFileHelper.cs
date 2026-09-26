@@ -44,6 +44,55 @@ public static class MediaFileHelper
         return !string.IsNullOrWhiteSpace(path) && VideoExtensions.Contains(GetExtension(path));
     }
 
+    /// <summary>
+    /// Determines whether a local file has image binary content matching its extension.
+    /// Reads only the file header so renamed text or archive files are rejected.
+    /// </summary>
+    /// <param name="path">The local file path to inspect.</param>
+    /// <returns>True when the header matches the extension's image format.</returns>
+    public static bool HasImageContent(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return false;
+        }
+
+        var extension = GetExtension(path);
+        Span<byte> header = stackalloc byte[12];
+        int read;
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            read = stream.Read(header);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return extension.ToUpperInvariant() switch
+        {
+            ".PNG" => HasPrefix(header, read, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+            ".JPG" or ".JPEG" => HasPrefix(header, read, [0xFF, 0xD8, 0xFF]),
+            ".GIF" => HasPrefix(header, read, [0x47, 0x49, 0x46, 0x38]),
+            ".BMP" => HasPrefix(header, read, [0x42, 0x4D]),
+            ".ICO" => HasPrefix(header, read, [0x00, 0x00, 0x01, 0x00]),
+            ".WEBP" => HasPrefixAt(header, read, 0, [0x52, 0x49, 0x46, 0x46]) &&
+                HasPrefixAt(header, read, 8, [0x57, 0x45, 0x42, 0x50]),
+            _ => false,
+        };
+    }
+
+    private static bool HasPrefix(ReadOnlySpan<byte> header, int read, ReadOnlySpan<byte> prefix)
+    {
+        return HasPrefixAt(header, read, 0, prefix);
+    }
+
+    private static bool HasPrefixAt(ReadOnlySpan<byte> header, int read, int offset, ReadOnlySpan<byte> prefix)
+    {
+        return read >= offset + prefix.Length && header.Slice(offset, prefix.Length).SequenceEqual(prefix);
+    }
+
     private static string GetExtension(string path)
     {
         if (Uri.TryCreate(path, UriKind.Absolute, out var uri) && !uri.IsFile)
