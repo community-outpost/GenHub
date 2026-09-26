@@ -5227,19 +5227,19 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.app-updates.version-control.DetailedContent" xml:space="preserve">
     <value>GenHub includes an interactive update notification window. You can explore a simulated version of this window in the demo panel above.
 
-             **Update Tab.**
-             * **Version Banner:** Displays your current version alongside the incoming release (for example, simulated update v1.2.0).
-             * **View Release Notes:** Opens the official GitHub release page in your browser to review new features and bug fixes.
-             * **Force Refresh:** Re-queries the update server and GitHub API immediately for newly published tags.
-             * **Install Update:** Downloads the compressed update package in the background and restarts GenHub to apply it.
+**Update Tab.**
+* **Version Banner:** Displays your current version alongside the incoming release (for example, simulated update v1.2.0).
+* **View Release Notes:** Opens the official GitHub release page in your browser to review new features and bug fixes.
+* **Force Refresh:** Re-queries the update server and GitHub API immediately for newly published tags.
+* **Install Update:** Downloads the compressed update package in the background and restarts GenHub to apply it.
 
-             **Browse Builds Tab.**
-             * **Open Pull Requests:** Browse automated CI builds for active pull requests (such as #101 Feature: Enhanced Profile Management or #102 Fix: Application crash on startup). Click any PR link to view its review status on GitHub.
-             * **Branches:** Browse builds generated from Git branches (such as dev, v1.2-beta, or feature/ui-rework).
-             * **Subscribe:** Click Subscribe next to a PR or branch to track that channel and get notified when new CI test builds are published.
+**Browse Builds Tab.**
+* **Open Pull Requests:** Browse automated CI builds for active pull requests (such as #101 Feature: Enhanced Profile Management or #102 Fix: Application crash on startup). Click any PR link to view its review status on GitHub.
+* **Branches:** Browse builds generated from Git branches (such as dev, v1.2-beta, or feature/ui-rework).
+* **Subscribe:** Click Subscribe next to a PR or branch to track that channel and get notified when new CI test builds are published.
 
-             **Interactive Sandbox.**
-             The demo panel above runs against simulated data so you can safely switch tabs, click buttons, and inspect the interface without modifying your installed files.</value>
+**Interactive Sandbox.**
+The demo panel above runs against simulated data so you can safely switch tabs, click buttons, and inspect the interface without modifying your installed files.</value>
   </data>
   <data name="Info.Card.app-updates.version-control.Title" xml:space="preserve">
     <value>Interactive Update Window &amp; Release Channels</value>
@@ -5250,14 +5250,14 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.app-updates.workflow.DetailedContent" xml:space="preserve">
     <value>GenHub delivers updates without interrupting active game sessions.
 
-             **Background Downloads.**
-             When an update is detected, GenHub downloads installer files quietly in the background. Gameplay and profile editing remain fully accessible while downloading.
+**Background Downloads.**
+When an update is detected, GenHub downloads installer files quietly in the background. Gameplay and profile editing remain fully accessible while downloading.
 
-             **Delta Compression.**
-             GenHub uses Velopack delta packages. Instead of downloading the full application archive, only modified binaries and assets are downloaded, keeping bandwidth usage low.
+**Delta Compression.**
+GenHub uses Velopack delta packages. Instead of downloading the full application archive, only modified binaries and assets are downloaded, keeping bandwidth usage low.
 
-             **Applying Updates.**
-             Once downloaded, click **Install Update** to apply the new files and relaunch GenHub in seconds.</value>
+**Applying Updates.**
+Once downloaded, click **Install Update** to apply the new files and relaunch GenHub in seconds.</value>
   </data>
   <data name="Info.Card.app-updates.workflow.Title" xml:space="preserve">
     <value>Update Delivery &amp; Background Downloads</value>
@@ -5465,11 +5465,11 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-profile-content.cloning.DetailedContent" xml:space="preserve">
     <value>**How Content Duplication Works:**
-                    When you use **Copy Profile**, GenHub duplicates your profile's content configuration:
+When you use **Copy Profile**, GenHub duplicates your profile's content configuration:
 
-                    * **Preserved Content:** All active mods, maps, and patches are mirrored into the new profile.
-                    * **Independent Editing:** The clone is fully independent. Adding or removing content in the clone will not change the original profile.
-                    * **Zero Storage Waste:** File linking ensures that cloning a profile does not copy large mod files on your disk. Both profiles reference the shared storage cache.</value>
+* **Preserved Content:** All active mods, maps, and patches are mirrored into the new profile.
+* **Independent Editing:** The clone is fully independent. Adding or removing content in the clone will not change the original profile.
+* **Zero Storage Waste:** File linking ensures that cloning a profile does not copy large mod files on your disk. Both profiles reference the shared storage cache.</value>
   </data>
   <data name="Info.Card.game-profile-content.cloning.Title" xml:space="preserve">
     <value>Cloning Content</value>
@@ -5479,10 +5479,10 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-profile-content.editor.DetailedContent" xml:space="preserve">
     <value>**Content Workflow:**
-                    1. **Available Content (Bottom):** Shows installed mods, maps, and patches you can add to this profile.
-                    2. **Enabled Content (Top):** Shows content currently active for this profile.
-                    3. **Load Priority:** Content is applied from top to bottom. Items higher in the list take priority if two packages contain conflicting files.
-                    4. **Add Local:** Link external folders or archives without copying them into GenHub.</value>
+1. **Available Content (Bottom):** Shows installed mods, maps, and patches you can add to this profile.
+2. **Enabled Content (Top):** Shows content currently active for this profile.
+3. **Load Priority:** Content is applied from top to bottom. Items higher in the list take priority if two packages contain conflicting files.
+4. **Add Local:** Link external folders or archives without copying them into GenHub.</value>
   </data>
   <data name="Info.Card.game-profile-content.editor.Title" xml:space="preserve">
     <value>Content Editor</value>
@@ -5492,25 +5492,25 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-profile-content.hierarchy.DetailedContent" xml:space="preserve">
     <value>**Game Client:**
-                    The base game files (Generals or Zero Hour) installed on your system. Every profile uses a client as its base foundation.
+The base game files (Generals or Zero Hour) installed on your system. Every profile uses a client as its base foundation.
 
-                    **Mod:**
-                    A major modification changing gameplay, factions, and units (e.g. Rise of the Reds, ShockWave). A profile typically centers around one primary mod.
+**Mod:**
+A major modification changing gameplay, factions, and units (e.g. Rise of the Reds, ShockWave). A profile typically centers around one primary mod.
 
-                    **Map:**
-                    An individual custom map file for skirmish and multiplayer battles.
+**Map:**
+An individual custom map file for skirmish and multiplayer battles.
 
-                    **Map Pack:**
-                    A bundled collection of maps. Using a map pack lets you toggle an entire tournament pool or custom map collection with a single checkbox.
+**Map Pack:**
+A bundled collection of maps. Using a map pack lets you toggle an entire tournament pool or custom map collection with a single checkbox.
 
-                    **Patch:**
-                    An engine or system-level enhancement that improves stability (such as the 4GB Memory Patch or GenTool).
+**Patch:**
+An engine or system-level enhancement that improves stability (such as the 4GB Memory Patch or GenTool).
 
-                    **Addon:**
-                    Supplementary visual or audio packs (such as remastered music, custom hotkeys, or HD textures) that sit on top of mods safely.
+**Addon:**
+Supplementary visual or audio packs (such as remastered music, custom hotkeys, or HD textures) that sit on top of mods safely.
 
-                    **Tool:**
-                    External utilities (such as World Builder, Hotkey Editor, or FinalBIG) that can be opened directly from your profile dashboard.</value>
+**Tool:**
+External utilities (such as World Builder, Hotkey Editor, or FinalBIG) that can be opened directly from your profile dashboard.</value>
   </data>
   <data name="Info.Card.game-profile-content.hierarchy.Title" xml:space="preserve">
     <value>Content Types &amp; Hierarchy</value>
@@ -5520,11 +5520,11 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-profile-content.vfs.DetailedContent" xml:space="preserve">
     <value>**Layered File Merging:**
-                    When you click Play, GenHub combines all active content into a unified workspace:
+When you click Play, GenHub combines all active content into a unified workspace:
 
-                    1. **Base Layer:** Game client files form the foundation.
-                    2. **Mod Layer:** Mod files overlay and replace base game assets.
-                    3. **Top Layer:** Custom maps, addons, and patches apply with highest priority.</value>
+1. **Base Layer:** Game client files form the foundation.
+2. **Mod Layer:** Mod files overlay and replace base game assets.
+3. **Top Layer:** Custom maps, addons, and patches apply with highest priority.</value>
   </data>
   <data name="Info.Card.game-profile-content.vfs.Title" xml:space="preserve">
     <value>Virtual File System</value>
@@ -5534,13 +5534,13 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-profiles.advanced-options.DetailedContent" xml:space="preserve">
     <value>**Launch Arguments:**
-             GenHub passes custom command-line arguments directly to the game. For example, use `-quickstart` to skip introduction videos, or `-win` to force windowed mode.
+GenHub passes custom command-line arguments directly to the game. For example, use `-quickstart` to skip introduction videos, or `-win` to force windowed mode.
 
-             **Camera &amp; Visual Tuning:**
-             Configure camera height limits, scroll speed ratios, and EA logo movie skipping directly from the profile settings interface without hand-editing INI files.
+**Camera &amp; Visual Tuning:**
+Configure camera height limits, scroll speed ratios, and EA logo movie skipping directly from the profile settings interface without hand-editing INI files.
 
-             **Troubleshooting Logs:**
-             Profile startup and launch logs are recorded in the GenHub AppData directory to help diagnose issues if a game closes unexpectedly.</value>
+**Troubleshooting Logs:**
+Profile startup and launch logs are recorded in the GenHub AppData directory to help diagnose issues if a game closes unexpectedly.</value>
   </data>
   <data name="Info.Card.game-profiles.advanced-options.Title" xml:space="preserve">
     <value>Advanced Profile Options &amp; Camera Settings</value>
@@ -5550,17 +5550,17 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-profiles.controls.DetailedContent" xml:space="preserve">
     <value>**Profile Card Controls:**
-             1. **Play:** Launches the game with this profile's active mods, settings, and workspace.
-             2. **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
-             3. **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
-             4. **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
-             5. **Delete Profile:** Removes the profile and its dedicated workspace configuration.
+1. **Play:** Launches the game with this profile's active mods, settings, and workspace.
+2. **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
+3. **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
+4. **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
+5. **Delete Profile:** Removes the profile and its dedicated workspace configuration.
 
-             **Manifest Scrubbing:**
-             When downloaded packages or local manifests are deleted from disk, GenHub automatically cleans up orphaned references across all profiles, preventing broken launch states.
+**Manifest Scrubbing:**
+When downloaded packages or local manifests are deleted from disk, GenHub automatically cleans up orphaned references across all profiles, preventing broken launch states.
 
-             **Window &amp; Layout Persistence:**
-             The profile editor remembers window dimensions, sidebar widths, and maximized states across app restarts.</value>
+**Window &amp; Layout Persistence:**
+The profile editor remembers window dimensions, sidebar widths, and maximized states across app restarts.</value>
   </data>
   <data name="Info.Card.game-profiles.controls.Title" xml:space="preserve">
     <value>Controls &amp; Window Persistence</value>
@@ -5570,11 +5570,11 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-profiles.sandbox.DetailedContent" xml:space="preserve">
     <value>**Isolated Game Profiles:**
-             A profile is an independent configuration for your game. Instead of reinstalling or swapping files manually:
+A profile is an independent configuration for your game. Instead of reinstalling or swapping files manually:
 
-             1. **Safety:** Mod files never overwrite your original game installation. If a mod causes problems, your base game remains completely untouched.
-             2. **Multiple Configurations:** Keep separate profiles for vanilla Zero Hour, Rise of the Reds, ShockWave, or custom balance patches, and switch between them instantly.
-             3. **Speed:** Workspaces build in milliseconds using file linking, requiring almost zero extra storage on your drive.</value>
+1. **Safety:** Mod files never overwrite your original game installation. If a mod causes problems, your base game remains completely untouched.
+2. **Multiple Configurations:** Keep separate profiles for vanilla Zero Hour, Rise of the Reds, ShockWave, or custom balance patches, and switch between them instantly.
+3. **Speed:** Workspaces build in milliseconds using file linking, requiring almost zero extra storage on your drive.</value>
   </data>
   <data name="Info.Card.game-profiles.sandbox.Title" xml:space="preserve">
     <value>Your Personal Sandbox</value>
@@ -5584,17 +5584,17 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-settings.generals-online.DetailedContent" xml:space="preserve">
     <value>**Modern Multiplayer Integration:**
-                    Generals Online provides dedicated online matchmaking, lobbies, and community rankings for Command &amp; Conquer: Generals and Zero Hour.
+Generals Online provides dedicated online matchmaking, lobbies, and community rankings for Command &amp; Conquer: Generals and Zero Hour.
 
-                    **Lobby &amp; Networking:**
-                    * **Ping &amp; Ranks:** View player latency and competitive ladder rankings directly in the lobby.
-                    * **Fast Login:** Connect securely using Steam, Discord, or GameReplays authentication.
-                    * **Desktop Notifications:** Receive alerts when friends come online or invite you to matches.
-                    * **Chat Options:** Adjust lobby text size and fade delays to your preference.
+**Lobby &amp; Networking:**
+* **Ping &amp; Ranks:** View player latency and competitive ladder rankings directly in the lobby.
+* **Fast Login:** Connect securely using Steam, Discord, or GameReplays authentication.
+* **Desktop Notifications:** Receive alerts when friends come online or invite you to matches.
+* **Chat Options:** Adjust lobby text size and fade delays to your preference.
 
-                    **In-Game Camera:**
-                    * **Camera Zoom Height:** Customize maximum camera zoom distance for broader battlefield visibility.
-                    * **Camera Pan Speed:** Tune panning sensitivity during multiplayer matches.</value>
+**In-Game Camera:**
+* **Camera Zoom Height:** Customize maximum camera zoom distance for broader battlefield visibility.
+* **Camera Pan Speed:** Tune panning sensitivity during multiplayer matches.</value>
   </data>
   <data name="Info.Card.game-settings.generals-online.Title" xml:space="preserve">
     <value>GeneralsOnline Features</value>
@@ -5604,15 +5604,15 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-settings.standard-av.DetailedContent" xml:space="preserve">
     <value>**Display Settings:**
-                    * **Resolution:** Select your screen resolution. Supports modern widescreen, 1440p, 4K, and Ultrawide displays.
-                    * **Windowed Mode:** Run in a borderless or standard window for smooth Alt-Tabbing on multi-monitor setups.
-                    * **Anti-Aliasing &amp; Gamma:** Smooth jagged 3D edges and fine-tune in-game brightness.
+* **Resolution:** Select your screen resolution. Supports modern widescreen, 1440p, 4K, and Ultrawide displays.
+* **Windowed Mode:** Run in a borderless or standard window for smooth Alt-Tabbing on multi-monitor setups.
+* **Anti-Aliasing &amp; Gamma:** Smooth jagged 3D edges and fine-tune in-game brightness.
 
-                    **Audio &amp; Controls:**
-                    * **Volume Sliders:** Individual controls for Master, Sound Effects, Music, and Voice levels.
-                    * **Sound Channels:** Maximum simultaneous audio channels (supports up to 128 channels on modern systems).
-                    * **Right-Click Attack:** Switch between classic left-click and modern RTS right-click command schemes.
-                    * **Scroll Speed:** Customize camera movement speed at screen borders.</value>
+**Audio &amp; Controls:**
+* **Volume Sliders:** Individual controls for Master, Sound Effects, Music, and Voice levels.
+* **Sound Channels:** Maximum simultaneous audio channels (supports up to 128 channels on modern systems).
+* **Right-Click Attack:** Switch between classic left-click and modern RTS right-click command schemes.
+* **Scroll Speed:** Customize camera movement speed at screen borders.</value>
   </data>
   <data name="Info.Card.game-settings.standard-av.Title" xml:space="preserve">
     <value>Standard Audio &amp; Video</value>
@@ -5622,17 +5622,17 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.game-settings.superhackers.DetailedContent" xml:space="preserve">
     <value>**Community Engine Enhancements:**
-                    TheSuperHackers (TSH) engine is the active community codebase improving Zero Hour stability and modern feature support.
+TheSuperHackers (TSH) engine is the active community codebase improving Zero Hour stability and modern feature support.
 
-                    **Engine Improvements:**
-                    * **Cursor Clip:** Restricts the mouse to the game window during matches to prevent accidental clicks on a second monitor.
-                    * **Windowed Edge Scrolling:** Enables smooth camera scrolling at window edges even in windowed mode.
-                    * **Font Scaling:** Automatically scales in-game text and UI for high-DPI and 4K displays.
+**Engine Improvements:**
+* **Cursor Clip:** Restricts the mouse to the game window during matches to prevent accidental clicks on a second monitor.
+* **Windowed Edge Scrolling:** Enables smooth camera scrolling at window edges even in windowed mode.
+* **Font Scaling:** Automatically scales in-game text and UI for high-DPI and 4K displays.
 
-                    **In-Game Overlays:**
-                    * **Economy Stats:** Live resources-per-minute income rate display.
-                    * **Performance Metrics:** On-screen clock, FPS counter, and network latency indicators.
-                    * **Replay Archiving:** Automatically saves and structures match replays into categorized folders.</value>
+**In-Game Overlays:**
+* **Economy Stats:** Live resources-per-minute income rate display.
+* **Performance Metrics:** On-screen clock, FPS counter, and network latency indicators.
+* **Replay Archiving:** Automatically saves and structures match replays into categorized folders.</value>
   </data>
   <data name="Info.Card.game-settings.superhackers.Title" xml:space="preserve">
     <value>TheSuperHackers Engine</value>
@@ -5642,13 +5642,13 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.local-content.executable-selection.DetailedContent" xml:space="preserve">
     <value>**Selecting the correct content type**
-                    The content type determines how GenHub mounts and runs your files:
+The content type determines how GenHub mounts and runs your files:
 
-                    * **Mods:** Full game modifications containing `.big` archives (such as ShockWave, Rise of the Reds, or Contra), INI overrides, and custom art assets.
-                    * **Addons and patches:** Incremental additions such as camera height adjustments, texture packs, or balance patches that layer over base games or mods.
-                    * **Maps and map packs:** Loose `.map` files with `.tga` preview images or bundled map archives. GenHub indexes map metadata and makes them available across profiles.
-                    * **Modding tools:** Utilities like GenHotkeys, FinalBIG, or BigViewer. For modding tools, the content preview tree displays a **Select** button next to each `.exe`. Clicking **Select** designates the primary executable so GenHub can launch the tool directly from the profile tool tray.
-                    * **Game clients and executables:** Custom game binaries, such as community test builds from TheSuperHackers, or standalone editors like WorldBuilder. Marking the main executable tells GenHub which binary starts the game client or editor.</value>
+* **Mods:** Full game modifications containing `.big` archives (such as ShockWave, Rise of the Reds, or Contra), INI overrides, and custom art assets.
+* **Addons and patches:** Incremental additions such as camera height adjustments, texture packs, or balance patches that layer over base games or mods.
+* **Maps and map packs:** Loose `.map` files with `.tga` preview images or bundled map archives. GenHub indexes map metadata and makes them available across profiles.
+* **Modding tools:** Utilities like GenHotkeys, FinalBIG, or BigViewer. For modding tools, the content preview tree displays a **Select** button next to each `.exe`. Clicking **Select** designates the primary executable so GenHub can launch the tool directly from the profile tool tray.
+* **Game clients and executables:** Custom game binaries, such as community test builds from TheSuperHackers, or standalone editors like WorldBuilder. Marking the main executable tells GenHub which binary starts the game client or editor.</value>
   </data>
   <data name="Info.Card.local-content.executable-selection.Title" xml:space="preserve">
     <value>Content types and executable selection</value>
@@ -5658,16 +5658,16 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.local-content.genlauncher-normalization.DetailedContent" xml:space="preserve">
     <value>**Why normalization is necessary**
-                    GenLauncher modifies files directly inside the game directory when activating and deactivating mods. It renames active `.big` files to `.gib` to scramble them, appends `.GLR` (replaced files), `.GOF` (original file backups), and `.GLTC` (temporary copies) suffixes, and creates stray symbolic links. Importing a directory left in this state prevents the game engine from reading mod archives.
+GenLauncher modifies files directly inside the game directory when activating and deactivating mods. It renames active `.big` files to `.gib` to scramble them, appends `.GLR` (replaced files), `.GOF` (original file backups), and `.GLTC` (temporary copies) suffixes, and creates stray symbolic links. Importing a directory left in this state prevents the game engine from reading mod archives.
 
-                    **Automated normalization in GenHub**
-                    When you select a folder or archive containing GenLauncher files, GenHub's normalization service identifies these artifacts automatically during staging:
+**Automated normalization in GenHub**
+When you select a folder or archive containing GenLauncher files, GenHub's normalization service identifies these artifacts automatically during staging:
 
-                    1. Renames all scrambled `.gib` archives back to standard `.big` files so the game engine can mount them.
-                    2. Strips `.GLR`, `.GOF`, and `.GLTC` suffixes to restore standard file names.
-                    3. Cleans up broken or invalid symbolic links left by previous installations.
+1. Renames all scrambled `.gib` archives back to standard `.big` files so the game engine can mount them.
+2. Strips `.GLR`, `.GOF`, and `.GLTC` suffixes to restore standard file names.
+3. Cleans up broken or invalid symbolic links left by previous installations.
 
-                    Normalization runs safely in the staging area before registration, ensuring your imported content item contains clean standard assets.</value>
+Normalization runs safely in the staging area before registration, ensuring your imported content item contains clean standard assets.</value>
   </data>
   <data name="Info.Card.local-content.genlauncher-normalization.Title" xml:space="preserve">
     <value>GenLauncher file normalization</value>
@@ -5677,14 +5677,14 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.local-content.importing.DetailedContent" xml:space="preserve">
     <value>**The Add Local workflow**
-                    Use the **Add Local** button in the profile Content tab or library view to register external files into GenHub:
+Use the **Add Local** button in the profile Content tab or library view to register external files into GenHub:
 
-                    * **Folders:** Select an unpacked mod directory or community tool folder on your drive.
-                    * **ZIP archives:** Select or drop an archive. GenHub extracts files into an isolated staging area for inspection.
-                    * **Executables:** Choose a standalone `.exe` such as WorldBuilder or an engine binary.
+* **Folders:** Select an unpacked mod directory or community tool folder on your drive.
+* **ZIP archives:** Select or drop an archive. GenHub extracts files into an isolated staging area for inspection.
+* **Executables:** Choose a standalone `.exe` such as WorldBuilder or an engine binary.
 
-                    **Central content storage**
-                    When you confirm an import, GenHub registers the item into your local content pool and creates an immutable manifest. The content item is stored once on disk and can be attached to any number of game profiles without copying or duplicating files.</value>
+**Central content storage**
+When you confirm an import, GenHub registers the item into your local content pool and creates an immutable manifest. The content item is stored once on disk and can be attached to any number of game profiles without copying or duplicating files.</value>
   </data>
   <data name="Info.Card.local-content.importing.Title" xml:space="preserve">
     <value>Importing local content into your library</value>
@@ -5694,14 +5694,14 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   </data>
   <data name="Info.Card.local-content.workspace-isolation.DetailedContent" xml:space="preserve">
     <value>**Linking content to game profiles**
-                    After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** tab:
+After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** tab:
 
-                    * Enable the checkbox next to any mod, addon, tool, or map pack to attach it to that profile.
-                    * Reorder items in the list to configure load priority when multiple items override the same INI settings or art assets.
-                    * Assign custom game clients (such as a test build from TheSuperHackers) in the Client selector.
+* Enable the checkbox next to any mod, addon, tool, or map pack to attach it to that profile.
+* Reorder items in the list to configure load priority when multiple items override the same INI settings or art assets.
+* Assign custom game clients (such as a test build from TheSuperHackers) in the Client selector.
 
-                    **Workspace isolation**
-                    GenHub never writes modded files into your original Command &amp; Conquer installation directory. When launching a profile, GenHub creates an isolated workspace using symbolic links or hardlinks to combine your base game with the specific content items assigned to that profile. Your base game files remain untouched, and profiles run independently without file conflicts.</value>
+**Workspace isolation**
+GenHub never writes modded files into your original Command &amp; Conquer installation directory. When launching a profile, GenHub creates an isolated workspace using symbolic links or hardlinks to combine your base game with the specific content items assigned to that profile. Your base game files remain untouched, and profiles run independently without file conflicts.</value>
   </data>
   <data name="Info.Card.local-content.workspace-isolation.Title" xml:space="preserve">
     <value>Profile linking and workspace isolation</value>
@@ -5724,53 +5724,53 @@ GenHub uses content manifests and a shared storage cache to keep your files orga
   </data>
   <data name="Info.Card.quickstart.step1-scan.DetailedContent" xml:space="preserve">
     <value>**Detecting Your Game:**
-                    GenHub connects to your existing game files before launching profiles.
+GenHub connects to your existing game files before launching profiles.
 
-                    1. Navigate to the **Game Profiles** tab.
-                    2. Click the **SCAN** button in the toolbar.
-                    3. GenHub automatically searches standard Steam, EA App, Origin, and CD install directories.
+1. Navigate to the **Game Profiles** tab.
+2. Click the **SCAN** button in the toolbar.
+3. GenHub automatically searches standard Steam, EA App, Origin, and CD install directories.
 
-                    Once detected, you can create and launch profiles based on this installation.</value>
+Once detected, you can create and launch profiles based on this installation.</value>
   </data>
   <data name="Info.Card.quickstart.step2-downloads.DetailedContent" xml:space="preserve">
     <value>**Recommended Community Additions:**
-                    Visit the **Downloads** tab to get recommended updates for modern hardware and online play:
+Visit the **Downloads** tab to get recommended updates for modern hardware and online play:
 
-                    * **Generals Online:** Modern online multiplayer lobby and matchmaking, replacing the discontinued GameSpy service.
-                    * **TheSuperHackers Engine:** Active community engine updates offering widescreen support, high-DPI scaling, and crash fixes.
-                    * **Community Patches:** Game balance, memory enhancements, and stability fixes.</value>
+* **Generals Online:** Modern online multiplayer lobby and matchmaking, replacing the discontinued GameSpy service.
+* **TheSuperHackers Engine:** Active community engine updates offering widescreen support, high-DPI scaling, and crash fixes.
+* **Community Patches:** Game balance, memory enhancements, and stability fixes.</value>
   </data>
   <data name="Info.Card.quickstart.step3-local-content.DetailedContent" xml:space="preserve">
     <value>**Adding Your Own Content:**
-                    Already have mods or maps on your PC? Import them directly into GenHub:
+Already have mods or maps on your PC? Import them directly into GenHub:
 
-                    1. In any profile editor, switch to the **Content** tab.
-                    2. Click **Add Local** in the bottom-right corner.
-                    3. Choose a folder, ZIP archive, or executable to register.
-                    4. Check the box next to your imported item to enable it for that profile.</value>
+1. In any profile editor, switch to the **Content** tab.
+2. Click **Add Local** in the bottom-right corner.
+3. Choose a folder, ZIP archive, or executable to register.
+4. Check the box next to your imported item to enable it for that profile.</value>
   </data>
   <data name="Info.Card.quickstart.welcome.DetailedContent" xml:space="preserve">
     <value>**Welcome to GenHub.**
-                    GenHub simplifies playing, modding, and managing Command &amp; Conquer: Generals and Zero Hour.
+GenHub simplifies playing, modding, and managing Command &amp; Conquer: Generals and Zero Hour.
 
-                    **Core Concepts:**
-                    * **Isolated Profiles:** Each game profile is completely separated from your base game installation.
-                    * **Zero-Copy Workspaces:** Filesystem linking allows mods to run without duplicating gigabytes of files on your drive.
-                    * **Central Content Library:** Downloaded mods, custom maps, and community patches are stored once and shared across any number of profiles.
-                    * **Community Integration:** Native support for Generals Online, TheSuperHackers modern engine, and official Steam releases.</value>
+**Core Concepts:**
+* **Isolated Profiles:** Each game profile is completely separated from your base game installation.
+* **Zero-Copy Workspaces:** Filesystem linking allows mods to run without duplicating gigabytes of files on your drive.
+* **Central Content Library:** Downloaded mods, custom maps, and community patches are stored once and shared across any number of profiles.
+* **Community Integration:** Native support for Generals Online, TheSuperHackers modern engine, and official Steam releases.</value>
   </data>
   <data name="Info.Card.scan-games.auto-detection.Content" xml:space="preserve">
     <value>Locate Steam, EA App, CD, and Wine/Proton game installations.</value>
   </data>
   <data name="Info.Card.scan-games.auto-detection.DetailedContent" xml:space="preserve">
     <value>**Detection Methods:**
-             GenHub scans your system for official game releases:
-             1. **Steam Libraries:** Automatically detects Command &amp; Conquer: The Ultimate Collection across all Steam library folders (official Steam releases: Generals 1.09, Zero Hour 1.04).
-             2. **EA App &amp; Origin:** Locates official EA App install directories and registry entries.
-             3. **Classic CD &amp; Retail:** Checks standard installation paths and registry keys for classic disc editions.
-             4. **Wine environments:** Locates Windows game prefixes on Linux and macOS environments.
+GenHub scans your system for official game releases:
+1. **Steam Libraries:** Automatically detects Command &amp; Conquer: The Ultimate Collection across all Steam library folders (official Steam releases: Generals 1.09, Zero Hour 1.04).
+2. **EA App &amp; Origin:** Locates official EA App install directories and registry entries.
+3. **Classic CD &amp; Retail:** Checks standard installation paths and registry keys for classic disc editions.
+4. **Wine environments:** Locates Windows game prefixes on Linux and macOS environments.
 
-             If your game resides in a custom directory, click **Browse** to link the folder manually.</value>
+If your game resides in a custom directory, click **Browse** to link the folder manually.</value>
   </data>
   <data name="Info.Card.scan-games.auto-detection.Title" xml:space="preserve">
     <value>Auto-Detection Across Platforms</value>
@@ -5794,10 +5794,10 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
     <value>**Creating a Shortcut:**
-             1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
-             2. Select **Create Desktop Shortcut**.
-             3. A standard Windows shortcut (`.lnk`) appears on your desktop.
-             4. Double-clicking this shortcut launches that specific profile configuration immediately.</value>
+1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
+2. Select **Create Desktop Shortcut**.
+3. A standard Windows shortcut (`.lnk`) appears on your desktop.
+4. Double-clicking this shortcut launches that specific profile configuration immediately.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.Title" xml:space="preserve">
     <value>Shortcut Creation</value>
@@ -5807,11 +5807,11 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.shortcuts.headless.DetailedContent" xml:space="preserve">
     <value>**Direct Desktop Launching:**
-             Shortcuts allow you to start any mod configuration straight from your desktop without keeping the main launcher window open:
+Shortcuts allow you to start any mod configuration straight from your desktop without keeping the main launcher window open:
 
-             1. **Direct Launch:** Double-click the shortcut to start the game immediately.
-             2. **Silent Setup:** GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
-             3. **Clean Exit:** Workspace temporary files are automatically cleaned up when the game closes.</value>
+1. **Direct Launch:** Double-click the shortcut to start the game immediately.
+2. **Silent Setup:** GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
+3. **Clean Exit:** Workspace temporary files are automatically cleaned up when the game closes.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Title" xml:space="preserve">
     <value>Headless Mode Launcher</value>
@@ -5821,8 +5821,8 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.shortcuts.icons.DetailedContent" xml:space="preserve">
     <value>**Shortcut Icons:**
-             GenHub extracts official high-resolution icon resources from the game executable (`generals.exe` or `game.dat`).
-             If your profile uses custom metadata or mod artwork, GenHub converts that image into an icon embedded directly in the shortcut.</value>
+GenHub extracts official high-resolution icon resources from the game executable (`generals.exe` or `game.dat`).
+If your profile uses custom metadata or mod artwork, GenHub converts that image into an icon embedded directly in the shortcut.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Title" xml:space="preserve">
     <value>Icon Customization</value>
@@ -5832,11 +5832,11 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.steam-integration.appid.DetailedContent" xml:space="preserve">
     <value>**Steam Integration:**
-             GenHub connects your mod launches with Steam so you can take advantage of Steam community features:
+GenHub connects your mod launches with Steam so you can take advantage of Steam community features:
 
-             * **Steam Overlay:** Chat with friends, join invites, and take screenshots in-game.
-             * **Friend Status:** Displays Command &amp; Conquer: Generals as your current game.
-             * **Playtime Tracking:** Hours played with mods count toward your official Steam library stats.</value>
+* **Steam Overlay:** Chat with friends, join invites, and take screenshots in-game.
+* **Friend Status:** Displays Command &amp; Conquer: Generals as your current game.
+* **Playtime Tracking:** Hours played with mods count toward your official Steam library stats.</value>
   </data>
   <data name="Info.Card.steam-integration.appid.Title" xml:space="preserve">
     <value>AppID Injection</value>
@@ -5846,11 +5846,11 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.steam-integration.requirements.DetailedContent" xml:space="preserve">
     <value>**Prerequisites:**
-             To use Steam features:
-             1. The **Steam desktop application** must be running before launching the game.
-             2. The active Steam account must own *Command &amp; Conquer: The Ultimate Collection*.
+To use Steam features:
+1. The **Steam desktop application** must be running before launching the game.
+2. The active Steam account must own *Command &amp; Conquer: The Ultimate Collection*.
 
-             *Note: If Steam is not running, GenHub will launch the profile in standard mode without interruption.*</value>
+*Note: If Steam is not running, GenHub will launch the profile in standard mode without interruption.*</value>
   </data>
   <data name="Info.Card.steam-integration.requirements.Title" xml:space="preserve">
     <value>Usage Requirements</value>
@@ -5860,7 +5860,7 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.steam-integration.time-tracking.DetailedContent" xml:space="preserve">
     <value>**Playtime Tracking:**
-             Because Steam recognizes the game through GenHub's launcher, all playtime across your various mods, map packs, and profiles is logged to your Steam library.</value>
+Because Steam recognizes the game through GenHub's launcher, all playtime across your various mods, map packs, and profiles is logged to your Steam library.</value>
   </data>
   <data name="Info.Card.steam-integration.time-tracking.Title" xml:space="preserve">
     <value>Time Tracking</value>
@@ -5884,12 +5884,12 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   <data name="Info.Card.tools.map-packs.DetailedContent" xml:space="preserve">
     <value>A Map Pack groups multiple maps together, such as a competitive tournament pool or 4-player team maps.
 
-             **Creating a Map Pack.**
-             1. Select maps in the list with Ctrl+Click or Shift+Click.
-             2. Click **Pack** in the toolbar.
-             3. Enter a pack name and confirm.
+**Creating a Map Pack.**
+1. Select maps in the list with Ctrl+Click or Shift+Click.
+2. Click **Pack** in the toolbar.
+3. Enter a pack name and confirm.
 
-             Once created, you can enable or disable the entire map pack for any profile in Profile Settings.</value>
+Once created, you can enable or disable the entire map pack for any profile in Profile Settings.</value>
   </data>
   <data name="Info.Card.tools.map-packs.Title" xml:space="preserve">
     <value>Map Manager: Map Packs</value>
@@ -5899,10 +5899,10 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.tools.replay-archive.DetailedContent" xml:space="preserve">
     <value>**Creating Archives.**
-             Select replays in the table using Ctrl+Click or Shift+Click, enter a name in the **Zip Name** box, and click **Zip**. GenHub creates a compressed archive in your replay folder.
+Select replays in the table using Ctrl+Click or Shift+Click, enter a name in the **Zip Name** box, and click **Zip**. GenHub creates a compressed archive in your replay folder.
 
-             **Extracting Archives.**
-             Select a .zip archive in the list and click **Uncompress**. GenHub extracts all contained .rep files directly into your replay directory and refreshes the table.</value>
+**Extracting Archives.**
+Select a .zip archive in the list and click **Uncompress**. GenHub extracts all contained .rep files directly into your replay directory and refreshes the table.</value>
   </data>
   <data name="Info.Card.tools.replay-archive.Title" xml:space="preserve">
     <value>Replay Manager: Zip Compression &amp; Extraction</value>
@@ -5912,13 +5912,13 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.tools.replay-cloud.DetailedContent" xml:space="preserve">
     <value>**Cloud Uploads.**
-             Select one or more replays and click **Upload** in the action bar. GenHub uploads the files to cloud storage and copies the download URL to your clipboard.
+Select one or more replays and click **Upload** in the action bar. GenHub uploads the files to cloud storage and copies the download URL to your clipboard.
 
-             **Deep Links.**
-             Click the share icon in the upload history flyout to copy a genhub:// link. When another user clicks this link, GenHub automatically downloads and selects the replay.
+**Deep Links.**
+Click the share icon in the upload history flyout to copy a genhub:// link. When another user clicks this link, GenHub automatically downloads and selects the replay.
 
-             **Upload History.**
-             Click the history arrow next to the Upload button to inspect past uploads, copy links, or delete old entries.</value>
+**Upload History.**
+Click the history arrow next to the Upload button to inspect past uploads, copy links, or delete old entries.</value>
   </data>
   <data name="Info.Card.tools.replay-cloud.Title" xml:space="preserve">
     <value>Replay Manager: Cloud Sharing &amp; History</value>
@@ -5928,13 +5928,13 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.tools.replay-import.DetailedContent" xml:space="preserve">
     <value>**Importing Replay Files.**
-             * **Link Import:** Paste a replay link or ladder match URL into the import bar and click **Import**.
-             * **Browse Files:** Click the paperclip button to select .rep files or zipped replay archives from disk.
-             * **Drag and Drop:** Drag .rep or .zip files directly onto the Replay Manager window to register them immediately.
-             * **Replay Directories:** Zero Hour replays reside in Documents\Command and Conquer Generals Zero Hour Data\Replays. Generals replays reside in Documents\Command and Conquer Generals Data\Replays.
+* **Link Import:** Paste a replay link or ladder match URL into the import bar and click **Import**.
+* **Browse Files:** Click the paperclip button to select .rep files or zipped replay archives from disk.
+* **Drag and Drop:** Drag .rep or .zip files directly onto the Replay Manager window to register them immediately.
+* **Replay Directories:** Zero Hour replays reside in Documents\Command and Conquer Generals Zero Hour Data\Replays. Generals replays reside in Documents\Command and Conquer Generals Data\Replays.
 
-             **Header Inspection.**
-             GenHub parses the binary header before you launch playback. It reads map name, game version, match duration, player slots, factions, and colors.</value>
+**Header Inspection.**
+GenHub parses the binary header before you launch playback. It reads map name, game version, match duration, player slots, factions, and colors.</value>
   </data>
   <data name="Info.Card.tools.replay-import.Title" xml:space="preserve">
     <value>Replay Manager: Import &amp; Header Inspection</value>
@@ -5945,17 +5945,17 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   <data name="Info.Card.workspaces.deep-dive.DetailedContent" xml:space="preserve">
     <value>**How Linking Works Under the Hood:**
 
-                    * **Hardlink:**
-                        A hardlink points directly to the existing file data on disk at the filesystem level. Because the underlying file data is shared, creating a hardlink takes zero extra storage. Hardlinks must reside on the same drive partition as the original file.
+* **Hardlink:**
+  A hardlink points directly to the existing file data on disk at the filesystem level. Because the underlying file data is shared, creating a hardlink takes zero extra storage. Hardlinks must reside on the same drive partition as the original file.
 
-                    * **Symlink (Symbolic Link):**
-                        A symlink is a lightweight pointer that stores a path to the target file or folder, similar to a transparent operating system shortcut. Symlinks can cross different drives, but Windows security policies require elevated privileges or Developer Mode to create them.
+* **Symlink (Symbolic Link):**
+  A symlink is a lightweight pointer that stores a path to the target file or folder, similar to a transparent operating system shortcut. Symlinks can cross different drives, but Windows security policies require elevated privileges or Developer Mode to create them.
 
-                    * **Full Copy:**
-                        A complete duplicate of the file written to a new location on disk.
+* **Full Copy:**
+  A complete duplicate of the file written to a new location on disk.
 
-                    **Automatic Fallback:**
-                    If you configure Symlink mode but run GenHub without administrator rights or Developer Mode, GenHub automatically falls back to hardlinks when files reside on the same drive, ensuring your game launches without interruption.</value>
+**Automatic Fallback:**
+If you configure Symlink mode but run GenHub without administrator rights or Developer Mode, GenHub automatically falls back to hardlinks when files reside on the same drive, ensuring your game launches without interruption.</value>
   </data>
   <data name="Info.Card.workspaces.deep-dive.Title" xml:space="preserve">
     <value>Hardlinks vs Symlinks vs Copies: Deep Dive</value>
@@ -5965,12 +5965,12 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.workspaces.magic-mirror.DetailedContent" xml:space="preserve">
     <value>**How Workspaces Work:**
-                    When you click Play, GenHub instantly prepares a dedicated workspace folder for that specific profile.
+When you click Play, GenHub instantly prepares a dedicated workspace folder for that specific profile.
 
-                    **Key Benefits:**
-                    1. **Zero Extra Disk Space:** In linked modes (HardLink and SymlinkOnly), the workspace functions as a complete multi-gigabyte game folder while consuming virtually 0 MB of extra disk space.
-                    2. **Complete Profile Isolation:** Mods and configurations live in dedicated profile workspaces. Your main game directory remains untouched, so files never get mixed up. (For mods that modify game binaries in-place, select Hybrid or Full Copy mode).
-                    3. **Instant Switching:** Switch between large total conversions like *Rise of the Reds* and *ShockWave* in seconds without reinstalling or moving files.</value>
+**Key Benefits:**
+1. **Zero Extra Disk Space:** In linked modes (HardLink and SymlinkOnly), the workspace functions as a complete multi-gigabyte game folder while consuming virtually 0 MB of extra disk space.
+2. **Complete Profile Isolation:** Mods and configurations live in dedicated profile workspaces. Your main game directory remains untouched, so files never get mixed up. (For mods that modify game binaries in-place, select Hybrid or Full Copy mode).
+3. **Instant Switching:** Switch between large total conversions like *Rise of the Reds* and *ShockWave* in seconds without reinstalling or moving files.</value>
   </data>
   <data name="Info.Card.workspaces.magic-mirror.Title" xml:space="preserve">
     <value>The Magic Mirror</value>
@@ -5981,22 +5981,22 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   <data name="Info.Card.workspaces.performance.DetailedContent" xml:space="preserve">
     <value>**Strategy Performance Summary:**
 
-                    * **HardLink:**
-                        * *Creation Time:* &lt; 50ms on same volume
-                        * *Disk Overhead:* 0 MB on same volume (requires same drive volume)
-                        * *Integrity:* Shared data clusters (CAS objects remain immutable in the cache)
-                    * **SymlinkOnly:**
-                        * *Creation Time:* &lt; 50ms
-                        * *Disk Overhead:* &lt; 1 MB
-                        * *Integrity:* Pointer redirection across drives
-                    * **Hybrid:**
-                        * *Creation Time:* 1-2 seconds
-                        * *Disk Overhead:* Small (copies essential configs, links media assets)
-                        * *Integrity:* Isolated configs, shared media links
-                    * **Full Copy:**
-                        * *Creation Time:* 10-30 seconds
-                        * *Disk Overhead:* Full game size (2,000 - 5,000+ MB)
-                        * *Integrity:* Total physical file separation</value>
+* **HardLink:**
+  * *Creation Time:* &lt; 50ms on same volume
+  * *Disk Overhead:* 0 MB on same volume (requires same drive volume)
+  * *Integrity:* Shared data clusters (CAS objects remain immutable in the cache)
+* **SymlinkOnly:**
+  * *Creation Time:* &lt; 50ms
+  * *Disk Overhead:* &lt; 1 MB
+  * *Integrity:* Pointer redirection across drives
+* **Hybrid:**
+  * *Creation Time:* 1-2 seconds
+  * *Disk Overhead:* Small (copies essential configs, links media assets)
+  * *Integrity:* Isolated configs, shared media links
+* **Full Copy:**
+  * *Creation Time:* 10-30 seconds
+  * *Disk Overhead:* Full game size (2,000 - 5,000+ MB)
+  * *Integrity:* Total physical file separation</value>
   </data>
   <data name="Info.Card.workspaces.performance.Title" xml:space="preserve">
     <value>Performance Specs</value>
@@ -6006,33 +6006,33 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.workspaces.strategies.DetailedContent" xml:space="preserve">
     <value>**Choosing the Right Strategy:**
-                    GenHub supports four file linking strategies under **Settings -&gt; Game Configuration**:
+GenHub supports four file linking strategies under **Settings -&gt; Game Configuration**:
 
-                    * **HardLink (Default &amp; Recommended):**
-                        * *How it works:* Creates direct filesystem pointers (hard links) on the same drive. Across different drives, it uses symbolic links; if symlink creation fails, workspace preparation fails. Select **FullCopy** instead.
-                        * *Disk Space:* **0 bytes** extra storage (requires the same drive).
-                        * *Speed:* Instant (&lt; 50ms) on the same volume.
-                        * *Privileges:* No administrator privileges or Developer Mode required on the same drive. Cross-drive symbolic link fallback has the same requirements as SymlinkOnly.
-                        * *Recommendation:* Keep your workspaces and game installation on the **same drive** (e.g. both on `C:` or both on `D:`) for optimal zero-space performance.
+* **HardLink (Default &amp; Recommended):**
+  * *How it works:* Creates direct filesystem pointers (hard links) on the same drive. Across different drives, it uses symbolic links; if symlink creation fails, workspace preparation fails. Select **FullCopy** instead.
+  * *Disk Space:* **0 bytes** extra storage (requires the same drive).
+  * *Speed:* Instant (&lt; 50ms) on the same volume.
+  * *Privileges:* No administrator privileges or Developer Mode required on the same drive. Cross-drive symbolic link fallback has the same requirements as SymlinkOnly.
+  * *Recommendation:* Keep your workspaces and game installation on the **same drive** (e.g. both on `C:` or both on `D:`) for optimal zero-space performance.
 
-                    * **SymlinkOnly:**
-                        * *How it works:* Creates symbolic links pointing to source files and directories.
-                        * *Disk Space:* **Negligible** (~a few KB of link pointers).
-                        * *Speed:* Instant (&lt; 50ms).
-                        * *Advantage:* Links seamlessly across **different drives and partitions**.
-                        * *Requirement:* On Windows, requires **Administrator rights** or **Developer Mode** enabled in Windows Settings.
+* **SymlinkOnly:**
+  * *How it works:* Creates symbolic links pointing to source files and directories.
+  * *Disk Space:* **Negligible** (~a few KB of link pointers).
+  * *Speed:* Instant (&lt; 50ms).
+  * *Advantage:* Links seamlessly across **different drives and partitions**.
+  * *Requirement:* On Windows, requires **Administrator rights** or **Developer Mode** enabled in Windows Settings.
 
-                    * **HybridCopySymlink (Balanced Compatibility):**
-                        * *How it works:* Copies essential engine files, scripts, and configuration files into the workspace while symlinking large media files (textures, audio, and video).
-                        * *Disk Space:* Balanced footprint (copies key configs, links media).
-                        * *Speed:* Fast (1-2 seconds).
-                        * *Advantage:* Protects configuration files from cross-profile conflicts while keeping disk usage low.
+* **HybridCopySymlink (Balanced Compatibility):**
+  * *How it works:* Copies essential engine files, scripts, and configuration files into the workspace while symlinking large media files (textures, audio, and video).
+  * *Disk Space:* Balanced footprint (copies key configs, links media).
+  * *Speed:* Fast (1-2 seconds).
+  * *Advantage:* Protects configuration files from cross-profile conflicts while keeping disk usage low.
 
-                    * **FullCopy (Universal Fallback):**
-                        * *How it works:* Physically copies every game and mod file into the workspace directory.
-                        * *Disk Space:* Uses the full game size (**2-5+ GB** per profile).
-                        * *Speed:* Slower (10-30+ seconds depending on drive speed).
-                        * *Advantage:* Maximum compatibility across external drives, network drives, and restricted environments.</value>
+* **FullCopy (Universal Fallback):**
+  * *How it works:* Physically copies every game and mod file into the workspace directory.
+  * *Disk Space:* Uses the full game size (**2-5+ GB** per profile).
+  * *Speed:* Slower (10-30+ seconds depending on drive speed).
+  * *Advantage:* Maximum compatibility across external drives, network drives, and restricted environments.</value>
   </data>
   <data name="Info.Card.workspaces.strategies.Title" xml:space="preserve">
     <value>Workspace Strategies Compared</value>
@@ -6043,14 +6043,14 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   <data name="Info.Card.workspaces.troubleshooting.DetailedContent" xml:space="preserve">
     <value>**Common Issues &amp; Solutions:**
 
-                    * **"Access Denied" or Privilege Errors:**
-                        * If using the Symlink strategy on Windows, enable **Developer Mode** in *Windows Settings -&gt; System -&gt; For developers*, or run GenHub as Administrator.
-                        * Alternatively, switch your Default Workspace Strategy to **HardLink** in GenHub Settings when the game and workspace use the same drive.
-                    * **Cross-Drive Linking &amp; Storage:**
-                        * Hardlinks require both the game files and workspace to be on the same drive volume. Across different drives, **HardLink** uses symbolic links; if symlink creation fails, workspace preparation fails. Select **FullCopy** instead.
-                        * To keep workspaces fast and zero-space, place your CAS pool and workspace directories on the same drive as your game installation in **Settings -&gt; Data Directories**, or enable Developer Mode for symlinks.
-                    * **"File In Use" / Locked File Warnings:**
-                        * Make sure all instances of `generals.exe` and `game.dat` are closed before switching profiles or rebuilding workspaces.</value>
+* **"Access Denied" or Privilege Errors:**
+  * If using the Symlink strategy on Windows, enable **Developer Mode** in *Windows Settings -&gt; System -&gt; For developers*, or run GenHub as Administrator.
+  * Alternatively, switch your Default Workspace Strategy to **HardLink** in GenHub Settings when the game and workspace use the same drive.
+* **Cross-Drive Linking &amp; Storage:**
+  * Hardlinks require both the game files and workspace to be on the same drive volume. Across different drives, **HardLink** uses symbolic links; if symlink creation fails, workspace preparation fails. Select **FullCopy** instead.
+  * To keep workspaces fast and zero-space, place your CAS pool and workspace directories on the same drive as your game installation in **Settings -&gt; Data Directories**, or enable Developer Mode for symlinks.
+* **"File In Use" / Locked File Warnings:**
+  * Make sure all instances of `generals.exe` and `game.dat` are closed before switching profiles or rebuilding workspaces.</value>
   </data>
   <data name="Info.Card.workspaces.troubleshooting.Title" xml:space="preserve">
     <value>Troubleshooting &amp; Permissions</value>
@@ -13131,19 +13131,19 @@ Development and PR builds detect their Git commit origin and suppress update pro
   <data name="Info.Card.app-updates.github-oauth-device.DetailedContent" xml:space="preserve">
     <value>Personal Access Tokens (PAT) are obsolete and no longer used in GenHub. You do not need to generate or paste API keys.
 
-             **OAuth Device Flow.**
-             GenHub uses GitHub's standard device authorization grant:
-             1. Open **Settings -&gt; Updates** (or the GitHub Discovery view) and click **Sign in with GitHub**.
-             2. GenHub requests an 8-character user code (such as WDAS-5678) from GitHub.
-             3. Click **Copy and Open**. GenHub copies the user code to your clipboard and opens github.com/login/device in your default browser.
-             4. Paste the user code into the GitHub prompt and click **Authorize community-outpost**.
-             5. GenHub confirms authorization and saves credentials into encrypted local storage.
+**OAuth Device Flow.**
+GenHub uses GitHub's standard device authorization grant:
+1. Open **Settings -&gt; Updates** (or the GitHub Discovery view) and click **Sign in with GitHub**.
+2. GenHub requests an 8-character user code (such as WDAS-5678) from GitHub.
+3. Click **Copy and Open**. GenHub copies the user code to your clipboard and opens github.com/login/device in your default browser.
+4. Paste the user code into the GitHub prompt and click **Authorize community-outpost**.
+5. GenHub confirms authorization and saves credentials into encrypted local storage.
 
-             **Session Persistence.**
-             If your authorization session expires, GenHub displays a notification in Settings rather than silently failing downloads.
+**Session Persistence.**
+If your authorization session expires, GenHub displays a notification in Settings rather than silently failing downloads.
 
-             **Rate Limits and CI Builds.**
-             Signing in raises GitHub API limits from 60 anonymous requests per hour to 5,000 requests per hour. This allows the Browse Builds tab to download automated CI pull request and branch artifacts.</value>
+**Rate Limits and CI Builds.**
+Signing in raises GitHub API limits from 60 anonymous requests per hour to 5,000 requests per hour. This allows the Browse Builds tab to download automated CI pull request and branch artifacts.</value>
   </data>
   <data name="Info.Card.app-updates.github-oauth-device.Title" xml:space="preserve">
     <value>GitHub Sign-In: Device Flow (PAT Obsolete)</value>
@@ -13154,14 +13154,14 @@ Development and PR builds detect their Git commit origin and suppress update pro
   <data name="Info.Card.app-updates.offline-downloads.DetailedContent" xml:space="preserve">
     <value>The Downloads tab functions fully without an active internet connection once content is downloaded.
 
-             **Offline Browsing.**
-             You can filter downloaded mods, custom maps, and game patches, inspect version numbers, and configure profiles while offline.
+**Offline Browsing.**
+You can filter downloaded mods, custom maps, and game patches, inspect version numbers, and configure profiles while offline.
 
-             **Content Addressable Storage (CAS).**
-             Downloaded packages are stored by SHA-256 hash. When multiple mods share identical texture archives or audio files, GenHub keeps only one physical copy on disk.
+**Content Addressable Storage (CAS).**
+Downloaded packages are stored by SHA-256 hash. When multiple mods share identical texture archives or audio files, GenHub keeps only one physical copy on disk.
 
-             **Safe Cascade Deletion.**
-             When deleting a downloaded package from your library, GenHub checks your active game profiles. If a profile currently uses that content, GenHub displays a warning before removal to prevent breaking your game workspace.</value>
+**Safe Cascade Deletion.**
+When deleting a downloaded package from your library, GenHub checks your active game profiles. If a profile currently uses that content, GenHub displays a warning before removal to prevent breaking your game workspace.</value>
   </data>
   <data name="Info.Card.app-updates.offline-downloads.Title" xml:space="preserve">
     <value>Offline Mode &amp; Content Storage</value>
@@ -13183,13 +13183,13 @@ ModBuilder projects use `.mbproj` files (such as `Shockwave.mbproj`) to track so
   </data>
   <data name="Info.Card.quickstart.step4-play.DetailedContent" xml:space="preserve">
     <value>**Launching Profiles:**
-                    Once your profile is configured with your preferred mods and resolution:
+Once your profile is configured with your preferred mods and resolution:
 
-                    1. Go to the **Game Profiles** tab.
-                    2. Click the **Play** button on any profile card.
-                    3. GenHub prepares an isolated workspace in milliseconds and launches the game.
+1. Go to the **Game Profiles** tab.
+2. Click the **Play** button on any profile card.
+3. GenHub prepares an isolated workspace in milliseconds and launches the game.
 
-                    Your base game files remain clean and completely untouched.</value>
+Your base game files remain clean and completely untouched.</value>
   </data>
   <data name="Info.Card.quickstart.step4-play.Title" xml:space="preserve">
     <value>Step 4: Launch and Play</value>
@@ -13199,10 +13199,10 @@ ModBuilder projects use `.mbproj` files (such as `Shockwave.mbproj`) to track so
   </data>
   <data name="Info.Card.scan-games.cross-platform-detection.DetailedContent" xml:space="preserve">
     <value>**Binary Format Analysis.**
-             On Linux and macOS, GenHub inspects application bundles (.app) and executable binary headers to distinguish native Mach-O, ELF, and Windows PE binaries for Wine environments.
+On Linux and macOS, GenHub inspects application bundles (.app) and executable binary headers to distinguish native Mach-O, ELF, and Windows PE binaries for Wine environments.
 
-             **Supplemental Archive Linking.**
-             On non-Windows Zero Hour launches, GenHub links safe base Generals audio and speech archives into the Zero Hour workspace so sound effects and campaigns play correctly.</value>
+**Supplemental Archive Linking.**
+On non-Windows Zero Hour launches, GenHub links safe base Generals audio and speech archives into the Zero Hour workspace so sound effects and campaigns play correctly.</value>
   </data>
   <data name="Info.Card.scan-games.cross-platform-detection.Title" xml:space="preserve">
     <value>Linux &amp; macOS Client Detection</value>
@@ -13212,10 +13212,10 @@ ModBuilder projects use `.mbproj` files (such as `Shockwave.mbproj`) to track so
   </data>
   <data name="Info.Card.tools.hotkey-editor-addons.DetailedContent" xml:space="preserve">
     <value>**Addon Packaging.**
-             GenHub does not overwrite original game INI files. Instead, clicking **Create Addon** packages your bindings into an isolated content addon (.manifest.json). You can attach this addon to any profile in Profile Settings.
+GenHub does not overwrite original game INI files. Instead, clicking **Create Addon** packages your bindings into an isolated content addon (.manifest.json). You can attach this addon to any profile in Profile Settings.
 
-             **Cameo Overlays.**
-             When generating the addon, GenHub stamps the assigned shortcut letter directly onto the corner of each unit and building cameo texture. In-game command buttons display your hotkeys automatically while playing.</value>
+**Cameo Overlays.**
+When generating the addon, GenHub stamps the assigned shortcut letter directly onto the corner of each unit and building cameo texture. In-game command buttons display your hotkeys automatically while playing.</value>
   </data>
   <data name="Info.Card.tools.hotkey-editor-addons.Title" xml:space="preserve">
     <value>Hotkey Editor: Addon Packaging</value>
@@ -13225,13 +13225,13 @@ ModBuilder projects use `.mbproj` files (such as `Shockwave.mbproj`) to track so
   </data>
   <data name="Info.Card.tools.hotkey-editor-rebind.DetailedContent" xml:space="preserve">
     <value>**Command Card Layout.**
-             Select your game and faction (USA, China, or GLA). The editor presents a 3x4 grid mirroring the in-game command bar, populated with official unit, building, and upgrade cameo graphics.
+Select your game and faction (USA, China, or GLA). The editor presents a 3x4 grid mirroring the in-game command bar, populated with official unit, building, and upgrade cameo graphics.
 
-             **Rebinding Keys.**
-             Click any command slot and press a key on your keyboard. For example, click the Dozer build action and press Q, or select the Ranger and assign R. The assigned letter displays directly over the button.
+**Rebinding Keys.**
+Click any command slot and press a key on your keyboard. For example, click the Dozer build action and press Q, or select the Ranger and assign R. The assigned letter displays directly over the button.
 
-             **Conflict Detection.**
-             When two actions on the same building share the same shortcut key, GenHub highlights both slots in red. Assigning distinct keys updates the indicator to green.</value>
+**Conflict Detection.**
+When two actions on the same building share the same shortcut key, GenHub highlights both slots in red. Assigning distinct keys updates the indicator to green.</value>
   </data>
   <data name="Info.Card.tools.hotkey-editor-rebind.Title" xml:space="preserve">
     <value>Hotkey Editor: Command Cards</value>
@@ -13242,13 +13242,13 @@ ModBuilder projects use `.mbproj` files (such as `Shockwave.mbproj`) to track so
   <data name="Info.Card.tools.modbuilder-suite-pipeline.DetailedContent" xml:space="preserve">
     <value>This feature is currently in development under an open pull request.
 
-             **Workspace Projects.**
-             ModBuilder projects use .mbproj files (such as Shockwave.mbproj) to track source directories, build targets, and external tools like Crunch and FinalBIG.
+**Workspace Projects.**
+ModBuilder projects use .mbproj files (such as Shockwave.mbproj) to track source directories, build targets, and external tools like Crunch and FinalBIG.
 
-             **Asset Pipeline.**
-             * **Textures:** Batch converts image files between PNG, TGA, and DDS formats with mipmaps and alpha transparency preserved.
-             * **String Tables:** Compiles and decompiles .csf string files. Supports UTF-8 and UTF-16 character encodings with an in-editor string table viewer.
-             * **INI Scripts:** Automated macro substitutions and syntax checks across game object definitions.</value>
+**Asset Pipeline.**
+* **Textures:** Batch converts image files between PNG, TGA, and DDS formats with mipmaps and alpha transparency preserved.
+* **String Tables:** Compiles and decompiles .csf string files. Supports UTF-8 and UTF-16 character encodings with an in-editor string table viewer.
+* **INI Scripts:** Automated macro substitutions and syntax checks across game object definitions.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-pipeline.Title" xml:space="preserve">
     <value>ModBuilder Suite: Asset Pipelines (In Development)</value>
@@ -13259,13 +13259,13 @@ ModBuilder projects use `.mbproj` files (such as `Shockwave.mbproj`) to track so
   <data name="Info.Card.tools.modbuilder-suite-wnd-build.DetailedContent" xml:space="preserve">
     <value>This feature is currently in development under an open pull request.
 
-             **WND Interface Editor.**
-             Structured editor for Command &amp; Conquer GUI layout files (.wnd).
-             * **Validation:** Parses UI control hierarchies, detects unclosed blocks, and flags syntax errors by line number.
-             * **Canonical Formatting:** Formats .wnd indentation with standard tab stops while preserving developer comments.
+**WND Interface Editor.**
+Structured editor for Command &amp; Conquer GUI layout files (.wnd).
+* **Validation:** Parses UI control hierarchies, detects unclosed blocks, and flags syntax errors by line number.
+* **Canonical Formatting:** Formats .wnd indentation with standard tab stops while preserving developer comments.
 
-             **Incremental BIG Builds.**
-             The build engine tracks file MD5 checksums. It compiles only modified assets and packages them into release .big archives (such as INIZeroHour.big) directly inside your profile workspace.</value>
+**Incremental BIG Builds.**
+The build engine tracks file MD5 checksums. It compiles only modified assets and packages them into release .big archives (such as INIZeroHour.big) directly inside your profile workspace.</value>
   </data>
   <data name="Info.Card.tools.modbuilder-suite-wnd-build.Title" xml:space="preserve">
     <value>ModBuilder Suite: WND Editor &amp; BIG Builds (In Development)</value>
@@ -13314,14 +13314,14 @@ Click the **Open Publisher Studio** action button below or navigate to the **Too
   <data name="Info.Card.tools.publisher-studio-library.DetailedContent" xml:space="preserve">
     <value>This feature is currently in development under an open pull request.
 
-             **Packaging Workflow.**
-             1. **Drag and Drop:** Drop mod folders or ZIP archives onto the Content Library. The editor reads the directory, creates a slug identifier (such as shockwave-mod), and computes SHA-256 hashes.
-             2. **Dependencies:** Link addons to required parent mods using extendsContentId.
-             3. **Releases:** Set SemVer version numbers (such as 1.2.0), target game clients, and release notes.
-             4. **Validation:** Checks for circular dependencies, missing files, and broken links before publishing.
+**Packaging Workflow.**
+1. **Drag and Drop:** Drop mod folders or ZIP archives onto the Content Library. The editor reads the directory, creates a slug identifier (such as shockwave-mod), and computes SHA-256 hashes.
+2. **Dependencies:** Link addons to required parent mods using extendsContentId.
+3. **Releases:** Set SemVer version numbers (such as 1.2.0), target game clients, and release notes.
+4. **Validation:** Checks for circular dependencies, missing files, and broken links before publishing.
 
-             **Subscription Sharing.**
-             Publishing generates a genhub://subscribe?url=https://... link and QR code. Other players click this link to add your catalog to their launcher immediately.</value>
+**Subscription Sharing.**
+Publishing generates a genhub://subscribe?url=https://... link and QR code. Other players click this link to add your catalog to their launcher immediately.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-library.Title" xml:space="preserve">
     <value>Publisher Studio: Content Packaging (In Development)</value>
@@ -13379,14 +13379,14 @@ Click the **Open Publisher Studio** action button below or navigate to the **Too
   <data name="Info.Card.tools.publisher-studio-workflow.DetailedContent" xml:space="preserve">
     <value>This feature is currently in development under an open pull request.
 
-             **Three-Tier Distribution.**
-             Publisher Studio uses a decentralized catalog model:
-             * **Tier 1 (Publisher Definition):** publisher_definition.json stores publisher name, avatar, and catalog URLs.
-             * **Tier 2 (Catalogs):** catalog.json declares packages, version manifests, dependencies, and file hashes.
-             * **Tier 3 (Artifact Archives):** ZIP archives containing mod files, maps, or patches (for example, ShockWave_v1.2.zip).
+**Three-Tier Distribution.**
+Publisher Studio uses a decentralized catalog model:
+* **Tier 1 (Publisher Definition):** publisher_definition.json stores publisher name, avatar, and catalog URLs.
+* **Tier 2 (Catalogs):** catalog.json declares packages, version manifests, dependencies, and file hashes.
+* **Tier 3 (Artifact Archives):** ZIP archives containing mod files, maps, or patches (for example, ShockWave_v1.2.zip).
 
-             **Hosting Providers.**
-             Files can be hosted on GitHub Releases, Google Drive, Dropbox, or any direct HTTPS file server. Publisher Studio generates direct download URLs and validates availability.</value>
+**Hosting Providers.**
+Files can be hosted on GitHub Releases, Google Drive, Dropbox, or any direct HTTPS file server. Publisher Studio generates direct download URLs and validates availability.</value>
   </data>
   <data name="Info.Card.tools.publisher-studio-workflow.Title" xml:space="preserve">
     <value>Publisher Studio: Decentralized Catalogs (In Development)</value>
@@ -13397,17 +13397,17 @@ Click the **Open Publisher Studio** action button below or navigate to the **Too
   <data name="Info.Card.tools.replay-checkpoints-takeover.DetailedContent" xml:space="preserve">
     <value>When playing replays on clients that support recovery hooks, you can jump to match timestamps or take over player armies.
 
-             **Recovery Dialog.**
-             Click **Recovery** in any replay row to open the Replay Recovery &amp; Takeover dialog.
+**Recovery Dialog.**
+Click **Recovery** in any replay row to open the Replay Recovery &amp; Takeover dialog.
 
-             **Creating a Checkpoint.**
-             1. Pick a compatible target profile in the dropdown.
-             2. Drag the **Target Point** slider to your chosen timestamp or frame (for example, 05:32 at frame 9960).
-             3. Click **Create Checkpoint**. GenHub launches the game engine to fast-forward through the match up to your target frame, creates a snapshot save, and closes the game automatically.
+**Creating a Checkpoint.**
+1. Pick a compatible target profile in the dropdown.
+2. Drag the **Target Point** slider to your chosen timestamp or frame (for example, 05:32 at frame 9960).
+3. Click **Create Checkpoint**. GenHub launches the game engine to fast-forward through the match up to your target frame, creates a snapshot save, and closes the game automatically.
 
-             **Resuming and Taking Over.**
-             * **Resume Replay:** Select an existing checkpoint from the list and click **Resume Replay** to watch from that exact frame without waiting through the early game.
-             * **Takeover Match:** Pick a player slot from the **Takeover Player** menu and click **Takeover Match**. GenHub loads the save file and gives keyboard and mouse control of that army to you.</value>
+**Resuming and Taking Over.**
+* **Resume Replay:** Select an existing checkpoint from the list and click **Resume Replay** to watch from that exact frame without waiting through the early game.
+* **Takeover Match:** Pick a player slot from the **Takeover Player** menu and click **Takeover Match**. GenHub loads the save file and gives keyboard and mouse control of that army to you.</value>
   </data>
   <data name="Info.Card.tools.replay-checkpoints-takeover.Title" xml:space="preserve">
     <value>Replay Manager: Checkpoints &amp; Army Takeover</value>
@@ -13418,18 +13418,18 @@ Click the **Open Publisher Studio** action button below or navigate to the **Too
   <data name="Info.Card.tools.replay-gameclient-mapping.DetailedContent" xml:space="preserve">
     <value>Zero Hour replays record game engine and INI file checksums in their header. Running a replay on a different version causes desync errors.
 
-             **Embedded CRC Catalog.**
-             GenHub compares the replay's Exe CRC and INI CRC against a preloaded catalog of 140+ game clients. Target versions include:
-             * Official Steam Zero Hour 1.04 (Exe CRC 0x401D89EA, INI CRC 0x76B251A3).
-             * Official Retail Zero Hour 1.04 (Exe CRC 0xDA2B4B18, INI CRC 0x76B251A3).
-             * Official Steam Generals 1.09 (Exe CRC 0x1C96366F, INI CRC 0x5A8E12F0).
-             * TheSuperHackers weekly test builds (such as Exe CRC 0x27533BB0 and 0x3FAD8A07).
-             * Custom or unmapped replays display their raw Exe and INI CRCs directly in the list.
+**Embedded CRC Catalog.**
+GenHub compares the replay's Exe CRC and INI CRC against a preloaded catalog of 140+ game clients. Target versions include:
+* Official Steam Zero Hour 1.04 (Exe CRC 0x401D89EA, INI CRC 0x76B251A3).
+* Official Retail Zero Hour 1.04 (Exe CRC 0xDA2B4B18, INI CRC 0x76B251A3).
+* Official Steam Generals 1.09 (Exe CRC 0x1C96366F, INI CRC 0x5A8E12F0).
+* TheSuperHackers weekly test builds (such as Exe CRC 0x27533BB0 and 0x3FAD8A07).
+* Custom or unmapped replays display their raw Exe and INI CRCs directly in the list.
 
-             **Launch and Profile Actions.**
-             * **Launch:** When an existing game profile matches the replay version, click **Launch**. Open the button flyout to choose **Select Profile to Run...** or pick a specific client.
-             * **Setup:** When a required client binary or data patch is missing, click **Setup**. GenHub downloads the client package and configures a compatible profile automatically.
-             * **Profile:** When you have the game client installed but need a new profile, click **Profile** to create one.</value>
+**Launch and Profile Actions.**
+* **Launch:** When an existing game profile matches the replay version, click **Launch**. Open the button flyout to choose **Select Profile to Run...** or pick a specific client.
+* **Setup:** When a required client binary or data patch is missing, click **Setup**. GenHub downloads the client package and configures a compatible profile automatically.
+* **Profile:** When you have the game client installed but need a new profile, click **Profile** to create one.</value>
   </data>
   <data name="Info.Card.tools.replay-gameclient-mapping.Title" xml:space="preserve">
     <value>Replay Manager: Client Matching &amp; Profiles</value>
@@ -13451,5 +13451,8 @@ Click the **Open Publisher Studio** action button below or navigate to the **Too
   </data>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Deleted {0} profile(s) successfully.</value>
+  </data>
+  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
+    <value>Open Publisher Studio</value>
   </data>
 </root>

@@ -13335,4 +13335,7 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Успешно удалено профилей: {0}.</value>
   </data>
+  <data name="Info.Card.tools.publisher-studio-authoring.Action.NAV_Tools" xml:space="preserve">
+    <value>Открыть студию издателя</value>
+  </data>
 </root>
