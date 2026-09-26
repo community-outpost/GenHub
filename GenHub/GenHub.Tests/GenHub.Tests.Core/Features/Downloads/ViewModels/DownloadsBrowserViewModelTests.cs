@@ -413,6 +413,72 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
+    /// Verifies Publisher Studio updates still refresh an existing publisher after unsubscribe integration.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PublisherSubscriptionsChangedMessage_UpdatesExistingPublisherMetadataAsync()
+    {
+        var sub = new PublisherSubscription
+        {
+            PublisherId = "updated-publisher",
+            PublisherName = "Original",
+            CatalogUrl = "https://example.com/catalog.json",
+        };
+        var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        subscriptionStore.Setup(store => store.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([sub]));
+
+        var mockDiscoverer = new Mock<GenericCatalogDiscoverer>(
+            new Mock<ILogger<GenericCatalogDiscoverer>>().Object,
+            new Mock<IHttpClientFactory>().Object,
+            new Mock<IPublisherCatalogParser>().Object,
+            new Mock<IVersionSelector>().Object,
+            new Mock<IGitHubApiClient>().Object);
+
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock
+            .Setup(sp => sp.GetService(typeof(GenericCatalogDiscoverer)))
+            .Returns(mockDiscoverer.Object);
+
+        var loggerFactoryMock = new Mock<ILoggerFactory>();
+        loggerFactoryMock.Setup(l => l.CreateLogger(It.IsAny<string>()))
+            .Returns(new Mock<ILogger>().Object);
+
+        using var viewModel = new DownloadsBrowserViewModel(
+            serviceProviderMock.Object,
+            new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
+            [],
+            new Mock<IContentStateService>().Object,
+            new Mock<IContentOrchestrator>().Object,
+            new Mock<IProfileContentService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<INotificationService>().Object,
+            loggerFactoryMock.Object,
+            subscriptionStore.Object);
+
+        await viewModel.InitializeAsync();
+        var publisher = viewModel.Publishers.Single(p => p.PublisherId == sub.PublisherId);
+        sub.PublisherName = "Updated";
+        sub.AvatarUrl = "https://example.com/avatar.png";
+        var applied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        publisher.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(PublisherItemViewModel.LogoSource))
+            {
+                applied.TrySetResult();
+            }
+        };
+
+        WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(sub.PublisherId));
+        await applied.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(sub.PublisherName, publisher.DisplayName);
+        Assert.Equal(sub.AvatarUrl, publisher.LogoSource);
+        Assert.Same(publisher, viewModel.Publishers.Single(p => p.PublisherId == sub.PublisherId));
+    }
+
+    /// <summary>
     /// Verifies that rapidly clicking Publisher A -> Publisher B -> Publisher C leaves
     /// the UI showing strictly Publisher C's items with zero bleed from A or B.
     /// </summary>
