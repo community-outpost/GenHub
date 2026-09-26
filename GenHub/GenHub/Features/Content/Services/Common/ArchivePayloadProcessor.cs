@@ -2694,7 +2694,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 .OfType<string>(),
             StringComparer.OrdinalIgnoreCase);
 
-        var totalMapFiles = Directory.EnumerateFiles(extractedDirectory, "*", SearchOption.AllDirectories)
+        var totalMapFiles = EnumerateFilesSafe(extractedDirectory)
             .Count(IsMapFile);
         var isSingleMap = totalMapFiles == 1;
 

@@ -279,13 +279,14 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
             catch (OperationCanceledException)
             {
                 KillLutrisProcess(process);
-                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                process.WaitForExit(ProcessConstants.ProcessKillWaitMs);
                 return (false, string.Empty);
             }
 
             if (await Task.WhenAny(readOutputTask, Task.Delay(TimeSpan.FromMilliseconds(ProcessConstants.ProcessKillWaitMs), cancellationToken)).ConfigureAwait(false) != readOutputTask)
             {
                 KillLutrisProcess(process);
+                process.WaitForExit(ProcessConstants.ProcessKillWaitMs);
                 return (false, string.Empty);
             }
 

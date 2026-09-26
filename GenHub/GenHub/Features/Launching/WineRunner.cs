@@ -402,13 +402,24 @@ public class WineRunner(
         }
 
         var stateFilePath = Path.Combine(prefixDir, SyncStateFileName);
-        HashSet<string>? previousSyncedFiles = null;
+        Dictionary<string, long>? previousSyncedFiles = null;
         if (File.Exists(stateFilePath))
         {
             try
             {
-                var json = File.ReadAllText(stateFilePath);
-                previousSyncedFiles = JsonSerializer.Deserialize<HashSet<string>>(json);
+                var json = File.ReadAllText(stateFilePath).Trim();
+                if (json.StartsWith("{"))
+                {
+                    previousSyncedFiles = JsonSerializer.Deserialize<Dictionary<string, long>>(json);
+                }
+                else if (json.StartsWith("["))
+                {
+                    var legacySet = JsonSerializer.Deserialize<HashSet<string>>(json);
+                    if (legacySet != null)
+                    {
+                        previousSyncedFiles = legacySet.ToDictionary(k => k, _ => 0L, StringComparer.OrdinalIgnoreCase);
+                    }
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
@@ -421,37 +432,53 @@ public class WineRunner(
 
         if (previousSyncedFiles != null)
         {
-            foreach (var relPath in previousSyncedFiles)
+            foreach (var (relPath, recordedTicks) in previousSyncedFiles)
             {
                 var inNative = nativeFiles.ContainsKey(relPath);
                 var inPrefix = prefixFiles.ContainsKey(relPath);
 
                 if (!inNative && inPrefix)
                 {
-                    // Deleted on native side (e.g. via GenHub Map Manager) -> propagate deletion to prefix
-                    try
+                    // Deleted on native side -> propagate deletion to prefix only if prefix file was not modified since last sync
+                    var prefixFileInfo = prefixFiles[relPath];
+                    if (recordedTicks > 0 && prefixFileInfo.LastWriteTimeUtc.Ticks > recordedTicks)
                     {
-                        File.Delete(prefixFiles[relPath].FullName);
-                        prefixFiles.Remove(relPath);
-                        logger?.LogInformation("[WineRunner] Propagated native deletion of '{RelativePath}' to Wine prefix.", relPath);
+                        logger?.LogInformation("[WineRunner] Skipping deletion of '{RelativePath}' in Wine prefix because it was modified after last sync.", relPath);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    else
                     {
-                        logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from prefix during deletion propagation.", relPath);
+                        try
+                        {
+                            File.Delete(prefixFileInfo.FullName);
+                            prefixFiles.Remove(relPath);
+                            logger?.LogInformation("[WineRunner] Propagated native deletion of '{RelativePath}' to Wine prefix.", relPath);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from prefix during deletion propagation.", relPath);
+                        }
                     }
                 }
                 else if (inNative && !inPrefix)
                 {
-                    // Deleted on prefix side (e.g. deleted in-game) -> propagate deletion to native
-                    try
+                    // Deleted on prefix side -> propagate deletion to native only if native file was not modified since last sync
+                    var nativeFileInfo = nativeFiles[relPath];
+                    if (recordedTicks > 0 && nativeFileInfo.LastWriteTimeUtc.Ticks > recordedTicks)
                     {
-                        File.Delete(nativeFiles[relPath].FullName);
-                        nativeFiles.Remove(relPath);
-                        logger?.LogInformation("[WineRunner] Propagated Wine prefix deletion of '{RelativePath}' to native documents.", relPath);
+                        logger?.LogInformation("[WineRunner] Skipping deletion of '{RelativePath}' in native directory because it was modified after last sync.", relPath);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    else
                     {
-                        logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from native directory during deletion propagation.", relPath);
+                        try
+                        {
+                            File.Delete(nativeFileInfo.FullName);
+                            nativeFiles.Remove(relPath);
+                            logger?.LogInformation("[WineRunner] Propagated Wine prefix deletion of '{RelativePath}' to native documents.", relPath);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            logger?.LogWarning(ex, "[WineRunner] Failed to delete '{RelativePath}' from native directory during deletion propagation.", relPath);
+                        }
                     }
                 }
             }
@@ -485,14 +512,20 @@ public class WineRunner(
             }
         }
 
-        CleanEmptySubdirectories(nativeDir);
         CleanEmptySubdirectories(prefixDir);
 
         try
         {
             var finalPrefixFiles = EnumerateFilesRelative(prefixDir);
             var finalNativeFiles = EnumerateFilesRelative(nativeDir);
-            var updatedFiles = finalPrefixFiles.Keys.Intersect(finalNativeFiles.Keys, StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var updatedFiles = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            foreach (var key in finalPrefixFiles.Keys.Intersect(finalNativeFiles.Keys, StringComparer.OrdinalIgnoreCase))
+            {
+                var prefixUtc = finalPrefixFiles[key].LastWriteTimeUtc.Ticks;
+                var nativeUtc = finalNativeFiles[key].LastWriteTimeUtc.Ticks;
+                updatedFiles[key] = Math.Max(prefixUtc, nativeUtc);
+            }
+
             var json = JsonSerializer.Serialize(updatedFiles);
             File.WriteAllText(stateFilePath, json);
         }

@@ -37,18 +37,6 @@ internal static class ClientPathResolver
             return cached;
         }
 
-        var ext = Path.GetExtension(sourcePath);
-        if (!string.IsNullOrEmpty(ext) && IsArchiveOrPackageExtension(ext))
-        {
-            return ResolvedPathsCache.GetOrAdd(cacheKey, (null, null));
-        }
-
-        if (File.Exists(sourcePath))
-        {
-            var result = (sourcePath, Path.GetDirectoryName(sourcePath));
-            return ResolvedPathsCache.GetOrAdd(cacheKey, result);
-        }
-
         if (Directory.Exists(sourcePath) && !string.IsNullOrWhiteSpace(entryPoint))
         {
             var combined = Path.Combine(sourcePath, entryPoint);
@@ -59,7 +47,19 @@ internal static class ClientPathResolver
             }
         }
 
-        return ResolvedPathsCache.GetOrAdd(cacheKey, (null, null));
+        var ext = Path.GetExtension(sourcePath);
+        if (!string.IsNullOrEmpty(ext) && !Directory.Exists(sourcePath) && IsArchiveOrPackageExtension(ext))
+        {
+            return (null, null);
+        }
+
+        if (File.Exists(sourcePath))
+        {
+            var result = (sourcePath, Path.GetDirectoryName(sourcePath));
+            return ResolvedPathsCache.GetOrAdd(cacheKey, result);
+        }
+
+        return (null, null);
     }
 
     /// <summary>
