@@ -939,9 +939,19 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     },
                     cancellationToken);
 
-                var artifactChannel = artifactInfo.PullRequestNumber.HasValue
-                    ? $"pr-{artifactInfo.PullRequestNumber.Value}"
-                    : (!string.IsNullOrEmpty(artifactInfo.ArtifactName) ? artifactInfo.ArtifactName : TelemetryChannel);
+                string artifactChannel;
+                if (artifactInfo.PullRequestNumber.HasValue)
+                {
+                    artifactChannel = $"pr-{artifactInfo.PullRequestNumber.Value}";
+                }
+                else if (!string.IsNullOrEmpty(artifactInfo.ArtifactName))
+                {
+                    artifactChannel = artifactInfo.ArtifactName;
+                }
+                else
+                {
+                    artifactChannel = TelemetryChannel;
+                }
 
                 _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
                 {
