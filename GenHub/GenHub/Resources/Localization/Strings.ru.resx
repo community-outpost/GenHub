@@ -3079,6 +3079,240 @@
   <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
     <value>Подписанные игроки опрашивают манифесты каждые 30 мин, получают уведомления и скачивают обновления с проверкой CAS.</value>
   </data>
+  <data name="Info.Demo.Tools.HotkeyEditorTitle" xml:space="preserve">
+    <value>Редактор горячих клавиш</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditorSubtitle" xml:space="preserve">
+    <value>Переназначайте клавиши панели команд с мгновенным обнаружением конфликтов.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilderTitle" xml:space="preserve">
+    <value>ModBuilder</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilderSubtitle" xml:space="preserve">
+    <value>Соберите пример проекта: варианты, пакеты и манифесты.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditorTitle" xml:space="preserve">
+    <value>Редактор WND</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditorSubtitle" xml:space="preserve">
+    <value>Редактируйте оконные раскладки с живым предпросмотром.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.File" xml:space="preserve">
+    <value>Файл</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.New" xml:space="preserve">
+    <value>Новый</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Validate" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Edit" xml:space="preserve">
+    <value>Правка</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.AddChild" xml:space="preserve">
+    <value>Добавить дочернее окно</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Delete" xml:space="preserve">
+    <value>Удалить окно</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.View" xml:space="preserve">
+    <value>Вид</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomIn" xml:space="preserve">
+    <value>Приблизить</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomOut" xml:space="preserve">
+    <value>Отдалить</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ResetZoom" xml:space="preserve">
+    <value>Сбросить масштаб</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Assets" xml:space="preserve">
+    <value>Ресурсы</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.LinkFolder" xml:space="preserve">
+    <value>Подключить папку мода...</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ImportTexture" xml:space="preserve">
+    <value>Импортировать текстуру...</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Files.Label" xml:space="preserve">
+    <value>Файлы</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Tree.Label" xml:space="preserve">
+    <value>Дерево окон</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Canvas.Label" xml:space="preserve">
+    <value>Предпросмотр холста</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Title" xml:space="preserve">
+    <value>Свойства</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.X" xml:space="preserve">
+    <value>X</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Y" xml:space="preserve">
+    <value>Y</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Width" xml:space="preserve">
+    <value>Ширина</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Height" xml:space="preserve">
+    <value>Высота</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Validate" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Windows" xml:space="preserve">
+    <value>Окна:</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Ready" xml:space="preserve">
+    <value>Выберите окно, чтобы изменить его геометрию.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.NotValidated" xml:space="preserve">
+    <value>Ещё не проверено.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Invalid" xml:space="preserve">
+    <value>У некоторых окон пустая геометрия.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Valid" xml:space="preserve">
+    <value>Документ корректен: 0 ошибок.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Added" xml:space="preserve">
+    <value>Дочернее окно добавлено.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Deleted" xml:space="preserve">
+    <value>Окно удалено.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.Title" xml:space="preserve">
+    <value>Демо</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.NewMessage" xml:space="preserve">
+    <value>Создана новая раскладка без названия. (Симуляция)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.SaveMessage" xml:space="preserve">
+    <value>Документ сохранён. (Симуляция)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.DeleteRootMessage" xml:space="preserve">
+    <value>Выберите дочернее окно для удаления. Корневой экран удалить нельзя.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.LinkMessage" xml:space="preserve">
+    <value>Пример папки мода подключён. (Симуляция)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.ImportMessage" xml:space="preserve">
+    <value>Пример текстуры импортирован. (Симуляция)</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Variants.Textures" xml:space="preserve">
+    <value>Текстуры:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Variants.Audio" xml:space="preserve">
+    <value>Звук:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Files.Label" xml:space="preserve">
+    <value>Файлы проекта</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Files.Add" xml:space="preserve">
+    <value>Добавить в пакет</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Packs.Label" xml:space="preserve">
+    <value>Пакеты</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.Label" xml:space="preserve">
+    <value>Элементы пакета</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.Remove" xml:space="preserve">
+    <value>Убрать из пакета</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveUp" xml:space="preserve">
+    <value>Переместить вверх</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveDown" xml:space="preserve">
+    <value>Переместить вниз</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.ConvertDds" xml:space="preserve">
+    <value>Преобразовать все TGA в DDS</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Manifest.Label" xml:space="preserve">
+    <value>Предпросмотр манифеста</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.Run" xml:space="preserve">
+    <value>Собрать пакет</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.LearnManifests" xml:space="preserve">
+    <value>О манифестах</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.LogLabel" xml:space="preserve">
+    <value>Журнал сборки</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.BundledFiles" xml:space="preserve">
+    <value>Файлов в пакетах:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.Ready" xml:space="preserve">
+    <value>Соберите пакеты, затем соберите пример проекта.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.Converted" xml:space="preserve">
+    <value>Текстуры пакета преобразованы в DDS.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.NothingToConvert" xml:space="preserve">
+    <value>В этом пакете нет непреобразованных текстур TGA.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.Title" xml:space="preserve">
+    <value>Демо</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.DuplicateMessage" xml:space="preserve">
+    <value>Этот файл уже есть в пакете.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.BuildMessage" xml:space="preserve">
+    <value>Пакет собран. (Симуляция)</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Faction.Label" xml:space="preserve">
+    <value>Фракция:</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Conflicts.Label" xml:space="preserve">
+    <value>Конфликты:</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Label" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Tooltip" xml:space="preserve">
+    <value>Очистить выбранную ячейку</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Label" xml:space="preserve">
+    <value>Создать аддон</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Tooltip" xml:space="preserve">
+    <value>Упаковать привязки в манифест аддона</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Grid.Label" xml:space="preserve">
+    <value>Панель команд</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Label" xml:space="preserve">
+    <value>Палитра клавиш</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Hint" xml:space="preserve">
+    <value>Выберите клавишу, чтобы назначить её выбранной ячейке.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Slot.Conflict" xml:space="preserve">
+    <value>Конфликт</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Ready" xml:space="preserve">
+    <value>Выберите ячейку, затем выберите клавишу для переназначения.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Conflict" xml:space="preserve">
+    <value>Конфликт: ячейки используют одну клавишу. Выберите разные клавиши.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Clear" xml:space="preserve">
+    <value>Клавиша назначена. Конфликтов нет.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Toast.Title" xml:space="preserve">
+    <value>Демо</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Toast.AddonMessage" xml:space="preserve">
+    <value>Манифест аддона горячих клавиш создан. (Симуляция)</value>
+  </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>Мастер сканирования</value>
   </data>
@@ -3866,7 +4100,13 @@
     <value>Инструменты GenHub</value>
   </data>
   <data name="Info.Section.tools.Description" xml:space="preserve">
-    <value>Встроенные мощные утилиты: менеджер повторов, менеджер карт и модульные плагины.</value>
+    <value>Просматривайте повторы, управляйте картами, переназначайте клавиши, редактируйте раскладки интерфейса, собирайте моды и публикуйте каталоги контента сообщества.</value>
+  </data>
+  <data name="Info.Section.content-manifests.Title" xml:space="preserve">
+    <value>Манифесты контента</value>
+  </data>
+  <data name="Info.Section.content-manifests.Description" xml:space="preserve">
+    <value>Как манифесты классифицируют контент и проводят его от каталогов через CAS в запускаемые рабочие пространства.</value>
   </data>
   <data name="Info.Section.generals-online-faq.Title" xml:space="preserve">
     <value>FAQ Generals Online</value>
@@ -14021,6 +14261,7 @@ GenHub не перезаписывает оригинальные INI-файлы
 * Дерево визуальных элементов: просмотр окон, кнопок, ползунков и текстовых полей в виде дерева.
 * Проверка разметки: валидация координат и обнаружение перекрывающихся элементов.
 * Канонический форматировщик: форматирование файлов .wnd с единообразными отступами для контроля версий в Git.
+* Для визуального редактирования с живым предпросмотром используйте автономный редактор WND, описанный в карточках редактора WND ниже.
 
 **Сборка архивов BIG:**
 * Упаковка исходных папок в архивы .big и .gib.
@@ -14185,6 +14426,180 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   </data>
   <data name="Info.Card.tools.replay-gameclient-mapping.Title" xml:space="preserve">
     <value>Менеджер повторов: Сопоставление клиентов и профили</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Title" xml:space="preserve">
+    <value>Редактор WND: документы и процесс</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Content" xml:space="preserve">
+    <value>Открывайте, проверяйте и сохраняйте файлы раскладок интерфейса Command &amp; Conquer.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.DetailedContent" xml:space="preserve">
+    <value>Редактор WND — структурированный редактор файлов раскладок GUI движка SAGE (.wnd), доступный на вкладке **«Инструменты»**.
+
+**Документы и проводник.**
+* **Создание и открытие:** создайте документ без названия или откройте .wnd-файлы и целые папки с диска.
+* **Проводник файлов:** просматривайте подключённые папки, разворачивайте и сворачивайте дерево файлов и обновляйте список в любое время.
+* **Сохранение:** сохраняйте на месте или выбирайте новый путь через «Сохранить как». Каждое изменение поддерживает отмену и повтор.
+
+**Проверка.**
+Нажмите **«Проверить»**, чтобы разобрать иерархию элементов и сообщить о синтаксических проблемах с точными местоположениями, прежде чем файл попадёт в игру.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Action.NAV_Tools" xml:space="preserve">
+    <value>Открыть редактор WND</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Action.0" xml:space="preserve">
+    <value>Открыть редактор WND</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.Title" xml:space="preserve">
+    <value>Редактор WND: холст, дерево и свойства</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.Content" xml:space="preserve">
+    <value>Выбирайте окна в дереве, меняйте геометрию и просматривайте раскладку вживую.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.DetailedContent" xml:space="preserve">
+    <value>**Дерево окон.**
+Каждый .wnd-файл — это иерархия окон и элементов управления. Выберите любой узел для просмотра; разворачивайте и сворачивайте ветви для навигации по сложным меню.
+
+**Предпросмотр холста.**
+Холст отображает выбранную раскладку с элементами масштабирования. Увиденное соответствует структуре внутриигрового меню, поэтому смещённые панели заметны сразу.
+
+**Свойства.**
+Изменяйте геометрию ScreenRect выбранного окна (X, Y, ширину, высоту) и атрибуты прямо в сетке свойств. Изменения применяются к документу мгновенно и могут быть отменены.
+
+**Добавление и удаление.**
+Вставляйте дочерние окна под текущим выделением или удаляйте ненужные элементы — всё с полной поддержкой отмены.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.Title" xml:space="preserve">
+    <value>Редактор WND: свои ресурсы и текстуры</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.Content" xml:space="preserve">
+    <value>Подключайте папки модов и архивы, импортируйте текстуры и применяйте связанные изображения.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.DetailedContent" xml:space="preserve">
+    <value>Раскладки интерфейса ссылаются на игровую графику по имени. Редактор WND находит эту графику в вашем контенте.
+
+**Подключённые источники.**
+* **Папки модов:** подключите корневую папку мода, чтобы загрузить изменённые ресурсы.
+* **BIG-архивы:** подключите один или несколько .big-архивов, чтобы найти текстуры retail-версии и модов.
+* **Обновление:** обновите предпросмотр ресурсов после смены подключённых источников.
+
+**Текстуры и связанные изображения.**
+* **Импорт:** добавляйте в проект текстуры PNG, TGA или DDS, включая графику для заявленных отсутствующих связанных изображений.
+* **Применение:** назначьте связанное изображение или ресурс выбранному окну и увидьте его на холсте.
+* **Вставка:** вставьте ресурс из буфера обмена прямо в текущее окно.</value>
+  </data>
+  <data name="Info.Card.tools.modbuilder-suite-pipeline.Action.NAV_INFO_content-manifests" xml:space="preserve">
+    <value>О манифестах</value>
+  </data>
+  <data name="Info.Card.tools.modbuilder-suite-pipeline.Action.0" xml:space="preserve">
+    <value>О манифестах</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Title" xml:space="preserve">
+    <value>Что такое манифест контента?</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Content" xml:space="preserve">
+    <value>Чертеж установки, описывающий каждый мод, карту и аддон в GenHub.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.DetailedContent" xml:space="preserve">
+    <value>Манифест контента — это JSON-документ, полностью описывающий одну единицу устанавливаемого контента: его идентификатор, файлы и способ установки в GenHub.
+
+**Типы контента + файлы манифестов.**
+* **Тип контента:** объявляет, чем является контент (Mod, Map, MapPack, Addon, Patch, GameClient, ModdingTool и другие), чтобы GenHub показал его в нужном месте и применил нужные правила установки.
+* **Файл манифеста:** документ .manifest.json с именем, версией SemVer, описанием, целевой игрой, издателем, списком файлов и зависимостями.
+
+**Идентификация и версии.**
+Каждый манифест несёт идентификатор манифеста (например, 1.0.shockwave.mod.shockwave-chaos-edition), а также понятное имя и версию. Издатели подписывают релизы хешами SHA-256, чтобы GenHub проверял каждый байт перед установкой.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.Title" xml:space="preserve">
+    <value>Типы контента и идентификаторы манифестов</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.Content" xml:space="preserve">
+    <value>Как GenHub классифицирует базовые релизы, контент и метассылки.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.DetailedContent" xml:space="preserve">
+    <value>**Базовые типы.**
+* **GameInstallation:** обнаруженный релиз EA, Steam или дисковое издание на вашем компьютере.
+* **GameClient:** независимый запускаемый игровой исполняемый файл, например клиент community-патча.
+
+**Типы контента.**
+* **Mod, Patch, Addon:** изменения геймплея, балансные правки и утилиты поверх базовой игры или мода.
+* **Map, MapPack, Mission:** одиночные карты для схваток, подборки карт и сюжетные миссии.
+* **LanguagePack, Skin, Video, Replay, Screensaver:** локализации, скины интерфейса, трейлеры, повторы и дополнения.
+* **Executable, ModdingTool:** автономные программы и инструменты создателей, такие как редакторы и конвертеры.
+
+**Метатипы.**
+* **ContentBundle, PublisherReferral, ContentReferral:** коллекции и ссылки, группирующие контент или указывающие на него вместо поставки файлов.
+
+**Идентификаторы манифестов.**
+Идентификаторы следуют формату {version}.{publisherId}.{contentType}.{contentId} и поддерживают сопоставление по префиксу, поэтому браузер загрузок определяет состояния «установлено», «устарело» и «доступно обновление» без загрузки чего-либо.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Title" xml:space="preserve">
+    <value>От загрузки до запуска</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Content" xml:space="preserve">
+    <value>Обнаружение, разрешение, контентно-адресуемое хранилище и подключение рабочей области.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.DetailedContent" xml:space="preserve">
+    <value>**1. Обнаружение.**
+Каталоги и провайдеры публикуют лёгкие метаданные. GenHub показывает контент, не загружая игровые файлы.
+
+**2. Разрешение.**
+При установке GenHub разрешает полный ContentManifest: точные файлы, хеши SHA-256, зависимости и ограничения версий.
+
+**3. Контентно-адресуемое хранилище (CAS).**
+Загруженные байты попадают в общее CAS-хранилище с индексацией по хешу. Одинаковые файлы модов, версий и профилей хранятся ровно один раз и проверяются при каждом чтении.
+
+**4. Пул манифестов.**
+Разрешённые манифесты ждут в пуле, готовые к подключению к любому профилю. Смена версий никогда не загружает повторно байты, уже имеющиеся в CAS.
+
+**5. Запуск профиля.**
+Сверка отображает файлы пула в изолированную рабочую область через жёсткие ссылки, символические ссылки или копии, затем запускает игру в этой рабочей области.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Title" xml:space="preserve">
+    <value>Пакеты, варианты и зависимости</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Content" xml:space="preserve">
+    <value>Упаковывайте файлы в пакеты, предлагайте альтернативы и объявляйте требования.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.DetailedContent" xml:space="preserve">
+    <value>**Пакеты.**
+Пакет отображает исходные файлы в целевые пути установки с настройками преобразования (например, текстуры TGA преобразуются в DDS при сборке). Каждый элемент пакета явно называет свои файлы, поэтому сборки воспроизводимы.
+
+**Варианты.**
+Варианты позволяют игрокам выбирать при установке: текстуры 1080p или 4K, английский или немецкий звук. Загружается и устанавливается только выбранный вариант.
+
+**Зависимости.**
+Манифесты объявляют отношения Required, Optional, Recommended и Conflicting с ограничениями версий SemVer. Базовые моды устанавливаются автоматически, а конфликтующие комбинации блокируются до того, как сломают профиль.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Action.NAV_INFO_tools" xml:space="preserve">
+    <value>Открыть руководство по инструментам</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Action.0" xml:space="preserve">
+    <value>Открыть руководство по инструментам</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Title" xml:space="preserve">
+    <value>Создание манифестов для авторов</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Content" xml:space="preserve">
+    <value>Создавайте манифесты в ModBuilder, редакторе горячих клавиш и Publisher Studio.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.DetailedContent" xml:space="preserve">
+    <value>Манифестный JSON редко пишут вручную. Инструменты GenHub генерируют его за вас.
+
+**ModBuilder.**
+Собирайте пакеты из файлов проекта, настраивайте варианты и экспортируйте релизные пакеты. Редактор пакетов записывает в манифест отображения файлов, преобразования и хеши.
+
+**Редактор горячих клавиш.**
+Нажмите «Создать аддон», чтобы упаковать привязки, INI-патчи и наложения иконок в изолированный аддон .manifest.json, подключаемый к любому профилю.
+
+**Publisher Studio.**
+Публикуйте определения издателей уровня 1 и каталоги уровня 2, чьи записи релизов несут URL артефактов, хеши SHA-256 и списки изменений каждой версии.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Action.NAV_INFO_tools" xml:space="preserve">
+    <value>Попробовать демо ModBuilder</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Action.0" xml:space="preserve">
+    <value>Попробовать демо ModBuilder</value>
   </data>
   <data name="Info.Sidebar.CardsTitle" xml:space="preserve">
     <value>Разделы</value>

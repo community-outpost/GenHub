@@ -52,6 +52,7 @@ public partial class InfoSectionViewModel(InfoSection model, ILocalizationServic
         InfoConstants.SectionChangelogs => Material.Icons.MaterialIconKind.History,
         InfoConstants.SectionFaq => Material.Icons.MaterialIconKind.HelpCircleOutline,
         InfoConstants.SectionGoChangelog => Material.Icons.MaterialIconKind.ClipboardTextClockOutline,
+        InfoConstants.SectionContentManifests => Material.Icons.MaterialIconKind.PackageVariantClosed,
         _ => Material.Icons.MaterialIconKind.InformationOutline,
     };
 

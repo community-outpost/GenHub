@@ -250,6 +250,21 @@ public partial class GenHubInfoSectionViewModel(
     public MapManagerViewModel? DemoMapManager { get; private set; }
 
     /// <summary>
+    /// Gets the demo WND editor for interactive demonstrations.
+    /// </summary>
+    public WndEditorDemoViewModel? DemoWndEditor { get; private set; }
+
+    /// <summary>
+    /// Gets the demo ModBuilder for interactive demonstrations.
+    /// </summary>
+    public ModBuilderDemoViewModel? DemoModBuilder { get; private set; }
+
+    /// <summary>
+    /// Gets the demo Hotkey Editor for interactive demonstrations.
+    /// </summary>
+    public HotkeyEditorDemoViewModel? DemoHotkeyEditor { get; private set; }
+
+    /// <summary>
     /// Gets the demo add local content view model.
     /// </summary>
     public DemoAddLocalContentViewModel? DemoAddLocalContent { get; private set; }
@@ -618,6 +633,29 @@ public partial class GenHubInfoSectionViewModel(
         {
             DemoMapManager = DemoViewModelFactory.CreateDemoMapManager(notificationService, localizationService);
             OnPropertyChanged(nameof(DemoMapManager));
+        }
+
+        if (DemoWndEditor == null)
+        {
+            DemoWndEditor = DemoViewModelFactory.CreateDemoWndEditor(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoWndEditor));
+        }
+
+        if (DemoModBuilder == null)
+        {
+            DemoModBuilder = DemoViewModelFactory.CreateDemoModBuilder(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoModBuilder));
+        }
+
+        if (DemoModBuilder != null)
+        {
+            DemoModBuilder.NavigationRequested = NavigateToSectionById;
+        }
+
+        if (DemoHotkeyEditor == null)
+        {
+            DemoHotkeyEditor = DemoViewModelFactory.CreateDemoHotkeyEditor(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoHotkeyEditor));
         }
 
         if (DemoAddLocalContent == null)

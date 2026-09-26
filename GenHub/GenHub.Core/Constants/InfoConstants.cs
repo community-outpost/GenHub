@@ -106,6 +106,11 @@ public static class InfoConstants
     public const string SectionChangelogs = "changelogs";
 
     /// <summary>
+    /// Section ID for Content Manifests guide.
+    /// </summary>
+    public const string SectionContentManifests = "content-manifests";
+
+    /// <summary>
     /// File name for the cached GitHub changelogs.
     /// </summary>
     public const string ChangelogsCacheFileName = "changelogs-cache.json";
@@ -144,6 +149,16 @@ public static class InfoConstants
     /// Navigation action ID for App Updates guide.
     /// </summary>
     public const string ActionNavAppUpdates = "NAV_INFO_app-updates";
+
+    /// <summary>
+    /// Navigation action ID for Content Manifests guide.
+    /// </summary>
+    public const string ActionNavContentManifests = "NAV_INFO_content-manifests";
+
+    /// <summary>
+    /// Navigation action ID for Tools &amp; Utilities guide.
+    /// </summary>
+    public const string ActionNavToolsSection = "NAV_INFO_tools";
 
     /// <summary>
     /// Localization string key for the info cards right sidebar title.
@@ -449,6 +464,46 @@ public static class InfoConstants
     /// Alias for CardToolsModBuilderSuiteWndBuild.
     /// </summary>
     public const string CardToolsModbuilderSuiteWndBuild = CardToolsModBuilderSuiteWndBuild;
+
+    /// <summary>
+    /// Card ID for Tools WND Editor documents and workflow.
+    /// </summary>
+    public const string CardToolsWndEditorWorkflow = "wnd-editor-workflow";
+
+    /// <summary>
+    /// Card ID for Tools WND Editor canvas, tree, and properties.
+    /// </summary>
+    public const string CardToolsWndEditorCanvas = "wnd-editor-canvas";
+
+    /// <summary>
+    /// Card ID for Tools WND Editor custom assets and textures.
+    /// </summary>
+    public const string CardToolsWndEditorAssets = "wnd-editor-assets";
+
+    /// <summary>
+    /// Card ID for Content Manifests overview.
+    /// </summary>
+    public const string CardManifestsOverview = "manifest-overview";
+
+    /// <summary>
+    /// Card ID for Content Manifests content types and IDs.
+    /// </summary>
+    public const string CardManifestsContentTypes = "manifest-content-types";
+
+    /// <summary>
+    /// Card ID for Content Manifests CAS to workspace pipeline.
+    /// </summary>
+    public const string CardManifestsPipeline = "manifest-pipeline";
+
+    /// <summary>
+    /// Card ID for Content Manifests bundles, variants, and dependencies.
+    /// </summary>
+    public const string CardManifestsBundles = "manifest-bundles";
+
+    /// <summary>
+    /// Card ID for Content Manifests authoring for creators.
+    /// </summary>
+    public const string CardManifestsAuthoring = "manifest-authoring";
 
     /// <summary>
     /// Card ID for Scan Games Auto Detection.

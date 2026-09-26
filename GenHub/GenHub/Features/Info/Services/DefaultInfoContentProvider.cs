@@ -37,6 +37,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             CreateChangelogSection(),
             CreateGeneralsOnlineFAQSection(),
             CreateGeneralsOnlineChangeLogSection(),
+            CreateContentManifestsSection(),
         ];
     }
 
@@ -200,7 +201,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             (InfoConstants.CardProfilesDemo,
              "Interactive Demo: Profile Card",
              "Live interactive profile card simulation.",
-             InfoCardType.Feature,
+             InfoCardType.Example,
              """
              **Live Interactive Profile Card:**
              This interactive card simulates an active game profile in GenHub.
@@ -284,7 +285,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     Id = InfoConstants.CardSettingsDemo,
                     Title = "Interactive Demo: Settings Window",
                     Content = "Live interactive game settings window with category navigation and live controls.",
-                    Type = InfoCardType.Feature,
+                    Type = InfoCardType.Example,
                     IsExpandable = true,
                     DetailedContent = """
                     **Interactive Game Settings Mockup:**
@@ -441,7 +442,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     Id = InfoConstants.CardContentDemo,
                     Title = "Interactive Demo: Content Editor",
                     Content = "Live interactive content manager showing mod selection and priority ordering.",
-                    Type = InfoCardType.Feature,
+                    Type = InfoCardType.Example,
                     IsExpandable = true,
                     DetailedContent = """
                     **Live Content Manager Demo:**
@@ -543,7 +544,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             (InfoConstants.CardShortcutsDemo,
              "Interactive Demo: Desktop Shortcuts",
              "Interactive flow showing profile shortcut generation and command line targets.",
-             InfoCardType.Feature,
+             InfoCardType.Example,
              """
              **Interactive Desktop Shortcut Simulation:**
              Inspect how GenHub connects desktop shortcut (.lnk) files directly to isolated profile workspaces.
@@ -605,7 +606,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             (InfoConstants.CardSteamDemo,
              "Interactive Demo: Steam Integration",
              "Live preview of Steam overlay hook and launcher integration.",
-             InfoCardType.Feature,
+             InfoCardType.Example,
              """
              **Live Steam Integration Simulation:**
              Preview how GenHub injects Steam AppID parameters to enable the official Steam Overlay, friend status, and library playtime tracking for any mod profile.
@@ -673,7 +674,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     Id = InfoConstants.CardLocalContentDemo,
                     Title = "Interactive Demo: Add Local Content",
                     Content = "Interactive dialog mockup with pre-configured mod, client, tool, and executable presets.",
-                    Type = InfoCardType.Feature,
+                    Type = InfoCardType.Example,
                     IsExpandable = true,
                     DetailedContent = """
                     **Interactive Local Content Importer:**
@@ -773,13 +774,16 @@ public class DefaultInfoContentProvider : IInfoContentProvider
         [
             (InfoConstants.CardToolsDemo,
              "Interactive Demo: Tools Suite",
-             "Interactive Replay Manager, Map Manager, and Publisher Studio showcase.",
-             InfoCardType.Feature,
+             "Interactive Replay Manager, Map Manager, Hotkey Editor, ModBuilder, and WND Editor showcase.",
+             InfoCardType.Example,
              """
              **Interactive Tools Suite:**
-             Explore the built-in Replay Manager, Map Manager, and Publisher Studio directly below.
+             Explore the built-in tools directly below.
              * Test replay inspection, client CRC mapping, and checkpoint takeover.
              * Preview map thumbnails and create custom map packs.
+             * Rebind hotkeys on a sample command card and watch conflict detection.
+             * Try the ModBuilder sample project: variants, bundle packs, and manifest output.
+             * Edit a sample window layout in the WND Editor with live canvas preview.
              * Learn how Publisher Studio distributes content via 3-tier manifests.
              """,
              null),
@@ -1024,7 +1028,15 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              * **String Tables:** Compiles and decompiles .csf string files. Supports UTF-8 and UTF-16 character encodings with an in-editor string table viewer.
              * **INI Scripts:** Automated macro substitutions and syntax checks across game object definitions.
              """,
-             null),
+             [
+                 new InfoAction
+                 {
+                     Label = "Learn About Manifests",
+                     ActionId = InfoConstants.ActionNavContentManifests,
+                     IconKey = InfoConstants.IconBookOpenVariant,
+                     IsPrimary = false,
+                 },
+             ]),
             (InfoConstants.CardToolsModBuilderSuiteWndBuild,
              "ModBuilder Suite: WND Editor & BIG Builds",
              "GUI layout validation, canonical formatting, and incremental BIG packaging.",
@@ -1034,9 +1046,70 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              Structured editor for Command & Conquer GUI layout files (.wnd).
              * **Validation:** Parses UI control hierarchies, detects unclosed blocks, and flags syntax errors by line number.
              * **Canonical Formatting:** Formats .wnd indentation with standard tab stops while preserving developer comments.
+             * For visual editing with live canvas preview, use the standalone WND Editor tool described in the WND Editor cards below.
 
              **Incremental BIG Builds.**
              The build engine tracks file MD5 checksums. It compiles only modified assets and packages them into release .big archives (such as INIZeroHour.big) directly inside your profile workspace.
+             """,
+             null),
+            (InfoConstants.CardToolsWndEditorWorkflow,
+             "WND Editor: Documents & Workflow",
+             "Open, validate, and save Command & Conquer interface layout files.",
+             InfoCardType.Feature,
+             """
+             The WND Editor is a structured editor for SAGE engine GUI layout files (.wnd), available under the **Tools** tab.
+
+             **Documents & Explorer.**
+             * **New & Open:** Create an untitled document or open .wnd files and whole folders from disk.
+             * **File Explorer:** Browse linked folders, expand or collapse the file tree, and refresh the listing at any time.
+             * **Save:** Save in place or choose a new path with Save As. Every edit supports Undo and Redo.
+
+             **Validation.**
+             Click **Validate** to parse the control hierarchy and report syntax problems with exact locations before the file ever reaches the game.
+             """,
+             [
+                 new InfoAction
+                 {
+                     Label = "Open WND Editor",
+                     ActionId = InfoConstants.ActionNavTools,
+                     IconKey = InfoConstants.IconBookOpenVariant,
+                     IsPrimary = true,
+                 },
+             ]),
+            (InfoConstants.CardToolsWndEditorCanvas,
+             "WND Editor: Canvas, Tree & Properties",
+             "Select windows in the tree, edit geometry, and preview the layout live.",
+             InfoCardType.HowTo,
+             """
+             **Window Tree.**
+             Every .wnd file is a hierarchy of windows and controls. Select any node to inspect it; expand or collapse branches to navigate complex menus.
+
+             **Canvas Preview.**
+             The canvas renders the selected layout with zoom controls. What you see matches the in-game menu structure, so misaligned panels are obvious immediately.
+
+             **Properties.**
+             Edit the selected ScreenRect geometry (X, Y, Width, Height) and attributes directly in the property grid. Changes apply to the document instantly and can be undone.
+
+             **Add & Delete.**
+             Insert child windows under the current selection or remove controls you no longer need, all with full undo support.
+             """,
+             null),
+            (InfoConstants.CardToolsWndEditorAssets,
+             "WND Editor: Custom Assets & Textures",
+             "Link mod folders and archives, import textures, and apply mapped images.",
+             InfoCardType.Feature,
+             """
+             Interface layouts reference game art by name. The WND Editor resolves that art from your content.
+
+             **Linked Sources.**
+             * **Mod Folders:** Link a mod root folder to load loose edited assets.
+             * **BIG Archives:** Link one or more .big archives to resolve retail and mod textures.
+             * **Reload:** Refresh asset previews after changing linked sources.
+
+             **Textures & Mapped Images.**
+             * **Import:** Bring PNG, TGA, or DDS textures into the project, including art for reported missing mapped images.
+             * **Apply:** Assign a mapped image or art asset to the selected window draw data and see it on the canvas.
+             * **Paste:** Paste an asset from the clipboard straight into the current window.
              """,
              null),
         ];
@@ -1045,7 +1118,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
         {
             Id = InfoConstants.SectionTools,
             Title = "Tools & Utilities",
-            Description = "Inspect replays, manage maps, rebind hotkeys, build mods, and publish community content catalogs.",
+            Description = "Inspect replays, manage maps, rebind hotkeys, edit interface layouts, build mods, and publish community content catalogs.",
             Order = 6,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed, c.Actions)).ToList(),
         };
@@ -1062,7 +1135,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             (InfoConstants.CardScanDemo,
              "Interactive Demo: Scan Wizard",
              "Interactive game scanner simulating discovery across disks and registries.",
-             InfoCardType.Feature,
+             InfoCardType.Example,
              """
              **Interactive Scan Wizard:**
              Simulate automatic game discovery across Steam, EA App, CD directories, and custom folders.
@@ -1135,7 +1208,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     Id = InfoConstants.CardWorkspaceDemo,
                     Title = "Interactive Demo: Filesystem Magic",
                     Content = "Live filesystem visualizer demonstrating hardlinks, symlinks, and junctions.",
-                    Type = InfoCardType.Feature,
+                    Type = InfoCardType.Example,
                     IsExpandable = true,
                     DetailedContent = """
                     **Interactive Workspace Visualizer:**
@@ -1285,7 +1358,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             (InfoConstants.CardUpdatesDemo,
              "Interactive Demo: Updates & CI Builds",
              "Test update channels, release notes view, and GitHub CI workflow artifacts.",
-             InfoCardType.Feature,
+             InfoCardType.Example,
              """
              **Interactive Update Notification Sandbox:**
              Test launcher update mechanics and automated CI build subscriptions.
@@ -1409,7 +1482,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             (InfoConstants.CardChangelogsDemo,
              "Interactive Demo: Release Browser",
              "Live interactive release notes browser with version selection, asset links, and filters.",
-             InfoCardType.Feature,
+             InfoCardType.Example,
              """
              **Interactive Changelog Viewer:**
              Browse all official GenHub releases, view release assets, inspect patch notes, and see what's new in each build.
@@ -1510,7 +1583,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             (InfoConstants.CardGoChangelogDemo,
              "Interactive Demo: Generals Online Patch Notes",
              "Live feed of multiplayer service updates, netcode improvements, and balance patches.",
-             InfoCardType.Feature,
+             InfoCardType.Example,
              """
              **Generals Online Patch Notes Viewer:**
              Stay informed about multiplayer network changes, matchmaker improvements, balance adjustments, and anti-cheat updates deployed to the Generals Online network.
@@ -1542,6 +1615,132 @@ public class DefaultInfoContentProvider : IInfoContentProvider
             Description = "View the latest changes and updates to the Generals Online service.",
             Order = 12,
             Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed)).ToList(),
+        };
+    }
+
+    /// <summary>
+    /// Creates the content manifests section.
+    /// </summary>
+    /// <returns>The content manifests <see cref="InfoSection"/>.</returns>
+    private static InfoSection CreateContentManifestsSection()
+    {
+        (string Id, string Title, string Content, InfoCardType Type, string Detailed, IReadOnlyList<InfoAction>? Actions)[] cardData =
+        [
+            (InfoConstants.CardManifestsOverview,
+             "What Is a Content Manifest?",
+             "The install blueprint describing every mod, map, and addon in GenHub.",
+             InfoCardType.Concept,
+             """
+             A content manifest is a JSON document that completely describes one piece of installable content: its identity, its files, and how GenHub should install it.
+
+             **Content Types + Manifest Files.**
+             * **Content Type:** Declares what the content is (Mod, Map, MapPack, Addon, Patch, GameClient, ModdingTool, and more), so GenHub shows it in the right place and applies the right install rules.
+             * **Manifest File:** The .manifest.json document carrying the name, SemVer version, description, target game, publisher, file list, and dependencies.
+
+             **Identity & Versioning.**
+             Every manifest carries a Manifest ID (such as 1.0.shockwave.mod.shockwave-chaos-edition) plus a human-readable name and version. Publishers sign releases with SHA-256 hashes so GenHub can verify every byte before installing.
+             """,
+             null),
+            (InfoConstants.CardManifestsContentTypes,
+             "Content Types & Manifest IDs",
+             "How GenHub classifies foundation releases, content, and meta references.",
+             InfoCardType.Concept,
+             """
+             **Foundation Types.**
+             * **GameInstallation:** A detected EA, Steam, or disc release on your machine.
+             * **GameClient:** An independent playable game executable, such as a community patch client.
+
+             **Content Types.**
+             * **Mod, Patch, Addon:** Gameplay changes, balance fixes, and utilities layered on a base game or mod.
+             * **Map, MapPack, Mission:** Single skirmish maps, curated map collections, and story missions.
+             * **LanguagePack, Skin, Video, Replay, Screensaver:** Localizations, UI skins, trailers, replays, and extras.
+             * **Executable, ModdingTool:** Standalone programs and creator utilities such as editors and converters.
+
+             **Meta Types.**
+             * **ContentBundle, PublisherReferral, ContentReferral:** Collections and links that group or point at other content instead of shipping files directly.
+
+             **Manifest IDs.**
+             IDs follow {version}.{publisherId}.{contentType}.{contentId} and support prefix matching, so the Downloads browser can detect installed, outdated, and updateable states without downloading anything.
+             """,
+             null),
+            (InfoConstants.CardManifestsPipeline,
+             "From Download to Launch",
+             "Discovery, resolution, content-addressable storage, and workspace mapping.",
+             InfoCardType.HowTo,
+             """
+             **1. Discovery.**
+             Catalogs and providers advertise lightweight metadata. GenHub lists content without downloading game files.
+
+             **2. Resolution.**
+             When you install, GenHub resolves the full ContentManifest: exact files, SHA-256 hashes, dependencies, and version constraints.
+
+             **3. Content-Addressable Storage (CAS).**
+             Downloaded bytes land in the shared CAS pool, indexed by hash. Identical files across mods, versions, and profiles are stored exactly once and verified on every read.
+
+             **4. Manifest Pool.**
+             Resolved manifests wait in the pool, ready to attach to any profile. Switching versions never re-downloads bytes CAS already holds.
+
+             **5. Profile Launch.**
+             Reconciliation maps pooled files into an isolated workspace using hardlinks, symlinks, or copies, then launches the game against that workspace.
+             """,
+             null),
+            (InfoConstants.CardManifestsBundles,
+             "Bundles, Variants & Dependencies",
+             "Package files into bundles, offer alternatives, and declare requirements.",
+             InfoCardType.Feature,
+             """
+             **Bundles.**
+             A bundle maps source files to install targets with conversion settings (for example, TGA textures converted to DDS on build). Each bundle item names its files explicitly, so builds stay reproducible.
+
+             **Variants.**
+             Variants let players choose at install time: 1080p or 4K textures, English or German audio. Only the selected variant downloads and installs.
+
+             **Dependencies.**
+             Manifests declare Required, Optional, Recommended, and Conflicting relationships with SemVer version constraints. Base mods install automatically, and conflicting combinations are blocked before they can break a profile.
+             """,
+             [
+                 new InfoAction
+                 {
+                     Label = "Open Tools Guide",
+                     ActionId = InfoConstants.ActionNavToolsSection,
+                     IconKey = InfoConstants.IconBookOpenVariant,
+                     IsPrimary = false,
+                 },
+             ]),
+            (InfoConstants.CardManifestsAuthoring,
+             "Authoring Manifests as a Creator",
+             "Produce manifests with ModBuilder, Hotkey Editor, and Publisher Studio.",
+             InfoCardType.HowTo,
+             """
+             You rarely write manifest JSON by hand. GenHub tools generate it for you.
+
+             **ModBuilder.**
+             Assemble bundle packs from project files, configure variants, and export release packages. The bundle editor writes the file mappings, conversions, and hashes into the manifest.
+
+             **Hotkey Editor.**
+             Click Create Addon to package bindings, INI patches, and cameo overlays into an isolated .manifest.json addon attachable to any profile.
+
+             **Publisher Studio.**
+             Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records carry artifact URLs, SHA-256 hashes, and changelogs for every version.
+             """,
+             [
+                 new InfoAction
+                 {
+                     Label = "Try the ModBuilder Demo",
+                     ActionId = InfoConstants.ActionNavToolsSection,
+                     IconKey = InfoConstants.IconMagnify,
+                     IsPrimary = true,
+                 },
+             ]),
+        ];
+
+        return new InfoSection
+        {
+            Id = InfoConstants.SectionContentManifests,
+            Title = "Content Manifests",
+            Description = "How manifests classify content and carry it from catalogs through CAS into launchable workspaces.",
+            Order = 13,
+            Cards = cardData.Select(c => CreateCard(c.Id, c.Title, c.Content, c.Type, c.Detailed, c.Actions)).ToList(),
         };
     }
 

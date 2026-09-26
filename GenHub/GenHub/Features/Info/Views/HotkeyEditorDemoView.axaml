@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.Info.Views"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="560"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             x:Class="GenHub.Features.Info.Views.HotkeyEditorDemoView"
+             x:DataType="vm:HotkeyEditorDemoViewModel">
+
+    <Border CornerRadius="12" Background="{DynamicResource SurfaceCardBrush}" ClipToBounds="True" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <!-- Faction + conflict header -->
+            <Border Grid.Row="0" Background="{DynamicResource SurfaceElevatedBrush}" Padding="14,10" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+                    <material:MaterialIcon Grid.Column="0" Kind="Keyboard" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditor.Faction.Label}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        <ComboBox ItemsSource="{Binding Factions}" SelectedItem="{Binding SelectedFaction, Mode=TwoWay}" MinWidth="110"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <material:MaterialIcon Kind="AlertCircleOutline" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center" IsVisible="{Binding HasConflicts}"/>
+                        <material:MaterialIcon Kind="CheckCircleOutline" Width="16" Height="16" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" IsVisible="{Binding !HasConflicts}"/>
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditor.Conflicts.Label}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ConflictCount}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button Grid.Column="4" Command="{Binding ClearKeyCommand}" Margin="0,0,8,0" ToolTip.Tip="{localization:Localize Info.Demo.Tools.HotkeyEditor.Clear.Tooltip}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <material:MaterialIcon Kind="Eraser" Width="14" Height="14"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditor.Clear.Label}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="5" Command="{Binding CreateAddonCommand}" ToolTip.Tip="{localization:Localize Info.Demo.Tools.HotkeyEditor.Addon.Tooltip}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <material:MaterialIcon Kind="PackageVariantClosed" Width="14" Height="14"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditor.Addon.Label}"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,220">
+                <!-- Command card grid -->
+                <Border Grid.Column="0" Padding="12" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,1,0">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditor.Grid.Label}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                        <ListBox ItemsSource="{Binding Slots}" SelectedItem="{Binding SelectedSlot, Mode=TwoWay}" Background="Transparent" BorderThickness="0">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="4"/>
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="vm:HotkeyDemoSlot">
+                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="3" MinHeight="74">
+                                        <Grid RowDefinitions="*,Auto,Auto">
+                                            <TextBlock Grid.Row="0" Text="{Binding ActionName}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"/>
+                                            <Border Grid.Row="1" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="4" Padding="8,2" HorizontalAlignment="Center" Margin="0,6,0,0">
+                                                <TextBlock Text="{Binding Hotkey}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" TextAlignment="Center" MinWidth="20"/>
+                                            </Border>
+                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" Margin="0,4,0,0" IsVisible="{Binding HasConflict}">
+                                                <material:MaterialIcon Kind="Alert" Width="12" Height="12" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditor.Slot.Conflict}" FontSize="10" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
+
+                <!-- Key palette -->
+                <Border Grid.Column="1" Padding="12">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditor.Palette.Label}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{Binding SelectedSlot.ActionName}" FontSize="12" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding KeyPalette}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="4"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding}" Margin="3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" MinHeight="34"
+                                            Command="{Binding ((vm:HotkeyEditorDemoViewModel)DataContext).AssignKeyCommand, RelativeSource={RelativeSource AncestorType=views:HotkeyEditorDemoView}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditor.Palette.Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Status bar -->
+            <Border Grid.Row="2" Background="{DynamicResource SurfaceElevatedBrush}" Padding="14,8" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,0">
+                <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

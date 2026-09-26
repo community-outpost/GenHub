@@ -3079,6 +3079,240 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
     <value>Subscribed players poll manifests every 30m, get notified, and download updates CAS-verified.</value>
   </data>
+  <data name="Info.Demo.Tools.HotkeyEditorTitle" xml:space="preserve">
+    <value>Hotkey Editor</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditorSubtitle" xml:space="preserve">
+    <value>Rebind command card hotkeys with live conflict detection.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilderTitle" xml:space="preserve">
+    <value>ModBuilder</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilderSubtitle" xml:space="preserve">
+    <value>Build a sample project: variants, bundle packs, and manifests.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditorTitle" xml:space="preserve">
+    <value>WND Editor</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditorSubtitle" xml:space="preserve">
+    <value>Edit window layouts with a live canvas preview.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.File" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Validate" xml:space="preserve">
+    <value>Validate</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.AddChild" xml:space="preserve">
+    <value>Add Child Window</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Delete" xml:space="preserve">
+    <value>Delete Window</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.View" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomIn" xml:space="preserve">
+    <value>Zoom In</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomOut" xml:space="preserve">
+    <value>Zoom Out</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ResetZoom" xml:space="preserve">
+    <value>Reset Zoom</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Assets" xml:space="preserve">
+    <value>Assets</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.LinkFolder" xml:space="preserve">
+    <value>Link Mod Folder...</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ImportTexture" xml:space="preserve">
+    <value>Import Texture...</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Files.Label" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Tree.Label" xml:space="preserve">
+    <value>Window Tree</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Canvas.Label" xml:space="preserve">
+    <value>Canvas Preview</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Title" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.X" xml:space="preserve">
+    <value>X</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Y" xml:space="preserve">
+    <value>Y</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Width" xml:space="preserve">
+    <value>Width</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Height" xml:space="preserve">
+    <value>Height</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Validate" xml:space="preserve">
+    <value>Validate</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Windows" xml:space="preserve">
+    <value>Windows:</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Ready" xml:space="preserve">
+    <value>Select a window to edit its geometry.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.NotValidated" xml:space="preserve">
+    <value>Not validated yet.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Invalid" xml:space="preserve">
+    <value>Some windows have empty geometry.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Valid" xml:space="preserve">
+    <value>Document is valid: 0 errors.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Added" xml:space="preserve">
+    <value>Child window added.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Deleted" xml:space="preserve">
+    <value>Window deleted.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.Title" xml:space="preserve">
+    <value>Demo</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.NewMessage" xml:space="preserve">
+    <value>Created a new untitled layout. (Simulated)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.SaveMessage" xml:space="preserve">
+    <value>Document saved. (Simulated)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.DeleteRootMessage" xml:space="preserve">
+    <value>Select a child window to delete. The root screen cannot be removed.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.LinkMessage" xml:space="preserve">
+    <value>Linked sample mod folder. (Simulated)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.ImportMessage" xml:space="preserve">
+    <value>Imported sample texture. (Simulated)</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Variants.Textures" xml:space="preserve">
+    <value>Textures:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Variants.Audio" xml:space="preserve">
+    <value>Audio:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Files.Label" xml:space="preserve">
+    <value>Project Files</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Files.Add" xml:space="preserve">
+    <value>Add to Pack</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Packs.Label" xml:space="preserve">
+    <value>Bundle Packs</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.Label" xml:space="preserve">
+    <value>Pack Items</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.Remove" xml:space="preserve">
+    <value>Remove from pack</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveUp" xml:space="preserve">
+    <value>Move up</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveDown" xml:space="preserve">
+    <value>Move down</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.ConvertDds" xml:space="preserve">
+    <value>Convert all TGA to DDS</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Manifest.Label" xml:space="preserve">
+    <value>Manifest Preview</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.Run" xml:space="preserve">
+    <value>Build Pack</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.LearnManifests" xml:space="preserve">
+    <value>Learn About Manifests</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.LogLabel" xml:space="preserve">
+    <value>Build Log</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.BundledFiles" xml:space="preserve">
+    <value>Bundled files:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.Ready" xml:space="preserve">
+    <value>Assemble bundle packs, then build the sample project.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.Converted" xml:space="preserve">
+    <value>Converted pack textures to DDS.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.NothingToConvert" xml:space="preserve">
+    <value>No unconverted TGA textures in this pack.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.Title" xml:space="preserve">
+    <value>Demo</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.DuplicateMessage" xml:space="preserve">
+    <value>That file is already in this pack.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.BuildMessage" xml:space="preserve">
+    <value>Bundle pack built. (Simulated)</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Faction.Label" xml:space="preserve">
+    <value>Faction:</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Conflicts.Label" xml:space="preserve">
+    <value>Conflicts:</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Label" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Tooltip" xml:space="preserve">
+    <value>Clear the selected slot</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Label" xml:space="preserve">
+    <value>Create Addon</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Tooltip" xml:space="preserve">
+    <value>Package bindings into an addon manifest</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Grid.Label" xml:space="preserve">
+    <value>Command Card</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Label" xml:space="preserve">
+    <value>Key Palette</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Hint" xml:space="preserve">
+    <value>Pick a key to assign it to the selected slot.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Slot.Conflict" xml:space="preserve">
+    <value>Conflict</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Ready" xml:space="preserve">
+    <value>Select a slot, then pick a key to rebind it.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Conflict" xml:space="preserve">
+    <value>Conflict: slots share a key. Pick distinct keys to clear it.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Clear" xml:space="preserve">
+    <value>Key assigned. No conflicts.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Toast.Title" xml:space="preserve">
+    <value>Demo</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Toast.AddonMessage" xml:space="preserve">
+    <value>Hotkey addon manifest created. (Simulated)</value>
+  </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>Scan Wizard</value>
   </data>
@@ -3866,7 +4100,13 @@ Applied: {2} / {3} applicable fixes.</value>
     <value>GenHub Tools</value>
   </data>
   <data name="Info.Section.tools.Description" xml:space="preserve">
-    <value>Built-in power tools: Replay Manager, MapPack Manager, and modular plugin tools.</value>
+    <value>Inspect replays, manage maps, rebind hotkeys, edit interface layouts, build mods, and publish community content catalogs.</value>
+  </data>
+  <data name="Info.Section.content-manifests.Title" xml:space="preserve">
+    <value>Content Manifests</value>
+  </data>
+  <data name="Info.Section.content-manifests.Description" xml:space="preserve">
+    <value>How manifests classify content and carry it from catalogs through CAS into launchable workspaces.</value>
   </data>
   <data name="Info.Section.generals-online-faq.Title" xml:space="preserve">
     <value>Generals Online FAQ</value>
@@ -14075,6 +14315,7 @@ ModBuilder projects use .mbproj files (such as Shockwave.mbproj) to track source
 Structured editor for Command &amp; Conquer GUI layout files (.wnd).
 * **Validation:** Parses UI control hierarchies, detects unclosed blocks, and flags syntax errors by line number.
 * **Canonical Formatting:** Formats .wnd indentation with standard tab stops while preserving developer comments.
+* For visual editing with live canvas preview, use the standalone WND Editor tool described in the WND Editor cards below.
 
 **Incremental BIG Builds.**
 The build engine tracks file MD5 checksums. It compiles only modified assets and packages them into release .big archives (such as INIZeroHour.big) directly inside your profile workspace.</value>
@@ -14241,6 +14482,180 @@ GenHub compares the replay's Exe CRC and INI CRC against a preloaded catalog of 
   </data>
   <data name="Info.Card.tools.replay-gameclient-mapping.Title" xml:space="preserve">
     <value>Replay Manager: Client Matching &amp; Profiles</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Title" xml:space="preserve">
+    <value>WND Editor: Documents &amp; Workflow</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Content" xml:space="preserve">
+    <value>Open, validate, and save Command &amp; Conquer interface layout files.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.DetailedContent" xml:space="preserve">
+    <value>The WND Editor is a structured editor for SAGE engine GUI layout files (.wnd), available under the **Tools** tab.
+
+**Documents &amp; Explorer.**
+* **New &amp; Open:** Create an untitled document or open .wnd files and whole folders from disk.
+* **File Explorer:** Browse linked folders, expand or collapse the file tree, and refresh the listing at any time.
+* **Save:** Save in place or choose a new path with Save As. Every edit supports Undo and Redo.
+
+**Validation.**
+Click **Validate** to parse the control hierarchy and report syntax problems with exact locations before the file ever reaches the game.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Action.NAV_Tools" xml:space="preserve">
+    <value>Open WND Editor</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Action.0" xml:space="preserve">
+    <value>Open WND Editor</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.Title" xml:space="preserve">
+    <value>WND Editor: Canvas, Tree &amp; Properties</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.Content" xml:space="preserve">
+    <value>Select windows in the tree, edit geometry, and preview the layout live.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.DetailedContent" xml:space="preserve">
+    <value>**Window Tree.**
+Every .wnd file is a hierarchy of windows and controls. Select any node to inspect it; expand or collapse branches to navigate complex menus.
+
+**Canvas Preview.**
+The canvas renders the selected layout with zoom controls. What you see matches the in-game menu structure, so misaligned panels are obvious immediately.
+
+**Properties.**
+Edit the selected ScreenRect geometry (X, Y, Width, Height) and attributes directly in the property grid. Changes apply to the document instantly and can be undone.
+
+**Add &amp; Delete.**
+Insert child windows under the current selection or remove controls you no longer need, all with full undo support.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.Title" xml:space="preserve">
+    <value>WND Editor: Custom Assets &amp; Textures</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.Content" xml:space="preserve">
+    <value>Link mod folders and archives, import textures, and apply mapped images.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.DetailedContent" xml:space="preserve">
+    <value>Interface layouts reference game art by name. The WND Editor resolves that art from your content.
+
+**Linked Sources.**
+* **Mod Folders:** Link a mod root folder to load loose edited assets.
+* **BIG Archives:** Link one or more .big archives to resolve retail and mod textures.
+* **Reload:** Refresh asset previews after changing linked sources.
+
+**Textures &amp; Mapped Images.**
+* **Import:** Bring PNG, TGA, or DDS textures into the project, including art for reported missing mapped images.
+* **Apply:** Assign a mapped image or art asset to the selected window draw data and see it on the canvas.
+* **Paste:** Paste an asset from the clipboard straight into the current window.</value>
+  </data>
+  <data name="Info.Card.tools.modbuilder-suite-pipeline.Action.NAV_INFO_content-manifests" xml:space="preserve">
+    <value>Learn About Manifests</value>
+  </data>
+  <data name="Info.Card.tools.modbuilder-suite-pipeline.Action.0" xml:space="preserve">
+    <value>Learn About Manifests</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Title" xml:space="preserve">
+    <value>What Is a Content Manifest?</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Content" xml:space="preserve">
+    <value>The install blueprint describing every mod, map, and addon in GenHub.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.DetailedContent" xml:space="preserve">
+    <value>A content manifest is a JSON document that completely describes one piece of installable content: its identity, its files, and how GenHub should install it.
+
+**Content Types + Manifest Files.**
+* **Content Type:** Declares what the content is (Mod, Map, MapPack, Addon, Patch, GameClient, ModdingTool, and more), so GenHub shows it in the right place and applies the right install rules.
+* **Manifest File:** The .manifest.json document carrying the name, SemVer version, description, target game, publisher, file list, and dependencies.
+
+**Identity &amp; Versioning.**
+Every manifest carries a Manifest ID (such as 1.0.shockwave.mod.shockwave-chaos-edition) plus a human-readable name and version. Publishers sign releases with SHA-256 hashes so GenHub can verify every byte before installing.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.Title" xml:space="preserve">
+    <value>Content Types &amp; Manifest IDs</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.Content" xml:space="preserve">
+    <value>How GenHub classifies foundation releases, content, and meta references.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.DetailedContent" xml:space="preserve">
+    <value>**Foundation Types.**
+* **GameInstallation:** A detected EA, Steam, or disc release on your machine.
+* **GameClient:** An independent playable game executable, such as a community patch client.
+
+**Content Types.**
+* **Mod, Patch, Addon:** Gameplay changes, balance fixes, and utilities layered on a base game or mod.
+* **Map, MapPack, Mission:** Single skirmish maps, curated map collections, and story missions.
+* **LanguagePack, Skin, Video, Replay, Screensaver:** Localizations, UI skins, trailers, replays, and extras.
+* **Executable, ModdingTool:** Standalone programs and creator utilities such as editors and converters.
+
+**Meta Types.**
+* **ContentBundle, PublisherReferral, ContentReferral:** Collections and links that group or point at other content instead of shipping files directly.
+
+**Manifest IDs.**
+IDs follow {version}.{publisherId}.{contentType}.{contentId} and support prefix matching, so the Downloads browser can detect installed, outdated, and updateable states without downloading anything.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Title" xml:space="preserve">
+    <value>From Download to Launch</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Content" xml:space="preserve">
+    <value>Discovery, resolution, content-addressable storage, and workspace mapping.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.DetailedContent" xml:space="preserve">
+    <value>**1. Discovery.**
+Catalogs and providers advertise lightweight metadata. GenHub lists content without downloading game files.
+
+**2. Resolution.**
+When you install, GenHub resolves the full ContentManifest: exact files, SHA-256 hashes, dependencies, and version constraints.
+
+**3. Content-Addressable Storage (CAS).**
+Downloaded bytes land in the shared CAS pool, indexed by hash. Identical files across mods, versions, and profiles are stored exactly once and verified on every read.
+
+**4. Manifest Pool.**
+Resolved manifests wait in the pool, ready to attach to any profile. Switching versions never re-downloads bytes CAS already holds.
+
+**5. Profile Launch.**
+Reconciliation maps pooled files into an isolated workspace using hardlinks, symlinks, or copies, then launches the game against that workspace.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Title" xml:space="preserve">
+    <value>Bundles, Variants &amp; Dependencies</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Content" xml:space="preserve">
+    <value>Package files into bundles, offer alternatives, and declare requirements.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.DetailedContent" xml:space="preserve">
+    <value>**Bundles.**
+A bundle maps source files to install targets with conversion settings (for example, TGA textures converted to DDS on build). Each bundle item names its files explicitly, so builds stay reproducible.
+
+**Variants.**
+Variants let players choose at install time: 1080p or 4K textures, English or German audio. Only the selected variant downloads and installs.
+
+**Dependencies.**
+Manifests declare Required, Optional, Recommended, and Conflicting relationships with SemVer version constraints. Base mods install automatically, and conflicting combinations are blocked before they can break a profile.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Action.NAV_INFO_tools" xml:space="preserve">
+    <value>Open Tools Guide</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Action.0" xml:space="preserve">
+    <value>Open Tools Guide</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Title" xml:space="preserve">
+    <value>Authoring Manifests as a Creator</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Content" xml:space="preserve">
+    <value>Produce manifests with ModBuilder, Hotkey Editor, and Publisher Studio.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.DetailedContent" xml:space="preserve">
+    <value>You rarely write manifest JSON by hand. GenHub tools generate it for you.
+
+**ModBuilder.**
+Assemble bundle packs from project files, configure variants, and export release packages. The bundle editor writes the file mappings, conversions, and hashes into the manifest.
+
+**Hotkey Editor.**
+Click Create Addon to package bindings, INI patches, and cameo overlays into an isolated .manifest.json addon attachable to any profile.
+
+**Publisher Studio.**
+Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records carry artifact URLs, SHA-256 hashes, and changelogs for every version.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Action.NAV_INFO_tools" xml:space="preserve">
+    <value>Try the ModBuilder Demo</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Action.0" xml:space="preserve">
+    <value>Try the ModBuilder Demo</value>
   </data>
   <data name="Info.Sidebar.CardsTitle" xml:space="preserve">
     <value>Sections</value>

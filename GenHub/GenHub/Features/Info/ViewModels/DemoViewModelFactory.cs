@@ -300,6 +300,45 @@ public static class DemoViewModelFactory
     }
 
     /// <summary>
+    /// Creates a demo WND editor view model with placeholder window layouts.
+    /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
+    /// <returns>A configured demo WND editor view model.</returns>
+    public static WndEditorDemoViewModel CreateDemoWndEditor(
+        INotificationService? notificationService = null,
+        ILocalizationService? localizationService = null)
+    {
+        return new WndEditorDemoViewModel(notificationService, localizationService);
+    }
+
+    /// <summary>
+    /// Creates a demo ModBuilder view model with placeholder sample project data.
+    /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
+    /// <returns>A configured demo ModBuilder view model.</returns>
+    public static ModBuilderDemoViewModel CreateDemoModBuilder(
+        INotificationService? notificationService = null,
+        ILocalizationService? localizationService = null)
+    {
+        return new ModBuilderDemoViewModel(notificationService, localizationService);
+    }
+
+    /// <summary>
+    /// Creates a demo Hotkey Editor view model with a placeholder command card.
+    /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="localizationService">Optional localization service for dynamic string translation.</param>
+    /// <returns>A configured demo Hotkey Editor view model.</returns>
+    public static HotkeyEditorDemoViewModel CreateDemoHotkeyEditor(
+        INotificationService? notificationService = null,
+        ILocalizationService? localizationService = null)
+    {
+        return new HotkeyEditorDemoViewModel(notificationService, localizationService);
+    }
+
+    /// <summary>
     /// Creates a demo AddLocalContentViewModel with mock data.
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>

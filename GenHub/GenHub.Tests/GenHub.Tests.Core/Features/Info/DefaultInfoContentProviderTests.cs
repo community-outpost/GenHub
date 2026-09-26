@@ -48,6 +48,7 @@ public class DefaultInfoContentProviderTests
             InfoConstants.SectionChangelogs,
             InfoConstants.SectionFaq,
             InfoConstants.SectionGoChangelog,
+            InfoConstants.SectionContentManifests,
         ]);
     }
 
@@ -112,6 +113,9 @@ public class DefaultInfoContentProviderTests
             InfoConstants.CardToolsPublisherStudioAuthoring,
             InfoConstants.CardToolsModbuilderSuitePipeline,
             InfoConstants.CardToolsModbuilderSuiteWndBuild,
+            InfoConstants.CardToolsWndEditorWorkflow,
+            InfoConstants.CardToolsWndEditorCanvas,
+            InfoConstants.CardToolsWndEditorAssets,
         ]);
 
         var crcCard = section.Cards.First(c => c.Id == InfoConstants.CardToolsReplayGameClientMapping);
@@ -173,6 +177,68 @@ public class DefaultInfoContentProviderTests
         var modbuilderWndCard = section.Cards.First(c => c.Id == InfoConstants.CardToolsModbuilderSuiteWndBuild);
         modbuilderWndCard.DetailedContent.Should().Contain(".wnd");
         modbuilderWndCard.DetailedContent.Should().Contain("Incremental");
+
+        modbuilderPipelineCard.Actions.Should().ContainSingle(a => a.ActionId == InfoConstants.ActionNavContentManifests);
+
+        var wndWorkflowCard = section.Cards.First(c => c.Id == InfoConstants.CardToolsWndEditorWorkflow);
+        wndWorkflowCard.DetailedContent.Should().Contain(".wnd");
+        wndWorkflowCard.DetailedContent.Should().Contain("Validate");
+        wndWorkflowCard.DetailedContent.Should().Contain("Undo");
+        wndWorkflowCard.Actions.Should().ContainSingle(a => a.ActionId == InfoConstants.ActionNavTools);
+
+        var wndCanvasCard = section.Cards.First(c => c.Id == InfoConstants.CardToolsWndEditorCanvas);
+        wndCanvasCard.DetailedContent.Should().Contain("Window Tree");
+        wndCanvasCard.DetailedContent.Should().Contain("Canvas");
+        wndCanvasCard.DetailedContent.Should().Contain("ScreenRect");
+
+        var wndAssetsCard = section.Cards.First(c => c.Id == InfoConstants.CardToolsWndEditorAssets);
+        wndAssetsCard.DetailedContent.Should().Contain(".big");
+        wndAssetsCard.DetailedContent.Should().Contain("texture");
+    }
+
+    /// <summary>
+    /// Verifies that GetSectionAsync returns the content manifests section with the wiki explainer cards.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetSectionAsync_ContentManifestsSection_ContainsWikiExplainerAsync()
+    {
+        var section = await _provider.GetSectionAsync(InfoConstants.SectionContentManifests);
+
+        section.Should().NotBeNull();
+        section!.Title.Should().Be("Content Manifests");
+
+        var cardIds = section.Cards.Select(c => c.Id).ToList();
+        cardIds.Should().Equal([
+            InfoConstants.CardManifestsOverview,
+            InfoConstants.CardManifestsContentTypes,
+            InfoConstants.CardManifestsPipeline,
+            InfoConstants.CardManifestsBundles,
+            InfoConstants.CardManifestsAuthoring,
+        ]);
+
+        var overviewCard = section.Cards.First(c => c.Id == InfoConstants.CardManifestsOverview);
+        overviewCard.DetailedContent.Should().Contain(".manifest.json");
+        overviewCard.DetailedContent.Should().Contain("SHA-256");
+
+        var typesCard = section.Cards.First(c => c.Id == InfoConstants.CardManifestsContentTypes);
+        typesCard.DetailedContent.Should().Contain("GameInstallation");
+        typesCard.DetailedContent.Should().Contain("ContentBundle");
+
+        var pipelineCard = section.Cards.First(c => c.Id == InfoConstants.CardManifestsPipeline);
+        pipelineCard.DetailedContent.Should().Contain("CAS");
+        pipelineCard.DetailedContent.Should().Contain("Manifest Pool");
+        pipelineCard.DetailedContent.Should().Contain("Reconciliation");
+
+        var bundlesCard = section.Cards.First(c => c.Id == InfoConstants.CardManifestsBundles);
+        bundlesCard.DetailedContent.Should().Contain("Variants");
+        bundlesCard.DetailedContent.Should().Contain("Required");
+        bundlesCard.Actions.Should().ContainSingle(a => a.ActionId == InfoConstants.ActionNavToolsSection);
+
+        var authoringCard = section.Cards.First(c => c.Id == InfoConstants.CardManifestsAuthoring);
+        authoringCard.DetailedContent.Should().Contain("ModBuilder");
+        authoringCard.DetailedContent.Should().Contain("Create Addon");
+        authoringCard.Actions.Should().ContainSingle(a => a.ActionId == InfoConstants.ActionNavToolsSection);
     }
 
     /// <summary>

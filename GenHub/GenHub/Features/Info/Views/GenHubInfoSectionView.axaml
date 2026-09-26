@@ -525,7 +525,10 @@
                 <StackPanel Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
-                        <TextBlock Text="{localization:Localize Info.Demo.Tools.ReplayManagerTitle}" Classes="demo-title"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <material:MaterialIcon Kind="PlayCircleOutline" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.ReplayManagerTitle}" Classes="demo-title" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <TextBlock Text="{localization:Localize Info.Demo.Tools.ReplayManagerSubtitle}" Classes="demo-subtitle"/>
                     </StackPanel>
 
@@ -545,7 +548,10 @@
                 <StackPanel Spacing="40">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
-                        <TextBlock Text="{localization:Localize Info.Demo.Tools.MapManagerTitle}" Classes="demo-title"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <material:MaterialIcon Kind="PlayCircleOutline" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.MapManagerTitle}" Classes="demo-title" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <TextBlock Text="{localization:Localize Info.Demo.Tools.MapManagerSubtitle}" Classes="demo-subtitle"/>
                     </StackPanel>
 
@@ -565,7 +571,10 @@
                 <StackPanel Spacing="24">
                     <!-- Header -->
                     <StackPanel HorizontalAlignment="Left" Spacing="8">
-                        <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioTitle}" Classes="demo-title"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <material:MaterialIcon Kind="Publish" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioTitle}" Classes="demo-title" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <TextBlock Text="{localization:Localize Info.Demo.Tools.PublisherStudioSubtitle}" Classes="demo-subtitle"/>
                     </StackPanel>
 
@@ -638,6 +647,63 @@
                                 </DockPanel>
                             </StackPanel>
                         </Border>
+                    </Border>
+                </StackPanel>
+
+                <!-- 4. HOTKEY EDITOR -->
+                <StackPanel Spacing="40">
+                    <!-- Header -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <material:MaterialIcon Kind="PlayCircleOutline" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditorTitle}" Classes="demo-title" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.HotkeyEditorSubtitle}" Classes="demo-subtitle"/>
+                    </StackPanel>
+
+                    <!-- Interactive Demo -->
+                    <Border Classes="demo-container">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                            <views:HotkeyEditorDemoView DataContext="{Binding DemoHotkeyEditor}" Width="800" Height="560"/>
+                        </Viewbox>
+                    </Border>
+                </StackPanel>
+
+                <!-- 5. MODBUILDER -->
+                <StackPanel Spacing="40">
+                    <!-- Header -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <material:MaterialIcon Kind="PlayCircleOutline" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.ModBuilderTitle}" Classes="demo-title" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.ModBuilderSubtitle}" Classes="demo-subtitle"/>
+                    </StackPanel>
+
+                    <!-- Interactive Demo -->
+                    <Border Classes="demo-container">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                            <views:ModBuilderDemoView DataContext="{Binding DemoModBuilder}" Width="800" Height="600"/>
+                        </Viewbox>
+                    </Border>
+                </StackPanel>
+
+                <!-- 6. WND EDITOR -->
+                <StackPanel Spacing="40">
+                    <!-- Header -->
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <material:MaterialIcon Kind="PlayCircleOutline" Width="26" Height="26" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Info.Demo.Tools.WndEditorTitle}" Classes="demo-title" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{localization:Localize Info.Demo.Tools.WndEditorSubtitle}" Classes="demo-subtitle"/>
+                    </StackPanel>
+
+                    <!-- Interactive Demo -->
+                    <Border Classes="demo-container">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
+                            <views:WndEditorDemoView DataContext="{Binding DemoWndEditor}" Width="800" Height="560"/>
+                        </Viewbox>
                     </Border>
                 </StackPanel>
 
@@ -827,8 +893,11 @@
                     <Grid RowDefinitions="Auto, Auto, Auto" Grid.Row="0">
                       <!-- Card Header -->
                       <Grid ColumnDefinitions="*, Auto" Grid.Row="0" Margin="0,0,0,16">
-                        <!-- Title -->
-                        <TextBlock Text="{Binding Title}" Grid.Column="0" Classes="card-title" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <!-- Type Icon + Title -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                          <material:MaterialIcon Kind="{Binding IconKind}" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding Title}" Classes="card-title" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
 
                         <!-- Expand Icon -->
                         <Border Grid.Column="1"
@@ -918,9 +987,12 @@
                             <StackPanel>
                                 <!-- Header (Unified structure) -->
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="{Binding Title}" Grid.Column="0"
-                                               FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
-                                               TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <material:MaterialIcon Kind="{Binding IconKind}" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
+                                                   TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    </StackPanel>
 
                                     <!-- Expand Icon (Matches main layout) -->
                                     <Border Grid.Column="1"
@@ -975,9 +1047,12 @@
                             <StackPanel>
                                 <!-- Header (Unified structure) -->
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="{Binding Title}" Grid.Column="0"
-                                               FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
-                                               TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <material:MaterialIcon Kind="{Binding IconKind}" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
+                                                   TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    </StackPanel>
 
                                     <!-- Expand Icon (Matches main layout) -->
                                     <Border Grid.Column="1"

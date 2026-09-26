@@ -3079,6 +3079,240 @@
   <data name="Info.Demo.Tools.PublisherStudioStep3Desc" xml:space="preserve">
     <value>يقوم اللاعبون المشتركون بالتحقق من البيانات كل 30 دقيقة وتلقي الإشعارات وتنزيل التحديثات المعتمدة من CAS.</value>
   </data>
+  <data name="Info.Demo.Tools.HotkeyEditorTitle" xml:space="preserve">
+    <value>محرر الاختصارات</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditorSubtitle" xml:space="preserve">
+    <value>أعد ربط اختصارات بطاقة الأوامر مع كشف التعارض المباشر.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilderTitle" xml:space="preserve">
+    <value>ModBuilder</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilderSubtitle" xml:space="preserve">
+    <value>ابنِ مشروعًا تجريبيًا: المتغيرات وحزم المحتوى والبيانات الوصفية.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditorTitle" xml:space="preserve">
+    <value>محرر WND</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditorSubtitle" xml:space="preserve">
+    <value>حرر تخطيطات النوافذ مع معاينة حية على اللوحة.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.File" xml:space="preserve">
+    <value>ملف</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.New" xml:space="preserve">
+    <value>جديد</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Validate" xml:space="preserve">
+    <value>تحقق</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Edit" xml:space="preserve">
+    <value>تحرير</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.AddChild" xml:space="preserve">
+    <value>إضافة نافذة فرعية</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Delete" xml:space="preserve">
+    <value>حذف النافذة</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.View" xml:space="preserve">
+    <value>عرض</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomIn" xml:space="preserve">
+    <value>تكبير</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ZoomOut" xml:space="preserve">
+    <value>تصغير</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ResetZoom" xml:space="preserve">
+    <value>إعادة ضبط التقريب</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.Assets" xml:space="preserve">
+    <value>الأصول</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.LinkFolder" xml:space="preserve">
+    <value>ربط مجلد التعديل...</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Menu.ImportTexture" xml:space="preserve">
+    <value>استيراد خامة...</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Files.Label" xml:space="preserve">
+    <value>الملفات</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Tree.Label" xml:space="preserve">
+    <value>شجرة النوافذ</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Canvas.Label" xml:space="preserve">
+    <value>معاينة اللوحة</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Title" xml:space="preserve">
+    <value>الخصائص</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.X" xml:space="preserve">
+    <value>X</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Y" xml:space="preserve">
+    <value>Y</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Width" xml:space="preserve">
+    <value>العرض</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Height" xml:space="preserve">
+    <value>الارتفاع</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Properties.Validate" xml:space="preserve">
+    <value>تحقق</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Windows" xml:space="preserve">
+    <value>النوافذ:</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Ready" xml:space="preserve">
+    <value>حدد نافذة لتحرير أبعادها.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.NotValidated" xml:space="preserve">
+    <value>لم يتم التحقق بعد.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Invalid" xml:space="preserve">
+    <value>بعض النوافذ لها أبعاد فارغة.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Valid" xml:space="preserve">
+    <value>المستند صالح: 0 أخطاء.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Added" xml:space="preserve">
+    <value>تمت إضافة نافذة فرعية.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Status.Deleted" xml:space="preserve">
+    <value>تم حذف النافذة.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.Title" xml:space="preserve">
+    <value>عرض تجريبي</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.NewMessage" xml:space="preserve">
+    <value>تم إنشاء تخطيط جديد بدون عنوان. (محاكاة)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.SaveMessage" xml:space="preserve">
+    <value>تم حفظ المستند. (محاكاة)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.DeleteRootMessage" xml:space="preserve">
+    <value>حدد نافذة فرعية لحذفها. لا يمكن إزالة الشاشة الجذرية.</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.LinkMessage" xml:space="preserve">
+    <value>تم ربط مجلد تعديل تجريبي. (محاكاة)</value>
+  </data>
+  <data name="Info.Demo.Tools.WndEditor.Toast.ImportMessage" xml:space="preserve">
+    <value>تم استيراد خامة تجريبية. (محاكاة)</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Variants.Textures" xml:space="preserve">
+    <value>الخامات:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Variants.Audio" xml:space="preserve">
+    <value>الصوت:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Files.Label" xml:space="preserve">
+    <value>ملفات المشروع</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Files.Add" xml:space="preserve">
+    <value>إضافة إلى الحزمة</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Packs.Label" xml:space="preserve">
+    <value>حزم المحتوى</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.Label" xml:space="preserve">
+    <value>عناصر الحزمة</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.Remove" xml:space="preserve">
+    <value>إزالة من الحزمة</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveUp" xml:space="preserve">
+    <value>نقل لأعلى</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.MoveDown" xml:space="preserve">
+    <value>نقل لأسفل</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.PackItems.ConvertDds" xml:space="preserve">
+    <value>تحويل كل TGA إلى DDS</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Manifest.Label" xml:space="preserve">
+    <value>معاينة البيان</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.Run" xml:space="preserve">
+    <value>بناء الحزمة</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.LearnManifests" xml:space="preserve">
+    <value>تعرف على البيانات الوصفية</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Build.LogLabel" xml:space="preserve">
+    <value>سجل البناء</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.BundledFiles" xml:space="preserve">
+    <value>الملفات المجمعة:</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.Ready" xml:space="preserve">
+    <value>جمّع حزم المحتوى ثم ابنِ المشروع التجريبي.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.Converted" xml:space="preserve">
+    <value>تم تحويل خامات الحزمة إلى DDS.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Status.NothingToConvert" xml:space="preserve">
+    <value>لا توجد خامات TGA غير محولة في هذه الحزمة.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.Title" xml:space="preserve">
+    <value>عرض تجريبي</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.DuplicateMessage" xml:space="preserve">
+    <value>هذا الملف موجود بالفعل في هذه الحزمة.</value>
+  </data>
+  <data name="Info.Demo.Tools.ModBuilder.Toast.BuildMessage" xml:space="preserve">
+    <value>تم بناء حزمة المحتوى. (محاكاة)</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Faction.Label" xml:space="preserve">
+    <value>الفصيل:</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Conflicts.Label" xml:space="preserve">
+    <value>التعارضات:</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Label" xml:space="preserve">
+    <value>مسح</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Clear.Tooltip" xml:space="preserve">
+    <value>مسح الخانة المحددة</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Label" xml:space="preserve">
+    <value>إنشاء إضافة</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Addon.Tooltip" xml:space="preserve">
+    <value>تغليف الربط في بيان إضافة</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Grid.Label" xml:space="preserve">
+    <value>بطاقة الأوامر</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Label" xml:space="preserve">
+    <value>لوحة المفاتيح</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Palette.Hint" xml:space="preserve">
+    <value>اختر مفتاحًا لإسناده إلى الخانة المحددة.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Slot.Conflict" xml:space="preserve">
+    <value>تعارض</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Ready" xml:space="preserve">
+    <value>حدد خانة ثم اختر مفتاحًا لإعادة ربطها.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Conflict" xml:space="preserve">
+    <value>تعارض: الخانات تشترك في مفتاح. اختر مفاتيح مميزة لمسحه.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Status.Clear" xml:space="preserve">
+    <value>تم إسناد المفتاح. لا تعارضات.</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Toast.Title" xml:space="preserve">
+    <value>عرض تجريبي</value>
+  </data>
+  <data name="Info.Demo.Tools.HotkeyEditor.Toast.AddonMessage" xml:space="preserve">
+    <value>تم إنشاء بيان إضافة الاختصارات. (محاكاة)</value>
+  </data>
   <data name="Info.Demo.ScanWizard.Title" xml:space="preserve">
     <value>معالج الفحص</value>
   </data>
@@ -3866,7 +4100,13 @@
     <value>أدوات GenHub</value>
   </data>
   <data name="Info.Section.tools.Description" xml:space="preserve">
-    <value>أدوات مدمجة قوية: مدير الإعادات، مدير حزم الخرائط، وأدوات الإضافات المعيارية.</value>
+    <value>افحص الإعادات، وأدر الخرائط، وأعد ربط الاختصارات، وحرر تخطيطات الواجهة، وابنِ التعديلات، وانشر فهارس محتوى المجتمع.</value>
+  </data>
+  <data name="Info.Section.content-manifests.Title" xml:space="preserve">
+    <value>بيانات المحتوى الوصفية</value>
+  </data>
+  <data name="Info.Section.content-manifests.Description" xml:space="preserve">
+    <value>كيف تصنف البيانات الوصفية المحتوى وتنقله من الفهارس عبر CAS إلى مساحات عمل قابلة للتشغيل.</value>
   </data>
   <data name="Info.Section.generals-online-faq.Title" xml:space="preserve">
     <value>الأسئلة الشائعة لـ Generals Online</value>
@@ -14021,6 +14261,7 @@ https://example.com/screenshot2.png</value>
 * شجرة العناصر المرئية: فحص النوافذ والأزرار وأشرطة التمرير وحقول النص في عرض شجري.
 * التحقق من صحة التخطيط: يتحقق من حدود الإحداثيات ويكتشف العناصر المتداخلة.
 * المنسق القياسي: ينسق ملفات .wnd بمسافات بادئة نظيفة ومتسقة للتحكم في إصدارات Git.
+* للتحرير المرئي مع معاينة حية على اللوحة، استخدم أداة محرر WND المستقلة الموضحة في بطاقات محرر WND أدناه.
 
 **حزم أرشيف BIG.**
 * حزم مجلدات المصدر في أرشيفات .big و .gib.
@@ -14185,6 +14426,180 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Info.Card.tools.replay-gameclient-mapping.Title" xml:space="preserve">
     <value>مدير الإعادات: مطابقة عميل اللعبة والملفات الشخصية</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Title" xml:space="preserve">
+    <value>محرر WND: المستندات وسير العمل</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Content" xml:space="preserve">
+    <value>افتح ملفات تخطيط واجهة Command &amp; Conquer وتحقق منها واحفظها.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.DetailedContent" xml:space="preserve">
+    <value>محرر WND هو محرر منظم لملفات تخطيط واجهة محرك SAGE (‎.wnd)، متوفر ضمن تبويب **الأدوات**.
+
+**المستندات والمستكشف.**
+* **جديد وفتح:** أنشئ مستندًا بدون عنوان أو افتح ملفات ‎.wnd ومجلدات كاملة من القرص.
+* **مستكشف الملفات:** تصفح المجلدات المرتبطة، ووسّع أو اطوِ شجرة الملفات، وحدّث القائمة في أي وقت.
+* **الحفظ:** احفظ في المكان نفسه أو اختر مسارًا جديدًا عبر حفظ باسم. كل تعديل يدعم التراجع والإعادة.
+
+**التحقق.**
+انقر **تحقق** لتحليل هيكل عناصر التحكم والإبلاغ عن مشاكل الصياغة مع مواقعها الدقيقة قبل أن يصل الملف إلى اللعبة.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Action.NAV_Tools" xml:space="preserve">
+    <value>افتح محرر WND</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-workflow.Action.0" xml:space="preserve">
+    <value>افتح محرر WND</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.Title" xml:space="preserve">
+    <value>محرر WND: اللوحة والشجرة والخصائص</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.Content" xml:space="preserve">
+    <value>حدد النوافذ في الشجرة وحرر الأبعاد وعاين التخطيط مباشرة.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-canvas.DetailedContent" xml:space="preserve">
+    <value>**شجرة النوافذ.**
+كل ملف ‎.wnd هو هيكل هرمي من النوافذ وعناصر التحكم. حدد أي عقدة لفحصها؛ ووسّع الفروع أو اطوِها للتنقل في القوائم المعقدة.
+
+**معاينة اللوحة.**
+تعرض اللوحة التخطيط المحدد مع عناصر تحكم التقريب. ما تراه يطابق هيكل قائمة اللعبة، فيظهر اختلال المحاذاة فورًا.
+
+**الخصائص.**
+حرر أبعاد ScreenRect للنافذة المحددة (X وY والعرض والارتفاع) وسماتها مباشرة في شبكة الخصائص. تُطبق التغييرات على المستند فورًا ويمكن التراجع عنها.
+
+**إضافة وحذف.**
+أدخل نوافذ فرعية تحت التحديد الحالي أو احذف عناصر التحكم التي لم تعد تحتاجها، كل ذلك مع دعم كامل للتراجع.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.Title" xml:space="preserve">
+    <value>محرر WND: الأصول والخامات المخصصة</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.Content" xml:space="preserve">
+    <value>اربط مجلدات التعديلات والأرشيفات واستورد الخامات وطبق الصور المعينة.</value>
+  </data>
+  <data name="Info.Card.tools.wnd-editor-assets.DetailedContent" xml:space="preserve">
+    <value>تشير تخطيطات الواجهة إلى رسومات اللعبة بالاسم. يحل محرر WND هذه الرسومات من المحتوى لديك.
+
+**المصادر المرتبطة.**
+* **مجلدات التعديلات:** اربط مجلد تعديل جذريًا لتحميل الأصول المحررة.
+* **أرشيفات BIG:** اربط أرشيف ‎.big واحدًا أو أكثر لحل خامات النسخة الأصلية والتعديلات.
+* **إعادة التحميل:** حدّث معاينات الأصول بعد تغيير المصادر المرتبطة.
+
+**الخامات والصور المعينة.**
+* **الاستيراد:** أدخل خامات PNG أو TGA أو DDS إلى المشروع، بما فيها رسومات الصور المعينة المفقودة المبلغ عنها.
+* **التطبيق:** أسند صورة معينة أو أصل رسوميًا إلى بيانات رسم النافذة المحددة وشاهده على اللوحة.
+* **اللصق:** الصق أصلًا من الحافظة مباشرة في النافذة الحالية.</value>
+  </data>
+  <data name="Info.Card.tools.modbuilder-suite-pipeline.Action.NAV_INFO_content-manifests" xml:space="preserve">
+    <value>تعرف على البيانات الوصفية</value>
+  </data>
+  <data name="Info.Card.tools.modbuilder-suite-pipeline.Action.0" xml:space="preserve">
+    <value>تعرف على البيانات الوصفية</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Title" xml:space="preserve">
+    <value>ما هو بيان المحتوى؟</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.Content" xml:space="preserve">
+    <value>مخطط التثبيت الذي يصف كل تعديل وخريطة وإضافة في GenHub.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-overview.DetailedContent" xml:space="preserve">
+    <value>بيان المحتوى هو مستند JSON يصف بالكامل قطعة واحدة من المحتوى القابل للتثبيت: هويتها وملفاتها وكيفية تثبيتها في GenHub.
+
+**أنواع المحتوى + ملفات البيانات الوصفية.**
+* **نوع المحتوى:** يعلن ماهية المحتوى (Mod وMap وMapPack وAddon وPatch وGameClient وModdingTool وغيرها)، ليظهره GenHub في المكان الصحيح ويطبق قواعد التثبيت المناسبة.
+* **ملف البيان:** مستند ‎.manifest.json الذي يحمل الاسم ونسخة SemVer والوصف واللعبة المستهدفة والناشر وقائمة الملفات والاعتماديات.
+
+**الهوية والإصدارات.**
+يحمل كل بيان معرف بيان (مثل 1.0.shockwave.mod.shockwave-chaos-edition) إضافة إلى اسم مقروء ونسخة. يوقع الناشرون الإصدارات ببصمات SHA-256 ليتحقق GenHub من كل بايت قبل التثبيت.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.Title" xml:space="preserve">
+    <value>أنواع المحتوى ومعرفات البيانات</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.Content" xml:space="preserve">
+    <value>كيف يصنف GenHub الإصدارات الأساسية والمحتوى والمراجع الوصفية.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-content-types.DetailedContent" xml:space="preserve">
+    <value>**الأنواع الأساسية.**
+* **GameInstallation:** نسخة EA أو Steam أو قرص مادية مكتشفة على جهازك.
+* **GameClient:** ملف لعبة تنفيذي مستقل قابل للعب، مثل عميل تصحيح مجتمعي.
+
+**أنواع المحتوى.**
+* **Mod وPatch وAddon:** تغييرات أسلوب اللعب وإصلاحات التوازن والأدوات المساعدة المبنية على لعبة أو تعديل أساسي.
+* **Map وMapPack وMission:** خرائط مناوشات فردية ومجموعات خرائط منسقة ومهام قصصية.
+* **LanguagePack وSkin وVideo وReplay وScreensaver:** ترجمات وسمات واجهة وعروض وإعادات وإضافات.
+* **Executable وModdingTool:** برامج مستقلة وأدوات صناع مثل المحررات والمحولات.
+
+**الأنواع الوصفية.**
+* **ContentBundle وPublisherReferral وContentReferral:** مجموعات وروابط تجمع المحتوى أو تشير إليه بدل شحن الملفات مباشرة.
+
+**معرفات البيانات.**
+تتبع المعرفات الصيغة {version}.{publisherId}.{contentType}.{contentId} وتدعم المطابقة بالبادئة، فيكتشف متصفح التنزيلات حالات المثبت والقديم والقابل للتحديث دون تنزيل أي شيء.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Title" xml:space="preserve">
+    <value>من التنزيل إلى التشغيل</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.Content" xml:space="preserve">
+    <value>الاكتشاف والحل والتخزين المعنون بالمحتوى وربط مساحة العمل.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-pipeline.DetailedContent" xml:space="preserve">
+    <value>**1. الاكتشاف.**
+تعلن الفهارس والمزودون عن بيانات وصفية خفيفة. يعرض GenHub المحتوى دون تنزيل ملفات اللعبة.
+
+**2. الحل.**
+عند التثبيت يحل GenHub بيان ContentManifest الكامل: الملفات الدقيقة وبصمات SHA-256 والاعتماديات وقيود النسخ.
+
+**3. التخزين المعنون بالمحتوى (CAS).**
+تهبط البايتات المنزلة في مخزن CAS المشترك مفهرسة بالبصمة. الملفات المتطابقة عبر التعديلات والنسخ والملفات الشخصية تُخزن مرة واحدة ويُتحقق منها عند كل قراءة.
+
+**4. مخزن البيانات.**
+تنتظر البيانات المحلولة في المخزن جاهزة للإرفاق بأي ملف شخصي. تبديل النسخ لا يعيد تنزيل بايتات يملكها CAS أصلًا.
+
+**5. تشغيل الملف الشخصي.**
+تربط التسوية الملفات المجمعة في مساحة عمل معزولة باستخدام الروابط الصلبة أو الرمزية أو النسخ، ثم تشغّل اللعبة ضد مساحة العمل تلك.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Title" xml:space="preserve">
+    <value>الحزم والمتغيرات والاعتماديات</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Content" xml:space="preserve">
+    <value>غلّف الملفات في حزم واعرض بدائل وصرّح بالمتطلبات.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.DetailedContent" xml:space="preserve">
+    <value>**الحزم.**
+تربط الحزمة ملفات المصدر بأهداف التثبيت مع إعدادات التحويل (مثل تحويل خامات TGA إلى DDS عند البناء). يسمي كل عنصر حزمة ملفاته صراحة لتبقى البنى قابلة للتكرار.
+
+**المتغيرات.**
+تتيح المتغيرات للاعبين الاختيار عند التثبيت: خامات 1080p أو 4K، أو صوت إنجليزي أو ألماني. لا يُنزل ولا يُثبت إلا المتغير المحدد.
+
+**الاعتماديات.**
+تعلن البيانات عن علاقات Required وOptional وRecommended وConflicting مع قيود نسخ SemVer. تُثبت التعديلات الأساسية تلقائيًا، وتُحظر التركيبات المتعارضة قبل أن تعطل ملفًا شخصيًا.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Action.NAV_INFO_tools" xml:space="preserve">
+    <value>افتح دليل الأدوات</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-bundles.Action.0" xml:space="preserve">
+    <value>افتح دليل الأدوات</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Title" xml:space="preserve">
+    <value>تأليف البيانات الوصفية للصناع</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Content" xml:space="preserve">
+    <value>أنتج البيانات بأدوات ModBuilder ومحرر الاختصارات وPublisher Studio.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.DetailedContent" xml:space="preserve">
+    <value>نادرًا ما تكتب JSON البيان يدويًا. أدوات GenHub تولده لك.
+
+**ModBuilder.**
+جمّع حزم المحتوى من ملفات المشروع واضبط المتغيرات وصدّر حزم الإصدار. يكتب محرر الحزم ربط الملفات والتحويلات والبصمات في البيان.
+
+**محرر الاختصارات.**
+انقر إنشاء إضافة لتغليف الربط وترقيعات INI وتراكبات الصور في إضافة ‎.manifest.json معزولة قابلة للإرفاق بأي ملف شخصي.
+
+**Publisher Studio.**
+انشر تعريفات ناشر من المستوى 1 وفهارس من المستوى 2 تحمل سجلات إصدارها روابط المصنفات وبصمات SHA-256 وسجلات التغيير لكل نسخة.</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Action.NAV_INFO_tools" xml:space="preserve">
+    <value>جرّب عرض ModBuilder</value>
+  </data>
+  <data name="Info.Card.content-manifests.manifest-authoring.Action.0" xml:space="preserve">
+    <value>جرّب عرض ModBuilder</value>
   </data>
   <data name="Info.Sidebar.CardsTitle" xml:space="preserve">
     <value>الأقسام</value>
