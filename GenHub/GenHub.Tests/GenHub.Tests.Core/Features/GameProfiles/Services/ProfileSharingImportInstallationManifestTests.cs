@@ -44,6 +44,8 @@ public sealed class ProfileSharingImportInstallationManifestTests
     private const string UnknownVersionInstallationManifestId = "1.0.genhublocal.gameinstallation.zerohour";
     private const string ClientManifestId = "1.0.thesuperhackers.gameclient.zerohour";
 
+    private static readonly string InstallationPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "GenHubImportTests", "zerohour");
+
     private static readonly JsonSerializerOptions PackageJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -75,6 +77,9 @@ public sealed class ProfileSharingImportInstallationManifestTests
                     _pool.Values
                         .Where(m => m.ContentType == query.ContentType && m.TargetGame == query.TargetGame)
                         .ToList()));
+        _manifestPoolMock
+            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(_pool.Values.ToList()));
         _manifestPoolMock
             .Setup(m => m.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ManifestId id, CancellationToken _) => OperationResult<bool>.CreateSuccess(_pool.ContainsKey(id.Value)));
@@ -147,6 +152,32 @@ public sealed class ProfileSharingImportInstallationManifestTests
         Assert.Contains(UnknownVersionInstallationManifestId, profile.EnabledContentIds);
         Assert.DoesNotContain("1.104.steam.gameinstallation.zerohour", profile.EnabledContentIds);
         Assert.DoesNotContain(PooledInstallationManifestId, profile.EnabledContentIds);
+    }
+
+    /// <summary>A fallback must not bind an unrelated or unidentified installation.</summary>
+    /// <param name="sourcePath">The pooled manifest's source directory.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData("/games/other-installation")]
+    [InlineData(null)]
+    [InlineData("relative-installation")]
+    public async Task ImportSharedProfileAsync_UnrelatedPooledManifest_IsNotSelectedAsync(string? sourcePath)
+    {
+        if (sourcePath == "/games/other-installation")
+        {
+            sourcePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "other-installation");
+        }
+
+        PoolInstallationManifest(UnknownVersionInstallationManifestId, GameInstallationType.Custom, sourcePath);
+        PoolClientManifest();
+        SetUpInstallation("1.04");
+        using var sharingService = CreateSharingService();
+
+        var result = await sharingService.ImportSharedProfileAsync(CreateImportRequest());
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Contains(PooledInstallationManifestId, result.Data!.EnabledContentIds);
+        Assert.DoesNotContain(UnknownVersionInstallationManifestId, result.Data.EnabledContentIds);
     }
 
     /// <summary>
@@ -246,12 +277,16 @@ public sealed class ProfileSharingImportInstallationManifestTests
         GameInstallationId = InstallationId,
     };
 
-    private void PoolInstallationManifest(string id, GameInstallationType installationType)
+    private void PoolInstallationManifest(string id, GameInstallationType installationType) =>
+        PoolInstallationManifest(id, installationType, InstallationPath);
+
+    private void PoolInstallationManifest(string id, GameInstallationType installationType, string? sourcePath)
     {
         _pool[id] = new ContentManifest
         {
             Id = ManifestId.Create(id),
             Name = $"{installationType} Zero Hour",
+            Metadata = new ContentMetadata { SourcePath = sourcePath },
             Version = id.Split('.')[1],
             ContentType = ContentType.GameInstallation,
             TargetGame = GameType.ZeroHour,
@@ -271,7 +306,7 @@ public sealed class ProfileSharingImportInstallationManifestTests
 
     private void SetUpInstallation(string clientVersion)
     {
-        var installation = new GameInstallation("/games/zerohour", GameInstallationType.Custom)
+        var installation = new GameInstallation(InstallationPath, GameInstallationType.Custom)
         {
             Id = InstallationId,
             HasZeroHour = true,

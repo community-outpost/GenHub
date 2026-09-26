@@ -2023,16 +2023,18 @@ public class ProfileSharingService(
             return expectedId;
         }
 
-        // The pooled manifest can carry a different version segment than the one derived from the client,
-        // so fall back to any pooled manifest for the same installation type and game.
-        var unversionedSuffix = expectedId[expectedId.IndexOf('.', expectedId.IndexOf('.') + 1)..];
-        var searchResult = await manifestPool.SearchManifestsAsync(
-            new ContentSearchQuery { ContentType = ContentType.GameInstallation, TargetGame = gameType },
-            cancellationToken);
-
+        // A version fallback is safe only when persistence metadata identifies this exact installation.
+        // Read the complete pool so lookup is not limited by a search page size.
+        var expectedPublisher = ManifestId.Create(expectedId).Publisher;
+        var searchResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         var pooledManifest = searchResult is { Success: true, Data: not null }
             ? searchResult.Data
-                .Where(m => m.Id.Value.EndsWith(unversionedSuffix, StringComparison.OrdinalIgnoreCase))
+                .Where(m => m.ContentType == ContentType.GameInstallation && m.TargetGame == gameType
+                    && string.Equals(m.Id.Publisher, expectedPublisher, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(m.Metadata?.SourcePath)
+                    && Path.IsPathFullyQualified(m.Metadata.SourcePath)
+                    && PathHelper.AreSamePath(m.Metadata.SourcePath, installation.InstallationPath))
                 .OrderByDescending(m => GameVersionHelper.NormalizeVersion(m.Version))
                 .FirstOrDefault()
             : null;
