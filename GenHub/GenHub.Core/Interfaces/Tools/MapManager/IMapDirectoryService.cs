@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.MapManager;
 using System.Collections.Generic;
 using System.Threading;
@@ -37,8 +38,8 @@ public interface IMapDirectoryService
     /// </summary>
     /// <param name="maps">The maps to delete.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>True if deletion was successful.</returns>
-    Task<bool> DeleteMapsAsync(IEnumerable<MapFile> maps, CancellationToken ct = default);
+    /// <returns>The result of the deletion, with a user-facing error when it failed.</returns>
+    Task<OperationResult> DeleteMapsAsync(IEnumerable<MapFile> maps, CancellationToken ct = default);
 
     /// <summary>
     /// Opens the map directory in Windows Explorer.
@@ -58,6 +59,6 @@ public interface IMapDirectoryService
     /// <param name="map">The map to rename.</param>
     /// <param name="newName">The new name (without extension).</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>True if successful, false otherwise.</returns>
-    Task<bool> RenameMapAsync(MapFile map, string newName, CancellationToken ct = default);
+    /// <returns>The result of the rename, with a user-facing error when it failed.</returns>
+    Task<OperationResult> RenameMapAsync(MapFile map, string newName, CancellationToken ct = default);
 }

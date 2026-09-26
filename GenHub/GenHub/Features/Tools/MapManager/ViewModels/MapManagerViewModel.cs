@@ -636,7 +636,7 @@ public partial class MapManagerViewModel(
         int count = mapsToDelete.Count;
 
         var result = await directoryService.DeleteMapsAsync(mapsToDelete);
-        if (result)
+        if (result.Success)
         {
             // Remove from local lists to avoid full reload
             foreach (var map in mapsToDelete)
@@ -653,7 +653,7 @@ public partial class MapManagerViewModel(
         }
         else
         {
-            notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Could not delete selected maps.");
+            notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, result.FirstError ?? "Could not delete selected maps.");
             StatusMessage = "Deletion error.";
         }
 

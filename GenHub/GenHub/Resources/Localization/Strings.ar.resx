@@ -8192,6 +8192,15 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ReplayManager.Status.ImportFailed" xml:space="preserve">
     <value>فشل الاستيراد: {0}</value>
   </data>
+  <data name="Maps.Error.FolderNotWritable" xml:space="preserve">
+    <value>تعذر على GenHub جعل مجلد الخريطة "{0}" قابلاً للكتابة. تأكد من أن حسابك يملك المجلد وأنه غير مقفل، ثم حاول مرة أخرى.</value>
+  </data>
+  <data name="Maps.Error.DeleteFailed" xml:space="preserve">
+    <value>تعذر حذف "{0}".</value>
+  </data>
+  <data name="Maps.Error.RenameFailed" xml:space="preserve">
+    <value>تعذرت إعادة تسمية "{0}".</value>
+  </data>
   <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
     <value>لم يتم العثور على ملفات خرائط لاستيرادها.</value>
   </data>
