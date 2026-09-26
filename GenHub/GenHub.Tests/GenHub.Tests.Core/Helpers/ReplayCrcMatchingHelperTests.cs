@@ -1209,6 +1209,52 @@ public class ReplayCrcMatchingHelperTests
         }
     }
 
+    /// <summary>
+    /// Verifies that the metadata-only heuristic recognizes an official Steam client without touching the filesystem.
+    /// </summary>
+    [Fact]
+    public void IsRetailCompatibleHeuristic_WithSteamClient_ReturnsTrue()
+    {
+        var profile = new GameProfile
+        {
+            Id = "test-profile",
+            Name = "Steam Profile",
+            GameClient = new GameClient
+            {
+                Id = "steam",
+                Name = "Command & Conquer Generals Zero Hour (Steam)",
+                PublisherType = PublisherTypeConstants.Steam,
+                Version = "1.04",
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatibleHeuristic(profile));
+    }
+
+    /// <summary>
+    /// Verifies that the metadata-only heuristic rejects non-retail engine clients and missing profiles.
+    /// </summary>
+    [Fact]
+    public void IsRetailCompatibleHeuristic_WithNonRetailClient_ReturnsFalse()
+    {
+        var onlineProfile = new GameProfile
+        {
+            Id = "test-profile",
+            Name = "Online Profile",
+            GameClient = new GameClient
+            {
+                Id = "1.000104.generalsonline.gameclient.zerohour",
+                Name = "Generals Online",
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatibleHeuristic(onlineProfile));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatibleHeuristic(null));
+    }
+
     private static async Task RunProfileIniCompatibilityScenarioAsync(
         string clientId,
         string clientName,

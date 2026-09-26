@@ -1113,7 +1113,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
             return;
         }
 
-        var isRetail = ReplayCrcMatchingHelper.IsRetailCompatible(profile);
+        // Metadata-only heuristic: executable hashing and live INI verification run on the
+        // scheduled background path below and correct the badge when they disagree.
+        var isRetail = ReplayCrcMatchingHelper.IsRetailCompatibleHeuristic(profile);
         ApplyCompatibilityBadge(profile, isRetail);
         ScheduleIniCompatibilityVerification(profile);
     }

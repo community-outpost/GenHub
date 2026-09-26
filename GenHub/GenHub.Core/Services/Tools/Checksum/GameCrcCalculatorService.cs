@@ -77,7 +77,9 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         var sideloadsPart = sideloadPaths != null && sideloadPaths.Count > 0 ? string.Join(';', sideloadPaths) : string.Empty;
         var baseKey = $"{gameRootPath}|{gameType}|{sideloadsPart}|{modPath}";
 
-        if ((allowedBaseRelativePaths == null || allowedBaseRelativePaths.Count == 0) &&
+        // An explicitly empty allow-list excludes every base file, which differs from
+        // the unrestricted scan, so only a null allow-list reuses the legacy key.
+        if (allowedBaseRelativePaths == null &&
             (overlayModPaths == null || overlayModPaths.Count == 0))
         {
             return baseKey;

@@ -34,37 +34,32 @@ public class ProfileVerificationFileSetService(
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        var manifests = await CollectManifestsAsync(profile, cancellationToken).ConfigureAwait(false);
+        var (manifests, hasMissingManifests) = await CollectManifestsAsync(profile, cancellationToken).ConfigureAwait(false);
         var allowedBasePaths = CollectBasePaths(manifests);
-        var (overlayPaths, complete) = await CollectOverlayPathsAsync(manifests, cancellationToken).ConfigureAwait(false);
+        var (overlayPaths, overlaysComplete) = await CollectOverlayPathsAsync(manifests, cancellationToken).ConfigureAwait(false);
 
         return new ProfileVerificationFileSet(
             allowedBasePaths.Count > 0 ? allowedBasePaths : null,
             overlayPaths,
-            complete);
+            !hasMissingManifests && overlaysComplete);
     }
 
     private static HashSet<string> CollectBasePaths(IReadOnlyList<ContentManifest> manifests)
     {
         var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var manifest in manifests)
+        foreach (var file in manifests
+            .Where(IsBaseManifest)
+            .SelectMany(manifest => ManifestVariantResolver.ResolveFiles(manifest))
+            .Where(file => !string.IsNullOrWhiteSpace(file.RelativePath)))
         {
-            if (manifest.ContentType != ContentType.GameInstallation && manifest.ContentType != ContentType.GameClient)
-            {
-                continue;
-            }
-
-            foreach (var file in manifest.Files)
-            {
-                if (!string.IsNullOrWhiteSpace(file.RelativePath))
-                {
-                    allowed.Add(file.RelativePath);
-                }
-            }
+            allowed.Add(file.RelativePath);
         }
 
         return allowed;
     }
+
+    private static bool IsBaseManifest(ContentManifest manifest) =>
+        manifest.ContentType == ContentType.GameInstallation || manifest.ContentType == ContentType.GameClient;
 
     private static bool IsBigArchive(string? relativePath)
     {
@@ -79,55 +74,54 @@ public class ProfileVerificationFileSetService(
             hash.All(char.IsAsciiHexDigit);
     }
 
-    private async Task<IReadOnlyList<ContentManifest>> CollectManifestsAsync(
+    private async Task<(List<ContentManifest> Manifests, bool HasMissingManifests)> CollectManifestsAsync(
         IGameProfile profile,
         CancellationToken cancellationToken)
     {
-        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (!string.IsNullOrWhiteSpace(profile.GameClient?.Id))
-        {
-            ids.Add(profile.GameClient.Id);
-        }
+        var enabledIds = new HashSet<string>(
+            profile.EnabledContentIds.Where(id => !string.IsNullOrWhiteSpace(id)),
+            StringComparer.OrdinalIgnoreCase);
 
-        foreach (var enabledId in profile.EnabledContentIds)
+        var ids = new HashSet<string>(enabledIds, StringComparer.OrdinalIgnoreCase);
+        var clientId = profile.GameClient?.Id;
+        if (!string.IsNullOrWhiteSpace(clientId))
         {
-            if (!string.IsNullOrWhiteSpace(enabledId))
-            {
-                ids.Add(enabledId);
-            }
+            ids.Add(clientId);
         }
 
         var manifests = new List<ContentManifest>(ids.Count);
+        var hasMissingManifests = false;
         foreach (var id in ids)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var manifest = await TryGetManifestAsync(id, cancellationToken).ConfigureAwait(false);
+            if (!ManifestId.TryCreate(id, out var manifestId))
+            {
+                continue;
+            }
+
+            var manifest = await TryGetManifestAsync(manifestId, cancellationToken).ConfigureAwait(false);
             if (manifest != null)
             {
                 manifests.Add(manifest);
             }
+            else if (enabledIds.Contains(id))
+            {
+                // Fail closed when an enabled manifest cannot be resolved: the client
+                // manifest lookup stays best-effort because detected clients carry
+                // synthetic IDs that are not pool-backed.
+                hasMissingManifests = true;
+            }
         }
 
-        return manifests;
+        return (manifests, hasMissingManifests);
     }
 
-    private async Task<ContentManifest?> TryGetManifestAsync(string manifestId, CancellationToken cancellationToken)
+    private async Task<ContentManifest?> TryGetManifestAsync(ManifestId manifestId, CancellationToken cancellationToken)
     {
-        ManifestId id;
-        try
-        {
-            id = ManifestId.Create(manifestId);
-        }
-        catch (ArgumentException ex)
-        {
-            logger?.LogDebug(ex, "Skipping invalid manifest ID '{ManifestId}' while resolving verification file set", manifestId);
-            return null;
-        }
-
-        var result = await manifestPool.GetManifestAsync(id, cancellationToken).ConfigureAwait(false);
+        var result = await manifestPool.GetManifestAsync(manifestId, cancellationToken).ConfigureAwait(false);
         if (!result.Success || result.Data == null)
         {
-            logger?.LogDebug("Manifest '{ManifestId}' unavailable while resolving verification file set", manifestId);
+            logger?.LogDebug("Manifest '{ManifestId}' unavailable while resolving verification file set", manifestId.Value);
             return null;
         }
 
@@ -149,7 +143,7 @@ public class ProfileVerificationFileSetService(
         foreach (var manifest in overlays)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            foreach (var file in manifest.Files)
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
             {
                 var resolved = await ResolveOverlayArchiveAsync(manifest, file, cancellationToken).ConfigureAwait(false);
                 if (resolved != null)

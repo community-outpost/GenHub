@@ -598,12 +598,9 @@ public sealed class SageVirtualFileSystem
         }
 
         var normalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in allowedBaseRelativePaths)
+        foreach (var entry in allowedBaseRelativePaths.Where(entry => !string.IsNullOrWhiteSpace(entry)))
         {
-            if (!string.IsNullOrWhiteSpace(entry))
-            {
-                normalized.Add(entry.Replace('/', '\\'));
-            }
+            normalized.Add(entry.Replace('/', '\\'));
         }
 
         return normalized;

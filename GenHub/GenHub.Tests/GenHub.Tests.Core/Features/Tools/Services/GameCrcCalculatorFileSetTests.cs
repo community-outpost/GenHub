@@ -68,6 +68,21 @@ public sealed class GameCrcCalculatorFileSetTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an explicitly empty allow-list gets its own cache key instead of reusing the legacy unrestricted key.
+    /// </summary>
+    [Fact]
+    public void BuildIniCacheKey_WithEmptyAllowList_DiffersFromLegacyKey()
+    {
+        var legacy = GameCrcCalculatorService.BuildIniCacheKey(_tempRoot, GameType.ZeroHour);
+        var empty = GameCrcCalculatorService.BuildIniCacheKey(
+            _tempRoot,
+            GameType.ZeroHour,
+            allowedBaseRelativePaths: []);
+
+        Assert.NotEqual(legacy, empty);
+    }
+
+    /// <summary>
     /// Verifies that foreign base archives are excluded from the calculated CRC when scoped.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

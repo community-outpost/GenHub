@@ -24,6 +24,21 @@ namespace GenHub.Core.Helpers;
 public static class ReplayCrcMatchingHelper
 {
     /// <summary>
+    /// Verification inputs for a live INI CRC calculation.
+    /// </summary>
+    /// <param name="TargetDirectory">The game directory to verify.</param>
+    /// <param name="EffectiveGameType">The game type used to judge the calculated CRC.</param>
+    /// <param name="ProfileName">The profile name used for logging.</param>
+    /// <param name="AllowedBaseRelativePaths">Optional allow-list of game-root-relative base file paths.</param>
+    /// <param name="OverlayModPaths">Optional profile overlay mod directories or .big archive paths.</param>
+    private sealed record IniCrcVerificationRequest(
+        string TargetDirectory,
+        GameType EffectiveGameType,
+        string? ProfileName,
+        IReadOnlyCollection<string>? AllowedBaseRelativePaths,
+        IReadOnlyList<string>? OverlayModPaths);
+
+    /// <summary>
     /// Known SHA-256 hashes for official retail Generals executables (1.08, 1.09).
     /// </summary>
     public static readonly string[] GeneralsRetailExeSha256Hashes =
@@ -467,6 +482,28 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
+    /// Heuristically determines whether the specified game profile looks retail compatible
+    /// from client metadata and enabled content alone, without touching the filesystem.
+    /// </summary>
+    /// <remarks>
+    /// Intended for synchronous UI badge resolution, where hashing executables would block
+    /// the UI thread. The scheduled asynchronous verification performs full validation
+    /// (executable hashes and live INI CRC) and corrects the badge when it disagrees.
+    /// </remarks>
+    /// <param name="profile">The game profile to evaluate.</param>
+    /// <returns><c>true</c> if metadata suggests retail compatibility; otherwise, <c>false</c>.</returns>
+    public static bool IsRetailCompatibleHeuristic(IGameProfile? profile)
+    {
+        if (profile?.GameClient == null)
+        {
+            return false;
+        }
+
+        return !IsNonRetailCandidate(profile.GameClient, profile.EnabledContentIds) &&
+            IsOfficialBaseClient(profile.GameClient);
+    }
+
+    /// <summary>
     /// Determines whether the specified game client is a Generals Online client.
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
@@ -664,15 +701,13 @@ public static class ReplayCrcMatchingHelper
                 return false;
             }
 
-            return await CalculateAndVerifyIniCrcAsync(
-                crcCalculator,
+            var request = new IniCrcVerificationRequest(
                 targetDir,
                 effectiveGameType,
                 profile.Name,
-                logger,
                 allowedBaseRelativePaths,
-                overlayModPaths,
-                ct).ConfigureAwait(false);
+                overlayModPaths);
+            return await CalculateAndVerifyIniCrcAsync(crcCalculator, request, logger, ct).ConfigureAwait(false);
         }
 
         if (TryGetCachedIniCrc(client, effectiveGameType, out var cachedIniCrc) && !string.IsNullOrWhiteSpace(cachedIniCrc))
@@ -1110,24 +1145,20 @@ public static class ReplayCrcMatchingHelper
 
     private static async Task<bool> CalculateAndVerifyIniCrcAsync(
         IGameCrcCalculatorService crcCalculator,
-        string targetDir,
-        GameType effectiveGameType,
-        string? profileName,
+        IniCrcVerificationRequest request,
         ILogger? logger,
-        IReadOnlyCollection<string>? allowedBaseRelativePaths,
-        IReadOnlyList<string>? overlayModPaths,
         CancellationToken ct)
     {
-        logger?.LogDebug("Calculating INI CRC for profile '{Profile}' at '{Root}'", profileName, targetDir);
+        logger?.LogDebug("Calculating INI CRC for profile '{Profile}' at '{Root}'", request.ProfileName, request.TargetDirectory);
         var iniResult = await crcCalculator.CalculateIniCrcAsync(
-            targetDir,
-            effectiveGameType,
-            allowedBaseRelativePaths: allowedBaseRelativePaths,
-            overlayModPaths: overlayModPaths,
+            request.TargetDirectory,
+            request.EffectiveGameType,
+            allowedBaseRelativePaths: request.AllowedBaseRelativePaths,
+            overlayModPaths: request.OverlayModPaths,
             ct: ct).ConfigureAwait(false);
         if (iniResult.Success && !string.IsNullOrEmpty(iniResult.Data))
         {
-            return IsRetailIniCrc(iniResult.Data, effectiveGameType);
+            return IsRetailIniCrc(iniResult.Data, request.EffectiveGameType);
         }
 
         return false;

@@ -81,17 +81,68 @@ public sealed class ProfileVerificationFileSetServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that a missing base manifest degrades to an unfiltered scan.
+    /// Verifies that unavailable base manifests fail closed instead of degrading to an unfiltered scan.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetVerificationFileSetAsync_WithoutBaseManifests_ReturnsNullAllowedSet()
+    public async Task GetVerificationFileSetAsync_WithMissingBaseManifests_MarksIncomplete()
     {
         var profile = CreateProfile("1.0.test.gameclient.unknown", "1.0.test.gameinstallation.unknown");
 
         var result = await _service.GetVerificationFileSetAsync(profile);
 
         Assert.Null(result.AllowedBaseRelativePaths);
+        Assert.False(result.IsComplete);
+    }
+
+    /// <summary>
+    /// Verifies that a missing enabled manifest marks the set incomplete even when the client manifest resolves.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetVerificationFileSetAsync_WithMissingEnabledManifest_MarksIncomplete()
+    {
+        RegisterManifest(CreateManifest(
+            ClientManifestId,
+            ContentType.GameClient,
+            ("game.dat", null, ValidHash)));
+        var profile = CreateProfile(ClientManifestId, "1.0.test.mod.unknown");
+
+        var result = await _service.GetVerificationFileSetAsync(profile);
+
+        Assert.False(result.IsComplete);
+    }
+
+    /// <summary>
+    /// Verifies that base paths come from the resolved variant rather than the flat file list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetVerificationFileSetAsync_WithVariantManifest_UsesResolvedVariantFiles()
+    {
+        var installManifest = CreateManifest(
+            InstallManifestId,
+            ContentType.GameInstallation,
+            ("IgnoredFlat.txt", null, ValidHash));
+        installManifest.Variants.Add(new ArtifactVariant
+        {
+            Files =
+            [
+                new ManifestFile { RelativePath = "INIZH.big", Hash = ValidHash },
+            ],
+        });
+        RegisterManifest(installManifest);
+        RegisterManifest(CreateManifest(
+            ClientManifestId,
+            ContentType.GameClient,
+            ("game.dat", null, ValidHash)));
+        var profile = CreateProfile(ClientManifestId, InstallManifestId, ClientManifestId);
+
+        var result = await _service.GetVerificationFileSetAsync(profile);
+
+        Assert.NotNull(result.AllowedBaseRelativePaths);
+        Assert.Contains("INIZH.big", result.AllowedBaseRelativePaths);
+        Assert.DoesNotContain("IgnoredFlat.txt", result.AllowedBaseRelativePaths);
         Assert.True(result.IsComplete);
     }
 
