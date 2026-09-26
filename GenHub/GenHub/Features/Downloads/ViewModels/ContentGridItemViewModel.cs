@@ -34,6 +34,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="contentStateService">The content state service.</param>
 /// <param name="logger">The logger.</param>
 /// <param name="downloadCoordinator">The optional download coordinator.</param>
+/// <param name="localizationService">The optional localization service.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods and properties bound to UI and MVVM bindings.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content grid item VM coordinates download, installation, and multi-component bundle state.")]
 public sealed partial class ContentGridItemViewModel(
