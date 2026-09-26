@@ -40,6 +40,9 @@ public static class AppServices
         services.AddGameProfileServices();
         services.AddLaunchingServices();
 
+        // Register Online services (feature-flagged virtual LAN tab)
+        services.AddOnlineServices();
+
         // Register User Data services (depends on CAS and file operations)
         services.AddUserDataServices();
 

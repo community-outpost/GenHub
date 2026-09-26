@@ -184,8 +184,8 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="0,16,0,0" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Margin="32,0,32,48" Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
+  <ScrollViewer ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="32,16,32,48" Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
 
         <!-- Main Section Header -->
         <StackPanel Margin="0,0,0,50">

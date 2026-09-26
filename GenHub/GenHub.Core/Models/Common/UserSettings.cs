@@ -218,6 +218,9 @@ public class UserSettings
     /// </summary>
     public bool IsNotificationMuted { get; set; }
 
+    /// <summary>Gets or sets the player's LAN nickname, synced into the launched game's Network.ini from the Online tab.</summary>
+    public string? OnlineNickname { get; set; }
+
     /// <summary>Creates a deep copy of the current UserSettings instance.</summary>
     /// <returns>A new UserSettings instance with all properties deeply copied.</returns>
     public UserSettings Clone()
@@ -255,6 +258,7 @@ public class UserSettings
             ApplicationDataPath = ApplicationDataPath,
             HasSeenQuickStart = HasSeenQuickStart,
             IsNotificationMuted = IsNotificationMuted,
+            OnlineNickname = OnlineNickname,
 
             SubscribedPrNumber = SubscribedPrNumber,
             SubscribedBranch = SubscribedBranch,

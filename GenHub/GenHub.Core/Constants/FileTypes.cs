@@ -21,6 +21,11 @@ public static class FileTypes
     public const string ManifestFileExtension = ".manifest.json";
 
     /// <summary>
+    /// Suffix for atomic-write staging files beside their target.
+    /// </summary>
+    public const string AtomicWriteTempSuffix = ".tmp";
+
+    /// <summary>
     /// File extension for JSON files.
     /// </summary>
     public const string JsonFileExtension = ".json";

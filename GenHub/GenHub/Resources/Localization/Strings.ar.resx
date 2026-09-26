@@ -1730,6 +1730,9 @@
     <value>الإشعارات</value>
     <comment>Navigation tooltip for notifications</comment>
   </data>
+  <data name="Navigation.Online" xml:space="preserve">
+    <value>عبر الإنترنت</value>
+  </data>
   <data name="Navigation.Settings" xml:space="preserve">
     <value>الإعدادات</value>
     <comment>Settings navigation tab.</comment>
@@ -1794,6 +1797,357 @@
   </data>
   <data name="Notifications.Tooltip.Options" xml:space="preserve">
     <value>خيارات الإشعارات</value>
+  </data>
+  <data name="Online.Action.Create" xml:space="preserve">
+    <value>إنشاء</value>
+  </data>
+  <data name="Online.Action.Join" xml:space="preserve">
+    <value>انضمام</value>
+  </data>
+  <data name="Online.Action.Leave" xml:space="preserve">
+    <value>مغادرة</value>
+  </data>
+  <data name="Online.Action.Play" xml:space="preserve">
+    <value>العب</value>
+  </data>
+  <data name="Online.Action.Stop" xml:space="preserve">
+    <value>إيقاف</value>
+  </data>
+  <data name="Online.Action.Ban" xml:space="preserve">
+    <value>حظر</value>
+  </data>
+  <data name="Online.Action.CopyIp" xml:space="preserve">
+    <value>نسخ IP</value>
+  </data>
+  <data name="Online.Action.Retry" xml:space="preserve">
+    <value>إعادة المحاولة</value>
+  </data>
+  <data name="Online.Action.Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Online.Action.Refresh" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Online.Create.NameWatermark" xml:space="preserve">
+    <value>اسم الشبكة</value>
+  </data>
+  <data name="Online.Create.PasswordWatermark" xml:space="preserve">
+    <value>كلمة المرور (اختيارية)</value>
+  </data>
+  <data name="Online.Create.PasswordHint" xml:space="preserve">
+    <value>اختياري. اتركه فارغًا لردهة مفتوحة (4 أحرف على الأقل عند التعيين).</value>
+  </data>
+  <data name="Online.Create.PublicLabel" xml:space="preserve">
+    <value>إدراج علني</value>
+  </data>
+  <data name="Online.Create.SlotsLabel" xml:space="preserve">
+    <value>الخانات:</value>
+  </data>
+  <data name="Online.Create.Submit" xml:space="preserve">
+    <value>إنشاء وانضمام</value>
+  </data>
+  <data name="Online.Create.SuccessMessage" xml:space="preserve">
+    <value>تم الانضمام باستخدام IP الافتراضي {0}.</value>
+  </data>
+  <data name="Online.Create.SuccessTitle" xml:space="preserve">
+    <value>تم إنشاء الشبكة</value>
+  </data>
+  <data name="Online.Create.Title" xml:space="preserve">
+    <value>إنشاء شبكة</value>
+  </data>
+  <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
+    <value>الوصف وقواعد الغرفة (اختياري)</value>
+  </data>
+  <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
+    <value>الاتصال النفقي متعدد اللاعبين غير متاح</value>
+  </data>
+  <data name="Online.Adapter.UnavailableMessage" xml:space="preserve">
+    <value>المحول الافتراضي للشبكة المحلية غير مشغّل، لذا لن يظهر أعضاء الردهة داخل اللعبة بعد. قائمة الأعضاء والحضور ما زالا يعملان.</value>
+  </data>
+  <data name="Online.Detail.DescriptionLabel" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Online.Detail.ExpectedProfileLabel" xml:space="preserve">
+    <value>الملف المتوقع</value>
+  </data>
+  <data name="Online.Detail.HostLabel" xml:space="preserve">
+    <value>المضيف</value>
+  </data>
+  <data name="Online.Detail.HostOffline" xml:space="preserve">
+    <value>غير متصل</value>
+  </data>
+  <data name="Online.Detail.HostOnline" xml:space="preserve">
+    <value>متصل</value>
+  </data>
+  <data name="Online.Detail.NoDescription" xml:space="preserve">
+    <value>لا يوجد وصف.</value>
+  </data>
+  <data name="Online.Detail.SlotsLabel" xml:space="preserve">
+    <value>الخانات</value>
+  </data>
+  <data name="Online.Detail.TagsLabel" xml:space="preserve">
+    <value>الوسوم</value>
+  </data>
+  <data name="Online.Detail.Title" xml:space="preserve">
+    <value>تفاصيل الشبكة</value>
+  </data>
+  <data name="Online.Error.BanFailed" xml:space="preserve">
+    <value>فشل الحظر. فقط المضيف يمكنه حظر الأعضاء.</value>
+  </data>
+  <data name="Online.Error.BanTitle" xml:space="preserve">
+    <value>تعذر حظر العضو</value>
+  </data>
+  <data name="Online.Error.CopyTitle" xml:space="preserve">
+    <value>تعذر النسخ</value>
+  </data>
+  <data name="Online.Error.CopyUnavailable" xml:space="preserve">
+    <value>الحافظة غير متاحة.</value>
+  </data>
+  <data name="Online.Error.PasswordTooShort" xml:space="preserve">
+    <value>يجب أن تكون كلمة المرور 4 أحرف على الأقل.</value>
+  </data>
+  <data name="Online.Error.AlreadyJoined" xml:space="preserve">
+    <value>غادر الشبكة الحالية قبل إنشاء شبكة جديدة.</value>
+  </data>
+  <data name="Online.Error.PasswordTooLong" xml:space="preserve">
+    <value>يجب ألا تتجاوز كلمة المرور 128 حرفًا.</value>
+  </data>
+  <data name="Online.Error.PasswordRequired" xml:space="preserve">
+    <value>تحتاج الردهات العامة إلى كلمة مرور في إصدار الخادم هذا.</value>
+  </data>
+  <data name="Online.Error.ProfileRequired" xml:space="preserve">
+    <value>اختر ملف لعبة للردهة.</value>
+  </data>
+  <data name="Online.Error.UpdateFailed" xml:space="preserve">
+    <value>فشل الحفظ. فقط المضيف يمكنه تغيير إعدادات الشبكة.</value>
+  </data>
+  <data name="Online.Error.UpdateTitle" xml:space="preserve">
+    <value>تعذر حفظ الإعدادات</value>
+  </data>
+  <data name="Online.Host.DescriptionWatermark" xml:space="preserve">
+    <value>الوصف وقواعد الغرفة</value>
+  </data>
+  <data name="Online.Host.SuccessMessage" xml:space="preserve">
+    <value>تم تحديث إعدادات الشبكة.</value>
+  </data>
+  <data name="Online.Host.SuccessTitle" xml:space="preserve">
+    <value>تم حفظ الإعدادات</value>
+  </data>
+  <data name="Online.Host.Title" xml:space="preserve">
+    <value>إعدادات المضيف</value>
+  </data>
+  <data name="Online.Joined.QualityLabel" xml:space="preserve">
+    <value>الاتصال</value>
+  </data>
+  <data name="Online.Connection.LostMessage" xml:space="preserve">
+    <value>فُقد الاتصال بالشبكة. تمت إعادتك إلى الدليل.</value>
+  </data>
+  <data name="Online.Connection.LostTitle" xml:space="preserve">
+    <value>انقطع الاتصال</value>
+  </data>
+  <data name="Online.Ban.ConfirmMessage" xml:space="preserve">
+    <value>حظر {0} من هذه الشبكة؟ سيفقد خانته فورًا.</value>
+  </data>
+  <data name="Online.Ban.ConfirmTitle" xml:space="preserve">
+    <value>حظر العضو</value>
+  </data>
+  <data name="Online.Ban.SuccessMessage" xml:space="preserve">
+    <value>تمت إزالة العضو وحظره.</value>
+  </data>
+  <data name="Online.Ban.SuccessTitle" xml:space="preserve">
+    <value>تم حظر العضو</value>
+  </data>
+  <data name="Online.Copy.SuccessMessage" xml:space="preserve">
+    <value>تم نسخ IP الافتراضي {0} إلى الحافظة.</value>
+  </data>
+  <data name="Online.Copy.SuccessTitle" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="Online.Error.LaunchFailed" xml:space="preserve">
+    <value>فشل تشغيل اللعبة. تحقق من الملف وحاول مرة أخرى.</value>
+  </data>
+  <data name="Online.Error.StopTitle" xml:space="preserve">
+    <value>تعذر الإيقاف</value>
+  </data>
+  <data name="Online.Error.StopFailed" xml:space="preserve">
+    <value>فشل إيقاف اللعبة. أغلق اللعبة يدويًا إذا كانت لا تزال تعمل.</value>
+  </data>
+  <data name="Online.Error.LaunchTitle" xml:space="preserve">
+    <value>تعذر التشغيل</value>
+  </data>
+  <data name="Online.Play.ConnectivityMessage" xml:space="preserve">
+    <value>لم يستجب {0} من {1} من الأعضاء لفحص الاتصال. سيستمر التشغيل؛ قد يحدث تأخير أو عدم تزامن.</value>
+  </data>
+  <data name="Online.Play.ConnectivityTitle" xml:space="preserve">
+    <value>تعذّر الوصول إلى بعض الأعضاء</value>
+  </data>
+  <data name="Online.Play.LaunchingMessage" xml:space="preserve">
+    <value>جارٍ تجهيز مساحة العمل وتشغيل {0}.</value>
+  </data>
+  <data name="Online.Play.LaunchingTitle" xml:space="preserve">
+    <value>جارٍ التشغيل</value>
+  </data>
+  <data name="Online.Play.NoProfileMessage" xml:space="preserve">
+    <value>تتوقع هذه الشبكة ملف لعبة ليس لديك بعد. نزّله أو أنشئه أولاً.</value>
+  </data>
+  <data name="Online.Play.NoTunnelTitle" xml:space="preserve">
+    <value>النفق الجماعي متوقف</value>
+  </data>
+  <data name="Online.Play.NoTunnelMessage" xml:space="preserve">
+    <value>محوّل الشبكة المحلية الافتراضية لا يعمل، لذلك لا يمكن للعبة الوصول إلى أعضاء الردهة. غادر الردهة وأعد الانضمام، واقبل مطالبة المسؤول، ثم حاول اللعب مجددًا.</value>
+  </data>
+  <data name="Online.Play.NoProfileTitle" xml:space="preserve">
+    <value>لم يتم العثور على الملف</value>
+  </data>
+  <data name="Online.Play.SuccessMessage" xml:space="preserve">
+    <value>افتح ردهة LAN داخل اللعبة للعب مع {0}.</value>
+  </data>
+  <data name="Online.Play.SuccessTitle" xml:space="preserve">
+    <value>تم التشغيل</value>
+  </data>
+  <data name="Online.Stop.SuccessTitle" xml:space="preserve">
+    <value>تم إيقاف اللعبة</value>
+  </data>
+  <data name="Online.Stop.SuccessMessage" xml:space="preserve">
+    <value>تم إيقاف اللعب على {0}.</value>
+  </data>
+  <data name="Online.Error.AdapterFailed" xml:space="preserve">
+    <value>فشل تشغيل المحول الافتراضي على هذا الجهاز.</value>
+  </data>
+  <data name="Online.Error.CreateTitle" xml:space="preserve">
+    <value>تعذر إنشاء الشبكة</value>
+  </data>
+  <data name="Online.Error.CreateFailed" xml:space="preserve">
+    <value>فشل الإنشاء. يرجى المحاولة مرة أخرى.</value>
+  </data>
+  <data name="Online.Error.DirectoryTitle" xml:space="preserve">
+    <value>تعذر تحميل الشبكات</value>
+  </data>
+  <data name="Online.Error.GenericDetail" xml:space="preserve">
+    <value>يرجى التحقق من الاتصال والمحاولة مرة أخرى.</value>
+  </data>
+  <data name="Online.Error.JoinFailed" xml:space="preserve">
+    <value>فشل الانضمام. يرجى المحاولة مرة أخرى.</value>
+  </data>
+  <data name="Online.Error.JoinTitle" xml:space="preserve">
+    <value>تعذر الانضمام إلى الشبكة</value>
+  </data>
+  <data name="Online.Error.LeaveTitle" xml:space="preserve">
+    <value>تعذر مغادرة الشبكة</value>
+  </data>
+  <data name="Online.Error.NameLength" xml:space="preserve">
+    <value>يجب أن يكون اسم الشبكة بين 3 و64 حرفًا.</value>
+  </data>
+  <data name="Online.Error.NetworkBanned" xml:space="preserve">
+    <value>أنت محظور من هذه الشبكة.</value>
+  </data>
+  <data name="Online.Error.NetworkFull" xml:space="preserve">
+    <value>هذه الشبكة ممتلئة.</value>
+  </data>
+  <data name="Online.Error.SlotsRange" xml:space="preserve">
+    <value>يجب أن يكون عدد الخانات بين 2 و 16.</value>
+  </data>
+  <data name="Online.Error.WrongPassword" xml:space="preserve">
+    <value>كلمة مرور خاطئة لهذه الشبكة.</value>
+  </data>
+<data name="Online.Error.NetworkNotFound" xml:space="preserve">
+    <value>لم يتم العثور على الشبكة المطلوبة أو قد تم إغلاقها.</value>
+  </data>
+  <data name="Online.Error.ServiceUnavailable" xml:space="preserve">
+    <value>خدمة الاتصال عبر الإنترنت غير متوفرة حالياً. يرجى التحقق من اتصالك والمحاولة مرة أخرى.</value>
+  </data>
+  <data name="Online.Join.PasswordWatermark" xml:space="preserve">
+    <value>كلمة مرور الشبكة</value>
+  </data>
+  <data name="Online.Join.PrivacyNotice" xml:space="preserve">
+    <value>يتم توجيه حركة المرور عبر مرحل مشفر لحماية خصوصية اللاعبين؛ لا تتم مشاركة عناوين IP الحقيقية أبداً مع الأقران.</value>
+  </data>
+  <data name="Online.Join.ProfileHint" xml:space="preserve">
+    <value>يُعلن للردهة ويُستخدم للعب. اتركه على المطابقة التلقائية لاختيار أقرب إعداد.</value>
+  </data>
+  <data name="Online.Join.SuccessMessage" xml:space="preserve">
+    <value>تم الاتصال باستخدام IP الافتراضي {0}. افتح ردهة LAN داخل اللعبة للعب.</value>
+  </data>
+  <data name="Online.Join.SuccessTitle" xml:space="preserve">
+    <value>تم الانضمام إلى الشبكة</value>
+  </data>
+  <data name="Online.Join.Title" xml:space="preserve">
+    <value>الانضمام إلى شبكة</value>
+  </data>
+  <data name="Online.List.Empty" xml:space="preserve">
+    <value>لم يتم العثور على شبكات. أنشئ واحدة للبدء.</value>
+  </data>
+  <data name="Online.List.Failed" xml:space="preserve">
+    <value>تعذر تحميل الشبكات.</value>
+  </data>
+  <data name="Online.Member.HostBadge" xml:space="preserve">
+    <value>مضيف</value>
+  </data>
+  <data name="Online.Member.LaunchedBadge" xml:space="preserve">
+    <value>تم التشغيل</value>
+  </data>
+  <data name="Online.ProfileSelection.Title" xml:space="preserve">
+    <value>تحديد ملف تعريف اللعبة</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>تحديد ملف تعريف اللعبة</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>اختر ملف تعريف للعب الجماعي المتوافق مع الردهة</value>
+  </data>
+  <data name="Online.ProfileSelection.SelectAction" xml:space="preserve">
+    <value>تحديد</value>
+  </data>
+  <data name="Online.ProfileSelection.Placeholder" xml:space="preserve">
+    <value>انقر لتحديد ملف التعريف...</value>
+  </data>
+  <data name="Online.Nickname.Title" xml:space="preserve">
+    <value>اسم اللاعب</value>
+  </data>
+  <data name="Online.Nickname.Label" xml:space="preserve">
+    <value>الاسم المستعار</value>
+  </data>
+  <data name="Online.Nickname.Placeholder" xml:space="preserve">
+    <value>اختر اسمك داخل اللعبة</value>
+  </data>
+  <data name="Online.Nickname.Hint" xml:space="preserve">
+    <value>يُعرض داخل اللعبة في كل ردهة تنضم إليها من GenHub Online. يُكتب في اللعبة المُشغَّلة عند الضغط على Play (بحد أقصى 12 حرفًا). اتركه فارغًا للاحتفاظ بالاسم الحالي في اللعبة.</value>
+  </data>
+  <data name="Online.Joined.OverlayIpLabel" xml:space="preserve">
+    <value>عنوان IP الافتراضي الخاص بك:</value>
+  </data>
+  <data name="Online.Leave.SuccessMessage" xml:space="preserve">
+    <value>تم إيقاف المحول الافتراضي.</value>
+  </data>
+  <data name="Online.Leave.SuccessTitle" xml:space="preserve">
+    <value>تمت مغادرة الشبكة</value>
+  </data>
+  <data name="Online.Quality.Connecting" xml:space="preserve">
+    <value>جارٍ الاتصال</value>
+  </data>
+  <data name="Online.Quality.Direct" xml:space="preserve">
+    <value>مباشر</value>
+  </data>
+  <data name="Online.Quality.Relay" xml:space="preserve">
+    <value>ترحيل</value>
+  </data>
+  <data name="Online.Quality.Unknown" xml:space="preserve">
+    <value>غير معروف</value>
+  </data>
+  <data name="Online.List.Title" xml:space="preserve">
+    <value>الشبكات</value>
+  </data>
+  <data name="Online.Roster.Title" xml:space="preserve">
+    <value>الأعضاء</value>
+  </data>
+  <data name="Online.Search.Watermark" xml:space="preserve">
+    <value>ابحث عن الشبكات...</value>
+  </data>
+  <data name="Online.Subtitle" xml:space="preserve">
+    <value>انضم إلى شبكة LAN افتراضية، ثم افتح ردهة LAN داخل اللعبة للعب مع الأعضاء.</value>
+  </data>
+  <data name="Online.Title" xml:space="preserve">
+    <value>عبر الإنترنت</value>
   </data>
   <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
     <value>مسح كل السجل</value>
@@ -5322,6 +5676,15 @@
   </data>
   <data name="Downloads.ProfileSelection.Error" xml:space="preserve">
     <value>فشل تحميل الملفات التعريفية</value>
+  </data>
+  <data name="Downloads.ProfileSelection.Incompatible" xml:space="preserve">
+    <value>غير متوافق</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleGameFormat" xml:space="preserve">
+    <value>هذا الملف التعريفي مخصص لـ {0}، والمحتوى مخصص لـ {1}</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleLobby" xml:space="preserve">
+    <value>الملف التعريفي لا يتطابق مع الردهة أو المتطلبات</value>
   </data>
   <data name="Downloads.ProfileSelection.Loading" xml:space="preserve">
     <value>جارٍ تحميل الملفات التعريفية...</value>
@@ -11163,6 +11526,66 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
     <value>للاحتفاظ بتثبيت واحد، أعد التثبيت فوق الموقع السابق أو انقل هذا التثبيت في الإعدادات &gt; نقل التثبيت، ثم أزل النسخة المكررة المتبقية.</value>
     <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
+  </data>
+  <data name="Online.Create.ProfileLabel" xml:space="preserve">
+    <value>ملف اللعبة</value>
+  </data>
+  <data name="Online.Create.ProfilePlaceholder" xml:space="preserve">
+    <value>اختر ملف لعبة</value>
+  </data>
+  <data name="Online.Create.ProfileHint" xml:space="preserve">
+    <value>يطابق الأعضاء هذا الإعداد تلقائيًا. يمكن للجميع الانضمام؛ وتُعرض الفروقات فقط.</value>
+  </data>
+  <data name="Online.Detail.MatchLabel" xml:space="preserve">
+    <value>إعدادك</value>
+  </data>
+  <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
+    <value>يلعب باستخدام</value>
+  </data>
+  <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
+    <value>لم يحدد المضيف لعبة — أي إعداد يعمل.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailNoProfile" xml:space="preserve">
+    <value>اختر ملف تشغيل للمقارنة.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailMismatch" xml:space="preserve">
+    <value>عدم تطابق الملف الشخصي — لا يمكن لهذه الإعدادات اللعب معًا.</value>
+  </data>
+  <data name="Online.Match.Exact" xml:space="preserve">
+    <value>متطابق</value>
+  </data>
+  <data name="Online.Match.Mismatch" xml:space="preserve">
+    <value>لا يتطابق</value>
+  </data>
+  <data name="Online.Match.Unknown" xml:space="preserve">
+    <value>غير معروف</value>
+  </data>
+  <data name="Online.Profile.SwitchedTitle" xml:space="preserve">
+    <value>تغيّرت لعبة الردهة</value>
+  </data>
+  <data name="Online.Profile.SwitchedMessage" xml:space="preserve">
+    <value>بدّل المضيف الردهة إلى {0}.</value>
+  </data>
+  <data name="Online.Profile.SwitchedClearedMessage" xml:space="preserve">
+    <value>أزال المضيف لعبة الردهة.</value>
+  </data>
+  <data name="Online.Adapter.PendingTitle" xml:space="preserve">
+    <value>الردهة فقط</value>
+  </data>
+  <data name="Online.Adapter.PendingMessage" xml:space="preserve">
+    <value>النفق غير متاح بعد، لذا لن يظهر الأعضاء داخل اللعبة. قائمة الأعضاء والحضور يعملان.</value>
+  </data>
+  <data name="Online.Adapter.ElevationTitle" xml:space="preserve">
+    <value>يلزم توفر حقوق المسؤول</value>
+  </data>
+  <data name="Online.Adapter.ElevationMessage" xml:space="preserve">
+    <value>تعذّر على GenHub إنشاء محوّل الشبكة المحلية الافتراضية. اقبل مطالبة المسؤول عند الانضمام، أو أعد تشغيل GenHub كمسؤول ثم أعد الانضمام إلى الردهة.</value>
+  </data>
+  <data name="Online.Host.ProfileLabel" xml:space="preserve">
+    <value>ملف اللعبة</value>
+  </data>
+  <data name="Online.Host.ProfilePlaceholder" xml:space="preserve">
+    <value>بدون ملف (أي إعداد)</value>
   </data>
   <data name="GameSettings.Video.ResolutionToolTip" xml:space="preserve">
     <value>يحدد دقة العرض للعبة.</value>

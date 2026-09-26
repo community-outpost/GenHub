@@ -148,13 +148,38 @@ private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
 
 ---
 
-## 5. Checklist for New Windows
+## 5. Viewport Clearance & Shell Overlays (MainView Integration)
 
-When creating a new `Window` in GenHub:
+GenHub's main application window (`MainWindow.axaml`) hosts `MainView.axaml` in `Grid.Row="1"`. Inside `MainView`, the tab content host area (`ContentControl Content="{Binding CurrentTabViewModel}"`) shares its viewport with a persistent floating version string button anchored at the bottom-right:
+
+```xml
+<!-- MainView.axaml floating version overlay -->
+<Button Command="{Binding CopyVersionToClipboardCommand}"
+        HorizontalAlignment="Right"
+        VerticalAlignment="Bottom"
+        Margin="0,0,10,5" ... />
+```
+
+### The Problem: Avalonia ScrollViewer Padding Extent Bug + Floating Watermark
+1. **Avalonia `ScrollViewer.Padding` Bug:** In Avalonia UI (11.x), setting `Padding` on `<ScrollViewer>` applies padding to the internal `ScrollContentPresenter`. The layout engine fails to add bottom/right padding to the scrollable `Extent`. As a result, the scrollbar reaches maximum scroll before the bottom content can scroll into view, clipping off cards, labels, and submit buttons.
+2. **Watermark Collision:** If content reaches the bottom-right corner without sufficient clearance, the floating version button will overlap and obscure interactive controls (e.g., submit buttons, privacy notices).
+
+### Mandatory View Layout Rules
+- **NEVER** apply `Padding` to `<ScrollViewer>`.
+- **ALWAYS** apply margins to the root inner container inside `<ScrollViewer>`: e.g. `<StackPanel Margin="24,24,24,64">` or `<Grid Margin="24,24,24,64">`.
+- **ALWAYS** provide at least **48px to 64px bottom clearance** so bottom-most action buttons and cards are completely visible, comfortable to click, and unobstructed by the shell's bottom-right overlay.
+
+---
+
+## 6. Checklist for New Windows and Views
+
+When creating a new `Window` or top-level `UserControl` in GenHub:
 
 - [ ] Set `SystemDecorations="Full"` if the window can be resized or maximized.
 - [ ] Set `ExtendClientAreaToDecorationsHint="True"`, `ExtendClientAreaChromeHints="NoChrome"`, and `ExtendClientAreaTitleBarHeightHint="-1"`.
 - [ ] Implement `OnTitleBarPointerPressed` with `BeginMoveDrag(e)` and double-click maximize toggle.
 - [ ] Ensure the drag container has `Background="Transparent"` and `IsHitTestVisible="True"`.
 - [ ] Avoid manual coordinate calculation or custom drag threshold tracking.
+- [ ] For scrollable views: NEVER set `Padding` on `<ScrollViewer>`.
+- [ ] For scrollable views: Set `Margin="..., ..., ..., 64"` (minimum 48-64px bottom clearance) on the direct inner child container.
 - [ ] Adhere to code style: no `this.`, primary constructors where applicable, no mid-comment capitalization.

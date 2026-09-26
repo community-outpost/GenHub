@@ -1730,6 +1730,9 @@
     <value>Уведомления</value>
     <comment>Navigation tooltip for notifications</comment>
   </data>
+  <data name="Navigation.Online" xml:space="preserve">
+    <value>Сеть</value>
+  </data>
   <data name="Navigation.Settings" xml:space="preserve">
     <value>Настройки</value>
     <comment>Settings navigation tab.</comment>
@@ -1794,6 +1797,357 @@
   </data>
   <data name="Notifications.Tooltip.Options" xml:space="preserve">
     <value>Параметры уведомлений</value>
+  </data>
+  <data name="Online.Action.Create" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Online.Action.Join" xml:space="preserve">
+    <value>Подключиться</value>
+  </data>
+  <data name="Online.Action.Leave" xml:space="preserve">
+    <value>Покинуть</value>
+  </data>
+  <data name="Online.Action.Play" xml:space="preserve">
+    <value>Играть</value>
+  </data>
+  <data name="Online.Action.Stop" xml:space="preserve">
+    <value>Остановить</value>
+  </data>
+  <data name="Online.Action.Ban" xml:space="preserve">
+    <value>Заблокировать</value>
+  </data>
+  <data name="Online.Action.CopyIp" xml:space="preserve">
+    <value>Копировать IP</value>
+  </data>
+  <data name="Online.Action.Retry" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="Online.Action.Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Online.Action.Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Online.Create.NameWatermark" xml:space="preserve">
+    <value>Название сети</value>
+  </data>
+  <data name="Online.Create.PasswordWatermark" xml:space="preserve">
+    <value>Пароль (необязательно)</value>
+  </data>
+  <data name="Online.Create.PasswordHint" xml:space="preserve">
+    <value>Необязательно. Оставьте поле пустым для открытого лобби. Если пароль указан, он должен содержать минимум 4 символа.</value>
+  </data>
+  <data name="Online.Create.PublicLabel" xml:space="preserve">
+    <value>Публичный список</value>
+  </data>
+  <data name="Online.Create.SlotsLabel" xml:space="preserve">
+    <value>Слоты:</value>
+  </data>
+  <data name="Online.Create.Submit" xml:space="preserve">
+    <value>Создать и подключиться</value>
+  </data>
+  <data name="Online.Create.SuccessMessage" xml:space="preserve">
+    <value>Подключено с IP оверлея {0}.</value>
+  </data>
+  <data name="Online.Create.SuccessTitle" xml:space="preserve">
+    <value>Сеть создана</value>
+  </data>
+  <data name="Online.Create.Title" xml:space="preserve">
+    <value>Создать сеть</value>
+  </data>
+  <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
+    <value>Описание и правила (необязательно)</value>
+  </data>
+  <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
+    <value>Туннелирование для сетевой игры недоступно</value>
+  </data>
+  <data name="Online.Adapter.UnavailableMessage" xml:space="preserve">
+    <value>Виртуальный LAN-адаптер не запущен, поэтому участники лобби пока не появятся в игре. Список участников и присутствие работают.</value>
+  </data>
+  <data name="Online.Detail.DescriptionLabel" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Online.Detail.ExpectedProfileLabel" xml:space="preserve">
+    <value>Ожидаемый профиль</value>
+  </data>
+  <data name="Online.Detail.HostLabel" xml:space="preserve">
+    <value>Хост</value>
+  </data>
+  <data name="Online.Detail.HostOffline" xml:space="preserve">
+    <value>не в сети</value>
+  </data>
+  <data name="Online.Detail.HostOnline" xml:space="preserve">
+    <value>в сети</value>
+  </data>
+  <data name="Online.Detail.NoDescription" xml:space="preserve">
+    <value>Без описания.</value>
+  </data>
+  <data name="Online.Detail.SlotsLabel" xml:space="preserve">
+    <value>Места</value>
+  </data>
+  <data name="Online.Detail.TagsLabel" xml:space="preserve">
+    <value>Теги</value>
+  </data>
+  <data name="Online.Detail.Title" xml:space="preserve">
+    <value>О сети</value>
+  </data>
+  <data name="Online.Error.BanFailed" xml:space="preserve">
+    <value>Не удалось заблокировать. Это может только хост.</value>
+  </data>
+  <data name="Online.Error.BanTitle" xml:space="preserve">
+    <value>Не удалось заблокировать участника</value>
+  </data>
+  <data name="Online.Error.CopyTitle" xml:space="preserve">
+    <value>Не удалось скопировать</value>
+  </data>
+  <data name="Online.Error.CopyUnavailable" xml:space="preserve">
+    <value>Буфер обмена недоступен.</value>
+  </data>
+  <data name="Online.Error.PasswordTooShort" xml:space="preserve">
+    <value>Пароль должен содержать минимум 4 символа.</value>
+  </data>
+  <data name="Online.Error.AlreadyJoined" xml:space="preserve">
+    <value>Покиньте текущую сеть, прежде чем создавать новую.</value>
+  </data>
+  <data name="Online.Error.PasswordTooLong" xml:space="preserve">
+    <value>Пароль должен содержать не более 128 символов.</value>
+  </data>
+  <data name="Online.Error.PasswordRequired" xml:space="preserve">
+    <value>На этой версии сервера публичные лобби требуют пароль.</value>
+  </data>
+  <data name="Online.Error.ProfileRequired" xml:space="preserve">
+    <value>Выберите игровой профиль для лобби.</value>
+  </data>
+  <data name="Online.Error.UpdateFailed" xml:space="preserve">
+    <value>Не удалось сохранить. Настройки меняет только хост.</value>
+  </data>
+  <data name="Online.Error.UpdateTitle" xml:space="preserve">
+    <value>Не удалось сохранить настройки</value>
+  </data>
+  <data name="Online.Host.DescriptionWatermark" xml:space="preserve">
+    <value>Описание и правила комнаты</value>
+  </data>
+  <data name="Online.Host.SuccessMessage" xml:space="preserve">
+    <value>Настройки сети обновлены.</value>
+  </data>
+  <data name="Online.Host.SuccessTitle" xml:space="preserve">
+    <value>Настройки сохранены</value>
+  </data>
+  <data name="Online.Host.Title" xml:space="preserve">
+    <value>Настройки хоста</value>
+  </data>
+  <data name="Online.Joined.QualityLabel" xml:space="preserve">
+    <value>Соединение</value>
+  </data>
+  <data name="Online.Connection.LostMessage" xml:space="preserve">
+    <value>Связь с сетью потеряна. Вы возвращены к списку сетей.</value>
+  </data>
+  <data name="Online.Connection.LostTitle" xml:space="preserve">
+    <value>Соединение потеряно</value>
+  </data>
+  <data name="Online.Ban.ConfirmMessage" xml:space="preserve">
+    <value>Заблокировать {0} в этой сети? Он сразу потеряет место.</value>
+  </data>
+  <data name="Online.Ban.ConfirmTitle" xml:space="preserve">
+    <value>Заблокировать участника</value>
+  </data>
+  <data name="Online.Ban.SuccessMessage" xml:space="preserve">
+    <value>Участник удалён и заблокирован.</value>
+  </data>
+  <data name="Online.Ban.SuccessTitle" xml:space="preserve">
+    <value>Участник заблокирован</value>
+  </data>
+  <data name="Online.Copy.SuccessMessage" xml:space="preserve">
+    <value>IP оверлея {0} скопирован.</value>
+  </data>
+  <data name="Online.Copy.SuccessTitle" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="Online.Error.LaunchFailed" xml:space="preserve">
+    <value>Не удалось запустить игру. Проверьте профиль и попробуйте снова.</value>
+  </data>
+  <data name="Online.Error.StopTitle" xml:space="preserve">
+    <value>Не удалось остановить</value>
+  </data>
+  <data name="Online.Error.StopFailed" xml:space="preserve">
+    <value>Не удалось остановить игру. Закройте её вручную, если она всё ещё запущена.</value>
+  </data>
+  <data name="Online.Error.LaunchTitle" xml:space="preserve">
+    <value>Не удалось запустить</value>
+  </data>
+  <data name="Online.Play.ConnectivityMessage" xml:space="preserve">
+    <value>{0} из {1} не ответили на проверку соединения. Запуск продолжается; возможны задержки или рассинхронизация.</value>
+  </data>
+  <data name="Online.Play.ConnectivityTitle" xml:space="preserve">
+    <value>Некоторые участники недоступны</value>
+  </data>
+  <data name="Online.Play.LaunchingMessage" xml:space="preserve">
+    <value>Подготовка и запуск {0}.</value>
+  </data>
+  <data name="Online.Play.LaunchingTitle" xml:space="preserve">
+    <value>Запуск</value>
+  </data>
+  <data name="Online.Play.NoProfileMessage" xml:space="preserve">
+    <value>Сеть требует игровой профиль, которого у вас нет. Скачайте или создайте его.</value>
+  </data>
+  <data name="Online.Play.NoTunnelTitle" xml:space="preserve">
+    <value>Туннелирование многопользовательской игры недоступно</value>
+  </data>
+  <data name="Online.Play.NoTunnelMessage" xml:space="preserve">
+    <value>Адаптер виртуальной LAN не запущен, поэтому игра не может связаться с участниками лобби. Покиньте лобби и присоединитесь снова, примите запрос администратора, затем попробуйте играть.</value>
+  </data>
+  <data name="Online.Play.NoProfileTitle" xml:space="preserve">
+    <value>Профиль не найден</value>
+  </data>
+  <data name="Online.Play.SuccessMessage" xml:space="preserve">
+    <value>Откройте LAN-лобби в игре, чтобы играть с {0}.</value>
+  </data>
+  <data name="Online.Play.SuccessTitle" xml:space="preserve">
+    <value>Запущено</value>
+  </data>
+  <data name="Online.Stop.SuccessTitle" xml:space="preserve">
+    <value>Игра остановлена</value>
+  </data>
+  <data name="Online.Stop.SuccessMessage" xml:space="preserve">
+    <value>Игра на {0} остановлена.</value>
+  </data>
+  <data name="Online.Error.AdapterFailed" xml:space="preserve">
+    <value>Не удалось запустить виртуальный адаптер на этом устройстве.</value>
+  </data>
+  <data name="Online.Error.CreateTitle" xml:space="preserve">
+    <value>Не удалось создать сеть</value>
+  </data>
+  <data name="Online.Error.CreateFailed" xml:space="preserve">
+    <value>Не удалось создать сеть. Попробуйте еще раз.</value>
+  </data>
+  <data name="Online.Error.DirectoryTitle" xml:space="preserve">
+    <value>Не удалось загрузить сети</value>
+  </data>
+  <data name="Online.Error.GenericDetail" xml:space="preserve">
+    <value>Проверьте соединение и попробуйте снова.</value>
+  </data>
+  <data name="Online.Error.JoinFailed" xml:space="preserve">
+    <value>Не удалось подключиться. Попробуйте снова.</value>
+  </data>
+  <data name="Online.Error.JoinTitle" xml:space="preserve">
+    <value>Не удалось подключиться к сети</value>
+  </data>
+  <data name="Online.Error.LeaveTitle" xml:space="preserve">
+    <value>Не удалось покинуть сеть</value>
+  </data>
+  <data name="Online.Error.NameLength" xml:space="preserve">
+    <value>Название сети должно содержать от 3 до 64 символов.</value>
+  </data>
+  <data name="Online.Error.NetworkBanned" xml:space="preserve">
+    <value>Вы заблокированы в этой сети.</value>
+  </data>
+  <data name="Online.Error.NetworkFull" xml:space="preserve">
+    <value>В сети нет свободных мест.</value>
+  </data>
+  <data name="Online.Error.SlotsRange" xml:space="preserve">
+    <value>Число слотов должно быть от 2 до 16.</value>
+  </data>
+  <data name="Online.Error.WrongPassword" xml:space="preserve">
+    <value>Неверный пароль сети.</value>
+  </data>
+<data name="Online.Error.NetworkNotFound" xml:space="preserve">
+    <value>Запрошенная сеть не найдена или была закрыта.</value>
+  </data>
+  <data name="Online.Error.ServiceUnavailable" xml:space="preserve">
+    <value>Сетевая служба временно недоступна. Пожалуйста, проверьте соединение и попробуйте снова.</value>
+  </data>
+  <data name="Online.Join.PasswordWatermark" xml:space="preserve">
+    <value>Пароль сети</value>
+  </data>
+  <data name="Online.Join.PrivacyNotice" xml:space="preserve">
+    <value>Трафик направляется через зашифрованный ретранслятор для защиты конфиденциальности игроков; реальные IP-адреса никогда не передаются участникам.</value>
+  </data>
+  <data name="Online.Join.ProfileHint" xml:space="preserve">
+    <value>Профиль отображается в лобби и используется для запуска. Оставьте автоподбор, чтобы выбрать ближайшую конфигурацию.</value>
+  </data>
+  <data name="Online.Join.SuccessMessage" xml:space="preserve">
+    <value>Подключено с IP оверлея {0}. Откройте LAN-лобби в игре.</value>
+  </data>
+  <data name="Online.Join.SuccessTitle" xml:space="preserve">
+    <value>Подключено к сети</value>
+  </data>
+  <data name="Online.Join.Title" xml:space="preserve">
+    <value>Подключение к сети</value>
+  </data>
+  <data name="Online.List.Empty" xml:space="preserve">
+    <value>Сети не найдены. Создайте свою.</value>
+  </data>
+  <data name="Online.List.Failed" xml:space="preserve">
+    <value>Не удалось загрузить сети.</value>
+  </data>
+  <data name="Online.Member.HostBadge" xml:space="preserve">
+    <value>Хост</value>
+  </data>
+  <data name="Online.Member.LaunchedBadge" xml:space="preserve">
+    <value>Запущен</value>
+  </data>
+  <data name="Online.ProfileSelection.Title" xml:space="preserve">
+    <value>Выбор профиля игры</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Выбор профиля игры</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Выберите профиль для сетевой игры с совместимостью лобби</value>
+  </data>
+  <data name="Online.ProfileSelection.SelectAction" xml:space="preserve">
+    <value>Выбрать</value>
+  </data>
+  <data name="Online.ProfileSelection.Placeholder" xml:space="preserve">
+    <value>Нажмите для выбора профиля...</value>
+  </data>
+  <data name="Online.Nickname.Title" xml:space="preserve">
+    <value>Никнейм игрока</value>
+  </data>
+  <data name="Online.Nickname.Label" xml:space="preserve">
+    <value>Никнейм</value>
+  </data>
+  <data name="Online.Nickname.Placeholder" xml:space="preserve">
+    <value>Выберите внутриигровое имя</value>
+  </data>
+  <data name="Online.Nickname.Hint" xml:space="preserve">
+    <value>Отображается в игре в каждом лобби GenHub Online. Записывается в запущенную игру при нажатии Play (максимум 12 символов). Оставьте пустым, чтобы сохранить текущее имя в игре.</value>
+  </data>
+  <data name="Online.Joined.OverlayIpLabel" xml:space="preserve">
+    <value>Ваш IP в оверлее:</value>
+  </data>
+  <data name="Online.Leave.SuccessMessage" xml:space="preserve">
+    <value>Виртуальный адаптер отключён.</value>
+  </data>
+  <data name="Online.Leave.SuccessTitle" xml:space="preserve">
+    <value>Сеть покинута</value>
+  </data>
+  <data name="Online.Quality.Connecting" xml:space="preserve">
+    <value>Подключение</value>
+  </data>
+  <data name="Online.Quality.Direct" xml:space="preserve">
+    <value>Прямое</value>
+  </data>
+  <data name="Online.Quality.Relay" xml:space="preserve">
+    <value>Ретранслятор</value>
+  </data>
+  <data name="Online.Quality.Unknown" xml:space="preserve">
+    <value>Неизвестно</value>
+  </data>
+  <data name="Online.List.Title" xml:space="preserve">
+    <value>Сети</value>
+  </data>
+  <data name="Online.Roster.Title" xml:space="preserve">
+    <value>Участники</value>
+  </data>
+  <data name="Online.Search.Watermark" xml:space="preserve">
+    <value>Поиск сетей...</value>
+  </data>
+  <data name="Online.Subtitle" xml:space="preserve">
+    <value>Подключитесь к виртуальной LAN-сети, затем откройте LAN-лобби в игре, чтобы играть с участниками.</value>
+  </data>
+  <data name="Online.Title" xml:space="preserve">
+    <value>Сеть</value>
   </data>
   <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
     <value>Очистить всю историю</value>
@@ -5322,6 +5676,15 @@
   </data>
   <data name="Downloads.ProfileSelection.Error" xml:space="preserve">
     <value>Не удалось загрузить профили</value>
+  </data>
+  <data name="Downloads.ProfileSelection.Incompatible" xml:space="preserve">
+    <value>Несовместимо</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleGameFormat" xml:space="preserve">
+    <value>Этот профиль предназначен для {0}, а контент — для {1}</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleLobby" xml:space="preserve">
+    <value>Профиль не соответствует лобби или требованиям</value>
   </data>
   <data name="Downloads.ProfileSelection.Loading" xml:space="preserve">
     <value>Загрузка профилей...</value>
@@ -11163,6 +11526,66 @@ GenHub передает официальный идентификатор AppID 
   <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
     <value>Чтобы сохранить одну установку, переустановите поверх предыдущего расположения или переместите эту установку в разделе Настройки &gt; Перенос установки, затем удалите оставшийся дубликат.</value>
     <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
+  </data>
+  <data name="Online.Create.ProfileLabel" xml:space="preserve">
+    <value>Игровой профиль</value>
+  </data>
+  <data name="Online.Create.ProfilePlaceholder" xml:space="preserve">
+    <value>Выберите игровой профиль</value>
+  </data>
+  <data name="Online.Create.ProfileHint" xml:space="preserve">
+    <value>Профили участников автоматически сравниваются с этой сборкой. Подключиться может любой игрок; несовпадения только отображаются.</value>
+  </data>
+  <data name="Online.Detail.MatchLabel" xml:space="preserve">
+    <value>Ваша сборка</value>
+  </data>
+  <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
+    <value>Играть с</value>
+  </data>
+  <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
+    <value>Хост не задал игру — подойдёт любая конфигурация.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailNoProfile" xml:space="preserve">
+    <value>Выберите профиль запуска для сравнения.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailMismatch" xml:space="preserve">
+    <value>Несовпадение профиля — эти конфигурации не могут играть вместе.</value>
+  </data>
+  <data name="Online.Match.Exact" xml:space="preserve">
+    <value>Совпадает</value>
+  </data>
+  <data name="Online.Match.Mismatch" xml:space="preserve">
+    <value>Не совпадает</value>
+  </data>
+  <data name="Online.Match.Unknown" xml:space="preserve">
+    <value>Неизвестно</value>
+  </data>
+  <data name="Online.Profile.SwitchedTitle" xml:space="preserve">
+    <value>Игра лобби изменена</value>
+  </data>
+  <data name="Online.Profile.SwitchedMessage" xml:space="preserve">
+    <value>Хост переключил лобби на «{0}».</value>
+  </data>
+  <data name="Online.Profile.SwitchedClearedMessage" xml:space="preserve">
+    <value>Хост убрал игру из лобби.</value>
+  </data>
+  <data name="Online.Adapter.PendingTitle" xml:space="preserve">
+    <value>Только лобби</value>
+  </data>
+  <data name="Online.Adapter.PendingMessage" xml:space="preserve">
+    <value>Туннелирование пока недоступно: участники не появятся в игре. Список и присутствие работают.</value>
+  </data>
+  <data name="Online.Adapter.ElevationTitle" xml:space="preserve">
+    <value>Требуются права администратора</value>
+  </data>
+  <data name="Online.Adapter.ElevationMessage" xml:space="preserve">
+    <value>GenHub не смог создать адаптер виртуальной LAN. Примите запрос администратора при подключении или перезапустите GenHub от имени администратора и присоединитесь к лобби снова.</value>
+  </data>
+  <data name="Online.Host.ProfileLabel" xml:space="preserve">
+    <value>Игровой профиль</value>
+  </data>
+  <data name="Online.Host.ProfilePlaceholder" xml:space="preserve">
+    <value>Без профиля (любая сборка)</value>
   </data>
   <data name="GameSettings.Video.ResolutionToolTip" xml:space="preserve">
     <value>Задает разрешение экрана в игре.</value>

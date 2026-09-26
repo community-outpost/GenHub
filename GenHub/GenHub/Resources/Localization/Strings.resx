@@ -1734,6 +1734,9 @@
     <value>Notifications</value>
     <comment>Navigation tooltip for notifications</comment>
   </data>
+  <data name="Navigation.Online" xml:space="preserve">
+    <value>Online</value>
+  </data>
   <data name="Navigation.Settings" xml:space="preserve">
     <value>Settings</value>
     <comment>Settings navigation tab.</comment>
@@ -1798,6 +1801,357 @@
   </data>
   <data name="Notifications.Tooltip.Options" xml:space="preserve">
     <value>Notification options</value>
+  </data>
+  <data name="Online.Action.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Online.Action.Join" xml:space="preserve">
+    <value>Join</value>
+  </data>
+  <data name="Online.Action.Leave" xml:space="preserve">
+    <value>Leave</value>
+  </data>
+  <data name="Online.Action.Play" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="Online.Action.Stop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="Online.Action.Ban" xml:space="preserve">
+    <value>Ban</value>
+  </data>
+  <data name="Online.Action.CopyIp" xml:space="preserve">
+    <value>Copy IP</value>
+  </data>
+  <data name="Online.Action.Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="Online.Action.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Online.Action.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Online.Create.NameWatermark" xml:space="preserve">
+    <value>Network name</value>
+  </data>
+  <data name="Online.Create.PasswordWatermark" xml:space="preserve">
+    <value>Password (optional)</value>
+  </data>
+  <data name="Online.Create.PasswordHint" xml:space="preserve">
+    <value>Optional. Leave empty for an open lobby (min 4 characters when set).</value>
+  </data>
+  <data name="Online.Create.PublicLabel" xml:space="preserve">
+    <value>List publicly</value>
+  </data>
+  <data name="Online.Create.SlotsLabel" xml:space="preserve">
+    <value>Slots:</value>
+  </data>
+  <data name="Online.Create.Submit" xml:space="preserve">
+    <value>Create and join</value>
+  </data>
+  <data name="Online.Create.SuccessMessage" xml:space="preserve">
+    <value>Joined with overlay IP {0}.</value>
+  </data>
+  <data name="Online.Create.SuccessTitle" xml:space="preserve">
+    <value>Network created</value>
+  </data>
+  <data name="Online.Create.Title" xml:space="preserve">
+    <value>Create network</value>
+  </data>
+  <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
+    <value>Description and house rules (optional)</value>
+  </data>
+  <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
+    <value>Multiplayer tunneling unavailable</value>
+  </data>
+  <data name="Online.Adapter.UnavailableMessage" xml:space="preserve">
+    <value>The virtual LAN adapter isn't up, so lobby members won't appear in-game yet. Roster and presence still work.</value>
+  </data>
+  <data name="Online.Detail.DescriptionLabel" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Online.Detail.ExpectedProfileLabel" xml:space="preserve">
+    <value>Expected profile</value>
+  </data>
+  <data name="Online.Detail.HostLabel" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="Online.Detail.HostOffline" xml:space="preserve">
+    <value>offline</value>
+  </data>
+  <data name="Online.Detail.HostOnline" xml:space="preserve">
+    <value>online</value>
+  </data>
+  <data name="Online.Detail.NoDescription" xml:space="preserve">
+    <value>No description.</value>
+  </data>
+  <data name="Online.Detail.SlotsLabel" xml:space="preserve">
+    <value>Slots</value>
+  </data>
+  <data name="Online.Detail.TagsLabel" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="Online.Detail.Title" xml:space="preserve">
+    <value>Network details</value>
+  </data>
+  <data name="Online.Error.BanFailed" xml:space="preserve">
+    <value>Ban failed. Only the host can ban members.</value>
+  </data>
+  <data name="Online.Error.BanTitle" xml:space="preserve">
+    <value>Could not ban member</value>
+  </data>
+  <data name="Online.Error.CopyTitle" xml:space="preserve">
+    <value>Could not copy</value>
+  </data>
+  <data name="Online.Error.CopyUnavailable" xml:space="preserve">
+    <value>Clipboard is not available.</value>
+  </data>
+  <data name="Online.Error.PasswordTooShort" xml:space="preserve">
+    <value>Password must be at least 4 characters.</value>
+  </data>
+  <data name="Online.Error.AlreadyJoined" xml:space="preserve">
+    <value>Leave the current network before creating a new one.</value>
+  </data>
+  <data name="Online.Error.PasswordTooLong" xml:space="preserve">
+    <value>Password must be at most 128 characters.</value>
+  </data>
+  <data name="Online.Error.PasswordRequired" xml:space="preserve">
+    <value>Public lobbies need a password on this server version.</value>
+  </data>
+  <data name="Online.Error.ProfileRequired" xml:space="preserve">
+    <value>Select a game profile for the lobby.</value>
+  </data>
+  <data name="Online.Error.UpdateFailed" xml:space="preserve">
+    <value>Save failed. Only the host can change network settings.</value>
+  </data>
+  <data name="Online.Error.UpdateTitle" xml:space="preserve">
+    <value>Could not save settings</value>
+  </data>
+  <data name="Online.Host.DescriptionWatermark" xml:space="preserve">
+    <value>Description and house rules</value>
+  </data>
+  <data name="Online.Host.SuccessMessage" xml:space="preserve">
+    <value>Network settings updated.</value>
+  </data>
+  <data name="Online.Host.SuccessTitle" xml:space="preserve">
+    <value>Settings saved</value>
+  </data>
+  <data name="Online.Host.Title" xml:space="preserve">
+    <value>Host settings</value>
+  </data>
+  <data name="Online.Joined.QualityLabel" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="Online.Connection.LostMessage" xml:space="preserve">
+    <value>Presence with the network was lost. You were returned to the directory.</value>
+  </data>
+  <data name="Online.Connection.LostTitle" xml:space="preserve">
+    <value>Connection lost</value>
+  </data>
+  <data name="Online.Ban.ConfirmMessage" xml:space="preserve">
+    <value>Ban {0} from this network? They will lose their slot immediately.</value>
+  </data>
+  <data name="Online.Ban.ConfirmTitle" xml:space="preserve">
+    <value>Ban member</value>
+  </data>
+  <data name="Online.Ban.SuccessMessage" xml:space="preserve">
+    <value>The member was removed and banned.</value>
+  </data>
+  <data name="Online.Ban.SuccessTitle" xml:space="preserve">
+    <value>Member banned</value>
+  </data>
+  <data name="Online.Copy.SuccessMessage" xml:space="preserve">
+    <value>Overlay IP {0} copied to clipboard.</value>
+  </data>
+  <data name="Online.Copy.SuccessTitle" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Online.Error.LaunchFailed" xml:space="preserve">
+    <value>Game launch failed. Check the profile and try again.</value>
+  </data>
+  <data name="Online.Error.StopTitle" xml:space="preserve">
+    <value>Could not stop</value>
+  </data>
+  <data name="Online.Error.StopFailed" xml:space="preserve">
+    <value>Game stop failed. Close the game manually if it is still running.</value>
+  </data>
+  <data name="Online.Error.LaunchTitle" xml:space="preserve">
+    <value>Could not launch</value>
+  </data>
+  <data name="Online.Play.ConnectivityMessage" xml:space="preserve">
+    <value>{0} of {1} members did not answer the connectivity check. Launching anyway; expect lag or desyncs.</value>
+  </data>
+  <data name="Online.Play.ConnectivityTitle" xml:space="preserve">
+    <value>Some members are unreachable</value>
+  </data>
+  <data name="Online.Play.LaunchingMessage" xml:space="preserve">
+    <value>Preparing workspace and launching {0}.</value>
+  </data>
+  <data name="Online.Play.LaunchingTitle" xml:space="preserve">
+    <value>Launching</value>
+  </data>
+  <data name="Online.Play.NoProfileMessage" xml:space="preserve">
+    <value>This network expects a game profile you do not have yet. Download or create it first.</value>
+  </data>
+  <data name="Online.Play.NoTunnelTitle" xml:space="preserve">
+    <value>Multiplayer tunneling is down</value>
+  </data>
+  <data name="Online.Play.NoTunnelMessage" xml:space="preserve">
+    <value>The virtual LAN adapter is not running, so the game cannot reach lobby members. Leave and rejoin the lobby, accept the administrator prompt, then try playing again.</value>
+  </data>
+  <data name="Online.Play.NoProfileTitle" xml:space="preserve">
+    <value>Profile not found</value>
+  </data>
+  <data name="Online.Play.SuccessMessage" xml:space="preserve">
+    <value>Open the in-game LAN lobby to play with {0}.</value>
+  </data>
+  <data name="Online.Play.SuccessTitle" xml:space="preserve">
+    <value>Launched</value>
+  </data>
+  <data name="Online.Stop.SuccessTitle" xml:space="preserve">
+    <value>Game stopped</value>
+  </data>
+  <data name="Online.Stop.SuccessMessage" xml:space="preserve">
+    <value>Stopped playing on {0}.</value>
+  </data>
+  <data name="Online.Error.AdapterFailed" xml:space="preserve">
+    <value>Virtual adapter failed to start on this device.</value>
+  </data>
+  <data name="Online.Error.CreateTitle" xml:space="preserve">
+    <value>Could not create network</value>
+  </data>
+  <data name="Online.Error.CreateFailed" xml:space="preserve">
+    <value>Creation failed. Please try again.</value>
+  </data>
+  <data name="Online.Error.DirectoryTitle" xml:space="preserve">
+    <value>Could not load networks</value>
+  </data>
+  <data name="Online.Error.GenericDetail" xml:space="preserve">
+    <value>Please check your connection and try again.</value>
+  </data>
+  <data name="Online.Error.JoinFailed" xml:space="preserve">
+    <value>Join failed. Please try again.</value>
+  </data>
+  <data name="Online.Error.JoinTitle" xml:space="preserve">
+    <value>Could not join network</value>
+  </data>
+  <data name="Online.Error.LeaveTitle" xml:space="preserve">
+    <value>Could not leave network</value>
+  </data>
+  <data name="Online.Error.NameLength" xml:space="preserve">
+    <value>Network name must be between 3 and 64 characters.</value>
+  </data>
+  <data name="Online.Error.NetworkBanned" xml:space="preserve">
+    <value>You are banned from this network.</value>
+  </data>
+  <data name="Online.Error.NetworkFull" xml:space="preserve">
+    <value>This network is full.</value>
+  </data>
+  <data name="Online.Error.SlotsRange" xml:space="preserve">
+    <value>Slot count must be between 2 and 16.</value>
+  </data>
+  <data name="Online.Error.WrongPassword" xml:space="preserve">
+    <value>Wrong password for this network.</value>
+  </data>
+<data name="Online.Error.NetworkNotFound" xml:space="preserve">
+    <value>The requested online network was not found or has been closed.</value>
+  </data>
+  <data name="Online.Error.ServiceUnavailable" xml:space="preserve">
+    <value>The online matchmaking service is temporarily unavailable. Please check your connection and try again.</value>
+  </data>
+  <data name="Online.Join.PasswordWatermark" xml:space="preserve">
+    <value>Network password</value>
+  </data>
+  <data name="Online.Join.PrivacyNotice" xml:space="preserve">
+    <value>Traffic routes through an encrypted relay to protect player privacy; real IP addresses are never shared with peers.</value>
+  </data>
+  <data name="Online.Join.ProfileHint" xml:space="preserve">
+    <value>Advertised to the lobby and used for Play. Leave on auto-match to pick the closest setup.</value>
+  </data>
+  <data name="Online.Join.SuccessMessage" xml:space="preserve">
+    <value>Connected with overlay IP {0}. Open the in-game LAN lobby to play.</value>
+  </data>
+  <data name="Online.Join.SuccessTitle" xml:space="preserve">
+    <value>Joined network</value>
+  </data>
+  <data name="Online.Join.Title" xml:space="preserve">
+    <value>Join network</value>
+  </data>
+  <data name="Online.List.Empty" xml:space="preserve">
+    <value>No networks found. Create one to get started.</value>
+  </data>
+  <data name="Online.List.Failed" xml:space="preserve">
+    <value>Could not load networks.</value>
+  </data>
+  <data name="Online.Member.HostBadge" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="Online.Member.LaunchedBadge" xml:space="preserve">
+    <value>Launched</value>
+  </data>
+  <data name="Online.ProfileSelection.Title" xml:space="preserve">
+    <value>Select Game Profile</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Select Game Profile</value>
+  </data>
+  <data name="Online.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Choose a profile for online play with lobby compatibility</value>
+  </data>
+  <data name="Online.ProfileSelection.SelectAction" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="Online.ProfileSelection.Placeholder" xml:space="preserve">
+    <value>Click to select profile...</value>
+  </data>
+  <data name="Online.Nickname.Title" xml:space="preserve">
+    <value>Player nickname</value>
+  </data>
+  <data name="Online.Nickname.Label" xml:space="preserve">
+    <value>Nickname</value>
+  </data>
+  <data name="Online.Nickname.Placeholder" xml:space="preserve">
+    <value>Choose your in-game name</value>
+  </data>
+  <data name="Online.Nickname.Hint" xml:space="preserve">
+    <value>Shown in-game in every lobby you join from GenHub Online. Written to the launched game when you press Play (max 12 characters). Leave empty to keep the game's current name.</value>
+  </data>
+  <data name="Online.Joined.OverlayIpLabel" xml:space="preserve">
+    <value>Your overlay IP:</value>
+  </data>
+  <data name="Online.Leave.SuccessMessage" xml:space="preserve">
+    <value>Overlay adapter shut down.</value>
+  </data>
+  <data name="Online.Leave.SuccessTitle" xml:space="preserve">
+    <value>Left network</value>
+  </data>
+  <data name="Online.Quality.Connecting" xml:space="preserve">
+    <value>Connecting</value>
+  </data>
+  <data name="Online.Quality.Direct" xml:space="preserve">
+    <value>Direct</value>
+  </data>
+  <data name="Online.Quality.Relay" xml:space="preserve">
+    <value>Relay</value>
+  </data>
+  <data name="Online.Quality.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Online.List.Title" xml:space="preserve">
+    <value>Networks</value>
+  </data>
+  <data name="Online.Roster.Title" xml:space="preserve">
+    <value>Members</value>
+  </data>
+  <data name="Online.Search.Watermark" xml:space="preserve">
+    <value>Search networks...</value>
+  </data>
+  <data name="Online.Subtitle" xml:space="preserve">
+    <value>Join a virtual LAN network, then open the in-game LAN lobby to play with members.</value>
+  </data>
+  <data name="Online.Title" xml:space="preserve">
+    <value>Online</value>
   </data>
   <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
     <value>Clear All History</value>
@@ -5326,6 +5680,15 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Downloads.ProfileSelection.Error" xml:space="preserve">
     <value>Failed to load profiles</value>
+  </data>
+  <data name="Downloads.ProfileSelection.Incompatible" xml:space="preserve">
+    <value>Incompatible</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleGameFormat" xml:space="preserve">
+    <value>This profile is for {0}, content is for {1}</value>
+  </data>
+  <data name="Downloads.ProfileSelection.IncompatibleLobby" xml:space="preserve">
+    <value>Profile does not match lobby or requirements</value>
   </data>
   <data name="Downloads.ProfileSelection.Loading" xml:space="preserve">
     <value>Loading profiles...</value>
@@ -11261,6 +11624,66 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
     <value>To keep a single installation, reinstall over the previous location or move this install in Settings &gt; Migrate Installation, then remove the remaining duplicate copy.</value>
     <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
+  </data>
+  <data name="Online.Create.ProfileLabel" xml:space="preserve">
+    <value>Game profile</value>
+  </data>
+  <data name="Online.Create.ProfilePlaceholder" xml:space="preserve">
+    <value>Select a game profile</value>
+  </data>
+  <data name="Online.Create.ProfileHint" xml:space="preserve">
+    <value>Members auto-match this setup. Anyone can still join; mismatches are only shown.</value>
+  </data>
+  <data name="Online.Detail.MatchLabel" xml:space="preserve">
+    <value>Your setup</value>
+  </data>
+  <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
+    <value>Plays with</value>
+  </data>
+  <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
+    <value>Host set no game — any setup works.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailNoProfile" xml:space="preserve">
+    <value>Select a launch profile to compare.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailMismatch" xml:space="preserve">
+    <value>Profile mismatch — these setups cannot play together.</value>
+  </data>
+  <data name="Online.Match.Exact" xml:space="preserve">
+    <value>Matches</value>
+  </data>
+  <data name="Online.Match.Mismatch" xml:space="preserve">
+    <value>Mismatch</value>
+  </data>
+  <data name="Online.Match.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Online.Profile.SwitchedTitle" xml:space="preserve">
+    <value>Lobby game changed</value>
+  </data>
+  <data name="Online.Profile.SwitchedMessage" xml:space="preserve">
+    <value>The host switched the lobby to {0}.</value>
+  </data>
+  <data name="Online.Profile.SwitchedClearedMessage" xml:space="preserve">
+    <value>The host cleared the lobby game.</value>
+  </data>
+  <data name="Online.Adapter.PendingTitle" xml:space="preserve">
+    <value>Lobby only</value>
+  </data>
+  <data name="Online.Adapter.PendingMessage" xml:space="preserve">
+    <value>Tunneling isn't available yet, so members won't appear in-game. Roster and presence work.</value>
+  </data>
+  <data name="Online.Adapter.ElevationTitle" xml:space="preserve">
+    <value>Administrator rights needed</value>
+  </data>
+  <data name="Online.Adapter.ElevationMessage" xml:space="preserve">
+    <value>GenHub could not create the virtual LAN adapter. Accept the administrator prompt when joining, or restart GenHub as administrator and rejoin the lobby.</value>
+  </data>
+  <data name="Online.Host.ProfileLabel" xml:space="preserve">
+    <value>Game profile</value>
+  </data>
+  <data name="Online.Host.ProfilePlaceholder" xml:space="preserve">
+    <value>No profile (any setup)</value>
   </data>
   <data name="GameSettings.Video.ResolutionToolTip" xml:space="preserve">
     <value>Sets the display resolution for the game.</value>

@@ -114,11 +114,12 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" }))
         {
+            var filePath = GetOptionsFilePath(gameType);
+
             // Acquire semaphore to serialize Options.ini writes
             await _optionsIniWriteSemaphore.WaitAsync();
             try
             {
-                var filePath = GetOptionsFilePath(gameType);
                 _logger.LogDebug("Saving to path: {FilePath}", filePath);
 
                 var directory = Path.GetDirectoryName(filePath);
@@ -145,7 +146,13 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 _logger.LogDebug("Serializing options");
                 var lines = SerializeOptionsIni(options);
                 _logger.LogDebug("Writing {LineCount} lines to file", lines.Length);
-                await File.WriteAllLinesAsync(filePath, lines, Encoding.UTF8);
+
+                // Atomic replace: a crash mid-write must never leave a truncated
+                // Options.ini behind. The temp file lives beside the target so the
+                // move stays on one volume.
+                var temporaryPath = filePath + FileTypes.AtomicWriteTempSuffix;
+                await File.WriteAllLinesAsync(temporaryPath, lines, Encoding.UTF8);
+                File.Move(temporaryPath, filePath, overwrite: true);
 
                 _logger.LogInformation("Saved successfully to {FilePath}", filePath);
                 return OperationResult<bool>.CreateSuccess(true);
@@ -153,6 +160,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or InvalidOperationException)
             {
                 _logger.LogError(ex, "Failed to save Options.ini for {GameType}", gameType);
+                DiscardTemporaryFile(filePath + FileTypes.AtomicWriteTempSuffix);
                 return OperationResult<bool>.CreateFailure($"Failed to save options: {ex.Message}");
             }
             finally
@@ -350,6 +358,25 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
         return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+    }
+
+    private static void DiscardTemporaryFile(string temporaryPath)
+    {
+        try
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+        catch (IOException)
+        {
+            // Best effort; a leftover staging file is not worth failing the save over.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort; a leftover staging file is not worth failing the save over.
+        }
     }
 
     private static void DiscardTemporarySettingsFile(string? temporaryPath)
@@ -588,6 +615,18 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 ParseNetworkSection(options.Network, values);
                 break;
             default:
+                // If network settings were inadvertently written under a custom section (e.g. legacy serialization bug),
+                // extract and restore them to root-level Network options.
+                if (values.Remove("IPAddress", out var ipVal) && string.IsNullOrEmpty(options.Network.IPAddress))
+                {
+                    options.Network.IPAddress = ipVal;
+                }
+
+                if (values.Remove("GameSpyIPAddress", out var gsVal) && string.IsNullOrEmpty(options.Network.GameSpyIPAddress))
+                {
+                    options.Network.GameSpyIPAddress = gsVal;
+                }
+
                 options.AdditionalSections[sectionName] = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
                 break;
         }
@@ -716,6 +755,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 case "GameSpyIPAddress":
                     network.GameSpyIPAddress = kvp.Value;
                     break;
+                case "IPAddress":
+                    network.IPAddress = kvp.Value;
+                    break;
                 default:
                     // Preserve unknown settings
                     network.AdditionalProperties[kvp.Key] = kvp.Value;
@@ -770,6 +812,24 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             lines.Add($"{kvp.Key}={kvp.Value}");
         }
 
+        // Network settings (MUST be written in root flat section before any [Section] headers)
+        if (!string.IsNullOrEmpty(options.Network.GameSpyIPAddress))
+        {
+            lines.Add($"GameSpyIPAddress={options.Network.GameSpyIPAddress}");
+        }
+
+        if (!string.IsNullOrEmpty(options.Network.IPAddress))
+        {
+            lines.Add($"IPAddress={options.Network.IPAddress}");
+        }
+
+        // Add additional network properties
+        foreach (var kvp in options.Network.AdditionalProperties)
+        {
+            lines.Add($"{kvp.Key}={kvp.Value}");
+        }
+
+        // Section-based settings (MUST come after all root flat settings)
         // TheSuperHackers settings
         var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
         if (tshKvp.Value is { Count: > 0 })
@@ -780,18 +840,6 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             {
                 lines.Add($"{kvp.Key} = {kvp.Value}");
             }
-        }
-
-        // Network settings
-        if (!string.IsNullOrEmpty(options.Network.GameSpyIPAddress))
-        {
-            lines.Add($"GameSpyIPAddress={options.Network.GameSpyIPAddress}");
-        }
-
-        // Add additional network properties
-        foreach (var kvp in options.Network.AdditionalProperties)
-        {
-            lines.Add($"{kvp.Key}={kvp.Value}");
         }
 
         // Add any other additional sections with section headers (for future extensibility)

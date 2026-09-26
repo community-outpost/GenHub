@@ -106,12 +106,13 @@ public static class GameSettingsMapper
     /// <param name="profile">The game profile containing the settings.</param>
     /// <param name="options">The IniOptions object to apply settings to.</param>
     /// <param name="logger">Optional logger for validation warnings.</param>
-    public static void ApplyToOptions(GameProfile profile, IniOptions options, ILogger? logger = null)
+    /// <param name="networkIpOverride">Optional LAN IP that wins over the profile's stored address.</param>
+    public static void ApplyToOptions(GameProfile profile, IniOptions options, ILogger? logger = null, string? networkIpOverride = null)
     {
         ApplyVideoResolutionAndQualityToOptions(profile, options, logger);
         ApplyVideoAdditionalToOptions(profile, options, logger);
         ApplyAudioToOptions(profile, options, logger);
-        ApplyNetworkToOptions(profile, options);
+        ApplyNetworkToOptions(profile, options, networkIpOverride);
         ApplyTshToOptions(profile, options);
     }
 
@@ -1001,11 +1002,19 @@ public static class GameSettingsMapper
     /// </summary>
     /// <param name="profile">The game profile containing network settings.</param>
     /// <param name="options">The target INI options instance.</param>
-    private static void ApplyNetworkToOptions(GameProfile profile, IniOptions options)
+    /// <param name="networkIpOverride">Optional LAN IP that wins over the profile's stored address.</param>
+    private static void ApplyNetworkToOptions(GameProfile profile, IniOptions options, string? networkIpOverride = null)
     {
         if (profile.GameSpyIPAddress != null)
         {
             options.Network.GameSpyIPAddress = profile.GameSpyIPAddress;
+        }
+
+        if (!string.IsNullOrWhiteSpace(networkIpOverride) && System.Net.IPAddress.TryParse(networkIpOverride.Trim(), out var parsedIp))
+        {
+            var ipStr = parsedIp.ToString();
+            options.Network.GameSpyIPAddress = ipStr;
+            options.Network.IPAddress = ipStr;
         }
     }
 

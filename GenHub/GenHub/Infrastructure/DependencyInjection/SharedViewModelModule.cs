@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfiles;
@@ -16,6 +17,7 @@ using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
+using GenHub.Features.Online.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +44,14 @@ public static class SharedViewModelModule
         services.AddSingleton<DownloadsBrowserViewModel>();
         services.AddSingleton<ToolsViewModel>();
         services.AddSingleton<InfoViewModel>();
+        services.AddSingleton(sp => new OnlineViewModelDependencies(
+            sp.GetService<ILocalizationService>(),
+            sp.GetService<IUserSettingsService>(),
+            sp.GetService<IGameInstallationService>(),
+            sp.GetService<IGameCrcCalculatorService>(),
+            sp,
+            sp.GetService<IContentManifestPool>()));
+        services.AddSingleton<OnlineViewModel>();
         services.AddSingleton<NotificationManagerViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(
             sp.GetRequiredService<IUserSettingsService>(),

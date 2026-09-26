@@ -20,8 +20,15 @@
 # Node deps / package managers
 node_modules/
 package-lock.json
+# The online edge deploys from CI with npm ci, which requires its lockfile.
+!gateway-online/package-lock.json
 npm-debug.log*
 pnpm-debug.log*
+
+# Cloudflare local secrets (never commit)
+/gateway/.dev.vars
+/gateway-online/.dev.vars
+.wrangler/
 
 # VitePress / site build
 docs/.vitepress/dist/
@@ -33,6 +40,7 @@ build.lock
 [Dd]ebug/
 [Rr]elease/
 x64/
+!**/Resources/Wintun/**
 [Bb]in/
 [Oo]bj/
 

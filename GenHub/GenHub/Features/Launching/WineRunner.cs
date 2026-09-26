@@ -104,6 +104,7 @@ public class WineRunner(
 
         EnsurePrefix();
         MirrorOptionsIni(configuration);
+        MirrorNetworkIni(configuration);
 
         logger.LogInformation("Launching {ExecutablePath} through Wine ({WineBinary})", executablePath, wineBinary);
         var environment = new Dictionary<string, string>(configuration.EnvironmentVariables)
@@ -807,6 +808,13 @@ public class WineRunner(
 
     private bool TryFindWineBinary([NotNullWhen(true)] out string? wineBinary)
     {
+        var overridePath = Environment.GetEnvironmentVariable(WineConstants.WineBinaryOverrideEnvVar);
+        if (!string.IsNullOrWhiteSpace(overridePath) && File.Exists(overridePath))
+        {
+            wineBinary = overridePath;
+            return true;
+        }
+
         wineBinary = options.AbsoluteBinaryPaths
             .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p));
 
@@ -929,9 +937,40 @@ public class WineRunner(
             return;
         }
 
+        MirrorSourceIntoPrefix(sourcePath, configuration.GameType.Value);
+    }
+
+    /// <summary>
+    /// Mirrors the native Network.ini (LAN nickname) into every candidate user shell folder.
+    /// </summary>
+    /// <remarks>
+    /// Without this, the nickname Online Play syncs into the native Network.ini never
+    /// reaches a game running inside Wine/Proton: the engine reads the prefix copy,
+    /// so the lobby keeps showing the stale name.
+    /// </remarks>
+    /// <param name="configuration">The launch configuration.</param>
+    private void MirrorNetworkIni(GameLaunchConfiguration configuration)
+    {
+        if (configuration.GameType is null || string.IsNullOrWhiteSpace(configuration.NativeNetworkIniPath))
+        {
+            return;
+        }
+
+        var sourcePath = configuration.NativeNetworkIniPath;
+        if (!File.Exists(sourcePath))
+        {
+            // No nickname was ever synced; never fabricate an empty Network.ini.
+            return;
+        }
+
+        MirrorSourceIntoPrefix(sourcePath, configuration.GameType.Value);
+    }
+
+    private void MirrorSourceIntoPrefix(string sourcePath, GameType gameType)
+    {
         try
         {
-            var dataDirectoryName = configuration.GameType == GameType.ZeroHour
+            var dataDirectoryName = gameType == GameType.ZeroHour
                 ? MapManagerConstants.ZeroHourDataDirectoryName
                 : MapManagerConstants.GeneralsDataDirectoryName;
 
@@ -948,12 +987,12 @@ public class WineRunner(
 
             if (MirrorToCandidateUsers(sourcePath, usersRoot, candidateUsernames, dataDirectoryName, logger))
             {
-                logger.LogInformation("Mirrored Options.ini and user data into Wine prefix for {GameType}", configuration.GameType);
+                logger.LogInformation("Mirrored {FileName} into Wine prefix for {GameType}", Path.GetFileName(sourcePath), gameType);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            logger.LogWarning(ex, "Failed to mirror Options.ini into Wine prefix; continuing launch with prefix defaults");
+            logger.LogWarning(ex, "Failed to mirror {FileName} into Wine prefix; continuing launch with prefix defaults", Path.GetFileName(sourcePath));
         }
     }
 }

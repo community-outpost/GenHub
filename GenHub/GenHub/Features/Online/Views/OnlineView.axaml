@@ -1,0 +1,584 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Online.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.Online;assembly=GenHub.Core"
+             xmlns:profiles="clr-namespace:GenHub.Core.Models.GameProfile;assembly=GenHub.Core"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="800"
+             x:Class="GenHub.Features.Online.Views.OnlineView"
+             x:DataType="vm:OnlineViewModel"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <conv:OnlineQualityTextConverter x:Key="OnlineQualityTextConverter" />
+        <conv:OnlineQualityBrushConverter x:Key="OnlineQualityBrushConverter" />
+        <conv:OnlineMatchTextConverter x:Key="OnlineMatchTextConverter" />
+        <conv:OnlineMatchBrushConverter x:Key="OnlineMatchBrushConverter" />
+        <conv:OnlineProfileMatchTextConverter x:Key="OnlineProfileMatchTextConverter" />
+        <conv:OnlineProfileMatchBrushConverter x:Key="OnlineProfileMatchBrushConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="24" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style Selector="TextBlock.field-label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        </Style>
+
+        <Style Selector="TextBlock.helper-text">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style Selector="TextBox.field">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,8" />
+        </Style>
+
+        <Style Selector="Button.toolbar-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.toolbar-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+        </Style>
+
+        <Style Selector="Button.primary-btn:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+
+        <Style Selector="Button.toolbar-btn:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="16" />
+        </Style>
+
+        <Style Selector="Border.badge">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+        </Style>
+
+        <Style Selector="ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch" Margin="24,24,24,64">
+            <!-- Header row: Title + Subtitle on Left, Player Nickname on Right -->
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="page-title" Text="{localization:Localize Online.Title}" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="{localization:Localize Online.Subtitle}"
+                           Foreground="{DynamicResource TextSecondary}"
+                           TextWrapping="Wrap"
+                           Margin="0,4,16,0" />
+
+                <!-- Player nickname: compact profile badge in the header -->
+                <Border Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                        Classes="card"
+                        Padding="12,8"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <material:MaterialIcon Kind="AccountOutline" Width="20" Height="20"
+                                              Foreground="{DynamicResource AccentBrush}"
+                                              VerticalAlignment="Center" />
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Nickname.Label}" FontSize="11" />
+                            <TextBox Classes="field"
+                                     Text="{Binding Nickname, Mode=TwoWay}"
+                                     Watermark="{localization:Localize Online.Nickname.Placeholder}"
+                                     MaxLength="12"
+                                     Width="140"
+                                     Height="32"
+                                     Padding="8,4"
+                                     IsEnabled="{Binding !IsGameRunning}"
+                                     ToolTip.Tip="{localization:Localize Online.Nickname.Hint}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Joined banner -->
+            <Border Classes="card" IsVisible="{Binding IsJoined}">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding CurrentNetworkName}"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="badge" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="8" Height="8"
+                                         Fill="{Binding ConnectionQuality, Converter={StaticResource OnlineQualityBrushConverter}}" />
+                                <TextBlock Text="{Binding ConnectionQuality, Converter={StaticResource OnlineQualityTextConverter}}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TextSecondary}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="badge" VerticalAlignment="Center"
+                                IsVisible="{Binding IsLobbyOnly}"
+                                ToolTip.Tip="{Binding AdapterStatusTooltip}">
+                            <TextBlock Text="{localization:Localize Online.Adapter.PendingTitle}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondary}" />
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{localization:Localize Online.Joined.OverlayIpLabel}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding OverlayIp}"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <Button Classes="toolbar-btn"
+                                Content="{localization:Localize Online.Action.CopyIp}"
+                                Command="{Binding CopyOverlayIpCommand}"
+                                AutomationProperties.Name="{localization:Localize Online.Action.CopyIp}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{localization:Localize Online.Detail.PlayProfileLabel}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" />
+                        <Button Classes="toolbar-btn"
+                                Command="{Binding OpenProfileSelectionCommand}"
+                                MinWidth="220"
+                                ToolTip.Tip="{localization:Localize Online.Detail.PlayProfileLabel}"
+                                AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <material:MaterialIcon Kind="GamepadVariantOutline" Width="16" Height="16" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SelectedPlayProfileDisplayName}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxWidth="260" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{localization:Localize Online.Detail.ExpectedProfileLabel}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ExpectedProfileName}"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="badge" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ProfileMatchState, Converter={StaticResource OnlineProfileMatchTextConverter}}"
+                                       FontSize="11"
+                                       Foreground="{Binding ProfileMatchState, Converter={StaticResource OnlineProfileMatchBrushConverter}}" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="{Binding ProfileMatchDetail}"
+                               Foreground="{DynamicResource TextMuted}"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding ProfileMatchDetail, Converter={StaticResource NullToVisibilityConverter}}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="primary-btn"
+                                Content="{localization:Localize Online.Action.Play}"
+                                Command="{Binding PlayCommand}"
+                                IsVisible="{Binding !IsGameRunning}"
+                                AutomationProperties.Name="{localization:Localize Online.Action.Play}" />
+                        <Button Classes="primary-btn"
+                                Content="{localization:Localize Online.Action.Stop}"
+                                Command="{Binding StopCommand}"
+                                IsVisible="{Binding IsGameRunning}"
+                                AutomationProperties.Name="{localization:Localize Online.Action.Stop}" />
+                        <Button Classes="toolbar-btn"
+                                Content="{localization:Localize Online.Action.Leave}"
+                                Command="{Binding LeaveNetworkCommand}"
+                                AutomationProperties.Name="{localization:Localize Online.Action.Leave}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Toolbar -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox Classes="field"
+                         Text="{Binding SearchText, Mode=TwoWay}"
+                         Watermark="{localization:Localize Online.Search.Watermark}"
+                         AutomationProperties.Name="{localization:Localize Online.Search.Watermark}"
+                         Width="280" />
+                <Button Classes="toolbar-btn"
+                        Content="{localization:Localize Online.Action.Refresh}"
+                        Command="{Binding RefreshNetworksCommand}"
+                        AutomationProperties.Name="{localization:Localize Online.Action.Refresh}" />
+                <Button Classes="toolbar-btn"
+                        Content="{localization:Localize Online.Action.Create}"
+                        Command="{Binding ToggleCreatePanelCommand}"
+                        AutomationProperties.Name="{localization:Localize Online.Action.Create}" />
+            </StackPanel>
+
+            <!-- Create panel -->
+            <Border Classes="card" IsVisible="{Binding IsCreatePanelOpen}">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="section-title" Text="{localization:Localize Online.Create.Title}" />
+                    <TextBlock Classes="field-label" Text="{localization:Localize Online.Create.NameWatermark}" />
+                    <TextBox Classes="field"
+                             Text="{Binding CreateName, Mode=TwoWay}"
+                             Watermark="{localization:Localize Online.Create.NameWatermark}"
+                             MaxLength="64" />
+                    <TextBlock Classes="field-label" Text="{localization:Localize Online.Create.PasswordWatermark}" />
+                    <TextBox Classes="field"
+                             Text="{Binding CreatePassword, Mode=TwoWay}"
+                             PasswordChar="•"
+                             Watermark="{localization:Localize Online.Create.PasswordWatermark}"
+                             MaxLength="128" />
+                    <TextBlock Classes="helper-text" Text="{localization:Localize Online.Create.PasswordHint}" />
+                    <TextBlock Classes="field-label" Text="{localization:Localize Online.Create.DescriptionWatermark}" />
+                    <TextBox Classes="field"
+                             Text="{Binding CreateDescription, Mode=TwoWay}"
+                             Watermark="{localization:Localize Online.Create.DescriptionWatermark}"
+                             MaxLength="1024" />
+                    <TextBlock Classes="field-label" Text="{localization:Localize Online.Create.ProfileLabel}" />
+                    <ComboBox ItemsSource="{Binding AvailableProfiles}"
+                              SelectedItem="{Binding SelectedCreateProfile, Mode=TwoWay}"
+                              PlaceholderText="{localization:Localize Online.Create.ProfilePlaceholder}"
+                              HorizontalAlignment="Stretch"
+                              AutomationProperties.Name="{localization:Localize Online.Create.ProfileLabel}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="profiles:GameProfile">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Classes="helper-text" Text="{localization:Localize Online.Create.ProfileHint}" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{localization:Localize Online.Create.SlotsLabel}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" />
+                        <NumericUpDown Value="{Binding CreateSlots, Mode=TwoWay}"
+                                       Minimum="2" Maximum="16" Width="100" />
+                        <CheckBox Content="{localization:Localize Online.Create.PublicLabel}"
+                                  IsChecked="{Binding CreateIsPublic, Mode=TwoWay}"
+                                  Foreground="{DynamicResource TextPrimary}" />
+                    </StackPanel>
+                    <Button Classes="primary-btn"
+                            Content="{localization:Localize Online.Create.Submit}"
+                            Command="{Binding CreateNetworkCommand}"
+                            HorizontalAlignment="Left"
+                            AutomationProperties.Name="{localization:Localize Online.Create.Submit}" />
+                </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="*,16,*">
+                <!-- Network list -->
+                <Border Grid.Column="0" Classes="card">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="section-title" Text="{localization:Localize Online.List.Title}" />
+                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsRefreshingDirectory}" />
+                        <TextBlock Text="{localization:Localize Online.List.Empty}"
+                                   Foreground="{DynamicResource TextMuted}"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding DirectoryEmpty}" />
+                        <StackPanel Spacing="8" IsVisible="{Binding DirectoryFailed}">
+                            <TextBlock Text="{localization:Localize Online.List.Failed}"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       TextWrapping="Wrap" />
+                            <Button Classes="toolbar-btn"
+                                    Content="{localization:Localize Online.Action.Retry}"
+                                    Command="{Binding RefreshNetworksCommand}"
+                                    HorizontalAlignment="Left"
+                                    AutomationProperties.Name="{localization:Localize Online.Action.Retry}" />
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding Networks}"
+                                 SelectedItem="{Binding SelectedNetwork, Mode=TwoWay}"
+                                 Background="Transparent"
+                                 MaxHeight="380"
+                                 AutomationProperties.Name="{localization:Localize Online.List.Title}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:OnlineNetworkSummary">
+                                    <StackPanel Spacing="2" Margin="0,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <material:MaterialIcon Kind="Lock" Width="12" Height="12"
+                                                                   Foreground="{DynamicResource TextMuted}"
+                                                                   VerticalAlignment="Center"
+                                                                   IsVisible="{Binding RequiresPassword}" />
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimary}"
+                                                       VerticalAlignment="Center" />
+                                            <Ellipse Width="8" Height="8"
+                                                     VerticalAlignment="Center"
+                                                     Fill="{Binding Quality, Converter={StaticResource OnlineQualityBrushConverter}}" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding SlotsUsed}"
+                                                       Foreground="{DynamicResource TextSecondary}" />
+                                            <TextBlock Text="/"
+                                                       Foreground="{DynamicResource TextSecondary}" />
+                                            <TextBlock Text="{Binding SlotsMax}"
+                                                       Foreground="{DynamicResource TextSecondary}" />
+                                            <TextBlock Text="{Binding HostDisplayName}"
+                                                       Foreground="{DynamicResource TextMuted}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
+
+                <!-- Detail, join, roster -->
+                <StackPanel Grid.Column="2" Spacing="16">
+                    <Border Classes="card"
+                            IsVisible="{Binding IsDetailVisible}">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Classes="section-title" Text="{localization:Localize Online.Detail.Title}" />
+                                <ProgressBar IsIndeterminate="True" Width="60"
+                                             IsVisible="{Binding DetailLoading}"
+                                             VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding SelectedDetail.Description}"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{localization:Localize Online.Detail.SlotsLabel}"
+                                           Foreground="{DynamicResource TextMuted}" />
+                                <TextBlock Foreground="{DynamicResource TextPrimary}">
+                                    <Run Text="{Binding SelectedDetail.SlotsUsed}" /><Run Text="/" /><Run Text="{Binding SelectedDetail.SlotsMax}" />
+                                </TextBlock>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{localization:Localize Online.Detail.ExpectedProfileLabel}"
+                                           Foreground="{DynamicResource TextMuted}" />
+                                <TextBlock Text="{Binding ExpectedProfileName}"
+                                           Foreground="{DynamicResource TextPrimary}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{localization:Localize Online.Detail.MatchLabel}"
+                                           Foreground="{DynamicResource TextMuted}"
+                                           VerticalAlignment="Center" />
+                                <Ellipse Width="8" Height="8"
+                                         VerticalAlignment="Center"
+                                         Fill="{Binding ProfileMatchState, Converter={StaticResource OnlineProfileMatchBrushConverter}}" />
+                                <TextBlock Text="{Binding ProfileMatchState, Converter={StaticResource OnlineProfileMatchTextConverter}}"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8"
+                                        IsVisible="{Binding SelectedPlayProfile, Converter={StaticResource NullToVisibilityConverter}}">
+                                <TextBlock Text="{localization:Localize Online.Detail.PlayProfileLabel}"
+                                           Foreground="{DynamicResource TextMuted}" />
+                                <TextBlock Text="{Binding SelectedPlayProfile.Name}"
+                                           Foreground="{DynamicResource TextPrimary}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding ProfileMatchDetail}"
+                                       Foreground="{DynamicResource TextMuted}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding ProfileMatchDetail, Converter={StaticResource NullToVisibilityConverter}}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card" IsVisible="{Binding !IsJoined}">
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="section-title" Text="{localization:Localize Online.Join.Title}" />
+                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Detail.PlayProfileLabel}" />
+                            <Button Classes="toolbar-btn"
+                                    Command="{Binding OpenProfileSelectionCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    ToolTip.Tip="{localization:Localize Online.Detail.PlayProfileLabel}"
+                                    AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <material:MaterialIcon Kind="GamepadVariantOutline" Width="16" Height="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding SelectedPlayProfileDisplayName}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Classes="helper-text" Text="{localization:Localize Online.Join.ProfileHint}" />
+                            <StackPanel Spacing="8" IsVisible="{Binding JoinRequiresPassword}">
+                                <TextBlock Classes="field-label" Text="{localization:Localize Online.Join.PasswordWatermark}" />
+                                <TextBox Classes="field"
+                                         Text="{Binding JoinPassword, Mode=TwoWay}"
+                                         PasswordChar="•"
+                                         Watermark="{localization:Localize Online.Join.PasswordWatermark}"
+                                         MaxLength="128" />
+                            </StackPanel>
+                            <TextBlock Classes="helper-text" Text="{localization:Localize Online.Join.PrivacyNotice}" />
+                            <Button Classes="primary-btn"
+                                    Content="{localization:Localize Online.Action.Join}"
+                                    Command="{Binding JoinNetworkCommand}"
+                                    HorizontalAlignment="Left"
+                                    AutomationProperties.Name="{localization:Localize Online.Action.Join}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card" IsVisible="{Binding IsJoined}">
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Classes="section-title" Text="{localization:Localize Online.Roster.Title}" />
+                            </StackPanel>
+                            <ListBox ItemsSource="{Binding Members}"
+                                     SelectedItem="{Binding SelectedMember, Mode=TwoWay}"
+                                     Background="Transparent"
+                                     MaxHeight="220"
+                                     AutomationProperties.Name="{localization:Localize Online.Roster.Title}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:OnlineMember">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimary}"
+                                                       VerticalAlignment="Center" />
+                                            <Border Classes="badge"
+                                                    IsVisible="{Binding IsHost}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{localization:Localize Online.Member.HostBadge}"
+                                                           FontSize="10"
+                                                           Foreground="{DynamicResource TextSecondary}" />
+                                            </Border>
+                                            <Border Classes="badge"
+                                                    IsVisible="{Binding IsLaunched}"
+                                                    Background="{DynamicResource SuccessBrush}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{localization:Localize Online.Member.LaunchedBadge}"
+                                                           FontSize="10"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="White" />
+                                            </Border>
+                                            <TextBlock Text="{Binding OverlayIp}"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Quality, Converter={StaticResource OnlineQualityTextConverter}}"
+                                                       Foreground="{DynamicResource TextMuted}"
+                                                       VerticalAlignment="Center" />
+                                            <Ellipse Width="8" Height="8"
+                                                     VerticalAlignment="Center">
+                                                <Ellipse.Fill>
+                                                    <MultiBinding Converter="{StaticResource OnlineMatchBrushConverter}">
+                                                        <Binding Path="ProfileFingerprint" />
+                                                        <Binding Path="$parent[UserControl].((vm:OnlineViewModel)DataContext).ExpectedProfileFingerprint" />
+                                                        <Binding Path="$parent[UserControl].((vm:OnlineViewModel)DataContext).ExpectedGameClientId" />
+                                                    </MultiBinding>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                            <TextBlock Foreground="{DynamicResource TextMuted}"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Text>
+                                                    <MultiBinding Converter="{StaticResource OnlineMatchTextConverter}">
+                                                        <Binding Path="ProfileFingerprint" />
+                                                        <Binding Path="$parent[UserControl].((vm:OnlineViewModel)DataContext).ExpectedProfileFingerprint" />
+                                                        <Binding Path="$parent[UserControl].((vm:OnlineViewModel)DataContext).ExpectedGameClientId" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="toolbar-btn"
+                                        Content="{localization:Localize Online.Action.Ban}"
+                                        Command="{Binding BanMemberCommand}"
+                                        IsVisible="{Binding IsCurrentUserHost}"
+                                        AutomationProperties.Name="{localization:Localize Online.Action.Ban}" />
+                                <Button Classes="toolbar-btn"
+                                        Content="{localization:Localize Online.Host.Title}"
+                                        Command="{Binding ToggleHostPanelCommand}"
+                                        IsVisible="{Binding IsCurrentUserHost}"
+                                        AutomationProperties.Name="{localization:Localize Online.Host.Title}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card" IsVisible="{Binding IsHostPanelOpen}">
+                        <StackPanel Spacing="8">
+                            <TextBlock Classes="section-title" Text="{localization:Localize Online.Host.Title}" />
+                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Host.DescriptionWatermark}" />
+                            <TextBox Classes="field"
+                                     Text="{Binding HostDescription, Mode=TwoWay}"
+                                     Watermark="{localization:Localize Online.Host.DescriptionWatermark}"
+                                     MaxLength="1024" />
+                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Host.ProfileLabel}" />
+                            <ComboBox ItemsSource="{Binding AvailableProfiles}"
+                                      SelectedItem="{Binding SelectedHostProfile, Mode=TwoWay}"
+                                      PlaceholderText="{localization:Localize Online.Host.ProfilePlaceholder}"
+                                      HorizontalAlignment="Stretch"
+                                      AutomationProperties.Name="{localization:Localize Online.Host.ProfileLabel}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="profiles:GameProfile">
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Classes="primary-btn"
+                                    Content="{localization:Localize Online.Action.Save}"
+                                    Command="{Binding SaveNetworkCommand}"
+                                    HorizontalAlignment="Left"
+                                    AutomationProperties.Name="{localization:Localize Online.Action.Save}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

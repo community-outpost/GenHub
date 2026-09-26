@@ -17,6 +17,9 @@ public class GameLaunchConfiguration
     /// <summary>Gets or sets the native Options.ini path mirrored into compatibility prefixes.</summary>
     public string? NativeOptionsIniPath { get; set; }
 
+    /// <summary>Gets or sets the native Network.ini path (LAN nickname) mirrored into compatibility prefixes.</summary>
+    public string? NativeNetworkIniPath { get; set; }
+
     /// <summary>Gets or sets the command line arguments as key-value pairs.</summary>
     public Dictionary<string, string>? Arguments { get; set; }
 

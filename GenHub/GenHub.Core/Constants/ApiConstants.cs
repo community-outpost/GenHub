@@ -7,6 +7,7 @@ namespace GenHub.Core.Constants;
 /// API and network related constants.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized fallback API constants and endpoint definitions.")]
+[SuppressMessage("Security", "S1313:Using hardcoded IP addresses is security-sensitive", Justification = "Centralized fallback API and relay endpoint definitions.")]
 public static class ApiConstants
 {
     // GitHub
@@ -206,6 +207,195 @@ public static class ApiConstants
     /// Base watch URL prefix for YouTube videos.
     /// </summary>
     public const string YouTubeWatchUrlPrefix = "https://www.youtube.com/watch?v=";
+
+    // Online (virtual LAN) edge
+
+    /// <summary>
+    /// Environment variable name for overriding the Online edge base URL.
+    /// </summary>
+    public const string OnlineEdgeBaseUrlEnvVar = "GENHUB_ONLINE_EDGE_URL";
+
+    /// <summary>
+    /// Environment variable name for overriding the primary Online edge URL (e.g. self-hosted VPS).
+    /// </summary>
+    public const string OnlinePrimaryUrlEnvVar = "GENHUB_ONLINE_PRIMARY_URL";
+
+    /// <summary>
+    /// Environment variable name for overriding the fallback/backup Online edge URL.
+    /// </summary>
+    public const string OnlineFallbackUrlEnvVar = "GENHUB_ONLINE_FALLBACK_URL";
+
+    /// <summary>
+    /// Default primary base URL for the GenHub Online edge (Cloudflare Worker).
+    /// </summary>
+    public const string DefaultPrimaryEdgeBaseUrl = "https://genhub-online-edge.mustafa2146.workers.dev";
+
+    /// <summary>
+    /// Default fallback base URL for the GenHub Online edge (Cloudflare Worker backup).
+    /// Defaults to the primary edge URL. When fallback equals primary, failover is skipped to avoid burning retry timeouts against the same unreachable host. Override via <see cref="OnlineFallbackUrlEnvVar"/>.
+    /// </summary>
+    public const string DefaultOnlineEdgeBaseUrl = "https://genhub-online-edge.mustafa2146.workers.dev";
+
+    private static volatile string? _activeEdgeBaseUrl;
+
+    /// <summary>
+    /// Gets or sets the actively resolved base URL for the Online edge.
+    /// </summary>
+    public static string ActiveOnlineEdgeBaseUrl
+    {
+        get => _activeEdgeBaseUrl ?? OnlineEdgeBaseUrl;
+        set => _activeEdgeBaseUrl = string.IsNullOrWhiteSpace(value) ? null : value.TrimEnd('/');
+    }
+
+    /// <summary>
+    /// Gets the primary base URL for the Online edge.
+    /// </summary>
+    public static string PrimaryOnlineEdgeBaseUrl
+    {
+        get
+        {
+            var primaryUrl = Environment.GetEnvironmentVariable(OnlinePrimaryUrlEnvVar);
+            if (!string.IsNullOrEmpty(primaryUrl))
+            {
+                return primaryUrl.TrimEnd('/');
+            }
+
+            var customUrl = Environment.GetEnvironmentVariable(OnlineEdgeBaseUrlEnvVar);
+            if (!string.IsNullOrEmpty(customUrl))
+            {
+                return customUrl.TrimEnd('/');
+            }
+
+            return DefaultPrimaryEdgeBaseUrl;
+        }
+    }
+
+    /// <summary>
+    /// Gets the fallback/backup base URL for the Online edge.
+    /// </summary>
+    public static string FallbackOnlineEdgeBaseUrl =>
+        Environment.GetEnvironmentVariable(OnlineFallbackUrlEnvVar) is { Length: > 0 } fallbackUrl
+            ? fallbackUrl.TrimEnd('/')
+            : DefaultOnlineEdgeBaseUrl;
+
+    /// <summary>
+    /// Gets the active base URL for the Online edge, checking runtime active selection and environment variable overrides first.
+    /// </summary>
+    public static string OnlineEdgeBaseUrl =>
+        _activeEdgeBaseUrl
+        ?? (Environment.GetEnvironmentVariable(OnlineEdgeBaseUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl.TrimEnd('/')
+            : PrimaryOnlineEdgeBaseUrl);
+
+    /// <summary>
+    /// Resets the active edge base URL to the configured primary.
+    /// </summary>
+    public static void ResetActiveOnlineEdgeBaseUrl()
+    {
+        _activeEdgeBaseUrl = null;
+    }
+
+    /// <summary>
+    /// Endpoint path for anonymous session issuance.
+    /// </summary>
+    public const string OnlineSessionsEndpoint = "/v1/sessions/anonymous";
+
+    /// <summary>
+    /// Endpoint path for the public network directory.
+    /// </summary>
+    public const string OnlineNetworksEndpoint = "/v1/networks";
+
+    /// <summary>
+    /// Format string for the directory search query (escaped search text).
+    /// </summary>
+    public const string OnlineNetworksSearchFormat = "?search={0}";
+
+    /// <summary>
+    /// Format string for the single-network endpoint used by detail and update (network id).
+    /// </summary>
+    public const string OnlineNetworkByIdFormat = "/v1/networks/{0}";
+
+    /// <summary>
+    /// Format string for the network join endpoint (network id).
+    /// </summary>
+    public const string OnlineNetworkJoinFormat = "/v1/networks/{0}/join";
+
+    /// <summary>
+    /// Format string for the network presence socket endpoint (network id).
+    /// </summary>
+    public const string OnlinePresenceFormat = "/v1/networks/{0}/presence";
+
+    /// <summary>
+    /// Format string for the network leave endpoint (network id).
+    /// </summary>
+    public const string OnlineLeaveFormat = "/v1/networks/{0}/leave";
+
+    /// <summary>
+    /// Format string for the member ban endpoint (network id).
+    /// </summary>
+    public const string OnlineBanFormat = "/v1/networks/{0}/ban";
+
+    /// <summary>
+    /// Format string for the grant refresh endpoint (network id).
+    /// </summary>
+    public const string OnlineCertFormat = "/v1/networks/{0}/cert";
+
+    /// <summary>
+    /// Format string for the connection-outcome telemetry endpoint (network id).
+    /// </summary>
+    public const string OnlineOutcomeFormat = "/v1/networks/{0}/outcome";
+
+    /// <summary>
+    /// Environment variable name for overriding the STUN hostname.
+    /// </summary>
+    public const string OnlineStunHostEnvVar = "GENHUB_ONLINE_STUN_HOST";
+
+    /// <summary>
+    /// Default STUN hostname for reflexive endpoint discovery.
+    /// </summary>
+    public const string DefaultOnlineStunHost = "stun.cloudflare.com";
+
+    /// <summary>
+    /// Gets the active STUN hostname, checking environment variable overrides first.
+    /// </summary>
+    public static string OnlineStunHost =>
+        Environment.GetEnvironmentVariable(OnlineStunHostEnvVar) is { Length: > 0 } customHost
+            ? customHost
+            : DefaultOnlineStunHost;
+
+    /// <summary>
+    /// Environment variable name for overriding the virtual LAN relay hostname or IP.
+    /// </summary>
+    public const string OnlineRelayHostEnvVar = "GENHUB_ONLINE_RELAY_HOST";
+
+    /// <summary>
+    /// Default relay hostname or IP for virtual LAN fallback tunneling.
+    /// </summary>
+    [SuppressMessage("Security", "S1313:Using hardcoded IP addresses is security-sensitive", Justification = "Default community fallback relay endpoint.")]
+    public const string DefaultOnlineRelayHost = "141.144.254.124"; // NOSONAR
+
+    /// <summary>
+    /// Resolves the relay host to connect to. An explicit environment override
+    /// wins over the server-advertised host so relay moves stay testable without
+    /// an edge deploy; otherwise the advertised host wins over the default.
+    /// </summary>
+    /// <param name="advertisedHost">The relay host advertised by the server, if any.</param>
+    /// <returns>The override, the advertised host, or the default, in that order.</returns>
+    public static string ResolveRelayHost(string? advertisedHost)
+    {
+        if (Environment.GetEnvironmentVariable(OnlineRelayHostEnvVar) is { Length: > 0 } customHost &&
+            !string.IsNullOrWhiteSpace(customHost))
+        {
+            return customHost.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(advertisedHost))
+        {
+            return advertisedHost;
+        }
+
+        return DefaultOnlineRelayHost;
+    }
 
     // User agents
 
