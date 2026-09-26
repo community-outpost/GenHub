@@ -2395,7 +2395,13 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesEnglishItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.dds" },
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga",
+                            $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.dds",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.ArtTexturesWildcardPattern}",
+                            $"{directories.GameFilesEdited}/Art/Textures/**/*.dds",
+                        },
                         OutputFormat = "RAW",
                         NoConvert = true,
                         Description = "English high resolution menu backdrops and UI frame textures",
@@ -2403,7 +2409,13 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesRussianItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.dds" },
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga",
+                            $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.dds",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.ArtTexturesWildcardPattern}",
+                            $"{directories.GameFilesEdited}/Art/Textures/**/*.dds",
+                        },
                         OutputFormat = "RAW",
                         NoConvert = true,
                         Description = "Russian high resolution menu backdrops and UI frame textures",
@@ -2411,7 +2423,13 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesSpanishItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.dds" },
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga",
+                            $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.dds",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.ArtTexturesWildcardPattern}",
+                            $"{directories.GameFilesEdited}/Art/Textures/**/*.dds",
+                        },
                         OutputFormat = "RAW",
                         NoConvert = true,
                         Description = "Spanish high resolution menu backdrops and UI frame textures",

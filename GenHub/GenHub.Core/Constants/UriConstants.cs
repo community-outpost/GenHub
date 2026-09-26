@@ -73,6 +73,11 @@ public static class UriConstants
     /// </summary>
     public const string PublisherStudioIconUri = "avares://GenHub/Assets/Icons/publisherstudio-icon.png";
 
+    /// <summary>
+    /// Icon URI for WND Editor tool.
+    /// </summary>
+    public const string WndEditorIconUri = "avares://GenHub/Assets/Icons/wndeditor-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -149,6 +154,11 @@ public static class UriConstants
     /// Filename for Publisher Studio icon.
     /// </summary>
     public const string PublisherStudioIconFilename = "publisherstudio-icon.png";
+
+    /// <summary>
+    /// Filename for WND Editor icon.
+    /// </summary>
+    public const string WndEditorIconFilename = "wndeditor-icon.png";
 
     // Cover Path Constants
 

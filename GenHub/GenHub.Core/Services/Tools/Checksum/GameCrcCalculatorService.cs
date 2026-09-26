@@ -536,7 +536,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         ct.ThrowIfCancellationRequested();
 
         bool isZeroHour = context.GameType == GameType.ZeroHour;
-        var vfs = new SageVirtualFileSystem(context.GameRootPath, isZeroHour, logger, cancellationToken: ct);
+        var vfs = new SageVirtualFileSystem(context.GameRootPath, isZeroHour, logger, cancellationToken: ct, skipIniZhBig: isZeroHour);
         var crc = new XferChecksum();
 
         var order = isZeroHour

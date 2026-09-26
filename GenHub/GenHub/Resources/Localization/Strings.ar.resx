@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>تكبير / استعادة</value>
   </data>
+  <data name="Common.Tooltip.NumericScrubber" xml:space="preserve">
+    <value>انقر للتحرير، واسحب أفقياً لتعديل القيمة (Shift: دقيق، Ctrl: تقريبي)</value>
+  </data>
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>مسح الإدخال</value>
   </data>
@@ -7108,6 +7111,609 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.FileManager.ButtonRemoveFromProject" xml:space="preserve">
     <value>إزالة من المشروع</value>
   </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonValidateWnd" xml:space="preserve">
+    <value>التحقق من WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipValidateWnd" xml:space="preserve">
+    <value>التحقق من ملفات .wnd المحددة</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonFormatWnd" xml:space="preserve">
+    <value>تنسيق WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipFormatWnd" xml:space="preserve">
+    <value>تنسيق ملفات .wnd المحددة</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.NoSelectionTitle" xml:space="preserve">
+    <value>لم يتم تحديد ملفات WND</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.NoSelectionMessage" xml:space="preserve">
+    <value>حدد ملف .wnd واحد أو أكثر في شجرة المشروع.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateSuccessTitle" xml:space="preserve">
+    <value>نجح التحقق من WND</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateSuccessMessage" xml:space="preserve">
+    <value>{0} من {1} ملفًا صالحًا.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateIssuesTitle" xml:space="preserve">
+    <value>عثر التحقق من WND على مشكلات</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateIssuesMessage" xml:space="preserve">
+    <value>{0} من {1} ملفًا صالحًا. أول مشكلة: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatSuccessTitle" xml:space="preserve">
+    <value>تم تنسيق ملفات WND</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatSuccessMessage" xml:space="preserve">
+    <value>تم تنسيق {0} من {1} ملفًا.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatIssuesTitle" xml:space="preserve">
+    <value>اكتمل تنسيق WND جزئيًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatIssuesMessage" xml:space="preserve">
+    <value>تم تنسيق {0} من {1} ملفًا. أول خطأ: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.OperationCancelled" xml:space="preserve">
+    <value>تم إلغاء العملية.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ProgressValidating" xml:space="preserve">
+    <value>جارٍ التحقق ({0}/{1}): {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ProgressFormatting" xml:space="preserve">
+    <value>جارٍ التنسيق ({0}/{1}): {2}</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.wndeditor.Name" xml:space="preserve">
+    <value>محرر WND</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.wndeditor.Description" xml:space="preserve">
+    <value>محرر مرئي لملفات تعريف النوافذ (.wnd). تصفح التسلسل الهرمي، وحرر الخصائص، وعاين الهندسة، واحفظ بالتنسيق الأصلي.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonEditWnd" xml:space="preserve">
+    <value>تحرير في محرر WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipEditWnd" xml:space="preserve">
+    <value>افتح ملف .wnd المحدد في محرر WND</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.New" xml:space="preserve">
+    <value>جديد</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Open" xml:space="preserve">
+    <value>فتح</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFolder" xml:space="preserve">
+    <value>فتح مجلد</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFile" xml:space="preserve">
+    <value>فتح ملف</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.SaveAs" xml:space="preserve">
+    <value>حفظ باسم</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Undo" xml:space="preserve">
+    <value>تراجع</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Redo" xml:space="preserve">
+    <value>إعادة</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
+    <value>التحقق</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>إجراءات الملف والتحرير</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
+    <value>معاينة</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.AddChild" xml:space="preserve">
+    <value>إضافة فرع</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.Delete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Tools.WndEditor.Color.PickTooltip" xml:space="preserve">
+    <value>اختر لونًا</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>تحريك اللوحة</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomInTooltip" xml:space="preserve">
+    <value>تكبير (Ctrl + +)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomOutTooltip" xml:space="preserve">
+    <value>تصغير (Ctrl + -)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
+    <value>إعادة التكبير إلى 100% (Ctrl + 0)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.MapPreviewPlaceholder" xml:space="preserve">
+    <value>معاينة الخريطة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Label" xml:space="preserve">
+    <value>أصول اللعبة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.SelectorWatermark" xml:space="preserve">
+    <value>حدد نسخة اللعبة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.SelectorTooltip" xml:space="preserve">
+    <value>نسخة اللعبة المستخدمة لمعاينات الصور على اللوحة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ResolvedStatus" xml:space="preserve">
+    <value>{0} من {1} من الصور</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.EmptyStatus" xml:space="preserve">
+    <value>لا توجد صور لعبة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTooltip" xml:space="preserve">
+    <value>الصور المفقودة: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingMore" xml:space="preserve">
+    <value>+{0} أخرى</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.KeyWatermark" xml:space="preserve">
+    <value>المفتاح</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.ValueWatermark" xml:space="preserve">
+    <value>القيمة</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.Add" xml:space="preserve">
+    <value>إضافة</value>
+  </data>
+  <data name="Tools.WndEditor.Document.Untitled" xml:space="preserve">
+    <value>بدون عنوان</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.Title" xml:space="preserve">
+    <value>لا يوجد مستند مفتوح</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.Message" xml:space="preserve">
+    <value>افتح ملف .wnd أو أنشئ مستندًا جديدًا لبدء التحرير.</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenButton" xml:space="preserve">
+    <value>فتح ملف</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFolderButton" xml:space="preserve">
+    <value>فتح مجلد</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFileButton" xml:space="preserve">
+    <value>فتح ملف</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.NewButton" xml:space="preserve">
+    <value>مستند جديد</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.OpenTitle" xml:space="preserve">
+    <value>فتح ملف تعريف النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.SaveTitle" xml:space="preserve">
+    <value>حفظ ملف تعريف النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.FilterName" xml:space="preserve">
+    <value>ملفات تخطيط WND</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Ascii" xml:space="preserve">
+    <value>ASCII فقط</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Editable" xml:space="preserve">
+    <value>قابل للتحرير</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Letters" xml:space="preserve">
+    <value>أحرف وأرقام فقط</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.MaxChars" xml:space="preserve">
+    <value>أقصى عدد للأحرف</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.MaxDisplay" xml:space="preserve">
+    <value>أقصى عدد معروض</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.AlphaNumerical" xml:space="preserve">
+    <value>أحرف وأرقام فقط</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Ascii" xml:space="preserve">
+    <value>ASCII فقط</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.MaxLen" xml:space="preserve">
+    <value>أقصى طول</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Numerical" xml:space="preserve">
+    <value>أرقام فقط</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Secret" xml:space="preserve">
+    <value>نص سري</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.AutoPurge" xml:space="preserve">
+    <value>تنظيف تلقائي</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.AutoScroll" xml:space="preserve">
+    <value>تمرير تلقائي</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ColumnWidths" xml:space="preserve">
+    <value>عروض الأعمدة</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ColumnWidthsHint" xml:space="preserve">
+    <value>60, 40</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.Columns" xml:space="preserve">
+    <value>الأعمدة</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ForceSelect" xml:space="preserve">
+    <value>فرض التحديد</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.HasScrollIfAtEnd" xml:space="preserve">
+    <value>إعلان التمرير عند النهاية</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.Length" xml:space="preserve">
+    <value>أقصى عدد للعناصر</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.MultiSelect" xml:space="preserve">
+    <value>تحديد متعدد</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ScrollBar" xml:space="preserve">
+    <value>شريط التمرير</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ScrollIfAtEnd" xml:space="preserve">
+    <value>التمرير عند النهاية</value>
+  </data>
+  <data name="Tools.WndEditor.Control.MissingHint" xml:space="preserve">
+    <value>لا توجد كتلة بيانات معلنة. التحرير سيضيف واحدة.</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Radio.Group" xml:space="preserve">
+    <value>المجموعة</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.ComboBox" xml:space="preserve">
+    <value>COMBOBOXDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.Listbox" xml:space="preserve">
+    <value>LISTBOXDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.RadioButton" xml:space="preserve">
+    <value>RADIOBUTTONDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.Slider" xml:space="preserve">
+    <value>SLIDERDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.StaticText" xml:space="preserve">
+    <value>STATICTEXTDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.TabControl" xml:space="preserve">
+    <value>TABCONTROLDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.TextEntry" xml:space="preserve">
+    <value>TEXTENTRYDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Slider.Max" xml:space="preserve">
+    <value>الحد الأقصى</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Slider.Min" xml:space="preserve">
+    <value>الحد الأدنى</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Static.Centered" xml:space="preserve">
+    <value>موسّط</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Count" xml:space="preserve">
+    <value>عدد التبويبات</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Edge" xml:space="preserve">
+    <value>الحافة</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Height" xml:space="preserve">
+    <value>ارتفاع التبويب</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Orientation" xml:space="preserve">
+    <value>الاتجاه</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneBorder" xml:space="preserve">
+    <value>حد اللوحة</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneDisabled" xml:space="preserve">
+    <value>تعطيل اللوحات</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneDisabledHint" xml:space="preserve">
+    <value>yes, no</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Width" xml:space="preserve">
+    <value>عرض التبويب</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Unsupported" xml:space="preserve">
+    <value>نوع عنصر التحكم هذا لا يعلن كتلة بيانات.</value>
+  </data>
+  <data name="Tools.WndEditor.ControlData.InvalidMessage" xml:space="preserve">
+    <value>تحتوي القائمة على قيم لا يمكن للمحرك تحليلها. استخدم yes/no أو أرقاماً مفصولة بفواصل.</value>
+  </data>
+  <data name="Tools.WndEditor.ControlData.InvalidTitle" xml:space="preserve">
+    <value>بيانات تحكم غير صالحة</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.FolderTitle" xml:space="preserve">
+    <value>اختر مجلد تعريفات النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesTitle" xml:space="preserve">
+    <value>لا توجد ملفات WND</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesMessage" xml:space="preserve">
+    <value>لم يتم العثور على ملفات تعريف النوافذ (.wnd) في المجلد المحدد.</value>
+  </data>
+  <data name="Tools.WndEditor.Files.Browse" xml:space="preserve">
+    <value>تصفح...</value>
+  </data>
+  <data name="Tools.WndEditor.Files.OpenBadge" xml:space="preserve">
+    <value>مفتوح</value>
+  </data>
+  <data name="Tools.WndEditor.Files.Refresh" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Draw" xml:space="preserve">
+    <value>الرسم</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.HeaderTemplate" xml:space="preserve">
+    <value>قالب الترويسة</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.ImageOffset" xml:space="preserve">
+    <value>إزاحة الصورة</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Input" xml:space="preserve">
+    <value>الإدخال</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.System" xml:space="preserve">
+    <value>النظام</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Tooltip" xml:space="preserve">
+    <value>تلميح</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Disabled" xml:space="preserve">
+    <value>معطّل</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.DisabledBorder" xml:space="preserve">
+    <value>حد المعطّل</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Enabled" xml:space="preserve">
+    <value>مفعّل</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.EnabledBorder" xml:space="preserve">
+    <value>حد المفعّل</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Hilite" xml:space="preserve">
+    <value>تمييز</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.HiliteBorder" xml:space="preserve">
+    <value>حد التمييز</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Border" xml:space="preserve">
+    <value>الحد</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Color" xml:space="preserve">
+    <value>اللون</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Disabled" xml:space="preserve">
+    <value>معطّل</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Enabled" xml:space="preserve">
+    <value>مفعّل</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Hilite" xml:space="preserve">
+    <value>تمييز</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Image" xml:space="preserve">
+    <value>الصورة</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Bold" xml:space="preserve">
+    <value>عريض</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Size" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="Tools.WndEditor.General.Name.Label" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.BottomRight" xml:space="preserve">
+    <value>أسفل اليمين</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.Creation" xml:space="preserve">
+    <value>دقة الإنشاء</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.MissingHint" xml:space="preserve">
+    <value>لا يوجد SCREENRECT معلن. التحرير سيضيف واحداً.</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.Size" xml:space="preserve">
+    <value>الحجم (العرض × الارتفاع)</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.UpperLeft" xml:space="preserve">
+    <value>أعلى اليسار</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Callbacks" xml:space="preserve">
+    <value>الدوال المرجعية</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.DrawData" xml:space="preserve">
+    <value>بيانات الرسم</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Font" xml:space="preserve">
+    <value>الخط</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Identity" xml:space="preserve">
+    <value>الهوية</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Other" xml:space="preserve">
+    <value>خصائص أخرى</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Position" xml:space="preserve">
+    <value>الموضع</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Status" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Text" xml:space="preserve">
+    <value>النص</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.TextColors" xml:space="preserve">
+    <value>ألوان النص</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Basic" xml:space="preserve">
+    <value>أساسي</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Interaction" xml:space="preserve">
+    <value>التفاعل</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Misc" xml:space="preserve">
+    <value>متقدم</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Unknown" xml:space="preserve">
+    <value>رايات غير معروفة</value>
+  </data>
+  <data name="Tools.WndEditor.General.Style.Label" xml:space="preserve">
+    <value>النمط</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.Label" xml:space="preserve">
+    <value>النص</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.Tooltip" xml:space="preserve">
+    <value>التلميح</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.TooltipDelay" xml:space="preserve">
+    <value>تأخير التلميح</value>
+  </data>
+  <data name="Tools.WndEditor.General.Type.Label" xml:space="preserve">
+    <value>نوع النافذة</value>
+  </data>
+  <data name="Tools.WndEditor.History.ApplyRawText" xml:space="preserve">
+    <value>تطبيق النص الخام</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.NoSelectionMessage" xml:space="preserve">
+    <value>حدد نافذة لتحرير خصائصها.</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.NoSelectionTitle" xml:space="preserve">
+    <value>لم يتم تحديد نافذة</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.AppliedMessage" xml:space="preserve">
+    <value>تم تطبيق العبارات الخام على النافذة.</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.AppliedTitle" xml:space="preserve">
+    <value>تم تطبيق النص الخام</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Apply" xml:space="preserve">
+    <value>تطبيق</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Hint" xml:space="preserve">
+    <value>عبارة واحدة KEY = VALUE; في كل سطر. القيم متعددة الأسطر مسموحة.</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.InvalidMessage" xml:space="preserve">
+    <value>تعذر تحليل النص الخام: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.InvalidTitle" xml:space="preserve">
+    <value>نص خام غير صالح</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Reset" xml:space="preserve">
+    <value>إعادة تعيين</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Control" xml:space="preserve">
+    <value>التحكم</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Files" xml:space="preserve">
+    <value>الملفات</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.General" xml:space="preserve">
+    <value>عام</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Raw" xml:space="preserve">
+    <value>النص الخام</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Windows" xml:space="preserve">
+    <value>النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Assets" xml:space="preserve">
+    <value>الأصول</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.CollapseAll" xml:space="preserve">
+    <value>طي الكل</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.ExpandAll" xml:space="preserve">
+    <value>توسيع الكل</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.FilterWatermark" xml:space="preserve">
+    <value>ابحث في النوافذ...</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.HiddenBadge" xml:space="preserve">
+    <value>مخفي</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
+    <value>المستند صالح</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.SuccessMessage" xml:space="preserve">
+    <value>اجتاز المستند المفتوح التحقق.</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.IssuesTitle" xml:space="preserve">
+    <value>عثر التحقق على مشكلات</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.IssuesMessage" xml:space="preserve">
+    <value>{0} خطأ، {1} تحذير. أول مشكلة: {2}</value>
+  </data>
+  <data name="Tools.WndEditor.Save.SuccessTitle" xml:space="preserve">
+    <value>تم حفظ الملف</value>
+  </data>
+  <data name="Tools.WndEditor.Save.SuccessMessage" xml:space="preserve">
+    <value>تم حفظ {0}.</value>
+  </data>
+  <data name="Tools.WndEditor.Save.FailureTitle" xml:space="preserve">
+    <value>فشل الحفظ</value>
+  </data>
+  <data name="Tools.WndEditor.Save.FailureMessage" xml:space="preserve">
+    <value>تعذر حفظ الملف: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Open.FailureTitle" xml:space="preserve">
+    <value>فشل الفتح</value>
+  </data>
+  <data name="Tools.WndEditor.Open.FailureMessage" xml:space="preserve">
+    <value>تعذر فتح الملف: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Title" xml:space="preserve">
+    <value>تغييرات غير محفوظة</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Message" xml:space="preserve">
+    <value>يحتوي المستند المفتوح على تغييرات غير محفوظة. هل تريد تجاهلها؟</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Discard" xml:space="preserve">
+    <value>تجاهل</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.WndEditor.History.AddWindow" xml:space="preserve">
+    <value>إضافة نافذة</value>
+  </data>
+  <data name="Tools.WndEditor.History.DeleteWindow" xml:space="preserve">
+    <value>حذف نافذة</value>
+  </data>
+  <data name="Tools.WndEditor.History.DeleteProperty" xml:space="preserve">
+    <value>حذف الخاصية {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.EditProperty" xml:space="preserve">
+    <value>تحرير الخاصية {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.MoveWindow" xml:space="preserve">
+    <value>نقل النافذة</value>
+  </data>
+  <data name="Tools.WndEditor.Property.EmptyKeyTitle" xml:space="preserve">
+    <value>مفتاح الخاصية فارغ</value>
+  </data>
+  <data name="Tools.WndEditor.Property.EmptyKeyMessage" xml:space="preserve">
+    <value>أدخل مفتاح الخاصية قبل الإضافة.</value>
+  </data>
+  <data name="Tools.WndEditor.Property.DuplicateKeyTitle" xml:space="preserve">
+    <value>مفتاح الخاصية مكرر</value>
+  </data>
+  <data name="Tools.WndEditor.Property.DuplicateKeyMessage" xml:space="preserve">
+    <value>النافذة المحددة تحتوي بالفعل على خاصية باسم {0}.</value>
+  </data>
+  <data name="Tools.WndEditor.Property.InvalidCharactersTitle" xml:space="preserve">
+    <value>أحرف غير صالحة</value>
+  </data>
+  <data name="Tools.WndEditor.Property.InvalidCharactersMessage" xml:space="preserve">
+    <value>لا يمكن أن تحتوي مفاتيح وقيم الخصائص على فواصل منقوطة أو أسطر جديدة.</value>
+  </data>
   <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
     <value>محرر حزم الحزم</value>
   </data>
@@ -11948,6 +12554,159 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>لم يعد عميل اللعبة يحدد نسخًا مخصصة للمنصات.</value>
   </data>
+  <data name="Tools.WndEditor.Assets.LinkMenu" xml:space="preserve">
+    <value>ربط الموارد</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkTooltip" xml:space="preserve">
+    <value>ربط مجلد المود أو أرشيفات .BIG لموارد اللوحة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkModFolder" xml:space="preserve">
+    <value>ربط مجلد المود...</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkModFolderTitle" xml:space="preserve">
+    <value>حدد المجلد الجذر للمود</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkBigArchive" xml:space="preserve">
+    <value>ربط أرشيف .BIG...</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkBigArchiveTitle" xml:space="preserve">
+    <value>حدد أرشيف .BIG</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.BigArchiveFilter" xml:space="preserve">
+    <value>أرشيفات BIG (*.big)</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Reload" xml:space="preserve">
+    <value>إعادة تحميل الموارد</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Clear" xml:space="preserve">
+    <value>مسح الموارد المرتبطة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedModSummary" xml:space="preserve">
+    <value>مود: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedBigSummary" xml:space="preserve">
+    <value>{0} .big</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedTooltipModPrefix" xml:space="preserve">
+    <value>مود: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedTooltipBigPrefix" xml:space="preserve">
+    <value>أرشيف: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedSummarySeparator" xml:space="preserve">
+    <value> + </value>
+  </data>
+  <data name="Tools.WndEditor.Assets.KnownCount" xml:space="preserve">
+    <value>{0} صورة مخططة متاحة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportTextures" xml:space="preserve">
+    <value>استيراد القوام…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTitle" xml:space="preserve">
+    <value>فن مفقود</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingEmpty" xml:space="preserve">
+    <value>تم حل جميع الصور المرجعية.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportOne" xml:space="preserve">
+    <value>استيراد…</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectTitle" xml:space="preserve">
+    <value>لا يوجد مشروع تعديل</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectMessage" xml:space="preserve">
+    <value>اربط مجلد تعديل أو افتح ملفًا داخل مشروع تعديل قبل استيراد القوام.</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitle" xml:space="preserve">
+    <value>استيراد القوام</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitleFor" xml:space="preserve">
+    <value>استيراد فن لـ {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FilterName" xml:space="preserve">
+    <value>ملفات القوام</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureTitle" xml:space="preserve">
+    <value>فشل استيراد القوام</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureMessage" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessTitle" xml:space="preserve">
+    <value>تم استيراد القوام</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessMessage" xml:space="preserve">
+    <value>تم استيراد {0} من القوام إلى {1}.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryTitle" xml:space="preserve">
+    <value>مكتبة الفن</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibrarySearchHint" xml:space="preserve">
+    <value>ابحث في الفن…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ApplyOne" xml:space="preserve">
+    <value>تطبيق</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryEmpty" xml:space="preserve">
+    <value>لا يوجد فن يطابق البحث.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryTruncated" xml:space="preserve">
+    <value>عرض {0} من {1} — حدد البحث.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionTitle" xml:space="preserve">
+    <value>لم يتم تحديد نافذة</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionMessage" xml:space="preserve">
+    <value>حدد نافذة في الشجرة أو على اللوحة، ثم طبق الفن عليها.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessTitle" xml:space="preserve">
+    <value>تم تطبيق الفن</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessMessage" xml:space="preserve">
+    <value>تم تطبيق {0} على {1}.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.NoProjectTitle" xml:space="preserve">
+    <value>لا يوجد مجلد مشروع</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.NoProjectMessage" xml:space="preserve">
+    <value>لا يمكن لصق المظهر بدون مشروع أو مجلد تعديل نشط.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableTitle" xml:space="preserve">
+    <value>الحافظة غير متوفرة</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableMessage" xml:space="preserve">
+    <value>تعذر الوصول إلى حافظة النظام.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyTitle" xml:space="preserve">
+    <value>الحافظة فارغة</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyMessage" xml:space="preserve">
+    <value>لا تحتوي الحافظة على صورة أو ملف مظهر أو اسم رسم صالح.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedTitle" xml:space="preserve">
+    <value>صورة غير متوافقة</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedMessage" xml:space="preserve">
+    <value>تعذر التعرف على محتوى الحافظة كصورة أو ملف مظهر صالح.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Paste" xml:space="preserve">
+    <value>لصق</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Paste" xml:space="preserve">
+    <value>لصق الرسم</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.PasteTooltip" xml:space="preserve">
+    <value>لصق الصورة أو المظهر من الحافظة في النافذة المحددة (Ctrl+V)</value>
+  </data>
+  <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
+    <value>تغيير حجم النافذة</value>
+  </data>
+  <data name="Tools.WndEditor.Drop.ErrorTitle" xml:space="preserve">
+    <value>فشل الإفلات</value>
+  </data>
+  <data name="Tools.WndEditor.Drop.ErrorMessage" xml:space="preserve">
+    <value>تعذر معالجة العنصر المُفلت: {0}</value>
+  </data>
   <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
     <value>إضافة إلى الملف التعريفي</value>
   </data>
@@ -13487,6 +14246,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>تم تشغيل '{0}' بنجاح</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ClickToAdd" xml:space="preserve">
+    <value>انقر للإضافة {0}</value>
   </data>
   <data name="Tools.PublisherStudio.Duplicate.MessageFormat" xml:space="preserve">
     <value>عثرنا على ملف مطابق مستضاف بالفعل لدى المزود الخاص بك:

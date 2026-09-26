@@ -156,4 +156,50 @@ public static class ToolConstants
         /// </summary>
         public static readonly string[] Tags = ["modding", "build-automation", "development"];
     }
+
+    /// <summary>
+    /// Constants for the WND Editor tool plugin.
+    /// </summary>
+    public static class WndEditor
+    {
+        /// <summary>
+        /// The unique identifier for the WND Editor tool.
+        /// </summary>
+        public const string Id = "genhub.tools.wndeditor";
+
+        /// <summary>
+        /// The display name for the WND Editor tool.
+        /// </summary>
+        public const string Name = "WND Editor";
+
+        /// <summary>
+        /// The version of the WND Editor tool.
+        /// </summary>
+        public const string Version = "1.0.0";
+
+        /// <summary>
+        /// The author of the WND Editor tool.
+        /// </summary>
+        public const string Author = "GenHub Team";
+
+        /// <summary>
+        /// The description of the WND Editor tool.
+        /// </summary>
+        public const string Description = "Visual editor for window definition (.wnd) menu layouts. Browse the hierarchy, edit properties, preview geometry, and save back to the game format.";
+
+        /// <summary>
+        /// The icon path for the WND Editor tool.
+        /// </summary>
+        public const string IconPath = UriConstants.WndEditorIconUri;
+
+        /// <summary>
+        /// Whether the WND Editor tool is bundled with the application.
+        /// </summary>
+        public const bool IsBundled = true;
+
+        /// <summary>
+        /// The tags associated with the WND Editor tool.
+        /// </summary>
+        public static readonly string[] Tags = ["modding", "ui-layout", "wnd"];
+    }
 }

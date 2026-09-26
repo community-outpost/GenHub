@@ -1,0 +1,125 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
+             x:Class="GenHub.Features.Tools.WndEditor.Views.WndControlPropertiesView"
+             x:DataType="vm:WndWindowPropertiesViewModel">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="0" Margin="0">
+      <Border IsVisible="{Binding !IsControlDataSupported}" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8">
+        <TextBlock Text="{localization:Localize Tools.WndEditor.Control.Unsupported}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+      </Border>
+      <TextBlock Text="{localization:Localize Tools.WndEditor.Control.MissingHint}" IsVisible="{Binding ShowMissingControlDataHint}" FontSize="10" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"/>
+
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.StaticText}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsStaticText}">
+        <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Static.Centered}" IsChecked="{Binding StaticCentered, Mode=TwoWay}" FontSize="11"/>
+      </Expander>
+
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.TextEntry}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsEntryField}">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Entry.MaxLen}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding EntryMaxLen, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11"/>
+          </Grid>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Entry.Secret}" IsChecked="{Binding EntrySecretText, Mode=TwoWay}" FontSize="11"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Entry.Numerical}" IsChecked="{Binding EntryNumericalOnly, Mode=TwoWay}" FontSize="11"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Entry.AlphaNumerical}" IsChecked="{Binding EntryAlphaNumericalOnly, Mode=TwoWay}" FontSize="11"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Entry.Ascii}" IsChecked="{Binding EntryAsciiOnly, Mode=TwoWay}" FontSize="11"/>
+        </StackPanel>
+      </Expander>
+
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.Slider}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsSlider}">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Slider.Min}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding SliderMinValue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="-999999" Maximum="999999" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Slider.Max}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding SliderMaxValue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="-999999" Maximum="999999" Increment="1" FontSize="11"/>
+          </Grid>
+        </StackPanel>
+      </Expander>
+
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.Listbox}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsListbox}">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.List.Length}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding ListLength, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="99999" Increment="1" FontSize="11"/>
+          </Grid>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.List.AutoScroll}" IsChecked="{Binding ListAutoScroll, Mode=TwoWay}" FontSize="11"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.List.HasScrollIfAtEnd}" IsChecked="{Binding ListHasScrollIfAtEnd, Mode=TwoWay}" FontSize="11"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.List.ScrollIfAtEnd}" IsChecked="{Binding ListScrollIfAtEnd, Mode=TwoWay}" IsEnabled="{Binding ListHasScrollIfAtEnd}" FontSize="11" Margin="16,0,0,0"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.List.AutoPurge}" IsChecked="{Binding ListAutoPurge, Mode=TwoWay}" FontSize="11"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.List.ScrollBar}" IsChecked="{Binding ListScrollBar, Mode=TwoWay}" FontSize="11"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.List.MultiSelect}" IsChecked="{Binding ListMultiSelect, Mode=TwoWay}" FontSize="11"/>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.List.Columns}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding ListColumns, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="32" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.List.ColumnWidths}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding ListColumnWidths, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Watermark="{localization:Localize Tools.WndEditor.Control.List.ColumnWidthsHint}"/>
+          </Grid>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.List.ForceSelect}" IsChecked="{Binding ListForceSelect, Mode=TwoWay}" FontSize="11"/>
+        </StackPanel>
+      </Expander>
+
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.ComboBox}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsComboBox}">
+        <StackPanel Spacing="3">
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Combo.Editable}" IsChecked="{Binding ComboIsEditable, Mode=TwoWay}" FontSize="11"/>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Combo.MaxChars}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding ComboMaxChars, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Combo.MaxDisplay}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding ComboMaxDisplay, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="999" Increment="1" FontSize="11"/>
+          </Grid>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Combo.Ascii}" IsChecked="{Binding ComboAsciiOnly, Mode=TwoWay}" FontSize="11"/>
+          <CheckBox Content="{localization:Localize Tools.WndEditor.Control.Combo.Letters}" IsChecked="{Binding ComboLettersAndNumbersOnly, Mode=TwoWay}" FontSize="11"/>
+        </StackPanel>
+      </Expander>
+
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.RadioButton}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsRadioButton}">
+        <Grid ColumnDefinitions="120,*">
+          <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Radio.Group}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+          <NumericUpDown Grid.Column="1" Value="{Binding RadioGroup, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="999" Increment="1" FontSize="11"/>
+        </Grid>
+      </Expander>
+
+      <Expander Margin="0" Header="{localization:Localize Tools.WndEditor.Control.Section.TabControl}" Classes="compact" IsExpanded="True" IsVisible="{Binding IsTabControl}">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.Orientation}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding TabOrientation, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.Edge}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding TabEdge, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.Width}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding TabWidth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.Height}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding TabHeight, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.Count}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding TabCount, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="99" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.PaneBorder}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <NumericUpDown Grid.Column="1" Value="{Binding TabPaneBorder, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="9999" Increment="1" FontSize="11"/>
+          </Grid>
+          <Grid ColumnDefinitions="120,*">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.PaneDisabled}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" Text="{Binding TabPaneDisabled, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Watermark="{localization:Localize Tools.WndEditor.Control.Tab.PaneDisabledHint}"/>
+          </Grid>
+        </StackPanel>
+      </Expander>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

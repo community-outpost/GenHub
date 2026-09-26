@@ -34,6 +34,13 @@ public class BundleItem
     public List<string> SourcePatterns { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the original configured files before wildcard resolution.
+    /// Used by resolution logic to reliably re-evaluate files on disk across multiple builds.
+    /// </summary>
+    [JsonIgnore]
+    public List<BundleFile> ConfiguredFiles { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the target directory template applied to resolved files.
     /// </summary>
     [JsonPropertyName("targetDir")]

@@ -50,6 +50,7 @@ public static class AppServices
         services.AddMapManager();
         services.AddGenHotkeys();
         services.AddModBuilder();
+        services.AddWndEditor();
 
         // Register Notification services
         services.AddNotificationModule();

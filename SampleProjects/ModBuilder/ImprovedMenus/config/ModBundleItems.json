@@ -20,7 +20,9 @@
       "Name": "MenuTexturesEnglish",
       "SourceFiles": [
         "GameFilesEdited/Data/English/Art/Textures/**/*.tga",
-        "GameFilesEdited/Data/English/Art/Textures/**/*.dds"
+        "GameFilesEdited/Data/English/Art/Textures/**/*.dds",
+        "GameFilesEdited/Art/Textures/**/*.tga",
+        "GameFilesEdited/Art/Textures/**/*.dds"
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
@@ -30,7 +32,9 @@
       "Name": "MenuTexturesRussian",
       "SourceFiles": [
         "GameFilesEdited/Data/Russian/Art/Textures/**/*.tga",
-        "GameFilesEdited/Data/Russian/Art/Textures/**/*.dds"
+        "GameFilesEdited/Data/Russian/Art/Textures/**/*.dds",
+        "GameFilesEdited/Art/Textures/**/*.tga",
+        "GameFilesEdited/Art/Textures/**/*.dds"
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
@@ -40,7 +44,9 @@
       "Name": "MenuTexturesSpanish",
       "SourceFiles": [
         "GameFilesEdited/Data/Spanish/Art/Textures/**/*.tga",
-        "GameFilesEdited/Data/Spanish/Art/Textures/**/*.dds"
+        "GameFilesEdited/Data/Spanish/Art/Textures/**/*.dds",
+        "GameFilesEdited/Art/Textures/**/*.tga",
+        "GameFilesEdited/Art/Textures/**/*.dds"
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,

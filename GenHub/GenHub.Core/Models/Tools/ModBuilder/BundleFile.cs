@@ -62,4 +62,21 @@ public class BundleFile
 
         return AbsSourceFile;
     }
+
+    /// <summary>
+    /// Creates a copy of this <see cref="BundleFile"/> instance.
+    /// </summary>
+    /// <returns>A cloned copy of this instance.</returns>
+    public BundleFile Clone()
+    {
+        return new BundleFile
+        {
+            AbsSourceParent = AbsSourceParent,
+            AbsSourceFile = AbsSourceFile,
+            RelTargetFile = RelTargetFile,
+            Params = Params != null ? new Dictionary<string, object>(Params) : null,
+            ExcludeMarkersList = ExcludeMarkersList != null ? ExcludeMarkersList.Select(l => new List<string>(l)).ToList() : null,
+            RegistryDef = RegistryDef != null ? new BundleRegistryDefinition(new List<string>(RegistryDef.Paths)) : null,
+        };
+    }
 }

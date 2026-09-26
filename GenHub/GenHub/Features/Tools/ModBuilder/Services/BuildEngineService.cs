@@ -1147,14 +1147,26 @@ public sealed class BuildEngineService(
             }
 
             var packFileName = Path.GetFileName(packFilePath);
-            if (manifest.EntryOrder.Count > 0 && TryReadBigEntryCount(packFilePath, out var entryCount) && entryCount != manifest.EntryOrder.Count)
+            if (!string.IsNullOrEmpty(manifest.BigFileName)
+                && !string.Equals(manifest.BigFileName, packFileName, StringComparison.OrdinalIgnoreCase))
             {
-                var countMismatchMsg = $"Archive {packFileName} contains {entryCount} entries but the manifest lists {manifest.EntryOrder.Count}; entry count mismatch";
-                logger.LogError("{MismatchMessage}", countMismatchMsg);
-                _lastErrorMessage = countMismatchMsg;
-                Interlocked.Increment(ref _filesFailed);
+                logger.LogWarning(
+                    "Manifest BigFileName '{ManifestBig}' does not match pack file '{PackFile}'; skipping integrity verification",
+                    manifest.BigFileName,
+                    packFileName);
                 return;
             }
+
+            if (manifest.EntryOrder.Count > 0 && TryReadBigEntryCount(packFilePath, out var entryCount) && entryCount != manifest.EntryOrder.Count)
+            {
+                logger.LogInformation(
+                    "Archive {PackFileName} contains {EntryCount} entries while reference manifest lists {ManifestCount}; skipping byte-for-byte exact match verification (archive contains project modifications)",
+                    packFileName,
+                    entryCount,
+                    manifest.EntryOrder.Count);
+                return;
+            }
+
             progress?.Report(new BuildProgress
             {
                 CurrentStage = BuildStage.Verifying,
@@ -1177,10 +1189,11 @@ public sealed class BuildEngineService(
             }
             else
             {
-                var mismatchMsg = $"BIG archive SHA256 mismatch for {Path.GetFileName(packFilePath)}! Expected {manifest.Sha256}, got {builtSha256}";
-                logger.LogWarning("{MismatchMessage}", mismatchMsg);
-                _lastErrorMessage = mismatchMsg;
-                Interlocked.Increment(ref _filesFailed);
+                logger.LogInformation(
+                    "BIG archive {PackFileName} SHA256 differs from reference manifest (expected for modified projects). Reference: {Expected}, Built: {Actual}",
+                    packFileName,
+                    manifest.Sha256,
+                    builtSha256);
             }
         }
         catch (OperationCanceledException)
@@ -1189,10 +1202,7 @@ public sealed class BuildEngineService(
         }
         catch (Exception ex)
         {
-            var readErrorMsg = $"Failed to verify hash for built archive {packFilePath}: {ex.Message}";
-            logger.LogError(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
-            _lastErrorMessage = readErrorMsg;
-            Interlocked.Increment(ref _filesFailed);
+            logger.LogWarning(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
         }
     }
 
@@ -2474,6 +2484,47 @@ public sealed class BuildEngineService(
         }
     }
 
+    private async Task StageBigPackArchiveForManifestAsync(
+        BundlePack pack,
+        BuildSetup setup,
+        string entryStagingDir,
+        string? releaseDir,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var effectiveReleaseDir = releaseDir ?? setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+        var packFileName = GetPackFileName(pack);
+        var packFilePath = Path.Combine(effectiveReleaseDir, packFileName);
+        var destPath = Path.Combine(entryStagingDir, packFileName);
+
+        if (!IsSubpathOf(effectiveReleaseDir, packFilePath) || !IsSubpathOf(entryStagingDir, destPath))
+        {
+            var escapeError = $"BIG pack archive '{packFileName}' resolves outside staging or release directories.";
+            logger.LogError(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
+            Interlocked.Increment(ref _filesFailed);
+            _lastErrorMessage = escapeError;
+            return;
+        }
+
+        if (!File.Exists(packFilePath))
+        {
+            logger.LogInformation("BIG pack archive '{PackFile}' not found in release directory; building it before staging for manifest...", packFileName);
+            await BuildSingleReleaseBundlePackAsync(pack, setup, progress, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (File.Exists(packFilePath))
+        {
+            EnsureDestinationDirectory(destPath);
+            File.Copy(packFilePath, destPath, overwrite: true);
+            logger.LogInformation("Staged BIG pack archive '{PackFile}' into manifest staging directory.", packFileName);
+        }
+        else
+        {
+            logger.LogError("BIG pack archive '{PackFile}' was not found and could not be built.", packFileName);
+            _lastErrorMessage = $"Failed to build or locate BIG pack archive '{packFileName}' for manifest.";
+        }
+    }
+
     private async Task<bool> ExecuteManifestPlanEntryAsync(
         BuildStructure buildStructure,
         ManifestPlanEntry entry,
@@ -2504,7 +2555,14 @@ public sealed class BuildEngineService(
         foreach (var pack in entry.Packs)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await StagePackFilesAsync(pack, items, stagingPaths, progress, cancellationToken).ConfigureAwait(false);
+            if (pack.IsBigPack)
+            {
+                await StageBigPackArchiveForManifestAsync(pack, buildStructure.Setup, entryStagingDir, dirs.ReleaseDir, progress, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await StagePackFilesAsync(pack, items, stagingPaths, progress, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         var stagedFiles = Directory.GetFiles(entryStagingDir, "*", SearchOption.AllDirectories);

@@ -216,18 +216,55 @@
                        FontWeight="Bold" FontSize="14"
                        Foreground="{DynamicResource TextPrimary}"
                        VerticalAlignment="Center"/>
-            <Button Grid.Column="1" Command="{Binding ImportBigFilesCommand}"
-                    Padding="8,4"
-                    Background="{DynamicResource SurfaceElevatedBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="1" CornerRadius="6"
-                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipExtractBigProject}">
-              <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchive}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonImportBigProject}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Button Command="{Binding ValidateWndFilesCommand}"
+                      Padding="8,4"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipValidateWnd}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconCheckmark}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonValidateWnd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding FormatWndFilesCommand}"
+                      Padding="8,4"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipFormatWnd}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonFormatWnd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding EditWndFileCommand}"
+                      Padding="8,4"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipEditWnd}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonEditWnd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding ImportBigFilesCommand}"
+                      Padding="8,4"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipExtractBigProject}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchive}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonImportBigProject}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
           </Grid>
 
           <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}"

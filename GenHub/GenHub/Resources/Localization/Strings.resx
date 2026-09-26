@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>Maximize / Restore</value>
   </data>
+  <data name="Common.Tooltip.NumericScrubber" xml:space="preserve">
+    <value>Click to edit, drag horizontally to scrub value (Shift: fine, Ctrl: coarse)</value>
+  </data>
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>Clear input</value>
   </data>
@@ -7206,6 +7209,609 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.FileManager.ButtonRemoveFromProject" xml:space="preserve">
     <value>Remove from Project</value>
   </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonValidateWnd" xml:space="preserve">
+    <value>Validate WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipValidateWnd" xml:space="preserve">
+    <value>Validate selected .wnd files</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonFormatWnd" xml:space="preserve">
+    <value>Format WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipFormatWnd" xml:space="preserve">
+    <value>Format selected .wnd files</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.NoSelectionTitle" xml:space="preserve">
+    <value>No WND files selected</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.NoSelectionMessage" xml:space="preserve">
+    <value>Select one or more .wnd files in the project tree.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateSuccessTitle" xml:space="preserve">
+    <value>WND validation passed</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateSuccessMessage" xml:space="preserve">
+    <value>{0} of {1} file(s) are valid.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateIssuesTitle" xml:space="preserve">
+    <value>WND validation found issues</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateIssuesMessage" xml:space="preserve">
+    <value>{0} of {1} file(s) valid. First issue: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatSuccessTitle" xml:space="preserve">
+    <value>WND files formatted</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatSuccessMessage" xml:space="preserve">
+    <value>Formatted {0} of {1} file(s).</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatIssuesTitle" xml:space="preserve">
+    <value>WND formatting incomplete</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatIssuesMessage" xml:space="preserve">
+    <value>Formatted {0} of {1} file(s). First error: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.OperationCancelled" xml:space="preserve">
+    <value>Operation cancelled.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ProgressValidating" xml:space="preserve">
+    <value>Validating ({0}/{1}): {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ProgressFormatting" xml:space="preserve">
+    <value>Formatting ({0}/{1}): {2}</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.wndeditor.Name" xml:space="preserve">
+    <value>WND Editor</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.wndeditor.Description" xml:space="preserve">
+    <value>Visual editor for window definition (.wnd) menu layouts. Browse the hierarchy, edit properties, preview geometry, and save back to the game format.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonEditWnd" xml:space="preserve">
+    <value>Edit in WND Editor</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipEditWnd" xml:space="preserve">
+    <value>Open the selected .wnd file in the WND editor</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFolder" xml:space="preserve">
+    <value>Open Folder</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFile" xml:space="preserve">
+    <value>Open File</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.SaveAs" xml:space="preserve">
+    <value>Save As</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
+    <value>Validate</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>File and edit actions</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.AddChild" xml:space="preserve">
+    <value>Add Child</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.WndEditor.Color.PickTooltip" xml:space="preserve">
+    <value>Pick a color</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>Pan the canvas</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomInTooltip" xml:space="preserve">
+    <value>Zoom in (Ctrl + +)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomOutTooltip" xml:space="preserve">
+    <value>Zoom out (Ctrl + -)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
+    <value>Reset zoom to 100% (Ctrl + 0)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.MapPreviewPlaceholder" xml:space="preserve">
+    <value>Map Preview</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Label" xml:space="preserve">
+    <value>Game assets</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.SelectorWatermark" xml:space="preserve">
+    <value>Select a game installation</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.SelectorTooltip" xml:space="preserve">
+    <value>Game installation used for canvas image previews</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ResolvedStatus" xml:space="preserve">
+    <value>{0} of {1} images</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.EmptyStatus" xml:space="preserve">
+    <value>No game images</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTooltip" xml:space="preserve">
+    <value>Missing images: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingMore" xml:space="preserve">
+    <value>+{0} more</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.KeyWatermark" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.ValueWatermark" xml:space="preserve">
+    <value>Value</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Tools.WndEditor.Document.Untitled" xml:space="preserve">
+    <value>Untitled</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.Title" xml:space="preserve">
+    <value>No document open</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.Message" xml:space="preserve">
+    <value>Open a .wnd file or create a new document to begin editing.</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenButton" xml:space="preserve">
+    <value>Open File</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFolderButton" xml:space="preserve">
+    <value>Open Folder</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFileButton" xml:space="preserve">
+    <value>Open File</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.NewButton" xml:space="preserve">
+    <value>New Document</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.OpenTitle" xml:space="preserve">
+    <value>Open window definition file</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.SaveTitle" xml:space="preserve">
+    <value>Save window definition file</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.FilterName" xml:space="preserve">
+    <value>WND layout files</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Ascii" xml:space="preserve">
+    <value>ASCII only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Editable" xml:space="preserve">
+    <value>Editable</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Letters" xml:space="preserve">
+    <value>Letters and numbers only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.MaxChars" xml:space="preserve">
+    <value>Max characters</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.MaxDisplay" xml:space="preserve">
+    <value>Max displayed</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.AlphaNumerical" xml:space="preserve">
+    <value>Letters and numbers only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Ascii" xml:space="preserve">
+    <value>ASCII only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.MaxLen" xml:space="preserve">
+    <value>Max length</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Numerical" xml:space="preserve">
+    <value>Numbers only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Secret" xml:space="preserve">
+    <value>Secret text</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.AutoPurge" xml:space="preserve">
+    <value>Auto purge</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.AutoScroll" xml:space="preserve">
+    <value>Auto scroll</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ColumnWidths" xml:space="preserve">
+    <value>Column widths</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ColumnWidthsHint" xml:space="preserve">
+    <value>60, 40</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.Columns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ForceSelect" xml:space="preserve">
+    <value>Force select</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.HasScrollIfAtEnd" xml:space="preserve">
+    <value>Declare scroll-if-at-end</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.Length" xml:space="preserve">
+    <value>Max entries</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.MultiSelect" xml:space="preserve">
+    <value>Multi select</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ScrollBar" xml:space="preserve">
+    <value>Scroll bar</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ScrollIfAtEnd" xml:space="preserve">
+    <value>Scroll if at end</value>
+  </data>
+  <data name="Tools.WndEditor.Control.MissingHint" xml:space="preserve">
+    <value>No data block declared. Editing adds one.</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Radio.Group" xml:space="preserve">
+    <value>Group</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.ComboBox" xml:space="preserve">
+    <value>COMBOBOXDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.Listbox" xml:space="preserve">
+    <value>LISTBOXDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.RadioButton" xml:space="preserve">
+    <value>RADIOBUTTONDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.Slider" xml:space="preserve">
+    <value>SLIDERDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.StaticText" xml:space="preserve">
+    <value>STATICTEXTDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.TabControl" xml:space="preserve">
+    <value>TABCONTROLDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.TextEntry" xml:space="preserve">
+    <value>TEXTENTRYDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Slider.Max" xml:space="preserve">
+    <value>Maximum</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Slider.Min" xml:space="preserve">
+    <value>Minimum</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Static.Centered" xml:space="preserve">
+    <value>Centered</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Count" xml:space="preserve">
+    <value>Tab count</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Edge" xml:space="preserve">
+    <value>Edge</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Height" xml:space="preserve">
+    <value>Tab height</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Orientation" xml:space="preserve">
+    <value>Orientation</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneBorder" xml:space="preserve">
+    <value>Pane border</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneDisabled" xml:space="preserve">
+    <value>Pane disabled</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneDisabledHint" xml:space="preserve">
+    <value>yes, no</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Width" xml:space="preserve">
+    <value>Tab width</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Unsupported" xml:space="preserve">
+    <value>This control type declares no gadget data block.</value>
+  </data>
+  <data name="Tools.WndEditor.ControlData.InvalidMessage" xml:space="preserve">
+    <value>The list contains values the engine cannot parse. Use yes/no or numbers separated by commas.</value>
+  </data>
+  <data name="Tools.WndEditor.ControlData.InvalidTitle" xml:space="preserve">
+    <value>Invalid control data</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.FolderTitle" xml:space="preserve">
+    <value>Choose a window definition folder</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesTitle" xml:space="preserve">
+    <value>No WND Files</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesMessage" xml:space="preserve">
+    <value>No window definition (.wnd) files found in the selected folder.</value>
+  </data>
+  <data name="Tools.WndEditor.Files.Browse" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="Tools.WndEditor.Files.OpenBadge" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Tools.WndEditor.Files.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Draw" xml:space="preserve">
+    <value>Draw</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.HeaderTemplate" xml:space="preserve">
+    <value>Header template</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.ImageOffset" xml:space="preserve">
+    <value>Image offset</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Input" xml:space="preserve">
+    <value>Input</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.System" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Tooltip" xml:space="preserve">
+    <value>Tooltip</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Disabled" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.DisabledBorder" xml:space="preserve">
+    <value>Disabled border</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Enabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.EnabledBorder" xml:space="preserve">
+    <value>Enabled border</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Hilite" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.HiliteBorder" xml:space="preserve">
+    <value>Highlight border</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Border" xml:space="preserve">
+    <value>Border</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Color" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Disabled" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Enabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Hilite" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Image" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Bold" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Tools.WndEditor.General.Name.Label" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.BottomRight" xml:space="preserve">
+    <value>Bottom right</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.Creation" xml:space="preserve">
+    <value>Creation resolution</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.MissingHint" xml:space="preserve">
+    <value>No SCREENRECT declared. Editing adds one.</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.Size" xml:space="preserve">
+    <value>Size (Width × Height)</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.UpperLeft" xml:space="preserve">
+    <value>Upper left</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Callbacks" xml:space="preserve">
+    <value>Callbacks</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.DrawData" xml:space="preserve">
+    <value>Draw Data</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Font" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Identity" xml:space="preserve">
+    <value>Identity</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Other" xml:space="preserve">
+    <value>Other Properties</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Position" xml:space="preserve">
+    <value>Position</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.TextColors" xml:space="preserve">
+    <value>Text Colors</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Basic" xml:space="preserve">
+    <value>Basic</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Interaction" xml:space="preserve">
+    <value>Interaction</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Misc" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Unknown" xml:space="preserve">
+    <value>Unrecognized flags</value>
+  </data>
+  <data name="Tools.WndEditor.General.Style.Label" xml:space="preserve">
+    <value>Style</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.Label" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.Tooltip" xml:space="preserve">
+    <value>Tooltip</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.TooltipDelay" xml:space="preserve">
+    <value>Tooltip delay</value>
+  </data>
+  <data name="Tools.WndEditor.General.Type.Label" xml:space="preserve">
+    <value>Window type</value>
+  </data>
+  <data name="Tools.WndEditor.History.ApplyRawText" xml:space="preserve">
+    <value>Apply raw text</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.NoSelectionMessage" xml:space="preserve">
+    <value>Select a window to edit its properties.</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.NoSelectionTitle" xml:space="preserve">
+    <value>No window selected</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.AppliedMessage" xml:space="preserve">
+    <value>The raw statements were applied to the window.</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.AppliedTitle" xml:space="preserve">
+    <value>Raw text applied</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Hint" xml:space="preserve">
+    <value>One KEY = VALUE; statement per line. Multi-line values are allowed.</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.InvalidMessage" xml:space="preserve">
+    <value>The raw text could not be parsed: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.InvalidTitle" xml:space="preserve">
+    <value>Invalid raw text</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Control" xml:space="preserve">
+    <value>Control</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Files" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.General" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Raw" xml:space="preserve">
+    <value>Raw Text</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Windows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Assets" xml:space="preserve">
+    <value>Assets</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.CollapseAll" xml:space="preserve">
+    <value>Collapse all</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.ExpandAll" xml:space="preserve">
+    <value>Expand all</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.FilterWatermark" xml:space="preserve">
+    <value>Search windows...</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.HiddenBadge" xml:space="preserve">
+    <value>Hidden</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
+    <value>Document is valid</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.SuccessMessage" xml:space="preserve">
+    <value>The open document passed validation.</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.IssuesTitle" xml:space="preserve">
+    <value>Validation found issues</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.IssuesMessage" xml:space="preserve">
+    <value>{0} error(s), {1} warning(s). First issue: {2}</value>
+  </data>
+  <data name="Tools.WndEditor.Save.SuccessTitle" xml:space="preserve">
+    <value>File saved</value>
+  </data>
+  <data name="Tools.WndEditor.Save.SuccessMessage" xml:space="preserve">
+    <value>Saved {0}.</value>
+  </data>
+  <data name="Tools.WndEditor.Save.FailureTitle" xml:space="preserve">
+    <value>Save failed</value>
+  </data>
+  <data name="Tools.WndEditor.Save.FailureMessage" xml:space="preserve">
+    <value>Could not save the file: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Open.FailureTitle" xml:space="preserve">
+    <value>Open failed</value>
+  </data>
+  <data name="Tools.WndEditor.Open.FailureMessage" xml:space="preserve">
+    <value>Could not open the file: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Title" xml:space="preserve">
+    <value>Unsaved changes</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Message" xml:space="preserve">
+    <value>The open document has unsaved changes. Discard them?</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Discard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.WndEditor.History.AddWindow" xml:space="preserve">
+    <value>Add window</value>
+  </data>
+  <data name="Tools.WndEditor.History.DeleteWindow" xml:space="preserve">
+    <value>Delete window</value>
+  </data>
+  <data name="Tools.WndEditor.History.DeleteProperty" xml:space="preserve">
+    <value>Delete property {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.EditProperty" xml:space="preserve">
+    <value>Edit property {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.MoveWindow" xml:space="preserve">
+    <value>Move window</value>
+  </data>
+  <data name="Tools.WndEditor.Property.EmptyKeyTitle" xml:space="preserve">
+    <value>Empty property key</value>
+  </data>
+  <data name="Tools.WndEditor.Property.EmptyKeyMessage" xml:space="preserve">
+    <value>Enter a property key before adding.</value>
+  </data>
+  <data name="Tools.WndEditor.Property.DuplicateKeyTitle" xml:space="preserve">
+    <value>Duplicate property key</value>
+  </data>
+  <data name="Tools.WndEditor.Property.DuplicateKeyMessage" xml:space="preserve">
+    <value>The selected window already has a property named {0}.</value>
+  </data>
+  <data name="Tools.WndEditor.Property.InvalidCharactersTitle" xml:space="preserve">
+    <value>Invalid characters</value>
+  </data>
+  <data name="Tools.WndEditor.Property.InvalidCharactersMessage" xml:space="preserve">
+    <value>Property keys and values cannot contain semicolons or newline characters.</value>
+  </data>
   <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
     <value>Bundle Pack Editor</value>
   </data>
@@ -12045,6 +12651,162 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>The game client no longer declares platform variants.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkMenu" xml:space="preserve">
+    <value>Link Assets</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkTooltip" xml:space="preserve">
+    <value>Link custom mod directories or .BIG archives for canvas assets</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkModFolder" xml:space="preserve">
+    <value>Link Mod Folder...</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkModFolderTitle" xml:space="preserve">
+    <value>Select Mod Root Directory</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkBigArchive" xml:space="preserve">
+    <value>Link .BIG Archive...</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkBigArchiveTitle" xml:space="preserve">
+    <value>Select .BIG Archive</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.BigArchiveFilter" xml:space="preserve">
+    <value>BIG Archives (*.big)</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Reload" xml:space="preserve">
+    <value>Reload Assets</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Clear" xml:space="preserve">
+    <value>Clear Linked Assets</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedModSummary" xml:space="preserve">
+    <value>Mod: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedBigSummary" xml:space="preserve">
+    <value>{0} .big</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedTooltipModPrefix" xml:space="preserve">
+    <value>Mod: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedTooltipBigPrefix" xml:space="preserve">
+    <value>BIG: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LinkedSummarySeparator" xml:space="preserve">
+    <value> + </value>
+  </data>
+  <data name="Tools.WndEditor.Assets.KnownCount" xml:space="preserve">
+    <value>{0} mapped images available</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportTextures" xml:space="preserve">
+    <value>Import Textures…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTitle" xml:space="preserve">
+    <value>Missing art</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingEmpty" xml:space="preserve">
+    <value>All referenced images resolved.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ImportOne" xml:space="preserve">
+    <value>Import…</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectTitle" xml:space="preserve">
+    <value>No mod project</value>
+  </data>
+  <data name="Tools.WndEditor.Import.NoProjectMessage" xml:space="preserve">
+    <value>Link a mod folder or open a file inside a mod project before importing textures.</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitle" xml:space="preserve">
+    <value>Import textures</value>
+  </data>
+  <data name="Tools.WndEditor.Import.DialogTitleFor" xml:space="preserve">
+    <value>Import art for {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FilterName" xml:space="preserve">
+    <value>Texture files</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureTitle" xml:space="preserve">
+    <value>Texture import failed</value>
+  </data>
+  <data name="Tools.WndEditor.Import.FailureMessage" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessTitle" xml:space="preserve">
+    <value>Textures imported</value>
+  </data>
+  <data name="Tools.WndEditor.Import.SuccessMessage" xml:space="preserve">
+    <value>Imported {0} texture(s) into {1}.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryTitle" xml:space="preserve">
+    <value>Art library</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibrarySearchHint" xml:space="preserve">
+    <value>Search art…</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ApplyOne" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryEmpty" xml:space="preserve">
+    <value>No art matches the search.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.LibraryTruncated" xml:space="preserve">
+    <value>Showing {0} of {1} — refine the search.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.ClickToAdd" xml:space="preserve">
+    <value>Click to add {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionTitle" xml:space="preserve">
+    <value>No window selected</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.NoSelectionMessage" xml:space="preserve">
+    <value>Select a window in the tree or on the canvas, then apply art to it.</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessTitle" xml:space="preserve">
+    <value>Art applied</value>
+  </data>
+  <data name="Tools.WndEditor.Apply.SuccessMessage" xml:space="preserve">
+    <value>Applied {0} to {1}.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.NoProjectTitle" xml:space="preserve">
+    <value>No Project Folder</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.NoProjectMessage" xml:space="preserve">
+    <value>Cannot paste image texture without an active project or mod folder.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableTitle" xml:space="preserve">
+    <value>Clipboard unavailable</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnavailableMessage" xml:space="preserve">
+    <value>Could not access the system clipboard.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyTitle" xml:space="preserve">
+    <value>Clipboard empty</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.EmptyMessage" xml:space="preserve">
+    <value>The clipboard does not contain any image, texture file, or valid art name.</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedTitle" xml:space="preserve">
+    <value>No compatible image</value>
+  </data>
+  <data name="Tools.WndEditor.Paste.UnrecognizedMessage" xml:space="preserve">
+    <value>The clipboard content could not be recognized as an image or texture file.</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Paste" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Paste" xml:space="preserve">
+    <value>Paste Art</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.PasteTooltip" xml:space="preserve">
+    <value>Paste image or texture from clipboard into the selected window (Ctrl+V)</value>
+  </data>
+  <data name="Tools.WndEditor.History.ResizeWindow" xml:space="preserve">
+    <value>Resize window</value>
+  </data>
+  <data name="Tools.WndEditor.Drop.ErrorTitle" xml:space="preserve">
+    <value>Drop Failed</value>
+  </data>
+  <data name="Tools.WndEditor.Drop.ErrorMessage" xml:space="preserve">
+    <value>Failed to process dropped item: {0}</value>
   </data>
   <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
     <value>Add to Profile</value>
