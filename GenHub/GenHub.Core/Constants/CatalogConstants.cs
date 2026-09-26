@@ -369,6 +369,7 @@ public static class CatalogConstants
             }
 
             if (string.Equals(provider, GitHubReleases, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, "github-releases", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(provider, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase))
             {
                 return GitHubReleases;
