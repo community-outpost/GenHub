@@ -1,3 +1,5 @@
+using GenHub.Core.Interfaces.Common;
+using GenHub.Infrastructure.Converters;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -38,10 +40,12 @@ public sealed partial class ContentGridItemViewModel(
     ContentSearchResult searchResult,
     IContentStateService contentStateService,
     ILogger<ContentGridItemViewModel> logger,
-    IContentDownloadCoordinator? downloadCoordinator = null) : ObservableObject, IDisposable
+    IContentDownloadCoordinator? downloadCoordinator = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     private const string UnknownValue = "Unknown";
 
+    private readonly ILocalizationService? _localizationService = localizationService ?? LocalizationConverterHelper.ResolveLocalizationService();
     private bool _disposed;
 
     /// <summary>
@@ -199,7 +203,7 @@ public sealed partial class ContentGridItemViewModel(
     /// </summary>
     public string FeaturedBadge => !string.IsNullOrWhiteSpace(SearchResult.FeaturedBadge)
         ? SearchResult.FeaturedBadge
-        : "★ FEATURED BUNDLE";
+        : LocalizationConverterHelper.GetLocalizedOrDefault(_localizationService, "Tools.PublisherStudio.Content.FeaturedBadgePlaceholder", "★ FEATURED BUNDLE");
 
     /// <summary>
     /// Gets a value indicating whether the featured badge should be displayed.

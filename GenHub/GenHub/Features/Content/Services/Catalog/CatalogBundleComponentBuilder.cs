@@ -179,7 +179,10 @@ public static class CatalogBundleComponentBuilder
         }
 
         var siblingRelease = SelectRelease(sibling, dependency.VersionConstraint);
-        if (siblingRelease == null && sibling.UpstreamSync?.AssetRules is { Count: > 0 })
+        var isConstraintLatestOrEmpty = string.IsNullOrWhiteSpace(dependency.VersionConstraint) ||
+                                        string.Equals(dependency.VersionConstraint.Trim(), CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase);
+
+        if (siblingRelease == null && isConstraintLatestOrEmpty && sibling.UpstreamSync?.AssetRules is { Count: > 0 })
         {
             siblingRelease = new ContentRelease
             {
@@ -194,7 +197,7 @@ public static class CatalogBundleComponentBuilder
                 }).ToList(),
             };
         }
-        else if (siblingRelease == null && (string.Equals(sibling.PublisherType, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+        else if (siblingRelease == null && isConstraintLatestOrEmpty && (string.Equals(sibling.PublisherType, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                            string.Equals(sibling.UpstreamSync?.Provider, CatalogConstants.UpstreamProviders.TheSuperHackers, StringComparison.OrdinalIgnoreCase)))
         {
             siblingRelease = new ContentRelease

@@ -318,6 +318,61 @@ public sealed class JsonPublisherCatalogParserTests
         Assert.True(verified);
     }
 
+    /// <summary>
+    /// The community competitive ecosystem catalog must parse and validate end-to-end.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_CommunityCompetitiveEcosystemCatalog_SucceedsAsync()
+    {
+        var path = FindCommunityCompetitiveCatalogPath();
+        Assert.True(File.Exists(path), $"Sample catalog not found at {path}");
+
+        var json = await File.ReadAllTextAsync(path);
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = await parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal("community-competitive-hub", result.Data!.Publisher.Id);
+        Assert.Contains(result.Data.Content, c => c.ContentType == ContentType.ContentBundle);
+        var bundle = Assert.Single(result.Data.Content, c => c.Id == "thesuperhackers-competitive-bundle");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "l3m-controlbar");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "gentool");
+        Assert.Contains(bundle.BundledItems, d => d.ContentId == "competitive-hotkeys");
+    }
+
+    private static string FindCommunityCompetitiveCatalogPath()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "GenHub", "GenHub", "SampleCatalogs", "community-competitive-ecosystem.catalog.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            candidate = Path.Combine(dir.FullName, "GenHub", "SampleCatalogs", "community-competitive-ecosystem.catalog.json");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            dir = dir.Parent;
+        }
+
+        return Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            "..",
+            "GenHub",
+            "SampleCatalogs",
+            "community-competitive-ecosystem.catalog.json"));
+    }
+
     private static string FindSampleCatalogPath()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

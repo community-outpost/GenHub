@@ -2960,7 +2960,8 @@ public sealed partial class DownloadsBrowserViewModel(
             item,
             contentStateService,
             loggerFactory.CreateLogger<ContentGridItemViewModel>(),
-            _downloadCoordinator)
+            _downloadCoordinator,
+            _localizationService)
         {
             ViewCommand = ViewContentCommand,
             DownloadCommand = DownloadContentCommand,
