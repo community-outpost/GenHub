@@ -358,6 +358,54 @@ public class SectionScrollSpyTests
     }
 
     /// <summary>
+    /// Verifies that removing a section while it is the active animation target stops programmatic scrolling.
+    /// </summary>
+    [AvaloniaFact]
+    public void RemoveSection_ActiveTarget_StopsAnimation()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            spy.ScrollToSection("second");
+            Assert.True(spy.IsScrollingProgrammatically);
+
+            spy.RemoveSection("second");
+            Assert.False(spy.IsScrollingProgrammatically);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that removing a control while it is the active animation target stops programmatic scrolling.
+    /// </summary>
+    [AvaloniaFact]
+    public void RemoveControl_ActiveTarget_StopsAnimation()
+    {
+        var host = CreateHost();
+        try
+        {
+            var reported = new List<string>();
+            using var spy = CreateAttachedSpy(host, reported);
+
+            spy.ScrollToSection("second");
+            Assert.True(spy.IsScrollingProgrammatically);
+
+            spy.RemoveControl(host.Second);
+            Assert.False(spy.IsScrollingProgrammatically);
+        }
+        finally
+        {
+            host.Window.Close();
+        }
+    }
+
+    /// <summary>
     /// Verifies that when an animated scroll completes, subsequent user scrolling
     /// is not suppressed.
     /// </summary>

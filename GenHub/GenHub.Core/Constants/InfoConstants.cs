@@ -111,29 +111,14 @@ public static class InfoConstants
     public const string ChangelogsCacheFileName = "changelogs-cache.json";
 
     /// <summary>
-    /// Action identifier to navigate to the Game Profiles tab.
-    /// </summary>
-    public const string ActionNavGameProfiles = "NAV_GameProfiles";
-
-    /// <summary>
     /// Action identifier to navigate to the Downloads tab.
     /// </summary>
     public const string ActionNavDownloads = "NAV_Downloads";
 
     /// <summary>
-    /// Action identifier to navigate to the Add Local Content wizard.
-    /// </summary>
-    public const string ActionNavAddContent = "NAV_AddContent";
-
-    /// <summary>
     /// Action identifier to navigate to the Settings tab.
     /// </summary>
     public const string ActionNavSettings = "NAV_Settings";
-
-    /// <summary>
-    /// Action identifier to open the Virtual Workspaces info section.
-    /// </summary>
-    public const string ActionNavInfoWorkspace = "NAV_INFO_workspace";
 
     /// <summary>
     /// Action identifier to open the Tools tab.
@@ -164,6 +149,71 @@ public static class InfoConstants
     /// Localization string key for the info cards right sidebar title.
     /// </summary>
     public const string StringInfoSidebarCardsTitle = "Info.Sidebar.CardsTitle";
+
+    /// <summary>
+    /// Card ID for Profiles Demo.
+    /// </summary>
+    public const string CardProfilesDemo = "demo-profiles";
+
+    /// <summary>
+    /// Card ID for Settings Demo.
+    /// </summary>
+    public const string CardSettingsDemo = "demo-settings";
+
+    /// <summary>
+    /// Card ID for Content Selection Demo.
+    /// </summary>
+    public const string CardContentDemo = "demo-content";
+
+    /// <summary>
+    /// Card ID for Shortcuts Demo.
+    /// </summary>
+    public const string CardShortcutsDemo = "demo-shortcuts";
+
+    /// <summary>
+    /// Card ID for Steam Demo.
+    /// </summary>
+    public const string CardSteamDemo = "demo-steam";
+
+    /// <summary>
+    /// Card ID for Updates Demo.
+    /// </summary>
+    public const string CardUpdatesDemo = "demo-updates";
+
+    /// <summary>
+    /// Card ID for Tools Demo.
+    /// </summary>
+    public const string CardToolsDemo = "demo-tools";
+
+    /// <summary>
+    /// Card ID for Scan Demo.
+    /// </summary>
+    public const string CardScanDemo = "demo-scan";
+
+    /// <summary>
+    /// Card ID for Local Content Demo.
+    /// </summary>
+    public const string CardLocalContentDemo = "demo-local-content";
+
+    /// <summary>
+    /// Card ID for Workspace Demo.
+    /// </summary>
+    public const string CardWorkspaceDemo = "demo-workspace";
+
+    /// <summary>
+    /// Card ID for Video Settings.
+    /// </summary>
+    public const string CardSettingsVideo = "card-settings-video";
+
+    /// <summary>
+    /// Card ID for Audio Settings.
+    /// </summary>
+    public const string CardSettingsAudio = "card-settings-audio";
+
+    /// <summary>
+    /// Card ID for Controls and Camera Settings.
+    /// </summary>
+    public const string CardSettingsControlsCamera = "card-settings-controls-camera";
 
     /// <summary>
     /// Card ID for Quickstart Welcome.
@@ -204,6 +254,11 @@ public static class InfoConstants
     /// Card ID for Downloads Generals Online.
     /// </summary>
     public const string CardDownloadsGeneralsOnline = "generals-online";
+
+    /// <summary>
+    /// Card ID for Profiles Sandbox.
+    /// </summary>
+    public const string CardProfilesSandbox = "sandbox";
 
     /// <summary>
     /// Card ID for Profiles Hierarchy.
@@ -281,24 +336,9 @@ public static class InfoConstants
     public const string CardWorkspacesPerformance = "performance";
 
     /// <summary>
-    /// Card ID for Settings Sandbox.
+    /// Card ID for Shortcuts Headless Mode.
     /// </summary>
-    public const string CardSettingsSandbox = "sandbox";
-
-    /// <summary>
-    /// Card ID for Settings Controls.
-    /// </summary>
-    public const string CardSettingsControls = "controls";
-
-    /// <summary>
-    /// Card ID for Settings Advanced Options.
-    /// </summary>
-    public const string CardSettingsAdvancedOptions = "advanced-options";
-
-    /// <summary>
-    /// Card ID for Settings Headless Mode.
-    /// </summary>
-    public const string CardSettingsHeadless = "headless";
+    public const string CardShortcutsHeadless = "headless";
 
     /// <summary>
     /// Card ID for Shortcuts Creation.
@@ -499,91 +539,6 @@ public static class InfoConstants
     /// Icon key for Folder Upload.
     /// </summary>
     public const string IconFolderUpload = "FolderUpload";
-
-    /// <summary>
-    /// Icon key for Harddisk / Storage.
-    /// </summary>
-    public const string IconHarddisk = "Harddisk";
-
-    /// <summary>
-    /// Icon key for Web / External link.
-    /// </summary>
-    public const string IconWeb = "Web";
-
-    /// <summary>
-    /// Icon key for Arrow Right.
-    /// </summary>
-    public const string IconArrowRight = "ArrowRight";
-
-    /// <summary>
-    /// Icon key for Shield Check.
-    /// </summary>
-    public const string IconShieldCheck = "ShieldCheck";
-
-    /// <summary>
-    /// Icon key for View Dashboard.
-    /// </summary>
-    public const string IconViewDashboard = "ViewDashboard";
-
-    /// <summary>
-    /// Icon key for Folder Open.
-    /// </summary>
-    public const string IconFolderOpen = "FolderOpen";
-
-    /// <summary>
-    /// Icon key for Information.
-    /// </summary>
-    public const string IconInformation = "Information";
-
-    /// <summary>
-    /// Icon key for Download.
-    /// </summary>
-    public const string IconDownload = "Download";
-
-    /// <summary>
-    /// Icon key for Cog / Settings.
-    /// </summary>
-    public const string IconCog = "Cog";
-
-    /// <summary>
-    /// Icon key for Controller.
-    /// </summary>
-    public const string IconController = "Controller";
-
-    /// <summary>
-    /// Icon key for Content Cut.
-    /// </summary>
-    public const string IconContentCut = "ContentCut";
-
-    /// <summary>
-    /// Icon key for Wrench / Tools.
-    /// </summary>
-    public const string IconWrench = "Wrench";
-
-    /// <summary>
-    /// Icon key for Radar / Scan.
-    /// </summary>
-    public const string IconRadar = "Radar";
-
-    /// <summary>
-    /// Icon key for Update.
-    /// </summary>
-    public const string IconUpdate = "Update";
-
-    /// <summary>
-    /// Icon key for History.
-    /// </summary>
-    public const string IconHistory = "History";
-
-    /// <summary>
-    /// Icon key for Help Circle / FAQ.
-    /// </summary>
-    public const string IconHelpCircle = "HelpCircle";
-
-    /// <summary>
-    /// Icon key for Web Sync / Online.
-    /// </summary>
-    public const string IconWebSync = "WebSync";
 
     /// <summary>
     /// Icon resource URI for Generals demo item.

@@ -101,7 +101,7 @@ public class GenHubInfoSectionViewModelTests
     }
 
     /// <summary>
-    /// Verifies that UpdateCardFromScroll updates SelectedCard without raising ScrollToCardRequested.
+    /// Verifies that UpdateCardFromScroll updates SelectedCard.
     /// </summary>
     [Fact]
     public void UpdateCardFromScroll_UpdatesSelectedCardSilently()
@@ -119,9 +119,6 @@ public class GenHubInfoSectionViewModelTests
         vm.SelectedSection = sectionVm;
         var card2Vm = sectionVm.Cards[1];
 
-        var scrollRequested = false;
-        vm.ScrollToCardRequested += _ => scrollRequested = true;
-
         var propChanged = false;
         vm.PropertyChanged += (sender, args) =>
         {
@@ -135,7 +132,6 @@ public class GenHubInfoSectionViewModelTests
 
         vm.SelectedCard.Should().BeSameAs(card2Vm);
         propChanged.Should().BeTrue();
-        scrollRequested.Should().BeFalse();
     }
 
     /// <summary>
@@ -162,20 +158,16 @@ public class GenHubInfoSectionViewModelTests
     }
 
     /// <summary>
-    /// Verifies that SelectCardCommand triggers ScrollToCardRequested.
+    /// Verifies that SelectCardCommand sets the selected card.
     /// </summary>
     [Fact]
-    public void SelectCardCommand_FiresScrollToCardRequested()
+    public void SelectCardCommand_SetsSelectedCard()
     {
         var vm = CreateViewModel();
         var cardVm = new InfoCardViewModel(new InfoCard { Id = "c1", Title = "Card 1" }, "sec1");
 
-        InfoCardViewModel? requestedCard = null;
-        vm.ScrollToCardRequested += card => requestedCard = card;
-
         vm.SelectCardCommand.Execute(cardVm);
 
-        requestedCard.Should().BeSameAs(cardVm);
         vm.SelectedCard.Should().BeSameAs(cardVm);
     }
 

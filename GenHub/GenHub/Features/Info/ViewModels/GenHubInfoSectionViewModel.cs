@@ -64,6 +64,12 @@ public partial class GenHubInfoSectionViewModel(
     private InfoSectionViewModel? _selectedSection;
 
     [ObservableProperty]
+    private double _demoSettingsWidth = 840;
+
+    [ObservableProperty]
+    private double _demoSettingsHeight = 580;
+
+    [ObservableProperty]
     private InfoCardViewModel? _selectedCard;
 
     [ObservableProperty]
@@ -126,6 +132,39 @@ public partial class GenHubInfoSectionViewModel(
 
     [ObservableProperty]
     private bool _isPaneOpen;
+
+    /// <summary>
+    /// Event raised when changelogs or patch notes collections are updated, allowing the view to refresh scroll spy registrations.
+    /// </summary>
+    public event Action? ChangelogsLoaded;
+
+    /// <summary>
+    /// Gets a value indicating whether the compact demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeCompact => Math.Abs(DemoSettingsWidth - 720) < 1;
+
+    /// <summary>
+    /// Gets a value indicating whether the standard demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeStandard => Math.Abs(DemoSettingsWidth - 840) < 1;
+
+    /// <summary>
+    /// Gets a value indicating whether the expanded demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeExpanded => Math.Abs(DemoSettingsWidth - 980) < 1;
+
+    /// <summary>
+    /// Navigates to an info section by its unique identifier.
+    /// </summary>
+    /// <param name="sectionId">The target section ID.</param>
+    public void NavigateToSectionById(string sectionId)
+    {
+        var target = Sections.FirstOrDefault(s => s.Id == sectionId);
+        if (target != null)
+        {
+            SelectedSection = target;
+        }
+    }
 
     /// <summary>
     /// Gets the icon key.
@@ -291,11 +330,6 @@ public partial class GenHubInfoSectionViewModel(
     public bool IsGoChangelogSelected => SelectedSection?.Id == InfoConstants.SectionGoChangelog;
 
     /// <summary>
-    /// Event raised when a card scroll is requested by selection.
-    /// </summary>
-    public event Action<InfoCardViewModel>? ScrollToCardRequested;
-
-    /// <summary>
     /// Updates the selected card from scroll-spy tracking.
     /// </summary>
     /// <param name="card">The newly activated card.</param>
@@ -308,7 +342,7 @@ public partial class GenHubInfoSectionViewModel(
     }
 
     /// <summary>
-    /// Selects a card and requests scrolling to it.
+    /// Selects a specific card within the currently active section.
     /// </summary>
     /// <param name="card">The card to select.</param>
     [RelayCommand]
@@ -320,7 +354,6 @@ public partial class GenHubInfoSectionViewModel(
         }
 
         SelectedCard = card;
-        ScrollToCardRequested?.Invoke(card);
     }
 
     /// <summary>
@@ -337,6 +370,45 @@ public partial class GenHubInfoSectionViewModel(
         _currentModule = module;
         OnPropertyChanged(nameof(Title));
         FilterSections();
+    }
+
+    /// <summary>
+    /// Sets demo size to compact (720x480).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoCompact()
+    {
+        DemoSettingsWidth = 720;
+        DemoSettingsHeight = 480;
+        OnPropertyChanged(nameof(IsDemoSizeCompact));
+        OnPropertyChanged(nameof(IsDemoSizeStandard));
+        OnPropertyChanged(nameof(IsDemoSizeExpanded));
+    }
+
+    /// <summary>
+    /// Sets demo size to standard (840x580).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoStandard()
+    {
+        DemoSettingsWidth = 840;
+        DemoSettingsHeight = 580;
+        OnPropertyChanged(nameof(IsDemoSizeCompact));
+        OnPropertyChanged(nameof(IsDemoSizeStandard));
+        OnPropertyChanged(nameof(IsDemoSizeExpanded));
+    }
+
+    /// <summary>
+    /// Sets demo size to expanded (980x680).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoExpanded()
+    {
+        DemoSettingsWidth = 980;
+        DemoSettingsHeight = 680;
+        OnPropertyChanged(nameof(IsDemoSizeCompact));
+        OnPropertyChanged(nameof(IsDemoSizeStandard));
+        OnPropertyChanged(nameof(IsDemoSizeExpanded));
     }
 
     /// <summary>
@@ -485,6 +557,9 @@ public partial class GenHubInfoSectionViewModel(
         goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
         goChangelogViewModel.PatchNotes.CollectionChanged += OnGoPatchNotesChanged;
 
+        SyncChangelogCards();
+        SyncGoChangelogCards();
+
         // Ensure Demo ViewModels are initialized (even if Sections were already loaded)
         // Check each property individually to be robust against partial initialization failures
         if (DemoProfileCard == null)
@@ -514,12 +589,22 @@ public partial class GenHubInfoSectionViewModel(
         if (DemoGameSettings_ContentTab == null)
         {
             DemoGameSettings_ContentTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+            if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel cTab)
+            {
+                cTab.NavigationRequested = NavigateToSectionById;
+            }
+
             OnPropertyChanged(nameof(DemoGameSettings_ContentTab));
         }
 
         if (DemoGameSettings_SettingsTab == null)
         {
             DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
+            if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel sTab)
+            {
+                sTab.NavigationRequested = NavigateToSectionById;
+            }
+
             OnPropertyChanged(nameof(DemoGameSettings_SettingsTab));
         }
 
@@ -708,6 +793,15 @@ public partial class GenHubInfoSectionViewModel(
             return;
         }
 
+        for (var i = section.Cards.Count - 1; i >= 0; i--)
+        {
+            var card = section.Cards[i];
+            if (card.TargetItem is ChangelogItemViewModel releaseItem && !Changelogs.Releases.Contains(releaseItem))
+            {
+                section.Cards.RemoveAt(i);
+            }
+        }
+
         foreach (var release in Changelogs.Releases)
         {
             if (!section.Cards.Any(c => ReferenceEquals(c.TargetItem, release)))
@@ -735,6 +829,8 @@ public partial class GenHubInfoSectionViewModel(
         {
             UpdateCardsPaneLengthForSection(SelectedSection);
         }
+
+        ChangelogsLoaded?.Invoke();
     }
 
     private void SyncGoChangelogCards()
@@ -743,6 +839,15 @@ public partial class GenHubInfoSectionViewModel(
         if (section == null)
         {
             return;
+        }
+
+        for (var i = section.Cards.Count - 1; i >= 0; i--)
+        {
+            var card = section.Cards[i];
+            if (card.TargetItem is PatchNote patchNote && !GoChangelog.PatchNotes.Contains(patchNote))
+            {
+                section.Cards.RemoveAt(i);
+            }
         }
 
         foreach (var note in GoChangelog.PatchNotes)
@@ -773,6 +878,8 @@ public partial class GenHubInfoSectionViewModel(
         {
             UpdateCardsPaneLengthForSection(SelectedSection);
         }
+
+        ChangelogsLoaded?.Invoke();
     }
 
     private void UpdateCardsPaneLengthForSection(InfoSectionViewModel? section)
@@ -822,6 +929,19 @@ public partial class GenHubInfoSectionViewModel(
         OnPropertyChanged(nameof(IsWorkspaceSelected));
         OnPropertyChanged(nameof(IsFaqSelected));
         OnPropertyChanged(nameof(IsGoChangelogSelected));
+
+        if (newValue != null)
+        {
+            if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel demoSettings)
+            {
+                demoSettings.SyncTabToSection(newValue.Id);
+            }
+
+            if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel demoContent)
+            {
+                demoContent.SyncTabToSection(newValue.Id);
+            }
+        }
 
         if (IsChangelogsSelected && !Changelogs.Releases.Any() && !Changelogs.IsLoading)
         {

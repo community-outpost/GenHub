@@ -1,7 +1,11 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using GenHub.Common.Controls;
+using System.Linq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Controls;
@@ -84,7 +88,7 @@ public class SidebarLayoutTests
     }
 
     /// <summary>
-    /// Verifies that SidebarLayout can be attached to visual tree with Right placement.
+    /// Verifies that SidebarLayout with Right placement swaps columns and aligns controls correctly.
     /// </summary>
     [AvaloniaFact]
     public void SidebarLayout_WithRightPlacement_AttachesCleanly()
@@ -110,6 +114,26 @@ public class SidebarLayoutTests
 
             Assert.True(layout.IsPaneOpen);
             Assert.Equal(Dock.Right, layout.PanePlacement);
+
+            var sidebar = layout.GetVisualDescendants().OfType<Control>().FirstOrDefault(c => c.Name == "PART_SidebarPane");
+            var content = layout.GetVisualDescendants().OfType<Control>().FirstOrDefault(c => c.Name == "PART_ContentPresenter");
+            var expandTab = layout.GetVisualDescendants().OfType<Border>().FirstOrDefault(c => c.Name == "PART_ExpandTab");
+
+            Assert.NotNull(sidebar);
+            Assert.NotNull(content);
+            Assert.Equal(2, Grid.GetColumn(sidebar!));
+            Assert.Equal(0, Grid.GetColumn(content!));
+
+            if (sidebar is Border border)
+            {
+                Assert.Equal(new Thickness(1, 0, 0, 0), border.BorderThickness);
+            }
+
+            if (expandTab != null)
+            {
+                Assert.Equal(HorizontalAlignment.Right, expandTab.HorizontalAlignment);
+                Assert.Equal(new CornerRadius(3, 0, 0, 3), expandTab.CornerRadius);
+            }
         }
         finally
         {

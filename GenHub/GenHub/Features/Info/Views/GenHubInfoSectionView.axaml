@@ -231,7 +231,7 @@
         <!-- ============================================== -->
         <!-- DEMO: GAME PROFILES                            -->
         <!-- ============================================== -->
-        <Border IsVisible="{Binding IsGameProfilesSelected}" Margin="0,0,0,50">
+        <Border x:Name="ProfilesDemoContainer" IsVisible="{Binding IsGameProfilesSelected}" Margin="0,0,0,50">
           <StackPanel>
              <StackPanel HorizontalAlignment="Left">
                 <TextBlock Text="{localization:Localize Info.Demo.ProfileCard.Title}" Classes="demo-title"/>
@@ -257,7 +257,7 @@
         <!-- ============================================== -->
         <!-- DEMO: SHORTCUTS                                -->
         <!-- ============================================== -->
-        <Border Margin="0,0,0,50">
+        <Border x:Name="ShortcutsDemoContainer" Margin="0,0,0,50">
              <Border.IsVisible>
                 <Binding Path="SelectedSection.Id" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="shortcuts"/>
              </Border.IsVisible>
@@ -314,7 +314,7 @@
         <!-- ============================================== -->
         <!-- DEMO: STEAM INTEGRATION                        -->
         <!-- ============================================== -->
-         <Border Margin="0,0,0,50">
+         <Border x:Name="SteamDemoContainer" Margin="0,0,0,50">
              <Border.IsVisible>
                 <Binding Path="SelectedSection.Id" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="steam-integration"/>
              </Border.IsVisible>
@@ -342,7 +342,7 @@
         <!-- ============================================== -->
         <!-- DEMO: APP UPDATE                               -->
         <!-- ============================================== -->
-        <Border IsVisible="{Binding IsAppUpdatesSelected}" Margin="0,15,0,0">
+        <Border x:Name="AppUpdatesDemoContainer" IsVisible="{Binding IsAppUpdatesSelected}" Margin="0,15,0,0">
           <StackPanel Spacing="40">
             <!-- 1. Standard Update Mechanism -->
             <StackPanel Spacing="20">
@@ -412,73 +412,41 @@
         <!-- ============================================== -->
         <!-- DEMO: GAME SETTINGS                            -->
         <!-- ============================================== -->
-        <Border IsVisible="{Binding IsGameSettingsSelected}" Margin="0,0,0,50">
-          <StackPanel>
+        <Border x:Name="GameSettingsDemoContainer" IsVisible="{Binding IsGameSettingsSelected}" Margin="0,0,0,50">
+          <StackPanel Spacing="16">
              <StackPanel HorizontalAlignment="Left" Spacing="8">
                 <TextBlock Text="{localization:Localize Info.Demo.GameSettings.Title}" Classes="demo-title"/>
                 <TextBlock Text="{localization:Localize Info.Demo.GameSettings.Subtitle}" Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">
-               <StackPanel Spacing="20">
-                  <TextBlock Text="{localization:Localize Info.Demo.ResizeTip}"
-                             FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
-                             TextWrapping="Wrap" TextAlignment="Center"/>
+               <StackPanel Spacing="16">
+                  <!-- Demo Size Preset Bar -->
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Window Size:" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeCompact}" Command="{Binding SetDemoCompactCommand}" Content="Compact (720x480)" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeStandard}" Command="{Binding SetDemoStandardCommand}" Content="Standard (840x580)" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="Expanded (980x680)" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                     </StackPanel>
+                     <TextBlock Grid.Column="1" Text="{localization:Localize Info.Demo.GameSettings.Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" FontStyle="Italic" VerticalAlignment="Center"/>
+                  </Grid>
 
-                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                    <Grid HorizontalAlignment="Center">
-                      <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="800" MinWidth="400" />
-                          <ColumnDefinition Width="Auto"/>
-                      </Grid.ColumnDefinitions>
-                      <Grid.RowDefinitions>
-                          <RowDefinition Height="600" MinHeight="300" />
-                          <RowDefinition Height="Auto"/>
-                      </Grid.RowDefinitions>
-
-                      <!-- The Mock Window Content -->
-                      <Border Grid.Row="0" Grid.Column="0"
-                              Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
-                          <local:DemoGameProfileSettingsWindowMock DataContext="{Binding DemoGameSettings_SettingsTab}"/>
-                      </Border>
-
-                      <!-- Horizontal Splitter (Width) -->
-                      <GridSplitter Grid.Row="0" Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns">
-                          <GridSplitter.Template>
-                              <ControlTemplate>
-                                  <Border Background="#1AFFFFFF" Width="4" HorizontalAlignment="Center" CornerRadius="2">
-                                      <Border.Styles>
-                                          <Style Selector="Border:pointerover">
-                                              <Setter Property="Background" Value="{StaticResource SystemAccentColorBrush}"/>
-                                          </Style>
-                                      </Border.Styles>
-                                  </Border>
-                              </ControlTemplate>
-                          </GridSplitter.Template>
-                      </GridSplitter>
-
-                      <!-- Vertical Splitter (Height) -->
-                      <GridSplitter Grid.Row="1" Grid.Column="0" Height="8" Background="Transparent" ResizeDirection="Rows">
-                          <GridSplitter.Template>
-                              <ControlTemplate>
-                                  <Border Background="#1AFFFFFF" Height="4" VerticalAlignment="Center" CornerRadius="2">
-                                      <Border.Styles>
-                                          <Style Selector="Border:pointerover">
-                                              <Setter Property="Background" Value="{StaticResource SystemAccentColorBrush}"/>
-                                          </Style>
-                                      </Border.Styles>
-                                  </Border>
-                              </ControlTemplate>
-                          </GridSplitter.Template>
-                      </GridSplitter>
-
-                      <!-- Corner Resize Handle (Visual Only) -->
-                      <material:MaterialIcon Grid.Row="1" Grid.Column="1" Kind="Resize" Foreground="#666" Width="12" Height="12" Margin="2" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-                    </Grid>
-                  </Viewbox>
-
-                  <TextBlock Text="{localization:Localize Info.Demo.GameSettings.Hint}"
-                             FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
+                  <!-- The Resizable Mock Window Content (Direct rendering without Viewbox distortion) -->
+                  <Border Width="{Binding DemoSettingsWidth}"
+                          Height="{Binding DemoSettingsHeight}"
+                          MinWidth="640"
+                          MaxWidth="1040"
+                          MinHeight="440"
+                          MaxHeight="750"
+                          HorizontalAlignment="Center"
+                          Background="#0F0F0F"
+                          BorderBrush="#333"
+                          BorderThickness="1"
+                          CornerRadius="8"
+                          ClipToBounds="True">
+                      <local:DemoGameProfileSettingsWindowMock DataContext="{Binding DemoGameSettings_SettingsTab}"/>
+                  </Border>
                </StackPanel>
             </Border>
           </StackPanel>
@@ -487,8 +455,8 @@
         <!-- ============================================== -->
         <!-- DEMO: CONTENT SELECTION                        -->
         <!-- ============================================== -->
-        <Border IsVisible="{Binding IsGameProfileContentSelected}" Margin="0,0,0,50">
-          <StackPanel Spacing="20">
+        <Border x:Name="GameProfileContentDemoContainer" IsVisible="{Binding IsGameProfileContentSelected}" Margin="0,0,0,50">
+          <StackPanel Spacing="16">
              <StackPanel HorizontalAlignment="Left" Spacing="8">
                 <TextBlock Text="{localization:Localize Info.Demo.ContentSelection.Title}" Classes="demo-title"/>
                 <TextBlock Text="{localization:Localize Info.Demo.ContentSelection.Subtitle}" Classes="demo-subtitle"/>
@@ -501,65 +469,33 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-               <StackPanel Spacing="20">
-                  <TextBlock Text="{localization:Localize Info.Demo.ResizeTip}"
-                             FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
-                             TextWrapping="Wrap" TextAlignment="Center"/>
+               <StackPanel Spacing="16">
+                  <!-- Demo Size Preset Bar -->
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Window Size:" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeCompact}" Command="{Binding SetDemoCompactCommand}" Content="Compact (720x480)" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeStandard}" Command="{Binding SetDemoStandardCommand}" Content="Standard (840x580)" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                        <Button Classes="preset-btn" Classes.preset-active="{Binding IsDemoSizeExpanded}" Command="{Binding SetDemoExpandedCommand}" Content="Expanded (980x680)" Padding="10,4" FontSize="11" CornerRadius="6"/>
+                     </StackPanel>
+                     <TextBlock Grid.Column="1" Text="{localization:Localize Info.Demo.ContentSelection.Hint}" FontSize="11" Foreground="{DynamicResource TextMuted}" FontStyle="Italic" VerticalAlignment="Center"/>
+                  </Grid>
 
-                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                    <Grid HorizontalAlignment="Center">
-                      <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="800" MinWidth="400" />
-                          <ColumnDefinition Width="Auto"/>
-                      </Grid.ColumnDefinitions>
-                      <Grid.RowDefinitions>
-                          <RowDefinition Height="600" MinHeight="300" />
-                          <RowDefinition Height="Auto"/>
-                      </Grid.RowDefinitions>
-
-                      <!-- The Mock Window Content -->
-                      <Border Grid.Row="0" Grid.Column="0"
-                              Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
-                          <local:DemoGameProfileSettingsWindowMock DataContext="{Binding DemoGameSettings_ContentTab}"/>
-                      </Border>
-
-                      <!-- Horizontal Splitter (Width) -->
-                      <GridSplitter Grid.Row="0" Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns">
-                          <GridSplitter.Template>
-                              <ControlTemplate>
-                                  <Border Background="#1AFFFFFF" Width="4" HorizontalAlignment="Center" CornerRadius="2">
-                                      <Border.Styles>
-                                          <Style Selector="Border:pointerover">
-                                              <Setter Property="Background" Value="{StaticResource SystemAccentColorBrush}"/>
-                                          </Style>
-                                      </Border.Styles>
-                                  </Border>
-                              </ControlTemplate>
-                          </GridSplitter.Template>
-                      </GridSplitter>
-
-                      <!-- Vertical Splitter (Height) -->
-                      <GridSplitter Grid.Row="1" Grid.Column="0" Height="8" Background="Transparent" ResizeDirection="Rows">
-                          <GridSplitter.Template>
-                              <ControlTemplate>
-                                  <Border Background="#1AFFFFFF" Height="4" VerticalAlignment="Center" CornerRadius="2">
-                                      <Border.Styles>
-                                          <Style Selector="Border:pointerover">
-                                              <Setter Property="Background" Value="{StaticResource SystemAccentColorBrush}"/>
-                                          </Style>
-                                      </Border.Styles>
-                                  </Border>
-                              </ControlTemplate>
-                          </GridSplitter.Template>
-                      </GridSplitter>
-
-                      <!-- Corner Resize Handle (Visual Only) -->
-                      <material:MaterialIcon Grid.Row="1" Grid.Column="1" Kind="Resize" Foreground="#666" Width="12" Height="12" Margin="2" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-                    </Grid>
-                  </Viewbox>
-
-                  <TextBlock Text="{localization:Localize Info.Demo.ContentSelection.Hint}"
-                             FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
+                  <!-- The Resizable Mock Window Content (Direct rendering without Viewbox distortion) -->
+                  <Border Width="{Binding DemoSettingsWidth}"
+                          Height="{Binding DemoSettingsHeight}"
+                          MinWidth="640"
+                          MaxWidth="1040"
+                          MinHeight="440"
+                          MaxHeight="750"
+                          HorizontalAlignment="Center"
+                          Background="#0F0F0F"
+                          BorderBrush="#333"
+                          BorderThickness="1"
+                          CornerRadius="8"
+                          ClipToBounds="True">
+                      <local:DemoGameProfileSettingsWindowMock DataContext="{Binding DemoGameSettings_ContentTab}"/>
+                  </Border>
                </StackPanel>
             </Border>
           </StackPanel>
@@ -568,7 +504,7 @@
         <!-- ============================================== -->
         <!-- DEMO: TOOLS                                    -->
         <!-- ============================================== -->
-        <Border IsVisible="{Binding IsToolsSelected}" Margin="0,0,0,50">
+        <Border x:Name="ToolsDemoContainer" IsVisible="{Binding IsToolsSelected}" Margin="0,0,0,50">
             <StackPanel Spacing="60">
 
                 <!-- 1. REPLAY MANAGER -->
@@ -697,7 +633,7 @@
         <!-- ============================================== -->
         <!-- DEMO: SCAN FOR GAMES                           -->
         <!-- ============================================== -->
-        <Border IsVisible="{Binding IsScanForGamesSelected}" Margin="0,0,0,50">
+        <Border x:Name="ScanDemoContainer" IsVisible="{Binding IsScanForGamesSelected}" Margin="0,0,0,50">
           <StackPanel>
             <StackPanel HorizontalAlignment="Left">
                 <TextBlock Text="{localization:Localize Info.Demo.ScanWizard.Title}" Classes="demo-title"/>
@@ -715,7 +651,7 @@
         <!-- ============================================== -->
         <!-- DEMO: LOCAL CONTENT                            -->
         <!-- ============================================== -->
-        <Border IsVisible="{Binding IsLocalContentSelected}" Margin="0,0,0,50">
+        <Border x:Name="LocalContentDemoContainer" IsVisible="{Binding IsLocalContentSelected}" Margin="0,0,0,50">
              <StackPanel Spacing="18">
                 <StackPanel HorizontalAlignment="Left" Spacing="6">
                     <TextBlock Text="{localization:Localize Info.Demo.LocalContent.Title}" Classes="demo-title"/>
@@ -832,7 +768,7 @@
         <!-- ============================================== -->
         <!-- DEMO: WORKSPACE (FILESYSTEM MAGIC)             -->
         <!-- ============================================== -->
-        <Border IsVisible="{Binding IsWorkspaceSelected}" Margin="0,0,0,50">
+        <Border x:Name="WorkspacesDemoContainer" IsVisible="{Binding IsWorkspaceSelected}" Margin="0,0,0,50">
           <StackPanel>
             <StackPanel HorizontalAlignment="Left">
                 <TextBlock Text="{localization:Localize Info.Demo.Workspace.Title}" Classes="demo-title"/>
