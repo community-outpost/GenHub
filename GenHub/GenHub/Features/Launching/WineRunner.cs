@@ -23,6 +23,17 @@ public class WineRunner(
     ILogger<WineRunner> logger,
     ILocalizationService? localizationService = null) : IGameLaunchRunner
 {
+    /// <summary>
+    /// Standard user data subdirectories bridged into the Wine prefix.
+    /// </summary>
+    private static readonly string[] StandardUserDataDirectories =
+    [
+        GameSettingsConstants.FolderNames.Maps,
+        GameSettingsConstants.FolderNames.Replays,
+        GameSettingsConstants.FolderNames.Screenshots,
+        GameSettingsConstants.FolderNames.Save,
+    ];
+
     /// <inheritdoc/>
     public string Name => "Wine";
 
@@ -110,26 +121,269 @@ public class WineRunner(
     }
 
     /// <summary>
-    /// Copies the native Options.ini into one prefix user shell folder when the source is newer.
+    /// Copies the native Options.ini into one prefix user shell folder when the source is newer,
+    /// and bridges user data directories (Maps, Replays, Screenshots, Save) via symlinks or mirroring.
     /// </summary>
     /// <param name="sourcePath">The native Options.ini path.</param>
     /// <param name="userDirectory">The prefix user profile directory.</param>
     /// <param name="documentsDirectoryName">The shell folder name ("Documents" or "My Documents").</param>
     /// <param name="dataDirectoryName">The game data directory name.</param>
-    /// <returns><c>true</c> when the destination was written; otherwise, <c>false</c>.</returns>
-    private static bool MirrorOptionsIniToShellFolder(string sourcePath, string userDirectory, string documentsDirectoryName, string dataDirectoryName)
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <returns><c>true</c> when any destination was written or bridged; otherwise, <c>false</c>.</returns>
+    private static bool MirrorOptionsIniToShellFolder(
+        string sourcePath,
+        string userDirectory,
+        string documentsDirectoryName,
+        string dataDirectoryName,
+        ILogger? logger = null)
     {
         var userDocuments = Path.Combine(userDirectory, documentsDirectoryName, dataDirectoryName);
         Directory.CreateDirectory(userDocuments);
 
         var destinationPath = Path.Combine(userDocuments, Path.GetFileName(sourcePath));
-        if (File.Exists(destinationPath) && File.GetLastWriteTimeUtc(sourcePath) <= File.GetLastWriteTimeUtc(destinationPath))
+        var optionsMirrored = false;
+        if (!File.Exists(destinationPath) || File.GetLastWriteTimeUtc(sourcePath) > File.GetLastWriteTimeUtc(destinationPath))
+        {
+            File.Copy(sourcePath, destinationPath, overwrite: true);
+            optionsMirrored = true;
+        }
+
+        var bridgedAny = BridgeUserDataDirectories(Path.GetDirectoryName(sourcePath), userDocuments, logger);
+
+        return optionsMirrored || bridgedAny;
+    }
+
+    /// <summary>
+    /// Bridges user data subdirectories (e.g. Maps, Replays, Screenshots, Save) from the native
+    /// user data folder into the Wine prefix personal documents folder.
+    /// </summary>
+    /// <param name="nativeDataDirectory">The native user data directory path.</param>
+    /// <param name="prefixDataDirectory">The Wine prefix user data directory path.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <returns><c>true</c> if any directory was linked or mirrored; otherwise, <c>false</c>.</returns>
+    private static bool BridgeUserDataDirectories(string? nativeDataDirectory, string prefixDataDirectory, ILogger? logger = null)
+    {
+        if (string.IsNullOrWhiteSpace(nativeDataDirectory) || !Directory.Exists(nativeDataDirectory))
         {
             return false;
         }
 
-        File.Copy(sourcePath, destinationPath, overwrite: true);
+        if (PathHelper.AreSamePath(nativeDataDirectory, prefixDataDirectory))
+        {
+            return false;
+        }
+
+        var bridgedAny = false;
+        var directoryNames = new HashSet<string>(StandardUserDataDirectories, StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var dir in Directory.EnumerateDirectories(nativeDataDirectory))
+            {
+                directoryNames.Add(Path.GetFileName(dir));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Ignore directory enumeration errors
+        }
+
+        foreach (var subDirName in directoryNames)
+        {
+            var nativeSubDir = Path.Combine(nativeDataDirectory, subDirName);
+            var prefixSubDir = Path.Combine(prefixDataDirectory, subDirName);
+
+            try
+            {
+                if (!Directory.Exists(nativeSubDir))
+                {
+                    Directory.CreateDirectory(nativeSubDir);
+                }
+
+                bridgedAny |= BridgeDirectory(nativeSubDir, prefixSubDir, logger);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Continue to next directory if bridging fails for one
+            }
+        }
+
+        return bridgedAny;
+    }
+
+    /// <summary>
+    /// Bridges an individual subdirectory by creating a symbolic link, or falling back to file synchronization.
+    /// </summary>
+    private static bool BridgeDirectory(string nativeSubDir, string prefixSubDir, ILogger? logger = null)
+    {
+        if (Directory.Exists(prefixSubDir))
+        {
+            return BridgeExistingDirectory(nativeSubDir, prefixSubDir, logger);
+        }
+
+        return CreateNewBridgeSymlinkOrSync(nativeSubDir, prefixSubDir, logger);
+    }
+
+    private static bool BridgeExistingDirectory(string nativeSubDir, string prefixSubDir, ILogger? logger = null)
+    {
+        var dirInfo = new DirectoryInfo(prefixSubDir);
+        if (dirInfo.LinkTarget != null)
+        {
+            var resolvedTarget = Path.GetFullPath(dirInfo.LinkTarget, Path.GetDirectoryName(prefixSubDir) ?? ".");
+            var normalizedTarget = Path.TrimEndingDirectorySeparator(resolvedTarget);
+            var normalizedNative = Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeSubDir));
+
+            if (string.Equals(normalizedTarget, normalizedNative, PathHelper.PathComparison))
+            {
+                return false;
+            }
+
+            // Stale symlink pointing to the wrong target - remove and recreate
+            if (TryRecreateSymlink(prefixSubDir, nativeSubDir))
+            {
+                return true;
+            }
+
+            var remainingLinkInfo = new DirectoryInfo(prefixSubDir);
+            if (remainingLinkInfo.LinkTarget != null || (remainingLinkInfo.Exists && (remainingLinkInfo.Attributes & FileAttributes.ReparsePoint) != 0))
+            {
+                // The stale symlink could not be removed; do not synchronize through the wrong directory
+                return false;
+            }
+
+            Directory.CreateDirectory(prefixSubDir);
+            SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
+            return true;
+        }
+
+        // Real directory: if it is empty, we can safely replace it with a symlink
+        if (TryReplaceEmptyDirectoryWithSymlink(prefixSubDir, nativeSubDir))
+        {
+            return true;
+        }
+
+        // If non-empty or symlink creation failed, synchronize files in both directions
+        SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
         return true;
+    }
+
+    private static bool TryRecreateSymlink(string linkPath, string targetPath)
+    {
+        try
+        {
+            Directory.Delete(linkPath, recursive: false);
+            Directory.CreateSymbolicLink(linkPath, targetPath);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryReplaceEmptyDirectoryWithSymlink(string dirPath, string targetPath)
+    {
+        try
+        {
+            if (!Directory.EnumerateFileSystemEntries(dirPath).Any())
+            {
+                Directory.Delete(dirPath, recursive: false);
+                Directory.CreateSymbolicLink(dirPath, targetPath);
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            // Fall back to mirroring
+        }
+
+        return false;
+    }
+
+    private static bool CreateNewBridgeSymlinkOrSync(string nativeSubDir, string prefixSubDir, ILogger? logger = null)
+    {
+        // Target does not exist yet (or is a broken/dangling symlink): create symlink pointing to native folder
+        try
+        {
+            var dirInfo = new DirectoryInfo(prefixSubDir);
+            if (dirInfo.LinkTarget != null)
+            {
+                Directory.Delete(prefixSubDir, recursive: false);
+            }
+            else if (File.Exists(prefixSubDir))
+            {
+                return false;
+            }
+
+            Directory.CreateSymbolicLink(prefixSubDir, nativeSubDir);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            SyncDirectoryFiles(nativeSubDir, prefixSubDir, logger);
+            return true;
+        }
+    }
+
+    private static void SyncDirectoryFiles(string firstDir, string secondDir, ILogger? logger = null)
+    {
+        MirrorDirectoryContent(sourceDir: firstDir, targetDir: secondDir, logger: logger);
+        MirrorDirectoryContent(sourceDir: secondDir, targetDir: firstDir, logger: logger);
+    }
+
+    private static void MirrorDirectoryContent(string sourceDir, string targetDir, ILogger? logger = null)
+    {
+        if (!Directory.Exists(sourceDir))
+        {
+            return;
+        }
+
+        var normalizedSource = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceDir)) + Path.DirectorySeparatorChar;
+        var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetDir)) + Path.DirectorySeparatorChar;
+
+        if (string.Equals(normalizedSource, normalizedTarget, PathHelper.PathComparison))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(targetDir);
+
+        var enumerationOptions = new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", enumerationOptions))
+        {
+            var fullFilePath = Path.GetFullPath(file);
+            if (fullFilePath.StartsWith(normalizedTarget, PathHelper.PathComparison))
+            {
+                // Target directory is nested inside source directory; avoid recursive copy into target
+                continue;
+            }
+
+            var relative = Path.GetRelativePath(sourceDir, file);
+            var destFile = Path.Combine(targetDir, relative);
+
+            try
+            {
+                var destDir = Path.GetDirectoryName(destFile);
+                if (!string.IsNullOrEmpty(destDir))
+                {
+                    Directory.CreateDirectory(destDir);
+                }
+
+                if (!File.Exists(destFile) || File.GetLastWriteTimeUtc(file) > File.GetLastWriteTimeUtc(destFile))
+                {
+                    File.Copy(file, destFile, overwrite: true);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger?.LogWarning(ex, "[WineRunner] Failed to copy '{Source}' to '{Destination}' during directory sync.", file, destFile);
+            }
+        }
     }
 
     /// <summary>
@@ -197,8 +451,14 @@ public class WineRunner(
     /// <param name="usersRoot">The prefix users directory.</param>
     /// <param name="candidateUsernames">The user profiles to mirror into.</param>
     /// <param name="dataDirectoryName">The game data directory name.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
     /// <returns><c>true</c> when at least one destination was written; otherwise, <c>false</c>.</returns>
-    private static bool MirrorToCandidateUsers(string sourcePath, string usersRoot, HashSet<string> candidateUsernames, string dataDirectoryName)
+    private static bool MirrorToCandidateUsers(
+        string sourcePath,
+        string usersRoot,
+        HashSet<string> candidateUsernames,
+        string dataDirectoryName,
+        ILogger? logger = null)
     {
         var mirroredAny = false;
         foreach (var userName in candidateUsernames)
@@ -206,7 +466,7 @@ public class WineRunner(
             var userDirectory = Path.Combine(usersRoot, userName);
             foreach (var documentsDirectoryName in new[] { WineConstants.DocumentsDirectoryName, WineConstants.MyDocumentsDirectoryName })
             {
-                mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName);
+                mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName, logger);
             }
         }
 
@@ -377,9 +637,9 @@ public class WineRunner(
                 candidateUsernames.Add(WineConstants.ProtonUserName);
             }
 
-            if (MirrorToCandidateUsers(sourcePath, usersRoot, candidateUsernames, dataDirectoryName))
+            if (MirrorToCandidateUsers(sourcePath, usersRoot, candidateUsernames, dataDirectoryName, logger))
             {
-                logger.LogInformation("Mirrored Options.ini into Wine prefix for {GameType}", configuration.GameType);
+                logger.LogInformation("Mirrored Options.ini and user data into Wine prefix for {GameType}", configuration.GameType);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)

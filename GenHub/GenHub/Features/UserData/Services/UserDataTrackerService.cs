@@ -90,13 +90,17 @@ public class UserDataTrackerService(
             };
 
             var userDataBasePath = GetUserDataBasePath(targetGame);
+
+            var mapNames = ExtractCandidateMapNames(userDataFiles);
+            string? singleMapBaseName = mapNames.Count == 1 ? mapNames[0] : null;
+
             var resolvedFiles = new List<(ManifestFile File, string TargetPath)>(userDataFiles.Count);
             foreach (var file in userDataFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    var targetPath = ResolveUserDataTargetPath(file.InstallTarget, file.RelativePath, userDataBasePath);
+                    var targetPath = ResolveUserDataTargetPath(file.InstallTarget, file.RelativePath, userDataBasePath, singleMapBaseName, mapNames);
                     resolvedFiles.Add((file, targetPath));
                 }
                 catch (Exception ex)
@@ -784,15 +788,20 @@ public class UserDataTrackerService(
         }
     }
 
-    private static string ResolveUserDataTargetPath(ContentInstallTarget installTarget, string relativePath, string userDataBasePath)
+    private static string ResolveUserDataTargetPath(
+        ContentInstallTarget installTarget,
+        string relativePath,
+        string userDataBasePath,
+        string? singleMapBaseName = null,
+        IReadOnlyList<string>? candidateMapNames = null)
     {
         var normalizedRelativePath = relativePath.Replace('\\', '/');
         var targetPath = installTarget switch
         {
             ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, normalizedRelativePath),
-            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, StripLeadingDirectory(normalizedRelativePath, "Maps")),
-            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(normalizedRelativePath, "Replays")),
-            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(normalizedRelativePath, "Screenshots")),
+            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, ResolveMapRelativePath(normalizedRelativePath, singleMapBaseName, candidateMapNames)),
+            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(normalizedRelativePath, GameSettingsConstants.FolderNames.Replays)),
+            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(normalizedRelativePath, GameSettingsConstants.FolderNames.Screenshots)),
             _ => Path.Combine(userDataBasePath, normalizedRelativePath),
         };
 
@@ -805,6 +814,159 @@ public class UserDataTrackerService(
         }
 
         return fullPath;
+    }
+
+    private static List<string> ExtractCandidateMapNames(IEnumerable<ManifestFile> userDataFiles)
+    {
+        return userDataFiles
+            .Where(f => f.InstallTarget == ContentInstallTarget.UserMapsDirectory)
+            .Select(f => StripLeadingDirectory(f.RelativePath.Replace('\\', '/').Trim('/'), GameSettingsConstants.FolderNames.Maps))
+            .Where(p => p.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+            .Select(p =>
+            {
+                var name = Path.GetFileNameWithoutExtension(p);
+                return name.EndsWith(".map", StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetFileNameWithoutExtension(name)
+                    : name;
+            })
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Resolves the relative path for a map file to ensure it conforms to C&amp;C Generals / Zero Hour
+    /// map directory requirements (Maps/&lt;MapName&gt;/&lt;MapName&gt;.map, &lt;MapName&gt;.tga).
+    /// </summary>
+    private static string ResolveMapRelativePath(
+        string relativePath,
+        string? fallbackMapName = null,
+        IReadOnlyList<string>? candidateMapNames = null)
+    {
+        var pathUnderMaps = StripLeadingDirectory(relativePath, GameSettingsConstants.FolderNames.Maps);
+        var normalized = pathUnderMaps.Replace('\\', '/').Trim('/');
+
+        var slashIdx = normalized.LastIndexOf('/');
+        if (slashIdx < 0)
+        {
+            return ResolveFlatMapRelativePath(normalized, fallbackMapName, candidateMapNames);
+        }
+
+        return ResolveNestedMapRelativePath(normalized, slashIdx);
+    }
+
+    private static string ResolveFlatMapRelativePath(
+        string normalized,
+        string? fallbackMapName,
+        IReadOnlyList<string>? candidateMapNames)
+    {
+        var ext = Path.GetExtension(normalized);
+        if (!IsSupportedMapExtension(ext))
+        {
+            return normalized;
+        }
+
+        var baseName = Path.GetFileNameWithoutExtension(normalized);
+        var (folderName, fileName) = ResolveFlatMapComponents(baseName, ext, normalized, fallbackMapName, candidateMapNames);
+        return Path.Combine(folderName, fileName);
+    }
+
+    private static bool IsSupportedMapExtension(string ext) =>
+        ext.Equals(".map", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".str", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".wak", StringComparison.OrdinalIgnoreCase);
+
+    private static (string FolderName, string FileName) ResolveFlatMapComponents(
+        string baseName,
+        string ext,
+        string originalFileName,
+        string? fallbackMapName,
+        IReadOnlyList<string>? candidateMapNames)
+    {
+        var isTga = ext.Equals(".tga", StringComparison.OrdinalIgnoreCase);
+        var isIni = ext.Equals(".ini", StringComparison.OrdinalIgnoreCase);
+
+        var isGenericThumbnail = isTga &&
+            (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+             baseName.Equals("preview", StringComparison.OrdinalIgnoreCase));
+
+        var isGenericIni = isIni && baseName.Equals("map", StringComparison.OrdinalIgnoreCase);
+
+        if (isGenericThumbnail && !string.IsNullOrEmpty(fallbackMapName))
+        {
+            return (fallbackMapName, fallbackMapName + ".tga");
+        }
+
+        if (isGenericIni && !string.IsNullOrEmpty(fallbackMapName))
+        {
+            return (fallbackMapName, MapManagerConstants.MapIniFileName);
+        }
+
+        if (baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
+        {
+            var stripped = baseName[..^4];
+            var resolvedFile = isTga ? stripped + ".tga" : originalFileName;
+            return (stripped, resolvedFile);
+        }
+
+        var matchedMap = FindMatchingCandidateMap(baseName, candidateMapNames);
+        if (!string.IsNullOrEmpty(matchedMap))
+        {
+            var isCaseOnlyMatch = isTga && string.Equals(baseName, matchedMap, StringComparison.OrdinalIgnoreCase);
+            var resolvedFile = isCaseOnlyMatch ? matchedMap + ".tga" : originalFileName;
+            return (matchedMap, resolvedFile);
+        }
+
+        return (baseName, originalFileName);
+    }
+
+    private static string? FindMatchingCandidateMap(string baseName, IReadOnlyList<string>? candidateMapNames)
+    {
+        if (candidateMapNames is null || candidateMapNames.Count == 0)
+        {
+            return null;
+        }
+
+        // 1. Exact match first across all candidates
+        var exact = candidateMapNames.FirstOrDefault(m => baseName.Equals(m, StringComparison.OrdinalIgnoreCase));
+        if (exact is not null)
+        {
+            return exact;
+        }
+
+        // 2. Prefix match: choose the longest candidate prefix to prevent shadowing (e.g. River_v2 over River)
+        return candidateMapNames
+            .Where(m => baseName.StartsWith(m + "_", StringComparison.OrdinalIgnoreCase) ||
+                        baseName.StartsWith(m + ".", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(m => m.Length)
+            .FirstOrDefault();
+    }
+
+    private static string ResolveNestedMapRelativePath(string normalized, int slashIdx)
+    {
+        var directoryPart = normalized[..slashIdx];
+        var fileName = normalized[(slashIdx + 1)..];
+
+        var folderName = Path.GetFileName(directoryPart);
+        if (folderName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+        {
+            folderName = Path.GetFileNameWithoutExtension(folderName);
+        }
+
+        var fileExt = Path.GetExtension(fileName);
+        var fileBase = Path.GetFileNameWithoutExtension(fileName);
+
+        if (fileExt.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
+            (fileBase.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+             fileBase.Equals("preview", StringComparison.OrdinalIgnoreCase) ||
+             fileBase.EndsWith("_art", StringComparison.OrdinalIgnoreCase)))
+        {
+            fileName = folderName + ".tga";
+        }
+
+        return Path.Combine(folderName, fileName);
     }
 
     /// <summary>

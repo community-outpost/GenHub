@@ -1,5 +1,7 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
@@ -20,7 +22,8 @@ namespace GenHub.Features.Tools.MapManager.Services;
 /// </summary>
 public sealed class MapDirectoryService(
     MapNameParser mapNameParser,
-    ILogger<MapDirectoryService> logger) : IMapDirectoryService
+    ILogger<MapDirectoryService> logger,
+    IGamePathProvider? pathProvider = null) : IMapDirectoryService
 {
     private const string GeneralsMapFolder = MapManagerConstants.GeneralsDataDirectoryName;
     private const string ZeroHourMapFolder = MapManagerConstants.ZeroHourDataDirectoryName;
@@ -29,6 +32,16 @@ public sealed class MapDirectoryService(
     /// <inheritdoc />
     public string GetMapDirectory(GameType version)
     {
+        if (version is not (GameType.Generals or GameType.ZeroHour))
+        {
+            throw new ArgumentException("Unsupported game version", nameof(version));
+        }
+
+        if (pathProvider is not null)
+        {
+            return Path.Combine(pathProvider.GetOptionsDirectory(version), MapSubfolder);
+        }
+
         var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var gameFolder = version == GameType.Generals ? GeneralsMapFolder : ZeroHourMapFolder;
         return Path.Combine(documentsPath, gameFolder, MapSubfolder);
@@ -239,12 +252,7 @@ public sealed class MapDirectoryService(
 
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PlatformConstants.WindowsExplorerPath,
-                Arguments = directory,
-                UseShellExecute = true,
-            });
+            PathHelper.OpenInExplorer(directory);
         }
         catch (Exception ex)
         {
@@ -257,12 +265,7 @@ public sealed class MapDirectoryService(
     {
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PlatformConstants.WindowsExplorerPath,
-                Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, map.FullPath),
-                UseShellExecute = true,
-            });
+            PathHelper.RevealInExplorer(map.FullPath);
         }
         catch (Exception ex)
         {
@@ -315,10 +318,11 @@ public sealed class MapDirectoryService(
                             return false;
                         }
 
-                        // First rename the .map file inside the directory
+                        var plannedMoves = new List<(string Source, string Target)>();
+
+                        // Preflight and plan .map file rename
                         var newMapFileName = newName + ".map";
                         var newMapFilePath = Path.Combine(currentDirPath, newMapFileName);
-
                         if (!string.Equals(map.FullPath, newMapFilePath, StringComparison.OrdinalIgnoreCase))
                         {
                             if (File.Exists(newMapFilePath))
@@ -327,14 +331,80 @@ public sealed class MapDirectoryService(
                                 return false;
                             }
 
-                            File.Move(map.FullPath, newMapFilePath);
+                            plannedMoves.Add((map.FullPath, newMapFilePath));
                         }
 
-                        // Then rename the directory
-                        Directory.Move(currentDirPath, newDirPath);
+                        // Also plan companion asset files (e.g. OldName.tga -> NewName.tga, OldName.ini -> NewName.ini)
+                        // Assets may match either the old map file base name or the old directory name
+                        // Ordered: map file base name takes priority over directory name.
+                        var candidateBases = new List<string> { Path.GetFileNameWithoutExtension(map.FileName) };
+                        if (!string.IsNullOrEmpty(map.DirectoryName) &&
+                            !candidateBases.Contains(map.DirectoryName, PathHelper.PathComparer))
+                        {
+                            candidateBases.Add(map.DirectoryName);
+                        }
 
-                        logger.LogInformation("Renamed map directory from {OldName} to {NewName}", map.DirectoryName, newName);
-                        return true;
+                        var seenTargets = new HashSet<string>(PathHelper.PathComparer) { newMapFilePath };
+                        foreach (var baseName in candidateBases)
+                        {
+                            foreach (var assetPath in Directory.GetFiles(currentDirPath, baseName + ".*"))
+                            {
+                                if (!Path.GetFileNameWithoutExtension(assetPath).Equals(baseName, PathHelper.PathComparison))
+                                {
+                                    continue;
+                                }
+
+                                var ext = Path.GetExtension(assetPath);
+                                if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    continue;
+                                }
+
+                                var newAssetPath = Path.Combine(currentDirPath, newName + ext);
+                                if (!seenTargets.Contains(newAssetPath) && !File.Exists(newAssetPath))
+                                {
+                                    seenTargets.Add(newAssetPath);
+                                    plannedMoves.Add((assetPath, newAssetPath));
+                                }
+                            }
+                        }
+
+                        // Execute planned file moves with rollback if any operation fails
+                        var executedMoves = new List<(string Source, string Target)>();
+                        try
+                        {
+                            foreach (var (src, dst) in plannedMoves)
+                            {
+                                File.Move(src, dst);
+                                executedMoves.Add((src, dst));
+                                logger.LogDebug("Renamed companion asset {Old} to {New}", src, dst);
+                            }
+
+                            // Then rename the directory
+                            Directory.Move(currentDirPath, newDirPath);
+                            logger.LogInformation("Renamed map directory from {OldName} to {NewName}", map.DirectoryName, newName);
+                            return true;
+                        }
+                        catch
+                        {
+                            // Roll back executed moves
+                            foreach (var (src, dst) in executedMoves)
+                            {
+                                try
+                                {
+                                    if (File.Exists(dst) && !File.Exists(src))
+                                    {
+                                        File.Move(dst, src);
+                                    }
+                                }
+                                catch
+                                {
+                                    // Ignore rollback failures
+                                }
+                            }
+
+                            throw;
+                        }
                     }
 
                     // Rename standalone .map file
@@ -373,7 +443,22 @@ public sealed class MapDirectoryService(
     /// <returns>Path to the thumbnail file, or null if none found.</returns>
     private static string? FindThumbnail(FileInfo[] files)
     {
-        // Priority: map.tga > any .tga file
+        if (files.Length == 0)
+        {
+            return null;
+        }
+
+        var dirName = files[0].Directory?.Name;
+        if (!string.IsNullOrEmpty(dirName))
+        {
+            var dirTga = files.FirstOrDefault(f => f.Name.Equals(dirName + ".tga", StringComparison.OrdinalIgnoreCase));
+            if (dirTga != null)
+            {
+                return dirTga.FullName;
+            }
+        }
+
+        // Priority: <dirName>.tga > map.tga > any .tga file
         var mapTga = files.FirstOrDefault(f => f.Name.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase));
         if (mapTga != null)
         {

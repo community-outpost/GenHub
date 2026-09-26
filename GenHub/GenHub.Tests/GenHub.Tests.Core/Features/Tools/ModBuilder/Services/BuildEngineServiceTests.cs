@@ -1499,7 +1499,7 @@ public sealed class BuildEngineServiceTests : IDisposable
                     .ToList();
             }
 
-            if (packingReports.Count > 0)
+            if (packingReports.Any(p => p.PercentComplete == 100))
             {
                 break;
             }

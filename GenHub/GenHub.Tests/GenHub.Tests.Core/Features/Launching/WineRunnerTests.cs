@@ -191,6 +191,123 @@ public sealed class WineRunnerTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that custom maps and user data folders in the native user data directory are
+    /// bridged into the Wine prefix user documents folders.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithCustomMapsInNativeUserData_BridgesMapsIntoWinePrefix()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-custom-maps");
+        var runner = CreateRunner([binDirectory], prefixPath);
+
+        var nativeUserData = CreateDirectory("userdata-maps");
+        var nativeOptionsPath = Path.Combine(nativeUserData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "resolution = 1920 1080");
+
+        var nativeMapDir = Path.Combine(nativeUserData, GameSettingsConstants.FolderNames.Maps, "Tournament Desert");
+        Directory.CreateDirectory(nativeMapDir);
+        var mapFilePath = Path.Combine(nativeMapDir, "Tournament Desert.map");
+        File.WriteAllText(mapFilePath, "map-data-content");
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+
+        var docsMapPath = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            GameSettingsConstants.FolderNames.Maps,
+            "Tournament Desert",
+            "Tournament Desert.map");
+
+        var myDocsMapPath = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.MyDocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            GameSettingsConstants.FolderNames.Maps,
+            "Tournament Desert",
+            "Tournament Desert.map");
+
+        Assert.True(File.Exists(docsMapPath), $"Expected map file at {docsMapPath}");
+        Assert.True(File.Exists(myDocsMapPath), $"Expected map file at {myDocsMapPath}");
+        Assert.Equal("map-data-content", File.ReadAllText(docsMapPath));
+        Assert.Equal("map-data-content", File.ReadAllText(myDocsMapPath));
+    }
+
+    /// <summary>
+    /// Verifies that user data bridging maintains strict separation between Generals and Zero Hour directories.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithUserDataDirectories_SeparatesGeneralsAndZeroHour()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-separation");
+        var runner = CreateRunner([binDirectory], prefixPath);
+
+        var nativeGeneralsData = CreateDirectory("userdata-generals");
+        var generalsOptionsPath = Path.Combine(nativeGeneralsData, "Options.ini");
+        File.WriteAllText(generalsOptionsPath, "generals-settings");
+
+        var generalsMapDir = Path.Combine(nativeGeneralsData, GameSettingsConstants.FolderNames.Maps, "GeneralsMap");
+        Directory.CreateDirectory(generalsMapDir);
+        File.WriteAllText(Path.Combine(generalsMapDir, "GeneralsMap.map"), "generals-map");
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.Generals,
+            NativeOptionsIniPath = generalsOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+
+        var generalsPrefixDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.GeneralsDataDirectoryName);
+
+        var zeroHourPrefixDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName);
+
+        Assert.True(Directory.Exists(generalsPrefixDir), "Generals data directory should exist");
+        Assert.False(Directory.Exists(zeroHourPrefixDir), "Zero Hour data directory should NOT exist when launching Generals");
+        Assert.True(File.Exists(Path.Combine(generalsPrefixDir, GameSettingsConstants.FolderNames.Maps, "GeneralsMap", "GeneralsMap.map")));
+    }
+
+    /// <summary>
     /// Verifies that when only the standard Documents folder exists in the prefix, the missing
     /// My Documents folder is created and Options.ini is mirrored into both.
     /// </summary>
@@ -915,6 +1032,120 @@ public sealed class WineRunnerTests : IDisposable
         Assert.True(result.Success, result.AllErrors);
         Assert.NotNull(result.Data);
         Assert.Equal(nativePath, result.Data.FileName);
+    }
+
+    /// <summary>
+    /// Verifies that WineRunner fallback directory synchronization ignores reparse points / directory symlinks
+    /// without entering an infinite loop.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithReparsePointInUserData_SkipsReparsePointDirectoryDuringSync()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-reparse-skip");
+        var runner = CreateRunner([binDirectory], prefixPath);
+
+        var nativeUserData = CreateDirectory("userdata-reparse");
+        var nativeOptionsPath = Path.Combine(nativeUserData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "resolution = 1920 1080");
+
+        var regularDir = Path.Combine(nativeUserData, GameSettingsConstants.FolderNames.Maps, "RegularMap");
+        Directory.CreateDirectory(regularDir);
+        File.WriteAllText(Path.Combine(regularDir, "RegularMap.map"), "map-content");
+
+        // Create a directory symlink that points to its parent if supported in test environment
+        var loopLink = Path.Combine(regularDir, "loop");
+        try
+        {
+            Directory.CreateSymbolicLink(loopLink, regularDir);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // If symlinks cannot be created, skip symlink assertion
+        }
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Create a non-empty real prefix Maps directory to force fallback synchronization via MirrorDirectoryContent
+        var prefixMapsDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            GameSettingsConstants.FolderNames.Maps);
+        Directory.CreateDirectory(prefixMapsDir);
+        File.WriteAllText(Path.Combine(prefixMapsDir, "existing.txt"), "pre-existing");
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var synchronizedMapFile = Path.Combine(prefixMapsDir, "RegularMap", "RegularMap.map");
+        Assert.True(File.Exists(synchronizedMapFile));
+        if (Directory.Exists(loopLink))
+        {
+            var loopDirInPrefix = Path.Combine(prefixMapsDir, "RegularMap", "loop");
+            Assert.False(Directory.Exists(loopDirInPrefix));
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a prefix user-data subdirectory target is an existing regular file,
+    /// WineRunner preserves the file untouched and skips bridging rather than deleting it.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WhenPrefixSubdirectoryIsRegularFile_LeavesFileUntouched()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-file-preserve");
+        var runner = CreateRunner([binDirectory], prefixPath);
+
+        var nativeUserData = CreateDirectory("userdata-file-preserve");
+        var nativeOptionsPath = Path.Combine(nativeUserData, "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "resolution = 1920 1080");
+
+        var nativeMapDir = Path.Combine(nativeUserData, GameSettingsConstants.FolderNames.Maps, "TestMap");
+        Directory.CreateDirectory(nativeMapDir);
+        File.WriteAllText(Path.Combine(nativeMapDir, "TestMap.map"), "map-content");
+
+        // Create a regular file in the prefix where Maps directory would normally be bridged
+        var prefixDocsDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName);
+        Directory.CreateDirectory(prefixDocsDir);
+        var conflictingFilePath = Path.Combine(prefixDocsDir, GameSettingsConstants.FolderNames.Maps);
+        File.WriteAllText(conflictingFilePath, "important non-directory file content");
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert: launch succeeds and the file is never overwritten or deleted
+        Assert.True(result.Success, result.AllErrors);
+        Assert.True(File.Exists(conflictingFilePath));
+        Assert.Equal("important non-directory file content", File.ReadAllText(conflictingFilePath));
     }
 
     private WineRunner CreateRunner(

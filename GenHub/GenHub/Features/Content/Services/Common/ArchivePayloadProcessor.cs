@@ -182,6 +182,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     NormalizeInactiveBigExtensions(extractedDirectory, contentType);
                 }
 
+                // 5b. For map and map pack content, normalize directory structure and preview TGAs
+                if (contentType is ContentType.Map or ContentType.MapPack)
+                {
+                    NormalizeMapPayloadStructure(extractedDirectory, cancellationToken);
+                }
+
                 // 6. Cleanup empty directories
                 CleanupEmptyDirectories(extractedDirectory);
             },
@@ -2448,9 +2454,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return files.Any(ext => GameContentConstants.RecognizedGameFileExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase));
     }
 
+    private static bool IsMapFile(string path) =>
+        string.Equals(Path.GetExtension(path), Path.GetExtension(MapManagerConstants.MapFilePattern), StringComparison.OrdinalIgnoreCase);
+
     private static bool DirectoryContainsMapFilesDirectly(string directory)
     {
-        return Directory.GetFiles(directory, "*.map", SearchOption.TopDirectoryOnly).Length > 0;
+        return Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly).Any(IsMapFile);
     }
 
     private static void PromoteDirectoryContents(string sourceDirectory, string targetDirectory)
@@ -2575,6 +2584,367 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
+    private void NormalizeMapPayloadStructure(
+        string extractedDirectory,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // 0. Unwrap any top-level "Maps" subdirectory (e.g., when root README prevents StripSingleWrapperDirectories)
+        var mapsWrapper = Directory.GetDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly)
+            .FirstOrDefault(dir => Path.GetFileName(dir).Equals(
+                GameSettingsConstants.FolderNames.Maps,
+                StringComparison.OrdinalIgnoreCase));
+        if (mapsWrapper != null && Directory.Exists(mapsWrapper))
+        {
+            try
+            {
+                foreach (var innerDir in Directory.GetDirectories(mapsWrapper))
+                {
+                    var destDir = Path.Combine(extractedDirectory, Path.GetFileName(innerDir));
+                    if (!Directory.Exists(destDir))
+                    {
+                        Directory.Move(innerDir, destDir);
+                    }
+                    else
+                    {
+                        logger.LogWarning("Cannot unwrap inner directory {InnerDir} to {DestDir} because destination already exists", innerDir, destDir);
+                    }
+                }
+
+                foreach (var innerFile in Directory.GetFiles(mapsWrapper))
+                {
+                    var destFile = Path.Combine(extractedDirectory, Path.GetFileName(innerFile));
+                    if (!File.Exists(destFile))
+                    {
+                        File.Move(innerFile, destFile);
+                    }
+                    else
+                    {
+                        logger.LogWarning("Cannot unwrap inner file {InnerFile} to {DestFile} because destination already exists", innerFile, destFile);
+                    }
+                }
+
+                if (!Directory.EnumerateFileSystemEntries(mapsWrapper).Any())
+                {
+                    Directory.Delete(mapsWrapper, recursive: false);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to unwrap inner Maps directory {Wrapper}", mapsWrapper);
+            }
+        }
+
+        StripMapDirectoryExtensions(extractedDirectory, cancellationToken);
+        OrganizeLooseMapFiles(extractedDirectory, cancellationToken);
+        NormalizeMapPreviews(extractedDirectory, cancellationToken);
+    }
+
+    private void StripMapDirectoryExtensions(string extractedDirectory, CancellationToken cancellationToken)
+    {
+        // Only inspect immediate top-level directories so nested paths like MyMap/Textures.map are preserved
+        var subDirs = Directory.GetDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
+        foreach (var subDir in subDirs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!Directory.Exists(subDir))
+            {
+                continue;
+            }
+
+            var dirName = Path.GetFileName(subDir);
+            if (dirName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+            {
+                var cleanDirName = Path.GetFileNameWithoutExtension(dirName);
+                var parent = Path.GetDirectoryName(subDir);
+                if (!string.IsNullOrEmpty(parent) && !string.IsNullOrWhiteSpace(cleanDirName))
+                {
+                    var targetDir = Path.Combine(parent, cleanDirName);
+                    if (!Directory.Exists(targetDir))
+                    {
+                        try
+                        {
+                            Directory.Move(subDir, targetDir);
+                            logger.LogInformation("Renamed map directory {Source} to {Target}", subDir, targetDir);
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            logger.LogWarning(ex, "Failed to rename map directory {Source} to {Target}", subDir, targetDir);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void OrganizeLooseMapFiles(string extractedDirectory, CancellationToken cancellationToken)
+    {
+        var looseMapFiles = Directory.EnumerateFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly)
+            .Where(IsMapFile)
+            .ToArray();
+        if (looseMapFiles.Length == 0)
+        {
+            return;
+        }
+
+        var reservedNames = new HashSet<string>(
+            looseMapFiles.Select(Path.GetFileNameWithoutExtension)
+                .Concat(Directory.EnumerateDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly).Select(Path.GetFileName))
+                .OfType<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var mapFile in looseMapFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var mapBase = Path.GetFileNameWithoutExtension(mapFile);
+            var targetFolder = Path.Combine(extractedDirectory, mapBase);
+
+            var targetMapFile = Path.Combine(targetFolder, Path.GetFileName(mapFile));
+            try
+            {
+                if (Directory.Exists(targetFolder))
+                {
+                    if (File.Exists(targetMapFile))
+                    {
+                        if (FilesAreEqual(mapFile, targetMapFile))
+                        {
+                            File.Delete(mapFile);
+                            logger.LogInformation("Deduplicated identical loose map {Source} matching existing {Target}", mapFile, targetMapFile);
+                            OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
+                            continue;
+                        }
+
+                        targetFolder = MoveToDisambiguatedFolder(extractedDirectory, mapFile, mapBase, targetMapFile, reservedNames);
+                    }
+                    else if (DirectoryContainsMapFilesDirectly(targetFolder))
+                    {
+                        targetFolder = MoveToDisambiguatedFolder(extractedDirectory, mapFile, mapBase, targetMapFile, reservedNames);
+                    }
+                    else
+                    {
+                        File.Move(mapFile, targetMapFile);
+                    }
+                }
+                else
+                {
+                    Directory.CreateDirectory(targetFolder);
+                    File.Move(mapFile, targetMapFile);
+                }
+
+                OrganizeLooseCompanionsForMap(extractedDirectory, targetFolder, mapBase, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to organize or deduplicate loose map {MapFile}", mapFile);
+            }
+        }
+
+        if (Directory.EnumerateFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly).Any(IsMapFile))
+        {
+            return;
+        }
+
+        try
+        {
+            var rootThumbnail = Path.Combine(extractedDirectory, MapManagerConstants.DefaultThumbnailName);
+            if (File.Exists(rootThumbnail))
+            {
+                File.Delete(rootThumbnail);
+            }
+
+            var rootMapIni = Path.Combine(extractedDirectory, MapManagerConstants.MapIniFileName);
+            if (File.Exists(rootMapIni))
+            {
+                File.Delete(rootMapIni);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to clean up loose map companions in {Directory}", extractedDirectory);
+        }
+    }
+
+    private void OrganizeLooseCompanionsForMap(
+        string extractedDirectory,
+        string targetFolder,
+        string mapBase,
+        CancellationToken cancellationToken)
+    {
+        var looseFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
+        foreach (var companion in looseFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsMapFile(companion))
+            {
+                continue;
+            }
+
+            var fn = Path.GetFileName(companion);
+            var ext = Path.GetExtension(fn);
+            var isCompanion =
+                fn.StartsWith(mapBase + "_", StringComparison.OrdinalIgnoreCase) ||
+                fn.StartsWith(mapBase + ".", StringComparison.OrdinalIgnoreCase) ||
+                fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
+                fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase);
+
+            if (isCompanion && MapManagerConstants.AllowedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            {
+                var isDefaultThumbnail = fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+                var targetFileName = isDefaultThumbnail ? mapBase + ext : fn;
+                var targetAssetFile = Path.Combine(targetFolder, targetFileName);
+
+                if (!File.Exists(targetAssetFile))
+                {
+                    try
+                    {
+                        if (isDefaultThumbnail || fn.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            File.Copy(companion, targetAssetFile);
+                        }
+                        else
+                        {
+                            File.Move(companion, targetAssetFile);
+                        }
+
+                        logger.LogInformation("Organized loose companion {Source} into {Target}", companion, targetAssetFile);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogWarning(ex, "Failed to organize loose companion {Source} into {Target}", companion, targetAssetFile);
+                    }
+                }
+            }
+        }
+    }
+
+    private bool FilesAreEqual(string path1, string path2)
+    {
+        var file1 = new FileInfo(path1);
+        var file2 = new FileInfo(path2);
+        if (file1.Length != file2.Length)
+        {
+            return false;
+        }
+
+        if (string.Equals(file1.FullName, file2.FullName, PathComparison))
+        {
+            return true;
+        }
+
+        try
+        {
+            using var s1 = file1.OpenRead();
+            using var s2 = file2.OpenRead();
+
+            Span<byte> buffer1 = stackalloc byte[8192];
+            Span<byte> buffer2 = stackalloc byte[8192];
+
+            while (true)
+            {
+                var bytesRead1 = s1.ReadAtLeast(buffer1, buffer1.Length, throwOnEndOfStream: false);
+                var bytesRead2 = s2.ReadAtLeast(buffer2, buffer2.Length, throwOnEndOfStream: false);
+
+                if (bytesRead1 != bytesRead2)
+                {
+                    return false;
+                }
+
+                if (bytesRead1 == 0)
+                {
+                    return true;
+                }
+
+                if (!buffer1[..bytesRead1].SequenceEqual(buffer2[..bytesRead2]))
+                {
+                    return false;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to compare files {File1} and {File2}", path1, path2);
+            return false;
+        }
+    }
+
+    private string GetUniqueMapDirectory(string parentDirectory, string mapBase, ISet<string> reservedNames)
+    {
+        var counter = 1;
+        string candidateName;
+        string candidateFolder;
+        do
+        {
+            candidateName = $"{mapBase} ({counter})";
+            candidateFolder = Path.Combine(parentDirectory, candidateName);
+            counter++;
+        }
+        while (Directory.Exists(candidateFolder) || reservedNames.Contains(candidateName));
+
+        reservedNames.Add(candidateName);
+        logger.LogDebug("Resolved unique map directory {TargetFolder} for {MapBase}", candidateFolder, mapBase);
+        return candidateFolder;
+    }
+
+    private string MoveToDisambiguatedFolder(
+        string parentDirectory,
+        string sourceMapFile,
+        string mapBase,
+        string existingTargetFile,
+        ISet<string> reservedNames)
+    {
+        var disambiguatedFolder = GetUniqueMapDirectory(parentDirectory, mapBase, reservedNames);
+        Directory.CreateDirectory(disambiguatedFolder);
+        var disambiguatedTargetFile = Path.Combine(disambiguatedFolder, Path.GetFileName(sourceMapFile));
+        File.Move(sourceMapFile, disambiguatedTargetFile);
+        logger.LogWarning(
+            "Conflict between loose map {Source} and existing {Target}; preserving both maps by moving loose copy to {DisambiguatedFolder}",
+            sourceMapFile,
+            existingTargetFile,
+            disambiguatedFolder);
+        return disambiguatedFolder;
+    }
+
+    private void NormalizeMapPreviews(string extractedDirectory, CancellationToken cancellationToken)
+    {
+        var mapFolders = Directory.GetDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly);
+        foreach (var folder in mapFolders)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var mapFiles = Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly)
+                .Where(IsMapFile)
+                .ToArray();
+            if (mapFiles.Length == 0)
+            {
+                continue;
+            }
+
+            var dirName = Path.GetFileName(folder);
+            var mapBaseName = mapFiles.Length == 1
+                ? Path.GetFileNameWithoutExtension(mapFiles[0])
+                : dirName;
+            var expectedTga = Path.Combine(folder, mapBaseName + ".tga");
+            if (!File.Exists(expectedTga))
+            {
+                var tgaFiles = Directory.GetFiles(folder, "*.tga", SearchOption.TopDirectoryOnly);
+                var candidateTga = tgaFiles.FirstOrDefault(f => Path.GetFileName(f).Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase))
+                                   ?? tgaFiles.FirstOrDefault();
+                if (candidateTga != null && File.Exists(candidateTga))
+                {
+                    try
+                    {
+                        File.Copy(candidateTga, expectedTga, overwrite: true);
+                        logger.LogInformation("Normalized map preview TGA {Source} to {Target}", candidateTga, expectedTga);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogWarning(ex, "Failed to copy map preview TGA {Source} to {Target}", candidateTga, expectedTga);
+                    }
+                }
+            }
+        }
+    }
+
     private void StripSingleWrapperDirectories(
         string extractedDirectory,
         ContentType contentType,
@@ -2606,7 +2976,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             // If the single directory is a canonical game directory (e.g. Data, Art, Window, Maps, Audio),
             // it is already at the game root level (e.g. /Data/INI/...) and should NOT be flattened.
-            if (GameContentConstants.IsRecognizedGameDirectory(dirName))
+            // For map content, 'Maps' is a wrapper that should be flattened to reach the map folder.
+            if (contentType is not (ContentType.Map or ContentType.MapPack) && GameContentConstants.IsRecognizedGameDirectory(dirName))
             {
                 logger.LogInformation("Preserving canonical game root directory: {SingleDir}", singleDir);
                 break;

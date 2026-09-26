@@ -175,6 +175,11 @@ public static class GameSettingsConstants
         public const string Screenshots = "Screenshots";
 
         /// <summary>
+        /// Subfolder name for saved games within the game data directory.
+        /// </summary>
+        public const string Save = "Save";
+
+        /// <summary>
         /// All known user data folder names for Generals and Zero Hour (including localized variants).
         /// </summary>
         public static readonly IReadOnlyList<string> AllUserDataFolderNames =
