@@ -226,6 +226,7 @@ public static class ContentPipelineModule
         services.AddSingleton<IPublisherCatalogParser, JsonPublisherCatalogParser>();
         services.AddSingleton<IVersionSelector, VersionSelector>();
         services.AddSingleton<IPublisherCatalogRefreshService, PublisherCatalogRefreshService>();
+        services.AddTransient<ICatalogUpstreamIngestionService, CatalogUpstreamIngestionService>();
 
         // Generic catalog pipeline: one transient discoverer instance per subscription (Configure)
         services.AddTransient<GenericCatalogDiscoverer>();

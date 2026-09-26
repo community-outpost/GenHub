@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spec: Autonomous Upstream Releases, ContentBundles &amp; Featured UI</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0e0e11;
+      --surface-elevated: #16161c;
+      --surface-hover: #1f1f26;
+      --border: #26262e;
+      --border-accent: #3b3b4a;
+      --text: #f4f4f6;
+      --text-muted: #9595a2;
+      --text-faint: #636372;
+      --accent-blue: #3b82f6;
+      --accent-blue-faint: rgba(59, 130, 246, 0.12);
+      --accent-green: #10b981;
+      --accent-green-faint: rgba(16, 185, 129, 0.12);
+      --accent-amber: #f59e0b;
+      --accent-amber-faint: rgba(245, 158, 11, 0.15);
+      --accent-gold: #fbbf24;
+      --accent-purple: #a855f7;
+      --accent-purple-faint: rgba(168, 85, 247, 0.12);
+      --accent-red: #ef4444;
+      --accent-red-faint: rgba(239, 68, 68, 0.12);
+      --code-bg: #121217;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 2rem 1.25rem 4rem 1.25rem;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .doc-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 12px;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      font-family: var(--mono);
+    }
+
+    .doc-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    h1 {
+      font-size: 1.85rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+    }
+
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #fff;
+      margin: 2.25rem 0 1rem 0;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #eaeaea;
+      margin: 1.5rem 0 0.6rem 0;
+    }
+
+    h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 1rem 0 0.4rem 0;
+    }
+
+    p {
+      margin-bottom: 1rem;
+    }
+
+    ul, ol {
+      margin-bottom: 1.2rem;
+      padding-left: 1.4rem;
+    }
+
+    li {
+      margin-bottom: 0.35rem;
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 0.15em 0.35em;
+      border-radius: 3px;
+      color: #e2e8f0;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin-bottom: 1.25rem;
+    }
+
+    pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-blue { background: var(--accent-blue-faint); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-green { background: var(--accent-green-faint); color: var(--accent-green); border: 1px solid rgba(168, 185, 129, 0.3); }
+    .badge-amber { background: var(--accent-amber-faint); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-gold { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid #fbbf24; }
+    .badge-purple { background: var(--accent-purple-faint); color: var(--accent-purple); border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-red { background: var(--accent-red-faint); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.3); }
+
+    .callout {
+      background: var(--surface);
+      border-left: 3px solid var(--border-accent);
+      padding: 1rem 1.15rem;
+      margin-bottom: 1.25rem;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .callout-info { border-left-color: var(--accent-blue); background: rgba(59, 130, 246, 0.05); }
+    .callout-gold { border-left-color: var(--accent-amber); background: rgba(245, 158, 11, 0.07); }
+
+    .callout-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 0.35rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--surface-elevated);
+      color: #fff;
+      font-weight: 600;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    tr:nth-child(even) {
+      background: var(--surface);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Mockups */
+    .mockup-container {
+      background: #09090c;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem;
+      margin: 1rem 0 1.5rem 0;
+    }
+
+    .mockup-gold {
+      border: 2px solid #f59e0b;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.2);
+    }
+
+    .mockup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text-faint);
+    }
+
+    .mock-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      align-items: center;
+    }
+
+    .mock-label {
+      width: 150px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .mock-input {
+      flex-grow: 1;
+      background: #13131a;
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.65rem;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 0.85rem;
+      font-family: var(--mono);
+    }
+
+    .mock-component-card {
+      background: #15151e;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.85rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--surface-elevated);
+      color: #fff;
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-family: var(--mono);
+    }
+
+    .btn-gold {
+      background: #f59e0b;
+      border-color: #fbbf24;
+      color: #000;
+      font-weight: 700;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      border-color: #3b82f6;
+    }
+
+    /* Client Card Mockup */
+    .client-card-preview {
+      width: 320px;
+      background: #111116;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 10 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .client-card-preview.featured {
+      border: 2px solid #f59e0b;
+      box-shadow: 0 10 35px rgba(245, 158, 11, 0.35);
+    }
+
+    .card-banner {
+      height: 110px;
+      background: linear-gradient(135deg, #1e1b4b, #312e81);
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 8px;
+    }
+
+    .card-content-body {
+      padding: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="doc-meta">
+        <span>Spec: ARCH-2026-09-V4</span>
+        <span>Target: GenHub Engine &amp; Publisher Studio</span>
+        <span>Status: Approved Architecture Plan</span>
+        <span>Scope: Upstream Sync, Variant Matrix, Featured Bundles</span>
+      </div>
+      <h1>Autonomous Upstream Releases, ContentBundles &amp; Featured UI</h1>
+      <div class="subtitle">Complete technical specification for autonomous upstream tracking, user-side variant swapping in ContentBundles, Publisher Studio authoring UI, and golden featured priority.</div>
+    </header>
+
+    <!-- SECTION 1: AUTONOMOUS RELEASES & STATIC RELEASES CLARIFICATION -->
+    <section>
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+        1. Unified Architecture: Dynamic Upstreams vs Static Releases
+      </h2>
+
+      <p>
+        The catalog ecosystem cleanly bifurcates into two types of content items:
+      </p>
+
+      <div class="grid">
+        <div class="card" style="border-left: 3px solid var(--accent-blue);">
+          <div class="card-title">
+            <span>Dynamic Upstream Items</span>
+            <span class="badge badge-blue">Zero Releases in JSON</span>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            Items tracking fast-moving external codebases: <strong>TheSuperHackers</strong> (GitHub weekly builds), <strong>GeneralsOnline</strong> (CDN ladder releases), or <strong>Community Outpost</strong> (GenPatcher).
+          </p>
+          <ul style="font-size: 0.85rem; color: var(--text-muted); padding-left: 1.1rem;">
+            <li><strong>NO <code>releases</code> array authored in catalog.json:</strong> The publisher never manually types version numbers or download URLs.</li>
+            <li><strong>Autonomously Ingested:</strong> When GenHub launches, it calls the built-in discoverer (e.g. <code>GeneralsOnlineDiscoverer</code>). If upstream has a new release, GenHub creates the physical release locally and writes the manifest to disk.</li>
+            <li><strong>Publisher-Independent:</strong> If the catalog author is inactive or absent, the catalog never dies. End-users always get the latest releases.</li>
+          </ul>
+        </div>
+
+        <div class="card" style="border-left: 3px solid var(--accent-green);">
+          <div class="card-title">
+            <span>Static Addons &amp; Overlays</span>
+            <span class="badge badge-green">Explicit Releases in JSON</span>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            Independent community mods and assets: <strong>L3M ControlBar</strong>, <strong>Eliorata Improved Menus</strong>, <strong>Leikeze Hotkeys</strong>, and custom Map Packs.
+          </p>
+          <ul style="font-size: 0.85rem; color: var(--text-muted); padding-left: 1.1rem;">
+            <li><strong>Explicit <code>releases: [...]</code> required:</strong> Authored in Publisher Studio with concrete download URLs, hashes, and version numbers.</li>
+            <li><strong>Multi-Variant Artifacts:</strong> A single release contains multiple artifacts tagged with variant axes (e.g. <code>1080p</code>, <code>1440p</code>, <code>4K</code>).</li>
+            <li><strong>Stable Baseline:</strong> These assets don't change every week; they remain pinned or versioned until updated by their author.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: PUBLISHER STUDIO UI -->
+    <section>
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+        2. Publisher Studio UI: Adding Upstream Items &amp; ContentBundles
+      </h2>
+
+      <h3>2.1 Adding a Dynamic Upstream Item (Add / Edit Content Window)</h3>
+      <p>
+        In <code>AddContentDialogView.axaml</code>, when authoring a GameClient or dynamic item, the author toggles <strong>"Track Upstream Provider"</strong>:
+      </p>
+
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>PUBLISHER STUDIO - ADD / EDIT CONTENT ITEM</span>
+          <span class="badge badge-blue">Dynamic Upstream Mode</span>
+        </div>
+
+        <div class="mock-row">
+          <div class="mock-label">Content Name:</div>
+          <div class="mock-input">TheSuperHackers Engine Game Code</div>
+        </div>
+
+        <div class="mock-row">
+          <div class="mock-label">Content Type:</div>
+          <div class="mock-input">GameClient</div>
+        </div>
+
+        <div class="mock-row" style="background: rgba(59, 130, 246, 0.08); padding: 0.5rem; border-radius: 4px; border: 1px solid rgba(59, 130, 246, 0.2);">
+          <div class="mock-label" style="color: #60a5fa; font-weight: 600;">Upstream Source:</div>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: #fff;">
+              <input type="radio" id="source-upstream" checked name="source">
+              <label for="source-upstream" style="cursor: pointer;">Track Live Upstream Provider (Automated)</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: var(--text-muted);">
+              <input type="radio" id="source-static" name="source">
+              <label for="source-static" style="cursor: pointer;">Static File Upload / Direct URL</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upstream Provider Controls -->
+        <div class="mock-row">
+          <div class="mock-label">Provider:</div>
+          <div class="mock-input" style="color: #60a5fa; font-weight: 600;">TheSuperHackers (GitHub Releases)</div>
+        </div>
+
+        <div class="mock-row">
+          <div class="mock-label">Repository:</div>
+          <div class="mock-input">TheSuperHackers/GeneralsGameCode</div>
+        </div>
+
+        <div class="mock-row">
+          <div class="mock-label">Detected Variant Axis:</div>
+          <div class="mock-input" style="color: var(--accent-green);">game-type [Zero Hour (generalszh-*.zip), Generals (generals-*.zip)]</div>
+        </div>
+
+        <div style="margin-top: 0.85rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 0.75rem;">
+          <span style="font-size: 0.8rem; color: var(--text-muted);">✓ Releases are automatically discovered via built-in provider pipeline. No local files required.</span>
+          <span class="btn btn-primary">Test Live Upstream Fetch</span>
+        </div>
+      </div>
+
+      <h3>2.2 Adding a ContentBundle (Component Matrix &amp; Featured Priority)</h3>
+      <p>
+        When <code>ContentType == ContentType.ContentBundle</code>, the window transforms into the <strong>Catalog Component Matrix</strong>, and provides a toggle for <strong>Featured Golden Status</strong>:
+      </p>
+
+      <div class="mockup-container mockup-gold">
+        <div class="mockup-header" style="border-bottom-color: rgba(245, 158, 11, 0.3);">
+          <span style="color: #f59e0b; font-weight: 700;">PUBLISHER STUDIO - CONTENTBUNDLE AUTHORING</span>
+          <span class="badge badge-gold">★ FEATURED GOLDEN STATUS ENABLED</span>
+        </div>
+
+        <div class="mock-row">
+          <div class="mock-label">Bundle Name:</div>
+          <div class="mock-input">TheSuperHackers Pro Competitive Suite</div>
+        </div>
+
+        <div class="mock-row">
+          <div class="mock-label">Priority / Featured:</div>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <input type="checkbox" id="feature-on-top" checked style="accent-color: #f59e0b; width: 16px; height: 16px;">
+            <label for="feature-on-top" style="font-size: 0.85rem; color: #fbbf24; font-weight: 600; cursor: pointer;">Feature on Top with Golden Glowing Border &amp; Badge</label>
+            <label for="featured-badge-text" class="sr-only" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0);">Featured Badge Text</label>
+            <input type="text" id="featured-badge-text" aria-label="Featured badge text" class="mock-input" value="★ PRO COMPETITIVE SUITE" style="width: 220px; padding: 0.2rem 0.5rem; font-size: 0.8rem; border-color: #f59e0b; color: #fbbf24;">
+          </div>
+        </div>
+
+        <!-- Component Matrix -->
+        <h4 style="margin: 1.25rem 0 0.5rem 0; color: #fff;">Catalog Components to Bundle</h4>
+
+        <!-- Component 1: Upstream GameClient with variant -->
+        <div class="mock-component-card" style="border-left: 3px solid var(--accent-blue);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="bundle-comp-superhackers" checked aria-label="Include TheSuperHackers Engine Game Code" style="accent-color: var(--accent-blue);">
+              <label for="bundle-comp-superhackers" class="badge badge-blue" style="cursor: pointer;">GameClient</label>
+              <strong style="color: #fff;">TheSuperHackers Engine Game Code</strong>
+              <span style="font-size: 0.75rem; color: var(--accent-green);">(Dynamic Upstream)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem;">
+              <span style="color: var(--text-muted);">Default Variant:</span>
+              <div class="mock-input" style="padding: 0.2rem 0.4rem; font-size: 0.8rem; width: 110px;">Zero Hour</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Component 2: L3M ControlBar with resolution variant -->
+        <div class="mock-component-card" style="border-left: 3px solid var(--accent-amber);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="bundle-comp-controlbar" checked aria-label="Include L3M Modern HD Control Bar" style="accent-color: var(--accent-blue);">
+              <label for="bundle-comp-controlbar" class="badge badge-amber" style="cursor: pointer;">ControlBar</label>
+              <strong style="color: #fff;">L3M Modern HD Control Bar</strong>
+              <span style="font-size: 0.75rem; color: var(--text-faint);">(v2.4.0)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem;">
+              <span style="color: var(--text-muted);">Default Variant:</span>
+              <div class="mock-input" style="padding: 0.2rem 0.4rem; font-size: 0.8rem; width: 110px; color: var(--accent-amber);">1080p</div>
+              <span style="color: var(--text-faint);">(Options: 1080p, 1440p, 4K)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Component 3: Eliorata Menus with language variant -->
+        <div class="mock-component-card" style="border-left: 3px solid var(--accent-purple);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="bundle-comp-menus" checked aria-label="Include Eliorata Improved Menus" style="accent-color: var(--accent-blue);">
+              <label for="bundle-comp-menus" class="badge badge-purple" style="cursor: pointer;">Addon</label>
+              <strong style="color: #fff;">Eliorata Improved Menus</strong>
+              <span style="font-size: 0.75rem; color: var(--text-faint);">(v1.8.0)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem;">
+              <span style="color: var(--text-muted);">Default Variant:</span>
+              <div class="mock-input" style="padding: 0.2rem 0.4rem; font-size: 0.8rem; width: 110px;">English</div>
+              <span style="color: var(--text-faint);">(Options: English, German, French)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Component 4: Leikeze Hotkeys with layout variant -->
+        <div class="mock-component-card" style="border-left: 3px solid var(--accent-green);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="bundle-comp-hotkeys" checked aria-label="Include Leikeze Pro Competitive Hotkeys" style="accent-color: var(--accent-blue);">
+              <label for="bundle-comp-hotkeys" class="badge badge-green" style="cursor: pointer;">Hotkeys</label>
+              <strong style="color: #fff;">Leikeze Pro Competitive Hotkeys</strong>
+              <span style="font-size: 0.75rem; color: var(--text-faint);">(v3.1.0)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem;">
+              <span style="color: var(--text-muted);">Default Variant:</span>
+              <div class="mock-input" style="padding: 0.2rem 0.4rem; font-size: 0.8rem; width: 110px;">QWERTY</div>
+              <span style="color: var(--text-faint);">(Options: QWERTY, QWERTZ, Grid)</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <span class="btn">Cancel</span>
+          <span class="btn btn-gold">Save Featured Bundle</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: USER-SIDE VARIANT DROPDOWNS & GOLDEN BORDER -->
+    <section>
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        3. End-User Downloads View: Golden Cards &amp; Per-Component Variant Swapping
+      </h2>
+      <p>
+        When the user views the catalog in GenHub's Downloads View:
+        Featured bundles appear <strong>at the top of the grid</strong> with a <strong>glowing golden border</strong>, and users can customize each component's variant directly from the card before installing!
+      </p>
+
+      <!-- Client Card Mockup -->
+      <div style="display: flex; gap: 2rem; flex-wrap: wrap; margin: 1.5rem 0;">
+        <div class="client-card-preview featured">
+          <!-- Banner -->
+          <div class="card-banner">
+            <span class="badge badge-gold" style="font-weight: 800; font-size: 10px;">★ PRO COMPETITIVE SUITE</span>
+            <span class="badge" style="background: rgba(0,0,0,0.6); color: #fff; border: 1px solid rgba(255,255,255,0.2);">ContentBundle</span>
+          </div>
+
+          <!-- Body -->
+          <div class="card-content-body">
+            <h3 style="font-size: 1.05rem; margin: 0 0 4px 0; color: #fff;">TheSuperHackers Pro Suite</h3>
+            <div style="font-size: 0.8rem; color: #f59e0b; margin-bottom: 10px; font-weight: 600;">
+              Autonomous Upstream: 2026.09.25 (Latest)
+            </div>
+
+            <!-- Bundle Members with Variant Pickers -->
+            <div style="background: #0d0d12; border-radius: 8px; padding: 8px; border: 1px solid #222; margin-bottom: 12px; font-size: 0.8rem;">
+              <div style="font-weight: 600; color: var(--text-muted); font-size: 10px; text-transform: uppercase; margin-bottom: 6px;">
+                Included Components &amp; Variants
+              </div>
+
+              <!-- Component 1: Game Client Dropdown -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="color: #fff;">Game Client:</span>
+                <select style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                  <option selected>Zero Hour (Default)</option>
+                  <option>Generals</option>
+                </select>
+              </div>
+
+              <!-- Component 2: ControlBar Dropdown -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="color: #fff;">HD Control Bar:</span>
+                <select style="background: #181822; color: #f59e0b; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                  <option selected>1080p (FHD)</option>
+                  <option>1440p (2K)</option>
+                  <option>4K (UHD)</option>
+                </select>
+              </div>
+
+              <!-- Component 3: Menus Dropdown -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="color: #fff;">Menus:</span>
+                <select style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                  <option selected>English</option>
+                  <option>German</option>
+                  <option>French</option>
+                </select>
+              </div>
+
+              <!-- Component 4: Hotkeys Dropdown -->
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #fff;">Hotkeys:</span>
+                <select style="background: #181822; color: #fff; border: 1px solid #333; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                  <option selected>QWERTY</option>
+                  <option>QWERTZ</option>
+                  <option>Grid</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Install Button -->
+            <button style="width: 100%; background: #f59e0b; color: #000; border: none; padding: 8px 0; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer;">
+              ⚡ Install Complete Suite
+            </button>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-width: 280px;">
+          <h4>How Variant Swapping Operates Internally</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">
+            In GenHub, <code>ContentCardView.axaml</code> binds to <code>ContentGridItemViewModel</code> and child <code>BundleComponentViewModel</code>:
+          </p>
+          <ul style="font-size: 0.85rem; color: var(--text-muted); padding-left: 1.1rem;">
+            <li><strong>Reactive Selection:</strong> When the user changes <code>SelectedOption</code> on a child component's <code>VariantAxisGroup</code> (e.g. switching ControlBar from <code>1080p</code> to <code>4K</code>), the ViewModel instantly swaps the target artifact in the dependency graph.</li>
+            <li><strong>Dynamic CAS Hash Resolution:</strong> When the user clicks "Install Complete Suite", GenHub resolves the exact artifact SHA256 checksums matching the user's variant choices.</li>
+            <li><strong>Launch Profile Generation:</strong> The resulting profile is configured with the selected variant flags (e.g. <code>ScreenResolution=3840x2160</code>, <code>Language=en</code>).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: TEST CATALOG CREATED -->
+    <section>
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        4. Reference Test Catalog Created
+      </h2>
+      <p>
+        The complete, working sample catalog has been generated and committed to the repository:
+        <br>
+        <code>GenHub/SampleCatalogs/community-competitive-ecosystem.catalog.json</code>
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Content ID</th>
+            <th>Type</th>
+            <th>Upstream / Releases</th>
+            <th>Supported Variant Axes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>thesuperhackers-client</code></td>
+            <td>GameClient</td>
+            <td>Dynamic Upstream (GitHub: <code>TheSuperHackers/GeneralsGameCode</code>)</td>
+            <td><code>game-type</code>: <code>Zero Hour</code>, <code>Generals</code></td>
+          </tr>
+          <tr>
+            <td><code>generalsonline-client</code></td>
+            <td>GameClient</td>
+            <td>Dynamic Upstream (CDN: <code>generalsonline</code>)</td>
+            <td>Default ladder client</td>
+          </tr>
+          <tr>
+            <td><code>communityoutpost-client</code></td>
+            <td>GameClient</td>
+            <td>Dynamic Upstream (GenPatcher: <code>communityoutpost</code>)</td>
+            <td>Tournament baseline</td>
+          </tr>
+          <tr>
+            <td><code>l3m-controlbar</code></td>
+            <td>ControlBar</td>
+            <td>Static Release <code>v2.4.0</code></td>
+            <td><code>resolution</code>: <code>1080p</code>, <code>1440p</code>, <code>4K</code></td>
+          </tr>
+          <tr>
+            <td><code>eliorata-menus</code></td>
+            <td>Addon</td>
+            <td>Static Release <code>v1.8.0</code></td>
+            <td><code>language</code>: <code>English</code>, <code>German</code>, <code>French</code></td>
+          </tr>
+          <tr>
+            <td><code>leikeze-hotkeys</code></td>
+            <td>Hotkeys</td>
+            <td>Static Release <code>v3.1.0</code></td>
+            <td><code>layout</code>: <code>QWERTY</code>, <code>QWERTZ</code>, <code>Grid</code></td>
+          </tr>
+          <tr style="background: rgba(245, 158, 11, 0.08);">
+            <td><code>thesuperhackers-competitive-bundle</code></td>
+            <td>ContentBundle</td>
+            <td><strong>Featured Gold</strong> (Packages TheSuperHackers + Bar + Menus + Hotkeys)</td>
+            <td>Customizable per-component dropdowns</td>
+          </tr>
+          <tr style="background: rgba(245, 158, 11, 0.08);">
+            <td><code>generalsonline-competitive-bundle</code></td>
+            <td>ContentBundle</td>
+            <td><strong>Featured Gold</strong> (Packages GeneralsOnline + Bar + Menus + Hotkeys)</td>
+            <td>Customizable per-component dropdowns</td>
+          </tr>
+          <tr style="background: rgba(245, 158, 11, 0.08);">
+            <td><code>communityoutpost-competitive-bundle</code></td>
+            <td>ContentBundle</td>
+            <td><strong>Featured Gold</strong> (Packages CommunityOutpost + Bar + Menus + Hotkeys)</td>
+            <td>Customizable per-component dropdowns</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SECTION 5: IMPLEMENTATION PHASING -->
+    <section>
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+        5. Execution Checklist for Next Working Agent
+      </h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Milestone</th>
+            <th>Task &amp; Files</th>
+            <th>Verification</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Task 1: Manifest ID Collision Fix</strong></td>
+            <td>
+              • In <code>ContentManifestBuilder.cs</code>: replace <code>int.TryParse</code> with <code>CatalogManifestIdentity.ExtractVersionNumber</code>.<br>
+              • In <code>ContentStateService.cs</code>: fix <code>DetermineProspectiveManifestId</code> to use canonical ID and version.<br>
+              • File: <code>GenHub/GenHub/Features/Manifest/ContentManifestBuilder.cs</code>
+            </td>
+            <td>Unit tests passing: manifests for multiple releases do not overwrite each other.</td>
+          </tr>
+          <tr>
+            <td><strong>Task 2: Golden Featured Styling</strong></td>
+            <td>
+              • Add <code>IsFeatured</code> and <code>FeaturedBadge</code> to <code>CatalogContentItem.cs</code> and <code>ContentRichMetadata.cs</code>.<br>
+              • In <code>ContentCardView.axaml</code>: add <code>.featured-card</code> style with <code>BorderBrush="#F59E0B"</code> and gold badge.<br>
+              • In <code>DownloadsViewModel.cs</code>: sort featured items/bundles to the top of the grid.
+            </td>
+            <td>Featured cards render with radiant gold borders and top priority.</td>
+          </tr>
+          <tr>
+            <td><strong>Task 3: Publisher Studio Upstream &amp; Bundle UI</strong></td>
+            <td>
+              • Update <code>AddContentDialogView.axaml</code> and <code>ViewModel</code>: add Upstream Source toggle.<br>
+              • When <code>ContentType == ContentBundle</code>, render the Component Matrix with variant defaults.<br>
+              • Relax <code>release.Artifacts.Count > 0</code> check in <code>PublisherStudioService.cs</code> for bundles and upstream items.
+            </td>
+            <td>Authors can create upstream clients and bundles in Publisher Studio without dummy files.</td>
+          </tr>
+          <tr>
+            <td><strong>Task 4: Autonomous Ingestion &amp; Variant Swapping</strong></td>
+            <td>
+              • Implement <code>CatalogUpstreamIngestionService</code> delegating to <code>GeneralsOnlineDiscoverer</code>, <code>CommunityOutpostDiscoverer</code>, <code>GitHubReleasesDiscoverer</code>.<br>
+              • Ensure <code>BundleComponentViewModel</code> variant selection binds to download delivery execution.
+            </td>
+            <td>Bundles install cleanly with user-chosen 1080p/4K and language variants.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>

@@ -82,4 +82,16 @@ public class ContentRichMetadata
     /// </summary>
     [JsonPropertyName("playerCount")]
     public int? PlayerCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this content is featured.
+    /// </summary>
+    [JsonPropertyName("isFeatured")]
+    public bool IsFeatured { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom badge label shown on featured cards.
+    /// </summary>
+    [JsonPropertyName("featuredBadge")]
+    public string? FeaturedBadge { get; set; }
 }

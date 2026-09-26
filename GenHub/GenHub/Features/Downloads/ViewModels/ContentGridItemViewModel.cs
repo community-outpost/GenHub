@@ -190,6 +190,23 @@ public sealed partial class ContentGridItemViewModel(
     public bool HasShortDescription => !HasBundleComponents && !string.IsNullOrWhiteSpace(ShortDescription);
 
     /// <summary>
+    /// Gets a value indicating whether this content item is featured.
+    /// </summary>
+    public bool IsFeatured => SearchResult.IsFeatured;
+
+    /// <summary>
+    /// Gets the custom badge text for a featured item.
+    /// </summary>
+    public string FeaturedBadge => !string.IsNullOrWhiteSpace(SearchResult.FeaturedBadge)
+        ? SearchResult.FeaturedBadge
+        : "★ FEATURED BUNDLE";
+
+    /// <summary>
+    /// Gets a value indicating whether the featured badge should be displayed.
+    /// </summary>
+    public bool HasFeaturedBadge => IsFeatured;
+
+    /// <summary>
     /// Gets the content version.
     /// </summary>
     public string Version => SearchResult.Version ?? string.Empty;

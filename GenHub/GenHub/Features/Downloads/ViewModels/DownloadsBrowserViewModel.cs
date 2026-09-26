@@ -760,7 +760,10 @@ public sealed partial class DownloadsBrowserViewModel(
             }
         }
 
-        return grouped;
+        return grouped
+            .OrderByDescending(g => g.Any(i => i.IsFeatured))
+            .ThenByDescending(g => g.Any(i => i.ContentType == ContentType.ContentBundle))
+            .ToList();
     }
 
     private static ContentSearchResult ResolveDefaultVariant(IReadOnlyList<ContentSearchResult> groupItems, ContentSearchResult primaryItem)

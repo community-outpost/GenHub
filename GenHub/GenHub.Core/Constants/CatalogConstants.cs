@@ -305,4 +305,30 @@ public static class CatalogConstants
     /// Status badge color for an up-to-date published catalog (#10B981).
     /// </summary>
     public const string CatalogStatusPublishedColor = "#10B981";
+
+    /// <summary>
+    /// Well-known upstream sync provider identifiers.
+    /// </summary>
+    public static class UpstreamProviders
+    {
+        /// <summary>
+        /// TheSuperHackers dynamic releases provider.
+        /// </summary>
+        public const string TheSuperHackers = "TheSuperHackers";
+
+        /// <summary>
+        /// GeneralsOnline ladder releases provider.
+        /// </summary>
+        public const string GeneralsOnline = "GeneralsOnline";
+
+        /// <summary>
+        /// CommunityOutpost GenPatcher releases provider.
+        /// </summary>
+        public const string CommunityOutpost = "CommunityOutpost";
+
+        /// <summary>
+        /// Generic GitHub Releases provider.
+        /// </summary>
+        public const string GitHubReleases = "GitHubReleases";
+    }
 }

@@ -150,6 +150,24 @@ public class CatalogContentItem : ObservableObject
     public bool IsStandalone { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets a value indicating whether this content item is featured.
+    /// </summary>
+    [JsonPropertyName("isFeatured")]
+    public bool IsFeatured { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom badge label shown on featured cards.
+    /// </summary>
+    [JsonPropertyName("featuredBadge")]
+    public string? FeaturedBadge { get; set; }
+
+    /// <summary>
+    /// Gets or sets upstream synchronization configuration for autonomous releases.
+    /// </summary>
+    [JsonPropertyName("upstreamSync")]
+    public CatalogUpstreamSync? UpstreamSync { get; set; }
+
+    /// <summary>
     /// Gets or sets the inherited catalog icon URL fallback for this content item.
     /// </summary>
     [JsonIgnore]

@@ -135,6 +135,100 @@
                                Classes="hint"/>
                 </StackPanel>
 
+                <!-- Featured Settings -->
+                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12">
+                    <StackPanel Spacing="8">
+                        <CheckBox Content="{localization:Localize Tools.PublisherStudio.Content.FeaturedMark}"
+                                  IsChecked="{Binding IsFeatured}"
+                                  FontWeight="SemiBold"/>
+                        <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgeLabel}" Classes="label"/>
+                            <TextBox Text="{Binding FeaturedBadge}" Watermark="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgePlaceholder}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Component Matrix (visible when ContentType is ContentBundle) -->
+                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        IsVisible="{Binding IsBundleType}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BundleComponentMatrix}" FontWeight="Bold" FontSize="14"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BundleComponentMatrixDesc}" Classes="hint"/>
+
+                        <ItemsControl ItemsSource="{Binding BundleComponentOptions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="10,6"
+                                            Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                            <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding ContentTypeDisplay}" Classes="hint"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Content.DefaultVariant}" VerticalAlignment="Center" Margin="8,0" Classes="hint" IsVisible="{Binding HasVariants}"/>
+                                            <ComboBox Grid.Column="3"
+                                                      ItemsSource="{Binding AvailableVariants}"
+                                                      SelectedItem="{Binding SelectedVariant}"
+                                                      IsVisible="{Binding HasVariants}"
+                                                      Width="140"
+                                                      VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Upstream Sync Configuration (visible when not ContentBundle) -->
+                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12"
+                        IsVisible="{Binding !IsBundleType}">
+                    <StackPanel Spacing="8">
+                        <CheckBox Content="{localization:Localize Tools.PublisherStudio.Content.UpstreamTrack}"
+                                  IsChecked="{Binding IsUpstreamSource}"
+                                  FontWeight="SemiBold"/>
+                        <StackPanel Spacing="8" IsVisible="{Binding IsUpstreamSource}">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamProvider}" Classes="label"/>
+                            <ComboBox ItemsSource="{Binding AvailableUpstreamProviders}"
+                                      SelectedItem="{Binding SelectedUpstreamProvider}"
+                                      HorizontalAlignment="Stretch"/>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepo}" Classes="label"/>
+                                <TextBox Text="{Binding UpstreamRepository}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepoPlaceholder}"/>
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="*,16,*">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannel}" Classes="label"/>
+                                    <TextBox Text="{Binding UpstreamChannel}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannelPlaceholder}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxis}" Classes="label"/>
+                                    <TextBox Text="{Binding UpstreamVariantAxis}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisPlaceholder}"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Description -->
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -377,7 +471,7 @@
                           IsExpanded="False"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Stretch"
-                          IsVisible="{Binding !IsEditMode}">
+                          IsVisible="{Binding CanShowInitialRelease}">
                     <Expander.Header>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.InitialRelease}" Classes="label"/>
                     </Expander.Header>

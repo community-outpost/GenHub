@@ -1852,20 +1852,22 @@ public sealed partial class ContentStateService(
             providerName = $"{GenLauncherConstants.PublisherId}{gameToken}";
         }
 
-        var contentName = SanitizeSegmentForManifest(item.Name, null)
-            ?? SanitizeSegmentForManifest(item.Id, UnknownSegment)
+        var contentName = SanitizeSegmentForManifest(item.Id, null)
+            ?? SanitizeSegmentForManifest(item.Name, UnknownSegment)
             ?? UnknownSegment;
+
+        var userVersion = CatalogManifestIdentity.ExtractVersionNumber(item.Version);
 
         string prospectiveId = string.Empty;
         try
         {
             prospectiveId = hasRealDate
                 ? ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, releaseDate)
-                : ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, userVersion: 0);
+                : ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, userVersion: userVersion);
         }
         catch (ArgumentException)
         {
-            prospectiveId = $"1.0.{providerName}.{item.ContentType.ToString().ToLowerInvariant()}.{contentName}";
+            prospectiveId = $"1.{userVersion}.{providerName}.{item.ContentType.ToString().ToLowerInvariant()}.{contentName}";
         }
 
         return (prospectiveId, releaseDate, hasRealDate);
