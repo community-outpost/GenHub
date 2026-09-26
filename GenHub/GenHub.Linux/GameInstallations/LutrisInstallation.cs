@@ -193,35 +193,6 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
         AvailableGameClients.AddRange(clients);
     }
 
-    private bool TryApplyGameInstallation(string homeDir, string version, LinuxInstallationType packageType)
-    {
-        if (!Directory.Exists(homeDir))
-        {
-            return false;
-        }
-
-        IsLutrisInstalled = true;
-        InstallationPath = homeDir;
-        LutrisVersion = version;
-        PackageInstallationType = packageType;
-
-        var zhDir = Path.Combine(homeDir, GameClientConstants.ZeroHourDirectoryName);
-        if (Directory.Exists(zhDir))
-        {
-            HasZeroHour = true;
-            ZeroHourPath = zhDir;
-        }
-
-        var generalsDir = Path.Combine(homeDir, GameClientConstants.GeneralsDirectoryName);
-        if (Directory.Exists(generalsDir))
-        {
-            HasGenerals = true;
-            GeneralsPath = generalsDir;
-        }
-
-        return true;
-    }
-
     private static ProcessStartInfo CreateLutrisStartInfo(string command, string[] extraArgs)
     {
         var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -376,5 +347,34 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
         {
             return (false, string.Empty);
         }
+    }
+
+    private bool TryApplyGameInstallation(string homeDir, string version, LinuxInstallationType packageType)
+    {
+        if (!Directory.Exists(homeDir))
+        {
+            return false;
+        }
+
+        IsLutrisInstalled = true;
+        InstallationPath = homeDir;
+        LutrisVersion = version;
+        PackageInstallationType = packageType;
+
+        var zhDir = Path.Combine(homeDir, GameClientConstants.ZeroHourDirectoryName);
+        if (Directory.Exists(zhDir))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = zhDir;
+        }
+
+        var generalsDir = Path.Combine(homeDir, GameClientConstants.GeneralsDirectoryName);
+        if (Directory.Exists(generalsDir))
+        {
+            HasGenerals = true;
+            GeneralsPath = generalsDir;
+        }
+
+        return true;
     }
 }
