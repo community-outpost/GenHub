@@ -1080,12 +1080,33 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    private ProfileBranding ResolveDefaultBranding()
+    private (ContentDisplayItem? Client, ContentDisplayItem? Installation) GetActiveClientSelection()
     {
         var activeClientItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
         var activeInstallationItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameInstallation)
             ?? (SelectedGameInstallation is { IsEnabled: true } ? SelectedGameInstallation : null);
+        return (activeClientItem, activeInstallationItem);
+    }
 
+    private string GetClientSelectionKey()
+    {
+        var (client, installation) = GetActiveClientSelection();
+        return $"{client?.ManifestId.Value}|{installation?.ManifestId.Value}|{SelectedGameInstallation?.SourceId}";
+    }
+
+    private void CaptureLoadedClientSelection()
+    {
+        _loadedClientSelectionKey = GetClientSelectionKey();
+        _brandingSelectionKey = _loadedClientSelectionKey;
+    }
+
+    private bool HasClientSelectionChangedSinceLoad() =>
+        _loadedClientSelectionKey == null ||
+        !string.Equals(GetClientSelectionKey(), _loadedClientSelectionKey, StringComparison.Ordinal);
+
+    private ProfileBranding ResolveDefaultBranding()
+    {
+        var (activeClientItem, activeInstallationItem) = GetActiveClientSelection();
         var primaryItem = activeClientItem ?? activeInstallationItem;
         if (primaryItem == null)
         {
@@ -1108,6 +1129,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return;
         }
 
+        var selectionKey = GetClientSelectionKey();
+        if (!string.IsNullOrEmpty(CurrentProfileId) &&
+            string.Equals(selectionKey, _brandingSelectionKey, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _brandingSelectionKey = selectionKey;
         var branding = ResolveDefaultBranding();
         _isApplyingBranding = true;
         try

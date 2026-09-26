@@ -41,6 +41,8 @@ public partial class GameProfileSettingsViewModel
             }
 
             CurrentProfileId = null;
+            _loadedClientSelectionKey = null;
+            _brandingSelectionKey = null;
             IsHotswapMode = false;
             OnPropertyChanged(nameof(CanShareProfile));
             Name = ProfileConstants.DefaultProfileName;
@@ -118,6 +120,8 @@ public partial class GameProfileSettingsViewModel
             }
 
             CurrentProfileId = profileId;
+            _loadedClientSelectionKey = null;
+            _brandingSelectionKey = null;
             OnPropertyChanged(nameof(CanShareProfile));
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
@@ -174,6 +178,7 @@ public partial class GameProfileSettingsViewModel
 
             SelectInitialGameInstallation(profile);
             UpdateApplicableClientVisibility();
+            CaptureLoadedClientSelection();
 
             StatusMessage = string.Empty;
         }
