@@ -407,6 +407,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         await RefreshVisibleFiltersAsync();
         await LoadAvailableContentAsync();
+        LoadAvailableIconsAndCovers(GameType);
     }
 
     private static string NormalizeResourcePath(string? path, string defaultUri = "")
@@ -1877,10 +1878,42 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             if (_profileResourceService == null) return;
 
-            var icons = _profileResourceService.GetIconsForGameType(gameType);
-            AvailableIcons = new ObservableCollection<ProfileResourceItem>(icons);
+            var icons = _profileResourceService.GetIconsForGameType(gameType).ToList();
+            var covers = _profileResourceService.GetAvailableCovers().ToList();
 
-            var covers = _profileResourceService.GetAvailableCovers();
+            if (AvailableContent != null)
+            {
+                foreach (var content in AvailableContent)
+                {
+                    var iconPath = content.Manifest?.Metadata?.IconUrl ?? (!string.IsNullOrEmpty(content.IconPath) ? content.IconPath : null);
+                    if (!string.IsNullOrEmpty(iconPath) && icons.All(i => i.Path != iconPath))
+                    {
+                        icons.Add(new ProfileResourceItem
+                        {
+                            Id = $"content-icon-{content.Id}",
+                            Path = iconPath,
+                            DisplayName = $"{content.DisplayName} Icon",
+                            IsBuiltIn = false,
+                            GameType = content.GameType.ToString(),
+                        });
+                    }
+
+                    var coverPath = content.Manifest?.Metadata?.CoverUrl ?? (!string.IsNullOrEmpty(content.CoverPath) ? content.CoverPath : null);
+                    if (!string.IsNullOrEmpty(coverPath) && covers.All(c => c.Path != coverPath))
+                    {
+                        covers.Add(new ProfileResourceItem
+                        {
+                            Id = $"content-cover-{content.Id}",
+                            Path = coverPath,
+                            DisplayName = $"{content.DisplayName} Cover",
+                            IsBuiltIn = false,
+                            GameType = content.GameType.ToString(),
+                        });
+                    }
+                }
+            }
+
+            AvailableIcons = new ObservableCollection<ProfileResourceItem>(icons);
             AvailableCoversForSelection = new ObservableCollection<ProfileResourceItem>(covers);
 
             if (!string.IsNullOrEmpty(IconPath))

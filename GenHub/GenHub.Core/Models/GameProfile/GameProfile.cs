@@ -83,6 +83,9 @@ public class GameProfile : GameProfileSettingsBase, IGameProfile
     /// <summary>Gets or sets when this profile was last played.</summary>
     public DateTime LastPlayedAt { get; set; }
 
+    /// <summary>Gets or sets the custom display order for this profile in Free sort mode.</summary>
+    public int DisplayOrder { get; set; }
+
     /// <summary>Gets or sets the currently active workspace ID for this profile.</summary>
     public string? ActiveWorkspaceId { get; set; }
 

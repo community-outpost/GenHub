@@ -418,6 +418,22 @@ public class GenLauncherDiscoverer(
         if (!string.IsNullOrEmpty(manifest.NewsLink))
         {
             result.ResolverMetadata[GenLauncherConstants.NewsLinkMetadataKey] = manifest.NewsLink;
+            if (!GenLauncherConstants.IsYamlDescriptorPath(manifest.NewsLink))
+            {
+                result.SourceUrl = manifest.NewsLink;
+            }
+        }
+        else if (!string.IsNullOrEmpty(manifest.ModDBLink) && !GenLauncherConstants.IsYamlDescriptorPath(manifest.ModDBLink))
+        {
+            result.SourceUrl = manifest.ModDBLink;
+        }
+        else if (!string.IsNullOrEmpty(manifest.DiscordLink) && !GenLauncherConstants.IsYamlDescriptorPath(manifest.DiscordLink))
+        {
+            result.SourceUrl = manifest.DiscordLink;
+        }
+        else if (GenLauncherConstants.IsYamlDescriptorPath(result.SourceUrl))
+        {
+            result.SourceUrl = string.Empty;
         }
 
         if (!string.IsNullOrEmpty(manifest.SupportLink))
@@ -930,7 +946,11 @@ public class GenLauncherDiscoverer(
             TargetGame = context.Game,
             ProviderName = PublisherTypeConstants.GenLauncher,
             ResolverId = GenLauncherConstants.PublisherId,
-            SourceUrl = manifestUrl,
+            SourceUrl = !string.IsNullOrWhiteSpace(versionManifest.NewsLink) && !GenLauncherConstants.IsYamlDescriptorPath(versionManifest.NewsLink)
+                ? versionManifest.NewsLink
+                : (!string.IsNullOrWhiteSpace(versionManifest.ModDBLink) && !GenLauncherConstants.IsYamlDescriptorPath(versionManifest.ModDBLink)
+                    ? versionManifest.ModDBLink
+                    : (!string.IsNullOrWhiteSpace(versionManifest.DiscordLink) ? versionManifest.DiscordLink : string.Empty)),
             IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, context.ParentIconUrl),
             RequiresResolution = true,
             VariantGroupId = $"{context.Game.ToString().ToLowerInvariant()}-{context.ParentModSlug}",

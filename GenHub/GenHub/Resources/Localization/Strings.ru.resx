@@ -13562,4 +13562,28 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Settings.Profiles.DeletedMessage" xml:space="preserve">
     <value>Успешно удалено профилей: {0}.</value>
   </data>
+  <data name="GameProfiles.Card.Tooltip.MoveLeft" xml:space="preserve">
+    <value>Move Left</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.MoveRight" xml:space="preserve">
+    <value>Move Right</value>
+  </data>
+  <data name="GameProfiles.Launcher.Tooltip.Sort" xml:space="preserve">
+    <value>Sort Profiles</value>
+  </data>
+  <data name="GameProfiles.Sort.LastPlayed" xml:space="preserve">
+    <value>Recently Played</value>
+  </data>
+  <data name="GameProfiles.Sort.DateCreated" xml:space="preserve">
+    <value>Date Created</value>
+  </data>
+  <data name="GameProfiles.Sort.Alphabetical" xml:space="preserve">
+    <value>Name (A to Z)</value>
+  </data>
+  <data name="GameProfiles.Sort.AlphabeticalDesc" xml:space="preserve">
+    <value>Name (Z to A)</value>
+  </data>
+  <data name="GameProfiles.Sort.Free" xml:space="preserve">
+    <value>Custom Order</value>
+  </data>
 </root>

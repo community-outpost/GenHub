@@ -1,5 +1,7 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.GameProfile;
 
@@ -96,4 +98,14 @@ public class UpdateProfileRequest : GameProfileSettingsBase
     /// Gets or sets the tool content ID for Tool profiles.
     /// </summary>
     public string? ToolContentId { get; set; }
+
+    /// <summary>
+    /// Gets or sets when this profile was last played.
+    /// </summary>
+    public DateTime? LastPlayedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the custom display order for this profile in Free sort mode.
+    /// </summary>
+    public int? DisplayOrder { get; set; }
 }

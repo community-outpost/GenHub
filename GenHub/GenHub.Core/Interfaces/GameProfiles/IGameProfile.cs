@@ -1,5 +1,7 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -9,7 +11,7 @@ namespace GenHub.Core.Interfaces.GameProfiles;
 public interface IGameProfile
 {
     /// <summary>
-    /// Gets the unique identifier of the profile.
+    /// Gets the unique identifier for the profile.
     /// </summary>
     string Id { get; }
 
@@ -19,19 +21,14 @@ public interface IGameProfile
     string Name { get; }
 
     /// <summary>
+    /// Gets the description of the profile.
+    /// </summary>
+    string Description { get; }
+
+    /// <summary>
     /// Gets the game client associated with this profile.
     /// </summary>
     GameClient? GameClient { get; }
-
-    /// <summary>
-    /// Gets the version string of the game.
-    /// </summary>
-    string Version { get; }
-
-    /// <summary>
-    /// Gets the path to the executable for this profile.
-    /// </summary>
-    string ExecutablePath { get; }
 
     /// <summary>
     /// Gets the list of enabled content IDs for this profile.
@@ -48,4 +45,19 @@ public interface IGameProfile
     /// Gets or sets the build information for the profile.
     /// </summary>
     string BuildInfo { get; set; }
+
+    /// <summary>
+    /// Gets when this profile was created.
+    /// </summary>
+    DateTime CreatedAt => default;
+
+    /// <summary>
+    /// Gets when this profile was last played.
+    /// </summary>
+    DateTime LastPlayedAt => default;
+
+    /// <summary>
+    /// Gets the custom display order for this profile in Free sort mode.
+    /// </summary>
+    int DisplayOrder => 0;
 }

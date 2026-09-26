@@ -1552,4 +1552,70 @@ public class GameProfileLauncherViewModelTests
 
         return new GameProfileItemViewModel("profile-1", profile.Object, string.Empty, string.Empty);
     }
+
+    [Fact]
+    public void ApplySorting_Alphabetical_SortsProfilesByNameAndKeepsAddCardAtEnd()
+    {
+        var vm = CreateViewModel();
+        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("Alpha");
+        var itemC = CreateProfileItem("Charlie");
+
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemC);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.Alphabetical;
+        vm.ApplySorting();
+
+        Assert.Equal("Alpha", vm.Profiles[0].Name);
+        Assert.Equal("Bravo", vm.Profiles[1].Name);
+        Assert.Equal("Charlie", vm.Profiles[2].Name);
+        Assert.IsType<AddProfileItemViewModel>(vm.Profiles[3]);
+    }
+
+    [Fact]
+    public void ApplySorting_AlphabeticalDesc_SortsProfilesDescending()
+    {
+        var vm = CreateViewModel();
+        var itemB = CreateProfileItem("Bravo");
+        var itemA = CreateProfileItem("Alpha");
+        var itemC = CreateProfileItem("Charlie");
+
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemC);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.AlphabeticalDesc;
+        vm.ApplySorting();
+
+        Assert.Equal("Charlie", vm.Profiles[0].Name);
+        Assert.Equal("Bravo", vm.Profiles[1].Name);
+        Assert.Equal("Alpha", vm.Profiles[2].Name);
+        Assert.IsType<AddProfileItemViewModel>(vm.Profiles[3]);
+    }
+
+    [Fact]
+    public void ApplySorting_FreeMode_EnablesReorderFlags()
+    {
+        var vm = CreateViewModel();
+        var itemA = CreateProfileItem("Alpha");
+        var itemB = CreateProfileItem("Bravo");
+
+        vm.Profiles.Add(itemA);
+        vm.Profiles.Add(itemB);
+        vm.Profiles.Add(new AddProfileItemViewModel());
+
+        vm.SelectedSortMode = ProfileSortMode.Free;
+        vm.ApplySorting();
+
+        Assert.True(itemA.IsFreeReorderMode);
+        Assert.True(itemB.IsFreeReorderMode);
+        Assert.False(itemA.CanMoveLeft);
+        Assert.True(itemA.CanMoveRight);
+        Assert.True(itemB.CanMoveLeft);
+        Assert.False(itemB.CanMoveRight);
+    }
 }
