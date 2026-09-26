@@ -10329,4 +10329,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>تم تشغيل '{0}' بنجاح</value>
   </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>لم يتم العثور على ملفات خرائط لاستيرادها.</value>
+  </data>
 </root>

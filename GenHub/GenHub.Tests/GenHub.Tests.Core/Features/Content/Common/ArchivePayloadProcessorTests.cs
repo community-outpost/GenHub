@@ -1576,6 +1576,46 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Shared companions may be deduplicated only when the destination has identical contents.
+    /// Conflicts fail normalization while preserving both versions.
+    /// </summary>
+    /// <param name="companionName">The shared companion filename.</param>
+    /// <param name="identical">Whether source and destination contents match.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("map.ini", false)]
+    [InlineData("map.str", false)]
+    [InlineData("map.tga", false)]
+    [InlineData("map.ini", true)]
+    [InlineData("map.str", true)]
+    [InlineData("map.tga", true)]
+    public async Task NormalizeDirectoryStructureAsync_ExistingSharedCompanion_PreservesConflictingContentAsync(string companionName, bool identical)
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapFolder = Directory.CreateDirectory(Path.Combine(_stagingDirectory, "Desert")).FullName;
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "map-data");
+        await File.WriteAllTextAsync(Path.Combine(mapFolder, "Desert.map"), "map-data");
+        var source = Path.Combine(_stagingDirectory, companionName);
+        var destination = Path.Combine(mapFolder, companionName == "map.tga" ? "Desert.tga" : companionName);
+        await File.WriteAllTextAsync(source, "incoming");
+        await File.WriteAllTextAsync(destination, identical ? "incoming" : "existing");
+
+        var processor = CreateProcessor();
+        if (identical)
+        {
+            await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+            Assert.False(File.Exists(source));
+        }
+        else
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(() => processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour));
+            Assert.Equal("incoming", await File.ReadAllTextAsync(source));
+        }
+
+        Assert.Equal(identical ? "incoming" : "existing", await File.ReadAllTextAsync(destination));
+    }
+
+    /// <summary>
     /// Verifies that multiple loose maps sharing a root map.tga receive the thumbnail in each respective map folder.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

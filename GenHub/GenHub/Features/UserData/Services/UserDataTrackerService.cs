@@ -916,7 +916,7 @@ public class UserDataTrackerService(
             (baseName.Equals("map", StringComparison.OrdinalIgnoreCase) ||
              baseName.Equals("preview", StringComparison.OrdinalIgnoreCase)))
         {
-            return mapName + ".tga";
+            return string.IsNullOrEmpty(mapName) ? null : mapName + ".tga";
         }
 
         if (!baseName.Equals("map", StringComparison.OrdinalIgnoreCase))

@@ -10426,4 +10426,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>Successfully launched '{0}'</value>
   </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>No map files were found to import.</value>
+  </data>
 </root>

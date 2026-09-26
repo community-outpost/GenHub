@@ -237,7 +237,11 @@ public sealed class MapImportService(
                         .Where(f => !f.EndsWith(mapExtension, StringComparison.OrdinalIgnoreCase) && IsAllowedMapFolderFile(f))
                         .Where(f =>
                         {
-                            if (isSingleMapFolder)
+                            var fileName = Path.GetFileName(f);
+                            if (isSingleMapFolder ||
+                                fileName.Equals(MapManagerConstants.MapIniFileName, StringComparison.OrdinalIgnoreCase) ||
+                                fileName.Equals(MapManagerConstants.MapStrFileName, StringComparison.OrdinalIgnoreCase) ||
+                                fileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase))
                             {
                                 return true;
                             }
@@ -309,7 +313,7 @@ public sealed class MapImportService(
 
         if (result.FilesImported == 0 && result.Errors.Count == 0)
         {
-            result.Errors.Add("No map files were found to import.");
+            result.Errors.Add(localizationService?.GetString("Maps.Import.Notification.NoMapsFound") ?? "No map files were found to import.");
         }
 
         result.Success = result.FilesImported > 0;

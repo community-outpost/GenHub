@@ -65,6 +65,28 @@ public sealed class MapImportServiceTests : IDisposable
         Assert.Contains("No map files were found to import.", result.Errors);
     }
 
+    /// <summary>Empty imports use the configured translation in the displayed error.</summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromFilesAsync_NoMaps_UsesLocalizedErrorAsync()
+    {
+        var directoryService = new Mock<IMapDirectoryService>();
+        directoryService.Setup(d => d.GetMapDirectory(It.IsAny<GameType>())).Returns(_mapDirectory);
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(l => l.GetString("Maps.Import.Notification.NoMapsFound")).Returns("localized no maps");
+        var service = new MapImportService(
+            directoryService.Object,
+            new HttpClient(),
+            new MapNameParser(NullLogger<MapNameParser>.Instance),
+            NullLogger<MapImportService>.Instance,
+            localizationService: localization.Object);
+
+        var result = await service.ImportFromFilesAsync([], GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Contains("localized no maps", result.Errors);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -480,11 +502,11 @@ public sealed class MapImportServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Keeps each map's own assets apart when one folder holds several maps.
+    /// Keeps named assets apart while distributing shared companions when a folder holds several maps.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ImportFromFilesAsync_FolderWithTwoMaps_CopiesOnlyNameMatchedAssetsAsync()
+    public async Task ImportFromFilesAsync_FolderWithTwoMaps_CopiesNamedAndSharedAssetsAsync()
     {
         var source = Path.Combine(_workingDirectory, "Source", "Pack");
         Directory.CreateDirectory(source);
@@ -493,15 +515,17 @@ public sealed class MapImportServiceTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(source, "Beta.map"), "beta");
         await File.WriteAllTextAsync(Path.Combine(source, "Beta.tga"), "beta tga");
         await File.WriteAllTextAsync(Path.Combine(source, "map.ini"), "shared ini");
+        await File.WriteAllTextAsync(Path.Combine(source, "MAP.STR"), "shared strings");
+        await File.WriteAllTextAsync(Path.Combine(source, "map.tga"), "shared preview");
 
         var result = await _service.ImportFromFilesAsync([source], GameType.ZeroHour);
 
         Assert.True(result.Success, string.Join(" ", result.Errors));
         Assert.Equal(
-            ["Alpha.map", "Alpha.wak"],
+            ["Alpha.map", "Alpha.wak", "MAP.STR", "map.ini", "map.tga"],
             Directory.GetFiles(Path.Combine(_mapDirectory, "Alpha")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Equal(
-            ["Beta.map", "Beta.tga"],
+            ["Beta.map", "Beta.tga", "MAP.STR", "map.ini", "map.tga"],
             Directory.GetFiles(Path.Combine(_mapDirectory, "Beta")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
     }
 

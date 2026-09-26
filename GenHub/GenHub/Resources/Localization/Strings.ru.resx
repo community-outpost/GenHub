@@ -10329,4 +10329,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Message" xml:space="preserve">
     <value>«{0}» успешно запущен</value>
   </data>
+  <data name="Maps.Import.Notification.NoMapsFound" xml:space="preserve">
+    <value>Не найдены файлы карт для импорта.</value>
+  </data>
 </root>

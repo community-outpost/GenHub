@@ -2795,6 +2795,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var targetFileName = isDefaultThumbnail ? mapBase + ext : fn;
                 var targetAssetFile = Path.Combine(targetFolder, targetFileName);
 
+                var isSharedCompanion = isDefaultThumbnail || IsSharedMapCompanion(fn);
+                if (isSharedCompanion && File.Exists(targetAssetFile) && !FilesAreEqual(companion, targetAssetFile))
+                {
+                    throw new InvalidDataException($"Conflicting shared map companion '{companion}' and '{targetAssetFile}'.");
+                }
+
                 if (!File.Exists(targetAssetFile))
                 {
                     try
@@ -2812,6 +2818,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
+                        if (isSharedCompanion)
+                        {
+                            throw new InvalidDataException($"Could not preserve shared map companion '{companion}' in '{targetAssetFile}'.", ex);
+                        }
+
                         logger.LogWarning(ex, "Failed to organize loose companion {Source} into {Target}", companion, targetAssetFile);
                     }
                 }
