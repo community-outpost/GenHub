@@ -139,6 +139,66 @@ public sealed class CatalogBundleComponentBuilderTests
         Assert.Equal("Stable", def.Label);
     }
 
+    /// <summary>
+    /// A bundle dependency requiring a specific version constraint that cannot be satisfied by an asset-rules item
+    /// must be marked unavailable with an appropriate reason, rather than fabricating a latest release.
+    /// </summary>
+    [Fact]
+    public void Build_AssetRulesItemWithUnsatisfiedSpecificConstraint_MarksComponentUnavailable()
+    {
+        var sibling = new CatalogContentItem
+        {
+            Id = "upstream-client",
+            Name = "Upstream Client",
+            ContentType = ContentType.GameClient,
+            UpstreamSync = new UpstreamSyncConfig
+            {
+                Provider = "GitHubReleases",
+                Repository = "Test/TestRepo",
+                VariantAxis = "variant",
+                AssetRules =
+                [
+                    new UpstreamAssetRule { Pattern = ".*\\.zip", Variant = "Default", IsDefault = true },
+                ],
+            },
+        };
+
+        var bundle = new CatalogContentItem
+        {
+            Id = "test-bundle",
+            Name = "Test Bundle",
+            ContentType = ContentType.ContentBundle,
+            Releases =
+            [
+                new ContentRelease
+                {
+                    Version = "1.0.0",
+                    Dependencies =
+                    [
+                        new CatalogDependency
+                        {
+                            ContentId = "upstream-client",
+                            VersionConstraint = "2.0.0",
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test", Name = "Test" },
+            Content = [sibling, bundle],
+        };
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+        var clientComponent = Assert.Single(components, c => c.ContentId == "upstream-client");
+
+        Assert.False(clientComponent.IsAvailable);
+        Assert.Contains("matches constraint", clientComponent.UnavailableReason, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static PublisherCatalog CreateCatalogWithLemonBundle()
     {
         var lemon = new CatalogContentItem
