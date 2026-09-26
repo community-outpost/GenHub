@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless.XUnit;
+using GenHub.Common.Services;
 using GenHub.Common.Views;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -204,7 +205,59 @@ public sealed class AppUrlActivationTests
         sharing.Verify(x => x.InspectSharedProfileAsync(original, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    private static global::GenHub.App CreateApp(GameProfileLauncherViewModel? launcher = null)
+    /// <summary>A link that arrives before the window opens marks the session so Getting Started does not stack on the link dialog.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task HandleUrlActivationAsync_RecordsLinkBeforeWindowReadyAsync()
+    {
+        var tracker = new LinkActivationTracker();
+        var app = CreateApp(linkActivationTracker: tracker);
+        RecordDialogs(app);
+        var link = new Uri($"genhub://subscribe?url={Uri.EscapeDataString(LocalCatalogUrl)}");
+
+        var handling = app.HandleUrlActivationAsync(new ProtocolActivatedEventArgs(link));
+
+        Assert.True(tracker.HasReceivedLink);
+        app.MarkMainWindowReady(new MainWindow());
+        await handling;
+    }
+
+    /// <summary>Startup arguments mark the session only when they carry a link.</summary>
+    /// <param name="argument">The startup argument.</param>
+    /// <param name="expected">Whether the session should count as opened for a link.</param>
+    /// <returns>The asynchronous test.</returns>
+    [AvaloniaTheory]
+    [InlineData("genhub://subscribe?url=file%3A%2F%2F%2Ftmp%2Fgenhub-activation-catalog.json", true)]
+    [InlineData("--verbose", false)]
+    public async Task CompleteWindowStartupAsync_RecordsLinkArgumentsAsync(string argument, bool expected)
+    {
+        var tracker = new LinkActivationTracker();
+        var app = CreateApp(linkActivationTracker: tracker);
+        RecordDialogs(app);
+
+        await app.CompleteWindowStartupAsync([argument], new MainWindow());
+
+        Assert.Equal(expected, tracker.HasReceivedLink);
+    }
+
+    /// <summary>A link brings GenHub forward as one user-requested activation that restores a minimized window.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task HandleUrlActivationAsync_BringsMinimizedWindowForwardAsync()
+    {
+        var app = CreateApp();
+        RecordDialogs(app);
+        var mainWindow = new MainWindow { WindowState = WindowState.Minimized };
+        app.MarkMainWindowReady(mainWindow);
+        var link = new Uri($"genhub://subscribe?url={Uri.EscapeDataString(LocalCatalogUrl)}");
+
+        await app.HandleUrlActivationAsync(new ProtocolActivatedEventArgs(link));
+
+        Assert.Equal(WindowState.Normal, mainWindow.WindowState);
+        Assert.False(WindowActivation.IsUserRequestInProgress);
+    }
+
+    private static global::GenHub.App CreateApp(GameProfileLauncherViewModel? launcher = null, ILinkActivationTracker? linkActivationTracker = null)
     {
         var httpClientFactory = new Mock<IHttpClientFactory>();
         httpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
@@ -223,6 +276,11 @@ public sealed class AppUrlActivationTests
         if (launcher != null)
         {
             services.AddSingleton(launcher);
+        }
+
+        if (linkActivationTracker != null)
+        {
+            services.AddSingleton(linkActivationTracker);
         }
 
         return new global::GenHub.App(services.BuildServiceProvider());
