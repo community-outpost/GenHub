@@ -188,8 +188,7 @@ public class ControlBarPackageProcessor(
             || fileName.Equals(GameContentConstants.ControlBarProLemonBaseFileName, StringComparison.OrdinalIgnoreCase)
             || fileName.Equals(GameContentConstants.ControlBarHdEnglishFileName, StringComparison.OrdinalIgnoreCase)
             || fileName.Equals(GameContentConstants.ControlBarProCoreFileName, StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals(GameContentConstants.ControlBarHdBaseFileName, StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals(GameContentConstants.ControlBarHdBaseCcgFileName, StringComparison.OrdinalIgnoreCase);
+            || fileName.Equals(GameContentConstants.ControlBarHdBaseFileName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>

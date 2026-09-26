@@ -318,25 +318,7 @@ public class CommunityOutpostManifestFactory(
         ContentManifest originalManifest,
         HashSet<string> allControlBarOutputs)
     {
-        foreach (var dependencyBig in CollectDependencyBigFiles(contentMetadata, originalManifest.TargetGame))
-        {
-            allControlBarOutputs.Add(dependencyBig);
-        }
-
-        if (contentMetadata.Variants != null)
-        {
-            foreach (var variant in contentMetadata.Variants)
-            {
-                if (variant.TargetGame.HasValue)
-                {
-                    foreach (var dependencyBig in CollectDependencyBigFiles(contentMetadata, variant.TargetGame.Value))
-                    {
-                        allControlBarOutputs.Add(dependencyBig);
-                    }
-                }
-            }
-        }
-
+        allControlBarOutputs.UnionWith(CollectDependencyBigFiles(contentMetadata, originalManifest.TargetGame));
         allControlBarOutputs.Add(GameContentConstants.ControlBarProBaseFileName);
     }
 
