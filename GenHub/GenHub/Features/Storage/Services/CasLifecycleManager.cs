@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -24,6 +25,16 @@ namespace GenHub.Features.Storage.Services;
 /// Owns garbage collection so it only runs after references are properly untracked,
 /// and only deletes blobs that no tracked reference and no persisted manifest link.
 /// </summary>
+/// <param name="referenceTracker">The CAS reference tracker.</param>
+/// <param name="manifestPool">The content manifest pool.</param>
+/// <param name="casStorage">The primary CAS storage.</param>
+/// <param name="config">The CAS configuration options.</param>
+/// <param name="logger">The logger instance.</param>
+/// <param name="writeFence">The write fence for collection locking.</param>
+/// <param name="poolManager">The optional CAS pool manager.</param>
+/// <param name="telemetryService">The optional telemetry service.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies and optional telemetry service for CAS lifecycle management.")]
+[method: SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required dependencies and optional telemetry service for CAS lifecycle management.")]
 public class CasLifecycleManager(
     ICasReferenceTracker referenceTracker,
     IContentManifestPool manifestPool,
