@@ -240,12 +240,7 @@ public abstract class PublisherProfileReconcilerBase(
                 interactionServices.NotificationService.Dismiss(progressNotificationId);
             }
         }
-        catch (OperationCanceledException ex)
-        {
-            logger.LogInformation(ex, "{Prefix} Reconciliation cancelled", text.LogPrefix);
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "{Prefix} Reconciliation failed unexpectedly", text.LogPrefix);
             interactionServices.NotificationService.ShowError(
