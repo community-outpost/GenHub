@@ -267,12 +267,9 @@ public sealed class MockWndImageAssetService : IWndImageAssetService
     {
         cancellationToken.ThrowIfCancellationRequested();
         var images = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in mappedImageNames)
+        foreach (var name in mappedImageNames.Where(candidate => !string.IsNullOrWhiteSpace(candidate)))
         {
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                images[name] = CreatePlaceholderBmp(name);
-            }
+            images[name] = CreatePlaceholderBmp(name);
         }
 
         IReadOnlyDictionary<string, byte[]> result = images;
@@ -878,26 +875,26 @@ public sealed class MockHostingStateManager : IHostingStateManager
     private readonly Dictionary<string, PublisherHostingStates> _states = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc/>
-    public string GetStateFilePath(string projectFilePath) => projectFilePath + ".hosting_state.json";
+    public string GetStateFilePath(string projectPath) => projectPath + ".hosting_state.json";
 
     /// <inheritdoc/>
-    public bool StateFileExists(string projectFilePath) => _states.ContainsKey(projectFilePath);
+    public bool StateFileExists(string projectPath) => _states.ContainsKey(projectPath);
 
     /// <inheritdoc/>
-    public Task<OperationResult<PublisherHostingStates>> LoadStatesAsync(string projectFilePath, CancellationToken cancellationToken = default)
+    public Task<OperationResult<PublisherHostingStates>> LoadStatesAsync(string projectPath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var states = _states.TryGetValue(projectFilePath, out var stored)
+        var states = _states.TryGetValue(projectPath, out var stored)
             ? stored
             : new PublisherHostingStates();
         return Task.FromResult(OperationResult<PublisherHostingStates>.CreateSuccess(states));
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<bool>> SaveStatesAsync(string projectFilePath, PublisherHostingStates states, CancellationToken cancellationToken = default)
+    public Task<OperationResult<bool>> SaveStatesAsync(string projectPath, PublisherHostingStates states, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _states[projectFilePath] = states;
+        _states[projectPath] = states;
         return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
     }
 
@@ -911,13 +908,13 @@ public sealed class MockHostingStateManager : IHostingStateManager
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<bool>> SaveStateAsync(string projectFilePath, HostingState state, CancellationToken cancellationToken = default)
+    public Task<OperationResult<bool>> SaveStateAsync(string projectPath, HostingState state, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!_states.TryGetValue(projectFilePath, out var states))
+        if (!_states.TryGetValue(projectPath, out var states))
         {
             states = new PublisherHostingStates();
-            _states[projectFilePath] = states;
+            _states[projectPath] = states;
         }
 
         states.States[state.ProviderId] = state;
@@ -990,11 +987,7 @@ public sealed class MockPublisherSubscriptionStore : IPublisherSubscriptionStore
 
     /// <inheritdoc/>
     public Task<OperationResult<bool>> UpdateSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        _subscriptions[subscription.PublisherId] = subscription;
-        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-    }
+        => AddSubscriptionAsync(subscription, cancellationToken);
 
     /// <inheritdoc/>
     public Task<OperationResult<bool>> RemoveSubscriptionAsync(string publisherId, CancellationToken cancellationToken = default)
