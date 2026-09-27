@@ -184,6 +184,7 @@ public partial class GenHubInfoSectionView : UserControl
     {
         _sectionSwitchGeneration++;
         _isSwitchingSection = false;
+        _sectionScrollOffsets.Clear();
         if (_boundViewModel != null)
         {
             _boundViewModel.PropertyChanged -= OnViewModelPropertyChanged;

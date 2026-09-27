@@ -71,7 +71,14 @@ public class ToolDemoViewModelTests
     {
         var viewModel = DemoViewModelFactory.CreateDemoGenHotkeys();
 
-        await viewModel.InitializeAsync();
+        // The factory seeds the demo in the background on the caller's synchronization
+        // context, and InitializeAsync is a no-op while that seeding is in flight,
+        // so wait for seeding to finish instead of re-initializing.
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        while (viewModel.Factions.Count == 0 && DateTimeOffset.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+        }
 
         viewModel.Profiles.Should().ContainSingle(p => p.Name == "Demo Hotkeys");
         viewModel.SelectedProfile.Should().NotBeNull();

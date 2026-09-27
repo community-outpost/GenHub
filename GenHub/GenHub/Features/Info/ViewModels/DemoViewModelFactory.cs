@@ -246,7 +246,7 @@ public static class DemoViewModelFactory
                 mockLogger,
                 localizationService: localizationService);
 
-            _ = Task.Run(() => vm.InitializeAsync());
+            _ = SeedDemoAsync(() => vm.InitializeAsync(), "replay manager");
             return vm;
         }
         catch (Exception ex)
@@ -310,7 +310,7 @@ public static class DemoViewModelFactory
                 IsHistoryOpen = false,
             };
 
-            _ = Task.Run(() => vm.InitializeAsync());
+            _ = SeedDemoAsync(() => vm.InitializeAsync(), "map manager");
             return vm;
         }
         catch (Exception ex)
@@ -353,17 +353,7 @@ public static class DemoViewModelFactory
             new MockChallengeMedalService(),
             new MockLogger<WndEditorViewModel>());
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await vm.LoadFromTextAsync(SampleWndDocumentText, "DemoMainMenu.wnd");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to seed demo WND document: {ex}");
-            }
-        });
+        _ = SeedDemoAsync(() => vm.LoadFromTextAsync(SampleWndDocumentText, "DemoMainMenu.wnd"), "WND document");
 
         return vm;
     }
@@ -400,17 +390,7 @@ public static class DemoViewModelFactory
             new MockDialogService(),
             null);
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await vm.InitializeAsync();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to initialize demo ModBuilder: {ex}");
-            }
-        });
+        _ = SeedDemoAsync(() => vm.InitializeAsync(), "ModBuilder");
 
         return vm;
     }
@@ -438,17 +418,7 @@ public static class DemoViewModelFactory
             new MockDialogService(),
             localizationService);
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await vm.InitializeAsync();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to initialize demo GenHotkeys: {ex}");
-            }
-        });
+        _ = SeedDemoAsync(() => vm.InitializeAsync(), "GenHotkeys");
 
         return vm;
     }
@@ -482,17 +452,7 @@ public static class DemoViewModelFactory
         vm.PublisherProfileViewModel = new PublisherProfileViewModel(project, vm, studioLogger, notify, localizationService);
         vm.ReferralsViewModel = new ReferralsViewModel(project, vm, studioLogger, dialogService, notify, localizationService);
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await vm.ReloadFromCurrentProjectAsync();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to seed demo Publisher Studio: {ex}");
-            }
-        });
+        _ = SeedDemoAsync(() => vm.ReloadFromCurrentProjectAsync(), "Publisher Studio");
 
         return vm;
     }
@@ -719,4 +679,24 @@ public static class DemoViewModelFactory
             Capabilities = GameClientCapabilities.AllRecoveryFeatures,
         },
     };
+
+    /// <summary>
+    /// Seeds a demo view model on the caller's synchronization context so bound collections
+    /// are populated on the UI thread instead of a thread-pool thread. Failures are logged
+    /// without surfacing to the caller.
+    /// </summary>
+    /// <param name="seed">The seeding operation to run.</param>
+    /// <param name="demoName">The demo name used in the failure log.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous seeding operation.</returns>
+    private static async Task SeedDemoAsync(Func<Task> seed, string demoName)
+    {
+        try
+        {
+            await seed();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to seed demo {demoName}: {ex}");
+        }
+    }
 }
