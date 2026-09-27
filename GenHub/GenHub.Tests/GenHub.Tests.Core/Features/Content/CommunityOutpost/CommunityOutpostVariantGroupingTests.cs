@@ -122,13 +122,13 @@ public sealed class CommunityOutpostVariantGroupingTests
     [Fact]
     public void IsVariantManifest_WithVariantSignals_ReturnsTrue()
     {
-        var bySelectedId = CreateManifest("1.0.communityoutpost.addon.cbpr-1080p");
+        var bySelectedId = CreateManifest("1.0.communityoutpost.addon.cbpr");
         bySelectedId.Metadata.SelectedVariantId = "1080p";
 
-        var byTag = CreateManifest("1.0.communityoutpost.addon.cbpr-1080p");
+        var byTag = CreateManifest("1.0.communityoutpost.addon.cbpr");
         byTag.Metadata.Tags.Add("variant:1080p");
 
-        var bySelectedTag = CreateManifest("1.0.communityoutpost.addon.cbpr-1080p");
+        var bySelectedTag = CreateManifest("1.0.communityoutpost.addon.cbpr");
         bySelectedTag.Metadata.Tags.Add("selectedVariant:1080p");
 
         var byIdSuffix = CreateManifest("1.0.communityoutpost.addon.cbpr-1080p");
@@ -159,7 +159,7 @@ public sealed class CommunityOutpostVariantGroupingTests
     [Fact]
     public void GetContentCode_WithContentCodeTag_ReturnsTaggedCode()
     {
-        var manifest = CreateManifest("1.0.communityoutpost.addon.cbpr-1080p");
+        var manifest = CreateManifest("1.0.communityoutpost.addon.cbhd-1080p");
         manifest.Metadata.Tags.Add("contentCode:cbpr");
 
         var code = CommunityOutpostVariantGrouping.GetContentCode(manifest);
