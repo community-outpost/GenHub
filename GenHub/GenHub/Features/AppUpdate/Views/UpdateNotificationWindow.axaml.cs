@@ -38,6 +38,15 @@ public partial class UpdateNotificationWindow : Window
             _logger?.LogError(ex, "Failed to initialize UpdateNotificationWindow ViewModel");
         }
 
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape && !e.Handled)
+            {
+                e.Handled = true;
+                Close();
+            }
+        };
+
         // The view model is transient but subscribes to singleton service events,
         // so it must be disposed when the window closes to avoid leaking it.
         Closed += (_, _) =>

@@ -64,6 +64,12 @@ public static class PublisherTypeConstants
     /// <summary>Retail publisher.</summary>
     public const string Retail = "retail";
 
+    /// <summary>Lowercase display-name alias for Electronic Arts publisher matching.</summary>
+    public const string ElectronicArtsAlias = "electronic arts";
+
+    /// <summary>Lowercase display-name alias for EA App publisher matching.</summary>
+    public const string EaAppAlias = "ea app";
+
     /// <summary>
     /// GenHub local custom game installation publisher (used for detected and managed game installations).
     /// </summary>

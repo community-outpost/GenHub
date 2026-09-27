@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -18,6 +19,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -30,7 +32,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -63,7 +67,8 @@ public partial class GameProfileLauncherViewModel(
     ILaunchRegistry? launchRegistry = null,
     ILoggerFactory? loggerFactory = null,
     IUploadHistoryService? uploadHistoryService = null,
-    Func<IProfileSharingService>? profileSharingServiceFactory = null) : ViewModelBase,
+    Func<IProfileSharingService>? profileSharingServiceFactory = null,
+    ITelemetryService? telemetryService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
@@ -72,6 +77,8 @@ public partial class GameProfileLauncherViewModel(
     IRecipient<ProfileDeletedMessage>
 {
     private const int MaxReceiptDriftNoticeLines = 5;
+
+    private readonly Dictionary<int, (Guid Identity, bool IsTool, string ProfileId)> _announcedProcesses = new();
 
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
@@ -85,8 +92,7 @@ public partial class GameProfileLauncherViewModel(
     private string? _expectedProfileIdForSuccess;
     private bool _isCreatingNewProfile;
 
-    [ObservableProperty]
-    private ObservableCollection<GameProfileItemViewModel> _profiles = [];
+    private ObservableCollection<GameProfileItemViewModel>? _profiles;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LaunchProfileCommand))]
@@ -130,6 +136,76 @@ public partial class GameProfileLauncherViewModel(
     private bool _isHeaderExpanded = true;
 
     /// <summary>
+    /// Gets a value indicating whether profiles have been loaded successfully from storage.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasLoadedProfilesSuccessfully;
+
+    /// <summary>
+    /// Gets a value indicating whether there are no playable game profiles available.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasNoProfiles = true;
+
+    /// <summary>
+    /// Gets a value indicating whether no game installations were detected during scan.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasNoDetectedInstallations;
+
+    /// <summary>
+    /// Gets a value indicating whether the storefront purchase banner should be displayed.
+    /// Visible when profiles have been loaded successfully and either no playable profiles exist
+    /// or no game installations were detected on the system.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
+    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && (HasNoProfiles || HasNoDetectedInstallations);
+
+    partial void OnHasLoadedProfilesSuccessfullyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
+    }
+
+    partial void OnHasNoProfilesChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
+    }
+
+    partial void OnHasNoDetectedInstallationsChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
+    }
+
+    /// <summary>
+    /// Gets the collection of game profiles.
+    /// </summary>
+    public ObservableCollection<GameProfileItemViewModel> Profiles
+    {
+        get
+        {
+            if (_profiles == null)
+            {
+                _profiles = [];
+                _profiles.CollectionChanged += OnProfilesCollectionChanged;
+            }
+
+            return _profiles;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets an optional URL opener delegate for testing purposes.
+    /// Internal use only; intended for test hook injection.
+    /// </summary>
+    internal Action<string>? UrlOpener { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional manual directory prompter delegate for testing purposes.
+    /// Internal use only; intended for test hook injection.
+    /// </summary>
+    internal Func<Task<GameInstallation?>>? ManualDirectoryPrompter { get; set; }
+
+    /// <summary>
     /// Performs asynchronous initialization for the GameProfileLauncherViewModel.
     /// Loads all game profiles and subscribes to process exit events.
     /// </summary>
@@ -139,6 +215,8 @@ public partial class GameProfileLauncherViewModel(
         // On app launch, the header is expanded and persists without auto-collapsing
         IsHeaderExpanded = true;
         _isHovering = false;
+
+        UpdateHasNoProfiles();
 
         try
         {
@@ -174,6 +252,7 @@ public partial class GameProfileLauncherViewModel(
 
             StatusMessage = localizationService["GameProfiles.Status.LoadingProfiles"];
             ErrorMessage = string.Empty;
+            HasLoadedProfilesSuccessfully = false;
             Profiles.Clear();
 
             var profilesResult = await gameProfileManager.GetAllProfilesAsync();
@@ -219,6 +298,7 @@ public partial class GameProfileLauncherViewModel(
                 Profiles.Add(new AddProfileItemViewModel());
 
                 var profileCount = Profiles.Count - 1;
+                HasLoadedProfilesSuccessfully = true;
                 StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
                 logger.LogInformation("Loaded {Count} game profiles", profileCount);
 
@@ -228,17 +308,20 @@ public partial class GameProfileLauncherViewModel(
                     {
                         var activeLaunches = await Task.Run(() => launchRegistry.GetAllActiveLaunchesAsync());
                         var activeLaunchDict = activeLaunches
+                            .Where(l => l.ProcessInfo.IsRunning)
                             .GroupBy(l => l.ProfileId, StringComparer.OrdinalIgnoreCase)
                             .ToDictionary(
                                 g => g.Key,
-                                g => g.OrderByDescending(l => l.LaunchedAt).First().ProcessInfo.ProcessId,
+                                g => g.OrderByDescending(l => l.LaunchedAt).First().ProcessInfo,
                                 StringComparer.OrdinalIgnoreCase);
                         foreach (var item in Profiles.OfType<GameProfileItemViewModel>())
                         {
-                            if (activeLaunchDict.TryGetValue(item.ProfileId, out var pid))
+                            if (activeLaunchDict.TryGetValue(item.ProfileId, out var processInfo) && processInfo.IsRunning)
                             {
                                 item.IsProcessRunning = true;
-                                item.ProcessId = pid;
+                                item.ProcessId = processInfo.ProcessId;
+                                item.ProcessInstanceId = processInfo.ProcessInstanceId;
+                                _announcedProcesses[processInfo.ProcessId] = (processInfo.ProcessInstanceId, item.Profile is GameProfile { IsToolProfile: true }, item.ProfileId);
                                 item.NotifyCanLaunchChanged();
                             }
                         }
@@ -251,6 +334,7 @@ public partial class GameProfileLauncherViewModel(
             }
             else
             {
+                HasLoadedProfilesSuccessfully = false;
                 var errors = string.Join(", ", profilesResult.Errors);
                 StatusMessage = localizationService.GetString("GameProfiles.Status.FailedToLoad", errors);
                 ErrorMessage = errors;
@@ -265,6 +349,7 @@ public partial class GameProfileLauncherViewModel(
         }
         catch (Exception ex)
         {
+            HasLoadedProfilesSuccessfully = false;
             logger.LogError(ex, "Error initializing profiles");
             StatusMessage = localizationService["GameProfiles.Status.ErrorLoadingProfiles"];
             ErrorMessage = ex.Message;
@@ -364,11 +449,13 @@ public partial class GameProfileLauncherViewModel(
         {
             try
             {
+                _announcedProcesses[message.ProcessId] = (message.ProcessInstanceId, message.IsToolProfile, message.ProfileId);
                 var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
                 if (profile != null)
                 {
                     profile.IsProcessRunning = true;
                     profile.ProcessId = message.ProcessId;
+                    profile.ProcessInstanceId = message.ProcessInstanceId;
                     profile.NotifyCanLaunchChanged();
                 }
             }
@@ -396,7 +483,9 @@ public partial class GameProfileLauncherViewModel(
                     (message.ProcessId > 0 && p.ProcessId == message.ProcessId));
                 if (profile != null)
                 {
-                    if (message.ProcessId > 0 && profile.ProcessId > 0 && message.ProcessId != profile.ProcessId)
+                    if ((message.ProcessId > 0 && profile.ProcessId > 0 && message.ProcessId != profile.ProcessId)
+                        || (message.ProcessInstanceId != Guid.Empty && profile.ProcessInstanceId != Guid.Empty
+                            && message.ProcessInstanceId != profile.ProcessInstanceId))
                     {
                         logger.LogDebug(
                             "Ignoring stale stop message for {ProfileId} (Msg PID: {MsgPid}, Current PID: {CurrentPid})",
@@ -408,6 +497,7 @@ public partial class GameProfileLauncherViewModel(
 
                     profile.IsProcessRunning = false;
                     profile.ProcessId = 0;
+                    profile.ProcessInstanceId = Guid.Empty;
                     profile.NotifyCanLaunchChanged();
                 }
             }
@@ -766,6 +856,7 @@ public partial class GameProfileLauncherViewModel(
             IsScanning = true;
             IsHeaderExpanded = true;
             _headerCollapseTimer.Stop(); // Ensure header stays open during scan
+            HasNoDetectedInstallations = false;
 
             StatusMessage = localizationService["GameProfiles.Status.ScanningForGames"];
             ErrorMessage = string.Empty;
@@ -785,10 +876,17 @@ public partial class GameProfileLauncherViewModel(
                     }
                     else
                     {
+                        HasNoDetectedInstallations = true;
                         StatusMessage = localizationService["GameProfiles.Status.NoInstallationsFound"];
+                        notificationService.ShowWarning(
+                            localizationService["GameProfiles.Notification.NoInstallationsFound.Title"],
+                            localizationService["GameProfiles.Notification.NoInstallationsFound.Message"],
+                            autoDismissMs: NotificationDurations.VeryLong);
                         return;
                     }
                 }
+
+                HasNoDetectedInstallations = false;
 
                 logger.LogInformation(
                     "Game scan completed. Found {Count} installations ({GeneralsCount} Generals, {ZeroHourCount} Zero Hour)",
@@ -830,7 +928,14 @@ public partial class GameProfileLauncherViewModel(
     {
         logger.LogInformation("No game installations found, prompting user for manual directory selection");
 
-        var manualInstallation = await PromptForManualGameDirectoryAsync();
+        notificationService.ShowInfo(
+            localizationService["GameProfiles.Notification.ManualSelection.Title"],
+            localizationService["GameProfiles.Notification.ManualSelection.Message"],
+            autoDismissMs: NotificationDurations.VeryLong);
+
+        var manualInstallation = ManualDirectoryPrompter != null
+            ? await ManualDirectoryPrompter()
+            : await PromptForManualGameDirectoryAsync();
         if (manualInstallation == null)
         {
             logger.LogInformation("User cancelled manual directory selection");
@@ -1116,37 +1221,10 @@ public partial class GameProfileLauncherViewModel(
 
             var preferredStrategy = configService.GetDefaultWorkspaceStrategy();
 
-            // Generate the GameInstallation manifest ID
-            string installationManifestId;
-            if (GameVersionHelper.IsUnknownVersion(gameClient.Version))
-            {
-                // For unknown/auto versions, use the default version for the game type (1.04/1.08)
-                // This ensures we match the ID generated during dependency resolution
-                var defaultVersion = gameClient.GameType == GameType.ZeroHour
-                    ? ManifestConstants.ZeroHourManifestVersion
-                    : ManifestConstants.GeneralsManifestVersion;
-
-                var normalizedVersion = GameVersionHelper.NormalizeVersion(defaultVersion);
-                installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, normalizedVersion);
-            }
-            else
-            {
-                try
-                {
-                    // Use string overload which handles normalization (e.g. "1.0" -> "100") consistent with ManifestIdGenerator rules
-                    installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, gameClient.Version);
-                }
-                catch (ArgumentException)
-                {
-                    // If normalization fails (invalid format), fallback to default version
-                    var defaultVersion = gameClient.GameType == GameType.ZeroHour
-                        ? ManifestConstants.ZeroHourManifestVersion
-                        : ManifestConstants.GeneralsManifestVersion;
-
-                    var normalizedVersion = GameVersionHelper.NormalizeVersion(defaultVersion);
-                    installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, normalizedVersion);
-                }
-            }
+            var installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(
+                installation,
+                gameClient.GameType,
+                GameVersionHelper.ResolveInstallationManifestVersion(gameClient.Version, gameClient.GameType));
 
             // Create enabled content list: GameInstallation manifest + GameClient manifest
             var enabledContentIds = new List<string>
@@ -1258,56 +1336,76 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private (string IconPath, string CoverPath) ResolveProfileDisplayPaths(Core.Models.GameProfile.GameProfile profile, string fallbackGameType)
     {
+        var isCommunityOutpost = profile.IsCommunityOutpostProfile();
         var publisherKey = profile.GameClient?.PublisherType ?? profile.GameClient?.Name ?? profile.Name;
 
-        string iconPath;
+        var iconPath = ResolveProfileIconPath(profile, publisherKey, isCommunityOutpost);
+        var coverPath = ResolveProfileCoverPath(profile, publisherKey, fallbackGameType, isCommunityOutpost);
+
+        return (iconPath, coverPath);
+    }
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as instance method to adhere to StyleCop SA1204 ordering rules.")]
+    private string ResolveProfileIconPath(Core.Models.GameProfile.GameProfile profile, string? publisherKey, bool isCommunityOutpost)
+    {
+        if (isCommunityOutpost &&
+            (string.IsNullOrEmpty(profile.IconPath) ||
+             profile.IconPath.Contains(UriConstants.GenHubIconMarker) ||
+             profile.IconPath.Contains(UriConstants.ZeroHourIconMarker) ||
+             profile.IconPath.Contains(UriConstants.SuperHackersLogoMarker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return CommunityOutpostConstants.LogoSource;
+        }
+
         if (!string.IsNullOrEmpty(profile.IconPath) &&
             !profile.IconPath.Contains(UriConstants.GenHubIconMarker) &&
             !profile.IconPath.Contains(UriConstants.ZeroHourIconMarker))
         {
-            iconPath = profile.IconPath;
-        }
-        else
-        {
-            var publisherLogo = PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id);
-            if (publisherLogo != null)
-            {
-                iconPath = publisherLogo;
-            }
-            else if (!string.IsNullOrEmpty(profile.IconPath))
-            {
-                iconPath = profile.IconPath;
-            }
-            else
-            {
-                iconPath = UriConstants.DefaultIconUri;
-            }
+            return profile.IconPath;
         }
 
-        string coverPath;
+        var publisherLogo = PublisherInfoConstants.GetPublisherLogo(publisherKey, profile.GameClient?.Id);
+        if (publisherLogo != null)
+        {
+            return publisherLogo;
+        }
+
+        if (!string.IsNullOrEmpty(profile.IconPath))
+        {
+            return profile.IconPath;
+        }
+
+        return UriConstants.DefaultIconUri;
+    }
+
+    private string ResolveProfileCoverPath(Core.Models.GameProfile.GameProfile profile, string? publisherKey, string fallbackGameType, bool isCommunityOutpost)
+    {
+        if (isCommunityOutpost &&
+            (string.IsNullOrEmpty(profile.CoverPath) ||
+             profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker) ||
+             profile.CoverPath.Contains(UriConstants.ChinaCoverMarker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return CommunityOutpostConstants.CoverSource;
+        }
+
         if (!string.IsNullOrEmpty(profile.CoverPath) &&
             !profile.CoverPath.Contains(UriConstants.ZeroHourCoverMarker))
         {
-            coverPath = profile.CoverPath;
-        }
-        else
-        {
-            var publisherCover = PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id);
-            if (publisherCover != null)
-            {
-                coverPath = publisherCover;
-            }
-            else if (!string.IsNullOrEmpty(profile.CoverPath))
-            {
-                coverPath = profile.CoverPath;
-            }
-            else
-            {
-                coverPath = profileResourceService.GetDefaultCoverPath(fallbackGameType);
-            }
+            return profile.CoverPath;
         }
 
-        return (iconPath, coverPath);
+        var publisherCover = PublisherInfoConstants.GetPublisherCover(publisherKey, profile.GameClient?.Id);
+        if (publisherCover != null)
+        {
+            return publisherCover;
+        }
+
+        if (!string.IsNullOrEmpty(profile.CoverPath))
+        {
+            return profile.CoverPath;
+        }
+
+        return profileResourceService.GetDefaultCoverPath(fallbackGameType);
     }
 
     /// <summary>
@@ -1376,6 +1474,7 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             try
@@ -1392,10 +1491,24 @@ public partial class GameProfileLauncherViewModel(
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
                 logger.LogError(ex, "Error starting launch process for {ProfileName}", profile.Name);
                 StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorLaunchingProfile", profile.Name);
                 ErrorMessage = ex.Message;
                 notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchError.Title"], localizationService.GetString("GameProfiles.Notification.LaunchError.Message", profile.Name, ex.Message));
+
+                var gameClient = profile.Profile.GameClient;
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                    [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                    [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
+                    [TelemetryConstants.Properties.TimeToLaunchMs] = stopwatch.ElapsedMilliseconds,
+                    [TelemetryConstants.Properties.ErrorCategory] = ex.GetType().Name,
+                });
             }
             finally
             {
@@ -1415,8 +1528,12 @@ public partial class GameProfileLauncherViewModel(
     {
         StatusMessage = localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
 
+        var stopwatch = Stopwatch.StartNew();
+
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
         var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);
+        stopwatch.Stop();
+        var timeToLaunchMs = stopwatch.ElapsedMilliseconds;
 
         if (launchResult.Success && launchResult.Data != null)
         {
@@ -1431,6 +1548,7 @@ public partial class GameProfileLauncherViewModel(
 
             liveProfile.IsProcessRunning = true;
             liveProfile.ProcessId = launchResult.Data.ProcessInfo.ProcessId;
+            liveProfile.ProcessInstanceId = launchResult.Data.ProcessInfo.ProcessInstanceId;
 
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
@@ -1442,6 +1560,18 @@ public partial class GameProfileLauncherViewModel(
 
             StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
+
+            var gameClient = liveProfile.Profile.GameClient;
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = liveProfile.ProfileId,
+                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
+                [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+            });
 
             // Advisory by design: receipt drift never blocks or fails a launch, so it is
             // surfaced as information beside the success, never through the error channel.
@@ -1459,6 +1589,19 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
             ErrorMessage = errors;
             notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
+
+            var gameClient = profile.Profile.GameClient;
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
+                [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
+            });
         }
     }
 
@@ -1480,6 +1623,7 @@ public partial class GameProfileLauncherViewModel(
                 // Update IsProcessRunning to hide Stop button and show Launch button
                 profile.IsProcessRunning = false;
                 profile.ProcessId = 0;
+                profile.ProcessInstanceId = Guid.Empty;
                 OnPropertyChanged(nameof(profile.CanLaunch));
                 OnPropertyChanged(nameof(profile.CanEdit));
 
@@ -1795,6 +1939,13 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.ShortcutCreatedSuccess", profile.Name);
                 logger.LogInformation("Created desktop shortcut for profile {ProfileName} at {Path}", profile.Name, result.Data);
                 notificationService.ShowSuccess(localizationService["GameProfiles.Notification.ShortcutCreated.Title"], localizationService.GetString("GameProfiles.Notification.ShortcutCreated.Message", profile.Name));
+
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ProfilePinned, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+                    [TelemetryConstants.Properties.GameType] = profile.Profile.GameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.ShortcutType] = "desktop",
+                });
             }
             else
             {
@@ -1930,22 +2081,69 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private void OnProcessExited(object? sender, Core.Models.Events.GameProcessExitedEventArgs e)
     {
-        try
+        RunOnUi(() =>
         {
-            logger.LogInformation("Game process {ProcessId} exited with code {ExitCode}", e.ProcessId, e.ExitCode);
-
-            // Find the profile that was running this process
-            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProcessId == e.ProcessId);
-            if (profile != null)
+            try
             {
-                profile.IsProcessRunning = false;
-                profile.ProcessId = 0;
-                logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+                logger.LogInformation("Game process {ProcessId} exited with code {ExitCode}", e.ProcessId, e.ExitCode);
+
+                // Find the profile that was running this process
+                var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProcessId == e.ProcessId
+                    && (p.ProcessInstanceId == Guid.Empty || e.ProcessInstanceId == Guid.Empty
+                        || p.ProcessInstanceId == e.ProcessInstanceId));
+                var announced = _announcedProcesses.TryGetValue(e.ProcessId, out var announcement)
+                    && (announcement.Identity == e.ProcessInstanceId
+                        || announcement.Identity == Guid.Empty || e.ProcessInstanceId == Guid.Empty);
+                if (announced)
+                {
+                    _announcedProcesses.Remove(e.ProcessId);
+                }
+
+                if (profile != null)
+                {
+                    profile.IsProcessRunning = false;
+                    profile.ProcessId = 0;
+                    profile.ProcessInstanceId = Guid.Empty;
+                    logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+                }
+
+                // A stop message can clear the PID before this event arrives, so fall back to the announced profile for naming.
+                var namedProfile = profile ?? (announced
+                    ? Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(announcement.ProfileId, StringComparison.OrdinalIgnoreCase))
+                    : null);
+
+                NotifyUnexpectedProcessExit(e, namedProfile, announced, announcement.IsTool);
             }
-        }
-        catch (Exception ex)
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error handling process exit event for process {ProcessId}", e.ProcessId);
+            }
+        });
+    }
+
+    private void NotifyUnexpectedProcessExit(
+        Core.Models.Events.GameProcessExitedEventArgs e,
+        GameProfileItemViewModel? profile,
+        bool announced,
+        bool announcedAsTool)
+    {
+        if (e.DescribeFailure() == null || (!announced && profile == null)
+            || (announced && announcedAsTool)
+            || profile?.Profile is GameProfile { IsToolProfile: true })
         {
-            logger.LogError(ex, "Error handling process exit event for process {ProcessId}", e.ProcessId);
+            return;
+        }
+
+        var message = e.UnmountableArchives.Count > 0
+            ? localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", string.Join(", ", e.UnmountableArchives), e.ExitCode!)
+            : localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Message", e.ExitCode!);
+        var text = profile == null ? message : $"{profile.Name}: {message}";
+        notificationService.ShowError(localizationService["GameProfiles.Notification.UnexpectedExit.Title"], text);
+
+        // A relaunch that is already running owns the status line; a stale exit must not overwrite it.
+        if (profile is null || !profile.IsProcessRunning)
+        {
+            StatusMessage = text;
         }
     }
 
@@ -2184,5 +2382,54 @@ public partial class GameProfileLauncherViewModel(
             var format = localizationService?.GetString("GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat") ?? "Failed to select profile file: {0}";
             notificationService.ShowError(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, ex.Message));
         }
+    }
+
+    /// <summary>
+    /// Opens the official Steam store page for Command &amp; Conquer Generals and Zero Hour.
+    /// </summary>
+    [RelayCommand]
+    private void OpenSteamStore()
+    {
+        OpenStoreUrl(PublisherInfoConstants.Steam.StoreUrl);
+    }
+
+    /// <summary>
+    /// Opens the official EA App store page for Command &amp; Conquer Generals and Zero Hour.
+    /// </summary>
+    [RelayCommand]
+    private void OpenEaStore()
+    {
+        OpenStoreUrl(PublisherInfoConstants.EaApp.StoreUrl);
+    }
+
+    private void OpenStoreUrl(string url)
+    {
+        try
+        {
+            if (UrlOpener != null)
+            {
+                UrlOpener(url);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to open store URL: {Url}", url);
+            notificationService.ShowError(
+                localizationService["GameProfiles.Notification.Error.Title"],
+                localizationService.GetString("GameProfiles.Storefront.FailedToOpenUrl", url));
+        }
+    }
+
+    private void OnProfilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateHasNoProfiles();
+    }
+
+    private void UpdateHasNoProfiles()
+    {
+        HasNoProfiles = !Profiles.OfType<GameProfileItemViewModel>().Any(p => p.Profile is not GameProfile { IsToolProfile: true });
     }
 }

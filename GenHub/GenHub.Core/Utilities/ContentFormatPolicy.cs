@@ -180,10 +180,21 @@ public static class ContentFormatPolicy
         return (usable, rejections);
     }
 
-    private static string StripArchiveExtensions(string fileName)
+    /// <summary>
+    /// Strips known archive and package extensions (e.g. .rar, .zip, .7z, .tar.gz, .big) from a file or content name
+    /// so display names appear clean without binary container suffixes.
+    /// </summary>
+    /// <param name="fileName">The file or content name.</param>
+    /// <returns>The cleaned name without archive extensions.</returns>
+    public static string StripArchiveExtensions(string? fileName)
     {
-        var stripped = fileName;
-        while (IsArchiveContainer(stripped))
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return string.Empty;
+        }
+
+        var stripped = fileName.Trim();
+        while (IsStripCandidate(stripped))
         {
             var withoutExtension = Path.GetFileNameWithoutExtension(stripped);
 
@@ -197,5 +208,16 @@ public static class ContentFormatPolicy
         }
 
         return stripped;
+    }
+
+    private static bool IsStripCandidate(string fileName)
+    {
+        if (IsArchiveContainer(fileName))
+        {
+            return true;
+        }
+
+        var ext = Path.GetExtension(fileName);
+        return ext.Equals(".big", StringComparison.OrdinalIgnoreCase);
     }
 }

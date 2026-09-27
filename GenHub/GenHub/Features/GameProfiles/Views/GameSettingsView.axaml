@@ -466,7 +466,7 @@
                             <Grid ColumnDefinitions="*,24,*">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.ChatFontSize}" />
-                                    <NumericUpDown Value="{Binding GoChatFontSize}" Minimum="8" Maximum="32" HorizontalAlignment="Stretch" />
+                                    <NumericUpDown Value="{Binding GoChatFontSize}" Minimum="{Binding MinGoChatFontSize}" Maximum="{Binding MaxGoChatFontSize}" ClipValueToMinMax="True" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.ChatFadeout}" />

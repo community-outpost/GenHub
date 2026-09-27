@@ -1,0 +1,240 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddArtifactDialogView"
+             x:DataType="vm:AddArtifactDialogViewModel"
+             DragDrop.AllowDrop="True">
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.AddTitle}"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimary}"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Width="12" Height="12"
+                          Foreground="{DynamicResource TextSecondary}"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
+            <StackPanel Spacing="20">
+                <!-- Source Selection -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.SourcePrompt}" Classes="label"/>
+
+                    <!-- Upload Local File Option -->
+                    <RadioButton GroupName="ArtifactSource"
+                                 IsChecked="{Binding UseLocalFile}"
+                                 Foreground="{DynamicResource TextPrimary}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.UploadLocalFile}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.UploadLocalFileHint}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="420"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- File Selection (visible when UseLocalFile is true) -->
+                    <StackPanel Spacing="8" Margin="24,8,0,0" IsVisible="{Binding UseLocalFile}">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <TextBox Text="{Binding LocalFilePath}"
+                                     IsReadOnly="True"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.NoFileSelected}"
+                                     FontSize="12"/>
+                            <Button Grid.Column="1"
+                                    Command="{Binding BrowseLocalFileCommand}"
+                                    Content="{localization:Localize Tools.PublisherStudio.Artifact.Browse}"
+                                    Classes="small-glass-btn"
+                                    Margin="8,0,0,0"
+                                    Padding="16,8"/>
+                            <Button Grid.Column="2"
+                                    Command="{Binding BrowseLocalFolderCommand}"
+                                    Content="{localization:Localize Tools.PublisherStudio.Artifact.BrowseFolder}"
+                                    Classes="small-glass-btn"
+                                    Margin="8,0,0,0"
+                                    Padding="16,8"/>
+                        </Grid>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DragDropHint}" Classes="hint"/>
+                        <TextBlock Text="{Binding FileSizeDisplay}" Classes="hint"
+                                   IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </StackPanel>
+
+                    <!-- Enter Existing URL Option -->
+                    <RadioButton GroupName="ArtifactSource"
+                                 IsChecked="{Binding UseExistingUrl}"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 Margin="0,8,0,0">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ExternalCdn}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ExternalCdnHint}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="420"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- CDN URL and Size Inputs (visible when UseExistingUrl is true) -->
+                    <StackPanel Spacing="10" Margin="24,8,0,0" IsVisible="{Binding UseExistingUrl}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}" Classes="label"/>
+                            <TextBox Text="{Binding DownloadUrl}"
+                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder}"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}" Classes="label"/>
+                            <TextBox Text="{Binding FileSizeInput}"
+                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FileSizePlaceholder}"/>
+                            <TextBlock Text="{Binding ParsedSizeDisplay}" Classes="hint"
+                                       IsVisible="{Binding ParsedSizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Status Banner -->
+                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="6" Padding="12,8" Margin="0,4">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <PathIcon Data="{StaticResource PackageIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ArtifactStatus}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- Divider -->
+                <Rectangle Height="1" Fill="{DynamicResource GlassStrongBrush}" Margin="0,4"/>
+
+                <!-- Artifact Details -->
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.MetadataHeader}" Classes="label"/>
+
+                <!-- Computing hash indicator -->
+                <StackPanel IsVisible="{Binding IsComputingHash}" Orientation="Horizontal" Spacing="8">
+                    <ProgressBar IsIndeterminate="True" Width="120" Height="4" Foreground="{DynamicResource AccentColorBrush}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ComputingHash}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+
+                <!-- Filename -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.Filename}" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding Filename}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FilenamePlaceholder}"
+                             IsReadOnly="{Binding UseLocalFile}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FilenameHint}"
+                               Classes="hint"/>
+                </StackPanel>
+
+                <!-- SHA256 -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.Sha256Hash}" Classes="label" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Artifact.ComputeHash}"
+                                Command="{Binding ComputeHashCommand}"
+                                IsEnabled="{Binding !IsComputingHash}"
+                                IsVisible="{Binding UseLocalFile}"
+                                Classes="small-glass-btn"/>
+                    </Grid>
+                    <TextBox Text="{Binding Sha256Hash}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Artifact.HashPlaceholder}"
+                             IsReadOnly="{Binding UseLocalFile}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.HashHint}"
+                               Classes="hint"
+                               IsVisible="{Binding UseLocalFile}"/>
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsComputingHash}" Height="2" Foreground="{DynamicResource AccentColorBrush}"/>
+                </StackPanel>
+
+                <CheckBox Content="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifact}" IsChecked="{Binding IsPrimary}"
+                          ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+             <TextBlock Text="{Binding ValidationError}"
+                        Foreground="{DynamicResource StatusErrorBrush}"
+                        VerticalAlignment="Center"
+                        TextWrapping="Wrap"
+                        MaxWidth="300"
+                        Margin="0,0,12,0"/>
+
+             <Button Content="{localization:Localize Tools.PublisherStudio.Artifact.AddTitle}"
+                     Command="{Binding CreateArtifactCommand}"
+                     Background="{DynamicResource PrimaryGradientBrush}"
+                     Foreground="{DynamicResource TextPrimary}"
+                     CornerRadius="8"
+                     Padding="40,14"
+                     FontWeight="Bold"
+                     BorderThickness="0">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

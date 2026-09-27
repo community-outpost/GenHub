@@ -50,6 +50,12 @@ For detailed documentation and guides, visit our [Wiki](https://wiki.generalshub
 We welcome all forms of contribution — whether it’s coding, reviewing pull requests, reporting issues, giving feedback, or helping with testing.  
 Please read our [CONTRIBUTING](CONTRIBUTING.md) guide for details on how to get involved.
 
+## Sponsors
+
+<a href="https://macroscope.com" target="_blank" rel="noopener noreferrer">
+  <img src=".github/assets/macroscope-banner.png" alt="Sponsored by Macroscope" width="400" />
+</a>
+
 ## Contact
 
 Join our Discord server for support, suggestions, and community discussions: [Community Outpost Discord](https://discord.gg/ZGtT3Qwd3Y)

@@ -3,6 +3,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
@@ -3643,7 +3644,7 @@ public sealed class ReplayDirectoryServiceTests
                 .Setup(c => c.CalculateExeCrcAsync(tempExe, It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0x88BEB180"));
             crcCalcMock
-                .Setup(c => c.CalculateIniCrcAsync(tempDir, GameType.ZeroHour, It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                .Setup(c => c.CalculateIniCrcAsync(tempDir, GameType.ZeroHour, It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<string>?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0xFEAAE3F3"));
 
             CrcMappingEntry? nullEntry = null;
@@ -4427,6 +4428,86 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that ResolveCompatibilityAsync preserves an existing RecoveryProfileId when that profile is still a compatible recovery profile.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveCompatibilityAsync_WhenReplayHasExistingRecoveryProfile_PreservesSelectedProfileAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "RECOVER.rep",
+            FullPath = "/replays/RECOVER.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            RecoveryProfileId = "selected-recovery-2",
+            RecoveryProfileName = "Selected Recovery 2",
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0xDA2B4B18",
+            IniCrc = "0xFEAAE3F3",
+            Description = "Zero Hour 1.04 Retail",
+            Version = "1.04",
+            GameType = "ZeroHour",
+            Publisher = "ea",
+            ManifestId = "1.104.retail.gameclient.zerohour",
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0xDA2B4B18", "0xFEAAE3F3", out outEntry))
+            .Returns(true);
+
+        var recoveryProfile1 = new GameProfile
+        {
+            Id = "recovery-1",
+            Name = "Recovery Profile 1",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.recovery-1",
+                Name = "Recovery 1",
+                GameType = GameType.ZeroHour,
+                PublisherType = "thesuperhackers",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var recoveryProfile2 = new GameProfile
+        {
+            Id = "selected-recovery-2",
+            Name = "Selected Recovery 2",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.recovery-2",
+                Name = "Recovery 2",
+                GameType = GameType.ZeroHour,
+                PublisherType = "thesuperhackers",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        await service.ResolveCompatibilityAsync(replay, new HashSet<string>(), [recoveryProfile1, recoveryProfile2]);
+
+        Assert.True(replay.SupportsCheckpoints);
+        Assert.Equal("selected-recovery-2", replay.RecoveryProfileId);
+        Assert.Equal("Selected Recovery 2", replay.RecoveryProfileName);
+    }
+
+    /// <summary>
     /// Verifies that ResolveCompatibility leaves SupportsCheckpoints false when no matching recovery profile exists.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -4662,15 +4743,29 @@ public sealed class ReplayDirectoryServiceTests
 
     /// <summary>
     /// Verifies that FindRecoveryProfiles excludes recovery-capable profiles whose executable CRC
-    /// verifiably mismatches the replay executable CRC.
+    /// verifiably mismatches a non-retail replay executable CRC.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FindRecoveryProfiles_WhenProfileExeCrcMismatchesReplayExeCrc_ExcludesProfileAsync()
+    public async Task FindRecoveryProfiles_WhenProfileExeCrcMismatchesNonRetailReplayExeCrc_ExcludesProfileAsync()
     {
-        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0x887B0CAA");
+        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0x887B0CAA", isRetail: false);
 
         Assert.Empty(matches);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles allows recovery-capable profiles with custom recovery CRCs
+    /// for retail replays even when CRC differs from stock retail.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FindRecoveryProfiles_WhenRetailReplayAndProfileHasCustomRecoveryCrc_IncludesProfileAsync()
+    {
+        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0xF643CAE1", isRetail: true);
+
+        Assert.Single(matches);
+        Assert.Equal("recovery-profile-1", matches[0].Id);
     }
 
     /// <summary>
@@ -4681,10 +4776,23 @@ public sealed class ReplayDirectoryServiceTests
     [Fact]
     public async Task FindRecoveryProfiles_WhenProfileExeCrcMatchesReplayExeCrc_IncludesProfileAsync()
     {
-        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0xDA2B4B18");
+        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0x88BEB180", isRetail: false);
 
         Assert.Single(matches);
         Assert.Equal("recovery-profile-1", matches[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles excludes recovery profiles when an unmapped replay has a
+    /// non-retail CRC that does not match the profile executable CRC.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FindRecoveryProfiles_WhenUnmappedNonRetailReplay_ExcludesMismatchedRecoveryProfileAsync()
+    {
+        var matches = await FindRecoveryProfilesWithCachedExeCrcAsync("0xF643CAE1", isRetail: false, unmappedReplay: true);
+
+        Assert.Empty(matches);
     }
 
     /// <summary>
@@ -4810,6 +4918,91 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal("1.213262.generalsonline.gameclient.60hz", capturedRequest.GameClient.Id);
     }
 
+    /// <summary>
+    /// Verifies that GetReplayDirectory uses IGamePathProvider when supplied.
+    /// </summary>
+    /// <param name="gameType">The game type to test.</param>
+    /// <param name="expectedFolder">The expected directory name.</param>
+    [Theory]
+    [InlineData(GameType.Generals, "Command and Conquer Generals Data")]
+    [InlineData(GameType.ZeroHour, "Command and Conquer Generals Zero Hour Data")]
+    public void GetReplayDirectory_WithPathProvider_UsesProvidedOptionsDirectory(GameType gameType, string expectedFolder)
+    {
+        var mockPathProvider = new Mock<IGamePathProvider>();
+        var fakeBasePath = Path.Combine(Path.GetTempPath(), expectedFolder);
+        mockPathProvider
+            .Setup(p => p.GetOptionsDirectory(gameType))
+            .Returns(fakeBasePath);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: mockPathProvider.Object);
+
+        var result = service.GetReplayDirectory(gameType);
+
+        var expectedPath = Path.Combine(fakeBasePath, GameSettingsConstants.FolderNames.Replays);
+        Assert.Equal(expectedPath, result);
+        mockPathProvider.Verify(p => p.GetOptionsDirectory(gameType), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that GetReplayDirectory falls back to SpecialFolder.MyDocuments when pathProvider is null.
+    /// </summary>
+    /// <param name="gameType">The game type to test.</param>
+    /// <param name="folderName">The expected fallback directory name.</param>
+    [Theory]
+    [InlineData(GameType.Generals, GameSettingsConstants.FolderNames.Generals)]
+    [InlineData(GameType.ZeroHour, GameSettingsConstants.FolderNames.ZeroHour)]
+    public void GetReplayDirectory_WithoutPathProvider_FallsBackToMyDocuments(GameType gameType, string folderName)
+    {
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: null);
+
+        var result = service.GetReplayDirectory(gameType);
+
+        var expectedPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            folderName,
+            GameSettingsConstants.FolderNames.Replays);
+
+        Assert.Equal(expectedPath, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetReplayDirectory throws ArgumentException for unsupported game types.
+    /// </summary>
+    /// <param name="invalidGameType">The invalid game type to test.</param>
+    [Theory]
+    [InlineData(GameType.Unknown)]
+    [InlineData((GameType)999)]
+    public void GetReplayDirectory_WithUnsupportedGameType_ThrowsArgumentException(GameType invalidGameType)
+    {
+        var mockPathProvider = new Mock<IGamePathProvider>();
+        var serviceWithPathProvider = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: mockPathProvider.Object);
+
+        var serviceWithoutPathProvider = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: null);
+
+        Assert.Throws<ArgumentException>(() => serviceWithPathProvider.GetReplayDirectory(invalidGameType));
+        Assert.Throws<ArgumentException>(() => serviceWithoutPathProvider.GetReplayDirectory(invalidGameType));
+    }
+
     private static ReplayFile CreateCrcReplayFile(string fileName, uint exeCrc, uint iniCrc, CrcMappingEntry? matchedClient = null) => new()
     {
         FileName = fileName,
@@ -4863,7 +5056,10 @@ public sealed class ReplayDirectoryServiceTests
         Description = "Zero Hour 1.04 (Retail)",
     };
 
-    private static async Task<IReadOnlyList<GameProfile>> FindRecoveryProfilesWithCachedExeCrcAsync(string mockedExeCrc)
+    private static async Task<IReadOnlyList<GameProfile>> FindRecoveryProfilesWithCachedExeCrcAsync(
+        string mockedExeCrc,
+        bool isRetail = true,
+        bool unmappedReplay = false)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "genhub_test_recovery_crc_" + Guid.NewGuid().ToString("N"));
         var fakeExePath = Path.Combine(tempDir, "generals.exe");
@@ -4882,12 +5078,13 @@ public sealed class ReplayDirectoryServiceTests
 
             var replay = new ReplayFile
             {
-                FileName = "Match104.rep",
-                FullPath = "/replays/Match104.rep",
+                FileName = isRetail ? "Match104.rep" : "MatchMod.rep",
+                FullPath = isRetail ? "/replays/Match104.rep" : "/replays/MatchMod.rep",
                 SizeInBytes = 2048,
                 LastModified = DateTime.UtcNow,
                 GameVersion = GameType.ZeroHour,
-                MatchedClient = CreateRetailMappingEntry(),
+                MatchedClient = unmappedReplay ? null : (isRetail ? CreateRetailMappingEntry() : CreateGeneralsOnlineMappingEntry()),
+                Metadata = unmappedReplay ? new ReplayMetadata { ExeCrc = 0x99999999 } : null,
             };
 
             var recoveryProfile = new GameProfile
@@ -4896,10 +5093,12 @@ public sealed class ReplayDirectoryServiceTests
                 Name = "Zero Hour 1.04 (Recovery)",
                 GameClient = new GameClient
                 {
-                    Id = "1.0.local.gameclient.generalszh-mp-recovery",
+                    Id = isRetail
+                        ? "1.0.local.gameclient.generalszh-mp-recovery"
+                        : "1.0.generalsonline.gameclient.generalszh-mp-recovery",
                     Name = "Zero Hour 1.04 Recovery",
                     GameType = GameType.ZeroHour,
-                    PublisherType = "custom",
+                    PublisherType = isRetail ? "custom" : "generalsonline",
                     Capabilities = GameClientCapabilities.AllRecoveryFeatures,
                     ExecutablePath = fakeExePath,
                     WorkingDirectory = tempDir,

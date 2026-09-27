@@ -34,6 +34,16 @@ public interface IGameProfile
     string ExecutablePath { get; }
 
     /// <summary>
+    /// Gets the custom executable path override for this profile, if any.
+    /// </summary>
+    string? CustomExecutablePath { get; }
+
+    /// <summary>
+    /// Gets the working directory for this profile, if any.
+    /// </summary>
+    string? WorkingDirectory { get; }
+
+    /// <summary>
     /// Gets the list of enabled content IDs for this profile.
     /// </summary>
     List<string> EnabledContentIds { get; }

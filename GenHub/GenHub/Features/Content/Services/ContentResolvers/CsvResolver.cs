@@ -49,6 +49,8 @@ public class CsvResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (discoveredItem == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Discovered content item cannot be null.");
@@ -69,32 +71,19 @@ public class CsvResolver(
                 return OperationResult<ContentManifest>.CreateFailure(loadResult.Errors);
             }
 
-            if (discoveredItem.ResolverMetadata.TryGetValue(CsvConstants.Sha256MetadataKey, out var expectedSha256) &&
-                !string.IsNullOrWhiteSpace(expectedSha256))
+            var integrityResult = VerifyCatalogIntegrity(discoveredItem, loadResult.Data.RawBytes);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!integrityResult.Success)
             {
-                var actualHash = Convert.ToHexString(SHA256.HashData(loadResult.Data.RawBytes));
-                if (!string.Equals(actualHash, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogError(
-                        "CSV catalog SHA-256 integrity verification failed for {SourceUrl}. Expected: {Expected}, Actual: {Actual}",
-                        discoveredItem.SourceUrl,
-                        expectedSha256,
-                        actualHash);
-
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"CSV catalog integrity check failed for {discoveredItem.SourceUrl}");
-                }
-
-                logger.LogDebug(
-                    "CSV catalog SHA-256 verified successfully for {SourceUrl}",
-                    discoveredItem.SourceUrl);
+                return OperationResult<ContentManifest>.CreateFailure(integrityResult.Errors);
             }
 
             var gameTypeStr = GetGameTypeString(discoveredItem);
             var languageStr = GetLanguageString(discoveredItem);
             var version = GetVersionString(discoveredItem);
 
-            var matchingEntries = ParseAndFilterCsv(loadResult.Data.Content, gameTypeStr, languageStr);
+            cancellationToken.ThrowIfCancellationRequested();
+            var matchingEntries = ParseAndFilterCsv(loadResult.Data.Content, gameTypeStr, languageStr, cancellationToken);
             if (matchingEntries.Count == 0)
             {
                 logger.LogWarning(
@@ -114,8 +103,10 @@ public class CsvResolver(
             var isRemote = Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var uri) &&
                 (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
-            var manifestFiles = matchingEntries.Select(e => CreateManifestFile(e, isRemote)).ToList();
+            var manifestFiles = CreateManifestFiles(matchingEntries, isRemote, cancellationToken);
             var manifest = BuildManifest(discoveredItem, gameTypeStr, version, languageStr, manifestFiles);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             logger.LogInformation(
                 "Successfully resolved CSV catalog manifest {ManifestId} with {FileCount} files",
@@ -124,9 +115,13 @@ public class CsvResolver(
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -146,6 +141,11 @@ public class CsvResolver(
 
     private static bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
     {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+
         return exception is HttpRequestException or IOException ||
             (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
@@ -185,16 +185,20 @@ public class CsvResolver(
         return !string.IsNullOrWhiteSpace(item.Version) ? item.Version : "1.0";
     }
 
-    private static List<CsvCatalogEntry> ParseAndFilterCsv(string csvContent, string targetGame, string targetLanguage)
+    private static List<CsvCatalogEntry> ParseAndFilterCsv(
+        string csvContent,
+        string targetGame,
+        string targetLanguage,
+        CancellationToken cancellationToken)
     {
         using var stringReader = new StringReader(csvContent);
         using var csvReader = new CsvReader(stringReader, CsvConfig);
 
-        var records = csvReader.GetRecords<CsvCatalogEntry>().ToList();
         var matchingEntries = new List<CsvCatalogEntry>();
 
-        foreach (var record in records)
+        foreach (var record in csvReader.GetRecords<CsvCatalogEntry>())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (IsUnsafeRelativePath(record.RelativePath))
             {
                 continue;
@@ -212,6 +216,7 @@ public class CsvResolver(
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return matchingEntries;
     }
 
@@ -287,6 +292,22 @@ public class CsvResolver(
             DownloadUrl = hasValidDownloadUrl ? entry.DownloadUrl : null,
             IsExecutable = entry.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase),
         };
+    }
+
+    private static List<ManifestFile> CreateManifestFiles(
+        IReadOnlyList<CsvCatalogEntry> matchingEntries,
+        bool isRemote,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var manifestFiles = new List<ManifestFile>(matchingEntries.Count);
+        foreach (var entry in matchingEntries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            manifestFiles.Add(CreateManifestFile(entry, isRemote));
+        }
+
+        return manifestFiles;
     }
 
     private static GameType ResolveTargetGame(ContentSearchResult discoveredItem, string gameTypeStr)
@@ -381,6 +402,8 @@ public class CsvResolver(
 
     private async Task<OperationResult<CsvContentLoadResult>> LoadCsvContentAsync(string sourceUrl, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
@@ -462,5 +485,33 @@ public class CsvResolver(
             logger.LogError(ex, "Failed to read CSV catalog file at {FilePath}", resolvedPath);
             return OperationResult<CsvContentLoadResult>.CreateFailure($"Failed to read CSV catalog file: {ex.Message}");
         }
+    }
+
+    private OperationResult<bool> VerifyCatalogIntegrity(ContentSearchResult discoveredItem, byte[] rawBytes)
+    {
+        if (!discoveredItem.ResolverMetadata.TryGetValue(CsvConstants.Sha256MetadataKey, out var expectedSha256) ||
+            string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var actualHash = Convert.ToHexString(SHA256.HashData(rawBytes));
+        if (!string.Equals(actualHash, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogError(
+                "CSV catalog SHA-256 integrity verification failed for {SourceUrl}. Expected: {Expected}, Actual: {Actual}",
+                discoveredItem.SourceUrl,
+                expectedSha256,
+                actualHash);
+
+            return OperationResult<bool>.CreateFailure(
+                $"CSV catalog integrity check failed for {discoveredItem.SourceUrl}");
+        }
+
+        logger.LogDebug(
+            "CSV catalog SHA-256 verified successfully for {SourceUrl}",
+            discoveredItem.SourceUrl);
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 }

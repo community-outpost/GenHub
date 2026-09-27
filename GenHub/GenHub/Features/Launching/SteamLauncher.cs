@@ -240,7 +240,11 @@ public class SteamLauncher : ISteamLauncher
                 filesToCapture);
 
             cancellationToken.ThrowIfCancellationRequested();
-            await StopRunningTargetProcessesAsync(targetExePath, cancellationToken);
+            if (!await StopRunningTargetProcessesAsync(targetExePath, cancellationToken))
+            {
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
+                    $"Failed to terminate running process for '{targetExePath}' before deploying Steam proxy.");
+            }
 
             rollback.PrepareExecutableBackup();
             rollback.DeployProxy();
@@ -472,6 +476,28 @@ public class SteamLauncher : ISteamLauncher
         return OperatingSystem.IsWindows() ? hostPath : ToProtonPath(hostPath);
     }
 
+    private static bool IsTargetFileLocked(string targetExePath)
+    {
+        if (!File.Exists(targetExePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = File.Open(targetExePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            return false;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
     private OperationResult<bool> RestoreOriginalExecutable(
         string targetExePath,
         string backupPath,
@@ -607,40 +633,116 @@ public class SteamLauncher : ISteamLauncher
         return developmentPaths.FirstOrDefault(File.Exists) ?? defaultPath;
     }
 
-    private async Task StopRunningTargetProcessesAsync(
+    private async Task<(bool Exited, bool Killed)> TryTerminateTargetProcessAsync(
+        Process process,
+        string targetExePath,
+        CancellationToken cancellationToken)
+    {
+        string? processPath = null;
+        try
+        {
+            if (process.HasExited)
+            {
+                return (true, false);
+            }
+
+            processPath = process.MainModule?.FileName;
+        }
+        catch (InvalidOperationException)
+        {
+            return (true, false);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            _logger.LogDebug(ex, "[SteamLauncher] Cannot access process {Pid} or its MainModule", process.Id);
+            if (IsTargetFileLocked(targetExePath))
+            {
+                _logger.LogWarning(
+                    "[SteamLauncher] Inaccessible process {ProcessName} ({Pid}) is locking target executable '{TargetExePath}'",
+                    process.ProcessName,
+                    process.Id,
+                    targetExePath);
+                return (false, false);
+            }
+
+            return (true, false);
+        }
+
+        if (processPath is null || !PathComparer.Equals(Path.GetFullPath(processPath), targetExePath))
+        {
+            return (true, false);
+        }
+
+        _logger.LogWarning(
+            "[SteamLauncher] Killing running process {ProcessName} ({Pid}) to update proxy",
+            process.ProcessName,
+            process.Id);
+
+        try
+        {
+            process.Kill();
+        }
+        catch (InvalidOperationException)
+        {
+            return (true, false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[SteamLauncher] Failed to kill target process {Pid}", process.Id);
+            return (false, false);
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(ProcessConstants.ProcessKillWaitMs);
+        try
+        {
+            await process.WaitForExitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(
+                ex,
+                "[SteamLauncher] Process {ProcessName} ({Pid}) did not exit within {TimeoutMs}ms after termination signal",
+                process.ProcessName,
+                process.Id,
+                ProcessConstants.ProcessKillWaitMs);
+            return (false, true);
+        }
+
+        return (true, true);
+    }
+
+    private async Task<bool> StopRunningTargetProcessesAsync(
         string targetExePath,
         CancellationToken cancellationToken)
     {
         var processName = Path.GetFileNameWithoutExtension(targetExePath);
         var runningProcesses = Process.GetProcessesByName(processName);
+        var killedAny = false;
+        var allExited = true;
 
         try
         {
             foreach (var process in runningProcesses)
             {
-                try
+                var (exited, killed) = await TryTerminateTargetProcessAsync(process, targetExePath, cancellationToken);
+                if (killed)
                 {
-                    if (process.MainModule?.FileName is string processPath &&
-                        PathComparer.Equals(Path.GetFullPath(processPath), targetExePath))
-                    {
-                        _logger.LogWarning(
-                            "[SteamLauncher] Killing running process {ProcessName} ({Pid}) to update proxy",
-                            process.ProcessName,
-                            process.Id);
-                        process.Kill();
-                        process.WaitForExit(1000);
-                    }
+                    killedAny = true;
                 }
-                catch (Exception ex)
+
+                if (!exited)
                 {
-                    _logger.LogWarning(ex, "[SteamLauncher] Failed to kill process {Pid}", process.Id);
+                    allExited = false;
                 }
             }
 
-            if (runningProcesses.Length > 0)
+            if (killedAny && allExited)
             {
-                await Task.Delay(500, cancellationToken);
+                await Task.Delay(ProcessConstants.ProcessKillSettleDelayMs, cancellationToken);
             }
+
+            return allExited;
         }
         finally
         {

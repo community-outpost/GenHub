@@ -30,6 +30,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// </para>
 /// </summary>
 [Collection(NativeClientLaunchCollection.Name)]
+[Trait(NativeClientFixture.TraitName, NativeClientFixture.TraitValue)]
 public class EngineLaunchSmokeTests : IDisposable
 {
     /// <summary>

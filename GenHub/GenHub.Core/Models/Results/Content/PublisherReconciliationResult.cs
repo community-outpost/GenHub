@@ -1,16 +1,17 @@
 using GenHub.Core.Models.Enums;
+using System;
 
 namespace GenHub.Core.Models.Results.Content;
 
 /// <summary>
 /// Represents the result of a publisher profile reconciliation operation.
 /// </summary>
-public sealed class PublisherReconciliationResult
+public sealed class PublisherReconciliationResult : IEquatable<PublisherReconciliationResult>
 {
     /// <summary>
     /// Gets a result indicating no reconciliation was needed or performed.
     /// </summary>
-    public static PublisherReconciliationResult None => new() { Reconciled = false };
+    public static PublisherReconciliationResult None { get; } = new() { Reconciled = false };
 
     /// <summary>
     /// Gets a value indicating whether reconciliation was needed and performed.
@@ -55,4 +56,29 @@ public sealed class PublisherReconciliationResult
     /// </summary>
     /// <param name="result">The reconciliation result.</param>
     public static implicit operator bool(PublisherReconciliationResult? result) => result?.Reconciled ?? false;
+
+    /// <inheritdoc/>
+    public bool Equals(PublisherReconciliationResult? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return Reconciled == other.Reconciled &&
+               Strategy == other.Strategy &&
+               TargetProfileId == other.TargetProfileId &&
+               ProfilesAffectedCount == other.ProfilesAffectedCount;
+    }
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => Equals(obj as PublisherReconciliationResult);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(Reconciled, Strategy, TargetProfileId, ProfilesAffectedCount);
 }

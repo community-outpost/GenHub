@@ -360,7 +360,7 @@ public class GitHubContentDeliverer(
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to handle extracted content using factory");
             return OperationResult<ContentManifest>.CreateFailure($"Factory content handling failed: {ex.Message}");

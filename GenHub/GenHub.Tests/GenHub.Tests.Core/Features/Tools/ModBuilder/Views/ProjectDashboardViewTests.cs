@@ -20,6 +20,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using GenHub.Features.Tools.ModBuilder.Views;
@@ -88,6 +89,8 @@ public class ProjectDashboardViewTests
         var fileManager = new FileManagerViewModel(
             Mock.Of<IGameInstallationService>(),
             mockNotificationService.Object,
+            Mock.Of<IWndDocumentService>(),
+            CreateLocalizationService(),
             Mock.Of<ILogger<FileManagerViewModel>>());
 
         return new ModBuilderViewModel(

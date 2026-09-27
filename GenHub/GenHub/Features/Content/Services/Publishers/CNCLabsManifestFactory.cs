@@ -269,21 +269,26 @@ public partial class CNCLabsManifestFactory(
     /// Creates a manifest from map details.
     /// </summary>
     /// <param name="details">The map details.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation, containing the created manifest.</returns>
     public async Task<ContentManifest> CreateManifestAsync(
-        object details)
+        object details,
+        CancellationToken cancellationToken = default)
     {
         if (details is not ParsedContentDetails mapDetails)
         {
             throw new ArgumentException($"Details must be of type {nameof(ParsedContentDetails)}", nameof(details));
         }
 
-        return await CreateManifestInternalAsync(mapDetails);
+        return await CreateManifestInternalAsync(mapDetails, cancellationToken);
     }
 
     private async Task<ContentManifest> CreateManifestInternalAsync(
-        ParsedContentDetails details)
+        ParsedContentDetails details,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // 1. Load provider metadata to get website/support URLs if possible
         var provider = providerLoader.GetProvider(CNCLabsConstants.PublisherPrefix);
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? CNCLabsConstants.PublisherWebsite;

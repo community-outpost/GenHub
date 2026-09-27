@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
@@ -37,7 +38,8 @@ public class SuperHackersProfileReconciler(
     INotificationService notificationService,
     IDialogService dialogService,
     IUserSettingsService userSettingsService,
-    IGameProfileManager profileManager) : ISuperHackersProfileReconciler, IPublisherReconciler
+    IGameProfileManager profileManager,
+    ITelemetryService? telemetryService = null) : ISuperHackersProfileReconciler, IPublisherReconciler
 {
     /// <inheritdoc/>
     public string PublisherType => PublisherTypeConstants.TheSuperHackers;
@@ -121,6 +123,16 @@ public class SuperHackersProfileReconciler(
                 var acquireResult = await AcquireLatestVersionAsync(oldManifests, progressNotificationId, cancellationToken);
                 if (!acquireResult.Success)
                 {
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherId] = PublisherTypeConstants.TheSuperHackers,
+                        [TelemetryConstants.Properties.ContentName] = SuperHackersConstants.ServiceName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                        [TelemetryConstants.Properties.ErrorMessage] = acquireResult.FirstError,
+                    });
+
                     notificationService.ShowError(
                         "SuperHackers Update Failed",
                         $"Failed to download update: {acquireResult.FirstError}",
@@ -159,6 +171,16 @@ public class SuperHackersProfileReconciler(
 
                 if (!updateOutcome.Proceed)
                 {
+                    telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.PublisherId] = PublisherTypeConstants.TheSuperHackers,
+                        [TelemetryConstants.Properties.ContentName] = SuperHackersConstants.ServiceName,
+                        [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                        [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                        [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Update strategy execution failed",
+                    });
+
                     return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.Error ?? "Update strategy execution failed");
                 }
 
@@ -175,6 +197,17 @@ public class SuperHackersProfileReconciler(
                 {
                     logger.LogWarning("[SH Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
                 }
+
+                telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.PublisherId] = PublisherTypeConstants.TheSuperHackers,
+                    [TelemetryConstants.Properties.ContentName] = SuperHackersConstants.ServiceName,
+                    [TelemetryConstants.Properties.FromVersion] = updateResult.CurrentVersion,
+                    [TelemetryConstants.Properties.ToVersion] = updateResult.LatestVersion,
+                    [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
+                    [TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated,
+                    [TelemetryConstants.Properties.Success] = !anyFailure,
+                });
 
                 notificationService.ShowSuccess(
                     "SuperHackers Updated",

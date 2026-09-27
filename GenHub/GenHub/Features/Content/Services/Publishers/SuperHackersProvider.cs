@@ -385,7 +385,7 @@ public class SuperHackersProvider(
         var result = new ContentSearchResult
         {
             Id = manifestId,
-            Name = !string.IsNullOrWhiteSpace(latestRelease.Name) ? latestRelease.Name : $"{displayName} {latestRelease.TagName}",
+            Name = GameVersionHelper.IsPureVersionString(latestRelease.Name, latestRelease.TagName) ? displayName : latestRelease.Name,
             Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
             Version = latestRelease.TagName ?? LatestTagFallback,
             AuthorName = owner,

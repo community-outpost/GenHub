@@ -1,4 +1,5 @@
 using Avalonia;
+using GenHub.Core.Constants;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.MacOS.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +30,7 @@ public static class Program
 
         try
         {
-            bootstrapLogger.LogInformation("Starting GenHub macOS application");
+            bootstrapLogger.LogInformation("Starting GenHub macOS application ({Version})", AppConstants.FullDisplayVersion);
 
             // Initialize configured data-path resolver before checking conflict so AppDataPath is respected
             ConfigurationModule.InitializeConfiguredDataPathResolver();

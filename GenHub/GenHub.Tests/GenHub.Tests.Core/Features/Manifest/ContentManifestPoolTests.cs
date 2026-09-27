@@ -44,6 +44,58 @@ public class ContentManifestPoolTests : IDisposable
         Directory.CreateDirectory(_tempDirectory);
     }
 
+    /// <summary>Cancellation during reference tracking restores the previous metadata.</summary>
+    /// <param name="existing">Whether the manifest already has metadata.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AddManifestAsync_TrackingCancelled_RestoresMetadataAsync(bool existing)
+    {
+        var manifest = CreateTestManifest();
+        var path = Path.Combine(_tempDirectory, "manifest.json");
+        const string previous = "previous metadata bytes";
+        if (existing)
+        {
+            await File.WriteAllTextAsync(path, previous);
+        }
+
+        using var cts = new CancellationTokenSource();
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, cts.Token))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _storageServiceMock.Setup(x => x.GetManifestStoragePath(manifest.Id)).Returns(path);
+        _referenceTrackerMock.Setup(x => x.TrackManifestReferencesAsync(manifest.Id, manifest, cts.Token))
+            .Returns(() =>
+            {
+                cts.Cancel();
+                throw new OperationCanceledException(cts.Token);
+            });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _manifestPool.AddManifestAsync(manifest, cts.Token));
+
+        if (existing)
+        {
+            Assert.Equal(previous, await File.ReadAllTextAsync(path));
+        }
+        else
+        {
+            Assert.False(File.Exists(path));
+        }
+    }
+
+    /// <summary>Metadata updates preserve cancellation from the storage layer.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task AddManifestAsync_MetadataCancellationPropagatesAsync()
+    {
+        var manifest = CreateTestManifest();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _manifestPool.AddManifestAsync(manifest, cts.Token));
+    }
+
     /// <summary>
     /// Should add manifest successfully when content is already stored.
     /// </summary>
@@ -111,6 +163,28 @@ public class ContentManifestPoolTests : IDisposable
         Assert.True(result.Success);
         Assert.True(result.Data);
         _storageServiceMock.Verify(x => x.StoreContentAsync(manifest, sourceDirectory, It.IsAny<IProgress<ContentStorageProgress>?>(), default), Times.Once);
+    }
+
+    /// <summary>
+    /// Should propagate cancellation from content storage instead of returning a failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithSourceDirectory_WhenStorageCancelled_ThrowsAsync()
+    {
+        // Arrange
+        var manifest = CreateTestManifest();
+        var sourceDirectory = Path.Combine(_tempDirectory, "source");
+        Directory.CreateDirectory(sourceDirectory);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        _storageServiceMock.Setup(x => x.StoreContentAsync(manifest, sourceDirectory, It.IsAny<IProgress<ContentStorageProgress>?>(), cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _manifestPool.AddManifestAsync(manifest, sourceDirectory, null, cts.Token));
     }
 
     /// <summary>

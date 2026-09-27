@@ -33,14 +33,15 @@ public partial class PublisherItemViewModel(
     private string _displayName = displayName;
 
     /// <summary>
+    /// Gets or sets the logo source path or URL.
+    /// </summary>
+    [ObservableProperty]
+    private string? _logoSource = logoSource;
+
+    /// <summary>
     /// Gets the publisher ID.
     /// </summary>
     public string PublisherId { get; } = publisherId;
-
-    /// <summary>
-    /// Gets the logo source path or URL.
-    /// </summary>
-    public string? LogoSource { get; } = logoSource;
 
     /// <summary>
     /// Gets the publisher type (static for official publishers, dynamic for community).

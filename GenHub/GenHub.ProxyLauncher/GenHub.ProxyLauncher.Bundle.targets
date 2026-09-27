@@ -1,0 +1,62 @@
+<Project>
+
+    <!--
+      Shared by the Windows, Linux and macOS heads. Publishes the proxy launcher as a win-x64
+      single-file PE: Steam runs the swapped-in file directly on Windows and through Proton elsewhere.
+
+      The publish goes through the MSBuild task with identical global properties in every head, so
+      one build publishes the proxy once and the heads share the result. Separate `dotnet publish`
+      processes could not be coordinated and raced on the proxy's output directory.
+    -->
+    <PropertyGroup>
+        <ProxyLauncherProject>$(MSBuildThisFileDirectory)GenHub.ProxyLauncher.csproj</ProxyLauncherProject>
+        <ProxyLauncherPublishDir>$(MSBuildThisFileDirectory)bin/Publish/$(Configuration)/</ProxyLauncherPublishDir>
+        <ProxyLauncherBundleProperties>
+            Configuration=$(Configuration);
+            Platform=AnyCPU;
+            TargetFramework=net8.0;
+            RuntimeIdentifier=win-x64;
+            SelfContained=true;
+            PublishSingleFile=true;
+            OutputPath=bin/$(Configuration)/bundle/;
+            IntermediateOutputPath=obj/$(Configuration)/bundle/;
+            PublishDir=$(ProxyLauncherPublishDir);
+            Version=$(Version);
+            GitShortHash=$(GitShortHash);
+            PullRequestNumber=$(PullRequestNumber);
+            BuildChannel=$(BuildChannel)
+        </ProxyLauncherBundleProperties>
+    </PropertyGroup>
+
+    <Target Name="BuildProxyLauncher" BeforeTargets="Build">
+        <MSBuild
+            Projects="$(ProxyLauncherProject)"
+            Targets="Publish"
+            Properties="$(ProxyLauncherBundleProperties)"
+            RemoveProperties="_IsPublishing;DOTNET_CLI_DISABLE_PUBLISH_AND_PACK_RELEASE;_CommandLineDefinedOutputPath;_CommandLineDefinedRuntimeIdentifier;_CommandLineDefinedSelfContained;BaseOutputPath;BaseIntermediateOutputPath" />
+    </Target>
+
+    <Target Name="CopyProxyLauncher" AfterTargets="Build">
+        <ItemGroup>
+            <ProxyLauncherFiles Include="$(ProxyLauncherPublishDir)GenHub.ProxyLauncher.exe" />
+            <ProxyLauncherFiles Include="$(ProxyLauncherPublishDir)GenHub.ProxyLauncher.pdb" Condition="Exists('$(ProxyLauncherPublishDir)GenHub.ProxyLauncher.pdb')" />
+            <ProxyLauncherFiles Include="$(ProxyLauncherPublishDir)GenHub.ProxyLauncher.runtimeconfig.json" Condition="Exists('$(ProxyLauncherPublishDir)GenHub.ProxyLauncher.runtimeconfig.json')" />
+        </ItemGroup>
+        <Message Importance="High" Text="[CopyProxyLauncher] Copying SingleFile from $(ProxyLauncherPublishDir) to $(TargetDir)" />
+        <Copy SourceFiles="@(ProxyLauncherFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    </Target>
+
+    <!-- Include the proxy launcher in the head's publish output for Velopack. -->
+    <Target Name="PublishProxyLauncher" AfterTargets="ComputeFilesToPublish">
+        <ItemGroup>
+            <ResolvedFileToPublish Include="$(ProxyLauncherPublishDir)GenHub.ProxyLauncher.exe">
+                <RelativePath>GenHub.ProxyLauncher.exe</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+            <ResolvedFileToPublish Include="$(ProxyLauncherPublishDir)GenHub.ProxyLauncher.runtimeconfig.json" Condition="Exists('$(ProxyLauncherPublishDir)GenHub.ProxyLauncher.runtimeconfig.json')">
+                <RelativePath>GenHub.ProxyLauncher.runtimeconfig.json</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+        </ItemGroup>
+    </Target>
+</Project>

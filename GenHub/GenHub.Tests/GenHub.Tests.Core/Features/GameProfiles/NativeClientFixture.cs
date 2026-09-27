@@ -1,4 +1,4 @@
-using System.Linq;
+using GenHub.Core.Utilities;
 using System.Runtime.InteropServices;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;
@@ -18,6 +18,12 @@ public static class NativeClientFixture
 
     /// <summary>The engine executable's filename.</summary>
     public const string BinaryName = "generalszh";
+
+    /// <summary>The xUnit trait name that marks tests launching the real engine.</summary>
+    public const string TraitName = "Category";
+
+    /// <summary>The trait value that unit runs exclude with <c>Category!=NativeEngine</c>.</summary>
+    public const string TraitValue = "NativeEngine";
 
     /// <summary>
     /// Gets the native client directory, or <c>null</c> when these tests should skip.
@@ -50,25 +56,7 @@ public static class NativeClientFixture
     /// <summary>
     /// Determines whether a filename is one of the engine's dynamic libraries.
     /// </summary>
-    /// <remarks>
-    /// Covers macOS <c>.dylib</c> and both Linux forms: unversioned <c>.so</c> and versioned
-    /// <c>.so.0</c> / <c>.so.0.1.0</c>, which are the common shape of a shipped Linux library
-    /// and which a plain <c>.so</c> suffix test misses.
-    /// </remarks>
     /// <param name="fileName">The filename to test.</param>
     /// <returns><c>true</c> when the file is a dynamic library.</returns>
-    public static bool IsDynamicLibrary(string fileName)
-    {
-        if (fileName.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase)
-            || fileName.EndsWith(".so", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // Matched on ".so." rather than ".so" so an earlier coincidental ".so" — inside
-        // ".sound", say — cannot shadow the real suffix and end the search early.
-        var versioned = fileName.IndexOf(".so.", StringComparison.OrdinalIgnoreCase);
-        return versioned >= 0
-            && fileName[(versioned + 4)..].All(c => char.IsDigit(c) || c == '.');
-    }
+    public static bool IsDynamicLibrary(string fileName) => ExecutableFileClassifier.IsUnixSharedLibrary(fileName);
 }

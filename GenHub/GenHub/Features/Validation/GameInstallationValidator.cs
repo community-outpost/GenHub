@@ -40,6 +40,9 @@ public class GameInstallationValidator(
     : FileSystemValidator(logger, hashProvider),
       IGameInstallationValidator, IValidator<GameInstallation>
 {
+    private const int ProgressUnitsPerTarget = 100;
+    private const int HashingStartUnits = 25;
+
     private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
     private readonly IContentProvider? _resolvedCsvProvider = csvContentProvider ??
         contentProviders?.OfType<CsvContentProvider>().FirstOrDefault() ??
@@ -94,6 +97,7 @@ public class GameInstallationValidator(
     /// <param name="progress">Progress reporter for MVVM integration.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="ValidationResult"/> representing the outcome of the validation.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The game is neither Generals nor Zero Hour.</exception>
     public Task<ValidationResult> ValidateInstallationAsync(
         string installationPath,
         GameType gameType,
@@ -106,6 +110,11 @@ public class GameInstallationValidator(
             throw new ArgumentException("Installation path cannot be null or empty.", nameof(installationPath));
         }
 
+        if (gameType is not (GameType.Generals or GameType.ZeroHour))
+        {
+            throw new ArgumentOutOfRangeException(nameof(gameType), gameType, "A supported game is required.");
+        }
+
         return ValidateInstallationCoreAsync(
             installationPath,
             gameType,
@@ -113,6 +122,35 @@ public class GameInstallationValidator(
             installation: null,
             progress: progress,
             cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Determines whether an extraneous-file issue actually names a root archive of the
+    /// sibling game in a combined directory.
+    /// </summary>
+    /// <param name="issue">The issue reported by content validation.</param>
+    /// <param name="gameType">The game whose pass produced the issue.</param>
+    /// <returns>True when the issue refers to the other game's known root archive.</returns>
+    /// <remarks>
+    /// Validation tolerates only known retail archives of the sibling game. Discovery
+    /// accepts the broader Zero Hour suffix pattern, but that must not hide unexpected
+    /// mod files during validation. Deeper files also remain reported.
+    /// </remarks>
+    private static bool IsSiblingGameRootArchive(ValidationIssue issue, GameType gameType)
+    {
+        if (issue.IssueType != ValidationIssueType.UnexpectedFile || string.IsNullOrEmpty(issue.Path))
+        {
+            return false;
+        }
+
+        if (issue.Path.Contains(Path.DirectorySeparatorChar) || issue.Path.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return false;
+        }
+
+        return gameType == GameType.Generals
+            ? RetailArchiveConstants.ZeroHourArchiveNames.Contains(issue.Path)
+            : RetailArchiveConstants.GeneralsArchiveNames.Contains(issue.Path);
     }
 
     private async Task<ValidationResult> ValidateInternalAsync(
@@ -161,7 +199,8 @@ public class GameInstallationValidator(
                 language,
                 installation,
                 progress,
-                cancellationToken);
+                cancellationToken,
+                (targetIndex - 1, targets.Count));
 
             issues.AddRange(result.Issues);
             totalFiles += result.TotalFilesValidated;
@@ -184,11 +223,14 @@ public class GameInstallationValidator(
         string? language,
         GameInstallation? installation,
         IProgress<ValidationProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        (int Index, int Count)? target = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var stopwatch = Stopwatch.StartNew();
         var issues = new List<ValidationIssue>();
+
+        var (targetIndex, targetCount) = target ?? (0, 1);
 
         var detectedLanguage = string.IsNullOrWhiteSpace(language)
             ? await _languageDetector.DetectAsync(installationPath, cancellationToken)
@@ -201,7 +243,7 @@ public class GameInstallationValidator(
             gameType,
             normalizedLanguage);
 
-        progress?.Report(new ValidationProgress(1, 4, "Resolving manifest"));
+        progress?.Report(new ValidationProgress(targetIndex * ProgressUnitsPerTarget, targetCount * ProgressUnitsPerTarget, "Resolving manifest"));
 
         ContentManifest? manifest = null;
         var csvIssues = new List<ValidationIssue>();
@@ -217,18 +259,7 @@ public class GameInstallationValidator(
 
         if (manifest == null && manifestProvider != null)
         {
-            logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}' ({GameType})", installationPath, gameType);
-            var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
-            if (gameType == GameType.ZeroHour)
-            {
-                targetInstall.SetPaths(generalsPath: null, zeroHourPath: installationPath);
-            }
-            else
-            {
-                targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
-            }
-
-            manifest = await manifestProvider.GetManifestAsync(targetInstall, cancellationToken);
+            manifest = await ResolveFallbackManifestAsync(installationPath, gameType, installation, cancellationToken);
         }
 
         if (manifest == null)
@@ -248,25 +279,24 @@ public class GameInstallationValidator(
                 });
             }
 
-            progress?.Report(new ValidationProgress(4, 4, "Validation complete"));
+            progress?.Report(new ValidationProgress((targetIndex + 1) * ProgressUnitsPerTarget, targetCount * ProgressUnitsPerTarget, "Validation complete"));
             stopwatch.Stop();
             return new ValidationResult(installationPath, issues, stopwatch.Elapsed, 0);
         }
 
-        progress?.Report(new ValidationProgress(2, 4, "Core manifest validation"));
-        var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
-        issues.AddRange(manifestValidationResult.Issues);
-
-        progress?.Report(new ValidationProgress(3, 4, "Validating content files"));
+        progress?.Report(new ValidationProgress((targetIndex * ProgressUnitsPerTarget) + HashingStartUnits, targetCount * ProgressUnitsPerTarget, "Validating content files"));
         int totalFiles = 0;
         try
         {
             var fullValidation = await contentValidator.ValidateAllAsync(
                 installationPath,
                 manifest,
-                progress,
+                progress is null ? null : new TargetValidationProgress(progress, targetIndex, targetCount),
                 cancellationToken);
-            issues.AddRange(fullValidation.Issues);
+            var contentIssues = installation?.IsCombinedDirectory == true
+                ? fullValidation.Issues.Where(issue => !IsSiblingGameRootArchive(issue, gameType))
+                : fullValidation.Issues;
+            issues.AddRange(contentIssues);
             totalFiles = fullValidation.TotalFilesValidated > 0
                 ? fullValidation.TotalFilesValidated
                 : manifest.Files?.Count ?? 0;
@@ -295,10 +325,35 @@ public class GameInstallationValidator(
             issues.AddRange(dirIssues);
         }
 
-        progress?.Report(new ValidationProgress(4, 4, "Validation complete"));
+        progress?.Report(new ValidationProgress((targetIndex + 1) * ProgressUnitsPerTarget, targetCount * ProgressUnitsPerTarget, "Validation complete"));
 
         stopwatch.Stop();
         return new ValidationResult(installationPath, issues, stopwatch.Elapsed, totalFiles);
+    }
+
+    private async Task<ContentManifest?> ResolveFallbackManifestAsync(
+        string installationPath,
+        GameType gameType,
+        GameInstallation? installation,
+        CancellationToken cancellationToken)
+    {
+        if (manifestProvider is null)
+        {
+            return null;
+        }
+
+        logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}' ({GameType})", installationPath, gameType);
+        var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
+        if (gameType == GameType.ZeroHour)
+        {
+            targetInstall.SetPaths(generalsPath: null, zeroHourPath: installationPath);
+        }
+        else
+        {
+            targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
+        }
+
+        return await manifestProvider.GetManifestAsync(targetInstall, gameType, cancellationToken);
     }
 
     private void AddValidationUnavailableIssue(
@@ -405,6 +460,19 @@ public class GameInstallationValidator(
                 installationPath,
                 $"Validation catalog unavailable for {gameType} ({language}): {ex.Message}");
             return null;
+        }
+    }
+
+    /// <summary>Maps file-level reports into the current target's share of overall validation.</summary>
+    private sealed class TargetValidationProgress(IProgress<ValidationProgress> progress, int targetIndex, int targetCount) : IProgress<ValidationProgress>
+    {
+        /// <inheritdoc/>
+        public void Report(ValidationProgress value)
+        {
+            var fraction = value.Total > 0 ? Math.Clamp((double)value.Processed / value.Total, 0, 1) : 0;
+            var processed = (targetIndex * ProgressUnitsPerTarget) + HashingStartUnits
+                + (int)(fraction * (ProgressUnitsPerTarget - HashingStartUnits));
+            progress.Report(new ValidationProgress(processed, targetCount * ProgressUnitsPerTarget, value.CurrentFile));
         }
     }
 }

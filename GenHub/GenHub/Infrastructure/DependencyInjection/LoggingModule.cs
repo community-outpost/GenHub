@@ -1,5 +1,6 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -98,15 +99,47 @@ public static class LoggingModule
     }
 
     /// <summary>
-    /// Gets the path to the current day's log file.
+    /// Gets the standard log file name for the current date and application version/build.
     /// </summary>
+    /// <returns>The log file name.</returns>
+    public static string GetLogFileName()
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var versionSuffix = GetVersionFileSuffix();
+        return $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}-{versionSuffix}.log";
+    }
+
+    /// <summary>
+    /// Gets a safe version suffix for log file naming, including git hash when present.
+    /// </summary>
+    /// <returns>A formatted version suffix (e.g. "v0.0.150" or "v0.0.150-abc1234").</returns>
+    public static string GetVersionFileSuffix()
+    {
+        var version = AppConstants.AppVersion;
+        if (!string.IsNullOrWhiteSpace(AppConstants.GitShortHash))
+        {
+            version = $"{version}-{AppConstants.GitShortHash}";
+        }
+
+        var safeVersion = string.Join("_", version.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+        return safeVersion.StartsWith('v') || safeVersion.StartsWith('V') ? safeVersion : $"v{safeVersion}";
+    }
+
+    /// <summary>
+    /// Gets the path to the current day and build's log file.
+    /// </summary>
+    /// <param name="customDataRoot">Optional custom data root directory.</param>
     /// <returns>The full path to the log file.</returns>
-    public static string GetLogFilePath()
+    public static string GetLogFilePath(string? customDataRoot = null)
     {
         try
         {
             string rootDir;
-            if (StorageMigrationService.IsCustomInstallRoot())
+            if (customDataRoot != null)
+            {
+                rootDir = customDataRoot;
+            }
+            else if (StorageMigrationService.IsCustomInstallRoot())
             {
                 rootDir = StorageMigrationService.GetSourceRootDirectory();
                 try
@@ -132,15 +165,12 @@ public static class LoggingModule
             }
             else
             {
-                rootDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    AppConstants.AppName);
+                rootDir = AppDataPathHelper.GetDataRoot();
             }
 
             var logDir = Path.Combine(rootDir, DirectoryNames.Logs);
             Directory.CreateDirectory(logDir);
-            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
+            return Path.Combine(logDir, GetLogFileName());
         }
         catch (IOException)
         {
@@ -164,13 +194,9 @@ public static class LoggingModule
     {
         try
         {
-            var fallbackDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                DirectoryNames.Logs);
+            var fallbackDir = Path.Combine(AppDataPathHelper.GetDataRoot(), DirectoryNames.Logs);
             Directory.CreateDirectory(fallbackDir);
-            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            return Path.Combine(fallbackDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
+            return Path.Combine(fallbackDir, GetLogFileName());
         }
         catch (IOException)
         {
@@ -196,24 +222,23 @@ public static class LoggingModule
         {
             var tempLogDir = Path.Combine(Path.GetTempPath(), AppConstants.AppName, DirectoryNames.Logs);
             Directory.CreateDirectory(tempLogDir);
-            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            return Path.Combine(tempLogDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
+            return Path.Combine(tempLogDir, GetLogFileName());
         }
         catch (IOException)
         {
-            return Path.Combine(Path.GetTempPath(), $"{AppConstants.AppName.ToLowerInvariant()}.log");
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
         }
         catch (UnauthorizedAccessException)
         {
-            return Path.Combine(Path.GetTempPath(), $"{AppConstants.AppName.ToLowerInvariant()}.log");
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
         }
         catch (System.Security.SecurityException)
         {
-            return Path.Combine(Path.GetTempPath(), $"{AppConstants.AppName.ToLowerInvariant()}.log");
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
         }
         catch (ArgumentException)
         {
-            return Path.Combine(Path.GetTempPath(), $"{AppConstants.AppName.ToLowerInvariant()}.log");
+            return Path.Combine(Path.GetTempPath(), GetLogFileName());
         }
     }
 
@@ -261,39 +286,25 @@ public static class LoggingModule
         {
             var rootDir = StorageMigrationService.IsCustomInstallRoot()
                 ? StorageMigrationService.GetSourceRootDirectory()
-                : Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    AppConstants.AppName);
+                : AppDataPathHelper.GetDataRoot();
 
             return Path.Combine(rootDir, FileTypes.SettingsFileName);
         }
         catch (IOException)
         {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                FileTypes.SettingsFileName);
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
         }
         catch (UnauthorizedAccessException)
         {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                FileTypes.SettingsFileName);
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
         }
         catch (System.Security.SecurityException)
         {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                FileTypes.SettingsFileName);
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
         }
         catch (ArgumentException)
         {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                FileTypes.SettingsFileName);
+            return Path.Combine(AppDataPathHelper.GetDataRoot(), FileTypes.SettingsFileName);
         }
     }
 

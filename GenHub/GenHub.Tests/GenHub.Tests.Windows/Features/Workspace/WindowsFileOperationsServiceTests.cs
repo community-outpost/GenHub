@@ -33,6 +33,27 @@ public class WindowsFileOperationsServiceTests : IDisposable
         Directory.CreateDirectory(_tempDir);
     }
 
+    /// <summary>CAS copy and link operations preserve cancellation.</summary>
+    /// <param name="copy">Whether to copy rather than link.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CasOperations_CancellationPropagatesAsync(bool copy)
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var cas = new Mock<ICasService>();
+        cas.Setup(x => x.GetContentPathAsync("hash", cts.Token))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+        var baseService = new FileOperationsService(
+            NullLogger<FileOperationsService>.Instance, Mock.Of<IDownloadService>(), cas.Object);
+        var service = new WindowsFileOperationsService(baseService, cas.Object, _logger);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => copy
+            ? service.CopyFromCasAsync("hash", "target", cancellationToken: cts.Token)
+            : service.LinkFromCasAsync("hash", "target", cancellationToken: cts.Token));
+    }
+
     /// <summary>
     /// Tests that CreateHardLinkAsync creates a hard link on Windows.
     /// </summary>

@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Utilities;
 using System;
 using System.Collections.Generic;
@@ -46,6 +47,7 @@ public static class GameClientEntryDetector
     };
 
     private static readonly char[] DirectorySeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+    private static readonly char[] ArchivePathSeparators = ['/', '\\'];
 
     /// <summary>
     /// Detects the entry point of an extracted game client payload.
@@ -80,6 +82,73 @@ public static class GameClientEntryDetector
         }
 
         return ResolveFlatEntryPoint(extractedDirectory, cancellationToken);
+    }
+
+    /// <summary>
+    /// Inspects an archive (e.g. .zip) directly to detect its game client entry point without requiring extraction.
+    /// </summary>
+    /// <param name="archivePath">Path to the archive file.</param>
+    /// <returns>Detected entry point relative path, or null if undetermined.</returns>
+    public static string? DetectEntryPointFromArchive(string archivePath)
+    {
+        if (string.IsNullOrWhiteSpace(archivePath) || !File.Exists(archivePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var zip = System.IO.Compression.ZipFile.OpenRead(archivePath);
+            var fileEntries = zip.Entries
+                .Where(e => !string.IsNullOrEmpty(e.Name) && IsSafeArchiveRelativePath(e.FullName))
+                .ToList();
+
+            // 1. Look for known game binaries
+            var known = fileEntries
+                .Where(e => GameClientConstants.ValidGameExecutableNames.Contains(e.Name, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+
+            if (known.Count == 1)
+            {
+                return known[0].FullName.Replace('\\', '/');
+            }
+
+            if (known.Count > 1)
+            {
+                var minDepth = known.Min(e => e.FullName.Split(ArchivePathSeparators).Length);
+                var shallow = known.Where(e => e.FullName.Split(ArchivePathSeparators).Length == minDepth).ToList();
+                if (shallow.Count == 1)
+                {
+                    return shallow[0].FullName.Replace('\\', '/');
+                }
+            }
+
+            // 2. Look for .exe files excluding auxiliary binaries
+            var executables = fileEntries
+                .Where(e => e.Name.EndsWith(ExeExtension, StringComparison.OrdinalIgnoreCase) && !IsAuxiliaryBinary(e.Name))
+                .ToList();
+
+            if (executables.Count == 1)
+            {
+                return executables[0].FullName.Replace('\\', '/');
+            }
+
+            if (executables.Count > 1)
+            {
+                var minDepth = executables.Min(e => e.FullName.Split(ArchivePathSeparators).Length);
+                var shallow = executables.Where(e => e.FullName.Split(ArchivePathSeparators).Length == minDepth).ToList();
+                if (shallow.Count == 1)
+                {
+                    return shallow[0].FullName.Replace('\\', '/');
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException)
+        {
+            // Expected archive read failure
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -244,11 +313,67 @@ public static class GameClientEntryDetector
                     ToRelativePath(payloadRoot, known[0]),
                     knownReason);
             }
+
+            if (known.Count > 1)
+            {
+                candidates = known;
+            }
+        }
+
+        var nonAux = candidates.Where(c => !IsAuxiliaryBinary(c)).ToList();
+        if (nonAux.Count == 1)
+        {
+            return EntryPointResolution.Resolved(
+                ToRelativePath(payloadRoot, nonAux[0]),
+                "primary candidate excluding auxiliary binaries");
+        }
+
+        if (nonAux.Count > 1)
+        {
+            candidates = nonAux;
+        }
+
+        var shallowest = FilterShallowestCandidates(payloadRoot, candidates);
+        if (shallowest.Count == 1)
+        {
+            return EntryPointResolution.Resolved(
+                ToRelativePath(payloadRoot, shallowest[0]),
+                "shallowest candidate binary");
         }
 
         return EntryPointResolution.Failed(
             $"Payload contains {candidates.Count} {pluralNoun} and declares no entry point.",
             candidates.Select(c => ToRelativePath(payloadRoot, c)));
+    }
+
+    private static List<string> FilterShallowestCandidates(string payloadRoot, List<string> candidates)
+    {
+        if (candidates.Count <= 1)
+        {
+            return candidates;
+        }
+
+        var minDepth = candidates.Min(c => GetDepth(payloadRoot, c));
+        return candidates.Where(c => GetDepth(payloadRoot, c) == minDepth).ToList();
+    }
+
+    private static int GetDepth(string payloadRoot, string path)
+    {
+        var rel = ToRelativePath(payloadRoot, path);
+        return rel.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    private static bool IsAuxiliaryBinary(string path)
+    {
+        var name = Path.GetFileName(path).ToLowerInvariant();
+        return name.StartsWith("unins", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("uninst", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("setup", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("vcredist", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("dxsetup", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("directx", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("crash", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("updater", StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<string> FindBundleRoots(string payloadRoot, CancellationToken cancellationToken)
@@ -530,7 +655,10 @@ public static class GameClientEntryDetector
             foreach (var file in Directory.EnumerateFiles(root, "*", RecursiveOptions))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (file.EndsWith(ExeExtension, StringComparison.OrdinalIgnoreCase))
+                var fileName = Path.GetFileName(file);
+                if (file.EndsWith(ExeExtension, StringComparison.OrdinalIgnoreCase)
+                    || GameClientConstants.ValidGameExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase)
+                    || ExecutableFileClassifier.DetectPlatform(file) == ExecutablePlatform.Windows)
                 {
                     matches.Add(file);
                 }
@@ -590,5 +718,27 @@ public static class GameClientEntryDetector
     private static string ToRelativePath(string root, string path)
     {
         return Path.GetRelativePath(root, path);
+    }
+
+    private static bool IsSafeArchiveRelativePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var normalized = path.Replace('\\', '/');
+        if (normalized.StartsWith('/') || normalized.EndsWith('/') || normalized.Contains("//", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (Path.IsPathRooted(path) || path.Contains("..", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var segments = normalized.Split('/');
+        return segments.All(s => !string.IsNullOrWhiteSpace(s) && s != "." && s != "..");
     }
 }

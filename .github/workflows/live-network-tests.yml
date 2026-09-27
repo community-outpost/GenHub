@@ -1,0 +1,51 @@
+name: Live Network Tests
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  BUILD_CONFIGURATION: 'Release'
+  INTEGRATION_PROJECT: 'GenHub/GenHub.Tests/GenHub.Tests.Integration/GenHub.Tests.Integration.csproj'
+
+jobs:
+  live-network:
+    name: Live Network Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Run Live Network Tests
+        run: |
+          dotnet test "${{ env.INTEGRATION_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} \
+            --filter "Category=LiveNetwork" --verbosity normal \
+            --logger "trx;LogFileName=live-network.trx" --results-directory "$RUNNER_TEMP/live-network-results"
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: live-network-results
+          path: ${{ runner.temp }}/live-network-results
+          if-no-files-found: warn
+          retention-days: 14

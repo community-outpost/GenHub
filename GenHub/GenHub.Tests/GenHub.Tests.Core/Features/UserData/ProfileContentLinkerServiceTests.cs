@@ -37,6 +37,24 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
             _loggerMock.Object);
     }
 
+    /// <summary>A failed cleanup must retain the active-profile record.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupDeletedProfileAsync_Fails_PreservesActiveProfileAsync()
+    {
+        _userDataTrackerMock.Setup(t => t.GetGameUserDataAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<UserDataManifest>>.CreateSuccess([]));
+        var prepared = await _linkerService.PrepareProfileUserDataAsync("active", [], GameType.ZeroHour);
+        Assert.True(prepared.Success);
+        _userDataTrackerMock.Setup(t => t.CleanupProfileAsync("active", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("locked file"));
+
+        var result = await _linkerService.CleanupDeletedProfileAsync("active");
+
+        Assert.False(result.Success);
+        Assert.Equal("active", _linkerService.GetActiveProfileId(GameType.ZeroHour));
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

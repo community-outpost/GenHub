@@ -50,6 +50,11 @@ namespace GenHub.Features.Settings.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Gets the available telemetry consent levels for selection in the UI.
+    /// </summary>
+    public static IEnumerable<TelemetryLevel> AvailableTelemetryLevels => Enum.GetValues<TelemetryLevel>();
+
     private enum CasCleanupOutcome
     {
         Success,
@@ -183,6 +188,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _enableDetailedLogging = false;
+
+    [ObservableProperty]
+    private TelemetryLevel _telemetryPreference = TelemetryLevel.Disabled;
 
     [ObservableProperty]
     private WorkspaceStrategy _defaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
@@ -691,6 +699,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 // Cancel any in-flight device flow sign-in; the async command owns its token.
                 SignInWithGitHubCommand.Cancel();
+                DeleteProfilesCommand.Cancel();
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
                 _uploadsLock.Dispose();
@@ -720,7 +729,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
         var activeLogPath = LoggingModule.ActiveLogFilePath;
-        var activeLogFileName = Path.GetFileName(activeLogPath);
+        var currentLogFileName = LoggingModule.GetLogFileName();
+        var currentLogPath = Path.Combine(logsPath, currentLogFileName);
         var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
 
         var deleted = 0;
@@ -729,7 +739,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         foreach (var file in files)
         {
-            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, activeLogFileName, todayUtcLogFileName, logger);
+            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, currentLogPath, todayUtcLogFileName, logger);
             if (fileDeleted)
             {
                 deleted++;
@@ -746,8 +756,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private static (bool Deleted, bool Locked, long FreedBytes) ProcessSingleLogFile(
         string file,
-        string activeLogPath,
-        string activeLogFileName,
+        string? activeLogPath,
+        string currentLogPath,
         string todayUtcLogFileName,
         ILogger logger)
     {
@@ -762,7 +772,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var fileName = Path.GetFileName(file);
             var length = fileInfo.Length;
 
-            var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
+            var isActiveLog = (!string.IsNullOrWhiteSpace(currentLogPath) && string.Equals(Path.GetFullPath(file), Path.GetFullPath(currentLogPath), StringComparison.OrdinalIgnoreCase)) ||
                               string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
                               (!string.IsNullOrWhiteSpace(activeLogPath) && string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase));
 
@@ -876,13 +886,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             new(SettingsConstants.SectionAppearance, GetLocalizedSectionTitle("Settings.Section.Appearance", "Appearance"), "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"),
             new(SettingsConstants.SectionDataDirectories, GetLocalizedSectionTitle("Settings.Section.DataDirectories", "Data Directories"), "M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"),
             new(SettingsConstants.SectionMigrateInstallation, GetLocalizedSectionTitle("Settings.Section.MigrateInstallation", "Migrate Installation"), "M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M12,17L8,13H11V9H13V13H16L12,17Z"),
+            new(SettingsConstants.SectionDiagnosticsPrivacy, GetLocalizedSectionTitle("Settings.Section.DiagnosticsPrivacy", "Diagnostics & Privacy"), "M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z"),
             new(SettingsConstants.SectionLogs, GetLocalizedSectionTitle("Settings.Section.Logs", "Logs"), "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"),
             new(SettingsConstants.SectionPerformance, GetLocalizedSectionTitle("Settings.Section.Performance", "Performance"), "M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"),
             new(SettingsConstants.SectionCas, GetLocalizedSectionTitle("Settings.Section.CAS", "CAS Storage"), "M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"),
             new(SettingsConstants.SectionLocalContent, GetLocalizedSectionTitle("Settings.Section.LocalContent", "Local Content"), "M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"),
             new(SettingsConstants.SectionGitHubDiscovery, GetLocalizedSectionTitle("Settings.Section.GitHubDiscovery", "GitHub Discovery"), "M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"),
             new(SettingsConstants.SectionUpdates, GetLocalizedSectionTitle("Settings.Section.Updates", "Updates"), "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"),
-            new(SettingsConstants.SectionSubscriptions, GetLocalizedSectionTitle("Settings.Section.CatalogSubscriptions", "Catalog Subscriptions"), "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z"),
+            new(SettingsConstants.SectionSubscriptions, GetLocalizedSectionTitle("Settings.Section.CatalogSubscriptions", "Publisher Subscriptions"), "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z"),
+            new(SettingsConstants.SectionCloudUploads, GetLocalizedSectionTitle("Settings.Section.CloudUploads", GetLocalizedSectionTitle("Settings.CloudStorage.Title", "Cloud Storage & Uploads")), "M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04M14,13V17H10V13H7L12,8L17,13H14Z"),
             new(SettingsConstants.SectionDangerZone, GetLocalizedSectionTitle("Settings.Section.DangerZone", "Danger Zone"), "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"),
         ];
 
@@ -1031,6 +1043,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             PeriodicUpdateCheckIntervalMinutes = settings.PeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = settings.AllowBackgroundDownloads;
             EnableDetailedLogging = settings.EnableDetailedLogging;
+            TelemetryPreference = settings.TelemetryPreference;
             DefaultWorkspaceStrategy = settings.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = settings.DownloadBufferSize / (double)ConversionConstants.BytesPerKilobyte; // Convert bytes to KB
             DownloadTimeoutSeconds = settings.DownloadTimeoutSeconds;
@@ -1088,6 +1101,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.PeriodicUpdateCheckIntervalMinutes = PeriodicUpdateCheckIntervalMinutes;
                 settings.AllowBackgroundDownloads = AllowBackgroundDownloads;
                 settings.EnableDetailedLogging = EnableDetailedLogging;
+                settings.TelemetryPreference = TelemetryPreference;
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
 
                 settings.SubscribedBranch = string.IsNullOrWhiteSpace(SubscribedBranchInput) ? null : SubscribedBranchInput;
@@ -1158,6 +1172,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             PeriodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = true;
             EnableDetailedLogging = false;
+            TelemetryPreference = TelemetryLevel.Disabled;
             DefaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = DownloadDefaults.BufferSizeKB; // 80KB default
             DownloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
@@ -2606,7 +2621,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task DeleteProfiles()
+    private async Task DeleteProfiles(CancellationToken cancellationToken)
     {
         try
         {
@@ -2621,7 +2636,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await DeleteProfilesInternalAsync(showToast: true, updateDangerZone: true);
+            await DeleteProfilesInternalAsync(showToast: true, updateDangerZone: true, cancellationToken);
         }
         finally
         {
@@ -2629,35 +2644,41 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task DeleteProfilesInternalAsync(bool showToast, bool updateDangerZone)
+    private async Task DeleteProfilesInternalAsync(bool showToast, bool updateDangerZone, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogWarning("Deleting all profiles");
-            var profilesResult = await _profileManager.GetAllProfilesAsync();
-            if (profilesResult.Success && profilesResult.Data != null)
+            var profilesResult = await _profileManager.GetAllProfilesAsync(cancellationToken);
+            if (!profilesResult.Success || profilesResult.Data == null)
             {
-                var count = profilesResult.Data.Count;
-                foreach (var profile in profilesResult.Data)
-                {
-                    // Copy ID to avoid potential collection modification issues if list is live
-                    string id = profile.Id;
-                    await _profileManager.DeleteProfileAsync(id);
-                }
+                return;
+            }
 
-                if (showToast)
+            var deletedCount = 0;
+            var failedProfileNames = new List<string>();
+            foreach (var profile in profilesResult.Data.ToList())
+            {
+                var deleteResult = await _profileManager.DeleteProfileAsync(profile.Id, cancellationToken);
+                if (deleteResult.Success)
                 {
-                    _notificationService.ShowSuccess("Profiles Deleted", $"Deleted {count} profile(s) successfully.", 3000);
+                    deletedCount++;
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to delete profile {ProfileName} ({ProfileId}): {Error}", profile.Name, profile.Id, deleteResult.FirstError);
+                    failedProfileNames.Add(profile.Name);
                 }
             }
 
-            // Notify listeners that profile list has changed
-            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
-
-            if (updateDangerZone)
+            if (showToast)
             {
-                await UpdateDangerZoneDataAsync();
+                ShowProfileDeletionResult(deletedCount, failedProfileNames);
             }
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Profile deletion was cancelled");
         }
         catch (Exception ex)
         {
@@ -2666,6 +2687,48 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete profiles: {ex.Message}", 5000);
             }
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
+            if (updateDangerZone && !_disposed)
+            {
+                await UpdateDangerZoneDataAsync();
+            }
+        }
+    }
+
+    private void ShowProfileDeletionResult(int deletedCount, List<string> failedProfileNames)
+    {
+        if (failedProfileNames.Count > 0)
+        {
+            var message = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService?.GetString("Settings.Profiles.DeleteIncomplete") ?? "Deleted {0} profile(s). Could not delete {1} profile(s): {2}.",
+                deletedCount,
+                failedProfileNames.Count,
+                string.Join(", ", failedProfileNames));
+            if (deletedCount == 0)
+            {
+                _notificationService.ShowError(
+                    _localizationService?.GetString("Settings.Profiles.DeleteFailedTitle") ?? "Profile Deletion Failed",
+                    message,
+                    NotificationDurations.Medium);
+            }
+            else
+            {
+                _notificationService.ShowWarning(
+                    _localizationService?.GetString("Settings.Profiles.DeletePartialTitle") ?? "Profiles Partially Deleted",
+                    message,
+                    NotificationDurations.Medium);
+            }
+        }
+        else
+        {
+            _notificationService.ShowSuccess(
+                _localizationService?.GetString("Settings.Profiles.DeletedTitle") ?? "Profiles Deleted",
+                string.Format(CultureInfo.CurrentCulture, _localizationService?.GetString("Settings.Profiles.DeletedMessage") ?? "Deleted {0} profile(s) successfully.", deletedCount),
+                NotificationDurations.Short);
         }
     }
 
@@ -2915,23 +2978,32 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var logsPath = _configurationProvider.GetLogsPath();
-            if (!Directory.Exists(logsPath))
+            string? targetLogFilePath = null;
+
+            if (!string.IsNullOrWhiteSpace(LoggingModule.ActiveLogFilePath) && File.Exists(LoggingModule.ActiveLogFilePath))
+            {
+                targetLogFilePath = LoggingModule.ActiveLogFilePath;
+            }
+            else if (Directory.Exists(logsPath))
+            {
+                var directoryInfo = new DirectoryInfo(logsPath);
+                var latestLog = directoryInfo.GetFiles("*.log")
+                                             .OrderByDescending(f => f.LastWriteTime)
+                                             .FirstOrDefault();
+                targetLogFilePath = latestLog?.FullName;
+            }
+            else
             {
                 _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
                 return;
             }
 
-            var directoryInfo = new DirectoryInfo(logsPath);
-            var latestLog = directoryInfo.GetFiles("*.log")
-                                         .OrderByDescending(f => f.LastWriteTime)
-                                         .FirstOrDefault();
-
-            if (latestLog != null)
+            if (!string.IsNullOrWhiteSpace(targetLogFilePath) && File.Exists(targetLogFilePath))
             {
                 try
                 {
                     // Read with sharing allowed to prevent "file in use" errors if the app is currently writing to it
-                    using var fileStream = new FileStream(latestLog.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var fileStream = new FileStream(targetLogFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     using var streamReader = new StreamReader(fileStream);
                     string logContent = await streamReader.ReadToEndAsync();
 
@@ -3240,15 +3312,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "StyleCop.CSharp.OrderingRules",
-        "SA1204:StaticElementsMustAppearBeforeInstanceElements",
-        Justification = "Co-located with subscription commands for cohesion.")]
-    private static bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
-    {
-        return subscription is { TrustLevel: not TrustLevel.Verified };
-    }
-
     /// <summary>
     /// Loads all active publisher subscriptions.
     /// </summary>
@@ -3340,6 +3403,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (result.Success)
             {
                 Subscriptions.Remove(subscription);
+                WeakReferenceMessenger.Default.Send(new PublisherSubscriptionRemovedMessage(subscription.PublisherId));
+                WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(subscription.PublisherId));
                 var removedTitle = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationTitle") ?? CatalogConstants.SubscriptionRemovedNotificationTitle;
                 var removedMessageFormat = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationMessage") ?? "Unsubscribed from {0}";
                 _notificationService.ShowSuccess(removedTitle, string.Format(CultureInfo.InvariantCulture, removedMessageFormat, subscription.PublisherName));
@@ -3359,47 +3424,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to remove subscription");
             var removeFailedFallback = _localizationService?.GetString("Settings.Subscriptions.RemoveFailedFallback") ?? "Failed to remove subscription";
             _notificationService.ShowError(SubscriptionErrorTitle, removeFailedFallback);
-        }
-    }
-
-    /// <summary>
-    /// Toggles the trust level for a publisher subscription.
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanToggleSubscriptionTrust))]
-    private async Task ToggleSubscriptionTrustAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
-    {
-        if (subscription == null || _subscriptionStore == null || subscription.TrustLevel == TrustLevel.Verified)
-        {
-            return;
-        }
-
-        try
-        {
-            var newTrust = subscription.TrustLevel == TrustLevel.Trusted
-                ? TrustLevel.Untrusted
-                : TrustLevel.Trusted;
-
-            var result = await _subscriptionStore.UpdateTrustLevelAsync(subscription.PublisherId, newTrust, cancellationToken);
-            if (result.Success)
-            {
-                subscription.TrustLevel = newTrust;
-                ToggleSubscriptionTrustCommand.NotifyCanExecuteChanged();
-            }
-            else
-            {
-                var updateTrustFailedMessage = _localizationService?.GetString("Settings.Subscriptions.UpdateTrustFailedMessage") ?? "Failed to update trust level: {0}";
-                _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, updateTrustFailedMessage, result.FirstError));
-            }
-        }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
-        {
-            _logger.LogInformation(ex, "Toggling trust level was cancelled.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to update trust level");
-            var updateTrustFailedFallback = _localizationService?.GetString("Settings.Subscriptions.UpdateTrustFailedFallback") ?? "Failed to update trust level";
-            _notificationService.ShowError(SubscriptionErrorTitle, updateTrustFailedFallback);
         }
     }
 

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.GitHub.Services;
@@ -28,17 +29,17 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
     public WindowsGitHubTokenStorage(IConfigurationProviderService? configurationProvider = null)
     {
         var appData = configurationProvider?.GetApplicationDataPath()
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+            ?? AppDataPathHelper.GetDataRoot();
         Directory.CreateDirectory(appData);
         _tokenFilePath = GitHubTokenPathResolver.GetPrimaryTokenFilePath(appData);
         _fallbackTokenFilePath = GitHubTokenPathResolver.GetFallbackTokenFilePath(appData);
 
         try
         {
-            if (!File.Exists(_tokenFilePath))
+            var legacyRoot = AppDataPathHelper.GetLegacyRoamingRoot();
+            if (legacyRoot != null && !File.Exists(_tokenFilePath))
             {
-                var legacyDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
-                var legacyToken = Path.Combine(legacyDir, AppConstants.TokenFileName);
+                var legacyToken = Path.Combine(legacyRoot, AppConstants.TokenFileName);
                 if (File.Exists(legacyToken))
                 {
                     File.Move(legacyToken, _tokenFilePath, overwrite: true);

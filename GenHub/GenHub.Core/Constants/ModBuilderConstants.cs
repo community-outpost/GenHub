@@ -342,6 +342,11 @@ public static class ModBuilderConstants
     public const string MenuTexturesSpanishItemName = "MenuTexturesSpanish";
 
     /// <summary>
+    /// Source wildcard pattern for loose TGA textures under Art/Textures.
+    /// </summary>
+    public const string ArtTexturesWildcardPattern = "Art/Textures/**/*.tga";
+
+    /// <summary>
     /// Relative manifest path for Improved Menus English BIG archive.
     /// </summary>
     public const string ImprovedMenusEnglishManifestPath = "config/0_ImprovedMenusEnglish.big.manifest.json";

@@ -36,6 +36,29 @@ public class SettingsViewTests
     [AvaloniaFact]
     public async Task SelectingCollapsedBottomSection_ScrollsItFullyIntoViewAsync()
     {
+        await AssertSectionScrollsIntoViewAsync((viewModel, _, _) =>
+        {
+            var updates = viewModel.Sections.First(section => section.Id == SettingsConstants.SectionUpdates);
+            viewModel.SelectedSection = updates;
+        });
+    }
+
+    /// <summary>
+    /// Verifies that expanding a collapsed section directly scrolls it fully into view
+    /// the same way selecting it from the sidebar does.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task ExpandingCollapsedSection_ScrollsItFullyIntoViewAsync()
+    {
+        await AssertSectionScrollsIntoViewAsync((_, _, expander) =>
+        {
+            expander.IsExpanded = true;
+        });
+    }
+
+    private static async Task AssertSectionScrollsIntoViewAsync(Action<SettingsViewModel, SettingsView, Expander> triggerAction)
+    {
         using var viewModel = CreateViewModel();
         var view = new SettingsView { DataContext = viewModel };
         var window = new Window { Width = 1100, Height = 700, Content = view };
@@ -44,14 +67,13 @@ public class SettingsViewTests
 
         try
         {
-            var updates = viewModel.Sections.First(section => section.Id == SettingsConstants.SectionUpdates);
             var expander = view.FindControl<Expander>("Expander_Updates");
             var scrollViewer = view.FindControl<ScrollViewer>("SettingsScrollViewer");
             Assert.NotNull(expander);
             Assert.NotNull(scrollViewer);
             Assert.False(expander.IsExpanded);
 
-            viewModel.SelectedSection = updates;
+            triggerAction(viewModel, view, expander);
 
             await WaitForScrollToSettleAsync(scrollViewer, expander);
 

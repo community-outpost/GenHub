@@ -22,8 +22,14 @@ public static class PublisherInfoConstants
     /// </summary>
     public const string LocalInstallationPublisherName = "Local";
 
+    /// <summary>
+    /// Placeholder blank URL for publishers without an explicit website or support link.
+    /// </summary>
+    public const string BlankUrl = "about:blank";
+
     private static readonly (string[] Keywords, string LogoSource)[] LogoRules =
     [
+        (["dominator", "dominatormappacks", "dominator-mappacks", "dominator map packs"], Dominator.LogoSource),
         (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpost.LogoSource),
         (["superhacker"], TheSuperHackers.LogoSource),
         (["generalsonline", "generals online", "generals-online"], GeneralsOnline.LogoSource),
@@ -59,6 +65,9 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for Steam.</summary>
         public const string LogoSource = ""; // Placeholder until asset lands
+
+        /// <summary>Store page URL for Command &amp; Conquer Generals and Zero Hour on Steam.</summary>
+        public const string StoreUrl = "https://store.steampowered.com/app/2229870/Command__Conquer_Generals/";
     }
 
     /// <summary>
@@ -77,6 +86,9 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for EA App.</summary>
         public const string LogoSource = ""; // Placeholder until asset lands
+
+        /// <summary>Store page URL for Command &amp; Conquer The Ultimate Collection on EA App.</summary>
+        public const string StoreUrl = "https://www.ea.com/games/command-and-conquer/command-and-conquer-the-ultimate-collection";
     }
 
     /// <summary>
@@ -260,6 +272,24 @@ public static class PublisherInfoConstants
     }
 
     /// <summary>
+    /// Publisher information for Dominator Map Packs.
+    /// </summary>
+    public static class Dominator
+    {
+        /// <summary>Display name for Dominator Map Packs publisher.</summary>
+        public const string Name = "Dominator Map Packs";
+
+        /// <summary>Website URL for Dominator Map Packs.</summary>
+        public const string Website = BlankUrl;
+
+        /// <summary>Support URL for Dominator Map Packs.</summary>
+        public const string SupportUrl = BlankUrl;
+
+        /// <summary>Logo source for Dominator Map Packs.</summary>
+        public const string LogoSource = "avares://GenHub/Assets/Logos/dominator-logo.png";
+    }
+
+    /// <summary>
     /// Publisher information for CNC Labs.
     /// </summary>
     public static class CNCLabs
@@ -364,10 +394,10 @@ public static class PublisherInfoConstants
         public const string Name = "Unknown";
 
         /// <summary>Website URL for Unknown.</summary>
-        public const string Website = "about:blank";
+        public const string Website = BlankUrl;
 
         /// <summary>Support URL for Unknown.</summary>
-        public const string SupportUrl = "about:blank";
+        public const string SupportUrl = BlankUrl;
 
         /// <summary>Logo source for Unknown.</summary>
         public const string LogoSource = DefaultGenHubIconSource;
@@ -402,6 +432,13 @@ public static class PublisherInfoConstants
     /// <returns>An avares:// URI string pointing to the logo image asset, or null if unmapped.</returns>
     public static string? GetPublisherLogo(string? publisherIdOrName, string? contentIdOrName = null)
     {
+        // Community Patch takes precedence over primary/secondary matches (such as thesuperhackers)
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(contentIdOrName) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(publisherIdOrName))
+        {
+            return CommunityOutpost.LogoSource;
+        }
+
         var primary = MatchLogo(publisherIdOrName);
         var secondary = MatchLogo(contentIdOrName);
 
@@ -422,6 +459,13 @@ public static class PublisherInfoConstants
     /// <returns>A cover image path string, or null if unmapped.</returns>
     public static string? GetPublisherCover(string? publisherIdOrName, string? contentIdOrName = null)
     {
+        // Community Patch takes precedence over primary/secondary matches (such as thesuperhackers)
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(contentIdOrName) ||
+            CommunityOutpostConstants.IsCommunityPatchIdentifier(publisherIdOrName))
+        {
+            return CommunityOutpostConstants.CoverSource;
+        }
+
         var primary = MatchCover(publisherIdOrName);
         var secondary = MatchCover(contentIdOrName);
 
@@ -433,6 +477,11 @@ public static class PublisherInfoConstants
         if (string.IsNullOrWhiteSpace(input))
         {
             return null;
+        }
+
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(input))
+        {
+            return CommunityOutpost.LogoSource;
         }
 
         foreach (var (keywords, logoSource) in LogoRules)
@@ -451,6 +500,11 @@ public static class PublisherInfoConstants
         if (string.IsNullOrWhiteSpace(input))
         {
             return null;
+        }
+
+        if (CommunityOutpostConstants.IsCommunityPatchIdentifier(input))
+        {
+            return CommunityOutpostConstants.CoverSource;
         }
 
         foreach (var (keywords, coverSource) in CoverRules)

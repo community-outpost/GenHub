@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace GenHub.Core.Constants;
@@ -317,11 +318,11 @@ public static class GenLauncherConstants
     /// Public read-only key distributed in the open-source GenLauncher client for community mod downloads.
     /// May be overridden via the GENLAUNCHER_INSAVE_SECRET_KEY environment variable.
     /// </summary>
+    [SuppressMessage("Security", "S2077:Make sure using a dynamically formatted SQL query is safe here", Justification = "Public read-only GenInsave S3 key, not a SQL query")]
     [SuppressMessage("Security", "S6418:Strings should not contain all capital secret keys or credentials", Justification = "Public read-only GenInsave S3 key distributed in the open-source GenLauncher client for community mod downloads")]
     public static readonly string DefaultGenInsaveSecretKey =
         Environment.GetEnvironmentVariable("GENLAUNCHER_INSAVE_SECRET_KEY")
-        ?? Encoding.UTF8.GetString(
-            Convert.FromBase64String("YjJSVTFvcVZVNXRvSlJuYjRnT0RyWFg4c0JTZ29MY0hSWDZxUFd4ag==")); // NOSONAR
+        ?? "b2RU1oqVU5toJRnb4gODrXX8sBSgoLcHRX6qPWxj"; // NOSONAR
 
     /// <summary>
     /// Probe timeout TimeSpan for GenLauncher size and availability probes.
@@ -368,6 +369,33 @@ public static class GenLauncherConstants
         GibExtension,
         CtrExtension,
         SkwExtension,
+    ];
+
+    /// <summary>
+    /// Known archive file extensions.
+    /// </summary>
+    public static readonly string[] KnownArchiveExtensions =
+    [
+        ".zip",
+        ".7z",
+        ".rar",
+        ".tar",
+        ".gz",
+        ".tgz",
+        ".bz2",
+        ".xz",
+    ];
+
+    /// <summary>
+    /// Invalid file name characters across Windows and Unix platforms.
+    /// </summary>
+    public static readonly char[] CrossPlatformInvalidFileNameChars =
+    [
+        '\"', '<', '>', '|', '\0',
+        (char)1, (char)2, (char)3, (char)4, (char)5, (char)6, (char)7, (char)8, (char)9, (char)10,
+        (char)11, (char)12, (char)13, (char)14, (char)15, (char)16, (char)17, (char)18, (char)19, (char)20,
+        (char)21, (char)22, (char)23, (char)24, (char)25, (char)26, (char)27, (char)28, (char)29, (char)30,
+        (char)31, ':', '*', '?', '\\', '/',
     ];
 
     /// <summary>
@@ -426,5 +454,22 @@ public static class GenLauncherConstants
         // identical names to unrelated downloads and collapses distinct releases
         // during deduplication.
         return Path.GetExtension(fileName.Trim()).Length > 1;
+    }
+
+    /// <summary>
+    /// Checks whether an extension corresponds to a known archive or supported game payload file.
+    /// </summary>
+    /// <param name="extension">The file extension to check.</param>
+    /// <returns>True if supported; otherwise false.</returns>
+    public static bool IsSupportedPayloadExtension(string? extension)
+    {
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return false;
+        }
+
+        return KnownArchiveExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase) ||
+               ChecksumExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase) ||
+               InactiveBigExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 }

@@ -683,10 +683,10 @@ public static class WorkspaceCompatibilityHelper
             var files = ManifestVariantResolver.ResolveFiles(m);
             if (files.Count == 0 && m.Variants.Count > 0)
             {
-                files = ManifestVariantResolver.ResolveFiles(m, "win-x86");
+                files = ManifestVariantResolver.ResolveFiles(m, GameClientConstants.WindowsX86RuntimeIdentifier);
                 if (files.Count == 0)
                 {
-                    files = ManifestVariantResolver.ResolveFiles(m, "win-x64");
+                    files = ManifestVariantResolver.ResolveFiles(m, GameClientConstants.WindowsX64RuntimeIdentifier);
                 }
             }
 

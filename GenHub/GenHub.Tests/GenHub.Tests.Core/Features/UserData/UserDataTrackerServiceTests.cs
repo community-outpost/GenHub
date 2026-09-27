@@ -6,6 +6,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.UserData;
 using GenHub.Features.UserData.Services;
+using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -125,14 +126,439 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Cleans up test resources.
+    /// Verifies that installing a map with loose files (e.g. Last Stand_8.tga, Last Stand_8.map)
+    /// places both files inside a dedicated subdirectory matching the map name in the Maps folder.
     /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_FlatMapAndTga_InstallsIntoDedicatedMapSubdirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Last Stand_8.map",
+                Hash = "hash-map",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Last Stand_8.tga",
+                Hash = "hash-tga",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-flat-map",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8", "Last Stand_8.map");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8", "Last Stand_8.tga");
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedTgaPath));
+    }
+
+    /// <summary>
+    /// Verifies that installing a map from a folder ending in .map normalizes the destination path
+    /// so that .map is stripped from the directory name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_DirectoryEndingInDotMap_StripsDotMapFromDirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Last Stand_8.map/Last Stand_8.map",
+                Hash = "hash-map-nested",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Last Stand_8.map/Last Stand_8.tga",
+                Hash = "hash-tga-nested",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-dot-map-dir",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8", "Last Stand_8.map");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8", "Last Stand_8.tga");
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedTgaPath));
+        Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8.map")));
+    }
+
+    /// <summary>
+    /// Verifies that installing nested map files keeps companion files (such as .map, map.ini, Custom.ini, preview.tga)
+    /// together in the same parent directory rather than splitting them by basename.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_NestedMapWithCustomIniAndPreview_KeepsAllFilesUnderSingleMapDirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Desert/desert.map",
+                Hash = "hash-map-desert",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Desert/map.ini",
+                Hash = "hash-ini-map",
+                Size = 300,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Desert/Custom.ini",
+                Hash = "hash-ini-custom",
+                Size = 200,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "Desert/preview.tga",
+                Hash = "hash-tga-preview",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-nested-map-grouping",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "Desert", "desert.map");
+        var expectedMapIniPath = Path.Combine(_zeroHourDataDir, "Maps", "Desert", "map.ini");
+        var expectedCustomIniPath = Path.Combine(_zeroHourDataDir, "Maps", "Desert", "Custom.ini");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "Desert", "Desert.tga");
+
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedMapIniPath));
+        Assert.True(File.Exists(expectedCustomIniPath));
+        Assert.True(File.Exists(expectedTgaPath));
+
+        // Ensure no stray directories were created based on basenames
+        Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "Custom")));
+    }
+
+    /// <summary>
+    /// Verifies that flat generic companions (map.tga, preview.tga, map.ini) are installed
+    /// into the sibling map's folder instead of orphaned Maps/map or Maps/preview directories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_FlatMapWithGenericCompanions_InstallsIntoSiblingMapSubdirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "River.map",
+                Hash = "hash-map-river",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "map.tga",
+                Hash = "hash-tga-thumb",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "map.ini",
+                Hash = "hash-ini-script",
+                Size = 200,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "map.str",
+                Hash = "hash-str-strings",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-generic-companions",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.tga");
+        var expectedIniPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "map.ini");
+        var expectedStrPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "map.str");
+
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedTgaPath));
+        Assert.True(File.Exists(expectedIniPath));
+        Assert.True(File.Exists(expectedStrPath));
+
+        Assert.False(Directory.Exists(Path.Combine(_zeroHourDataDir, "Maps", "map")));
+    }
+
+    /// <summary>
+    /// Verifies that flat multi-map payloads containing sharing prefixes (e.g. River.map and River_v2.map)
+    /// install each map into its own subdirectory rather than shadowing exact matches with prefix matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_MultiMapFlatPayload_InstallsEachMapIntoOwnSubdirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "River.map",
+                Hash = "hash-map-river",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "River_v2.map",
+                Hash = "hash-map-river-v2",
+                Size = 1200,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "river.tga",
+                Hash = "hash-tga-river",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "River_v2_art.tga",
+                Hash = "hash-tga-river-v2",
+                Size = 600,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-multi-map-flat",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var riverMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
+        var riverTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.tga");
+        var riverV2MapPath = Path.Combine(_zeroHourDataDir, "Maps", "River_v2", "River_v2.map");
+        var riverV2TgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River_v2", "River_v2.tga");
+
+        Assert.True(File.Exists(riverMapPath));
+        Assert.True(File.Exists(riverTgaPath));
+        Assert.True(File.Exists(riverV2MapPath));
+        Assert.True(File.Exists(riverV2TgaPath));
+
+        Assert.False(File.Exists(Path.Combine(_zeroHourDataDir, "Maps", "River", "River_v2.map")));
+    }
+
+    /// <summary>
+    /// Verifies that flat multi-map payloads where the longer prefixed map is listed first
+    /// install each map into its own subdirectory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_MultiMapFlatPayload_ReverseOrder_InstallsEachMapIntoOwnSubdirectoryAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "River_v2.map",
+                Hash = "hash-map-river-v2",
+                Size = 1200,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "River.map",
+                Hash = "hash-map-river",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-multi-map-flat-rev",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var riverMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
+        var riverV2MapPath = Path.Combine(_zeroHourDataDir, "Maps", "River_v2", "River_v2.map");
+
+        Assert.True(File.Exists(riverMapPath));
+        Assert.True(File.Exists(riverV2MapPath));
+        Assert.False(File.Exists(Path.Combine(_zeroHourDataDir, "Maps", "River_v2", "River.map")));
+    }
+
+    /// <summary>
+    /// Verifies that flat payloads with variant companion thumbnails (e.g. OldMap.backup.tga)
+    /// preserve their filename in the map directory without clobbering the main thumbnail (OldMap.tga).
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_FlatPayloadWithVariantThumbnail_PreservesVariantFilenameWithoutClobberingAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "OldMap.map",
+                Hash = "hash-map-oldmap",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "OldMap.tga",
+                Hash = "hash-tga-oldmap",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "OldMap.backup.tga",
+                Hash = "hash-tga-oldmap-backup",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-variant-tga",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var mapPath = Path.Combine(_zeroHourDataDir, "Maps", "OldMap", "OldMap.map");
+        var tgaPath = Path.Combine(_zeroHourDataDir, "Maps", "OldMap", "OldMap.tga");
+        var backupTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "OldMap", "OldMap.backup.tga");
+
+        Assert.True(File.Exists(mapPath));
+        Assert.True(File.Exists(tgaPath));
+        Assert.True(File.Exists(backupTgaPath));
+
+        // Reinstall to ensure dictionary key on AbsolutePath does not throw on reinstall
+        var reinstallResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-variant-tga",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(reinstallResult.Success);
+    }
+
+    /// <summary>
+    /// Verifies that installing map files with an _art suffix (e.g. River_art.tga)
+    /// normalizes the filename to River.tga inside the map folder so the game recognizes the thumbnail.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_MapWithArtTga_NormalizesTgaToMapNameAsync()
+    {
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "River_art.tga",
+                Hash = "hash-tga-art",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+            new()
+            {
+                RelativePath = "River.map",
+                Hash = "hash-map-river",
+                Size = 1000,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-art-tga",
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        var expectedMapPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.map");
+        var expectedTgaPath = Path.Combine(_zeroHourDataDir, "Maps", "River", "River.tga");
+
+        Assert.True(File.Exists(expectedMapPath));
+        Assert.True(File.Exists(expectedTgaPath));
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         try
         {
             if (Directory.Exists(_tempDir))
             {
+                ReadOnlyFolderFixtures.RestoreWritable(_tempDir);
                 Directory.Delete(_tempDir, recursive: true);
             }
         }
@@ -140,6 +566,118 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         {
             // Ignore test cleanup errors
         }
+    }
+
+    /// <summary>
+    /// Verifies that deploying into an existing map folder made read-only outside GenHub replaces the file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_IntoReadOnlyExistingMapFolder_ReplacesFileAsync()
+    {
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8");
+        var mapPath = Path.Combine(mapDir, "Last Stand_8.map");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(mapPath, "user map");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-readonly-install",
+            GameType.ZeroHour,
+            [CreateMapFile("Last Stand_8.map", "hash-map")],
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal("cas-content-hash-map", await File.ReadAllTextAsync(mapPath));
+    }
+
+    /// <summary>
+    /// Verifies that uninstalling removes deployed maps whose folder was made read-only after deployment.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UninstallUserDataAsync_WithReadOnlyMapFolder_RemovesDeployedMapAsync()
+    {
+        const string profileId = "profile-readonly-uninstall";
+        var install = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            profileId,
+            GameType.ZeroHour,
+            [CreateMapFile("Last Stand_8.map", "hash-map"), CreateMapFile("Last Stand_8.tga", "hash-tga")],
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(install.Success, install.FirstError);
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+
+        var result = await _trackerService.UninstallUserDataAsync(TestManifestId, profileId, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.False(File.Exists(Path.Combine(mapDir, "Last Stand_8.map")));
+        Assert.False(File.Exists(Path.Combine(mapDir, "Last Stand_8.tga")));
+    }
+
+    /// <summary>
+    /// Verifies that deactivating a profile removes deployed maps whose folder was made read-only after deployment.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeactivateProfileUserDataAsync_WithReadOnlyMapFolder_RemovesDeployedMapAsync()
+    {
+        const string profileId = "profile-readonly-deactivate";
+        var install = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            profileId,
+            GameType.ZeroHour,
+            [CreateMapFile("Last Stand_8.map", "hash-map")],
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(install.Success, install.FirstError);
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+
+        var result = await _trackerService.DeactivateProfileUserDataAsync(profileId, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.False(File.Exists(Path.Combine(mapDir, "Last Stand_8.map")));
+    }
+
+    /// <summary>
+    /// Verifies that a deployment into a map folder whose permissions cannot be changed fails with an error naming the folder.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_WhenMapFolderCannotBeMadeWritable_ReturnsErrorNamingFolderAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Last Stand_8");
+        var mapPath = Path.Combine(mapDir, "Last Stand_8.map");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(mapPath, "user map");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.LockImmutable(mapDir);
+
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            "profile-immutable-install",
+            GameType.ZeroHour,
+            [CreateMapFile("Last Stand_8.map", "hash-map")],
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains($"'{mapDir}'", result.FirstError);
+        Assert.Equal("user map", await File.ReadAllTextAsync(mapPath));
     }
 
     /// <summary>
@@ -1556,4 +2094,42 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         var backupContent = await File.ReadAllTextAsync(entry.BackupPath);
         Assert.Equal("; existing untracked user map configuration", backupContent);
     }
+
+    /// <summary>Already matching files can be activated without changing immutable directory permissions.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task ActivateProfileUserDataAsync_MatchingImmutableMap_DoesNotRequireWriteAccessAsync()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        const string profileId = "immutable-matching";
+        var installed = await _trackerService.InstallUserDataAsync(TestManifestId, profileId, GameType.ZeroHour, [CreateMapFile("Matching.map", "matching-hash")], TestVersion, TestManifestName, CancellationToken.None);
+        Assert.True(installed.Success, installed.FirstError);
+        var deactivated = await _trackerService.DeactivateProfileUserDataAsync(profileId, CancellationToken.None);
+        Assert.True(deactivated.Success, deactivated.FirstError);
+        var mapDir = Path.Combine(_zeroHourDataDir, "Maps", "Matching");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(Path.Combine(mapDir, "Matching.map"), "cas-content-matching-hash");
+        ReadOnlyFolderFixtures.MakeReadOnly(mapDir);
+        ReadOnlyFolderFixtures.LockImmutable(mapDir);
+        _fileOperationsMock.Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), "matching-hash", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var activated = await _trackerService.ActivateProfileUserDataAsync(profileId, CancellationToken.None);
+
+        Assert.True(activated.Success, activated.FirstError);
+        _fileOperationsMock.Verify(f => f.VerifyFileHashAsync(It.IsAny<string>(), "matching-hash", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        Assert.True(ReadOnlyFolderFixtures.IsReadOnly(mapDir));
+    }
+
+    private static ManifestFile CreateMapFile(string relativePath, string hash) => new()
+    {
+        RelativePath = relativePath,
+        Hash = hash,
+        Size = 100,
+        InstallTarget = ContentInstallTarget.UserMapsDirectory,
+    };
 }

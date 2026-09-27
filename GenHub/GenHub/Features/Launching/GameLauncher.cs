@@ -59,6 +59,8 @@ public class GameLauncher(
     ILaunchReceiptService launchReceiptService,
     ILocalizationService? localizationService = null) : IGameLauncher
 {
+    /// <summary>Serializes profile launch registration and destructive deletion for all callers.</summary>
+    internal static readonly ConcurrentDictionary<string, SemaphoreSlim> ProfileLaunchLocks = new(StringComparer.OrdinalIgnoreCase);
     private const string EaLogoBik = "EA_LOGO.BIK";
     private const string EaLogo640Bik = "EA_LOGO640.BIK";
     private const string MoviesDirectoryName = "Movies";
@@ -67,7 +69,6 @@ public class GameLauncher(
     private const string LowerMoviesDirectoryName = "movies";
     private const string LowerDataDirectoryName = "data";
 
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
         new(InstallationPathLockKey.Comparer);
 
@@ -77,7 +78,7 @@ public class GameLauncher(
     public async Task<IDisposable> AcquireProfileLockAsync(string profileId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
-        var semaphore = _profileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
+        var semaphore = ProfileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
         await semaphore.WaitAsync(cancellationToken);
         return new SemaphoreReleaser(semaphore);
     }
@@ -299,7 +300,7 @@ public class GameLauncher(
                     if (!process.Start())
                         return LaunchResult.CreateFailure("Failed to start process", null);
                     var launchDuration = DateTime.UtcNow - startTime;
-                    return LaunchResult.CreateSuccess(process.Id, process.StartTime, launchDuration);
+                    return LaunchResult.CreateSuccess(process.Id, process.StartTime.ToUniversalTime(), launchDuration);
                 },
                 cancellationToken);
         }
@@ -342,7 +343,8 @@ public class GameLauncher(
                     {
                         ProcessId = process.Id,
                         ProcessName = process.ProcessName,
-                        StartTime = process.StartTime,
+                        StartTime = process.StartTime.ToUniversalTime(),
+                        HasVerifiedStartTime = true,
                         WorkingDirectory = workingDirectory,
                         CommandLine = commandLine,
                         IsResponding = process.Responding,
@@ -454,10 +456,20 @@ public class GameLauncher(
         }
 
         // Use profile-specific semaphore to prevent race conditions
-        var semaphore = _profileLaunchLocks.GetOrAdd(profile.Id, _ => new SemaphoreSlim(1, 1));
+        var semaphore = ProfileLaunchLocks.GetOrAdd(profile.Id, _ => new SemaphoreSlim(1, 1));
         await semaphore.WaitAsync(cancellationToken);
         try
         {
+            // A caller can load the profile before waiting behind deletion. Recheck persistence
+            // after acquiring the shared lock so that a deleted snapshot cannot recreate its workspace.
+            var persistedProfile = await profileManager.GetProfileAsync(profile.Id, cancellationToken);
+            if (persistedProfile is not { Success: true, Data: not null })
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                    "Profile is no longer available. Refresh the profile list before launching.",
+                    profileId: profile.Id);
+            }
+
             // Check if already launching (inside the semaphore to prevent race)
             var existingLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
             var activeLaunch = existingLaunches.FirstOrDefault(l => l.ProfileId == profile.Id && !l.TerminatedAt.HasValue);
@@ -1466,6 +1478,13 @@ public class GameLauncher(
             };
             logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
             await launchRegistry.RegisterLaunchAsync(launchInfo);
+            if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
+            {
+                // Keep the terminated entry so its exit code and diagnostics remain inspectable.
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                    LaunchExitMessages.Describe(launchInfo, localizationService), launchId, profile.Id);
+            }
+
             await RecordLaunchReceiptAsync(receiptContext);
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
@@ -1809,6 +1828,9 @@ public class GameLauncher(
             EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
             ExpectedChildProcessName = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath),
             GameType = profile.GameClient?.GameType,
+            GameClientId = profile.GameClient?.Id,
+            GameClientName = profile.GameClient?.Name,
+            GameClientVersion = profile.GameClient?.Version,
             NativeOptionsIniPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType),
         };
     }

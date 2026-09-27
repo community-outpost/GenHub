@@ -16,6 +16,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
@@ -38,6 +39,8 @@ public class ModBuilderViewModelTests : IDisposable
     private readonly Mock<ILoggerFactory> _mockLoggerFactory;
     private readonly Mock<ILogger<ModBuilderViewModel>> _mockLogger;
     private readonly Mock<ILogger<FileManagerViewModel>> _mockFileManagerLogger;
+    private readonly Mock<IWndDocumentService> _mockWndDocumentService;
+    private readonly Mock<ILocalizationService> _mockLocalizationService;
     private readonly FileManagerViewModel _fileManager;
     private readonly string _tempDir;
 
@@ -52,10 +55,14 @@ public class ModBuilderViewModelTests : IDisposable
         _mockLoggerFactory = new Mock<ILoggerFactory>();
         _mockLogger = new Mock<ILogger<ModBuilderViewModel>>();
         _mockFileManagerLogger = new Mock<ILogger<FileManagerViewModel>>();
+        _mockWndDocumentService = new Mock<IWndDocumentService>();
+        _mockLocalizationService = new Mock<ILocalizationService>();
 
         _fileManager = new FileManagerViewModel(
             _mockGameInstallService.Object,
             _mockNotificationService.Object,
+            _mockWndDocumentService.Object,
+            _mockLocalizationService.Object,
             _mockFileManagerLogger.Object);
 
         _mockLoggerFactory
@@ -564,5 +571,53 @@ public class ModBuilderViewModelTests : IDisposable
         await File.WriteAllTextAsync(target, "{ not valid json");
 
         Assert.False(ModBuilderViewModel.ShouldRefreshSampleManifestsFile("ImprovedMenus", template, target));
+    }
+
+    [Fact]
+    public void IsImprovedMenusConfigStale_WithLegacyLanguageScopedArtTextures_ReturnsTrue()
+    {
+        var legacyContent = @"
+[
+  {
+    ""Name"": ""MenuTexturesEnglish"",
+    ""SourceFiles"": [
+      ""GameFilesEdited/Data/English/Art/Textures/**/*.tga"",
+      ""GameFilesEdited/Data/English/Art/Textures/**/*.dds""
+    ]
+  }
+]";
+
+        var isStale = ModBuilderViewModel.IsImprovedMenusConfigStale(
+            ModBuilderConstants.ImprovedMenusSampleName,
+            legacyContent,
+            isItemsFile: true,
+            isPacksFile: false);
+
+        Assert.True(isStale);
+    }
+
+    [Fact]
+    public void IsImprovedMenusConfigStale_WithLooseArtTextures_ReturnsFalse()
+    {
+        var newContent = @"
+[
+  {
+    ""Name"": ""MenuTexturesEnglish"",
+    ""SourceFiles"": [
+      ""GameFilesEdited/Data/English/Art/Textures/**/*.tga"",
+      ""GameFilesEdited/Data/English/Art/Textures/**/*.dds"",
+      ""GameFilesEdited/Art/Textures/**/*.tga"",
+      ""GameFilesEdited/Art/Textures/**/*.dds""
+    ]
+  }
+]";
+
+        var isStale = ModBuilderViewModel.IsImprovedMenusConfigStale(
+            ModBuilderConstants.ImprovedMenusSampleName,
+            newContent,
+            isItemsFile: true,
+            isPacksFile: false);
+
+        Assert.False(isStale);
     }
 }

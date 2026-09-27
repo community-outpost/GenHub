@@ -73,7 +73,7 @@ public class CasService(
             logger.LogDebug("Stored content in CAS: {Hash} from {SourcePath}", hash, sourcePath);
             return OperationResult<string>.CreateSuccess(hash);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to store content in CAS from {SourcePath}", sourcePath);
             return OperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
@@ -133,7 +133,7 @@ public class CasService(
             logger.LogInformation("Stored content in CAS: {Hash}", hash);
             return OperationResult<string>.CreateSuccess(hash);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to store stream content in CAS");
             return OperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
@@ -393,7 +393,7 @@ public class CasService(
             logger.LogDebug("Stored content in CAS pool ({ContentType}): {Hash} from {SourcePath}", contentType, hash, sourcePath);
             return OperationResult<string>.CreateSuccess(hash);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to store content in CAS pool ({ContentType}) from {SourcePath}", contentType, sourcePath);
             return OperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
@@ -447,7 +447,7 @@ public class CasService(
             logger.LogDebug("Stored content in CAS pool ({ContentType}): {Hash} from {SourcePath}", contentType, knownHash, sourcePath);
             return OperationResult<string>.CreateSuccess(knownHash);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to store content in CAS pool ({ContentType}) from {SourcePath}", contentType, sourcePath);
             return OperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
@@ -521,7 +521,7 @@ public class CasService(
             logger.LogDebug("Stored content in CAS pool ({ContentType}): {Hash}", contentType, hash);
             return OperationResult<string>.CreateSuccess(hash);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to store stream content in CAS pool ({ContentType})", contentType);
             return OperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");

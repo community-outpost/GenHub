@@ -50,7 +50,7 @@ public static class GameSettingsMapper
         profile.GoRememberUsername = settings.RememberUsername;
         profile.GoEnableNotifications = settings.EnableNotifications;
         profile.GoEnableSoundNotifications = settings.EnableSoundNotifications;
-        profile.GoChatFontSize = settings.ChatFontSize;
+        profile.GoChatFontSize = Math.Clamp(settings.ChatFontSize, GameSettingsGeneralsOnlineConstants.MinChatFontSize, GameSettingsGeneralsOnlineConstants.MaxChatFontSize);
 
         // Camera settings
         profile.GoCameraMaxHeightOnlyWhenLobbyHost = settings.Camera.MaxHeightOnlyWhenLobbyHost;
@@ -680,7 +680,13 @@ public static class GameSettingsMapper
         if (profile.GoRememberUsername.HasValue) settings.RememberUsername = profile.GoRememberUsername.Value;
         if (profile.GoEnableNotifications.HasValue) settings.EnableNotifications = profile.GoEnableNotifications.Value;
         if (profile.GoEnableSoundNotifications.HasValue) settings.EnableSoundNotifications = profile.GoEnableSoundNotifications.Value;
-        if (profile.GoChatFontSize.HasValue) settings.ChatFontSize = profile.GoChatFontSize.Value;
+        if (profile.GoChatFontSize.HasValue)
+        {
+            settings.ChatFontSize = Math.Clamp(
+                profile.GoChatFontSize.Value,
+                GameSettingsGeneralsOnlineConstants.MinChatFontSize,
+                GameSettingsGeneralsOnlineConstants.MaxChatFontSize);
+        }
     }
 
     private static void ApplyGoCameraAndChatSettings(GameProfile profile, GeneralsOnlineSettings settings)

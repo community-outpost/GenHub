@@ -26,6 +26,7 @@ public static class AppServices
         // Register core services in dependency order
         services.AddLoggingModule();
         services.AddLocalizationServices();
+        services.AddTelemetryServices();
         services.AddValidationServices();
         services.AddGameDetectionService();
         services.AddGameInstallation();
@@ -50,6 +51,7 @@ public static class AppServices
         services.AddMapManager();
         services.AddGenHotkeys();
         services.AddModBuilder();
+        services.AddWndEditor();
 
         // Register Notification services
         services.AddNotificationModule();

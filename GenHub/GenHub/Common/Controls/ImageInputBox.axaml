@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:local="clr-namespace:GenHub.Common.Controls"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             x:Class="GenHub.Common.Controls.ImageInputBox"
+             x:DataType="local:ImageInputBox">
+        <UserControl.Styles>
+        <Style Selector="Button.glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <TextBox Name="InputTextBox"
+                 Grid.Column="0"
+                 DragDrop.AllowDrop="True"
+                 Text="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Mode=TwoWay}"
+                 Watermark="{Binding Watermark, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
+                 FontSize="13"
+                 Padding="10,8"/>
+        <Button Name="ClearButton"
+                Grid.Column="1"
+                Margin="6,0,0,0"
+                Padding="6"
+                Width="34" Height="34"
+                Classes="glass-btn"
+                VerticalAlignment="Center"
+                IsVisible="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                ToolTip.Tip="{localization:Localize Common.Tooltip.Clear}">
+            <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                      Width="12" Height="12"
+                      Foreground="{DynamicResource TextSecondary}"/>
+        </Button>
+        <Button Name="PasteButton"
+                Grid.Column="2"
+                Margin="6,0,0,0"
+                Padding="6"
+                Width="34" Height="34"
+                Classes="glass-btn"
+                VerticalAlignment="Center"
+                ToolTip.Tip="{localization:Localize Common.Tooltip.PasteClipboard}">
+            <PathIcon Data="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 16H5V5h2v3h10V5h2v14z"
+                      Width="14" Height="14"
+                      Foreground="{DynamicResource TextSecondary}"/>
+        </Button>
+        <Border Name="PreviewBorder"
+                Grid.Column="3"
+                Margin="6,0,0,0"
+                Width="34" Height="34"
+                CornerRadius="{Binding PreviewCornerRadius, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
+                Background="{DynamicResource GlassFillBrush}"
+                BorderBrush="{DynamicResource GlassBorderBrush}"
+                BorderThickness="1"
+                DragDrop.AllowDrop="True"
+                Cursor="Hand"
+                ClipToBounds="True"
+                VerticalAlignment="Center"
+                ToolTip.Tip="{Binding PreviewToolTip, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}">
+            <Panel>
+                <PathIcon Name="FallbackIcon"
+                          Data="{Binding FallbackIconData, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
+                          Width="16" Height="16"
+                          Foreground="{DynamicResource TextSecondary}"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          IsVisible="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                <Image controls:ImageLoader.Source="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
+                       Stretch="UniformToFill"
+                       IsVisible="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </Panel>
+        </Border>
+    </Grid>
+</UserControl>

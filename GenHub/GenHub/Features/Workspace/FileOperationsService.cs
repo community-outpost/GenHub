@@ -619,7 +619,7 @@ public class FileOperationsService(
             logger.LogError("Failed to store file {SourcePath} in CAS: {Error}", sourcePath, result.FirstError);
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Exception storing file {SourcePath} in CAS", sourcePath);
             return null;

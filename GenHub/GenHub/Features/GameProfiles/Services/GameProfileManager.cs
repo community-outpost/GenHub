@@ -7,15 +7,19 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.UserData;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,6 +34,8 @@ public class GameProfileManager(
     IGameInstallationService installationService,
     IContentManifestPool manifestPool,
     IGameSettingsService gameSettingsService,
+    IWorkspaceManager workspaceManager,
+    IProfileContentLinker profileContentLinker,
     ILogger<GameProfileManager> logger,
     ILaunchRegistry? launchRegistry = null) : IGameProfileManager
 {
@@ -243,15 +249,40 @@ public class GameProfileManager(
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return OperationResult<bool>.CreateFailure("Profile ID cannot be empty");
+        }
+
+        var profileLock = GameLauncher.ProfileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
+        await profileLock.WaitAsync(cancellationToken);
         try
         {
-            if (string.IsNullOrWhiteSpace(profileId))
+            if (await CheckIsProfileRunningAsync(profileId, verifyProcess: true))
             {
-                return OperationResult<bool>.CreateFailure("Profile ID cannot be empty");
+                logger.LogWarning("Refusing to delete profile {ProfileId} because it is running", profileId);
+                return OperationResult<bool>.CreateFailure("Cannot delete a running profile. Please stop the profile before deleting it.");
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             var profileResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
-            var profileName = profileResult.Success ? profileResult.Data?.Name ?? string.Empty : string.Empty;
+            if (!profileResult.Success || profileResult.Data == null)
+            {
+                return OperationResult<bool>.CreateFailure(profileResult.Errors);
+            }
+
+            var profile = profileResult.Data;
+            var profileName = profile?.Name ?? string.Empty;
+
+            var cleanupErrors = await CleanupProfileDataAsync(profileId, profile?.ActiveWorkspaceId, cancellationToken);
+            if (cleanupErrors.Count > 0)
+            {
+                logger.LogError(
+                    "Kept game profile {ProfileId} because its data could not be fully cleaned up: {Errors}",
+                    profileId,
+                    string.Join("; ", cleanupErrors));
+                return OperationResult<bool>.CreateFailure(cleanupErrors);
+            }
 
             var deleteResult = await profileRepository.DeleteProfileAsync(profileId, cancellationToken);
             if (deleteResult.Success)
@@ -272,10 +303,18 @@ public class GameProfileManager(
             logger.LogError("Failed to delete game profile with ID: {ProfileId}", profileId);
             return OperationResult<bool>.CreateFailure(deleteResult.Errors);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "An unexpected error occurred while deleting game profile {ProfileId}.", profileId);
             return OperationResult<bool>.CreateFailure("An unexpected error occurred.");
+        }
+        finally
+        {
+            profileLock.Release();
         }
     }
 
@@ -800,7 +839,43 @@ public class GameProfileManager(
         return string.IsNullOrEmpty(launch?.WorkspaceId) ? null : launch.WorkspaceId;
     }
 
-    private async Task<bool> CheckIsProfileRunningAsync(string profileId)
+    /// <summary>
+    /// Removes the profile's deployed user data and its workspaces, including their CAS references.
+    /// Runs before the profile file is deleted so a failure leaves the profile in place to retry.
+    /// </summary>
+    /// <param name="profileId">The profile being deleted.</param>
+    /// <param name="activeWorkspaceId">The profile's recorded active workspace, if any.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The cleanup errors; empty when everything was removed.</returns>
+    private async Task<List<string>> CleanupProfileDataAsync(string profileId, string? activeWorkspaceId, CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+
+        var userDataResult = await profileContentLinker.CleanupDeletedProfileAsync(profileId, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (userDataResult.Failed)
+        {
+            logger.LogWarning("Failed to clean up user data for profile {ProfileId}: {Error}", profileId, userDataResult.FirstError);
+            errors.Add($"Failed to remove the profile's user data: {userDataResult.FirstError}");
+        }
+
+        string?[] candidateIds = [activeWorkspaceId, profileId, $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profileId}"];
+        foreach (var workspaceId in candidateIds.OfType<string>().Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var workspaceResult = await workspaceManager.CleanupWorkspaceAsync(workspaceId, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (workspaceResult.Failed)
+            {
+                logger.LogWarning("Failed to clean up workspace {WorkspaceId} for profile {ProfileId}: {Error}", workspaceId, profileId, workspaceResult.FirstError);
+                errors.Add($"Failed to remove workspace '{workspaceId}': {workspaceResult.FirstError}");
+            }
+        }
+
+        return errors;
+    }
+
+    private async Task<bool> CheckIsProfileRunningAsync(string profileId, bool verifyProcess = false)
     {
         if (launchRegistry == null)
         {
@@ -808,7 +883,33 @@ public class GameProfileManager(
         }
 
         var activeLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
-        return activeLaunches.Any(l => string.Equals(l.ProfileId, profileId, StringComparison.OrdinalIgnoreCase) && !l.TerminatedAt.HasValue);
+        foreach (var launch in activeLaunches.Where(l => string.Equals(l.ProfileId, profileId, StringComparison.OrdinalIgnoreCase) && !l.TerminatedAt.HasValue))
+        {
+            if (!verifyProcess)
+            {
+                return true;
+            }
+
+            try
+            {
+                using var process = Process.GetProcessById(launch.ProcessInfo.ProcessId);
+                if (!process.HasExited)
+                {
+                    return true;
+                }
+            }
+            catch (ArgumentException)
+            {
+                // The process has exited before the launch registry was updated.
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+            {
+                logger.LogWarning(ex, "Unable to verify process for profile {ProfileId}; blocking deletion", profileId);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<ProfileOperationResult<GameProfile>?> ValidateRunningProfileUpdateAsync(

@@ -309,7 +309,6 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
 
             var installation = new GameInstallation(normalizedPath, GameInstallationType.Custom)
             {
-                Id = Guid.NewGuid().ToString(),
                 DetectedAt = DateTime.UtcNow,
             };
 
@@ -532,7 +531,6 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
 
         var installation = new GameInstallation(sourcePath, installationType)
         {
-            Id = Guid.NewGuid().ToString(),
             DetectedAt = DateTime.UtcNow,
         };
 
@@ -1374,7 +1372,6 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                         {
                             var customInstall = new GameInstallation(customDir, GameInstallationType.Custom)
                             {
-                                Id = Guid.NewGuid().ToString(),
                                 DetectedAt = DateTime.UtcNow,
                             };
                             customInstall.Fetch();

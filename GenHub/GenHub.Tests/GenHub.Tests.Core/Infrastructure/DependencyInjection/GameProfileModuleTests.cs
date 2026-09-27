@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.Publishers;
@@ -51,6 +52,7 @@ public class GameProfileModuleTests
         services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
         services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
         services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
+        services.AddScoped(provider => new Mock<IProfileContentLinker>().Object);
         services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
         services.AddScoped<INotificationService>(provider => new Mock<INotificationService>().Object);
         services.AddScoped<IPublisherReconcilerRegistry>(provider => new Mock<IPublisherReconcilerRegistry>().Object);
@@ -137,6 +139,7 @@ public class GameProfileModuleTests
         services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
         services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
         services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
+        services.AddScoped(provider => new Mock<IProfileContentLinker>().Object);
         services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
         services.AddScoped<INotificationService>(provider => new Mock<INotificationService>().Object);
         services.AddScoped<IPublisherReconcilerRegistry>(provider => new Mock<IPublisherReconcilerRegistry>().Object);
@@ -202,6 +205,7 @@ public class GameProfileModuleTests
         services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
         services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
         services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
+        services.AddScoped(provider => new Mock<IProfileContentLinker>().Object);
         services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
         services.AddScoped<INotificationService>(provider => new Mock<INotificationService>().Object);
         services.AddScoped<IPublisherReconcilerRegistry>(provider => new Mock<IPublisherReconcilerRegistry>().Object);
@@ -296,6 +300,7 @@ public class GameProfileModuleTests
         services.AddSingleton<IContentManifestPool>(new Mock<IContentManifestPool>().Object);
         services.AddSingleton<IContentOrchestrator>(new Mock<IContentOrchestrator>().Object);
         services.AddSingleton<IWorkspaceManager>(new Mock<IWorkspaceManager>().Object);
+        services.AddSingleton<IProfileContentLinker>(new Mock<IProfileContentLinker>().Object);
         services.AddSingleton<IGameProcessManager>(new Mock<IGameProcessManager>().Object);
         services.AddSingleton<INotificationService>(new Mock<INotificationService>().Object);
         services.AddSingleton<ICasService>(new Mock<ICasService>().Object);
@@ -353,6 +358,7 @@ public class GameProfileModuleTests
         services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
         services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
         services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
+        services.AddScoped(provider => new Mock<IProfileContentLinker>().Object);
         services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
         services.AddScoped<INotificationService>(provider => new Mock<INotificationService>().Object);
         services.AddScoped<IPublisherReconcilerRegistry>(provider => new Mock<IPublisherReconcilerRegistry>().Object);
@@ -392,6 +398,7 @@ public class GameProfileModuleTests
         services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
         services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
         services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
+        services.AddScoped(provider => new Mock<IProfileContentLinker>().Object);
         services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
         services.AddScoped<INotificationService>(provider => new Mock<INotificationService>().Object);
         services.AddScoped<IPublisherReconcilerRegistry>(provider => new Mock<IPublisherReconcilerRegistry>().Object);

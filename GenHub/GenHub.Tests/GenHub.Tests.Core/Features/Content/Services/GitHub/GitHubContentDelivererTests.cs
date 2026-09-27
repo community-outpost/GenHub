@@ -264,6 +264,96 @@ public class GitHubContentDelivererTests
     }
 
     /// <summary>
+    /// Surfaces a cancellation raised while the manifest pool stores extracted content as a
+    /// cancellation, not as a factory failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_CancelledDuringPoolStore_ThrowsCancellationAsync()
+    {
+        var targetDirectory = CreateWorkingDirectory();
+
+        try
+        {
+            _downloadService
+                .Setup(d => d.DownloadFileAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
+                {
+                    CreateArchive(destination, "data.big");
+                    return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
+                });
+
+            var extractedManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.github.addon.item"),
+                Name = "Item",
+                ContentType = ContentType.Addon,
+                Files = [new ManifestFile { RelativePath = "data.big" }],
+            };
+
+            var factoryMock = new Mock<IPublisherManifestFactory>();
+            factoryMock.Setup(f => f.CanHandle(It.IsAny<ContentManifest>())).Returns(true);
+            factoryMock
+                .Setup(f => f.CreateManifestsFromExtractedContentAsync(
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([extractedManifest]));
+
+            var factoryResolver = new PublisherManifestFactoryResolver(
+                [factoryMock.Object],
+                NullLogger<PublisherManifestFactoryResolver>.Instance);
+
+            using var cancellation = new CancellationTokenSource();
+            _manifestPool
+                .Setup(p => p.AddManifestAsync(
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<string>(),
+                    It.IsAny<IProgress<ContentStorageProgress>?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    await cancellation.CancelAsync();
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    return OperationResult<bool>.CreateSuccess(true);
+                });
+
+            var deliverer = new GitHubContentDeliverer(
+                _downloadService.Object,
+                _manifestPool.Object,
+                factoryResolver,
+                _logger.Object);
+
+            var packageManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.github.addon.item"),
+                Name = "Item",
+                ContentType = ContentType.Addon,
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "release.zip",
+                        DownloadUrl = "https://github.com/user/repo/release.zip",
+                    },
+                ],
+            };
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                deliverer.DeliverContentAsync(packageManifest, targetDirectory, cancellationToken: cancellation.Token));
+        }
+        finally
+        {
+            Directory.Delete(targetDirectory, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Fails delivery when an archive understates the size it decompresses to. The lie is only
     /// visible while inflating, so the copy has to abort mid-stream, drop the partial file, and
     /// leave the truncated file set out of the manifest pool. The failure is a result, not a

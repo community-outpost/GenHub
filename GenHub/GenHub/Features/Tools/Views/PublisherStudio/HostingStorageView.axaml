@@ -1,0 +1,791 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:interfaces="using:GenHub.Features.Tools.Interfaces"
+             mc:Ignorable="d"
+             d:DesignWidth="960" d:DesignHeight="1300"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.HostingStorageView"
+             x:DataType="vm:PublishShareViewModel"
+             x:Name="RootView">
+
+    <UserControl.Styles>
+        <Style Selector="Button.glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="Opacity" Value="0.85"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="Border.glass-card">
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Margin" Value="0,0,0,20"/>
+        </Style>
+        <Style Selector="Border.metric-box">
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderSubtleBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,14"/>
+        </Style>
+        <Style Selector="Border.status-badge-active">
+            <Setter Property="Background" Value="{DynamicResource StatusSuccessBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource StatusSuccessBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+        <Style Selector="Border.status-badge-warning">
+            <Setter Property="Background" Value="{DynamicResource StatusWarningBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningHighlightBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+        <Style Selector="Border.status-badge-inactive">
+            <Setter Property="Background" Value="{DynamicResource BorderSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+        <Style Selector="Border.status-badge-info">
+            <Setter Property="Background" Value="{DynamicResource StatusInfoBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource StatusInfoBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="32,24,32,40" Spacing="0">
+
+            <!-- Section 1: Header Banner -->
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+                <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource PrimaryGradientBrush}" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="{DynamicResource TextPrimary}"/>
+                        </Border>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Title}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Subtitle}"
+                               FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Classes="glass-btn"
+                            Command="{Binding OpenCloudFolderCommand}"
+                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolderTip}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource FolderOpenIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolder}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Classes="primary-btn"
+                            Command="{Binding ScanCloudStorageCommand}"
+                            IsEnabled="{Binding !IsScanningStorage}"
+                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorageTip}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Scanning}" IsVisible="{Binding IsScanningStorage}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorage}" IsVisible="{Binding !IsScanningStorage}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Scanning Status Notification Banner -->
+            <Border IsVisible="{Binding StorageScanStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                    Background="{DynamicResource GlassFillBrush}" BorderBrush="{DynamicResource GlassBorderStrongBrush}" BorderThickness="1" CornerRadius="8"
+                    Padding="14,10" Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <PathIcon Grid.Column="0" Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusInfoBrush}" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1" Text="{Binding StorageScanStatusMessage}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    <ProgressBar Grid.Column="2" IsIndeterminate="True" Width="100" Height="4" IsVisible="{Binding IsScanningStorage}"/>
+                </Grid>
+            </Border>
+
+            <!-- Onboarding Step 1: Connect Cloud Provider -->
+            <Border IsVisible="{Binding !IsProviderAuthenticated}"
+                    Classes="glass-card"
+                    BorderBrush="{DynamicResource AccentColorBrush}"
+                    BorderThickness="1.5"
+                    CornerRadius="10"
+                    Padding="18,14"
+                    Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource PrimaryGradientBrush}" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="White"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Step1Title}"
+                                   FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Step1Desc}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Classes="glass-btn"
+                            Command="{Binding CreateNewProfileCommand}"
+                            VerticalAlignment="Center"
+                            Margin="14,0,0,0"
+                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ConfigureLocalProfileTip}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource PersonIcon}" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConfigureLocalProfile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Discovered Cloud Definition Sync Card -->
+            <Border IsVisible="{Binding ShowDiscoveredDefinitionBanner}"
+                    Background="{DynamicResource GlassFillSubtleBrush}"
+                    BorderBrush="{DynamicResource StatusSuccessBrush}"
+                    BorderThickness="1.5"
+                    CornerRadius="10"
+                    Padding="18,14"
+                    Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource StatusSuccessBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusSuccessBrush}" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="18" Height="18" Foreground="{DynamicResource StatusSuccessBrush}"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DiscoveredDefinitionTitle}"
+                                       FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                            <Border Classes="status-badge-active" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DiscoveredDefinitionFileName}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusSuccessBrush}"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DiscoveredDefinitionDesc}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="14,0,0,0">
+                        <Button Classes="primary-btn"
+                                Command="{Binding PullPrimaryCloudDefinitionCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.PullDefinitionTip}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource DownloadIcon}" Width="14" Height="14" Foreground="White"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.PullDefinitionAction}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="glass-btn"
+                                Command="{Binding CreateNewProfileCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OrCreateNewProfileTip}">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OrCreateNewProfile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Connected But No Definition Found Card -->
+            <Border IsVisible="{Binding ShowNoDefinitionBanner}"
+                    Background="{DynamicResource GlassFillSubtleBrush}"
+                    BorderBrush="{DynamicResource GlassBorderStrongBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="18,14"
+                    Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource GlassFillBrush}" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="{DynamicResource AccentLightBrush}"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoDefinitionFoundTitle}"
+                                   FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoDefinitionFoundDesc}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Classes="primary-btn"
+                            Command="{Binding CreateNewProfileCommand}"
+                            VerticalAlignment="Center"
+                            Margin="14,0,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource PersonIcon}" Width="14" Height="14" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CreateProfileBtn}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Section 2: Storage Quota & Metrics Overview (4 Metric Boxes) -->
+            <Grid ColumnDefinitions="*,*,*,*" Margin="0,0,0,24">
+                <!-- Card 1: Cloud Storage Used -->
+                <Border Grid.Column="0" Classes="metric-box" Margin="0,0,10,0">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13" Foreground="{DynamicResource StatusInfoBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StorageConsumed}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding TotalStorageUsedFormatted}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudFilesSummary}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 2: Total Files -->
+                <Border Grid.Column="1" Classes="metric-box" Margin="5,0,5,0">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource PackageIcon}" Width="13" Height="13" Foreground="{DynamicResource AccentLightBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.HostedAssets}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentLightBrush}"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding TotalHostedFilesCount}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilesHostedOnCloud}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 3: Categorized Breakdown -->
+                <Border Grid.Column="2" Classes="metric-box" Margin="5,0,5,0">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AssetBreakdown}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,2,0,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.CatalogsPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding HostedCatalogsCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ReleaseBinariesPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding HostedArtifactsCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ExternalCdnPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExternalCdnCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 4: Connected Provider & Folder -->
+                <Border Grid.Column="3" Classes="metric-box" Margin="10,0,0,0">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StorageLocation}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding ProviderDisplayName}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{Binding HostingFolderPath}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding HostingFolderPath}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Section 3: Provider Connection & Step-by-Step Setup Guides -->
+            <Border Classes="glass-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudProviderSetup}" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudProviderSetupSubtitle}"
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+
+                        <!-- Connection Badge -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Border Classes="status-badge-active" IsVisible="{Binding IsProviderAuthenticated}">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <Ellipse Width="6" Height="6" Fill="{DynamicResource StatusSuccessBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Connected}" Foreground="{DynamicResource StatusSuccessBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="status-badge-inactive" IsVisible="{Binding !IsProviderAuthenticated}">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <Ellipse Width="6" Height="6" Fill="{DynamicResource TextMuted}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NotConnected}" Foreground="{DynamicResource TextMuted}" FontSize="11"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Provider Selector Dropdown -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.SelectProvider}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                        <ComboBox ItemsSource="{Binding HostingProviders}"
+                                  SelectedItem="{Binding SelectedHostingProvider}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="interfaces:IHostingProvider">
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- GOOGLE DRIVE SETUP GUIDE -->
+                    <StackPanel IsVisible="{Binding ShowGoogleOAuthButton}" Spacing="12">
+                        <Border Background="{DynamicResource GlassFillSubtleBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="10">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="20" Height="20" CornerRadius="4" Background="#4285F4" VerticalAlignment="Center">
+                                        <TextBlock Text="G" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                    </Border>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDGuideTitle}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDGuideSubtitle}"
+                                           FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+
+                                <Border Height="1" Background="{DynamicResource GlassStrongBrush}"/>
+
+                                <!-- Steps -->
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource WarningHighlightBrush}" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthPlatform}" Command="{Binding OpenGoogleAuthPlatformConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthWizardTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDS3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenDriveApi}" Command="{Binding OpenGoogleDriveApiConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenDriveApiTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep3Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentials}" Command="{Binding OpenGoogleCredentialsConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentialsTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsers}" Command="{Binding OpenGoogleAudienceConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsersTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Inputs -->
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientId}" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="0,0,6,4"/>
+                                    <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientIdPlaceholder}" FontSize="12" Margin="0,0,6,0"/>
+
+                                    <!-- skipcq: SCT-A000 -->
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientSecret}" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,4"/>
+                                    <!-- skipcq: SCT-A000 -->
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding GoogleClientSecret}" PasswordChar="●" RevealPassword="True" FontSize="12" Margin="6,0,0,0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- DROPBOX SETUP GUIDE -->
+                    <StackPanel IsVisible="{Binding ShowDropboxTokenInput}" Spacing="12">
+                        <Border Background="{DynamicResource GlassFillSubtleBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="10">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="20" Height="20" CornerRadius="4" Background="#0061FF" VerticalAlignment="Center">
+                                        <TextBlock Text="D" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                    </Border>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBGuideTitle}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBGuideSubtitle}"
+                                           FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+
+                                <Border Height="1" Background="{DynamicResource GlassStrongBrush}"/>
+
+                                <!-- Steps -->
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep1Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep1Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource ErrorBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep2Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep4Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep4Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Exact redirect URI to register (must match character for character) -->
+                                <StackPanel Spacing="4" Margin="0,2,0,0">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxRedirectUriLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBox Text="{Binding DropboxRedirectUri, Mode=OneWay}" IsReadOnly="True" FontSize="11" FontFamily="Consolas,Menlo,monospace"/>
+                                        <Button Grid.Column="1" Command="{Binding CopyDropboxRedirectUriCommand}" Classes="small-glass-btn" Margin="8,0,0,0" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource CopyIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Action button to Dropbox console -->
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Command="{Binding OpenDropboxAppConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,0">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CreateDropboxApp}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Command="{Binding OpenDropboxCreateAppCommand}" Classes="small-glass-btn">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxDevSettings}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                </WrapPanel>
+
+                                <!-- Dropbox OAuth Connect (recommended: stays signed in via refresh tokens) -->
+                                <StackPanel Spacing="4" Margin="0,6,0,0">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthTitle}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthDescription}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                    <TextBox Text="{Binding DropboxAppKey}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder}" FontSize="12"/>
+                                    <Button Command="{Binding ConnectDropboxOAuthCommand}" Classes="small-glass-btn" IsEnabled="{Binding !IsAuthenticating}" HorizontalAlignment="Left">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectWithDropbox}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- Dropbox Token Input -->
+                                <StackPanel Spacing="4" Margin="0,6,0,0">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxManualTokenTitle}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxTokenPrompt}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBox Text="{Binding DropboxAccessToken}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder}" PasswordChar="●" RevealPassword="True" FontSize="12"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Connection Action Buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="primary-btn"
+                                Command="{Binding AuthenticateCommand}"
+                                IsEnabled="{Binding !IsAuthenticating}"
+                                IsVisible="{Binding !IsProviderAuthenticated}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProviderTip}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProvider}" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Classes="glass-btn"
+                                Command="{Binding SignOutCommand}"
+                                IsVisible="{Binding IsProviderAuthenticated}">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Disconnect}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        </Button>
+
+                        <Button Classes="glass-btn"
+                                Command="{Binding CancelAuthenticationCommand}"
+                                IsVisible="{Binding IsAuthenticating}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CancelAuthTip}">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Cancel}" FontSize="12" Foreground="{DynamicResource ErrorBrush}"/>
+                        </Button>
+
+                        <ProgressBar IsIndeterminate="True" Width="100" Height="4"
+                                     VerticalAlignment="Center" IsVisible="{Binding IsAuthenticating}"/>
+
+                        <TextBlock Text="{Binding AuthenticationStatusMessage}"
+                                   FontSize="12" Foreground="{DynamicResource TextPrimary}"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Section 4: Hosted Asset Inventory Table -->
+            <Border Classes="glass-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.InventoryTitle}" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.InventorySubtitle}"
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Border Classes="status-badge-info" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding HostedAssetsCountText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                            </Border>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding ScanCloudStorageCommand}"
+                                    IsEnabled="{Binding !IsScanningStorage}"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProviderTip}"
+                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProvider}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource RefreshIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProvider}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Filter and Search Toolbar -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <!-- Category Filter Tabs -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="All"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterAll}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedAssets.Count}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="Definition"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterDefinitions}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedDefinitionCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="Catalog"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterCatalogs}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedCatalogsCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="Artifact"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterArtifacts}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedArtifactsCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="ExternalCdn"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterExternalCdn}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding ExternalCdnCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Search Filter -->
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding InventorySearchText, Mode=TwoWay}"
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Hosting.SearchAssetsWatermark}"
+                                 Width="200"
+                                 FontSize="11"
+                                 Padding="8,4"
+                                 VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Table Header -->
+                    <Border Background="{DynamicResource GlassFillBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                        <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
+                            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColFileName}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColCategory}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColSize}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="3" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColStatus}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="4" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColLocation}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="5" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColActions}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Width="220" TextAlignment="Right"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Items List -->
+                    <ItemsControl ItemsSource="{Binding FilteredHostedAssets}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:HostedAssetItemViewModel">
+                                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                        BorderBrush="{DynamicResource GlassFillBrush}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="12,12">
+                                    <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
+                                        <!-- Column 0: File Name & SHA256 -->
+                                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Url}" FontSize="10" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Url}"
+                                                       IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        </StackPanel>
+
+                                        <!-- Column 1: Category -->
+                                        <TextBlock Grid.Column="1" Text="{Binding Category}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                                        <!-- Column 2: File Size -->
+                                        <TextBlock Grid.Column="2" Text="{Binding FileSizeFormatted}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+
+                                        <!-- Column 3: Status Badge -->
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Classes="status-badge-active" IsVisible="{Binding IsOnline}">
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusLiveOnline}" FontSize="10" Foreground="{DynamicResource StatusSuccessBrush}" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <Border Classes="status-badge-info" IsVisible="{Binding IsExternalCdn}">
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusExternalCdn}" FontSize="10" Foreground="{DynamicResource StatusInfoBrush}" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <Border Classes="status-badge-warning" IsVisible="{Binding IsPending}">
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusPending}" FontSize="10" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- Column 4: Location -->
+                                        <TextBlock Grid.Column="4" Text="{Binding Location}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                                        <!-- Column 5: Action Buttons -->
+                                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="220">
+                                            <!-- Load to Project (for Cloud Definitions or Catalogs) -->
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).LoadAssetToProjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding CanLoadToProject}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.LoadToProject}"
+                                                    ToolTip.Tip="{Binding LoadButtonTooltip}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <PathIcon Data="{StaticResource ToolIcon.Download}" Width="10" Height="10" Foreground="{DynamicResource StatusSuccessBrush}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.LoadToProject}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <!-- Add to Catalog (for discovered Cloud Artifacts) -->
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).AddArtifactToActiveCatalogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding CanAddToCatalog}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalog}"
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalogTip}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="10" Height="10" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalog}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).UploadHostedAssetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding CanUpload}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.UploadTip}"
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.UploadTip}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Upload}" FontSize="10" Foreground="{DynamicResource TextPrimary}"/>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).CopyAssetUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Url}"
+                                                    IsVisible="{Binding !CanUpload}"
+                                                    IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}"
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <PathIcon Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}" FontSize="10" Foreground="{DynamicResource TextPrimary}"/>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).OpenUrlInBrowserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Url}"
+                                                    IsVisible="{Binding !CanUpload}"
+                                                    IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}"
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}">
+                                                <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Empty State -->
+                    <Border IsVisible="{Binding !FilteredHostedAssets.Count}"
+                            Background="{DynamicResource GlassFillSubtleBrush}" BorderBrush="{DynamicResource GlassFillBrush}" BorderThickness="1" CornerRadius="8"
+                            Padding="32" Margin="0,10,0,0">
+                        <StackPanel Spacing="10" HorizontalAlignment="Center">
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="32" Height="32" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoAssetsTitle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoAssetsSubtitle}"
+                                       FontSize="12" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="400" TextAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

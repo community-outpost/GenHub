@@ -1384,14 +1384,42 @@
     const settingNavBtns = document.querySelectorAll('.gh-setting-nav-btn');
     const settingsContent = document.getElementById('ghSettingsScrollContainer') || document.querySelector('.gh-settings-content');
 
+    function scrollToSettingsSection(targetEl, openIfClosed) {
+        if (!targetEl || !settingsContent) return;
+        if (openIfClosed && !targetEl.classList.contains('open')) {
+            targetEl.classList.add('open');
+            const header = targetEl.querySelector('.gh-expander-header');
+            if (header) header.setAttribute('aria-expanded', 'true');
+        }
+        const targetTop = targetEl.offsetTop - settingsContent.offsetTop;
+        settingsContent.scrollTo({
+            top: Math.max(0, targetTop - 12),
+            behavior: 'smooth'
+        });
+        const targetId = targetEl.id;
+        if (targetId) {
+            settingNavBtns.forEach(b => {
+                if (b.getAttribute('data-s-target') === targetId) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
+        }
+    }
+
     // Accordion toggle on headers
     document.querySelectorAll('.gh-expander-header').forEach(header => {
         header.addEventListener('click', (e) => {
             e.preventDefault();
             const expander = header.closest('.gh-settings-expander');
             if (expander) {
-                const isOpen = expander.classList.toggle('open');
-                header.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                const willOpen = !expander.classList.contains('open');
+                expander.classList.toggle('open', willOpen);
+                header.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+                if (willOpen) {
+                    scrollToSettingsSection(expander, false);
+                }
             }
         });
     });
@@ -1453,19 +1481,10 @@
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-
-            settingNavBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
             const targetId = btn.getAttribute('data-s-target');
             const targetEl = document.getElementById(targetId);
-            if (targetEl && settingsContent) {
-                targetEl.classList.add('open');
-                const targetTop = targetEl.offsetTop - settingsContent.offsetTop;
-                settingsContent.scrollTo({
-                    top: Math.max(0, targetTop - 12),
-                    behavior: 'smooth'
-                });
+            if (targetEl) {
+                scrollToSettingsSection(targetEl, true);
             }
         });
     });

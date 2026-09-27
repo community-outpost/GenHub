@@ -450,6 +450,38 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Opens the native file explorer to the specified directory, or ignores if not supported.
+    /// </summary>
+    /// <param name="folderPath">The absolute path to the directory to open.</param>
+    public static void OpenInExplorer(string folderPath)
+    {
+        try
+        {
+            var startInfo = CreateOpenFolderStartInfo(folderPath);
+            if (startInfo != null)
+            {
+                Process.Start(startInfo);
+            }
+        }
+        catch (Win32Exception)
+        {
+            /* Ignore explorer errors */
+        }
+        catch (IOException)
+        {
+            /* Ignore explorer errors */
+        }
+        catch (UnauthorizedAccessException)
+        {
+            /* Ignore explorer errors */
+        }
+        catch (InvalidOperationException)
+        {
+            /* Ignore explorer errors */
+        }
+    }
+
+    /// <summary>
     /// Resolves all symbolic links and intermediate link segments in <paramref name="path"/>,
     /// returning the fully canonicalized absolute path, or <c>null</c> if resolution fails or a loop is detected.
     /// </summary>
@@ -562,6 +594,50 @@ public static class PathHelper
                 UseShellExecute = false,
             };
             info.ArgumentList.Add(targetDir);
+            return info;
+        }
+
+        return null;
+    }
+
+    [SuppressMessage("Security", "S4036:Make sure the executable exists, and provide an absolute path or configure PATH securely", Justification = "Resolves standard desktop launch utilities (open, xdg-open) from PATH across heterogeneous Unix distributions.")]
+    private static ProcessStartInfo? CreateOpenFolderStartInfo(string folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath))
+        {
+            return null;
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            var info = new ProcessStartInfo
+            {
+                FileName = PlatformConstants.WindowsExplorerPath,
+                Arguments = $"\"{folderPath}\"",
+                UseShellExecute = true,
+            };
+            return info;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var info = new ProcessStartInfo
+            {
+                FileName = PlatformConstants.MacOSOpenExecutable,
+                UseShellExecute = false,
+            };
+            info.ArgumentList.Add(folderPath);
+            return info;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            var info = new ProcessStartInfo
+            {
+                FileName = PlatformConstants.LinuxXdgOpenExecutable,
+                UseShellExecute = false,
+            };
+            info.ArgumentList.Add(folderPath);
             return info;
         }
 

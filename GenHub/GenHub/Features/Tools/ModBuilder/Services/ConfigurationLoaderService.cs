@@ -415,9 +415,14 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     {
         // Snapshot the configured patterns on first resolution so editors keep
         // showing (and saving) the original globs instead of resolved entries.
-        if (item.SourcePatterns.Count == 0 && item.Files.Count > 0)
+        if (item.ConfiguredFiles.Count == 0 && item.Files.Count > 0)
         {
-            item.SourcePatterns = item.Files.Select(f => f.AbsSourceFile).ToList();
+            item.ConfiguredFiles = item.Files.Select(f => f.Clone()).ToList();
+        }
+
+        if (item.SourcePatterns.Count == 0 && item.ConfiguredFiles.Count > 0)
+        {
+            item.SourcePatterns = item.ConfiguredFiles.Select(f => f.AbsSourceFile).ToList();
         }
     }
 
@@ -426,10 +431,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         cancellationToken.ThrowIfCancellationRequested();
         SnapshotSourcePatterns(item);
 
+        var sourceFiles = item.ConfiguredFiles.Count > 0 ? item.ConfiguredFiles : item.Files;
         var resolvedFiles = new List<BundleFile>();
         int filesResolved = 0;
 
-        foreach (var file in item.Files)
+        foreach (var file in sourceFiles)
         {
             if (ContainsWildcard(file.AbsSourceFile))
             {
@@ -458,14 +464,15 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 // paths to the project directory here. Otherwise downstream
                 // File.Exists checks resolve against the process working
                 // directory instead of the project.
-                if (!Path.IsPathRooted(file.AbsSourceFile))
+                var explicitFile = file.Clone();
+                if (!Path.IsPathRooted(explicitFile.AbsSourceFile))
                 {
-                    var basePath = DetermineBasePath(file.AbsSourceParent, projectDir);
-                    file.AbsSourceFile = Path.Combine(basePath, file.AbsSourceFile);
-                    file.AbsSourceParent = basePath;
+                    var basePath = DetermineBasePath(explicitFile.AbsSourceParent, projectDir);
+                    explicitFile.AbsSourceFile = Path.Combine(basePath, explicitFile.AbsSourceFile);
+                    explicitFile.AbsSourceParent = basePath;
                 }
 
-                resolvedFiles.Add(file);
+                resolvedFiles.Add(explicitFile);
             }
         }
 

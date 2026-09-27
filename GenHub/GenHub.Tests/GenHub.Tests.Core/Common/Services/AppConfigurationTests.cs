@@ -1,5 +1,6 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -92,10 +93,7 @@ public class AppConfigurationTests
         var result = service.GetDefaultWorkspacePath();
 
         // Assert
-        var expectedPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GenHub",
-            "Data");
+        var expectedPath = Path.Combine(AppDataPathHelper.GetDataRoot(), "Data");
         Assert.Equal(expectedPath, result);
     }
 
@@ -112,10 +110,7 @@ public class AppConfigurationTests
         var result = service.GetDefaultWorkspacePath();
 
         // Assert
-        var expectedPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GenHub",
-            "Data");
+        var expectedPath = Path.Combine(AppDataPathHelper.GetDataRoot(), "Data");
         Assert.Equal(expectedPath, result);
     }
 
@@ -151,10 +146,7 @@ public class AppConfigurationTests
         var result = service.GetDefaultCacheDirectory();
 
         // Assert
-        var expectedPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GenHub",
-            "Cache");
+        var expectedPath = Path.Combine(AppDataPathHelper.GetDataRoot(), "Cache");
         Assert.Equal(expectedPath, result);
     }
 

@@ -33,14 +33,14 @@ public static class ManifestModule
             var logger = provider.GetRequiredService<ILogger<ManifestProvider>>();
             var manifestPool = provider.GetRequiredService<IContentManifestPool>();
             var manifestIdService = provider.GetService<IManifestIdService>();
-            var manifestBuilder = provider.GetService<IContentManifestBuilder>();
+            var manifestBuilderFactory = provider.GetRequiredService<Func<IContentManifestBuilder>>();
             var options = new ManifestProviderOptions
             {
                 GenerateFallbackManifests = false,
             };
 
             // Use correct constructor signature for ManifestProvider
-            return new ManifestProvider(logger, manifestPool, manifestIdService, manifestBuilder, options);
+            return new ManifestProvider(logger, manifestPool, manifestIdService, manifestBuilderFactory, options);
         });
 
         services.AddSingleton<IManifestIdService, ManifestIdService>();

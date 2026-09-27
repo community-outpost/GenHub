@@ -17,7 +17,7 @@ write_log() {
 
 is_excluded() {
     case "$1" in
-        settings.json|Profiles|Manifests|UserData|workspaces.json|logs|Logs|Data|cas-pool|Workspaces|Cache|cache|upload_history.json|MapPacks|mappacks|.genhub-cas)
+        settings.json|Profiles|Manifests|UserData|workspaces.json|logs|Logs|Data|cas-pool|Workspaces|Cache|cache|upload_history.json|MapPacks|mappacks|.genhub-cas|PublisherStudio|Hotkeys|Artwork|credentials|.ghtoken)
             return 0
             ;;
         *)

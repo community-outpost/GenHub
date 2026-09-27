@@ -271,7 +271,7 @@ public sealed class DownloadedContentDiscoverer(
             ContentType = manifest.ContentType,
             TargetGame = manifest.TargetGame,
             ProviderName = ResolveProviderName(manifest),
-            AuthorName = manifest.Publisher?.Name ?? "Unknown",
+            AuthorName = manifest.Publisher?.Name ?? ContentConstants.UnknownAuthorName,
             IconUrl = ResolveIconUrl(manifest),
             BannerUrl = ResolveCoverUrl(manifest),
             LastUpdated = releaseDate is null || releaseDate.Value == default ? null : releaseDate,

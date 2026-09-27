@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -24,6 +25,46 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     private sealed class SynchronousProgress<T>(Action<T> action) : IProgress<T>
     {
         public void Report(T value) => action(value);
+    }
+
+    /// <summary>
+    /// Verifies that an HTML error document named with a .tar extension is identified and throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_HtmlErrorSavedAsTar_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var tarPath = Path.Combine(_stagingDirectory, "expired_download.tar");
+        await File.WriteAllTextAsync(tarPath, "<!DOCTYPE html><html><body>Link Expired</body></html>");
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod));
+        Assert.Contains("Downloaded file is HTML or web error text, not an archive", ex.Message);
+    }
+
+    /// <summary>
+    /// Verifies that an invalid XZ file without proper magic bytes throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_InvalidXzArchive_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var xzPath = Path.Combine(_stagingDirectory, "corrupted.xz");
+        await File.WriteAllBytesAsync(xzPath, new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod));
+        Assert.Contains("is not a valid XZ archive", ex.Message);
     }
 
     /// <summary>
@@ -305,6 +346,75 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         var ex = await Assert.ThrowsAsync<InvalidDataException>(
             () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
         Assert.Contains("HTML", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that an HTML document with leading comment headers (e.g. OneDrive login page) throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_HtmlCommentHeaderFile_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var fakeZip = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllTextAsync(
+            fakeZip,
+            "<!-- Copyright (C) Microsoft Corporation. All rights reserved. -->\n<!DOCTYPE html><html><head><title>Sign in to your account</title></head><body>login.live.com</body></html>");
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(
+            () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+        Assert.Contains("HTML", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that a file named as a ZIP archive without PK magic bytes throws an InvalidDataException before extraction.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_InvalidZipMagicBytes_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var fakeZip = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllBytesAsync(fakeZip, [0x00, 0x01, 0x02, 0x03, 0x04]);
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(
+            () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+        Assert.Contains("not a valid ZIP archive", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that an archive served under another format's extension is still extracted from its content.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_SevenZipArchiveNamedZip_ExtractsContentAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var mislabelled = Path.Combine(_stagingDirectory, "mod.zip");
+        await File.WriteAllBytesAsync(
+            mislabelled,
+            Convert.FromBase64String(
+                "N3q8ryccAAQE0DRtEwAAAAAAAABSAAAAAAAAAKnyu85taXNsYWJlbGxlZCBhcmNoaXZlAQQGAAEJEwAHCwEAAQEADBMACAoB9b6xRQAABQERFwByAGUAYQBkAG0AZQAuAHQAeAB0AAAAGQQAAAAAFAoBAAA9glISTd0BFQYBACCApIEAAA=="));
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.ExtractArchivesSafelyAsync(_stagingDirectory);
+
+        // Assert
+        var extracted = Path.Combine(_stagingDirectory, "readme.txt");
+        Assert.True(File.Exists(extracted));
+        Assert.Equal("mislabelled archive", await File.ReadAllTextAsync(extracted));
+        Assert.False(File.Exists(mislabelled));
     }
 
     /// <summary>
@@ -1159,6 +1269,506 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
                 Directory.Delete(tempRoot, recursive: true);
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that EnsureValidArchivePayload accepts a valid ZIP archive even when an entry contains HTML.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_ValidZipWithHtmlEntry_Succeeds()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = ZipFile.Open(tempZip, ZipArchiveMode.Create))
+            {
+                var entry = archive.CreateEntry("index.html", CompressionLevel.NoCompression);
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("<!DOCTYPE html><html><head><title>Test</title></head><body><h1>Content</h1></body></html>");
+            }
+
+            // Act & Assert
+            ArchivePayloadProcessor.EnsureValidArchivePayload(tempZip);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that EnsureValidArchivePayload rejects an HTML error page masquerading as a ZIP file.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_HtmlErrorDocument_ThrowsInvalidDataException()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+        try
+        {
+            File.WriteAllText(tempFile, "<!DOCTYPE html><html><head><title>Error</title></head><body>Access Denied</body></html>");
+
+            // Act & Assert
+            var ex = Assert.Throws<InvalidDataException>(() => ArchivePayloadProcessor.EnsureValidArchivePayload(tempFile));
+            Assert.Contains("HTML or web error text", ex.Message);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a complete RAR archive served as .zip is extracted by content and then removed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_RarArchiveNamedZip_ExtractsContentAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "mod.zip");
+
+        // Complete RAR5 archive with a stored readme.txt, header/data CRCs and an end marker.
+        await File.WriteAllBytesAsync(archivePath, Convert.FromBase64String(
+            "UmFyIRoHAQDFGjMyAwEAACYUNnUXAgIXBBcAr0Q9jwAACnJlYWRtZS50eHRtaXNsYWJlbGxlZCBSQVIgYXJjaGl2ZRmyOjUDBQAA"));
+
+        // Act
+        await CreateProcessor().ExtractArchivesSafelyAsync(_stagingDirectory);
+
+        // Assert
+        var extracted = Path.Combine(_stagingDirectory, "readme.txt");
+        Assert.True(File.Exists(extracted));
+        Assert.Equal("mislabelled RAR archive", await File.ReadAllTextAsync(extracted));
+        Assert.False(File.Exists(archivePath));
+    }
+
+    /// <summary>
+    /// Verifies that incomplete or invalid PK prefixes are rejected before extraction for every candidate format.
+    /// </summary>
+    /// <param name="extension">The candidate archive extension.</param>
+    /// <param name="hex">The invalid header bytes.</param>
+    [Theory]
+    [InlineData(".zip", "504B")]
+    [InlineData(".zip", "504B03")]
+    [InlineData(".zip", "504B0000")]
+    [InlineData(".7z", "504B0000")]
+    [InlineData(".rar", "504B0000")]
+    [InlineData(".gz", "504B0000")]
+    [InlineData(".bz2", "504B0000")]
+    [InlineData(".xz", "504B0000")]
+    public void EnsureValidArchivePayload_InvalidPkPrefix_ThrowsInvalidDataException(string extension, string hex)
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "mod" + extension);
+        File.WriteAllBytes(archivePath, Convert.FromHexString(hex));
+
+        // Act & Assert
+        Assert.Throws<InvalidDataException>(() => ArchivePayloadProcessor.EnsureValidArchivePayload(archivePath));
+    }
+
+    /// <summary>
+    /// Verifies that an empty ZIP archive remains valid even when served under another extension.
+    /// </summary>
+    [Fact]
+    public void EnsureValidArchivePayload_EmptyZipNamedRar_Succeeds()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "mod.rar");
+        using (ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+        }
+
+        // Act & Assert
+        ArchivePayloadProcessor.EnsureValidArchivePayload(archivePath);
+        Assert.True(ZipValidation.IsValidZipFile(archivePath));
+    }
+
+    /// <summary>
+    /// Verifies that NormalizeMapPayloadStructure unwraps a lowercase "maps" directory
+    /// even when a root readme prevents StripSingleWrapperDirectories.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_LowerCaseMapsDirectoryWithReadme_UnwrapsMapsDirectoryAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var readmePath = Path.Combine(_stagingDirectory, "README.txt");
+        await File.WriteAllTextAsync(readmePath, "Readme content");
+
+        var lowerMapsDir = Path.Combine(_stagingDirectory, "maps");
+        var mapSubDir = Path.Combine(lowerMapsDir, "Desert");
+        Directory.CreateDirectory(mapSubDir);
+        var mapFilePath = Path.Combine(mapSubDir, "desert.map");
+        await File.WriteAllTextAsync(mapFilePath, "map-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        Assert.True(File.Exists(readmePath));
+        Assert.False(Directory.Exists(lowerMapsDir));
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Desert", "desert.map")));
+    }
+
+    /// <summary>
+    /// Verifies that NormalizeMapPayloadStructure does not strip .map extensions from nested subdirectories.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_NestedDotMapDirectory_DoesNotStripNestedExtensionAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapDir = Path.Combine(_stagingDirectory, "Desert");
+        var nestedMapDir = Path.Combine(mapDir, "Textures.map");
+        Directory.CreateDirectory(nestedMapDir);
+        await File.WriteAllTextAsync(Path.Combine(nestedMapDir, "texture.dds"), "dds-data");
+        await File.WriteAllTextAsync(Path.Combine(mapDir, "Desert.map"), "map-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        Assert.True(Directory.Exists(nestedMapDir));
+        Assert.True(File.Exists(Path.Combine(nestedMapDir, "texture.dds")));
+    }
+
+    /// <summary>
+    /// Verifies that NormalizeMapPayloadStructure does not fabricate a .tga preview in a directory lacking a .map file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_TopLevelFolderWithoutMap_DoesNotFabricateTgaPreviewAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapDir = Path.Combine(_stagingDirectory, "Desert");
+        Directory.CreateDirectory(mapDir);
+        await File.WriteAllTextAsync(Path.Combine(mapDir, "Desert.map"), "map-data");
+
+        var auxDir = Path.Combine(_stagingDirectory, "Textures");
+        Directory.CreateDirectory(auxDir);
+        var tgaPath = Path.Combine(auxDir, "preview.tga");
+        await File.WriteAllTextAsync(tgaPath, "preview-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var fabricatedTga = Path.Combine(auxDir, "Textures.tga");
+        Assert.False(File.Exists(fabricatedTga));
+        Assert.True(File.Exists(tgaPath));
+    }
+
+    /// <summary>
+    /// Verifies that single loose map normalization does not move unrelated files like readme.txt or metadata.ini
+    /// into the map folder.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SingleLooseMapWithUnrelatedFile_DoesNotMoveUnrelatedFileIntoMapFolderAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapPath = Path.Combine(_stagingDirectory, "Desert.map");
+        var tgaPath = Path.Combine(_stagingDirectory, "Desert.tga");
+        var readmePath = Path.Combine(_stagingDirectory, "readme.txt");
+        var metadataPath = Path.Combine(_stagingDirectory, "metadata.ini");
+
+        await File.WriteAllTextAsync(mapPath, "map-data");
+        await File.WriteAllTextAsync(tgaPath, "tga-data");
+        await File.WriteAllTextAsync(readmePath, "readme-content");
+        await File.WriteAllTextAsync(metadataPath, "metadata-content");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var mapFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.True(File.Exists(Path.Combine(mapFolder, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(mapFolder, "Desert.tga")));
+        Assert.True(File.Exists(readmePath));
+        Assert.True(File.Exists(metadataPath));
+        Assert.False(File.Exists(Path.Combine(mapFolder, "readme.txt")));
+        Assert.False(File.Exists(Path.Combine(mapFolder, "metadata.ini")));
+    }
+
+    /// <summary>
+    /// Verifies that loose map organization deduplicates root map files when the target map already exists in subdirectory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_DuplicateMapAtRootAndInSubdirectory_DeduplicatesLooseRootMapAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var targetFolder = Path.Combine(_stagingDirectory, "Desert");
+        Directory.CreateDirectory(targetFolder);
+        await File.WriteAllTextAsync(Path.Combine(targetFolder, "Desert.map"), "identical-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "identical-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.tga"), "preview-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Desert.tga")));
+    }
+
+    /// <summary>
+    /// Verifies that a loose map's .wak, map.ini and map.str companions move into the map folder with it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_LooseMapWithWakIniAndStr_OrganizesAllCompanionsAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "map-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.wak"), "wak-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "map.ini"), "ini-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "map.str"), "str-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var mapFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.Equal("wak-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "Desert.wak")));
+        Assert.Equal("ini-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "map.ini")));
+        Assert.Equal("str-data", await File.ReadAllTextAsync(Path.Combine(mapFolder, "map.str")));
+        Assert.Empty(Directory.GetFiles(_stagingDirectory));
+    }
+
+    /// <summary>
+    /// Verifies that shared companions retain their content in every map folder and leave no
+    /// staging-root duplicate, regardless of filename casing.
+    /// </summary>
+    /// <param name="companionName">The shared companion filename.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("map.ini")]
+    [InlineData("MAP.INI")]
+    [InlineData("map.str")]
+    [InlineData("MAP.STR")]
+    [InlineData("map.tga")]
+    [InlineData("MAP.TGA")]
+    public async Task NormalizeDirectoryStructureAsync_SharedCompanionCaseVariants_RemovesRootCopyAsync(string companionName)
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "desert-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Snow.map"), "snow-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, companionName), "shared-data");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "unrelated.ini"), "unrelated-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        foreach (var mapName in new[] { "Desert", "Snow" })
+        {
+            var targetName = companionName.Equals("map.tga", StringComparison.OrdinalIgnoreCase)
+                ? mapName + Path.GetExtension(companionName)
+                : companionName;
+            Assert.Equal("shared-data", await File.ReadAllTextAsync(Path.Combine(_stagingDirectory, mapName, targetName)));
+        }
+
+        Assert.Equal("unrelated.ini", Path.GetFileName(Assert.Single(Directory.GetFiles(_stagingDirectory))));
+        Assert.Equal("unrelated-data", await File.ReadAllTextAsync(Path.Combine(_stagingDirectory, "unrelated.ini")));
+    }
+
+    /// <summary>
+    /// Shared companions may be deduplicated only when the destination has identical contents.
+    /// Conflicts fail normalization while preserving both versions.
+    /// </summary>
+    /// <param name="companionName">The shared companion filename.</param>
+    /// <param name="identical">Whether source and destination contents match.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("map.ini", false)]
+    [InlineData("map.str", false)]
+    [InlineData("map.tga", false)]
+    [InlineData("MAP.TGA", false)]
+    [InlineData("MAP.INI", false)]
+    [InlineData("MAP.STR", false)]
+    [InlineData("map.ini", true)]
+    [InlineData("map.str", true)]
+    [InlineData("map.tga", true)]
+    [InlineData("MAP.TGA", true)]
+    [InlineData("MAP.INI", true)]
+    [InlineData("MAP.STR", true)]
+    public async Task NormalizeDirectoryStructureAsync_ExistingSharedCompanion_PreservesConflictingContentAsync(string companionName, bool identical)
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapFolder = Directory.CreateDirectory(Path.Combine(_stagingDirectory, "Desert")).FullName;
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "map-data");
+        await File.WriteAllTextAsync(Path.Combine(mapFolder, "Desert.map"), "map-data");
+        var source = Path.Combine(_stagingDirectory, companionName);
+        var destination = Path.Combine(mapFolder, companionName.Equals("map.tga", StringComparison.OrdinalIgnoreCase) ? "Desert.tga" : companionName.ToLowerInvariant());
+        await File.WriteAllTextAsync(source, "incoming");
+        await File.WriteAllTextAsync(destination, identical ? "incoming" : "existing");
+
+        var processor = CreateProcessor();
+        if (identical)
+        {
+            await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+            Assert.False(File.Exists(source));
+        }
+        else
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(() => processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour));
+            Assert.Equal("incoming", await File.ReadAllTextAsync(source));
+        }
+
+        Assert.Equal(identical ? "incoming" : "existing", await File.ReadAllTextAsync(destination));
+    }
+
+    /// <summary>
+    /// Verifies that multiple loose maps sharing a root map.tga receive the thumbnail in each respective map folder.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_MultiLooseMapsWithSharedMapTga_CopiesPreviewToAllMapFoldersAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "desert-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Snow.map"), "snow-map");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "map.tga"), "preview-data");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var desertTga = Path.Combine(_stagingDirectory, "Desert", "Desert.tga");
+        var snowTga = Path.Combine(_stagingDirectory, "Snow", "Snow.tga");
+        var rootTga = Path.Combine(_stagingDirectory, "map.tga");
+
+        Assert.True(File.Exists(desertTga));
+        Assert.True(File.Exists(snowTga));
+        Assert.False(File.Exists(rootTga));
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Desert", "map.tga")));
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Snow", "map.tga")));
+    }
+
+    /// <summary>
+    /// Verifies that when a loose map conflicts with a preexisting subdirectory map of the same name but different content,
+    /// both maps are preserved by moving the loose map into a disambiguated directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_ConflictingLooseMapWithExistingSubdir_PreservesBothMapsInDisambiguatedFolderAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var targetFolder = Path.Combine(_stagingDirectory, "Desert");
+        Directory.CreateDirectory(targetFolder);
+        await File.WriteAllTextAsync(Path.Combine(targetFolder, "Desert.map"), "existing-content");
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Desert.map"), "conflicting-content");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var disambiguatedFolder = Path.Combine(_stagingDirectory, "Desert (1)");
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Desert.map")));
+        Assert.Equal("existing-content", await File.ReadAllTextAsync(Path.Combine(targetFolder, "Desert.map")));
+        Assert.True(File.Exists(Path.Combine(disambiguatedFolder, "Desert.map")));
+        Assert.Equal("conflicting-content", await File.ReadAllTextAsync(Path.Combine(disambiguatedFolder, "Desert.map")));
+    }
+
+    /// <summary>
+    /// Verifies that loose map files with uppercase extensions like .MAP are properly organized into their own folders.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_UppercaseMapExtension_OrganizesCorrectlyAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var mapFile = Path.Combine(_stagingDirectory, "Arena.MAP");
+        var tgaFile = Path.Combine(_stagingDirectory, "Arena.TGA");
+        await File.WriteAllTextAsync(mapFile, "map-content");
+        await File.WriteAllTextAsync(tgaFile, "tga-content");
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        var targetFolder = Path.Combine(_stagingDirectory, "Arena");
+        Assert.False(File.Exists(mapFile));
+        Assert.False(File.Exists(tgaFile));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Arena.MAP")));
+        Assert.True(File.Exists(Path.Combine(targetFolder, "Arena.TGA")));
+    }
+
+    /// <summary>
+    /// Verifies that when a loose map conflicts with an existing directory, disambiguation avoids colliding
+    /// with another loose map that owns the candidate disambiguated base name (e.g., "Desert (1).map").
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_ConflictingLooseMapWithExistingDisambiguatedBaseName_AvoidsDirectoryCollisionAsync()
+    {
+        // Arrange: Existing Desert/Desert.map, loose conflicting Desert.map, and loose Desert (1).map
+        Directory.CreateDirectory(_stagingDirectory);
+        var existingDesertDir = Path.Combine(_stagingDirectory, "Desert");
+        Directory.CreateDirectory(existingDesertDir);
+        var existingMapFile = Path.Combine(existingDesertDir, "Desert.map");
+        await File.WriteAllTextAsync(existingMapFile, "existing-desert-map");
+
+        var looseDesertMap = Path.Combine(_stagingDirectory, "Desert.map");
+        await File.WriteAllTextAsync(looseDesertMap, "loose-conflicting-desert-map");
+
+        var looseDesert1Map = Path.Combine(_stagingDirectory, "Desert (1).map");
+        await File.WriteAllTextAsync(looseDesert1Map, "loose-desert-1-map");
+
+        // Act
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        // Assert:
+        // 1. Existing Desert/Desert.map is preserved.
+        Assert.True(File.Exists(existingMapFile));
+        Assert.Equal("existing-desert-map", await File.ReadAllTextAsync(existingMapFile));
+
+        // 2. Loose Desert (1).map gets its own dedicated folder "Desert (1)" with only its map.
+        var desert1Dir = Path.Combine(_stagingDirectory, "Desert (1)");
+        Assert.True(Directory.Exists(desert1Dir));
+        var desert1TargetMap = Path.Combine(desert1Dir, "Desert (1).map");
+        Assert.True(File.Exists(desert1TargetMap));
+        Assert.Equal("loose-desert-1-map", await File.ReadAllTextAsync(desert1TargetMap));
+
+        // 3. Disambiguated Desert.map skips "Desert (1)" to avoid collision and is placed in "Desert (2)".
+        var desert2Dir = Path.Combine(_stagingDirectory, "Desert (2)");
+        Assert.True(Directory.Exists(desert2Dir));
+        var desert2TargetMap = Path.Combine(desert2Dir, "Desert.map");
+        Assert.True(File.Exists(desert2TargetMap));
+        Assert.Equal("loose-conflicting-desert-map", await File.ReadAllTextAsync(desert2TargetMap));
+
+        // Ensure each folder only has its own single map file (no multiple map files sharing a directory).
+        Assert.Single(Directory.GetFiles(existingDesertDir, "*.map"));
+        Assert.Single(Directory.GetFiles(desert1Dir, "*.map"));
+        Assert.Single(Directory.GetFiles(desert2Dir, "*.map"));
+    }
+
+    /// <summary>
+    /// Verifies that in a single-map payload, a root generic map.ini is copied to the map folder.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SingleMapPayloadWithGenericMapIni_CopiesGenericIniToMapFolderAsync()
+    {
+        // Arrange: Only Desert.map and generic map.ini
+        Directory.CreateDirectory(_stagingDirectory);
+        var desertMap = Path.Combine(_stagingDirectory, "Desert.map");
+        var genericIni = Path.Combine(_stagingDirectory, "map.ini");
+
+        await File.WriteAllTextAsync(desertMap, "desert-map-data");
+        await File.WriteAllTextAsync(genericIni, "WaterTransparency = 50%");
+
+        // Act
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Map, GameType.ZeroHour);
+
+        // Assert
+        var desertFolder = Path.Combine(_stagingDirectory, "Desert");
+        Assert.True(Directory.Exists(desertFolder));
+        Assert.True(File.Exists(Path.Combine(desertFolder, "map.ini")));
+        Assert.Equal("WaterTransparency = 50%", await File.ReadAllTextAsync(Path.Combine(desertFolder, "map.ini")));
     }
 
     /// <inheritdoc/>

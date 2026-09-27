@@ -1,8 +1,10 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -19,6 +21,7 @@ namespace GenHub.Tests.Core.Common.Services;
 /// defaults over the freshly migrated settings file, permanently destroying the user's settings.
 /// </para>
 /// </summary>
+[Collection(StorageMigrationStaticStateCollection.Name)]
 public class LegacyRootUpgradeTests : IDisposable
 {
     private readonly string _testRoot;
@@ -35,6 +38,7 @@ public class LegacyRootUpgradeTests : IDisposable
         _newRoot = Path.Combine(_testRoot, "local");
         Directory.CreateDirectory(_legacyRoot);
         Directory.CreateDirectory(_newRoot);
+        AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(_legacyRoot);
     }
 
     /// <summary>
@@ -42,6 +46,7 @@ public class LegacyRootUpgradeTests : IDisposable
     /// </summary>
     public void Dispose()
     {
+        AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(null);
         if (Directory.Exists(_testRoot))
         {
             Directory.Delete(_testRoot, recursive: true);

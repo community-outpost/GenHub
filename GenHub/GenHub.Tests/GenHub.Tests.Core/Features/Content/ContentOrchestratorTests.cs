@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -146,6 +147,99 @@ public class ContentOrchestratorTests
         Assert.Equal(manifest, result.Data);
         _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that generic catalog results, which carry the publisher name as
+    /// <see cref="ContentSearchResult.ProviderName"/>, are routed to the shared generic
+    /// catalog provider via their resolver ID instead of failing lookup.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_GenericCatalogResult_RoutesToGenericProviderAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.testpub.mod.testcontent",
+            Name = "Test Content",
+            ProviderName = "Some Publisher",
+            ResolverId = CatalogConstants.GenericCatalogResolverId,
+        };
+        var manifest = new ContentManifest { Id = "1.0.testpub.mod.testcontent", Name = "Test Content" };
+
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(p => p.SourceName).Returns(CatalogConstants.GenericCatalogProviderName);
+        providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        // Act
+        var result = await orchestrator.AcquireContentAsync(searchResult);
+
+        // Assert
+        Assert.True(result.Success);
+        providerMock.Verify(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that results with neither a matching provider nor a generic catalog
+    /// resolver still fail with a provider-not-found error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_UnknownProviderAndResolver_ReturnsProviderNotFoundAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "unknown.content",
+            Name = "Unknown",
+            ProviderName = "Nobody",
+            ResolverId = "something-else",
+        };
+
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(p => p.SourceName).Returns(CatalogConstants.GenericCatalogProviderName);
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        // Act
+        var result = await orchestrator.AcquireContentAsync(searchResult);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Provider not found", result.FirstError);
     }
 
     /// <summary>

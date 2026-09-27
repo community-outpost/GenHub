@@ -77,6 +77,19 @@ public static partial class GameVersionHelper
     }
 
     /// <summary>
+    /// Resolves the numeric version segment of a game installation manifest id for a detected client.
+    /// This matches the version the installation service pools the manifest under, including the
+    /// game-type default when the client reports no usable version.
+    /// </summary>
+    /// <param name="detectedVersion">The version reported by the detected client.</param>
+    /// <param name="gameType">The game type.</param>
+    /// <returns>The normalized version to pass to the installation manifest id generator.</returns>
+    public static int ResolveInstallationManifestVersion(string? detectedVersion, GameType gameType)
+    {
+        return NormalizeVersion(ResolveInstallationVersion(detectedVersion, gameType));
+    }
+
+    /// <summary>
     /// Extracts a numeric version from a version string like "2025-11-07" or "weekly-2025-11-21".
     /// Extracts all digits and returns them as an integer (e.g., "2025-11-07" -> 20251107).
     /// </summary>
@@ -350,6 +363,32 @@ public static partial class GameVersionHelper
     }
 
     /// <summary>
+    /// Determines whether a release title carries only version information, such as "1.0.1",
+    /// "v2.3-beta" or the release tag itself, rather than a descriptive name.
+    /// </summary>
+    /// <param name="text">The release title.</param>
+    /// <param name="tagName">The release tag.</param>
+    /// <returns><c>true</c> when the title is blank or only a version; otherwise <c>false</c>.</returns>
+    public static bool IsPureVersionString(string? text, string? tagName)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return true;
+        }
+
+        var trimmed = text.Trim();
+        if (!string.IsNullOrWhiteSpace(tagName) &&
+            (trimmed.Equals(tagName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             trimmed.Equals($"v{tagName.Trim()}", StringComparison.OrdinalIgnoreCase) ||
+             StripVersionPrefix(trimmed).Equals(StripVersionPrefix(tagName), StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return VersionPatternRegex().IsMatch(trimmed);
+    }
+
+    /// <summary>
     /// Formats a numeric manifest version segment into a standard version string.
     /// Handles Generals Online (D6 formatting), date-based versions (preserving YYYYMMDD),
     /// and standard major/minor numeric versions (dividing by 100 when &gt;= 100).
@@ -432,4 +471,7 @@ public static partial class GameVersionHelper
 
     [GeneratedRegex(@"\D")]
     private static partial Regex NonDigitRegex();
+
+    [GeneratedRegex(@"^v?\d+(\.\d+)*(-[a-zA-Z0-9\.\-_]+)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex VersionPatternRegex();
 }

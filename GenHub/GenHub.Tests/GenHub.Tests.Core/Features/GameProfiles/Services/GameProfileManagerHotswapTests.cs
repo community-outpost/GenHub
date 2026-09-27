@@ -3,6 +3,8 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.UserData;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
@@ -46,6 +48,8 @@ public class GameProfileManagerHotswapTests
             _installationServiceMock.Object,
             _manifestPoolMock.Object,
             _gameSettingsServiceMock.Object,
+            Mock.Of<IWorkspaceManager>(),
+            Mock.Of<IProfileContentLinker>(),
             _loggerMock.Object,
             _launchRegistryMock.Object);
     }

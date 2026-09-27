@@ -1811,6 +1811,11 @@ public sealed partial class ContentStateService(
             }
         }
 
+        if (ManifestId.TryParse(item.Id, out var parsedManifestId))
+        {
+            return (parsedManifestId.Value, releaseDate, hasRealDate);
+        }
+
         var providerName = SanitizeSegmentForManifest(item.ProviderName, UnknownSegment) ?? UnknownSegment;
         if (IsGitHubPublisher(providerName))
         {
@@ -2482,7 +2487,11 @@ public sealed partial class ContentStateService(
         bool isNewerAvailable = false;
         bool isOlderAvailable = false;
 
-        if (releaseDate > DateTime.MinValue)
+        bool canCompareVersion = (releaseDate > DateTime.MinValue) ||
+                                 (!string.IsNullOrWhiteSpace(itemVersion) && !string.IsNullOrWhiteSpace(bestMatch.Version)) ||
+                                 (prospectiveSegments.Length == 5 && prospectiveSegments[1] != "0");
+
+        if (canCompareVersion)
         {
             isNewerAvailable = IsNewerVersion(prospectiveId, bestMatch.Id.Value, itemVersion, bestMatch.Version);
             isOlderAvailable = IsNewerVersion(bestMatch.Id.Value, prospectiveId, bestMatch.Version, itemVersion);

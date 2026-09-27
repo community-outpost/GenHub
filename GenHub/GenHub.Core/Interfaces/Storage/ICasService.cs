@@ -17,6 +17,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -26,6 +27,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentAsync(Stream contentStream, string? expectedHash = null, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -76,6 +78,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentAsync(
         string sourcePath,
         ContentType contentType,
@@ -92,6 +95,7 @@ public interface ICasService
     /// <param name="contentType">The content type for pool routing.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentWithKnownHashAsync(
         string sourcePath,
         string knownHash,
@@ -106,6 +110,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<OperationResult<string>> StoreContentAsync(
         Stream contentStream,
         ContentType contentType,

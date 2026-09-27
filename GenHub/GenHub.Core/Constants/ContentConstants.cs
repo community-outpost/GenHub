@@ -285,6 +285,11 @@ public static class ContentConstants
     public const string UnknownAddonName = "Unknown Addon";
 
     /// <summary>
+    /// Fallback author name when publisher metadata is missing.
+    /// </summary>
+    public const string UnknownAuthorName = "Unknown";
+
+    /// <summary>
     /// Status message displayed when all selected items have already been downloaded.
     /// </summary>
     public const string AllSelectedContentLoadedStatusMessage = "All selected content is already downloaded";

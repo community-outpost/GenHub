@@ -453,8 +453,27 @@ public class SampleProjectService(
 
     private static string GetSampleCacheDirectory()
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(localAppData, AppConstants.AppName, ModBuilderConstants.SampleCacheDirName);
+        var target = Path.Combine(AppDataPathHelper.GetDataRoot(), DirectoryNames.Cache, ModBuilderConstants.SampleCacheDirName);
+        var legacy = Path.Combine(AppDataPathHelper.GetDataRoot(), ModBuilderConstants.SampleCacheDirName);
+        if (Directory.Exists(legacy) && !Directory.Exists(target))
+        {
+            try
+            {
+                var parent = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
+                {
+                    Directory.CreateDirectory(parent);
+                }
+
+                Directory.Move(legacy, target);
+            }
+            catch
+            {
+                // Fall back to target creation if move fails
+            }
+        }
+
+        return target;
     }
 
     private static async Task ExtractArchiveFileAsync(

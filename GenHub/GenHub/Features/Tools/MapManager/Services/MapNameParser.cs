@@ -29,11 +29,16 @@ public class MapNameParser(ILogger<MapNameParser> logger)
             return nameFromDirectory;
         }
 
-        return Path.GetFileNameWithoutExtension(mapFilePath);
+        return CleanMapName(Path.GetFileNameWithoutExtension(mapFilePath));
     }
 
     private static string CleanMapName(string name)
     {
+        if (name.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+        {
+            name = Path.GetFileNameWithoutExtension(name);
+        }
+
         name = name.Replace('_', ' ');
         name = name.Replace('-', ' ');
 
@@ -127,6 +132,11 @@ public class MapNameParser(ILogger<MapNameParser> logger)
                 directoryName.Contains("Command and Conquer", StringComparison.OrdinalIgnoreCase))
             {
                 return null;
+            }
+
+            if (directoryName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+            {
+                directoryName = Path.GetFileNameWithoutExtension(directoryName);
             }
 
             logger.LogDebug("Using directory name as map name: {Name}", directoryName);

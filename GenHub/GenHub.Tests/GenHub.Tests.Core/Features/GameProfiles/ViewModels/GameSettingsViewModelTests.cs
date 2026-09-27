@@ -1353,6 +1353,66 @@ public class GameSettingsViewModelTests
         notificationMock.Verify(n => n.ShowWarning("Settings Warning", "Invalid resolution preset: invalid", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
+    /// <summary>
+    /// Should apply preset and show notification when user changes SelectedResolutionPreset directly.
+    /// </summary>
+    [Fact]
+    public void SelectedResolutionPreset_WhenChangedDirectly_Should_ApplyPresetAndShowNotification()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ResolutionSetTitle")).Returns("Resolution Updated");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ResolutionSetMessage")).Returns("Resolution set to {0}x{1}");
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+
+        // Act
+        vm.SelectedResolutionPreset = "1920x1080";
+
+        // Assert
+        Assert.Equal(1920, vm.ResolutionWidth);
+        Assert.Equal(1080, vm.ResolutionHeight);
+        notificationMock.Verify(n => n.ShowInfo("Resolution Updated", "Resolution set to 1920x1080", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should not show resolution notification when profile is being initialized.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_NotShowResolutionNotification()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ResolutionSetTitle")).Returns("Resolution Updated");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ResolutionSetMessage")).Returns("Resolution set to {0}x{1}");
+
+        var profile = new GameProfile
+        {
+            Id = "test-profile",
+            Name = "Test Profile",
+            GameClient = new GameClient { GameType = GameType.Generals },
+            VideoResolutionWidth = 1920,
+            VideoResolutionHeight = 1080,
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(new IniOptions()));
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+
+        // Act
+        await vm.InitializeForProfileAsync("test-profile", profile);
+
+        // Assert
+        Assert.Equal("1920x1080", vm.SelectedResolutionPreset);
+        Assert.Equal(1920, vm.ResolutionWidth);
+        Assert.Equal(1080, vm.ResolutionHeight);
+        notificationMock.Verify(n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
     private static GameProfile CreateGeneralsOnlineProfile()
     {
         return new GameProfile

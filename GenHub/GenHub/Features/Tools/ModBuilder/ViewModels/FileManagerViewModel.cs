@@ -2,10 +2,13 @@ using Avalonia;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
@@ -27,9 +30,24 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 public partial class FileManagerViewModel(
     IGameInstallationService gameInstallationService,
     INotificationService notificationService,
-    ILogger<FileManagerViewModel> logger,
-    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
+    IWndDocumentService wndDocumentService,
+    ILocalizationService localizationService,
+    ILogger<FileManagerViewModel> logger) : ObservableObject, IDisposable
 {
+    private enum WndFileOperation
+    {
+        Validate,
+        Format,
+    }
+
+    private sealed record WndOperationSpec(
+        string Progress,
+        string SuccessTitle,
+        string SuccessMessage,
+        string IssuesTitle,
+        string IssuesMessage,
+        bool RefreshAfter);
+
     private readonly ConcurrentDictionary<string, (long Length, DateTime LastWriteTimeUtc, string Hash)> _fileHashCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
     private CancellationTokenSource? _reloadCts;
@@ -164,6 +182,8 @@ public partial class FileManagerViewModel(
     /// Gets or sets a value indicating whether files are being loaded.
     /// </summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ValidateWndFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(FormatWndFilesCommand))]
     private bool _isLoading;
 
     /// <summary>
@@ -866,6 +886,261 @@ public partial class FileManagerViewModel(
             {
                 // Ignore non-empty directory errors
             }
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property dependent on instance state")]
+    private bool CanRunWndOperation => !IsLoading;
+
+    /// <summary>
+    /// Validates selected window definition (.wnd) project files.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRunWndOperation))]
+    private async Task ValidateWndFilesAsync(CancellationToken cancellationToken = default)
+    {
+        await RunWndFileOperationAsync(WndFileOperation.Validate, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Formats selected window definition (.wnd) project files in canonical form.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRunWndOperation))]
+    private async Task FormatWndFilesAsync(CancellationToken cancellationToken = default)
+    {
+        await RunWndFileOperationAsync(WndFileOperation.Format, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static WndOperationSpec GetWndOperationSpec(WndFileOperation operation) => operation switch
+    {
+        WndFileOperation.Validate => new(
+            "Tools.ModBuilder.Wnd.ProgressValidating",
+            "Tools.ModBuilder.Wnd.ValidateSuccessTitle",
+            "Tools.ModBuilder.Wnd.ValidateSuccessMessage",
+            "Tools.ModBuilder.Wnd.ValidateIssuesTitle",
+            "Tools.ModBuilder.Wnd.ValidateIssuesMessage",
+            false),
+        WndFileOperation.Format => new(
+            "Tools.ModBuilder.Wnd.ProgressFormatting",
+            "Tools.ModBuilder.Wnd.FormatSuccessTitle",
+            "Tools.ModBuilder.Wnd.FormatSuccessMessage",
+            "Tools.ModBuilder.Wnd.FormatIssuesTitle",
+            "Tools.ModBuilder.Wnd.FormatIssuesMessage",
+            true),
+        _ => throw new ArgumentOutOfRangeException(nameof(operation)),
+    };
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates instance observable property StatusMessage")]
+    private void SetStatusMessageSafe(string message)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            StatusMessage = message;
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => StatusMessage = message);
+        }
+    }
+
+    private async Task<(int SucceededCount, string? FirstProblem)> ProcessWndFilesBatchAsync(
+        IReadOnlyList<string> wndFiles,
+        WndFileOperation operation,
+        string progressKey,
+        CancellationToken cancellationToken)
+    {
+        var succeededCount = 0;
+        string? firstProblem = null;
+        var total = wndFiles.Count;
+
+        for (var i = 0; i < total; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var file = wndFiles[i];
+            var outcome = await ExecuteSingleWndOperationAsync(file, operation, cancellationToken).ConfigureAwait(false);
+            if (outcome.Succeeded)
+            {
+                succeededCount++;
+            }
+            else
+            {
+                firstProblem ??= outcome.Problem ?? file;
+            }
+
+            var current = i + 1;
+            var percent = (current / (double)total) * 100.0;
+            ReportWndProgress(percent, progressKey, current, total, file);
+        }
+
+        return (succeededCount, firstProblem);
+    }
+
+    private Task<(bool Succeeded, string? Problem)> ExecuteSingleWndOperationAsync(
+        string file,
+        WndFileOperation operation,
+        CancellationToken cancellationToken)
+    {
+        return operation == WndFileOperation.Validate
+            ? ValidateSingleWndFileAsync(file, cancellationToken)
+            : FormatSingleWndFileAsync(file, cancellationToken);
+    }
+
+    private void CompleteWndOperation(
+        WndOperationSpec spec,
+        int succeededCount,
+        int total,
+        string? firstProblem)
+    {
+        if (succeededCount == total)
+        {
+            var message = localizationService.GetString(spec.SuccessMessage, succeededCount, total);
+            notificationService.ShowSuccess(
+                localizationService.GetString(spec.SuccessTitle),
+                message,
+                NotificationDurations.Medium);
+            SetStatusMessageSafe(message);
+        }
+        else
+        {
+            var message = localizationService.GetString(spec.IssuesMessage, succeededCount, total, firstProblem ?? string.Empty);
+            notificationService.ShowWarning(
+                localizationService.GetString(spec.IssuesTitle),
+                message,
+                NotificationDurations.Long);
+            SetStatusMessageSafe(message);
+        }
+    }
+
+    private async Task RunWndFileOperationAsync(WndFileOperation operation, CancellationToken cancellationToken)
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        var wndFiles = CollectSelectedWndFiles();
+        if (wndFiles.Count == 0)
+        {
+            notificationService.ShowInfo(
+                localizationService.GetString("Tools.ModBuilder.Wnd.NoSelectionTitle"),
+                localizationService.GetString("Tools.ModBuilder.Wnd.NoSelectionMessage"),
+                NotificationDurations.Short);
+            return;
+        }
+
+        var spec = GetWndOperationSpec(operation);
+
+        try
+        {
+            IsLoading = true;
+            IsIndeterminateProgress = false;
+
+            var (succeededCount, firstProblem) = await ProcessWndFilesBatchAsync(
+                wndFiles,
+                operation,
+                spec.Progress,
+                cancellationToken).ConfigureAwait(false);
+
+            if (spec.RefreshAfter)
+            {
+                await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            CompleteWndOperation(spec, succeededCount, wndFiles.Count, firstProblem);
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "WND file operation was cancelled");
+            SetStatusMessageSafe(localizationService.GetString("Tools.ModBuilder.Wnd.OperationCancelled"));
+        }
+        finally
+        {
+            IsLoading = false;
+            IsIndeterminateProgress = true;
+        }
+    }
+
+    private void ReportWndProgress(double percent, string progressKey, int current, int total, string file)
+    {
+        void Apply()
+        {
+            ProgressPercentage = percent;
+            StatusMessage = localizationService.GetString(progressKey, current, total, Path.GetFileName(file));
+        }
+
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            Apply();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(Apply);
+        }
+    }
+
+    private async Task<(bool Succeeded, string? Problem)> ValidateSingleWndFileAsync(string file, CancellationToken cancellationToken)
+    {
+        var result = await wndDocumentService.ValidateFileAsync(file, cancellationToken).ConfigureAwait(false);
+        if (result.IsValid)
+        {
+            return (true, null);
+        }
+
+        var problem = result.Issues.Count > 0 ? result.Issues[0].Message : result.FirstError;
+        return (false, problem);
+    }
+
+    private async Task<(bool Succeeded, string? Problem)> FormatSingleWndFileAsync(string file, CancellationToken cancellationToken)
+    {
+        var result = await wndDocumentService.FormatFileAsync(file, cancellationToken).ConfigureAwait(false);
+        return (result.Success, result.FirstError);
+    }
+
+    /// <summary>
+    /// Opens the first selected window definition (.wnd) file in the WND editor tool.
+    /// </summary>
+    [RelayCommand]
+    private void EditWndFile()
+    {
+        var wndFiles = CollectSelectedWndFiles();
+        if (wndFiles.Count == 0)
+        {
+            notificationService.ShowInfo(
+                localizationService.GetString("Tools.ModBuilder.Wnd.NoSelectionTitle"),
+                localizationService.GetString("Tools.ModBuilder.Wnd.NoSelectionMessage"),
+                NotificationDurations.Short);
+            return;
+        }
+
+        WeakReferenceMessenger.Default.Send(new OpenFileInToolMessage(ToolConstants.WndEditor.Id, wndFiles[0]));
+    }
+
+    private List<string> CollectSelectedWndFiles()
+    {
+        var selected = GetSelectedProjectFiles();
+        var wndFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var node in selected)
+        {
+            if (node.IsDirectory)
+            {
+                foreach (var file in GetAllFiles([node]))
+                {
+                    AddIfWndFile(wndFiles, file.FullPath);
+                }
+            }
+            else
+            {
+                AddIfWndFile(wndFiles, node.FullPath);
+            }
+        }
+
+        return wndFiles.Values.ToList();
+    }
+
+    private static void AddIfWndFile(Dictionary<string, string> wndFiles, string fullPath)
+    {
+        if (string.Equals(Path.GetExtension(fullPath), ModBuilderConstants.FileExtensions.Wnd, StringComparison.OrdinalIgnoreCase))
+        {
+            wndFiles[fullPath] = fullPath;
         }
     }
 

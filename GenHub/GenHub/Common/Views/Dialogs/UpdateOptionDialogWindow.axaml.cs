@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels.Dialogs;
 using System;
@@ -28,6 +29,18 @@ public partial class UpdateOptionDialogWindow : Window
         if (DataContext is UpdateOptionDialogViewModel vm)
         {
             vm.CloseAction = (result) => Close(result);
+        }
+    }
+
+    /// <inheritdoc/>
+    /// <param name="e">The key event arguments.</param>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.Escape && !e.Handled)
+        {
+            e.Handled = true;
+            Close();
         }
     }
 

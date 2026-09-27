@@ -73,7 +73,7 @@ public class Program
 
         try
         {
-            bootstrapLogger.LogInformation("Starting GenHub Windows application");
+            bootstrapLogger.LogInformation("Starting GenHub Windows application ({Version})", AppConstants.FullDisplayVersion);
 
             var services = new ServiceCollection();
 

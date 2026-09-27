@@ -33,6 +33,12 @@ public static class GameClientConstants
     /// <summary>Unix Zero Hour client executable filename (extensionless Mach-O or ELF binary).</summary>
     public const string GeneralsOnlineUnixExecutable = "GeneralsOnlineZH";
 
+    /// <summary>Standard executable extension for Windows binaries.</summary>
+    public const string ExeExtension = ".exe";
+
+    /// <summary>Executable extension used by C&amp;C Generals and Zero Hour engine binaries (e.g., game.dat, generals.dat).</summary>
+    public const string DatExtension = ".dat";
+
     // ===== Engine Launch Arguments =====
 
     /// <summary>SAGE engine command-line argument overriding the horizontal resolution.</summary>
@@ -136,6 +142,12 @@ public static class GameClientConstants
     /// <summary>Zero Hour archive extension suffix.</summary>
     public const string ZeroHourArchiveExtensionSuffix = "ZH.big";
 
+    /// <summary>Parent directory of the native engine's default deploy tree, under the user's home.</summary>
+    public const string NativeDeployParentDirectoryName = "TheSuperHackers";
+
+    /// <summary>Directory name of the native engine's default Zero Hour deploy tree.</summary>
+    public const string NativeDeployZeroHourDirectoryName = "GeneralsZH";
+
     // ===== GeneralsOnline Client Detection =====
 
     /// <summary>GeneralsOnline 60Hz client executable name.</summary>
@@ -221,6 +233,12 @@ public static class GameClientConstants
 
     /// <summary>Display name for cross-platform/generic platform.</summary>
     public const string PlatformCrossPlatformDisplayName = "Cross-Platform";
+
+    /// <summary>Runtime identifier for Windows x86 architecture.</summary>
+    public const string WindowsX86RuntimeIdentifier = "win-x86";
+
+    /// <summary>Runtime identifier for Windows x64 architecture.</summary>
+    public const string WindowsX64RuntimeIdentifier = "win-x64";
 
     /// <summary>BrowserEngine.dll filename.</summary>
     public const string BrowserEngineDll = "BrowserEngine.dll";

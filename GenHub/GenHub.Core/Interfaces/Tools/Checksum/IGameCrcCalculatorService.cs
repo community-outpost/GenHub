@@ -49,6 +49,14 @@ public interface IGameCrcCalculatorService
     /// <param name="gameType">Target game (ZeroHour or Generals).</param>
     /// <param name="sideloadPaths">Optional list of sideload directories or .big archive paths.</param>
     /// <param name="modPath">Optional mod directory or .big archive path.</param>
+    /// <param name="allowedBaseRelativePaths">
+    /// Optional allow-list of game-root-relative file paths (e.g. from installation manifests).
+    /// When provided, base archives and loose files not named in the set are excluded from the calculation.
+    /// </param>
+    /// <param name="overlayModPaths">
+    /// Optional profile overlay mod directories or .big archive paths, mounted with top override priority.
+    /// Mount order decides same-tier ties (last wins); callers should order by ascending content priority.
+    /// </param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The calculated iniCRC as an uppercase 8-character hex string (e.g. 0x76B251A3), or failure.</returns>
     Task<OperationResult<string>> CalculateIniCrcAsync(
@@ -56,6 +64,8 @@ public interface IGameCrcCalculatorService
         GameType gameType,
         IReadOnlyList<string>? sideloadPaths = null,
         string? modPath = null,
+        IReadOnlyCollection<string>? allowedBaseRelativePaths = null,
+        IReadOnlyList<string>? overlayModPaths = null,
         CancellationToken ct = default);
 
     /// <summary>

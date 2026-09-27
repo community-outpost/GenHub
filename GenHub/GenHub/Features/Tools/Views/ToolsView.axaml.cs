@@ -23,20 +23,4 @@ public partial class ToolsView : UserControl
     {
         AvaloniaXamlLoader.Load(this);
     }
-
-    private void OnTriggerZonePointerEntered(object? sender, Avalonia.Input.PointerEventArgs e)
-    {
-        if (DataContext is ViewModels.ToolsViewModel vm)
-        {
-            vm.IsPaneOpen = true;
-        }
-    }
-
-    private void OnContentPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-    {
-        if (DataContext is ViewModels.ToolsViewModel vm)
-        {
-            vm.IsPaneOpen = false;
-        }
-    }
 }

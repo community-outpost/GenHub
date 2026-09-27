@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="GenHub.Features.Tools.Views.Dialogs.ToolDialogWindow"
+        Title="ToolDialogWindow"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SizeToContent="WidthAndHeight"
+        SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="AcrylicBlur, Blur, Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+    <Panel Background="{DynamicResource PurpleNebulaBackground}">
+        <ContentControl Name="MainContent"/>
+
+        <!-- Window Drag Region (excludes top-right corner so close button clicks are never intercepted) -->
+        <Panel Height="30" VerticalAlignment="Top" Margin="0,0,120,0" Background="Transparent" PointerPressed="OnDragRegionPointerPressed"/>
+    </Panel>
+</Window>

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Providers;
@@ -9,6 +10,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
@@ -16,6 +18,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,13 +49,18 @@ public class GenericCatalogDiscoverer(
         ContentRelease ResolvedRelease,
         string GroupId,
         string FamilyName,
-        string DeclaredPublisher);
+        string DeclaredPublisher,
+        bool ImplicitFileSplit);
 
     private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> ReleaseCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
+    private static readonly JsonSerializerOptions DefinitionJsonOptions = PublisherJsonOptions.Definition;
+
     private Core.Models.Providers.PublisherSubscription? _subscription;
+    private string? _refreshedCatalogUrl;
+    private string? _refreshedAvatarUrl;
 
     /// <summary>
     /// Gets the unique identifier of the resolver used by this discoverer.
@@ -81,6 +90,32 @@ public class GenericCatalogDiscoverer(
         ArgumentNullException.ThrowIfNull(subscription);
         _subscription = subscription;
         logger.LogDebug("Configured discoverer for publisher: {PublisherId}", subscription.PublisherId);
+    }
+
+    /// <summary>
+    /// Takes the catalog URL resolved from the publisher definition during the last
+    /// discovery, if it differs from the stored subscription URL. Consumers persist it
+    /// so renames and hosting moves stick. Returns null when nothing changed.
+    /// </summary>
+    /// <returns>The refreshed catalog URL, or null.</returns>
+    public string? TakeRefreshedCatalogUrl()
+    {
+        var refreshed = _refreshedCatalogUrl;
+        _refreshedCatalogUrl = null;
+        return refreshed;
+    }
+
+    /// <summary>
+    /// Takes the avatar URL resolved from the publisher definition or catalog during discovery,
+    /// if it differs from the stored subscription avatar URL. Consumers persist it so logo updates
+    /// propagate immediately. Returns null when unchanged.
+    /// </summary>
+    /// <returns>The refreshed avatar URL, or null.</returns>
+    public string? TakeRefreshedAvatarUrl()
+    {
+        var refreshed = _refreshedAvatarUrl;
+        _refreshedAvatarUrl = null;
+        return refreshed;
     }
 
     /// <inheritdoc />
@@ -235,6 +270,67 @@ public class GenericCatalogDiscoverer(
         }
     }
 
+    private static IReadOnlyList<string> ResolveDefinitionCatalogUrls(PublisherDefinition? definition, string? selectedCatalogId)
+    {
+        var urls = new List<string>();
+        if (definition == null)
+        {
+            return urls;
+        }
+
+        if (definition.Catalogs != null)
+        {
+            // The selected catalog goes first so the feed the user follows wins
+            // over sibling catalogs when a publisher hosts several.
+            var selected = !string.IsNullOrWhiteSpace(selectedCatalogId)
+                ? definition.Catalogs.FirstOrDefault(e => string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase))
+                : null;
+            if (selected != null)
+            {
+                AddDefinitionUrl(urls, selected.Url);
+                AddDefinitionMirrors(urls, selected.Mirrors);
+            }
+
+            foreach (var entry in definition.Catalogs)
+            {
+                if (ReferenceEquals(entry, selected))
+                {
+                    continue;
+                }
+
+                AddDefinitionUrl(urls, entry.Url);
+                AddDefinitionMirrors(urls, entry.Mirrors);
+            }
+        }
+
+        AddDefinitionUrl(urls, definition.CatalogUrl);
+        AddDefinitionMirrors(urls, definition.CatalogMirrors);
+
+        return urls;
+    }
+
+    private static void AddDefinitionMirrors(List<string> urls, List<string>? mirrors)
+    {
+        if (mirrors == null)
+        {
+            return;
+        }
+
+        foreach (var mirror in mirrors)
+        {
+            AddDefinitionUrl(urls, mirror);
+        }
+    }
+
+    private static void AddDefinitionUrl(List<string> urls, string? url)
+    {
+        if (!string.IsNullOrWhiteSpace(url) &&
+            !urls.Contains(url, StringComparer.OrdinalIgnoreCase))
+        {
+            urls.Add(url);
+        }
+    }
+
     private static IReadOnlyList<string> ResolveIncludedContentNames(
         ContentRelease release,
         IReadOnlyDictionary<string, string> contentNamesById)
@@ -301,7 +397,103 @@ public class GenericCatalogDiscoverer(
         return defaultTargetGame;
     }
 
-    private static List<ReleaseArtifact> BuildSiblingArtifacts(ReleaseArtifact artifact, ContentRelease resolvedRelease)
+    private static bool HasMultipleDownloadableArtifacts(ContentRelease release)
+    {
+        return release.Artifacts != null && release.Artifacts.Count(artifact => !string.IsNullOrWhiteSpace(artifact.DownloadUrl)) > 1;
+    }
+
+    private static string ImplicitFileVariantLabel(ReleaseArtifact artifact, int siblingIndex)
+    {
+        if (!string.IsNullOrWhiteSpace(artifact.Filename))
+        {
+            return artifact.Filename.Trim();
+        }
+
+        if (Uri.TryCreate(artifact.DownloadUrl?.Trim(), UriKind.Absolute, out var uri))
+        {
+            var lastSegment = uri.Segments.LastOrDefault()?.Trim('/');
+            if (!string.IsNullOrWhiteSpace(lastSegment))
+            {
+                return Uri.UnescapeDataString(lastSegment);
+            }
+        }
+
+        // Prefer order-independent values so sibling identity survives catalog reordering.
+        if (!string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+        {
+            return artifact.DownloadUrl.Trim();
+        }
+
+        return $"File {siblingIndex + 1}";
+    }
+
+    private static string SanitizeFileVariantId(string variantLabel)
+    {
+        var builder = new StringBuilder(variantLabel.Length);
+        foreach (var c in variantLabel)
+        {
+            builder.Append(char.IsLetterOrDigit(c) || c is '.' or '-' or '_' ? c : '-');
+        }
+
+        return builder.ToString().Trim('-', '.');
+    }
+
+    private static string StableUrlHash(string? downloadUrl, string? filename)
+    {
+        var key = $"{downloadUrl?.Trim() ?? string.Empty}\n{filename?.Trim() ?? string.Empty}";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..8].ToLowerInvariant();
+    }
+
+    private static string[] ResolveSiblingIdLabels(IReadOnlyList<ReleaseArtifact> variantArtifacts, bool implicitFileSplit)
+    {
+        var idLabels = new string[variantArtifacts.Count];
+        for (var index = 0; index < variantArtifacts.Count; index++)
+        {
+            var artifact = variantArtifacts[index];
+            var label = artifact.Variant?.Trim() ?? string.Empty;
+            if (implicitFileSplit && string.IsNullOrEmpty(label))
+            {
+                label = ImplicitFileVariantLabel(artifact, index);
+            }
+
+            idLabels[index] = implicitFileSplit ? SanitizeFileVariantId(label) : label;
+        }
+
+        if (implicitFileSplit)
+        {
+            DisambiguateDuplicateFileIds(idLabels, variantArtifacts);
+        }
+
+        return idLabels;
+    }
+
+    private static void DisambiguateDuplicateFileIds(string[] idLabels, IReadOnlyList<ReleaseArtifact> variantArtifacts)
+    {
+        var usedIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < idLabels.Length; index++)
+        {
+            var artifact = variantArtifacts[index];
+            var baseId = string.IsNullOrEmpty(idLabels[index])
+                ? $"file-{StableUrlHash(artifact.DownloadUrl, artifact.Filename)}"
+                : idLabels[index];
+            var id = baseId;
+            if (!usedIds.Add(id))
+            {
+                var hash = StableUrlHash(artifact.DownloadUrl, artifact.Filename);
+                id = $"{baseId}-{hash}";
+                var duplicateSuffix = 2;
+                while (!usedIds.Add(id))
+                {
+                    duplicateSuffix++;
+                    id = $"{baseId}-{hash}-{duplicateSuffix}";
+                }
+            }
+
+            idLabels[index] = id;
+        }
+    }
+
+    private static List<ReleaseArtifact> BuildSiblingArtifacts(ReleaseArtifact artifact, ContentRelease resolvedRelease, bool includeSharedArtifacts = true)
     {
         var siblingArtifacts = new List<ReleaseArtifact>
         {
@@ -318,6 +510,11 @@ public class GenericCatalogDiscoverer(
                 IsDefaultVariant = artifact.IsDefaultVariant,
             },
         };
+
+        if (!includeSharedArtifacts)
+        {
+            return siblingArtifacts;
+        }
 
         if (resolvedRelease.Artifacts != null)
         {
@@ -376,6 +573,14 @@ public class GenericCatalogDiscoverer(
         if (contentItem.Metadata?.ScreenshotUrls != null)
         {
             foreach (var url in contentItem.Metadata.ScreenshotUrls)
+            {
+                searchResult.ScreenshotUrls.Add(url);
+            }
+        }
+
+        if (release.ImageUrls != null)
+        {
+            foreach (var url in release.ImageUrls.Where(url => !string.IsNullOrWhiteSpace(url) && !searchResult.ScreenshotUrls.Contains(url)))
             {
                 searchResult.ScreenshotUrls.Add(url);
             }
@@ -602,6 +807,98 @@ public class GenericCatalogDiscoverer(
         }
     }
 
+    private async Task<IReadOnlyList<string>> ResolveCandidateCatalogUrlsAsync(
+        HttpClient httpClient,
+        CancellationToken cancellationToken)
+    {
+        var urls = new List<string>();
+        if (_subscription != null && !string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
+        {
+            var definition = await TryFetchDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
+            if (definition != null)
+            {
+                RememberResolvedPublisherInfo(definition.Publisher);
+                logger.LogDebug("Resolving catalog URLs from definition for {PublisherId}", _subscription.PublisherId);
+                foreach (var url in ResolveDefinitionCatalogUrls(definition, _subscription.SelectedCatalogId))
+                {
+                    AddDefinitionUrl(urls, url);
+                }
+            }
+            else
+            {
+                logger.LogDebug("Publisher definition unavailable; falling back to cached catalog URL");
+            }
+        }
+
+        AddDefinitionUrl(urls, _subscription?.CatalogUrl);
+        return urls;
+    }
+
+    private async Task<PublisherDefinition?> TryFetchDefinitionAsync(
+        HttpClient httpClient,
+        string definitionUrl,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var defJson = await CatalogDocumentReader.ReadAsync(
+                httpClient,
+                definitionUrl,
+                CatalogConstants.MaxCatalogSizeBytes,
+                cancellationToken);
+            return JsonSerializer.Deserialize<PublisherDefinition>(defJson, DefinitionJsonOptions);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to read publisher definition; falling back to cached catalog URL");
+            return null;
+        }
+    }
+
+    private void RememberResolvedCatalogUrl(string candidateUrl)
+    {
+        if (_subscription == null)
+        {
+            return;
+        }
+
+        if (string.Equals(_subscription.CatalogUrl, candidateUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        logger.LogInformation(
+            "Resolved catalog URL for {PublisherId}: {CatalogUrl}",
+            _subscription.PublisherId,
+            candidateUrl);
+        _subscription.CatalogUrl = candidateUrl;
+        _refreshedCatalogUrl = candidateUrl;
+    }
+
+    private void RememberResolvedPublisherInfo(PublisherProfile? profile)
+    {
+        if (_subscription == null || profile == null)
+        {
+            return;
+        }
+
+        var candidateAvatar = profile.AvatarUrl;
+        if (!string.IsNullOrWhiteSpace(candidateAvatar) &&
+            !string.Equals(_subscription.AvatarUrl, candidateAvatar, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation(
+                "Resolved updated avatar URL for {PublisherId}: {AvatarUrl}",
+                _subscription.PublisherId,
+                candidateAvatar);
+            _subscription.AvatarUrl = candidateAvatar;
+            _refreshedAvatarUrl = candidateAvatar;
+        }
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Catalog discovery failures are reported via OperationResult.")]
     private async Task<OperationResult<PublisherCatalog>> FetchCatalogAsync(CancellationToken cancellationToken)
     {
@@ -610,47 +907,76 @@ public class GenericCatalogDiscoverer(
             return OperationResult<PublisherCatalog>.CreateFailure("Subscription is not configured");
         }
 
-        try
-        {
-            var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
-            httpClient.Timeout = TimeSpan.FromSeconds(30);
+        var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
+        httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-            if (!string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
+        var candidateUrls = await ResolveCandidateCatalogUrlsAsync(httpClient, cancellationToken);
+        if (candidateUrls.Count == 0)
+        {
+            return OperationResult<PublisherCatalog>.CreateFailure("No catalog URL available for subscription.");
+        }
+
+        OperationResult<PublisherCatalog>? lastFailure = null;
+        foreach (var candidateUrl in candidateUrls)
+        {
+            OperationResult<PublisherCatalog>? parsed = null;
+            try
             {
-                return OperationResult<PublisherCatalog>.CreateFailure("Definition-resolved catalogs (Publisher Studio) are not yet supported. Only direct CatalogUrl subscriptions are supported.");
+                logger.LogDebug("Fetching catalog from: {CatalogUrl}", candidateUrl);
+
+                var catalogJson = await CatalogDocumentReader.ReadAsync(
+                    httpClient,
+                    candidateUrl,
+                    CatalogConstants.MaxCatalogSizeBytes,
+                    cancellationToken);
+
+                // Parse catalog
+                parsed = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
+            }
+            catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogInformation(ex, "Catalog fetch cancelled by user");
+                throw new OperationCanceledException("Catalog fetch cancelled by user", ex, cancellationToken);
+            }
+            catch (HttpRequestException ex)
+            {
+                logger.LogDebug(ex, "Catalog candidate failed: {CatalogUrl}", candidateUrl);
+                lastFailure = OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
+                continue;
+            }
+            catch (TaskCanceledException ex)
+            {
+                logger.LogDebug(ex, "Catalog candidate timed out: {CatalogUrl}", candidateUrl);
+                lastFailure = OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
+                continue;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Catalog candidate failed: {CatalogUrl}", candidateUrl);
+                lastFailure = OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
+                continue;
             }
 
-            logger.LogDebug("Fetching catalog from: {CatalogUrl}", _subscription.CatalogUrl);
+            if (parsed?.Success == true && parsed.Data != null)
+            {
+                RememberResolvedCatalogUrl(candidateUrl);
+                if (parsed.Data.Publisher != null)
+                {
+                    RememberResolvedPublisherInfo(parsed.Data.Publisher);
+                }
 
-            var catalogJson = await CatalogDocumentReader.ReadAsync(
-                httpClient,
-                _subscription.CatalogUrl,
-                CatalogConstants.MaxCatalogSizeBytes,
-                cancellationToken);
+                return OperationResult<PublisherCatalog>.CreateSuccess(parsed.Data);
+            }
 
-            // Parse catalog
-            return await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
+            lastFailure = parsed ?? OperationResult<PublisherCatalog>.CreateFailure("Failed to fetch catalog.");
         }
-        catch (HttpRequestException ex)
-        {
-            logger.LogError(ex, "HTTP error fetching catalog");
-            return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
-        }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
-        {
-            logger.LogInformation(ex, "Catalog fetch cancelled by user");
-            throw new OperationCanceledException("Catalog fetch cancelled by user", ex, cancellationToken);
-        }
-        catch (TaskCanceledException ex)
-        {
-            logger.LogWarning(ex, "Catalog fetch timed out");
-            return OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to read or parse catalog");
-            return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
-        }
+
+        logger.LogWarning(
+            "All {CandidateCount} catalog candidates failed for {PublisherId}: {Error}",
+            candidateUrls.Count,
+            _subscription.PublisherId,
+            lastFailure?.FirstError);
+        return lastFailure ?? OperationResult<PublisherCatalog>.CreateFailure("Failed to fetch catalog.");
     }
 
     private List<ContentSearchResult> ConvertCatalogToSearchResults(
@@ -667,8 +993,14 @@ public class GenericCatalogDiscoverer(
             pair => pair.Value.Name,
             StringComparer.OrdinalIgnoreCase);
 
+        var catalogIcon = !string.IsNullOrWhiteSpace(catalog.IconUrl) ? catalog.IconUrl : catalog.AvatarUrl;
+        var publisherAvatar = _subscription?.AvatarUrl ?? catalog.Publisher?.AvatarUrl;
+
         foreach (var contentItem in catalog.Content)
         {
+            contentItem.CatalogIconUrl ??= catalogIcon;
+            contentItem.PublisherAvatarUrl ??= publisherAvatar;
+
             // Apply version filtering (default: latest only)
             var policy = query.IncludeOlderVersions
                 ? VersionPolicy.AllVersions
@@ -687,14 +1019,25 @@ public class GenericCatalogDiscoverer(
                 // A release whose artifacts carry per-artifact variant hints (e.g. resolution) is
                 // split into sibling cards sharing one VariantGroupId, so the downloads browser
                 // collapses them into a single card with a variant picker — mirroring how the
-                // GitHub topics discoverer handles multi-asset releases. Single-artifact and
-                // non-variant releases take the original one-card path unchanged.
+                // GitHub topics discoverer handles multi-asset releases. A release with several
+                // plain downloadable files and no variant hints is split the same way (one
+                // sibling per file, labeled by filename); otherwise only the first file would
+                // ever be visible or downloadable. Single-file releases take the original
+                // one-card path unchanged.
                 var variantAxes = GetVariantArtifacts(release);
+                var implicitFileSplit = variantAxes.Count == 0 && !release.BundleArtifacts && HasMultipleDownloadableArtifacts(release);
+                if (implicitFileSplit)
+                {
+                    variantAxes = release.Artifacts
+                        .Where(a => !string.IsNullOrWhiteSpace(a.DownloadUrl))
+                        .OrderByDescending(a => a.IsPrimary)
+                        .ToList();
+                }
 
                 if (variantAxes.Count > 0)
                 {
                     var groupResults = CreateVariantGroupSearchResults(
-                        catalog, contentItem, release, variantAxes, catalogItemsById);
+                        catalog, contentItem, release, variantAxes, catalogItemsById, implicitFileSplit);
 
                     if (query.TargetGame.HasValue)
                     {
@@ -738,6 +1081,8 @@ public class GenericCatalogDiscoverer(
             catalogItemsById);
         var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(contentItem);
 
+        var (effectiveProviderName, authorName, iconUrl) = ResolvePresentationIdentity(catalog, contentItem);
+
         var searchResult = new ContentSearchResult
         {
             Id = CatalogManifestIdentity.CreateContentId(
@@ -745,16 +1090,18 @@ public class GenericCatalogDiscoverer(
                 contentItem.ContentType,
                 contentItem.Id,
                 release.Version),
-            Name = contentItem.Name,
+            Name = ContentFormatPolicy.StripArchiveExtensions(contentItem.Name),
             Description = contentItem.Description,
             Version = release.Version,
             ContentType = contentItem.ContentType,
             TargetGame = contentItem.TargetGame,
-            ProviderName = catalog.Publisher.Name,
-            AuthorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author) ? contentItem.Metadata.Author : catalog.Publisher.Name,
+            ProviderName = effectiveProviderName,
+            AuthorName = authorName,
             ResolverId = ResolverId,
-            IconUrl = catalog.Publisher.AvatarUrl, // Default to publisher avatar
+            IconUrl = iconUrl,
             BannerUrl = contentItem.Metadata?.BannerUrl,
+            BackdropUrl = contentItem.Metadata?.BackdropUrl,
+            AccentColor = contentItem.Metadata?.AccentColor,
             LastUpdated = release.ReleaseDate,
             RequiresResolution = true,
         };
@@ -783,7 +1130,8 @@ public class GenericCatalogDiscoverer(
         CatalogContentItem contentItem,
         ContentRelease release,
         IReadOnlyList<ReleaseArtifact> variantArtifacts,
-        IReadOnlyDictionary<string, CatalogContentItem> catalogItemsById)
+        IReadOnlyDictionary<string, CatalogContentItem> catalogItemsById,
+        bool implicitFileSplit = false)
     {
         var groupId = $"catalog.{catalog.Publisher.Id}.{contentItem.Id}.{release.Version}";
         var familyName = contentItem.Name;
@@ -798,16 +1146,20 @@ public class GenericCatalogDiscoverer(
             resolvedRelease,
             groupId,
             familyName,
-            declaredPublisher);
+            declaredPublisher,
+            implicitFileSplit);
 
+        var idLabels = ResolveSiblingIdLabels(variantArtifacts, implicitFileSplit);
         var siblings = new List<(ContentSearchResult Result, ContentVariantInfo Info, ReleaseArtifact Artifact)>(variantArtifacts.Count);
-        foreach (var artifact in variantArtifacts)
+        for (var index = 0; index < variantArtifacts.Count; index++)
         {
             siblings.Add(BuildSingleVariantSibling(
                 catalog,
                 contentItem,
-                artifact,
-                siblingContext));
+                variantArtifacts[index],
+                siblingContext,
+                index,
+                idLabels[index]));
         }
 
         // Ensure exactly one default — prefer an author-declared IsDefaultVariant, else 1080p,
@@ -829,11 +1181,22 @@ public class GenericCatalogDiscoverer(
         PublisherCatalog catalog,
         CatalogContentItem contentItem,
         ReleaseArtifact artifact,
-        VariantSiblingContext context)
+        VariantSiblingContext context,
+        int siblingIndex,
+        string idLabel)
     {
         var variantLabel = artifact.Variant?.Trim() ?? string.Empty;
         var axis = artifact.VariantAxis?.Trim() ?? string.Empty;
+        if (context.ImplicitFileSplit && string.IsNullOrEmpty(variantLabel))
+        {
+            variantLabel = ImplicitFileVariantLabel(artifact, siblingIndex);
+        }
+
         var siblingTargetGame = ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
+
+        var (effectiveProviderName, authorName, iconUrl) = ResolvePresentationIdentity(catalog, contentItem);
+
+        var cleanContentName = ContentFormatPolicy.StripArchiveExtensions(contentItem.Name);
 
         var sibling = new ContentSearchResult
         {
@@ -841,19 +1204,21 @@ public class GenericCatalogDiscoverer(
                 context.DeclaredPublisher,
                 contentItem.ContentType,
                 contentItem.Id,
-                variantLabel,
+                idLabel,
                 context.ResolvedRelease.Version,
                 axis),
-            Name = $"{contentItem.Name} ({variantLabel})",
+            Name = $"{cleanContentName} ({variantLabel})",
             Description = contentItem.Description,
             Version = context.ResolvedRelease.Version,
             ContentType = contentItem.ContentType,
             TargetGame = siblingTargetGame,
-            ProviderName = catalog.Publisher.Name,
-            AuthorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author) ? contentItem.Metadata.Author : catalog.Publisher.Name,
+            ProviderName = effectiveProviderName,
+            AuthorName = authorName,
             ResolverId = ResolverId,
-            IconUrl = catalog.Publisher.AvatarUrl,
+            IconUrl = iconUrl,
             BannerUrl = contentItem.Metadata?.BannerUrl,
+            BackdropUrl = contentItem.Metadata?.BackdropUrl,
+            AccentColor = contentItem.Metadata?.AccentColor,
             LastUpdated = context.ResolvedRelease.ReleaseDate,
             RequiresResolution = true,
             DownloadSize = artifact.Size,
@@ -863,7 +1228,7 @@ public class GenericCatalogDiscoverer(
 
         PopulatePresentation(sibling, contentItem, context.ResolvedRelease, contentNamesById: null);
 
-        var siblingArtifacts = BuildSiblingArtifacts(artifact, context.ResolvedRelease);
+        var siblingArtifacts = BuildSiblingArtifacts(artifact, context.ResolvedRelease, includeSharedArtifacts: !context.ImplicitFileSplit);
         sibling.DownloadSize = siblingArtifacts.Sum(a => a.Size);
 
         var singleArtifactRelease = new ContentRelease
@@ -873,6 +1238,7 @@ public class GenericCatalogDiscoverer(
             IsPrerelease = context.ResolvedRelease.IsPrerelease,
             IsLatest = context.ResolvedRelease.IsLatest,
             Changelog = context.ResolvedRelease.Changelog,
+            BundleArtifacts = context.ResolvedRelease.BundleArtifacts,
             Artifacts = siblingArtifacts,
             Dependencies = context.ResolvedRelease.Dependencies?.Select(dep =>
             {
@@ -919,7 +1285,7 @@ public class GenericCatalogDiscoverer(
 
         var info = new ContentVariantInfo
         {
-            Id = $"{axis}:{variantLabel}",
+            Id = $"{axis}:{idLabel}",
             Name = variantLabel,
             VariantType = axis,
             ManifestId = sibling.Id,
@@ -927,5 +1293,45 @@ public class GenericCatalogDiscoverer(
         };
 
         return (sibling, info, artifact);
+    }
+
+    private (string EffectiveProviderName, string? AuthorName, string? IconUrl) ResolvePresentationIdentity(
+        PublisherCatalog catalog,
+        CatalogContentItem contentItem)
+    {
+        var effectiveProviderName = !string.IsNullOrWhiteSpace(_subscription?.PublisherName)
+            ? _subscription.PublisherName
+            : catalog.Publisher.Name;
+
+        var authorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author)
+            ? contentItem.Metadata.Author
+            : effectiveProviderName;
+
+        var catalogIcon = !string.IsNullOrWhiteSpace(catalog.IconUrl)
+            ? catalog.IconUrl
+            : catalog.AvatarUrl;
+
+        var publisherLogo = _subscription?.AvatarUrl
+            ?? catalog.Publisher?.AvatarUrl
+            ?? PublisherInfoConstants.GetPublisherLogo(effectiveProviderName, catalog.Publisher?.Id ?? string.Empty);
+
+        var itemIcon = !string.IsNullOrWhiteSpace(contentItem.Metadata?.IconUrl) &&
+                       !ImageCacheConstants.IsPicsumUrl(contentItem.Metadata.IconUrl)
+            ? contentItem.Metadata.IconUrl
+            : null;
+
+        if (itemIcon == null &&
+            ((contentItem.Id != null && contentItem.Id.Contains("dominator", StringComparison.OrdinalIgnoreCase)) ||
+             (contentItem.Name != null && contentItem.Name.Contains("dominator", StringComparison.OrdinalIgnoreCase))))
+        {
+            itemIcon = PublisherInfoConstants.Dominator.LogoSource;
+        }
+
+        var iconUrl = itemIcon
+            ?? (!string.IsNullOrWhiteSpace(catalogIcon) ? catalogIcon : null)
+            ?? (!string.IsNullOrWhiteSpace(publisherLogo) ? publisherLogo : null)
+            ?? ImageCacheConstants.GetPicsumUrl($"{contentItem.Id}-icon", 128, 128);
+
+        return (effectiveProviderName, authorName, iconUrl);
     }
 }

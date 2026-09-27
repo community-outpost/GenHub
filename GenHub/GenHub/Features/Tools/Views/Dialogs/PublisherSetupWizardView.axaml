@@ -1,0 +1,183 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.PublisherSetupWizardView"
+             x:DataType="vm:PublisherSetupWizardViewModel">
+
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style Selector="Button.nav-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="24,8"/>
+        </Style>
+        <Style Selector="Button.nav-btn:pointerover">
+             <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+             <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+            <StackPanel Spacing="4">
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Title}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                <TextBlock Text="{Binding StepTitle}" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Command="{Binding CancelCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Width="12" Height="12"
+                          Foreground="{DynamicResource TextMuted}"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Content -->
+        <ContentControl Grid.Row="1" Margin="0,0,0,24">
+            <Grid>
+                <!-- Step 0: Identity -->
+                <StackPanel Spacing="20" IsVisible="{Binding IsStep0}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Welcome}" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
+
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherId}" Classes="label"/>
+                            <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding PublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdPlaceholder}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdHint}" Classes="hint"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayName}" Classes="label"/>
+                            <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding PublisherName}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayNamePlaceholder}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Step 1: Contact -->
+                <StackPanel Spacing="20" IsVisible="{Binding IsStep1}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactInfo}" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Website}" Classes="label"/>
+                        <TextBox Text="{Binding WebsiteUrl}" Watermark="https://example.com"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmail}" Classes="label"/>
+                        <TextBox Text="{Binding ContactEmail}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder}"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding ValidationError}"
+                               FontSize="12"
+                               Foreground="{DynamicResource StatusErrorBrush}"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding ValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+
+                <!-- Step 2: Complete -->
+                <StackPanel Spacing="16" IsVisible="{Binding IsStep2}">
+                    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" Margin="0,40,0,0">
+                         <!-- Assumed PathIcon Resource exists, keeping it for now -->
+                         <PathIcon Data="{StaticResource CheckmarkCircleIcon}" Width="64" Height="64" Foreground="{DynamicResource SuccessBrush}"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.AllSet}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.AllSetDescription}" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="400" Foreground="{DynamicResource TextSecondary}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ContentControl>
+
+        <!-- Footer / Navigation -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+            <Button Command="{Binding PreviousStepCommand}"
+                    Content="{localization:Localize Tools.PublisherStudio.SetupWizard.Back}"
+                    Classes="nav-btn"
+                    IsVisible="{Binding !IsStep0}"/>
+
+            <Button Grid.Column="2"
+                    Command="{Binding NextStepCommand}"
+                    Content="{localization:Localize Tools.PublisherStudio.SetupWizard.Next}"
+                    Background="{DynamicResource PrimaryGradientBrush}"
+                    Foreground="{DynamicResource TextPrimary}"
+                    CornerRadius="8"
+                    Padding="40,14"
+                    FontWeight="Bold"
+                    BorderThickness="0"
+                    IsVisible="{Binding !IsStep2}">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+
+            <Button Grid.Column="2"
+                    Command="{Binding FinishCommand}"
+                    Content="{localization:Localize Tools.PublisherStudio.SetupWizard.Finish}"
+                    Background="{DynamicResource PrimaryGradientBrush}"
+                    Foreground="{DynamicResource TextPrimary}"
+                    CornerRadius="8"
+                    Padding="40,14"
+                    FontWeight="Bold"
+                    BorderThickness="0"
+                    IsVisible="{Binding IsStep2}">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+    </Grid>
+</UserControl>

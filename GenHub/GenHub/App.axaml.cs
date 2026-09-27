@@ -12,9 +12,12 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -25,6 +28,8 @@ using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -68,6 +73,9 @@ public partial class App : Application
     private readonly ILocalizationService _localizationService;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly TaskCompletionSource<MainWindow> _mainWindowReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly SemaphoreSlim _urlActivationLock = new(1, 1);
     private bool _startupArgsHandled;
 
     /// <summary>
@@ -87,6 +95,7 @@ public partial class App : Application
         _localizationService = _serviceProvider.GetRequiredService<ILocalizationService>();
         _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
         _themeService = _serviceProvider.GetService<IThemeService>();
+        _telemetryService = _serviceProvider.GetService<ITelemetryService>();
     }
 
     /// <summary>
@@ -142,6 +151,29 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // Hook global unhandled exceptions to telemetry
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            {
+                if (args.ExceptionObject is Exception ex)
+                {
+                    _telemetryService?.TrackException(ex, "AppDomain.UnhandledException", isFatal: true);
+                    try
+                    {
+                        using var crashFlushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                        Task.Run(async () => await (_telemetryService?.FlushAsync(crashFlushCts.Token) ?? Task.CompletedTask).ConfigureAwait(false)).GetAwaiter().GetResult();
+                    }
+                    catch
+                    {
+                        // Suppress crash flush failures during terminal exception
+                    }
+                }
+            };
+
+            TaskScheduler.UnobservedTaskException += (sender, args) =>
+                _telemetryService?.TrackException(args.Exception, "TaskScheduler.UnobservedTaskException", isFatal: false);
+
+            _telemetryService?.AddBreadcrumb("Application initialized", "lifecycle");
+
             var mainWindow = new MainWindow
             {
                 DataContext = _serviceProvider.GetService<MainViewModel>(),
@@ -153,9 +185,14 @@ public partial class App : Application
             // Subscribe to IPC commands from secondary instances (Windows and Linux)
             SubscribeToSingleInstanceCommands(mainWindow);
 
+            // macOS delivers genhub:// links as Apple Events instead of command-line arguments
+            SubscribeToUrlActivation();
+
             // Handle startup arguments sequentially once the window is opened and active
             mainWindow.Opened += (_, _) =>
-                SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
+            {
+                SafeFireAndForget(CompleteWindowStartupAsync(desktop.Args, mainWindow), nameof(CompleteWindowStartupAsync));
+            };
 
             // Repair desktop and application shortcuts if application executable has moved/relocated
             SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
@@ -165,6 +202,13 @@ public partial class App : Application
             if (conflictService != null)
             {
                 SafeFireAndForget(conflictService.CheckAndResolveConflictsAsync(), nameof(IInstallationConflictService.CheckAndResolveConflictsAsync));
+            }
+
+            // Perform storage maintenance to consolidate caches and clean legacy directories
+            var storageMaintenance = _serviceProvider.GetService<IStorageMaintenanceService>();
+            if (storageMaintenance != null)
+            {
+                SafeFireAndForget(storageMaintenance.RunMaintenanceAsync(), nameof(IStorageMaintenanceService.RunMaintenanceAsync));
             }
         }
 
@@ -209,12 +253,14 @@ public partial class App : Application
             }
 
             var vmLogger = loggerFactory.CreateLogger<SubscriptionConfirmationViewModel>();
+            var definitionService = _serviceProvider.GetService<IPublisherDefinitionService>();
             var confirmationVm = new SubscriptionConfirmationViewModel(
                 targetUrl,
                 subscriptionStore,
                 catalogParser,
                 httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName),
                 vmLogger,
+                definitionService,
                 _localizationService);
 
             var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);
@@ -230,6 +276,65 @@ public partial class App : Application
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
+        }
+    }
+
+    /// <summary>
+    /// Routes a URL activation from the operating system into the same handlers used for command-line arguments.
+    /// Waits until the main window has opened so a cold start via URL behaves like a running instance.
+    /// </summary>
+    /// <param name="e">The activation event arguments.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    internal async Task HandleUrlActivationAsync(ActivatedEventArgs e)
+    {
+        if (e is not ProtocolActivatedEventArgs { Uri: { } uri })
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        if (!string.Equals(uri.Scheme, CommandLineConstants.SchemeName, StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogWarning("Ignoring URL activation with unsupported scheme: {Scheme}", uri.Scheme);
+            return;
+        }
+
+        logger?.LogInformation("Received URL activation for {Scheme} link", uri.Scheme);
+
+        var mainWindow = await _mainWindowReady.Task;
+        await _urlActivationLock.WaitAsync();
+        try
+        {
+            string[] args = [uri.OriginalString];
+            await HandleSubscriptionArgsAsync(args, mainWindow);
+            await HandleImportProfileArgsAsync(args, mainWindow);
+            await HandleToolImportArgsAsync(args, mainWindow);
+        }
+        finally
+        {
+            _urlActivationLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Releases URL activations that arrived before the main window opened.
+    /// </summary>
+    /// <param name="mainWindow">The opened main window.</param>
+    internal void MarkMainWindowReady(MainWindow mainWindow) => _mainWindowReady.TrySetResult(mainWindow);
+
+    /// <summary>Completes startup dialogs before releasing queued URL activations.</summary>
+    /// <param name="args">The startup arguments.</param>
+    /// <param name="mainWindow">The opened main window.</param>
+    /// <returns>The asynchronous startup operation.</returns>
+    internal async Task CompleteWindowStartupAsync(string[]? args, MainWindow mainWindow)
+    {
+        try
+        {
+            await HandleStartupArgsAsync(args, mainWindow);
+        }
+        finally
+        {
+            MarkMainWindowReady(mainWindow);
         }
     }
 
@@ -393,6 +498,19 @@ public partial class App : Application
         }
         finally
         {
+            if (_telemetryService != null)
+            {
+                try
+                {
+                    using var flushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    await _telemetryService.FlushAsync(flushCts.Token);
+                }
+                catch
+                {
+                    // Suppress telemetry flush errors during application exit
+                }
+            }
+
             try
             {
                 if (_serviceProvider is IAsyncDisposable disposable)
@@ -516,6 +634,17 @@ public partial class App : Application
         logger?.LogDebug("Subscribed to single instance IPC commands");
     }
 
+    private void SubscribeToUrlActivation()
+    {
+        if (!OperatingSystem.IsMacOS() || TryGetFeature(typeof(IActivatableLifetime)) is not IActivatableLifetime activatableLifetime)
+        {
+            return;
+        }
+
+        activatableLifetime.Activated += (_, e) =>
+            SafeFireAndForget(HandleUrlActivationAsync(e), nameof(HandleUrlActivationAsync));
+    }
+
     private void HandleSingleInstanceCommand(string command, MainWindow mainWindow)
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();
@@ -526,7 +655,7 @@ public partial class App : Application
             logger?.LogInformation("Received IPC launch command for profile: {ProfileId}", profileId);
 
             // Handle the profile launch
-            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow), nameof(LaunchProfileByIdAsync));
+            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow, TelemetryConstants.LaunchSources.Ipc), nameof(LaunchProfileByIdAsync));
         }
         else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -667,15 +796,31 @@ public partial class App : Application
             TaskContinuationOptions.OnlyOnFaulted);
     }
 
-    private async Task LaunchProfileByIdAsync(string profileId, MainWindow mainWindow)
+    private async Task LaunchProfileByIdAsync(string profileId, MainWindow mainWindow, string launchSource = TelemetryConstants.LaunchSources.Shortcut)
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();
+        var profileManager = _serviceProvider.GetService<IGameProfileManager>();
 
+        var sw = Stopwatch.StartNew();
         try
         {
+            GameProfile? profile = null;
+            if (profileManager != null)
+            {
+                var profileResult = await profileManager.GetProfileAsync(profileId);
+                if (profileResult.Success)
+                {
+                    profile = profileResult.Data;
+                }
+            }
+
+            var gameClient = profile?.GameClient;
+
             logger?.LogInformation("Launching profile {ProfileId}...", profileId);
 
             var launchResult = await _profileLauncherFacade.LaunchProfileAsync(profileId);
+            sw.Stop();
+            var timeToLaunchMs = sw.ElapsedMilliseconds;
 
             if (launchResult.Success && launchResult.Data != null)
             {
@@ -683,6 +828,25 @@ public partial class App : Application
                     "Profile {ProfileId} launched successfully. Process ID: {ProcessId}",
                     profileId,
                     launchResult.Data.ProcessInfo.ProcessId);
+
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunched, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profileId,
+                    [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                    [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.LaunchSource] = launchSource,
+                    [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                });
+                if (string.Equals(launchSource, TelemetryConstants.LaunchSources.Shortcut, StringComparison.OrdinalIgnoreCase))
+                {
+                    _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchedFromShortcut, new Dictionary<string, object?>
+                    {
+                        [TelemetryConstants.Properties.ProfileId] = profileId,
+                        [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                    });
+                }
 
                 UpdateViewModelAfterLaunch(mainWindow, profileId, launchResult.Data.ProcessInfo.ProcessId);
             }
@@ -695,11 +859,31 @@ public partial class App : Application
                 notificationService?.ShowError(
                     _localizationService["GameProfiles.Notification.LaunchFailed.Title"],
                     _localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profileId, errors));
+
+                _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ProfileId] = profileId,
+                    [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+                    [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+                    [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+                    [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+                    [TelemetryConstants.Properties.LaunchSource] = launchSource,
+                    [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+                    [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
+                });
             }
         }
         catch (Exception ex)
         {
+            sw.Stop();
             logger?.LogError(ex, "Exception while launching profile {ProfileId}", profileId);
+            _telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.LaunchSource] = launchSource,
+                [TelemetryConstants.Properties.TimeToLaunchMs] = sw.ElapsedMilliseconds,
+                [TelemetryConstants.Properties.ErrorCategory] = ex.GetType().Name,
+            });
         }
     }
 

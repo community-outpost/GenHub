@@ -118,9 +118,14 @@ public partial class GenericCatalogResolver(
                 .WithMetadata(
                     description: contentItem.Description,
                     tags: [.. contentItem.Tags],
-                    iconUrl: contentItem.Metadata?.BannerUrl ?? string.Empty,
+                    iconUrl: contentItem.Metadata?.IconUrl ?? contentItem.Metadata?.BannerUrl ?? string.Empty,
                     screenshotUrls: contentItem.Metadata?.ScreenshotUrls?.ToList(),
                     changelogUrl: contentItem.Metadata?.DocumentationUrl ?? string.Empty);
+
+            if (ManifestId.TryParse(discoveredItem.Id, out var parsedManifestId))
+            {
+                builder.WithId(parsedManifestId);
+            }
 
             var remoteFilesResult = await RegisterRemoteFilesAsync(
                 builder,
@@ -156,7 +161,8 @@ public partial class GenericCatalogResolver(
                     resolvedName,
                     discoveredItem.Id,
                     resolvedTargetGame),
-                artifactHashes);
+                artifactHashes,
+                release.EntryPoint);
 
             logger.LogInformation(
                 "Successfully resolved manifest for '{ContentName}' with {FileCount} files",
@@ -181,14 +187,15 @@ public partial class GenericCatalogResolver(
         CatalogContentItem contentItem,
         ReleaseArtifact? primaryArtifact)
     {
-        if (!string.IsNullOrWhiteSpace(searchResult.Name))
+        var baseName = contentItem.Name;
+        if (string.IsNullOrWhiteSpace(baseName))
         {
-            return searchResult.Name;
+            baseName = string.IsNullOrWhiteSpace(searchResult.Name) ? contentItem.Id : searchResult.Name;
         }
 
         return !string.IsNullOrWhiteSpace(primaryArtifact?.Variant)
-            ? $"{contentItem.Name} ({primaryArtifact.Variant})"
-            : contentItem.Name;
+            ? $"{baseName} ({primaryArtifact.Variant})"
+            : baseName;
     }
 
     private static GameType ResolveTargetGame(
@@ -232,8 +239,10 @@ public partial class GenericCatalogResolver(
             var extension = primaryArtifact.ContentType?.ToLowerInvariant() switch
             {
                 "application/zip" => ".zip",
-                "application/x-rar-compressed" => ".rar",
+                "application/x-rar-compressed" or "application/vnd.rar" or "application/x-rar" or "application/rar" => ".rar",
                 "application/x-7z-compressed" => ".7z",
+                "application/x-tar" => ".tar",
+                "application/gzip" => ".gz",
                 _ => Path.GetExtension(cleanUrl) is { Length: > 1 } urlExt
                     ? urlExt
                     : ".zip",
@@ -706,9 +715,16 @@ public partial class GenericCatalogResolver(
         CatalogContentItem contentItem,
         ReleaseArtifact? primaryArtifact,
         ManifestResolutionContext context,
-        IReadOnlyDictionary<string, string>? artifactHashes = null)
+        IReadOnlyDictionary<string, string>? artifactHashes = null,
+        string? releaseEntryPoint = null)
     {
         ApplyFileHashes(manifest, contentItem, primaryArtifact, artifactHashes);
+
+        var entryPoint = primaryArtifact?.EntryPoint ?? releaseEntryPoint ?? contentItem.EntryPoint;
+        if (!string.IsNullOrWhiteSpace(entryPoint))
+        {
+            manifest.EntryPoint = entryPoint;
+        }
 
         if (!string.IsNullOrWhiteSpace(context.SearchResultId) &&
             ManifestIdValidator.IsValid(context.SearchResultId, out _))

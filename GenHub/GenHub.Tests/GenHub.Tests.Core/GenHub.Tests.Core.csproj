@@ -32,6 +32,11 @@
     <Using Include="Octokit" />
   </ItemGroup>
 
+  <!-- Isolates the application data root before any test runs. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\TestDataRootInitializer.cs" Link="Shared\TestDataRootInitializer.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="Features\Tools\Fixtures\*.rep">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

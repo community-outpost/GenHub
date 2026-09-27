@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
@@ -26,10 +27,12 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <param name="logger">The logger.</param>
 /// <param name="configurationProvider">The configuration provider service.</param>
 /// <param name="localizationService">The optional localization service for user-facing error messages.</param>
+/// <param name="telemetryService">The optional telemetry service.</param>
 public sealed class ProjectConfigService(
     ILogger<ProjectConfigService> logger,
     IConfigurationProviderService? configurationProvider = null,
-    ILocalizationService? localizationService = null) : IProjectConfigService
+    ILocalizationService? localizationService = null,
+    ITelemetryService? telemetryService = null) : IProjectConfigService
 {
     private sealed record SampleBundleManifest(string Name, string Description, string[] Packs);
 
@@ -166,6 +169,11 @@ public sealed class ProjectConfigService(
                 "Created ModBuilder project '{ProjectName}' at {ProjectPath}",
                 projectName,
                 projectPath);
+
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ModProjectCreated, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ContentType] = contentType.ToString(),
+            });
 
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateSuccess(project, sw.Elapsed);
@@ -2395,7 +2403,13 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesEnglishItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.dds" },
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga",
+                            $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.dds",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.ArtTexturesWildcardPattern}",
+                            $"{directories.GameFilesEdited}/Art/Textures/**/*.dds",
+                        },
                         OutputFormat = "RAW",
                         NoConvert = true,
                         Description = "English high resolution menu backdrops and UI frame textures",
@@ -2403,7 +2417,13 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesRussianItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.dds" },
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga",
+                            $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.dds",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.ArtTexturesWildcardPattern}",
+                            $"{directories.GameFilesEdited}/Art/Textures/**/*.dds",
+                        },
                         OutputFormat = "RAW",
                         NoConvert = true,
                         Description = "Russian high resolution menu backdrops and UI frame textures",
@@ -2411,7 +2431,13 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesSpanishItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.dds" },
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga",
+                            $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.dds",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.ArtTexturesWildcardPattern}",
+                            $"{directories.GameFilesEdited}/Art/Textures/**/*.dds",
+                        },
                         OutputFormat = "RAW",
                         NoConvert = true,
                         Description = "Spanish high resolution menu backdrops and UI frame textures",

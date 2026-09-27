@@ -69,4 +69,22 @@ public class UnknownVersionPredicateTests
             ManifestConstants.ZeroHourManifestVersion,
             GameVersionHelper.ResolveInstallationVersion(version, GameType.ZeroHour));
     }
+
+    /// <summary>
+    /// Verifies the installation manifest version segment falls back to the game-type default for an
+    /// unusable version and keeps a real version.
+    /// </summary>
+    /// <param name="version">The detected client version.</param>
+    /// <param name="gameType">The game type.</param>
+    /// <param name="expected">The expected version segment.</param>
+    [Theory]
+    [InlineData("Unknown", GameType.ZeroHour, 104)]
+    [InlineData(null, GameType.ZeroHour, 104)]
+    [InlineData("Auto-Updated", GameType.Generals, 108)]
+    [InlineData("1.04", GameType.ZeroHour, 104)]
+    [InlineData("1.08", GameType.Generals, 108)]
+    public void ResolveInstallationManifestVersion_MatchesThePooledVersion(string? version, GameType gameType, int expected)
+    {
+        Assert.Equal(expected, GameVersionHelper.ResolveInstallationManifestVersion(version, gameType));
+    }
 }

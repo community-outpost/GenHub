@@ -50,6 +50,7 @@ public class WindowsGitHubTokenStorageTests : IDisposable
 
         _disposed = true;
         StorageMigrationService.SetConfiguredDataPathResolver(null);
+        AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(null);
         DeleteDirectoryBestEffort(_tempDir);
         ((IDisposable)_environment).Dispose();
         GC.SuppressFinalize(this);
@@ -291,6 +292,38 @@ public class WindowsGitHubTokenStorageTests : IDisposable
         using var loaded = await storage.LoadTokenAsync();
         Assert.NotNull(loaded);
         Assert.Equal("primary-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
+    /// Verifies a legacy roaming token is migrated into the data directory when a legacy root applies.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithLegacyRoot_MigratesLegacyToken()
+    {
+        var legacyRoot = Path.Combine(_tempDir, "Roaming");
+        var appDataDir = Path.Combine(_tempDir, "AppData");
+        Directory.CreateDirectory(legacyRoot);
+        File.WriteAllText(Path.Combine(legacyRoot, AppConstants.TokenFileName), "legacy token");
+        AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(legacyRoot);
+
+        _ = CreateStorage(appDataDir);
+
+        Assert.Equal("legacy token", File.ReadAllText(TokenFilePath(appDataDir)));
+        Assert.False(File.Exists(Path.Combine(legacyRoot, AppConstants.TokenFileName)));
+    }
+
+    /// <summary>
+    /// Verifies no legacy token migration is attempted while the data root is overridden.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithOverriddenDataRoot_DoesNotMigrateLegacyToken()
+    {
+        var appDataDir = Path.Combine(_tempDir, "AppData");
+
+        _ = CreateStorage(appDataDir);
+
+        Assert.Null(AppDataPathHelper.GetLegacyRoamingRoot());
+        Assert.False(File.Exists(TokenFilePath(appDataDir)));
     }
 
     private static void DeleteDirectoryBestEffort(string directory)

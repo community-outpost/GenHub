@@ -946,7 +946,7 @@ public class DependencyResolutionResult
 - [Provider Configuration](provider-configuration.md) - Publisher catalog schema
 - [Publisher Studio](../tools/publisher-studio.md) - Creating and managing dependencies
 - [Content Pipeline](../../CONTENT_PIPELINE_REPORT.md) - Content discovery and resolution
-- [Provider Infrastructure](provider-infrastructure.md) - Provider architecture
+- [Provider Infrastructure](publisher-infrastructure.md) - Provider architecture
 
 ---
 

@@ -33,7 +33,7 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
     /// </summary>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="Task{TResult}"/> where TResult is <see cref="DetectionResult{GameInstallation}"/>, representing the asynchronous operation.</returns>
-    public Task<DetectionResult<GameInstallation>> DetectInstallationsAsync(CancellationToken cancellationToken = default)
+    public async Task<DetectionResult<GameInstallation>> DetectInstallationsAsync(CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
         var installs = new List<GameInstallation>();
@@ -61,7 +61,8 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
 
             // Check Lutris installations
             logger.LogDebug("Checking Lutris installations on Linux");
-            var lutrisInstallation = new LutrisInstallation(fetch: true, logger: logger as ILogger<LutrisInstallation>);
+            var lutrisInstallation = new LutrisInstallation(fetch: false, logger: logger as ILogger<LutrisInstallation>);
+            await lutrisInstallation.FetchAsync(cancellationToken).ConfigureAwait(false);
             if (lutrisInstallation.IsLutrisInstalled && (lutrisInstallation.HasGenerals || lutrisInstallation.HasZeroHour))
             {
                 installs.Add(lutrisInstallation.ToDomain(logger));
@@ -120,6 +121,6 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
             ? DetectionResult<GameInstallation>.CreateFailure(string.Join(", ", errors))
             : DetectionResult<GameInstallation>.CreateSuccess(installs, sw.Elapsed);
 
-        return Task.FromResult(result);
+        return result;
     }
 }

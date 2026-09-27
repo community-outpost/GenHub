@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -53,7 +54,8 @@ public class ProfileSharingService(
     ILogger<ProfileSharingService> logger,
     ICasService? casService = null,
     IUploadThingService? uploadThingService = null,
-    IUploadHistoryService? uploadHistoryService = null) : IProfileSharingService, IDisposable
+    IUploadHistoryService? uploadHistoryService = null,
+    ITelemetryService? telemetryService = null) : IProfileSharingService, IDisposable
 {
     private sealed record ManifestInspectionSummary(
         List<SharedManifestDependency> Manifests,
@@ -108,6 +110,12 @@ public class ProfileSharingService(
             }
 
             string shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encodedPayload}";
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileShared, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.ShareFormat] = "uri",
+                [TelemetryConstants.Properties.FileSizeBytes] = Encoding.UTF8.GetByteCount(shareUri),
+            });
             return OperationResult<string>.CreateSuccess(shareUri);
         }
         catch (OperationCanceledException)
@@ -152,6 +160,12 @@ public class ProfileSharingService(
 
             await File.WriteAllTextAsync(destinationPath, json, cancellationToken);
             logger?.LogInformation("Exported profile {ProfileId} to file: {DestinationPath}", profileId, destinationPath);
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileShared, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.ShareFormat] = "file",
+                [TelemetryConstants.Properties.FileSizeBytes] = Encoding.UTF8.GetByteCount(json),
+            });
             return OperationResult<string>.CreateSuccess(destinationPath);
         }
         catch (OperationCanceledException)
@@ -183,6 +197,12 @@ public class ProfileSharingService(
             }
 
             var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileShared, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = profileId,
+                [TelemetryConstants.Properties.ShareFormat] = "json",
+                [TelemetryConstants.Properties.FileSizeBytes] = Encoding.UTF8.GetByteCount(json),
+            });
             return OperationResult<string>.CreateSuccess(json);
         }
         catch (OperationCanceledException)
@@ -295,7 +315,11 @@ public class ProfileSharingService(
             }
 
             var gameClient = ResolveGameClient(selectedInstallation, package);
-            var newProfile = BuildImportedProfile(request, selectedInstallation, gameClient, dependenciesResult.Data);
+            var installationManifestId = await ResolveInstallationManifestIdAsync(
+                selectedInstallation,
+                package.Profile.GameType,
+                cancellationToken);
+            var newProfile = BuildImportedProfile(request, selectedInstallation, gameClient, dependenciesResult.Data, installationManifestId);
 
             var saveResult = await profileRepository.SaveProfileAsync(newProfile, cancellationToken);
             if (!saveResult.Success || saveResult.Data == null)
@@ -305,6 +329,13 @@ public class ProfileSharingService(
 
             logger?.LogInformation("Successfully imported profile: {ProfileName} ({ProfileId})", newProfile.Name, newProfile.Id);
             WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(saveResult.Data));
+            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileImported, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.ProfileId] = saveResult.Data.Id,
+                [TelemetryConstants.Properties.GameType] = saveResult.Data.GameClient?.GameType.ToString(),
+                [TelemetryConstants.Properties.Success] = true,
+                [TelemetryConstants.Properties.FileCount] = request.Package.RequiredManifests.Sum(manifest => manifest.Files?.Count ?? 0),
+            });
             return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
@@ -331,6 +362,18 @@ public class ProfileSharingService(
     }
 
     /// <summary>
+    /// Determines whether an import has no way to acquire a dependency: it is not cached, it carries no
+    /// download URL, and it is not a curated dependency that import resolves through content providers.
+    /// </summary>
+    /// <param name="dependency">The inspected dependency.</param>
+    /// <returns><c>true</c> when import cannot acquire the dependency; otherwise <c>false</c>.</returns>
+    internal static bool CannotBeAcquired(SharedManifestDependency dependency) =>
+        !dependency.IsCachedLocally &&
+        string.IsNullOrWhiteSpace(dependency.PackageUrl) &&
+        dependency.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)) != true &&
+        IsLocalOrSourcelessDependency(dependency);
+
+    /// <summary>
     /// Releases managed and unmanaged resources.
     /// </summary>
     /// <param name="disposing">True if called from Dispose; false if from finalizer.</param>
@@ -341,6 +384,11 @@ public class ProfileSharingService(
             safeHttpClient.Dispose();
         }
     }
+
+    private static bool MatchesInstallationSource(ContentManifest manifest, GameInstallation installation) =>
+        !string.IsNullOrWhiteSpace(manifest.Metadata?.SourcePath)
+        && Path.IsPathFullyQualified(manifest.Metadata.SourcePath)
+        && PathHelper.AreSamePath(manifest.Metadata.SourcePath, installation.InstallationPath);
 
     private static HttpClient CreateSafeHttpClient()
     {
@@ -1337,7 +1385,7 @@ public class ProfileSharingService(
     }
 
     /// <summary>
-    /// Validates that dependencies without local cache have at least one download source specified.
+    /// Warns about dependencies that import has no way to acquire.
     /// </summary>
     /// <param name="manifests">The manifest dependencies to validate.</param>
     /// <param name="securityWarnings">The list to which any security warnings will be appended.</param>
@@ -1347,18 +1395,10 @@ public class ProfileSharingService(
         List<string> securityWarnings,
         List<ProfileSecurityWarningCode>? securityWarningCodes = null)
     {
-        foreach (var manifest in manifests)
+        foreach (var manifest in manifests.Where(CannotBeAcquired))
         {
-            if (!manifest.IsCachedLocally)
-            {
-                var hasPackageUrl = !string.IsNullOrWhiteSpace(manifest.PackageUrl);
-                var hasFileUrls = manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)) == true;
-                if (!hasPackageUrl && !hasFileUrls)
-                {
-                    securityWarnings.Add($"Component '{manifest.DisplayName}' is not cached locally and has no download source. It cannot be acquired.");
-                    securityWarningCodes?.Add(ProfileSecurityWarningCode.MissingDownloadSource);
-                }
-            }
+            securityWarnings.Add($"Component '{manifest.DisplayName}' is not cached locally and has no download source. It cannot be acquired.");
+            securityWarningCodes?.Add(ProfileSecurityWarningCode.MissingDownloadSource);
         }
     }
 
@@ -1445,8 +1485,7 @@ public class ProfileSharingService(
 
     private static bool HasAcquisitionSource(SharedManifestDependency dependency)
     {
-        if (!string.IsNullOrWhiteSpace(dependency.PackageUrl) ||
-            !string.IsNullOrWhiteSpace(dependency.PackageHash))
+        if (!string.IsNullOrWhiteSpace(dependency.PackageUrl))
         {
             return true;
         }
@@ -1990,11 +2029,68 @@ public class ProfileSharingService(
         return OperationResult<List<string>>.CreateSuccess(requiredManifestIds);
     }
 
+    private async Task<string?> ResolveInstallationManifestIdAsync(
+        GameInstallation installation,
+        GameType gameType,
+        CancellationToken cancellationToken)
+    {
+        var baseGameClient = installation.AvailableGameClients
+            .FirstOrDefault(c => c.GameType == gameType && !c.IsPublisherClient)
+            ?? installation.AvailableGameClients.FirstOrDefault(c => c.GameType == gameType);
+
+        if (baseGameClient == null)
+        {
+            return null;
+        }
+
+        var expectedId = ManifestIdGenerator.GenerateGameInstallationId(
+            installation,
+            gameType,
+            GameVersionHelper.ResolveInstallationManifestVersion(baseGameClient.Version, gameType));
+
+        var expectedResult = await manifestPool.GetManifestAsync(ManifestId.Create(expectedId), cancellationToken);
+        if (expectedResult is { Success: true, Data: not null } && MatchesInstallationSource(expectedResult.Data, installation))
+        {
+            return expectedId;
+        }
+
+        // A version fallback is safe only when persistence metadata identifies this exact installation.
+        // Read the complete pool so lookup is not limited by a search page size.
+        var expectedPublisher = ManifestId.Create(expectedId).Publisher;
+        var searchResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        var pooledManifest = searchResult is { Success: true, Data: not null }
+            ? searchResult.Data
+                .Where(m => m.ContentType == ContentType.GameInstallation && m.TargetGame == gameType
+                    && string.Equals(m.Id.Publisher, expectedPublisher, StringComparison.OrdinalIgnoreCase)
+                    && MatchesInstallationSource(m, installation))
+                .OrderByDescending(m => GameVersionHelper.NormalizeVersion(m.Version))
+                .FirstOrDefault()
+            : null;
+
+        if (pooledManifest != null)
+        {
+            logger?.LogInformation(
+                "Installation manifest {ExpectedId} is not pooled; using pooled manifest {PooledId} for the imported profile.",
+                expectedId,
+                pooledManifest.Id.Value);
+            return pooledManifest.Id.Value;
+        }
+
+        if (expectedResult is { Success: true, Data: not null })
+        {
+            throw new InvalidOperationException("The pooled installation manifest does not identify the selected installation. Rescan the selected installation before importing.");
+        }
+
+        return expectedId;
+    }
+
     private GameProfile BuildImportedProfile(
         SharedProfileImportRequest request,
         GameInstallation? selectedInstallation,
         GameClient? gameClient,
-        List<string> requiredManifestIds)
+        List<string> requiredManifestIds,
+        string? installationManifestId)
     {
         var package = request.Package;
         var sanitizedArgs = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
@@ -2003,26 +2099,9 @@ public class ProfileSharingService(
 
         var enabledIds = new List<string>(requiredManifestIds);
 
-        // If a local game installation is selected, resolve and attach the matching local GameInstallation manifest ID
-        if (selectedInstallation != null)
+        if (installationManifestId != null && !enabledIds.Contains(installationManifestId))
         {
-            var baseGameClient = selectedInstallation.AvailableGameClients
-                .FirstOrDefault(c => c.GameType == package.Profile.GameType && !c.IsPublisherClient)
-                ?? selectedInstallation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType);
-
-            if (baseGameClient != null)
-            {
-                var version = GameVersionHelper.NormalizeVersion(baseGameClient.Version);
-                var localInstallManifestId = ManifestIdGenerator.GenerateGameInstallationId(
-                    selectedInstallation,
-                    package.Profile.GameType,
-                    version);
-
-                if (!enabledIds.Contains(localInstallManifestId))
-                {
-                    enabledIds.Add(localInstallManifestId);
-                }
-            }
+            enabledIds.Add(installationManifestId);
         }
 
         var newProfile = new GameProfile

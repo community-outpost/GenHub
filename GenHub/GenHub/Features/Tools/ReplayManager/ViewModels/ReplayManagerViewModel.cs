@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
@@ -11,6 +11,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
@@ -22,6 +23,7 @@ using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.Downloads.Views;
 using GenHub.Features.Tools.Helpers;
+using GenHub.Features.Tools.ReplayManager.Services;
 using GenHub.Features.Tools.ReplayManager.Views;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,9 +72,13 @@ public partial class ReplayManagerViewModel(
     IRecipient<ProfileStoppedMessage>,
     IRecipient<ProfileDeletedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
+    IRecipient<ProfileCreatedMessage>,
+    IRecipient<ProfileUpdatedMessage>,
     IDisposable
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _runningProfiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _selectedRecoveryProfiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _currentRecoveryProfileIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
@@ -89,6 +95,8 @@ public partial class ReplayManagerViewModel(
     private IDialogService? DialogService => serviceProvider?.GetService<IDialogService>();
 
     private ILocalizationService? LocalizationService => localizationService ?? serviceProvider?.GetService<ILocalizationService>();
+
+    private ITelemetryService? TelemetryService => serviceProvider?.GetService<ITelemetryService>();
 
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -238,6 +246,14 @@ public partial class ReplayManagerViewModel(
 
     partial void OnSelectedCompatibleProfileChanged(GameProfile? value)
     {
+        var replay = ActiveCheckpointReplay;
+        if (value != null && replay != null && _currentRecoveryProfileIds.Contains(value.Id))
+        {
+            replay.RecoveryProfileId = value.Id;
+            replay.RecoveryProfileName = value.Name;
+            _selectedRecoveryProfiles[replay.FullPath] = value.Id;
+        }
+
         UpdateReplayTimingBounds();
     }
 
@@ -316,6 +332,8 @@ public partial class ReplayManagerViewModel(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
+        EnsureMessengerRegistered();
+
         if (LocalizationService != null)
         {
             LocalizationService.PropertyChanged -= OnLocalizationChanged;
@@ -383,7 +401,16 @@ public partial class ReplayManagerViewModel(
     {
         _runningProfiles.TryRemove(message.ProfileId, out _);
 
-        Dispatcher.UIThread.Post(async () =>
+        var staleRecoveryKeys = _selectedRecoveryProfiles
+            .Where(kvp => string.Equals(kvp.Value, message.ProfileId, StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Key)
+            .ToList();
+        foreach (var key in staleRecoveryKeys)
+        {
+            _selectedRecoveryProfiles.TryRemove(key, out _);
+        }
+
+        PostReloadReplays("profile deletion", message.ProfileId, () =>
         {
             foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
                          .Where(replay => string.Equals(replay.MatchingProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase)))
@@ -393,13 +420,11 @@ public partial class ReplayManagerViewModel(
                 replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
             }
 
-            try
+            foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
+                         .Where(replay => string.Equals(replay.RecoveryProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase)))
             {
-                await LoadReplaysAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to reload replays after profile deletion: {ProfileId}", message.ProfileId);
+                replay.RecoveryProfileId = null;
+                replay.RecoveryProfileName = null;
             }
         });
     }
@@ -407,17 +432,19 @@ public partial class ReplayManagerViewModel(
     /// <inheritdoc />
     public void Receive(ProfileListUpdatedMessage message)
     {
-        Dispatcher.UIThread.Post(async () =>
-        {
-            try
-            {
-                await LoadReplaysAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to reload replays after profile list update");
-            }
-        });
+        PostReloadReplays("profile list update");
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileCreatedMessage message)
+    {
+        PostReloadReplays("profile creation", message.Profile?.Id);
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileUpdatedMessage message)
+    {
+        PostReloadReplays("profile update", message.Profile?.Id);
     }
 
     /// <inheritdoc />
@@ -1007,7 +1034,9 @@ public partial class ReplayManagerViewModel(
         Progress = 0;
         var zipStatusMsg = LocalizationService?.GetString("Tools.ReplayManager.Status.CreatingZip") ?? "Creating ZIP...";
         StatusMessage = zipStatusMsg;
+        var sw = Stopwatch.StartNew();
 
+        string? exportedZipPath;
         try
         {
             var directory = directoryService.GetReplayDirectory(SelectedTab);
@@ -1019,42 +1048,82 @@ public partial class ReplayManagerViewModel(
                 StatusMessage = zipStatusMsg;
             });
 
-            var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
-            if (result != null)
+            exportedZipPath = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
+            sw.Stop();
+
+            try
             {
-                var zipTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedTitle") ?? "Zip Created";
-                var zipDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedDesc") ?? "Created {0} in replay folder.";
-                var zipStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipCreated") ?? "ZIP created successfully.";
-                notificationService.ShowSuccess(zipTitle, string.Format(zipDesc, Path.GetFileName(result)));
-                StatusMessage = zipStatus;
-
-                // Reload replays to show the new ZIP
-                await LoadReplaysAsync();
-
-                // Reveal in Explorer
-                PathHelper.RevealInExplorer(result);
+                TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
+                    [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.Success] = exportedZipPath != null,
+                });
             }
-            else
+            catch (Exception teleEx)
             {
-                var zipFailTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedTitle") ?? "Zip Failed";
-                var zipFailDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedDesc") ?? "Failed to create ZIP archive.";
-                var zipFailStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipFailed") ?? "ZIP creation failed.";
-                notificationService.ShowError(zipFailTitle, zipFailDesc);
-                StatusMessage = zipFailStatus;
+                logger.LogWarning(teleEx, "Failed to track replay ZIP export telemetry");
             }
         }
         catch (Exception ex)
         {
+            sw.Stop();
+            try
+            {
+                TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayExportedZip, new Dictionary<string, object?>
+                {
+                    [TelemetryConstants.Properties.ReplayCount] = SelectedReplays.Count,
+                    [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                    [TelemetryConstants.Properties.Success] = false,
+                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
+                });
+            }
+            catch (Exception teleEx)
+            {
+                logger.LogWarning(teleEx, "Failed to track replay ZIP export failure telemetry");
+            }
+
             logger.LogError(ex, "Failed to export ZIP directly");
             var exportErrorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ExportErrorTitle") ?? "Export Error";
             var exportErrorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ExportError") ?? "Export error.";
             notificationService.ShowError(exportErrorTitle, ex.Message);
             StatusMessage = exportErrorStatus;
+            return;
         }
         finally
         {
             IsBusy = false;
             Progress = 0;
+        }
+
+        if (exportedZipPath == null)
+        {
+            var zipFailTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedTitle") ?? "Zip Failed";
+            var zipFailDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipFailedDesc") ?? "Failed to create ZIP archive.";
+            var zipFailStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipFailed") ?? "ZIP creation failed.";
+            notificationService.ShowError(zipFailTitle, zipFailDesc);
+            StatusMessage = zipFailStatus;
+            return;
+        }
+
+        var zipTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedTitle") ?? "Zip Created";
+        var zipDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.ZipCreatedDesc") ?? "Created {0} in replay folder.";
+        var zipStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ZipCreated") ?? "ZIP created successfully.";
+        notificationService.ShowSuccess(zipTitle, string.Format(zipDesc, Path.GetFileName(exportedZipPath)));
+        StatusMessage = zipStatus;
+
+        try
+        {
+            // Reload replays to show the new ZIP
+            await LoadReplaysAsync();
+
+            // Reveal in Explorer
+            PathHelper.RevealInExplorer(exportedZipPath);
+        }
+        catch (Exception ex)
+        {
+            // Post-export refresh is best-effort; the export itself already succeeded and was tracked.
+            logger.LogWarning(ex, "Post-export replay refresh failed after successful ZIP export");
         }
     }
 
@@ -1627,18 +1696,59 @@ public partial class ReplayManagerViewModel(
         }
     }
 
+    private ProfileSelectionViewModel CreateProfileSelectionViewModel(
+        IServiceProvider sp,
+        ReplayFile replay,
+        string dialogTitleKey,
+        string defaultDialogTitleFormat,
+        string headerTitleKey,
+        string defaultHeaderTitle,
+        string headerSubtitleKey,
+        string defaultHeaderSubtitle,
+        string actionBadgeKey,
+        string defaultActionBadge)
+    {
+        var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
+        var dialogTitleFormat = LocalizationService?.GetString(dialogTitleKey) ?? defaultDialogTitleFormat;
+        profileVm.DialogTitle = string.Format(dialogTitleFormat, replay.FileName);
+        profileVm.HeaderTitle = LocalizationService?.GetString(headerTitleKey) ?? defaultHeaderTitle;
+        profileVm.HeaderSubtitle = LocalizationService?.GetString(headerSubtitleKey) ?? defaultHeaderSubtitle;
+        profileVm.ActionBadgeText = LocalizationService?.GetString(actionBadgeKey) ?? defaultActionBadge;
+        profileVm.CreateProfileCardSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle") ?? "Choose an available game client to create a fresh profile";
+        return profileVm;
+    }
+
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private async Task ShowProfileSelectionDialogWindowAsync(ProfileSelectionViewModel profileVm)
+    {
+        var dialog = new ProfileSelectionView(profileVm);
+        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+            IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+        if (mainWindow != null)
+        {
+            await dialog.ShowDialog(mainWindow);
+        }
+    }
+
     private async Task<ProfileSelectionViewModel> ShowProfileSelectionDialogAsync(
         IServiceProvider sp,
         ReplayFile replay)
     {
         logger.LogDebug("[ReplayManager] Displaying profile selection dialog for '{FileName}'", replay.FileName);
-        var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
-        var dialogTitleFormat = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.DialogTitleFormat") ?? "Select Profile - {0}";
-        profileVm.DialogTitle = string.Format(dialogTitleFormat, replay.FileName);
-        profileVm.HeaderTitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.HeaderTitle") ?? "Select Profile to Run Replay";
-        profileVm.HeaderSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.HeaderSubtitle") ?? "Click a profile to launch this replay";
-        profileVm.ActionBadgeText = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.ActionBadge") ?? "Play";
-        profileVm.CreateProfileCardSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle") ?? "Choose an available game client to create a fresh profile";
+        var profileVm = CreateProfileSelectionViewModel(
+            sp,
+            replay,
+            "Tools.ReplayManager.ProfileSelection.DialogTitleFormat",
+            "Select Profile - {0}",
+            "Tools.ReplayManager.ProfileSelection.HeaderTitle",
+            "Select Profile to Run Replay",
+            "Tools.ReplayManager.ProfileSelection.HeaderSubtitle",
+            "Click a profile to launch this replay",
+            "Tools.ReplayManager.ProfileSelection.ActionBadge",
+            "Play");
 
         var compatibleProfiles = await directoryService.GetCompatibleProfilesForReplayAsync(replay);
         var compatibleProfileIds = new HashSet<string>(compatibleProfiles.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
@@ -1650,17 +1760,135 @@ public partial class ReplayManagerViewModel(
             additionalManifestIds: null,
             compatibleProfileIds: compatibleProfileIds);
 
-        var dialog = new ProfileSelectionView(profileVm);
-        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
-            IClassicDesktopStyleApplicationLifetime desktop
-                ? desktop.MainWindow
-                : null;
+        await ShowProfileSelectionDialogWindowAsync(profileVm);
+        return profileVm;
+    }
 
-        if (mainWindow != null)
+    /// <summary>
+    /// Displays a profile selection dialog allowing the user to select from available recovery profiles to mint checkpoints or recover this replay.
+    /// </summary>
+    [RelayCommand]
+    private async Task SelectRecoveryProfileAsync(ReplayFile replay)
+    {
+        if (replay == null || IsBusy)
         {
-            await dialog.ShowDialog(mainWindow);
+            return;
         }
 
+        if (serviceProvider == null)
+        {
+            await OpenCheckpointDrawerAsync(replay);
+            return;
+        }
+
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var profileVm = await ShowRecoveryProfileSelectionDialogAsync(scope.ServiceProvider, replay);
+
+            if (profileVm.IsCreateNewRequested)
+            {
+                var createdProfileId = await SelectClientAndCreateProfileAsync(replay);
+                if (!string.IsNullOrEmpty(createdProfileId))
+                {
+                    await HandleCreatedRecoveryProfileAsync(replay, createdProfileId);
+                    await OpenCheckpointDrawerAsync(replay);
+                }
+
+                return;
+            }
+
+            if (profileVm.WasSuccessful && profileVm.SelectedProfile != null)
+            {
+                replay.RecoveryProfileId = profileVm.SelectedProfile.Id;
+                replay.RecoveryProfileName = profileVm.SelectedProfile.Name;
+                _selectedRecoveryProfiles[replay.FullPath] = profileVm.SelectedProfile.Id;
+                await OpenCheckpointDrawerAsync(replay);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to display recovery profile selection dialog for {FileName}", replay.FileName);
+        }
+    }
+
+    private async Task HandleCreatedRecoveryProfileAsync(ReplayFile replay, string createdProfileId)
+    {
+        var (mgr, pScope) = ResolveProfileManager();
+        try
+        {
+            if (mgr == null)
+            {
+                return;
+            }
+
+            var profilesResult = await mgr.GetAllProfilesAsync();
+            if (!profilesResult.Success || profilesResult.Data == null)
+            {
+                return;
+            }
+
+            var recoveryCandidates = directoryService.FindRecoveryProfiles(replay, profilesResult.Data);
+            var matched = recoveryCandidates.FirstOrDefault(p => string.Equals(p.Id, createdProfileId, StringComparison.OrdinalIgnoreCase));
+            if (matched != null)
+            {
+                replay.RecoveryProfileId = matched.Id;
+                replay.RecoveryProfileName = matched.Name;
+                _selectedRecoveryProfiles[replay.FullPath] = matched.Id;
+            }
+        }
+        finally
+        {
+            pScope?.Dispose();
+        }
+    }
+
+    private async Task<ProfileSelectionViewModel> ShowRecoveryProfileSelectionDialogAsync(
+        IServiceProvider sp,
+        ReplayFile replay)
+    {
+        logger.LogDebug("[ReplayManager] Displaying recovery profile selection dialog for '{FileName}'", replay.FileName);
+        var profileVm = CreateProfileSelectionViewModel(
+            sp,
+            replay,
+            "Tools.ReplayManager.RecoveryProfileSelection.DialogTitleFormat",
+            "Select Recovery Profile - {0}",
+            "Tools.ReplayManager.RecoveryProfileSelection.HeaderTitle",
+            "Select Recovery Profile",
+            "Tools.ReplayManager.RecoveryProfileSelection.HeaderSubtitle",
+            "Choose a recovery-capable profile to mint checkpoints and recover this replay",
+            "Tools.ReplayManager.RecoveryProfileSelection.ActionBadge",
+            "Recover");
+
+        var (manager, mgrScope) = ResolveProfileManager();
+        IReadOnlyList<GameProfile> allProfiles = Array.Empty<GameProfile>();
+        try
+        {
+            if (manager != null)
+            {
+                var allProfilesResult = await manager.GetAllProfilesAsync();
+                if (allProfilesResult.Success && allProfilesResult.Data != null)
+                {
+                    allProfiles = allProfilesResult.Data;
+                }
+            }
+        }
+        finally
+        {
+            mgrScope?.Dispose();
+        }
+
+        var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfiles);
+        var recoveryProfileIds = new HashSet<string>(recoveryProfiles.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+
+        await profileVm.LoadProfilesAsync(
+            replay.GameVersion,
+            contentManifestId: string.Empty,
+            contentName: replay.FileName,
+            additionalManifestIds: null,
+            compatibleProfileIds: recoveryProfileIds);
+
+        await ShowProfileSelectionDialogWindowAsync(profileVm);
         return profileVm;
     }
 
@@ -1766,30 +1994,8 @@ public partial class ReplayManagerViewModel(
         try
         {
             var replays = await directoryService.GetReplaysAsync(SelectedTab);
-
-            // Marshall to UI thread for collection updates
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                // Update the appropriate collection
-                if (SelectedTab == GameType.Generals)
-                {
-                    GeneralsReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        GeneralsReplays.Add(r);
-                    }
-                }
-                else
-                {
-                    ZeroHourReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        ZeroHourReplays.Add(r);
-                    }
-                }
-
-                ApplyFilter();
-            });
+            await RevalidateSelectedRecoveryProfilesAsync(replays);
+            await UpdateLoadedReplaysCollectionAsync(replays);
 
             _lastLoadedCount = replays.Count;
             StatusMessage = LocalizationService != null
@@ -1810,6 +2016,76 @@ public partial class ReplayManagerViewModel(
             IsBusy = false;
             IsIndeterminate = false;
         }
+    }
+
+    private async Task RevalidateSelectedRecoveryProfilesAsync(IReadOnlyList<ReplayFile> replays)
+    {
+        if (_selectedRecoveryProfiles.IsEmpty)
+        {
+            return;
+        }
+
+        var (manager, scope) = ResolveProfileManager();
+        try
+        {
+            if (manager == null)
+            {
+                return;
+            }
+
+            var profilesResult = await manager.GetAllProfilesAsync();
+            var profiles = profilesResult.Data;
+            if (profiles == null || profiles.Count == 0)
+            {
+                return;
+            }
+
+            var staleKeys = new List<string>();
+            foreach (var (replayPath, savedRecoveryId) in _selectedRecoveryProfiles)
+            {
+                var replay = replays.FirstOrDefault(r => string.Equals(r.FullPath, replayPath, StringComparison.OrdinalIgnoreCase));
+                if (replay == null)
+                {
+                    continue;
+                }
+
+                var recoveryCandidates = directoryService.FindRecoveryProfiles(replay, profiles);
+                var matchedCandidate = recoveryCandidates.FirstOrDefault(p => string.Equals(p.Id, savedRecoveryId, StringComparison.OrdinalIgnoreCase));
+                if (matchedCandidate != null)
+                {
+                    replay.RecoveryProfileId = matchedCandidate.Id;
+                    replay.RecoveryProfileName = matchedCandidate.Name;
+                }
+                else
+                {
+                    staleKeys.Add(replayPath);
+                }
+            }
+
+            foreach (var key in staleKeys)
+            {
+                _selectedRecoveryProfiles.TryRemove(key, out _);
+            }
+        }
+        finally
+        {
+            scope?.Dispose();
+        }
+    }
+
+    private async Task UpdateLoadedReplaysCollectionAsync(IReadOnlyList<ReplayFile> replays)
+    {
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var targetCollection = SelectedTab == GameType.Generals ? GeneralsReplays : ZeroHourReplays;
+            targetCollection.Clear();
+            foreach (var r in replays)
+            {
+                targetCollection.Add(r);
+            }
+
+            ApplyFilter();
+        });
     }
 
     /// <summary>
@@ -1889,6 +2165,12 @@ public partial class ReplayManagerViewModel(
             }
 
             var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfilesResult.Data);
+            _currentRecoveryProfileIds.Clear();
+            foreach (var profile in recoveryProfiles)
+            {
+                _currentRecoveryProfileIds.Add(profile.Id);
+            }
+
             var profilesToAdd = recoveryProfiles.Count > 0
                 ? recoveryProfiles
                 : directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
@@ -1981,6 +2263,7 @@ public partial class ReplayManagerViewModel(
         checkpointService.CancelActiveMint();
         IsCheckpointDrawerOpen = false;
         ActiveCheckpointReplay = null;
+        _currentRecoveryProfileIds.Clear();
     }
 
     /// <summary>
@@ -2029,46 +2312,24 @@ public partial class ReplayManagerViewModel(
                 SelectedCompatibleProfile,
                 TargetCheckpointFrame);
 
-            if (result.Success && result.Data != null)
+            if (!result.Success && string.Equals(result.FirstError, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal))
             {
-                AvailableCheckpoints.Add(result.Data);
-                SelectedCheckpoint = result.Data;
-                var successTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.CheckpointCreatedTitle") ?? "Checkpoint Created";
-                var successDesc = LocalizationService != null
-                    ? LocalizationService.GetString("Tools.ReplayManager.Notify.CheckpointCreatedDesc", result.Data.FileName, CheckpointTimeDisplay)
-                    : $"Created checkpoint {result.Data.FileName} at {CheckpointTimeDisplay}.";
-                notificationService.ShowSuccess(successTitle, successDesc);
-                StatusMessage = LocalizationService != null
-                    ? LocalizationService.GetString("Tools.ReplayManager.Status.CheckpointCreated", result.Data.FileName)
-                    : $"Checkpoint {result.Data.FileName} created.";
+                // Deliberate user cancels are not failures; report them like other cancels without telemetry.
+                HandleCheckpointCanceled();
             }
             else
             {
-                var error = result.FirstError ?? "Failed to create checkpoint.";
-                if (string.Equals(error, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal))
-                {
-                    var cancelTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledTitle") ?? "Checkpoint Creation Canceled";
-                    var cancelDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledDesc") ?? "Checkpoint creation was canceled.";
-                    notificationService.ShowInfo(cancelTitle, cancelDesc);
-                    StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
-                }
-                else
-                {
-                    var failTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintFailedTitle") ?? "Checkpoint Creation Failed";
-                    notificationService.ShowError(failTitle, error);
-                    StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintFailed") ?? "Checkpoint creation failed.";
-                }
+                TrackCheckpointMintedTelemetry(result.Success, result.FirstError);
+                HandleCheckpointResult(result);
             }
         }
         catch (OperationCanceledException)
         {
-            var cancelTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledTitle") ?? "Checkpoint Creation Canceled";
-            var cancelDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledDesc") ?? "Checkpoint creation was canceled.";
-            notificationService.ShowInfo(cancelTitle, cancelDesc);
-            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
+            HandleCheckpointCanceled();
         }
         catch (Exception ex)
         {
+            TrackCheckpointMintedTelemetry(false, ex.Message);
             logger.LogError(ex, "Failed to create checkpoint at frame {Frame}", TargetCheckpointFrame);
             var errTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintErrorTitle") ?? "Checkpoint Creation Error";
             notificationService.ShowError(errTitle, ex.Message);
@@ -2078,6 +2339,63 @@ public partial class ReplayManagerViewModel(
         {
             IsMintingCheckpoint = false;
         }
+    }
+
+    private void TrackCheckpointMintedTelemetry(bool success, string? errorMessage)
+    {
+        try
+        {
+            TelemetryService?.TrackEvent(TelemetryConstants.Events.ReplayCheckpointMinted, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.GameType] = ActiveCheckpointReplay?.GameVersion.ToString(),
+                [TelemetryConstants.Properties.TargetFrame] = TargetCheckpointFrame,
+                [TelemetryConstants.Properties.ProfileId] = SelectedCompatibleProfile?.Id,
+                [TelemetryConstants.Properties.Success] = success,
+                [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
+            });
+        }
+        catch (Exception teleEx)
+        {
+            logger.LogWarning(teleEx, "Failed to track replay checkpoint minting telemetry");
+        }
+    }
+
+    private void HandleCheckpointResult(ProfileOperationResult<ReplayCheckpointInfo> result)
+    {
+        if (result.Success && result.Data != null)
+        {
+            AvailableCheckpoints.Add(result.Data);
+            SelectedCheckpoint = result.Data;
+            var successTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.CheckpointCreatedTitle") ?? "Checkpoint Created";
+            var successDesc = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Notify.CheckpointCreatedDesc", result.Data.FileName, CheckpointTimeDisplay)
+                : $"Created checkpoint {result.Data.FileName} at {CheckpointTimeDisplay}.";
+            notificationService.ShowSuccess(successTitle, successDesc);
+            StatusMessage = LocalizationService != null
+                ? LocalizationService.GetString("Tools.ReplayManager.Status.CheckpointCreated", result.Data.FileName)
+                : $"Checkpoint {result.Data.FileName} created.";
+            return;
+        }
+
+        var error = result.FirstError ?? "Failed to create checkpoint.";
+        if (string.Equals(error, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal))
+        {
+            HandleCheckpointCanceled();
+        }
+        else
+        {
+            var failTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintFailedTitle") ?? "Checkpoint Creation Failed";
+            notificationService.ShowError(failTitle, error);
+            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintFailed") ?? "Checkpoint creation failed.";
+        }
+    }
+
+    private void HandleCheckpointCanceled()
+    {
+        var cancelTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledTitle") ?? "Checkpoint Creation Canceled";
+        var cancelDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.MintCanceledDesc") ?? "Checkpoint creation was canceled.";
+        notificationService.ShowInfo(cancelTitle, cancelDesc);
+        StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.MintCanceled") ?? "Checkpoint creation canceled.";
     }
 
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance properties for Avalonia UI data binding")]
@@ -2381,6 +2699,22 @@ public partial class ReplayManagerViewModel(
             var errTitle = LocalizationService?.GetString("Common.DeleteError") ?? "Delete Error";
             notificationService.ShowError(errTitle, ex.Message);
         }
+    }
+
+    private void PostReloadReplays(string reason, string? profileId = null, Action? onUiThread = null)
+    {
+        Dispatcher.UIThread.Post(async () =>
+        {
+            onUiThread?.Invoke();
+            try
+            {
+                await LoadReplaysAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reload replays after {Reason}: {ProfileId}", reason, profileId);
+            }
+        });
     }
 
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]

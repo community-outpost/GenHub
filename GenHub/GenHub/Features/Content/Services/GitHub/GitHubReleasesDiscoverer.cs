@@ -124,28 +124,6 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
 
     private static string StripVersionPrefix(string? tag) => GameVersionHelper.StripVersionPrefix(tag);
 
-    private static bool IsPureVersionString(string? text, string? tagName)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return true;
-        }
-
-        var trimmed = text.Trim();
-        if (!string.IsNullOrWhiteSpace(tagName) &&
-            (trimmed.Equals(tagName.Trim(), StringComparison.OrdinalIgnoreCase) ||
-             trimmed.Equals($"v{tagName.Trim()}", StringComparison.OrdinalIgnoreCase) ||
-             StripVersionPrefix(trimmed).Equals(StripVersionPrefix(tagName), StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        return VersionPatternRegex().IsMatch(trimmed);
-    }
-
-    [GeneratedRegex(@"^v?\d+(\.\d+)*(-[a-zA-Z0-9\.\-_]+)?$", RegexOptions.CultureInvariant)]
-    private static partial Regex VersionPatternRegex();
-
     private static (ContentType ContentType, GameType GameType, bool IsTypeInferred, bool IsGameInferred) InferTypes(
         IReadOnlyList<string> topics,
         string repo,
@@ -174,12 +152,12 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
     {
         if (isSuperHackers && repo.Equals(SuperHackersConstants.GeneralsGamePatch2Repo, StringComparison.OrdinalIgnoreCase))
         {
-            return IsPureVersionString(release.Name, release.TagName)
+            return GameVersionHelper.IsPureVersionString(release.Name, release.TagName)
                 ? SuperHackersConstants.GeneralsGamePatch2DisplayName
                 : (release.Name ?? SuperHackersConstants.GeneralsGamePatch2DisplayName);
         }
 
-        return IsPureVersionString(release.Name, release.TagName)
+        return GameVersionHelper.IsPureVersionString(release.Name, release.TagName)
             ? $"{repo} {release.TagName}"
             : (release.Name ?? $"{repo} {release.TagName}");
     }
@@ -483,7 +461,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
 
         if (isSuperHackersGameClient)
         {
-            var baseName = !string.IsNullOrWhiteSpace(release.Name) && !IsPureVersionString(release.Name, release.TagName)
+            var baseName = !string.IsNullOrWhiteSpace(release.Name) && !GameVersionHelper.IsPureVersionString(release.Name, release.TagName)
                 ? release.Name
                 : cardName;
             var tag = release.TagName ?? "latest";

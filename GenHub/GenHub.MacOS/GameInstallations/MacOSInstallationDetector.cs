@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -80,26 +81,18 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var (generalsPath, zeroHourPath, accessDenied) = FindGameDirectories(root);
+                var (installation, accessDenied) = InspectRoot(
+                    root,
+                    cancellationToken,
+                    allowFlatRoot: string.Equals(root, GetNativeDeployRootPath(), StringComparison.Ordinal));
 
                 if (accessDenied)
                 {
                     deniedRoots.Add(root);
                 }
 
-                if (generalsPath is null && zeroHourPath is null)
+                if (installation is null)
                 {
-                    continue;
-                }
-
-                var installation = new GameInstallation(root, GameInstallationType.Retail, null);
-                installation.SetPaths(generalsPath, zeroHourPath);
-
-                // SetPaths only sets Has* when a valid executable is present, so a
-                // directory that merely has the right name is discarded here.
-                if (!installation.HasGenerals && !installation.HasZeroHour)
-                {
-                    logger.LogDebug("Directory under {Root} matched by name but has no game executable", root);
                     continue;
                 }
 
@@ -167,6 +160,74 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     }
 
     /// <summary>
+    /// Inspects one candidate root: first the directory itself, then name-matched children.
+    /// </summary>
+    /// <param name="root">Directory to inspect.</param>
+    /// <param name="cancellationToken">Cancellation for this root and its child scan.</param>
+    /// <param name="allowFlatRoot">Whether this is an explicitly designated flat deployment root.</param>
+    /// <returns>
+    /// The installation found under <paramref name="root"/>, or null, and whether access
+    /// was denied.
+    /// </returns>
+    /// <remarks>
+    /// Named child installations take precedence over loose archives at a scan root.
+    /// For an explicitly designated root, archive classification also supports flat native
+    /// deployments whose directory names do not match a retail layout.
+    /// </remarks>
+    internal static (GameInstallation? Installation, bool AccessDenied) InspectRoot(string root, CancellationToken cancellationToken = default, bool allowFlatRoot = false)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string? generalsPath = null;
+        string? zeroHourPath = null;
+
+        try
+        {
+            (generalsPath, zeroHourPath) = FindGameDirectories(root, cancellationToken);
+            if (allowFlatRoot && generalsPath is null && zeroHourPath is null)
+            {
+                var rootClassification = RetailArchiveClassifier.ClassifyArchives(root);
+
+                // A combined flat directory sets both paths to the same root.
+                generalsPath = rootClassification.HasGeneralsArchives ? root : null;
+                zeroHourPath = rootClassification.HasZeroHourArchives ? root : null;
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Reported separately: on macOS this is how a declined TCC prompt surfaces for
+            // a protected location such as ~/Documents. Treating it as "nothing here"
+            // would tell the user they own no games when we were simply not allowed to look.
+            return (null, true);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A vanished directory is not a detection failure. Other errors reach the
+            // detection boundary, which logs them and returns a retryable failure.
+            return (null, false);
+        }
+
+        if (generalsPath is null && zeroHourPath is null)
+        {
+            return (null, false);
+        }
+
+        var installation = new GameInstallation(root, GameInstallationType.Retail, null);
+        installation.SetPaths(generalsPath, zeroHourPath);
+
+        if (!installation.HasGenerals && !installation.HasZeroHour)
+        {
+            return (null, false);
+        }
+
+        return (installation, false);
+    }
+
+    private static string GetNativeDeployRootPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        GameClientConstants.NativeDeployParentDirectoryName,
+        GameClientConstants.NativeDeployZeroHourDirectoryName);
+
+    /// <summary>
     /// Builds the list of directories worth scanning for a copied retail tree.
     /// </summary>
     /// <returns>Candidate root directories, in rough order of likelihood.</returns>
@@ -177,6 +238,12 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
         {
             yield break;
         }
+
+        // The native engine's macOS deploy produces a flat tree here by default: engine
+        // binary, bundled dylibs, source-controlled data directories, and the user's own
+        // retail archives merged into one directory. It is not a name-matched child of
+        // anything, so it must be a candidate root in its own right.
+        yield return GetNativeDeployRootPath();
 
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         if (!string.IsNullOrEmpty(documents))
@@ -261,52 +328,53 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     /// Generals and Zero Hour directory names.
     /// </summary>
     /// <param name="root">Directory to search within.</param>
+    /// <param name="cancellationToken">Cancellation between child directories.</param>
     /// <returns>
-    /// The matching paths and whether access was denied. Matching is case-insensitive
-    /// because macOS volumes can be case-sensitive while retail trees are Windows-cased.
+    /// The matching paths. Matching is case-insensitive because macOS volumes can be
+    /// case-sensitive while retail trees are Windows-cased. Filesystem errors propagate
+    /// to the caller, which distinguishes denied access from a vanished directory.
     /// </returns>
-    private static (string? GeneralsPath, string? ZeroHourPath, bool AccessDenied)
-        FindGameDirectories(string root)
+    private static (string? GeneralsPath, string? ZeroHourPath) FindGameDirectories(string root, CancellationToken cancellationToken)
     {
-        try
+        string? generalsPath = null;
+        string? zeroHourPath = null;
+        string? fallbackGeneralsPath = null;
+        string? fallbackZeroHourPath = null;
+
+        foreach (var directory in Directory.EnumerateDirectories(root))
         {
-            string? generalsPath = null;
-            string? zeroHourPath = null;
-
-            foreach (var directory in Directory.EnumerateDirectories(root))
+            cancellationToken.ThrowIfCancellationRequested();
+            var directoryName = Path.GetFileName(directory);
+            var generalsName = GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase);
+            var zeroHourName = ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase);
+            if (!generalsName && !zeroHourName)
             {
-                var directoryName = Path.GetFileName(directory);
-                if (generalsPath is null &&
-                    GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase))
-                {
-                    generalsPath = directory;
-                }
+                continue;
+            }
 
-                if (zeroHourPath is null &&
-                    ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase))
+            var archives = RetailArchiveClassifier.ClassifyArchives(directory);
+            if (archives.HasGeneralsArchives)
+            {
+                fallbackGeneralsPath ??= directory;
+                if (generalsName)
                 {
-                    zeroHourPath = directory;
-                }
-
-                if (generalsPath is not null && zeroHourPath is not null)
-                {
-                    break;
+                    generalsPath ??= directory;
                 }
             }
 
-            return (generalsPath, zeroHourPath, false);
+            if (archives.HasZeroHourArchives)
+            {
+                fallbackZeroHourPath ??= directory;
+                if (zeroHourName)
+                {
+                    zeroHourPath ??= directory;
+                }
+            }
         }
-        catch (UnauthorizedAccessException)
-        {
-            // Reported separately: on macOS this is how a declined TCC prompt surfaces for
-            // a protected location such as ~/Documents. Treating it as "nothing here"
-            // would tell the user they own no games when we were simply not allowed to look.
-            return (null, null, true);
-        }
-        catch (Exception)
-        {
-            // A vanished directory is not a detection failure.
-            return (null, null, false);
-        }
+
+        generalsPath ??= fallbackGeneralsPath;
+        zeroHourPath ??= fallbackZeroHourPath;
+
+        return (generalsPath, zeroHourPath);
     }
 }

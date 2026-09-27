@@ -14,6 +14,12 @@ namespace GenHub.Tests.Core.Features.GameSettings;
 /// </summary>
 public class GameSettingsServiceTests
 {
+    private sealed class GeneralsOnlinePathProbe(ILogger<GameSettingsService> logger, IGamePathProvider pathProvider)
+        : GameSettingsService(logger, pathProvider)
+    {
+        public string SettingsPath => GetGeneralsOnlineSettingsPath();
+    }
+
     private readonly Mock<ILogger<GameSettingsService>> _loggerMock = new();
     private readonly Mock<IGamePathProvider> _pathProviderMock = new();
     private readonly GameSettingsService _service;
@@ -659,6 +665,41 @@ MoneyTransactionVolume = 70
         {
             File.Delete(tempFile);
         }
+    }
+
+    /// <summary>
+    /// The GeneralsOnline settings.json resolves under the platform Zero Hour user-data directory,
+    /// not under the Documents folder.
+    /// </summary>
+    [Fact]
+    public void GetGeneralsOnlineSettingsPath_ResolvesUnderGamePathProviderDirectory()
+    {
+        var zeroHourData = Path.Combine(Path.GetTempPath(), "genhub-provider-root", GameSettingsConstants.FolderNames.ZeroHour);
+        _pathProviderMock.Setup(x => x.GetOptionsDirectory(GameType.ZeroHour)).Returns(zeroHourData);
+        var service = new GeneralsOnlinePathProbe(_loggerMock.Object, _pathProviderMock.Object);
+
+        var expected = Path.Combine(
+            zeroHourData,
+            GameSettingsConstants.FolderNames.GeneralsOnlineData,
+            GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        Assert.Equal(expected, service.SettingsPath);
+    }
+
+    /// <summary>Unavailable platform folders must never make settings depend on the current directory.</summary>
+    /// <param name="path">The unusable platform path.</param>
+    [Theory]
+    [InlineData("")]
+    [InlineData("relative")]
+    public void GetGeneralsOnlineSettingsPath_InvalidProviderPath_UsesAbsoluteFallback(string path)
+    {
+        _pathProviderMock.Setup(x => x.GetOptionsDirectory(GameType.ZeroHour)).Returns(path);
+        var service = new GeneralsOnlinePathProbe(_loggerMock.Object, _pathProviderMock.Object);
+        var expected = Path.Combine(
+            AppContext.BaseDirectory,
+            GameSettingsConstants.FolderNames.ZeroHour,
+            GameSettingsConstants.FolderNames.GeneralsOnlineData,
+            GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        Assert.Equal(expected, service.SettingsPath);
     }
 
     private GameSettingsService CreateServiceWritingGeneralsOnlineSettingsTo(string settingsPath)

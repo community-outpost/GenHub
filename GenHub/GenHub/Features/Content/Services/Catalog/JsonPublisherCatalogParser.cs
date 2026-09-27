@@ -1,14 +1,15 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,15 +22,12 @@ namespace GenHub.Features.Content.Services.Catalog;
 /// This is the interchange format for modular catalogs: any publisher can host a schema-valid
 /// file and users subscribe without a GenHub code change. Distinct from bundled
 /// <see cref="ProviderDefinition"/> JSON and from proprietary catalog formats used by built-in
-/// providers (e.g. GeneralsOnline API, genpatcher-dat).
+/// providers (e.g. GeneralsOnline API, genpatcher-dat). Uses <see cref="PublisherJsonOptions.CatalogImport"/>
+/// to unify serialization options across import workflows, supporting trailing commas and comments.
 /// </remarks>
 public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logger) : IPublisherCatalogParser
 {
-    private static readonly JsonSerializerOptions CatalogSerializerOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() },
-    };
+    private static readonly JsonSerializerOptions CatalogSerializerOptions = PublisherJsonOptions.CatalogImport;
 
     /// <inheritdoc />
     public async Task<OperationResult<PublisherCatalog>> ParseCatalogAsync(
@@ -51,8 +49,6 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             {
                 return OperationResult<PublisherCatalog>.CreateFailure("Failed to deserialize catalog JSON");
             }
-
-            NormalizeCatalogCollections(catalog);
 
             // Validate after parsing
             var validationResult = ValidateCatalog(catalog);
@@ -94,7 +90,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
-        NormalizeCatalogCollections(catalog);
+        NormalizeCatalogCollections(catalog, logger);
 
         var errors = new List<string>();
 
@@ -235,36 +231,55 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
-    private static void NormalizeCatalogCollections(PublisherCatalog catalog)
+    private static void NormalizeCatalogCollections(PublisherCatalog catalog, ILogger logger)
     {
         catalog.Content ??= [];
-        foreach (var content in catalog.Content)
+        var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var content in catalog.Content.Where(content => content != null))
         {
-            if (content == null)
-            {
-                continue;
-            }
+            NormalizeContentItem(content, seenNames, logger);
+        }
+    }
 
-            content.Description ??= string.Empty;
-            content.Tags = content.Tags != null
-                ? content.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
-                : [];
-            if (content.Metadata != null)
+    private static void NormalizeContentItem(CatalogContentItem content, Dictionary<string, string> seenNames, ILogger logger)
+    {
+        if (!string.IsNullOrWhiteSpace(content.Name))
+        {
+            content.Name = ContentFormatPolicy.StripArchiveExtensions(content.Name);
+            if (seenNames.TryGetValue(content.Name, out var existingId) && !string.Equals(existingId, content.Id, StringComparison.OrdinalIgnoreCase))
             {
-                content.Metadata.ScreenshotUrls ??= [];
+                logger.LogWarning("Catalog content item '{ContentId}' normalized to display name '{ContentName}', which duplicates item '{ExistingId}'", content.Id, content.Name, existingId);
             }
-
-            content.Releases ??= [];
-            foreach (var release in content.Releases)
+            else
             {
-                if (release == null)
-                {
-                    continue;
-                }
-
-                release.Artifacts ??= [];
-                release.Dependencies ??= [];
+                seenNames[content.Name] = content.Id;
             }
+        }
+
+        content.Description ??= string.Empty;
+        content.Tags = content.Tags != null
+            ? content.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
+            : [];
+        if (content.Metadata != null)
+        {
+            content.Metadata.ScreenshotUrls ??= [];
+        }
+
+        NormalizeReleases(content.Releases);
+    }
+
+    private static void NormalizeReleases(IList<ContentRelease>? releases)
+    {
+        if (releases == null)
+        {
+            return;
+        }
+
+        foreach (var release in releases.Where(release => release != null))
+        {
+            release.Artifacts ??= [];
+            release.Dependencies ??= [];
         }
     }
 

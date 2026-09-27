@@ -1,13 +1,17 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -20,7 +24,9 @@ namespace GenHub.Features.Tools.MapManager.Services;
 /// </summary>
 public sealed class MapDirectoryService(
     MapNameParser mapNameParser,
-    ILogger<MapDirectoryService> logger) : IMapDirectoryService
+    ILogger<MapDirectoryService> logger,
+    IGamePathProvider? pathProvider = null,
+    ILocalizationService? localizationService = null) : IMapDirectoryService
 {
     private const string GeneralsMapFolder = MapManagerConstants.GeneralsDataDirectoryName;
     private const string ZeroHourMapFolder = MapManagerConstants.ZeroHourDataDirectoryName;
@@ -29,6 +35,16 @@ public sealed class MapDirectoryService(
     /// <inheritdoc />
     public string GetMapDirectory(GameType version)
     {
+        if (version is not (GameType.Generals or GameType.ZeroHour))
+        {
+            throw new ArgumentException("Unsupported game version", nameof(version));
+        }
+
+        if (pathProvider is not null)
+        {
+            return Path.Combine(pathProvider.GetOptionsDirectory(version), MapSubfolder);
+        }
+
         var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var gameFolder = version == GameType.Generals ? GeneralsMapFolder : ZeroHourMapFolder;
         return Path.Combine(documentsPath, gameFolder, MapSubfolder);
@@ -185,48 +201,47 @@ public sealed class MapDirectoryService(
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteMapsAsync(IEnumerable<MapFile> maps, CancellationToken ct = default)
+    public async Task<OperationResult> DeleteMapsAsync(IEnumerable<MapFile> maps, CancellationToken ct = default)
     {
         return await Task.Run(
             () =>
             {
-                try
+                foreach (var map in maps)
                 {
-                    foreach (var map in maps)
-                    {
-                        if (ct.IsCancellationRequested)
-                        {
-                            break;
-                        }
+                    ct.ThrowIfCancellationRequested();
 
+                    try
+                    {
                         if (map.IsDirectory)
                         {
-                            // Delete the entire directory
                             var dirPath = Path.GetDirectoryName(map.FullPath);
                             if (!string.IsNullOrEmpty(dirPath) && Directory.Exists(dirPath))
                             {
+                                if (EnsureMapFolderWritable(dirPath) is { } accessFailure)
+                                {
+                                    return accessFailure;
+                                }
+
                                 Directory.Delete(dirPath, true);
                                 logger.LogInformation("Deleted map directory: {DirectoryName}", map.DirectoryName);
                             }
                         }
-                        else
+                        else if (File.Exists(map.FullPath))
                         {
-                            // Delete standalone file
-                            if (File.Exists(map.FullPath))
-                            {
-                                File.Delete(map.FullPath);
-                                logger.LogInformation("Deleted map: {FileName}", map.FileName);
-                            }
+                            WriteAccessHelper.EnsureFileWritable(map.FullPath);
+                            File.Delete(map.FullPath);
+                            logger.LogInformation("Deleted map: {FileName}", map.FileName);
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to delete map: {FileName}", map.FileName);
+                        return OperationResult.CreateFailure(
+                            Localize(MapManagerConstants.DeleteFailedMessageKey, MapManagerConstants.DeleteFailedFallbackMessage, GetMapName(map)));
+                    }
+                }
 
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to delete maps");
-                    return false;
-                }
+                return OperationResult.CreateSuccess();
             },
             ct);
     }
@@ -239,12 +254,7 @@ public sealed class MapDirectoryService(
 
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PlatformConstants.WindowsExplorerPath,
-                Arguments = directory,
-                UseShellExecute = true,
-            });
+            PathHelper.OpenInExplorer(directory);
         }
         catch (Exception ex)
         {
@@ -257,12 +267,7 @@ public sealed class MapDirectoryService(
     {
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PlatformConstants.WindowsExplorerPath,
-                Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, map.FullPath),
-                UseShellExecute = true,
-            });
+            PathHelper.RevealInExplorer(map.FullPath);
         }
         catch (Exception ex)
         {
@@ -271,11 +276,14 @@ public sealed class MapDirectoryService(
     }
 
     /// <inheritdoc />
-    public async Task<bool> RenameMapAsync(MapFile map, string newName, CancellationToken ct = default)
+    public async Task<OperationResult> RenameMapAsync(MapFile map, string newName, CancellationToken ct = default)
     {
+        var renameFailed = OperationResult.CreateFailure(
+            Localize(MapManagerConstants.RenameFailedMessageKey, MapManagerConstants.RenameFailedFallbackMessage, GetMapName(map)));
+
         if (string.IsNullOrWhiteSpace(newName))
         {
-            return false;
+            return renameFailed;
         }
 
         // Validate name for illegal characters
@@ -283,7 +291,7 @@ public sealed class MapDirectoryService(
         if (newName.IndexOfAny(invalidChars) >= 0)
         {
             logger.LogWarning("Invalid characters in map name: {Name}", newName);
-            return false;
+            return renameFailed;
         }
 
         return await Task.Run(
@@ -297,13 +305,13 @@ public sealed class MapDirectoryService(
                         var currentDirPath = Path.GetDirectoryName(map.FullPath);
                         if (string.IsNullOrEmpty(currentDirPath))
                         {
-                            return false;
+                            return renameFailed;
                         }
 
                         var parentPath = Path.GetDirectoryName(currentDirPath);
                         if (string.IsNullOrEmpty(parentPath))
                         {
-                            return false;
+                            return renameFailed;
                         }
 
                         var newDirPath = Path.Combine(parentPath, newName);
@@ -312,36 +320,108 @@ public sealed class MapDirectoryService(
                         if (Directory.Exists(newDirPath))
                         {
                             logger.LogWarning("Target directory already exists: {Path}", newDirPath);
-                            return false;
+                            return renameFailed;
                         }
 
-                        // First rename the .map file inside the directory
+                        if (EnsureMapFolderWritable(currentDirPath) is { } accessFailure)
+                        {
+                            return accessFailure;
+                        }
+
+                        var plannedMoves = new List<(string Source, string Target)>();
+
+                        // Preflight and plan .map file rename
                         var newMapFileName = newName + ".map";
                         var newMapFilePath = Path.Combine(currentDirPath, newMapFileName);
-
                         if (!string.Equals(map.FullPath, newMapFilePath, StringComparison.OrdinalIgnoreCase))
                         {
                             if (File.Exists(newMapFilePath))
                             {
                                 logger.LogWarning("Target map file already exists: {Path}", newMapFilePath);
-                                return false;
+                                return renameFailed;
                             }
 
-                            File.Move(map.FullPath, newMapFilePath);
+                            plannedMoves.Add((map.FullPath, newMapFilePath));
                         }
 
-                        // Then rename the directory
-                        Directory.Move(currentDirPath, newDirPath);
+                        // Also plan companion asset files (e.g. OldName.tga -> NewName.tga, OldName.ini -> NewName.ini)
+                        // Assets may match either the old map file base name or the old directory name
+                        // Ordered: map file base name takes priority over directory name.
+                        var candidateBases = new List<string> { Path.GetFileNameWithoutExtension(map.FileName) };
+                        if (!string.IsNullOrEmpty(map.DirectoryName) &&
+                            !candidateBases.Contains(map.DirectoryName, PathHelper.PathComparer))
+                        {
+                            candidateBases.Add(map.DirectoryName);
+                        }
 
-                        logger.LogInformation("Renamed map directory from {OldName} to {NewName}", map.DirectoryName, newName);
-                        return true;
+                        var seenTargets = new HashSet<string>(PathHelper.PathComparer) { newMapFilePath };
+                        foreach (var baseName in candidateBases)
+                        {
+                            foreach (var assetPath in Directory.GetFiles(currentDirPath, baseName + ".*"))
+                            {
+                                if (!Path.GetFileNameWithoutExtension(assetPath).Equals(baseName, PathHelper.PathComparison))
+                                {
+                                    continue;
+                                }
+
+                                var ext = Path.GetExtension(assetPath);
+                                if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    continue;
+                                }
+
+                                var newAssetPath = Path.Combine(currentDirPath, newName + ext);
+                                if (!seenTargets.Contains(newAssetPath) && !File.Exists(newAssetPath))
+                                {
+                                    seenTargets.Add(newAssetPath);
+                                    plannedMoves.Add((assetPath, newAssetPath));
+                                }
+                            }
+                        }
+
+                        // Execute planned file moves with rollback if any operation fails
+                        var executedMoves = new List<(string Source, string Target)>();
+                        try
+                        {
+                            foreach (var (src, dst) in plannedMoves)
+                            {
+                                File.Move(src, dst);
+                                executedMoves.Add((src, dst));
+                                logger.LogDebug("Renamed companion asset {Old} to {New}", src, dst);
+                            }
+
+                            // Then rename the directory
+                            Directory.Move(currentDirPath, newDirPath);
+                            logger.LogInformation("Renamed map directory from {OldName} to {NewName}", map.DirectoryName, newName);
+                            return OperationResult.CreateSuccess();
+                        }
+                        catch
+                        {
+                            // Roll back executed moves
+                            foreach (var (src, dst) in executedMoves)
+                            {
+                                try
+                                {
+                                    if (File.Exists(dst) && !File.Exists(src))
+                                    {
+                                        File.Move(dst, src);
+                                    }
+                                }
+                                catch
+                                {
+                                    // Ignore rollback failures
+                                }
+                            }
+
+                            throw;
+                        }
                     }
 
                     // Rename standalone .map file
                     var directory = Path.GetDirectoryName(map.FullPath);
                     if (string.IsNullOrEmpty(directory))
                     {
-                        return false;
+                        return renameFailed;
                     }
 
                     var newFileName = newName + ".map";
@@ -350,17 +430,17 @@ public sealed class MapDirectoryService(
                     if (File.Exists(newFilePath))
                     {
                         logger.LogWarning("Target file already exists: {Path}", newFilePath);
-                        return false;
+                        return renameFailed;
                     }
 
                     File.Move(map.FullPath, newFilePath);
                     logger.LogInformation("Renamed map from {OldName} to {NewName}", map.FileName, newFileName);
-                    return true;
+                    return OperationResult.CreateSuccess();
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed to rename map: {FileName}", map.FileName);
-                    return false;
+                    return renameFailed;
                 }
             },
             ct);
@@ -373,7 +453,22 @@ public sealed class MapDirectoryService(
     /// <returns>Path to the thumbnail file, or null if none found.</returns>
     private static string? FindThumbnail(FileInfo[] files)
     {
-        // Priority: map.tga > any .tga file
+        if (files.Length == 0)
+        {
+            return null;
+        }
+
+        var dirName = files[0].Directory?.Name;
+        if (!string.IsNullOrEmpty(dirName))
+        {
+            var dirTga = files.FirstOrDefault(f => f.Name.Equals(dirName + ".tga", StringComparison.OrdinalIgnoreCase));
+            if (dirTga != null)
+            {
+                return dirTga.FullName;
+            }
+        }
+
+        // Priority: <dirName>.tga > map.tga > any .tga file
         var mapTga = files.FirstOrDefault(f => f.Name.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase));
         if (mapTga != null)
         {
@@ -384,9 +479,29 @@ public sealed class MapDirectoryService(
         return anyTga?.FullName;
     }
 
-    private static bool IsValidAssetFile(string extension)
+    private static string GetMapName(MapFile map) =>
+        string.IsNullOrEmpty(map.DirectoryName) ? map.FileName : map.DirectoryName;
+
+    private static bool IsValidAssetFile(string extension) =>
+        MapManagerConstants.AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+
+    private OperationResult? EnsureMapFolderWritable(string folderPath)
     {
-        var validExtensions = new[] { ".tga", ".ini", ".str", ".txt" };
-        return validExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            WriteAccessHelper.EnsureDirectoryWritable(folderPath);
+            return null;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            logger.LogError(ex, "Failed to make map folder writable: {Folder}", folderPath);
+            return OperationResult.CreateFailure(
+                Localize(MapManagerConstants.FolderNotWritableMessageKey, MapManagerConstants.FolderNotWritableFallbackMessage, folderPath));
+        }
     }
+
+    private string Localize(string key, string fallback, params object?[] arguments) =>
+        localizationService != null && localizationService.TryGetString(key, out var localized, arguments)
+            ? localized
+            : string.Format(CultureInfo.CurrentCulture, fallback, arguments);
 }
