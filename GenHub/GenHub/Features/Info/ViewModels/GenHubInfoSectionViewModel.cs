@@ -872,6 +872,7 @@ public partial class GenHubInfoSectionViewModel(
     /// <summary>
     /// Moves navigation-only cards linked to demo browser items to the front of the sidebar,
     /// matching the visual order of the demo browser above the guide cards.
+    /// Overview cards are pinned above them separately with <see cref="PinCardToTop"/>.
     /// </summary>
     /// <param name="section">The section whose cards to reorder.</param>
     /// <param name="orderedTargets">The demo browser items in display order.</param>
@@ -893,6 +894,26 @@ public partial class GenHubInfoSectionViewModel(
             }
 
             targetIndex++;
+        }
+    }
+
+    /// <summary>
+    /// Pins a guide card to the top of the sidebar, above release or patch note entries.
+    /// </summary>
+    /// <param name="section">The section whose cards to reorder.</param>
+    /// <param name="cardId">The guide card ID to pin.</param>
+    private static void PinCardToTop(InfoSectionViewModel section, string cardId)
+    {
+        var card = section.Cards.FirstOrDefault(c => c.Id == cardId);
+        if (card == null)
+        {
+            return;
+        }
+
+        var currentIndex = section.Cards.IndexOf(card);
+        if (currentIndex > 0)
+        {
+            section.Cards.Move(currentIndex, 0);
         }
     }
 
@@ -1016,6 +1037,7 @@ public partial class GenHubInfoSectionViewModel(
         }
 
         MoveLinkedCardsToFront(section, Changelogs.Releases);
+        PinCardToTop(section, InfoConstants.CardChangelogsOverview);
 
         if (SelectedSection?.Id == InfoConstants.SectionChangelogs)
         {
@@ -1067,6 +1089,7 @@ public partial class GenHubInfoSectionViewModel(
         }
 
         MoveLinkedCardsToFront(section, GoChangelog.PatchNotes);
+        PinCardToTop(section, InfoConstants.CardGoChangelogOverview);
 
         if (SelectedSection?.Id == InfoConstants.SectionGoChangelog)
         {

@@ -262,6 +262,53 @@ public class GenHubInfoSectionViewModelTests
         section.Cards.Select(c => c.Id).Should().OnlyContain(id => id.StartsWith(InfoConstants.CardChangelogsReleasePrefix, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Verifies that the release history overview card stays pinned above release tags in the sidebar.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadChangelogs_PinsOverviewAboveReleaseTagsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var releases = new List<GitHubRelease>
+        {
+            new() { TagName = "v0.0.1", Name = "GenHub Alpha v0.0.1", PublishedAt = now.AddDays(-2), Body = "B1" },
+            new() { TagName = "v0.0.3", Name = "GenHub Alpha v0.0.3", PublishedAt = now, Body = "B3" },
+            new() { TagName = "v0.0.2", Name = "GenHub Alpha v0.0.2", PublishedAt = now.AddDays(-1), Body = "B2" },
+        };
+        _gitHubMock
+            .Setup(g => g.GetReleasesAsync("community-outpost", "GenHub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(releases);
+        _contentProviderMock
+            .Setup(p => p.GetAllSectionsAsync())
+            .ReturnsAsync(new List<InfoSection>
+            {
+                new()
+                {
+                    Id = InfoConstants.SectionChangelogs,
+                    Title = "Changelogs",
+                    Cards = new List<InfoCard>
+                    {
+                        new() { Id = InfoConstants.CardChangelogsOverview, Title = "Release History & Changelogs" },
+                        new() { Id = InfoConstants.CardChangelogsUpdates, Title = "Automatic Update Distribution" },
+                        new() { Id = InfoConstants.CardChangelogsCompatibility, Title = "Rollbacks & Workspace Stability" },
+                    },
+                },
+            });
+
+        var vm = CreateViewModel();
+        await vm.InitializeAsync();
+
+        var section = vm.Sections.Single(s => s.Id == InfoConstants.SectionChangelogs);
+        section.Cards.Select(c => c.Id).Should().Equal(
+            InfoConstants.CardChangelogsOverview,
+            InfoConstants.CardChangelogsReleasePrefix + "v0.0.3",
+            InfoConstants.CardChangelogsReleasePrefix + "v0.0.2",
+            InfoConstants.CardChangelogsReleasePrefix + "v0.0.1",
+            InfoConstants.CardChangelogsUpdates,
+            InfoConstants.CardChangelogsCompatibility);
+    }
+
     private GenHubInfoSectionViewModel CreateViewModel()
     {
         var changelogVm = new ChangelogsViewModel(_gitHubMock.Object, _changelogLoggerMock.Object);

@@ -3,8 +3,10 @@ using Avalonia.Threading;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Info;
+using GenHub.Core.Models.Notifications;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
 using GenHub.Features.Info.ViewModels;
@@ -106,6 +108,31 @@ public class ToolDemoViewModelTests
 
         viewModel.SelectedBundle = viewModel.Bundles[0];
         viewModel.EditBundleCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that background demo seeding does not surface a project-created toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task CreateDemoModBuilder_SeedingDoesNotNotify()
+    {
+        var notificationMock = new Mock<INotificationService>();
+        var viewModel = DemoViewModelFactory.CreateDemoModBuilder(notificationMock.Object);
+
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while ((!viewModel.IsProjectLoaded || viewModel.Bundles.Count == 0) && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        viewModel.IsProjectLoaded.Should().BeTrue();
+        notificationMock.Verify(n => n.Show(It.IsAny<NotificationMessage>()), Times.Never);
+        notificationMock.Verify(n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+        notificationMock.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+        notificationMock.Verify(n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+        notificationMock.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
     }
 
     /// <summary>
@@ -245,12 +272,12 @@ public class ToolDemoViewModelTests
     }
 
     /// <summary>
-    /// Verifies that release cards are listed first in the changelog sidebar, matching the demo browser at the top,
+    /// Verifies that the overview card stays pinned above release tags in the changelog sidebar,
     /// and that the main column only renders guide cards.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task ChangelogSection_ListsReleasesFirstAndHidesThemFromMainColumn()
+    public async Task ChangelogSection_PinsOverviewAboveReleasesAndHidesThemFromMainColumn()
     {
         var gitHubMock = new Mock<IGitHubApiClient>();
         gitHubMock
@@ -271,10 +298,11 @@ public class ToolDemoViewModelTests
 
         var section = viewModel.Sections.First(s => s.Id == InfoConstants.SectionChangelogs);
         section.Cards.Should().HaveCount(5);
-        section.Cards[0].TargetItem.Should().NotBeNull();
+        section.Cards[0].Id.Should().Be(InfoConstants.CardChangelogsOverview);
         section.Cards[1].TargetItem.Should().NotBeNull();
-        section.Cards[0].Title.Should().Contain("v0.0.2");
-        section.Cards[1].Title.Should().Contain("v0.0.1");
+        section.Cards[2].TargetItem.Should().NotBeNull();
+        section.Cards[1].Title.Should().Contain("v0.0.2");
+        section.Cards[2].Title.Should().Contain("v0.0.1");
 
         viewModel.SelectedSection = section;
         viewModel.MainColumnCards.Should().HaveCount(3);

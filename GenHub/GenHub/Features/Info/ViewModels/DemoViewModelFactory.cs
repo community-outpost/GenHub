@@ -401,7 +401,7 @@ public static class DemoViewModelFactory
                 BundleConfigs = ["configs/bundles.json"],
             };
             project.Configuration = await configLoader.LoadProjectConfigurationAsync(project.ProjectDir);
-            await vm.HandleNewProjectCreatedAsync("demo-mod-project/DemoMod.mbproj", project.Name, project);
+            await vm.HandleNewProjectCreatedAsync("demo-mod-project/DemoMod.mbproj", project.Name, project, announceCreation: false);
         }
     }
 

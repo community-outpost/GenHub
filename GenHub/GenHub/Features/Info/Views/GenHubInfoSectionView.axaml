@@ -693,9 +693,10 @@
                     </StackPanel>
 
                     <!-- Interactive Demo -->
+                    <!-- Wide container: the 10-column grid needs about 1180px, so render at natural width and scale down -->
                     <Border Classes="demo-container">
-                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                            <Grid Width="800" Height="550" HorizontalAlignment="Center">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="1200">
+                            <Grid Width="1200" Height="550" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
                                 </Border>
@@ -809,9 +810,10 @@
                     </StackPanel>
 
                     <!-- Interactive Demo (actual ModBuilder view) -->
+                    <!-- Wide container: the fixed 3-column layout (320 + * + 340, about 1036 min width) clips under 800px, so render at natural width and scale down -->
                     <Border Classes="demo-container">
-                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                            <Grid Width="800" Height="620" HorizontalAlignment="Center">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="1040">
+                            <Grid Width="1040" Height="620" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsMod:ModBuilderView DataContext="{Binding DemoModBuilder}"/>
                                 </Border>

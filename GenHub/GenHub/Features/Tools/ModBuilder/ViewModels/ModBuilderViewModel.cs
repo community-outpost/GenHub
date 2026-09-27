@@ -422,8 +422,9 @@ public partial class ModBuilderViewModel(
     /// <param name="projectPath">The project file path.</param>
     /// <param name="projectName">The project display name.</param>
     /// <param name="project">The project to load.</param>
+    /// <param name="announceCreation">Whether to show the project-created toast. Disabled for background demo seeding.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task HandleNewProjectCreatedAsync(string projectPath, string projectName, ModBuilderProject project)
+    public async Task HandleNewProjectCreatedAsync(string projectPath, string projectName, ModBuilderProject project, bool announceCreation = true)
     {
         CurrentProject = project;
         ProjectPath = projectPath;
@@ -446,9 +447,13 @@ public partial class ModBuilderViewModel(
         await projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
         await LoadRecentProjectsAsync().ConfigureAwait(false);
 
-        notificationService.ShowSuccess(
-            localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Title"),
-            localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Message", projectName));
+        if (announceCreation)
+        {
+            notificationService.ShowSuccess(
+                localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Title"),
+                localizationService.GetString("Tools.ModBuilder.Notification.ProjectCreated.Message", projectName));
+        }
+
         AppendBuildLog($"Created new project: {projectPath}");
         AppendBuildLog("Generated project structure with folders and config files");
         logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
