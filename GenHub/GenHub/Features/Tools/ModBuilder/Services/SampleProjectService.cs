@@ -722,18 +722,10 @@ public class SampleProjectService(
                     $"Downloading {assetLabel}..."));
             });
 
-            var downloadConfig = new DownloadConfiguration
-            {
-                Url = new Uri(url),
-                DestinationPath = tempPath,
-                PublisherId = providerName,
-                ContentName = assetLabel,
-                ContentId = contentId,
-                ContentType = "SampleProject",
-            };
-
             var downloadResult = await downloadService.DownloadFileAsync(
-                downloadConfig,
+                new Uri(url),
+                tempPath,
+                expectedHash: null,
                 progress: downloadProgress,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
