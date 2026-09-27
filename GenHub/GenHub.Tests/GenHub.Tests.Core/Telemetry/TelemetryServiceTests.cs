@@ -348,6 +348,7 @@ public class TelemetryServiceTests : IDisposable
         }
     }
 
+    /// <summary>
     /// Verifies that DO_NOT_TRACK environment variable disables telemetry collection across casing and conventions.
     /// </summary>
     /// <param name="optOutValue">The truthy opt-out string value.</param>
