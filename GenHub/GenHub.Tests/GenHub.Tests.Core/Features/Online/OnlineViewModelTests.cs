@@ -1042,7 +1042,7 @@ public class OnlineViewModelTests
             var calculator = new Mock<IGameCrcCalculatorService>();
             calculator.Setup(c => c.CalculateExeCrcAsync(exePath, gameDir, null, null, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0x22222222"));
-            calculator.Setup(c => c.CalculateIniCrcAsync(gameDir, GameType.ZeroHour, It.IsAny<IReadOnlyList<string>?>(), null, It.IsAny<CancellationToken>()))
+            calculator.Setup(c => c.CalculateIniCrcAsync(gameDir, GameType.ZeroHour, It.IsAny<IReadOnlyList<string>?>(), null, null, null, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateSuccess("0x11111111"));
             var advertised = new List<string>();
             var network = new Mock<IOnlineNetworkService>();
@@ -1086,7 +1086,7 @@ public class OnlineViewModelTests
             var calculator = new Mock<IGameCrcCalculatorService>(MockBehavior.Strict);
             calculator.Setup(c => c.CalculateExeCrcAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateFailure("no exe"));
-            calculator.Setup(c => c.CalculateIniCrcAsync(It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            calculator.Setup(c => c.CalculateIniCrcAsync(It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<IReadOnlyCollection<string>?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<string>.CreateFailure("no ini"));
             var advertised = new List<string>();
             var network = new Mock<IOnlineNetworkService>();

@@ -2574,7 +2574,7 @@ public sealed partial class OnlineViewModel : ViewModelBase,
             }
 
             var sideloads = await ResolveGameplaySideloadsAsync(profile, gameplayIds, cancellationToken);
-            var iniResult = await _crcCalculator.CalculateIniCrcAsync(gameRoot, profile.GameClient.GameType, sideloads, null, cancellationToken);
+            var iniResult = await _crcCalculator.CalculateIniCrcAsync(gameRoot, profile.GameClient.GameType, sideloads, null, null, null, cancellationToken);
             var iniCrc = iniResult.Success && !string.IsNullOrEmpty(iniResult.Data) ? iniResult.Data : string.Empty;
             return (iniCrc, exeCrc);
         }
