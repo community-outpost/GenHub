@@ -18,6 +18,12 @@ public static class ContentConstants
     public const int SingleResultQueryLimit = 1;
 
     /// <summary>
+    /// Result window for exact-ID lookups so an exact match is not truncated
+    /// away when fuzzy matches sort first.
+    /// </summary>
+    public const int ExactIdSearchQueryLimit = 10;
+
+    /// <summary>
     /// Expected number of parts when parsing GitHub repository strings (owner/repo).
     /// </summary>
     public const int GitHubRepoPartsCount = 2;

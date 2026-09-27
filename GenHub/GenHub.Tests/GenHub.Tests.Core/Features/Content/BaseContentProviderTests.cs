@@ -1,14 +1,18 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -272,6 +276,109 @@ public class BaseContentProviderTests
         {
             RollbackCalled = true;
             return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// Verifies that exact-ID search finds the exact match even when a fuzzy result sorts first.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchManifestByIdAsync_FindsExactMatchBehindFuzzyResultAsync()
+    {
+        // Arrange
+        var exactManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.csv.map.exact-content"),
+            Name = "Exact",
+            Version = "1.0.0",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.Generals,
+        };
+        var allResults = new List<ContentSearchResult>
+        {
+            new() { Id = "1.0.csv.map.exact-content-fuzzy", Name = "Fuzzy", Data = exactManifest },
+            new() { Id = "1.0.csv.map.exact-content", Name = "Exact", Data = exactManifest },
+        };
+
+        var discovererMock = new Mock<IContentDiscoverer>();
+        discovererMock.Setup(d => d.DiscoverAsync(
+                It.IsAny<ProviderDefinition?>(),
+                It.IsAny<ContentSearchQuery>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ProviderDefinition? provider, ContentSearchQuery query, CancellationToken cancellationToken) =>
+                OperationResult<ContentDiscoveryResult>.CreateSuccess(
+                    new ContentDiscoveryResult { Items = allResults.Take(query.Take).ToList() }));
+
+        var provider = new SearchTestProvider(
+            Mock.Of<IContentValidator>(),
+            Mock.Of<IInstallationInstructionsService>(),
+            Mock.Of<ILogger>(),
+            discovererMock.Object);
+
+        // Act
+        var result = await provider.SearchByIdAsync("1.0.csv.map.exact-content", requireExactIdMatch: true);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal("1.0.csv.map.exact-content", result.Data?.Id.Value);
+    }
+
+    /// <summary>
+    /// Test implementation exposing the search-by-ID helper.
+    /// </summary>
+    private class SearchTestProvider : BaseContentProvider
+    {
+        private readonly IContentDiscoverer _discoverer;
+
+        public SearchTestProvider(
+            IContentValidator validator,
+            IInstallationInstructionsService instructionsService,
+            ILogger logger,
+            IContentDiscoverer discoverer)
+            : base(validator, instructionsService, logger)
+        {
+            _discoverer = discoverer;
+        }
+
+        public override string SourceName => "Search Test Provider";
+
+        public override string Description => "Test provider for search testing";
+
+        protected override IContentDiscoverer Discoverer => _discoverer;
+
+        protected override IContentResolver Resolver => throw new NotSupportedException();
+
+        protected override IContentDeliverer Deliverer => throw new NotSupportedException();
+
+        public override Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
+            string contentId,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<OperationResult<ContentManifest>> SearchByIdAsync(
+            string contentId,
+            bool requireExactIdMatch,
+            CancellationToken cancellationToken = default)
+        {
+            return SearchManifestByIdAsync(contentId, requireExactIdMatch, cancellationToken);
+        }
+
+        protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+            ContentManifest manifest, string workingDirectory, IProgress<ContentAcquisitionProgress>? progress, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        protected override Task RollbackPreparedContentAsync(
+            ContentManifest originalManifest,
+            ContentManifest preparedManifest,
+            string workingDirectory,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
         }
     }
 }

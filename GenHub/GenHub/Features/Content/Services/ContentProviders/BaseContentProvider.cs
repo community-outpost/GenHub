@@ -532,7 +532,8 @@ public abstract class BaseContentProvider : IContentProvider
             return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
         }
 
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
+        var take = requireExactIdMatch ? ContentConstants.ExactIdSearchQueryLimit : ContentConstants.SingleResultQueryLimit;
+        var query = new ContentSearchQuery { SearchTerm = contentId, Take = take };
         var searchResult = await SearchAsync(query, cancellationToken).ConfigureAwait(false);
 
         if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())

@@ -104,6 +104,55 @@ public class SuperHackersDiscovererTests
     }
 
     /// <summary>
+    /// Verifies that game client cards carry the matched release asset size.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_SetsGameClientDownloadSizeFromMatchedAssetAsync()
+    {
+        // Arrange
+        const long expectedSize = 123456789;
+        var gameCodeRelease = new GitHubRelease
+        {
+            TagName = "weekly-2026-08-01",
+            Name = "Weekly Release 2026-08-01",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "generalszh-weekly.zip", Size = expectedSize },
+            ],
+        };
+        var gamePatch2Release = new GitHubRelease
+        {
+            TagName = "1.0.0",
+            Name = "Release 1.0.0",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gameCodeRelease);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gamePatch2Release);
+
+        // Act
+        var result = await _discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        // Assert
+        Assert.True(result.Success);
+        var card = result.Data?.Items.ToList()
+            .FirstOrDefault(i => i.ContentType == ContentType.GameClient && i.TargetGame == GameType.ZeroHour);
+        Assert.NotNull(card);
+        Assert.Equal(expectedSize, card.DownloadSize);
+    }
+
+    /// <summary>
     /// Verifies that DiscoverAsync filters properly by repository search term.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>

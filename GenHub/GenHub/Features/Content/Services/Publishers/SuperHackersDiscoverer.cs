@@ -217,10 +217,11 @@ public class SuperHackersDiscoverer(
                 },
             };
 
-            var assetName = SuperHackersAssetMatcher.FindAssetName(latestRelease.Assets, gType);
-            if (!string.IsNullOrEmpty(assetName))
+            var asset = SuperHackersAssetMatcher.FindAsset(latestRelease.Assets, gType);
+            if (asset != null)
             {
-                card.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
+                card.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = asset.Name;
+                card.DownloadSize = asset.Size;
             }
 
             card.SetData(latestRelease);
