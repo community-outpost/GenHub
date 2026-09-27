@@ -21,6 +21,36 @@ public static class ApiConstants
     /// </summary>
     public const string GitHubUrlRegexPattern = @"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?";
 
+    /// <summary>
+    /// Environment variable overriding the GitHub branch archive (codeload) base URL.
+    /// </summary>
+    public const string GitHubCodeloadBaseUrlEnvVar = "GENHUB_GITHUB_CODELOAD_URL";
+
+    /// <summary>
+    /// Default base URL for GitHub branch archive (codeload) downloads.
+    /// </summary>
+    public const string DefaultGitHubCodeloadBaseUrl = "https://codeload.github.com";
+
+    /// <summary>
+    /// Gets the active base URL for GitHub branch archive downloads, checking environment variable overrides first.
+    /// </summary>
+    public static string GitHubCodeloadBaseUrl =>
+        Environment.GetEnvironmentVariable(GitHubCodeloadBaseUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl.TrimEnd('/')
+            : DefaultGitHubCodeloadBaseUrl;
+
+    /// <summary>
+    /// Builds the download URL for a GitHub branch source archive.
+    /// </summary>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repo">The repository name.</param>
+    /// <param name="branch">The branch name.</param>
+    /// <returns>The branch archive download URL.</returns>
+    public static string GetGitHubBranchZipUrl(string owner, string repo, string branch)
+    {
+        return $"{GitHubCodeloadBaseUrl}/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/zip/{Uri.EscapeDataString(branch)}";
+    }
+
     // GitHub API
 
     /// <summary>

@@ -155,4 +155,26 @@ public interface IProjectConfigService
         ContentType contentType = ContentType.Mod,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new ModBuilder project pre-populated from a directory of loose files,
+    /// such as a downloaded repository snapshot. Existing project configs are adopted
+    /// when present; otherwise bundle items and packs are generated for the contents.
+    /// </summary>
+    /// <param name="projectPath">The full path where the .mbproj file will be created.</param>
+    /// <param name="projectName">The name of the project.</param>
+    /// <param name="sourceDirectory">The directory whose contents populate the project.</param>
+    /// <param name="gameInstallationId">Optional game installation ID.</param>
+    /// <param name="contentType">The content type (Mod, Patch, Addon, etc.). Defaults to Mod.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the created project.</returns>
+    Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromDirectoryAsync(
+        string projectPath,
+        string projectName,
+        string sourceDirectory,
+        string? gameInstallationId = null,
+        ContentType contentType = ContentType.Mod,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
 }

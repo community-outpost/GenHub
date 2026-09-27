@@ -100,6 +100,70 @@ public class ModBuilderViewModelTests : IDisposable
     }
 
     [Fact]
+    public void BuildGitHubImportDirectory_CombinesRootOwnerAndRepo()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ModBuilder_" + Guid.NewGuid().ToString("N"));
+
+        var actual = ModBuilderViewModel.BuildGitHubImportDirectory(root, "owner", "repo");
+
+        Assert.Equal(Path.Combine(root, ModBuilderConstants.GitHubImportsDirName, "owner_repo"), actual);
+    }
+
+    [Fact]
+    public void ResolveDefaultModBuilderDirectory_PrefersCustomInstallRoot()
+    {
+        var customRoot = Path.Combine(Path.GetTempPath(), "GenHubCustomRoot_" + Guid.NewGuid().ToString("N"));
+
+        var actual = ModBuilderViewModel.ResolveDefaultModBuilderDirectory(
+            customRoot,
+            _tempDir,
+            _tempDir,
+            _tempDir);
+
+        Assert.Equal(Path.Combine(customRoot, ModBuilderConstants.ModBuilderDirName), actual);
+    }
+
+    [Fact]
+    public void ResolveDefaultModBuilderDirectory_FallsBackToDocuments()
+    {
+        var actual = ModBuilderViewModel.ResolveDefaultModBuilderDirectory(
+            null,
+            _tempDir,
+            _tempDir,
+            _tempDir);
+
+        Assert.Equal(Path.Combine(_tempDir, ModBuilderConstants.ModBuilderDirName), actual);
+    }
+
+    [Fact]
+    public void ResolveDefaultModBuilderDirectory_FallsBackToLocalAppDataWhenDocumentsMissing()
+    {
+        var missingDocs = Path.Combine(_tempDir, "MissingDocs_" + Guid.NewGuid().ToString("N"));
+
+        var actual = ModBuilderViewModel.ResolveDefaultModBuilderDirectory(
+            null,
+            missingDocs,
+            _tempDir,
+            Path.GetTempPath());
+
+        Assert.Equal(Path.Combine(_tempDir, AppConstants.AppName, ModBuilderConstants.ModBuilderDirName), actual);
+    }
+
+    [Fact]
+    public void ResolveDefaultModBuilderDirectory_FallsBackToTempWhenNothingElseApplies()
+    {
+        var missingDocs = Path.Combine(_tempDir, "MissingDocs_" + Guid.NewGuid().ToString("N"));
+
+        var actual = ModBuilderViewModel.ResolveDefaultModBuilderDirectory(
+            "relative-root",
+            missingDocs,
+            string.Empty,
+            Path.GetTempPath());
+
+        Assert.Equal(Path.Combine(Path.GetTempPath(), AppConstants.AppName, ModBuilderConstants.ModBuilderDirName), actual);
+    }
+
+    [Fact]
     public void InitialState_IsUnloadedAndReady()
     {
         var viewModel = CreateViewModel();

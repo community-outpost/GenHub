@@ -432,6 +432,21 @@ public static class ModBuilderConstants
     public const string DefaultImportedGameFilesItemName = "ImportedGameFiles";
 
     /// <summary>
+    /// Fallback bundle pack name when no name can be derived from imported content.
+    /// </summary>
+    public const string ImportedModPackName = "ImportedMod";
+
+    /// <summary>
+    /// Directory name under the ModBuilder folder hosting projects imported from GitHub repositories.
+    /// </summary>
+    public const string GitHubImportsDirName = "GitHub";
+
+    /// <summary>
+    /// Default branch used when importing a GitHub repository without an explicit branch.
+    /// </summary>
+    public const string GitHubDefaultBranch = "main";
+
+    /// <summary>
     /// Buffer size for ModBuilder build-pipeline file I/O (64KB).
     /// Scoped to the build pipeline so shared consumers of <see cref="IoConstants.DefaultFileBufferSize"/>
     /// keep the application-wide default.

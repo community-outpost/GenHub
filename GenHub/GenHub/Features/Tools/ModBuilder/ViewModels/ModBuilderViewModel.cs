@@ -5,6 +5,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -48,6 +49,7 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <param name="logger">The logger.</param>
 /// <param name="dialogService">Optional dialog service for user confirmations.</param>
 /// <param name="sampleProjectService">Optional sample project service for asset acquisition.</param>
+/// <param name="gitHubImportService">Optional GitHub import service for repository projects.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S107:Methods should not have too many parameters", Justification = "ViewModel requires multiple injected services")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand and XAML bindings require instance members")]
 public partial class ModBuilderViewModel(
@@ -61,7 +63,8 @@ public partial class ModBuilderViewModel(
     ILoggerFactory loggerFactory,
     ILogger<ModBuilderViewModel> logger,
     IDialogService? dialogService = null,
-    ISampleProjectService? sampleProjectService = null) : ObservableObject, IDisposable
+    ISampleProjectService? sampleProjectService = null,
+    IGitHubProjectImportService? gitHubImportService = null) : ObservableObject, IDisposable
 {
     private const string UnknownErrorKey = "Common.UnknownError";
     private const string OperationInProgressTitleKey = "Tools.ModBuilder.Notification.OperationInProgress.Title";
@@ -1291,6 +1294,121 @@ public partial class ModBuilderViewModel(
     }
 
     /// <summary>
+    /// Imports a GitHub repository branch as a ModBuilder project.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task ImportGitHubProjectAsync()
+    {
+        logger.LogInformation("ImportGitHubProjectAsync requested");
+
+        if (gitHubImportService == null)
+        {
+            logger.LogWarning("Cannot import GitHub repository: import service unavailable");
+            notificationService.ShowError(localizationService.GetString("Common.Status.Error"), localizationService.GetString("Tools.ModBuilder.Notification.DialogUnavailable.Message"));
+            return;
+        }
+
+        if (!await TryClaimBuildSlotAsync().ConfigureAwait(false))
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString(OperationInProgressTitleKey),
+                localizationService.GetString("Tools.ModBuilder.Notification.Busy.ImportGitHub"));
+            return;
+        }
+
+        await CancelStaleImportTokenSourceAsync().ConfigureAwait(false);
+
+        var cts = new CancellationTokenSource();
+        _importCancellationTokenSource = cts;
+        try
+        {
+            var owner = GetOwnerWindow();
+            if (owner == null)
+            {
+                notificationService.ShowError(localizationService.GetString("Common.Status.Error"), localizationService.GetString("Tools.ModBuilder.Notification.DialogUnavailable.Message"));
+                return;
+            }
+
+            GitHubRepositoryReference? reference = null;
+            await InvokeOnUIThreadAsync(async () =>
+            {
+                var dialog = new Views.GitHubImportDialog(new GitHubImportViewModel(localizationService));
+                var confirmed = await dialog.ShowDialog<bool>(owner).ConfigureAwait(false);
+                if (confirmed)
+                {
+                    reference = dialog.ResultReference;
+                }
+            });
+
+            if (reference == null)
+            {
+                return;
+            }
+
+            var targetDir = BuildGitHubImportDirectory(GetUserModBuilderDirectory(), reference.Owner, reference.Repo);
+            if (IsPathInsideAppDirectory(targetDir))
+            {
+                notificationService.ShowError(
+                    localizationService.GetString(FolderRestrictedTitleKey),
+                    localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.Message", targetDir));
+                return;
+            }
+
+            var existingProject = Path.Combine(targetDir, $"{reference.Repo}{ModBuilderConstants.ProjectFileExtension}");
+            if (File.Exists(existingProject))
+            {
+                notificationService.ShowInfo(
+                    localizationService.GetString("Tools.ModBuilder.Notification.GitHubAlreadyImported.Title"),
+                    localizationService.GetString("Tools.ModBuilder.Notification.GitHubAlreadyImported.Message", reference.FullName));
+                await LoadProjectFromPathCoreAsync(existingProject).ConfigureAwait(false);
+                return;
+            }
+
+            AppendBuildLog($"Importing GitHub repository {reference.FullName}@{reference.Branch}...");
+            var progress = new Progress<string>(AppendBuildLog);
+            var importResult = await gitHubImportService.ImportRepositoryAsync(reference, targetDir, progress, cts.Token).ConfigureAwait(false);
+            if (!importResult.Success || string.IsNullOrEmpty(importResult.Data))
+            {
+                notificationService.ShowError(
+                    localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportFailed.Title"),
+                    localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportFailed.Message", importResult.FirstError ?? localizationService.GetString(UnknownErrorKey)));
+                AppendBuildLog($"GitHub import failed: {importResult.FirstError}");
+                return;
+            }
+
+            notificationService.ShowSuccess(
+                localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportSuccess.Title"),
+                localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportSuccess.Message", reference.FullName));
+            await LoadProjectFromPathCoreAsync(importResult.Data).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "ImportGitHubProjectAsync cancelled");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to import GitHub repository");
+            notificationService.ShowError(localizationService.GetString(ImportFailedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.GitHubImportFailed.Message", ex.Message));
+        }
+        finally
+        {
+            if (_importCancellationTokenSource == cts)
+            {
+                _importCancellationTokenSource = null;
+            }
+
+            cts.Dispose();
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
+        }
+    }
+
+    internal static string BuildGitHubImportDirectory(string modBuilderRoot, string owner, string repo)
+    {
+        return Path.Combine(modBuilderRoot, ModBuilderConstants.GitHubImportsDirName, $"{owner}_{repo}");
+    }
+
+    /// <summary>
     /// Loads or provisions a specific publisher sample project by its showcase item.
     /// </summary>
     [RelayCommand]
@@ -2043,19 +2161,49 @@ public partial class ModBuilderViewModel(
 
     private static string GetUserModBuilderDirectory()
     {
-        var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        if (!string.IsNullOrWhiteSpace(docs) && Directory.Exists(docs))
+        var customRoot = StorageMigrationService.IsCustomInstallRoot()
+            ? StorageMigrationService.GetSourceRootDirectory()
+            : null;
+        return ResolveDefaultModBuilderDirectory(
+            customRoot,
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Path.GetTempPath());
+    }
+
+    /// <summary>
+    /// Resolves the default ModBuilder projects directory. Portable/custom GenHub
+    /// installations keep projects next to their data root (which already hosts
+    /// settings, profiles, and CAS storage) so large sample checkouts do not fill
+    /// the system drive; otherwise the documents folder stays the default.
+    /// </summary>
+    /// <param name="customInstallRoot">The GenHub install/data root when running portable, otherwise null.</param>
+    /// <param name="documentsPath">The user documents folder path.</param>
+    /// <param name="localAppDataPath">The local application data folder path.</param>
+    /// <param name="tempPath">The temporary files folder path.</param>
+    /// <returns>The resolved default ModBuilder directory.</returns>
+    internal static string ResolveDefaultModBuilderDirectory(
+        string? customInstallRoot,
+        string documentsPath,
+        string localAppDataPath,
+        string tempPath)
+    {
+        if (!string.IsNullOrWhiteSpace(customInstallRoot) && Path.IsPathRooted(customInstallRoot))
         {
-            return Path.Combine(docs, ModBuilderConstants.ModBuilderDirName);
+            return Path.Combine(customInstallRoot, ModBuilderConstants.ModBuilderDirName);
         }
 
-        var localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrWhiteSpace(localApp))
+        if (!string.IsNullOrWhiteSpace(documentsPath) && Directory.Exists(documentsPath))
         {
-            return Path.Combine(localApp, AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
+            return Path.Combine(documentsPath, ModBuilderConstants.ModBuilderDirName);
         }
 
-        return Path.Combine(Path.GetTempPath(), AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
+        if (!string.IsNullOrWhiteSpace(localAppDataPath))
+        {
+            return Path.Combine(localAppDataPath, AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
+        }
+
+        return Path.Combine(tempPath, AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
     }
 
     private string EnsureDefaultModBuilderDirectory()

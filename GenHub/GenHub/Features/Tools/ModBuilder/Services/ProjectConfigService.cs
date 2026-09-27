@@ -49,6 +49,7 @@ public sealed class ProjectConfigService(
     private const string NoBigFilesErrorKey = "Tools.ModBuilder.Project.Error.NoBigFiles";
     private const string BigFileNotFoundErrorKey = "Tools.ModBuilder.Project.Error.BigFileNotFound";
     private const string NoBigFilesForProjectErrorKey = "Tools.ModBuilder.Project.Error.NoBigFilesForProject";
+    private const string NoSourceFilesErrorKey = "Tools.ModBuilder.Project.Error.NoSourceFiles";
 
     private readonly string _recentProjectsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath()
@@ -1042,11 +1043,321 @@ public sealed class ProjectConfigService(
         }
     }
 
+    /// <inheritdoc />
+    public async Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromDirectoryAsync(
+        string projectPath,
+        string projectName,
+        string sourceDirectory,
+        string? gameInstallationId = null,
+        ContentType contentType = ContentType.Mod,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var sw = Stopwatch.StartNew();
+        var projectCreated = false;
+        ProjectDirectories? createdDirectories = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure(GetProjectError(ProjectPathEmptyErrorKey, ModBuilderConstants.ProjectPathEmptyError), sw.Elapsed);
+            }
+
+            if (string.IsNullOrWhiteSpace(sourceDirectory) || !Directory.Exists(sourceDirectory))
+            {
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure(GetProjectError(ProjectDirectoryNotFoundErrorKey, "Source directory does not exist: {0}", sourceDirectory), sw.Elapsed);
+            }
+
+            // Resolve before project creation so a freshly created GameFilesEdited folder
+            // never shadows repository content when the source is the project directory.
+            var gameSourceRoot = ResolveGameSourceRoot(sourceDirectory);
+
+            // 1. Create base project with ImportedBig template
+            var createResult = await CreateProjectAsync(
+                projectPath,
+                projectName,
+                gameInstallationId,
+                template: ProjectTemplate.ImportedBig,
+                contentType: contentType,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (!createResult.Success || createResult.Data == null)
+            {
+                sw.Stop();
+                return createResult;
+            }
+
+            projectCreated = true;
+            createdDirectories = createResult.Data.Directories;
+            var project = createResult.Data;
+
+            var normalizedProjectPath = projectPath.EndsWith(ModBuilderConstants.ProjectFileExtension, StringComparison.OrdinalIgnoreCase)
+                ? projectPath
+                : Path.ChangeExtension(projectPath, ModBuilderConstants.ProjectFileExtension);
+            var projectDir = Path.GetDirectoryName(normalizedProjectPath)!;
+            var gameFilesDir = Path.Combine(projectDir, project.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir);
+            Directory.CreateDirectory(gameFilesDir);
+            var configsDir = ResolveConfigsDir(projectDir, project);
+            Directory.CreateDirectory(configsDir);
+
+            // 2. Adopt repository bundle configs when the source ships them
+            AdoptSourceBundleConfigs(sourceDirectory, configsDir);
+            var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+            var adoptedPackNames = await ReadExistingBundlePackNamesAsync(packsPath, cancellationToken).ConfigureAwait(false);
+
+            // 3. Copy loose content into GameFilesEdited, collecting BIG archives for the importer
+            var copyProgress = progress == null ? null : new Progress<double>(p => progress.Report(p * 0.5));
+            var copyResult = CopySourceContent(sourceDirectory, gameSourceRoot, gameFilesDir, copyProgress, cancellationToken);
+            var gameFilesPopulated = copyResult.CopiedFiles > 0 || Directory.GetFiles(gameFilesDir, "*", SearchOption.AllDirectories).Length > 0;
+            if (!gameFilesPopulated && copyResult.BigFiles.Count == 0)
+            {
+                await RollbackCreatedProjectAsync(normalizedProjectPath, createdDirectories).ConfigureAwait(false);
+                sw.Stop();
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure(GetProjectError(NoSourceFilesErrorKey, "Source directory contains no importable files: {0}", sourceDirectory), sw.Elapsed);
+            }
+
+            // 4. Configure bundle items and packs
+            if (copyResult.BigFiles.Count > 0)
+            {
+                var importProgress = progress == null ? null : new Progress<double>(p => progress.Report(0.5 + (p * 0.5)));
+                var importResult = await ImportBigFilesAsync(
+                    normalizedProjectPath,
+                    copyResult.BigFiles,
+                    createBundlePackForBig: true,
+                    progress: importProgress,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                if (!importResult.Success)
+                {
+                    await RollbackCreatedProjectAsync(normalizedProjectPath, createdDirectories).ConfigureAwait(false);
+                    sw.Stop();
+                    return ProjectOperationResult<ModBuilderProject>.CreateFailure(importResult.Errors, sw.Elapsed);
+                }
+            }
+            else if (adoptedPackNames.Count == 0)
+            {
+                var packConfigured = await ConfigureBundlePacksForDirectoryAsync(projectDir, projectName, project, cancellationToken).ConfigureAwait(false);
+                if (!packConfigured.Success)
+                {
+                    await RollbackCreatedProjectAsync(normalizedProjectPath, createdDirectories).ConfigureAwait(false);
+                    sw.Stop();
+                    return ProjectOperationResult<ModBuilderProject>.CreateFailure(packConfigured.Errors, sw.Elapsed);
+                }
+            }
+
+            progress?.Report(1.0);
+
+            // 5. Reload project to return fresh project state
+            var loadResult = await LoadProjectAsync(normalizedProjectPath, validateIntegrity: false, cancellationToken).ConfigureAwait(false);
+            sw.Stop();
+            return loadResult;
+        }
+        catch (OperationCanceledException)
+        {
+            if (projectCreated)
+            {
+                await RollbackCreatedProjectAsync(projectPath, createdDirectories).ConfigureAwait(false);
+            }
+
+            throw;
+        }
+        catch (Exception ex)
+        {
+            if (projectCreated)
+            {
+                await RollbackCreatedProjectAsync(projectPath, createdDirectories).ConfigureAwait(false);
+            }
+
+            logger.LogError(ex, "Failed to create project from directory: {ProjectPath}", projectPath);
+            sw.Stop();
+            return ProjectOperationResult<ModBuilderProject>.CreateFailure($"Failed to create project from directory: {ex.Message}", sw.Elapsed);
+        }
+    }
+
+    /// <summary>
+    /// Copies adopted bundle configs from a source snapshot into the project config directory.
+    /// </summary>
+    /// <param name="sourceDirectory">The snapshot root.</param>
+    /// <param name="configsDir">The project config directory.</param>
+    private void AdoptSourceBundleConfigs(string sourceDirectory, string configsDir)
+    {
+        string? sourceConfigsDir = null;
+        foreach (var dirName in new[] { ModBuilderConstants.LowercaseConfigDir, ModBuilderConstants.ConfigDir, ModBuilderConstants.LowercaseConfigsDir })
+        {
+            var candidate = Path.Combine(sourceDirectory, dirName);
+            if (Directory.Exists(candidate))
+            {
+                sourceConfigsDir = candidate;
+                break;
+            }
+        }
+
+        if (sourceConfigsDir == null)
+        {
+            return;
+        }
+
+        AdoptSourceConfigFile(sourceConfigsDir, configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        AdoptSourceConfigFile(sourceConfigsDir, configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+        AdoptSourceConfigFile(sourceConfigsDir, configsDir, ModBuilderConstants.BundleManifestsConfigFileName);
+    }
+
+    private bool AdoptSourceConfigFile(string sourceConfigsDir, string configsDir, string fileName)
+    {
+        var source = Path.Combine(sourceConfigsDir, fileName);
+        if (!File.Exists(source))
+        {
+            return false;
+        }
+
+        var destination = Path.Combine(configsDir, fileName);
+        if (source.Equals(destination, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        File.Copy(source, destination, overwrite: true);
+        logger.LogInformation("Adopted repository bundle config {FileName}", fileName);
+        return true;
+    }
+
+    private (int CopiedFiles, List<string> BigFiles) CopySourceContent(
+        string sourceDirectory,
+        string gameSourceRoot,
+        string gameFilesDir,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
+        var allFiles = Directory.GetFiles(gameSourceRoot, "*", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+        var bigFiles = new List<string>();
+        var copied = 0;
+
+        for (var i = 0; i < allFiles.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var sourceFile = allFiles[i];
+            var relativePath = Path.GetRelativePath(gameSourceRoot, sourceFile);
+
+            if (IsExcludedSourceFile(sourceDirectory, gameSourceRoot, relativePath, sourceFile))
+            {
+                continue;
+            }
+
+            if (sourceFile.EndsWith(ModBuilderConstants.BigExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                bigFiles.Add(sourceFile);
+                continue;
+            }
+
+            var targetFile = Path.Combine(gameFilesDir, relativePath);
+            if (sourceFile.Equals(targetFile, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(targetFile)!);
+            File.Copy(sourceFile, targetFile, overwrite: true);
+            copied++;
+            progress?.Report(allFiles.Count == 0 ? 1.0 : (double)(i + 1) / allFiles.Count);
+        }
+
+        return (copied, bigFiles);
+    }
+
+    private static string ResolveGameSourceRoot(string sourceDirectory)
+    {
+        var nested = Path.Combine(sourceDirectory, ModBuilderConstants.GameFilesEditedDir);
+        return Directory.Exists(nested) ? nested : sourceDirectory;
+    }
+
+    private static bool IsExcludedSourceFile(string sourceDirectory, string gameSourceRoot, string relativePath, string sourceFile)
+    {
+        if (sourceFile.EndsWith(ModBuilderConstants.ProjectFileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!gameSourceRoot.Equals(sourceDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var topSegment = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+        if (topSegment.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
+            || topSegment.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase)
+            || topSegment.Equals(ModBuilderConstants.LowercaseConfigsDir, StringComparison.OrdinalIgnoreCase)
+            || topSegment.Equals(FileTypes.GitDirectoryName, StringComparison.OrdinalIgnoreCase)
+            || topSegment.Equals(FileTypes.GitHubDirectoryName, StringComparison.OrdinalIgnoreCase)
+            || topSegment.Equals(FileTypes.VsCodeDirectoryName, StringComparison.OrdinalIgnoreCase)
+            || topSegment.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase)
+            || topSegment.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return IsExcludedTopLevelFile(relativePath);
+    }
+
+    private static bool IsExcludedTopLevelFile(string relativePath)
+    {
+        if (relativePath.Contains(Path.DirectorySeparatorChar) || relativePath.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return false;
+        }
+
+        if (relativePath.StartsWith(".", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(relativePath);
+        return stem.Equals("README", StringComparison.OrdinalIgnoreCase)
+            || stem.Equals("LICENSE", StringComparison.OrdinalIgnoreCase)
+            || stem.Equals("LICENCE", StringComparison.OrdinalIgnoreCase)
+            || stem.Equals("CHANGELOG", StringComparison.OrdinalIgnoreCase)
+            || stem.Equals("CONTRIBUTING", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<OperationResult<bool>> ConfigureBundlePacksForDirectoryAsync(
+        string projectDir,
+        string projectName,
+        ModBuilderProject project,
+        CancellationToken cancellationToken)
+    {
+        var configsDir = ResolveConfigsDir(projectDir, project);
+        Directory.CreateDirectory(configsDir);
+
+        var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+
+        var itemNames = await EnsureImportedBundleItemsAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
+        var packName = SanitizePackName(projectName);
+        var packSpecs = new List<(string PackName, string BigFileName)>
+        {
+            (packName, $"{ModBuilderConstants.SageOverridePrefix}{packName}{ModBuilderConstants.BigExtension}"),
+        };
+        return await EnsureImportedBundlePacksAsync(packsPath, packSpecs, itemNames, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sanitizes a project name into a safe bundle pack and archive base name.
+    /// </summary>
+    /// <param name="projectName">The project name.</param>
+    /// <returns>The sanitized pack name.</returns>
+    internal static string SanitizePackName(string projectName)
+    {
+        var sanitized = new string(projectName.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-' || c == '.').ToArray());
+        return string.IsNullOrWhiteSpace(sanitized) ? ModBuilderConstants.ImportedModPackName : sanitized;
+    }
+
     /// <summary>
     /// Best-effort rollback of a project shell created by <see cref="CreateProjectFromBigFilesAsync"/>
-    /// when the subsequent BIG import stage fails. Removes the project file and recent-projects
-    /// entry plus any created directories that are still empty, so retrying with the same path
-    /// is not blocked by "Project file already exists".
+    /// or <see cref="CreateProjectFromDirectoryAsync"/> when a subsequent population stage fails.
+    /// Removes the project file and recent-projects entry plus any created directories that are
+    /// still empty, so retrying with the same path is not blocked by "Project file already exists".
     /// </summary>
     /// <param name="projectPath">The project path passed to the creation call.</param>
     /// <param name="directories">The directory layout recorded when the project was created.</param>
@@ -1207,6 +1518,7 @@ public sealed class ProjectConfigService(
         var defaultItem = new
         {
             Name = ModBuilderConstants.DefaultImportedGameFilesItemName,
+            NamePrefix = ModBuilderConstants.SageOverridePrefix,
             SourceFiles = new[] { $"{gameFilesDirName}/**/*" },
             Description = "Files extracted from imported BIG archive(s)",
         };
@@ -1293,6 +1605,7 @@ public sealed class ProjectConfigService(
                 new
                 {
                     Name = ModBuilderConstants.DefaultImportedGameFilesItemName,
+                    NamePrefix = ModBuilderConstants.SageOverridePrefix,
                     SourceFiles = new[] { $"{gameFilesDirName}/**/*" },
                     Description = "Files extracted from imported BIG archive(s)",
                 },
@@ -1309,8 +1622,20 @@ public sealed class ProjectConfigService(
         List<string> itemNames,
         CancellationToken cancellationToken)
     {
+        var packSpecs = bigFilePaths
+            .Select(bigPath => (PackName: PackNameFromBigPath(bigPath), BigFileName: Path.GetFileName(bigPath)))
+            .ToList();
+        return await EnsureImportedBundlePacksAsync(packsPath, packSpecs, itemNames, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<bool>> EnsureImportedBundlePacksAsync(
+        string packsPath,
+        IReadOnlyList<(string PackName, string BigFileName)> packSpecs,
+        List<string> itemNames,
+        CancellationToken cancellationToken)
+    {
         var existingPacks = await ReadExistingBundlePackNamesAsync(packsPath, cancellationToken).ConfigureAwait(false);
-        var packsToAdd = BuildPacksToAdd(bigFilePaths, itemNames, existingPacks);
+        var packsToAdd = BuildPacksToAdd(packSpecs, itemNames, existingPacks);
 
         if (packsToAdd.Count == 0)
         {
@@ -1405,18 +1730,17 @@ public sealed class ProjectConfigService(
         }
     }
 
-    private static List<object> BuildPacksToAdd(List<string> bigFilePaths, List<string> itemNames, List<string> existingPacks)
+    private static string PackNameFromBigPath(string bigPath)
+    {
+        var packName = Path.GetFileNameWithoutExtension(bigPath).Replace(" ", string.Empty);
+        return string.IsNullOrWhiteSpace(packName) ? ModBuilderConstants.ImportedModPackName : packName;
+    }
+
+    private static List<object> BuildPacksToAdd(IReadOnlyList<(string PackName, string BigFileName)> packSpecs, List<string> itemNames, List<string> existingPacks)
     {
         var packsToAdd = new List<object>();
-        foreach (var bigPath in bigFilePaths)
+        foreach (var (packName, bigFileName) in packSpecs)
         {
-            var bigFileName = Path.GetFileName(bigPath);
-            var packName = Path.GetFileNameWithoutExtension(bigPath).Replace(" ", string.Empty);
-            if (string.IsNullOrWhiteSpace(packName))
-            {
-                packName = "ImportedMod";
-            }
-
             if (!existingPacks.Contains(packName, StringComparer.OrdinalIgnoreCase))
             {
                 packsToAdd.Add(new

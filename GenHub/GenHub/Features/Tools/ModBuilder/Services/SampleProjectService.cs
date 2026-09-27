@@ -8,10 +8,8 @@ using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ModBuilder;
-using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using Microsoft.Extensions.Logging;
-using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -476,47 +474,12 @@ public class SampleProjectService(
         return target;
     }
 
-    private static async Task ExtractArchiveFileAsync(
+    private static Task ExtractArchiveFileAsync(
         string archivePath,
         string destinationDirectory,
         CancellationToken cancellationToken)
     {
-        var fileInfo = new FileInfo(archivePath);
-        using var archive = ArchiveFactory.OpenArchive(fileInfo);
-        foreach (var entry in archive.Entries)
-        {
-            if (entry.IsDirectory)
-            {
-                continue;
-            }
-
-            if (!ArchiveEntryName.IsExtractable(entry.Key))
-            {
-                continue;
-            }
-
-            var targetPath = Path.GetFullPath(Path.Combine(destinationDirectory, entry.Key));
-            if (!PathHelper.IsPathWithinDirectory(destinationDirectory, targetPath))
-            {
-                continue;
-            }
-
-            var entryDir = Path.GetDirectoryName(targetPath);
-            if (!string.IsNullOrEmpty(entryDir))
-            {
-                Directory.CreateDirectory(entryDir);
-            }
-
-            await using var entryStream = entry.OpenEntryStream();
-            await BoundedArchiveExtractor.CopyEntryToFileAsync(
-                entryStream,
-                targetPath,
-                entry.Key,
-                1024L * 1024 * 1024,
-                2048L * 1024 * 1024,
-                overwrite: true,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
+        return ModBuilderArchiveExtractor.ExtractArchiveFileAsync(archivePath, destinationDirectory, cancellationToken);
     }
 
     private void CleanupNewlyCreatedFiles(string gameFilesDir, HashSet<string> preExistingFiles)

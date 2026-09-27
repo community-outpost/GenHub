@@ -107,6 +107,16 @@ public static class FileTypes
     public const string GitDirectoryName = ".git";
 
     /// <summary>
+    /// Directory name for GitHub repository workflows and templates.
+    /// </summary>
+    public const string GitHubDirectoryName = ".github";
+
+    /// <summary>
+    /// Directory name for Visual Studio Code workspace settings.
+    /// </summary>
+    public const string VsCodeDirectoryName = ".vscode";
+
+    /// <summary>
     /// File extension for user data manifest files.
     /// </summary>
     public const string UserDataManifestExtension = ".userdata.json";

@@ -39,6 +39,7 @@ public static class ModBuilderModule
         services.AddSingleton<IMd5HashProvider, Md5HashProvider>();
         services.AddSingleton<IProjectStructureGenerator, ProjectStructureGenerator>();
         services.AddSingleton<ISampleProjectService, SampleProjectService>();
+        services.AddSingleton<IGitHubProjectImportService, GitHubProjectImportService>();
 
         // ViewModels
         services.AddTransient<ModBuilderViewModel>();

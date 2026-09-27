@@ -7491,6 +7491,45 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsAction" xml:space="preserve">
     <value>Открыть примеры →</value>
   </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportTitle" xml:space="preserve">
+    <value>Импорт из GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportSubtitle" xml:space="preserve">
+    <value>Работа из исходников</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportDesc" xml:space="preserve">
+    <value>Скачайте любую ветку репозитория и откройте её как проект ModBuilder, как примеры проектов.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportAction" xml:space="preserve">
+    <value>Импортировать репозиторий →</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Title" xml:space="preserve">
+    <value>Импорт из GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Header" xml:space="preserve">
+    <value>Импорт репозитория GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Subtitle" xml:space="preserve">
+    <value>Введите репозиторий и ветку. Исходники ветки будут скачаны и открыты как проект ModBuilder.</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.LabelRepository" xml:space="preserve">
+    <value>Репозиторий</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.LabelBranch" xml:space="preserve">
+    <value>Ветка</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.WatermarkRepository" xml:space="preserve">
+    <value>owner/repo или https://github.com/owner/repo</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.WatermarkBranch" xml:space="preserve">
+    <value>main</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.ButtonImport" xml:space="preserve">
+    <value>Импорт</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Validation.InvalidReference" xml:space="preserve">
+    <value>Введите корректный репозиторий в формате owner/repo или URL GitHub.</value>
+  </data>
   <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle" xml:space="preserve">
     <value>Популярные шаблоны сообщества</value>
   </data>
@@ -9501,6 +9540,9 @@ GenHub связывает запуск модификаций со Steam, отк
   </data>
   <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
     <value>Не указаны BIG-файлы для создания проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoSourceFiles" xml:space="preserve">
+    <value>Исходная папка не содержит файлов для импорта: {0}</value>
   </data>
   <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
     <value>Путь к проекту не может быть пустым</value>
@@ -11773,6 +11815,27 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.ModBuilder.Notification.Busy.OpenSample" xml:space="preserve">
     <value>Невозможно открыть пример проекта, пока выполняется другая операция.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.ImportGitHub" xml:space="preserve">
+    <value>Невозможно импортировать репозиторий GitHub, пока выполняется другая операция.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportSuccess.Title" xml:space="preserve">
+    <value>Репозиторий импортирован</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportSuccess.Message" xml:space="preserve">
+    <value>«{0}» успешно импортирован.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportFailed.Title" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportFailed.Message" xml:space="preserve">
+    <value>Ошибка импорта из GitHub: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubAlreadyImported.Title" xml:space="preserve">
+    <value>Уже импортирован</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubAlreadyImported.Message" xml:space="preserve">
+    <value>«{0}» уже импортирован. Открываю существующий проект.</value>
   </data>
   <data name="Tools.ModBuilder.Notification.Busy.StartBuild" xml:space="preserve">
     <value>Невозможно начать сборку, пока выполняется другая операция.</value>

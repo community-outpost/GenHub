@@ -7549,6 +7549,45 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsAction" xml:space="preserve">
     <value>Open Samples →</value>
   </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportTitle" xml:space="preserve">
+    <value>Import from GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportSubtitle" xml:space="preserve">
+    <value>Work from source</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportDesc" xml:space="preserve">
+    <value>Download any repository branch and open it as a ModBuilder project, just like the sample projects.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardGitHubImportAction" xml:space="preserve">
+    <value>Import Repository →</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Title" xml:space="preserve">
+    <value>Import from GitHub</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Header" xml:space="preserve">
+    <value>Import GitHub Repository</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Subtitle" xml:space="preserve">
+    <value>Enter a repository and branch. The branch source is downloaded and opened as a ModBuilder project.</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.LabelRepository" xml:space="preserve">
+    <value>Repository</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.WatermarkRepository" xml:space="preserve">
+    <value>owner/repo or https://github.com/owner/repo</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.LabelBranch" xml:space="preserve">
+    <value>Branch</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.WatermarkBranch" xml:space="preserve">
+    <value>main</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.ButtonImport" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Tools.ModBuilder.GitHubImport.Validation.InvalidReference" xml:space="preserve">
+    <value>Enter a valid repository as owner/repo or a GitHub URL.</value>
+  </data>
   <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle" xml:space="preserve">
     <value>Featured Community Templates</value>
   </data>
@@ -9574,6 +9613,9 @@ Install location:
   </data>
   <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
     <value>No BIG files specified to create project from</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoSourceFiles" xml:space="preserve">
+    <value>Source directory contains no importable files: {0}</value>
   </data>
   <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
     <value>Project path cannot be empty</value>
@@ -11831,6 +11873,27 @@ Check that:
   </data>
   <data name="Tools.ModBuilder.Notification.Busy.OpenSample" xml:space="preserve">
     <value>Cannot open sample project while another operation is running.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.ImportGitHub" xml:space="preserve">
+    <value>Cannot import GitHub repository while another operation is running.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportSuccess.Title" xml:space="preserve">
+    <value>Repository Imported</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportSuccess.Message" xml:space="preserve">
+    <value>Successfully imported '{0}'.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportFailed.Title" xml:space="preserve">
+    <value>Import Failed</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubImportFailed.Message" xml:space="preserve">
+    <value>GitHub import failed: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubAlreadyImported.Title" xml:space="preserve">
+    <value>Already Imported</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.GitHubAlreadyImported.Message" xml:space="preserve">
+    <value>'{0}' is already imported. Opening the existing project.</value>
   </data>
   <data name="Tools.ModBuilder.Notification.Busy.StartBuild" xml:space="preserve">
     <value>Cannot start build while another operation is running.</value>
