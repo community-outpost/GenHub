@@ -32,6 +32,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// Scoped to the currently active catalog.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel properties and methods mutate CommunityToolkit generated instance properties.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentLibraryViewModel requires catalog context, parent coordination, and optional cross-cutting services for library management.")]
 public partial class ContentLibraryViewModel(
     PublisherStudioProject project,
     NamedCatalog activeCatalog,
@@ -751,7 +752,9 @@ public partial class ContentLibraryViewModel(
             GetLocalizedString("Tools.PublisherStudio.Library.BatchImportPickerTitle", "Select Files or Archives to Batch Import"));
         if (files is { Count: > 0 })
         {
-            await BatchImportContentItemsAsync(files);
+            // Batch import is independent of the upstream preview lifecycle, so it explicitly
+            // opts out of cancellation instead of reusing the preview token.
+            await BatchImportContentItemsAsync(files, CancellationToken.None);
         }
     }
 
@@ -1438,6 +1441,7 @@ public partial class ContentLibraryViewModel(
         }
         catch (OperationCanceledException)
         {
+            logger.LogDebug("Upstream release preview for '{ContentId}' was canceled", item.Id);
         }
         catch (Exception ex)
         {

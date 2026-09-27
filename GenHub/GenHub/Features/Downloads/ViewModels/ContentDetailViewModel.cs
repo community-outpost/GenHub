@@ -5302,15 +5302,11 @@ public partial class ContentDetailViewModel(
                 versionText = target.Version;
             }
 
-            var createRequest = new CreateProfileRequest
-            {
-                Name = $"{profile.Name} ({versionText})",
-                Description = profile.Description,
-                GameInstallationId = profile.GameInstallationId,
-                WorkspaceStrategy = profile.WorkspaceStrategy,
-                EnabledContentIds = updatedContentIds,
-                GameClient = updatedClient,
-            };
+            var createRequest = GameSettingsMapper.CreateCloneRequest(
+                profile,
+                $"{profile.Name} ({versionText})",
+                updatedClient,
+                updatedContentIds);
 
             var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
             if (!createResult.Success)

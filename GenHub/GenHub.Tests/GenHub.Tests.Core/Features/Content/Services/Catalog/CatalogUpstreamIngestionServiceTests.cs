@@ -345,6 +345,64 @@ public sealed class CatalogUpstreamIngestionServiceTests
         Assert.Equal(fallbackUrl, artifact.DownloadUrl);
     }
 
+    /// <summary>
+    /// Tests that a blank selected download URL falls back to the source URL instead of skipping the release.
+    /// </summary>
+    /// <param name="selectedUrl">The blank selected download URL to test.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task IngestCatalogAsync_BlankSelectedDownloadUrl_FallsBackToSourceUrlAsync(string? selectedUrl)
+    {
+        const string sourceUrl = "https://generals-online.test/client";
+        var discovered = new ContentSearchResult
+        {
+            Id = "go-client",
+            Name = "Generals Online Client",
+            Version = "1.0.0",
+            SelectedDownloadUrl = selectedUrl,
+            SourceUrl = sourceUrl,
+            Data = new GeneralsOnlineRelease
+            {
+                Version = "010100_QFE1",
+                PortableUrl = "   ",
+            },
+        };
+
+        var discoverer = new StubGeneralsOnlineDiscoverer(
+            new ContentDiscoveryResult { Items = [discovered] });
+        var service = new CatalogUpstreamIngestionService(
+            _gitHubClientMock.Object,
+            NullLogger<CatalogUpstreamIngestionService>.Instance,
+            generalsOnlineDiscoverer: discoverer);
+
+        var item = new CatalogContentItem
+        {
+            Id = "go-client",
+            Name = "Generals Online Client",
+            ContentType = ContentType.GameClient,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = CatalogConstants.UpstreamProviders.GeneralsOnline,
+            },
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Content = [item],
+        };
+
+        await service.IngestCatalogAsync(catalog, CancellationToken.None);
+
+        var artifact = Assert.Single(Assert.Single(item.Releases).Artifacts);
+        Assert.Equal(sourceUrl, artifact.DownloadUrl);
+    }
+
     private sealed class StubGeneralsOnlineDiscoverer(ContentDiscoveryResult result) : GeneralsOnlineDiscoverer(
         NullLogger<GeneralsOnlineDiscoverer>.Instance,
         Mock.Of<IProviderDefinitionLoader>(),

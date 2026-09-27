@@ -1313,20 +1313,37 @@ public partial class PublishShareViewModel(
     /// Resolves a collision-free remote filename for a catalog. Catalogs imported from
     /// identically named files would otherwise overwrite each other on the host and end
     /// up sharing one download URL, which makes subscribers show the wrong items.
+    /// Both the original filename and the generated fallback are checked against the
+    /// names owned by other catalogs, incrementing until the name is unused.
     /// </summary>
     private static string ResolveUniqueCatalogFileName(PublisherStudioProject project, NamedCatalog activeCatalog)
     {
-        var fileName = activeCatalog.FileName;
-        if (string.IsNullOrWhiteSpace(fileName))
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var other in project.Catalogs)
         {
-            return $"catalog-{activeCatalog.Id}.json";
+            if (string.Equals(other.Id, activeCatalog.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            usedNames.Add(!string.IsNullOrWhiteSpace(other.FileName) ? other.FileName : $"catalog-{other.Id}.json");
         }
 
-        var collides = project.Catalogs.Any(c =>
-            !string.Equals(c.Id, activeCatalog.Id, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(c.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+        var fileName = activeCatalog.FileName;
+        if (!string.IsNullOrWhiteSpace(fileName) && !usedNames.Contains(fileName))
+        {
+            return fileName;
+        }
 
-        return collides ? $"catalog-{activeCatalog.Id}.json" : fileName;
+        var candidate = $"catalog-{activeCatalog.Id}.json";
+        var suffix = 2;
+        while (usedNames.Contains(candidate))
+        {
+            candidate = $"catalog-{activeCatalog.Id}-{suffix}.json";
+            suffix++;
+        }
+
+        return candidate;
     }
 
     private static (string Name, string Url, long Size)? FindInArtifacts(IEnumerable<ReleaseArtifact>? artifacts, string sha256)
@@ -3519,7 +3536,17 @@ public partial class PublishShareViewModel(
 
         if (!string.IsNullOrWhiteSpace(previousFileId))
         {
-            await DeleteOrphanedRemoteFileAsync(previousFileId, catalogFileId, cancellationToken);
+            // A file ID still referenced by another catalog must be kept: deleting it would
+            // break that catalog's subscribers. This happens when a previous filename
+            // collision merged two catalogs into one remote file.
+            if (!IsFileIdSharedWithOtherCatalog(catalogId, previousFileId))
+            {
+                await DeleteOrphanedRemoteFileAsync(previousFileId, catalogFileId, cancellationToken);
+            }
+            else
+            {
+                logger.LogInformation("Skipping deletion of shared remote file {FileId} still referenced by another catalog", previousFileId);
+            }
         }
 
         RefreshHostedAssets();

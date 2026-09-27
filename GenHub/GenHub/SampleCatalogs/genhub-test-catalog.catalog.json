@@ -164,6 +164,13 @@
                             "versionConstraint": "1.04",
                             "contentType": "GameInstallation",
                             "isOptional": false
+                        },
+                        {
+                            "publisherId": "generalsonline",
+                            "contentId": "quickmatch-maps",
+                            "versionConstraint": ">=081326",
+                            "contentType": "MapPack",
+                            "isOptional": false
                         }
                     ]
                 }
@@ -448,8 +455,8 @@
                         {
                             "filename": "ControlBarProLemonEditionZH_v1.3_1280x720.zip",
                             "downloadUrl": "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip",
-                            "size": 4993550,
-                            "sha256": "d79d8be0448461adeba69f4def5bf9a759bfea1266d7c0f5af6bd5287abeb221",
+                            "size": 1224790,
+                            "sha256": "733ee8d81cf79f23b7b3f536970b9feb01785f64809aa84733f8fe08d6ef197c",
                             "contentType": "application/zip",
                             "variantAxis": "resolution",
                             "variant": "720p",
@@ -781,7 +788,7 @@
                             "contentId": "community-patch-nonretail",
                             "versionConstraint": "latest",
                             "contentType": "GameClient",
-                            "isOptional": false
+                            "isOptional": true
                         },
                         {
                             "publisherId": "genhub-test-publishers",

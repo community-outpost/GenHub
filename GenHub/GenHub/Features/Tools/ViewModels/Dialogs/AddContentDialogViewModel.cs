@@ -2161,7 +2161,9 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        if (!IsUpstreamSource && _existingItem.UpstreamSync == null)
+        // When the edited item is not upstream-tracked, keep its publisher identity,
+        // including the case where an upstream item is converted back to static releases.
+        if (!IsUpstreamSource)
         {
             contentItem.PublisherType = _existingItem.PublisherType;
         }

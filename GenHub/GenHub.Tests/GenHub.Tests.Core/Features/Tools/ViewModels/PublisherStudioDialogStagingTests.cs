@@ -239,6 +239,39 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     }
 
     /// <summary>
+    /// Converting an upstream item back to static releases must preserve its
+    /// publisher identity instead of dropping it.
+    /// </summary>
+    [Fact]
+    public void EditUpstreamItem_DisablingUpstream_PreservesPublisherType()
+    {
+        var existingItem = new CatalogContentItem
+        {
+            Id = "superhackers-client",
+            Name = "SuperHackers Client",
+            Description = "Initial description that meets length requirements",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            PublisherType = "thesuperhackers",
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = "TheSuperHackers",
+                Repository = "TheSuperHackers/GeneralsGameCode",
+            },
+        };
+
+        CatalogContentItem? savedItem = null;
+        var vm = new AddContentDialogViewModel(existingItem, item => savedItem = item);
+        Assert.True(vm.IsUpstreamSource);
+
+        vm.IsUpstreamSource = false;
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(savedItem);
+        Assert.Equal("thesuperhackers", savedItem.PublisherType);
+        Assert.Null(savedItem.UpstreamSync);
+    }
+
+    /// <summary>
     /// When catalog sibling has releases without variant annotations but defines UpstreamSync.AssetRules,
     /// RefreshBundleComponentOptions must inspect AssetRules and populate available variants.
     /// </summary>

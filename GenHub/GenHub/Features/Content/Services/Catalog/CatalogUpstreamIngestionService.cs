@@ -499,7 +499,9 @@ public class CatalogUpstreamIngestionService(
 
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
-            downloadUrl = matched.SelectedDownloadUrl ?? matched.SourceUrl;
+            downloadUrl = !string.IsNullOrWhiteSpace(matched.SelectedDownloadUrl)
+                ? matched.SelectedDownloadUrl
+                : matched.SourceUrl;
         }
 
         if (string.IsNullOrWhiteSpace(downloadUrl))

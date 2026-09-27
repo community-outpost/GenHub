@@ -26,7 +26,7 @@
           "version": "1.0.0",
           "releaseDate": "2023-12-04T00:00:00Z",
           "isPrerelease": false,
-          "isLatest": false,
+          "isLatest": true,
           "isFeatured": false,
           "changelog": "Release of GLA Campaign by TKlyo",
           "entryPoint": null,
