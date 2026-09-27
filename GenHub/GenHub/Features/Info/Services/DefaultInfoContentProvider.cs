@@ -284,7 +284,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              The Profile Settings tab holds the fields that identify one profile on the Game Profiles list: a display name and a longer description shown on the profile card.
 
              **Game Installation:**
-             The installation picker selects which detected game the profile launches (Steam, EA App, or disc). Switching installations disables enabled content that does not match the new game type, so the profile can never launch with an incompatible mix.
+             The GameInstallation entries in the content tab's lists select which detected game the profile launches (Steam, EA App, or disc). Switching installations disables enabled content that does not match the new game type, so the profile can never launch with an incompatible mix.
              """),
             (InfoConstants.CardProfileSettingsAppearance,
              "Icons, Covers & Theme Color",
@@ -303,7 +303,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              InfoCardType.HowTo,
              """
              **Workspace Strategy:**
-             The strategy picker chooses how the profile workspace links game files. The picker locks after the profile's first launch, since changing it later would orphan the existing workspace.
+             The strategy picker chooses how the profile workspace links game files. The picker is locked while the profile's game is running. Strategy changes apply to the next workspace build.
 
              **Command-Line Arguments:**
              Extra arguments are passed straight to the game executable on launch, for example `-win` for windowed mode or `-quickstart` to skip intro videos.
@@ -317,7 +317,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              Save writes every tab (profile settings, content, and game settings) to the profile. Cancel closes the editor and discards unsaved changes.
 
              **Window Memory:**
-             The editor remembers its window size, maximized state, and sidebar widths across restarts, per settings tab.
+             The editor remembers its window size and maximized state, plus each settings tab's sidebar width, across restarts.
              """),
         ];
 
@@ -635,7 +635,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              InfoCardType.Example,
              """
              Right-click a profile card, choose Create Desktop Shortcut, and a launcher icon for that profile lands on your desktop.
-             * Double-clicking launches the profile headless, without keeping the main window open.
+             * Double-clicking launches the profile: GenHub opens, prepares the workspace, and starts the game.
              * If GenHub is already running, the launch request is forwarded to it instead of starting a second copy.
              """),
             (InfoConstants.CardShortcutsHeadless,
@@ -643,10 +643,10 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              "Launch profiles directly from your desktop.",
              InfoCardType.Concept,
              """
-             A shortcut starts the game straight from your desktop, without opening the main window. GenHub does its part and gets out of the way:
+             A shortcut starts the game straight from your desktop. GenHub opens, prepares the profile workspace, and hands off to the game:
 
              1. Double-click the shortcut to start the game.
-             2. GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
+             2. GenHub prepares the profile workspace, then hands off to the game.
              3. If GenHub is already running, the shortcut forwards the profile to it instead of starting a second copy.
              """),
             (InfoConstants.CardShortcutsCreation,
@@ -656,7 +656,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              """
              1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
              2. Select **Create Desktop Shortcut**.
-             3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows, a `.desktop` entry on Linux, or a `.command` script on macOS.
+             3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows or a `.desktop` entry on Linux. Profile shortcuts are not available on macOS yet.
              4. Double-click it to launch that profile.
              """),
             (InfoConstants.CardShortcutsIcons,
@@ -664,7 +664,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
              "Which icon lands on your desktop.",
              InfoCardType.Feature,
              """
-             The shortcut reuses your profile's own icon file when one is set, and falls back to the GenHub launcher icon otherwise.
+             The shortcut reuses your profile's own icon file when one is set, and falls back to the GenHub launcher icon on Windows. On Linux a shortcut without a profile icon simply has no custom icon.
              Pick or change the icon any time from the Icon row in Profile Settings. Shortcuts you create afterwards pick it up automatically.
              """),
         ];

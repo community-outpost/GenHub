@@ -5662,7 +5662,7 @@ A profile is an independent configuration for your game. Instead of reinstalling
 The Profile Settings tab holds the fields that identify one profile on the Game Profiles list: a display name and a longer description shown on the profile card.
 
 **Game Installation:**
-The installation picker selects which detected game the profile launches (Steam, EA App, or disc). Switching installations disables enabled content that does not match the new game type, so the profile can never launch with an incompatible mix.</value>
+The GameInstallation entries in the content tab's lists select which detected game the profile launches (Steam, EA App, or disc). Switching installations disables enabled content that does not match the new game type, so the profile can never launch with an incompatible mix.</value>
   </data>
   <data name="Info.Card.game-profile-settings.profile-appearance.Title" xml:space="preserve">
     <value>Icons, Covers &amp; Theme Color</value>
@@ -5685,7 +5685,7 @@ The swatch grid sets the profile accent color, applied to the editor header and 
   </data>
   <data name="Info.Card.game-profile-settings.profile-launch.DetailedContent" xml:space="preserve">
     <value>**Workspace Strategy:**
-The strategy picker chooses how the profile workspace links game files. The picker locks after the profile's first launch, since changing it later would orphan the existing workspace.
+The strategy picker chooses how the profile workspace links game files. The picker is locked while the profile's game is running. Strategy changes apply to the next workspace build.
 
 **Command-Line Arguments:**
 Extra arguments are passed straight to the game executable on launch, for example `-win` for windowed mode or `-quickstart` to skip intro videos.</value>
@@ -5704,7 +5704,7 @@ Extra arguments are passed straight to the game executable on launch, for exampl
 Save writes every tab (profile settings, content, and game settings) to the profile. Cancel closes the editor and discards unsaved changes.
 
 **Window Memory:**
-The editor remembers its window size, maximized state, and sidebar widths across restarts, per settings tab.</value>
+The editor remembers its window size and maximized state, plus each settings tab's sidebar width, across restarts.</value>
   </data>
   <data name="Info.Card.game-settings.generals-online.Content" xml:space="preserve">
     <value>Online multiplayer lobby and matchmaking features.</value>
@@ -5922,7 +5922,7 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
     <value>1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
 2. Select **Create Desktop Shortcut**.
-3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows, a `.desktop` entry on Linux, or a `.command` script on macOS.
+3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows or a `.desktop` entry on Linux. Profile shortcuts are not available on macOS yet.
 4. Double-click it to launch that profile.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.Title" xml:space="preserve">
@@ -5936,17 +5936,17 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
   </data>
   <data name="Info.Card.shortcuts.demo-shortcuts.DetailedContent" xml:space="preserve">
     <value>Right-click a profile card, choose Create Desktop Shortcut, and a launcher icon for that profile lands on your desktop.
-* Double-clicking launches the profile headless, without keeping the main window open.
+* Double-clicking launches the profile: GenHub opens, prepares the workspace, and starts the game.
 * If GenHub is already running, the launch request is forwarded to it instead of starting a second copy.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Content" xml:space="preserve">
     <value>Launch profiles directly from your desktop.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.DetailedContent" xml:space="preserve">
-    <value>A shortcut starts the game straight from your desktop, without opening the main window. GenHub does its part and gets out of the way:
+    <value>A shortcut starts the game straight from your desktop. GenHub opens, prepares the profile workspace, and hands off to the game:
 
 1. Double-click the shortcut to start the game.
-2. GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
+2. GenHub prepares the profile workspace, then hands off to the game.
 3. If GenHub is already running, the shortcut forwards the profile to it instead of starting a second copy.</value>
   </data>
   <data name="Info.Card.shortcuts.headless.Title" xml:space="preserve">
@@ -5956,7 +5956,7 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
     <value>Which icon lands on your desktop.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.DetailedContent" xml:space="preserve">
-    <value>The shortcut reuses your profile's own icon file when one is set, and falls back to the GenHub launcher icon otherwise.
+    <value>The shortcut reuses your profile's own icon file when one is set, and falls back to the GenHub launcher icon on Windows. On Linux a shortcut without a profile icon simply has no custom icon.
 Pick or change the icon any time from the Icon row in Profile Settings. Shortcuts you create afterwards pick it up automatically.</value>
   </data>
   <data name="Info.Card.shortcuts.icons.Title" xml:space="preserve">
