@@ -673,7 +673,7 @@ public partial class MapManagerViewModel(
             await LoadMapsAsync();
             SelectedMaps.Clear();
             notificationService.ShowError(
-                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteFailed.Title", MapManagerConstants.DeleteFailedTitle),
+                localizationService.GetLocalizedString(MapManagerConstants.DeleteFailedTitleKey, MapManagerConstants.DeleteFailedTitle),
                 result.FirstError ?? localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteMapsFailed.Message", "Could not delete selected maps."));
             StatusMessage = "Deletion error.";
         }
@@ -1242,7 +1242,7 @@ public partial class MapManagerViewModel(
         {
             logger.LogError(ex, "Failed to delete MapPack");
             notificationService.ShowError(
-                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteFailed.Title", MapManagerConstants.DeleteFailedTitle),
+                localizationService.GetLocalizedString(MapManagerConstants.DeleteFailedTitleKey, MapManagerConstants.DeleteFailedTitle),
                 localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteMapPackFailed.Message", "Failed to delete MapPack."));
         }
     }
@@ -1622,7 +1622,7 @@ public partial class MapManagerViewModel(
             else
             {
                 notificationService.ShowError(
-                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteFailed.Title", MapManagerConstants.DeleteFailedTitle),
+                localizationService.GetLocalizedString(MapManagerConstants.DeleteFailedTitleKey, MapManagerConstants.DeleteFailedTitle),
                 localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteCloudFileFailed.Message", "Failed to delete file from cloud storage."));
             }
         }
@@ -1630,7 +1630,7 @@ public partial class MapManagerViewModel(
         {
             logger.LogError(ex, "Failed to remove history item");
             notificationService.ShowError(
-                localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteFailed.Title", MapManagerConstants.DeleteFailedTitle),
+                localizationService.GetLocalizedString(MapManagerConstants.DeleteFailedTitleKey, MapManagerConstants.DeleteFailedTitle),
                 localizationService.GetLocalizedString("Tools.MapManager.Notification.DeleteHistoryItemFailed.Message", "Failed to delete history item."));
         }
     }

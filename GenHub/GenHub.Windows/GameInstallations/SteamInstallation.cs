@@ -44,7 +44,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : Game
     public bool IsSteamInstalled { get; private set; }
 
     /// <inheritdoc/>
-    public override void Fetch()
+    public override sealed void Fetch()
     {
         logger?.LogInformation("Starting Steam installation detection");
 
@@ -69,91 +69,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : Game
 
             foreach (var lib in libraryPaths!)
             {
-                if (string.IsNullOrEmpty(lib))
-                    continue;
-
-                logger?.LogDebug("Checking Steam library: {LibraryPath}", lib);
-
-                // Fetch generals
-                if (!HasGenerals)
-                {
-                    var generalsPath = Path.Combine(lib, GameClientConstants.GeneralsDirectoryName);
-
-                    if (Directory.Exists(generalsPath))
-                    {
-                        var possibleExes = new[]
-                        {
-                            GameClientConstants.SteamGameDatExecutable,      // game.dat - PRIORITY for Steam
-                            GameClientConstants.SuperHackersGeneralsExecutable,  // generalsv.exe
-                            GameClientConstants.SuperHackersZeroHourExecutable,  // generalszh.exe
-                        };
-                        foreach (var exe in possibleExes)
-                        {
-                            if (Path.Combine(generalsPath, exe).FileExistsCaseInsensitive())
-                            {
-                                HasGenerals = true;
-                                GeneralsPath = generalsPath;
-                                if (string.IsNullOrEmpty(InstallationPath))
-                                {
-                                    InstallationPath = lib;
-                                }
-
-                                logger?.LogInformation("Found Steam Generals installation: {GeneralsPath} with executable {Executable}", GeneralsPath, exe);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Fetch zero hour
-                if (!HasZeroHour)
-                {
-                    var possibleZeroHourPaths = new[]
-                    {
-                        Path.Combine(lib, GameClientConstants.ZeroHourDirectoryNameAmpersandHyphen), // Standard Steam naming (& with -)
-                        Path.Combine(lib, GameClientConstants.ZeroHourDirectoryName), // Alternative naming (and without -)
-                        Path.Combine(lib, GameClientConstants.ZeroHourDirectoryNameColonVariant), // Colon variant
-                        Path.Combine(lib, GameClientConstants.ZeroHourDirectoryNameAbbreviated), // Abbreviated form
-                    };
-
-                    logger?.LogDebug("Checking {Count} possible Zero Hour directory paths", possibleZeroHourPaths.Length);
-
-                    foreach (var zhPath in possibleZeroHourPaths)
-                    {
-                        logger?.LogDebug("Checking Zero Hour path: {ZeroHourPath}", zhPath);
-                        var exists = Directory.Exists(zhPath);
-                        logger?.LogDebug("Directory.Exists() returned: {Exists}", exists);
-
-                        if (exists)
-                        {
-                            // Check for various possible Zero Hour executable names using constants
-                            // Case-insensitive file matching provided by FileExistsCaseInsensitive extension method
-                            var possibleExes = new[]
-                            {
-                                GameClientConstants.SteamGameDatExecutable,      // game.dat - PRIORITY for Steam
-                                GameClientConstants.SuperHackersZeroHourExecutable,  // generalszh.exe
-                                GameClientConstants.SuperHackersGeneralsExecutable,  // generalsv.exe
-                            };
-                            foreach (var exe in possibleExes)
-                            {
-                                if (Path.Combine(zhPath, exe).FileExistsCaseInsensitive())
-                                {
-                                    HasZeroHour = true;
-                                    ZeroHourPath = zhPath;
-                                    if (string.IsNullOrEmpty(InstallationPath))
-                                    {
-                                        InstallationPath = lib;
-                                    }
-
-                                    logger?.LogInformation("Found Steam Zero Hour installation: {ZeroHourPath} with executable {Executable}", ZeroHourPath, exe);
-                                    break;
-                                }
-                            }
-
-                            if (HasZeroHour) break;
-                        }
-                    }
-                }
+                DetectGamesInLibrary(lib);
             }
 
             logger?.LogInformation(
@@ -164,6 +80,119 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : Game
         catch (Exception ex)
         {
             logger?.LogError(ex, "Error occurred during Steam installation detection");
+        }
+    }
+
+    private void DetectGamesInLibrary(string? lib)
+    {
+        if (string.IsNullOrEmpty(lib))
+        {
+            return;
+        }
+
+        logger?.LogDebug("Checking Steam library: {LibraryPath}", lib);
+
+        DetectGeneralsInLibrary(lib);
+        DetectZeroHourInLibrary(lib);
+    }
+
+    private void DetectGeneralsInLibrary(string lib)
+    {
+        if (HasGenerals)
+        {
+            return;
+        }
+
+        var generalsPath = Path.Combine(lib, GameClientConstants.GeneralsDirectoryName);
+        if (!Directory.Exists(generalsPath))
+        {
+            return;
+        }
+
+        var possibleExes = new[]
+        {
+            GameClientConstants.SteamGameDatExecutable,      // game.dat - PRIORITY for Steam
+            GameClientConstants.SuperHackersGeneralsExecutable,  // generalsv.exe
+            GameClientConstants.SuperHackersZeroHourExecutable,  // generalszh.exe
+        };
+        foreach (var exe in possibleExes)
+        {
+            if (Path.Combine(generalsPath, exe).FileExistsCaseInsensitive())
+            {
+                HasGenerals = true;
+                GeneralsPath = generalsPath;
+                if (string.IsNullOrEmpty(InstallationPath))
+                {
+                    InstallationPath = lib;
+                }
+
+                logger?.LogInformation("Found Steam Generals installation: {GeneralsPath} with executable {Executable}", GeneralsPath, exe);
+                break;
+            }
+        }
+    }
+
+    private void DetectZeroHourInLibrary(string lib)
+    {
+        if (HasZeroHour)
+        {
+            return;
+        }
+
+        var possibleZeroHourPaths = new[]
+        {
+            Path.Combine(lib, GameClientConstants.ZeroHourDirectoryNameAmpersandHyphen), // Standard Steam naming (& with -)
+            Path.Combine(lib, GameClientConstants.ZeroHourDirectoryName), // Alternative naming (and without -)
+            Path.Combine(lib, GameClientConstants.ZeroHourDirectoryNameColonVariant), // Colon variant
+            Path.Combine(lib, GameClientConstants.ZeroHourDirectoryNameAbbreviated), // Abbreviated form
+        };
+
+        logger?.LogDebug("Checking {Count} possible Zero Hour directory paths", possibleZeroHourPaths.Length);
+
+        foreach (var zhPath in possibleZeroHourPaths)
+        {
+            logger?.LogDebug("Checking Zero Hour path: {ZeroHourPath}", zhPath);
+            var exists = Directory.Exists(zhPath);
+            logger?.LogDebug("Directory.Exists() returned: {Exists}", exists);
+
+            if (!exists)
+            {
+                continue;
+            }
+
+            DetectZeroHourAtPath(zhPath, lib);
+
+            if (HasZeroHour)
+            {
+                break;
+            }
+        }
+    }
+
+    private void DetectZeroHourAtPath(string zhPath, string lib)
+    {
+        // Check for various possible Zero Hour executable names using constants
+        // Case-insensitive file matching provided by FileExistsCaseInsensitive extension method
+        var possibleExes = new[]
+        {
+            GameClientConstants.SteamGameDatExecutable,      // game.dat - PRIORITY for Steam
+            GameClientConstants.SuperHackersZeroHourExecutable,  // generalszh.exe
+            GameClientConstants.SuperHackersGeneralsExecutable,  // generalsv.exe
+        };
+        foreach (var exe in possibleExes)
+        {
+            if (Path.Combine(zhPath, exe).FileExistsCaseInsensitive())
+            {
+                HasZeroHour = true;
+                ZeroHourPath = zhPath;
+                if (string.IsNullOrEmpty(InstallationPath))
+                {
+                    InstallationPath = lib;
+                }
+
+                logger?.LogInformation("Found Steam Zero Hour installation: {ZeroHourPath} with executable {Executable}", ZeroHourPath, exe);
+                break;
+            }
         }
     }
 

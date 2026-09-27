@@ -43,7 +43,7 @@ public class EaAppInstallation(ILogger<EaAppInstallation>? logger) : GameInstall
     public bool IsEaAppInstalled { get; private set; }
 
     /// <inheritdoc/>
-    public override void Fetch()
+    public override sealed void Fetch()
     {
         logger?.LogInformation("Starting EA App installation detection");
 

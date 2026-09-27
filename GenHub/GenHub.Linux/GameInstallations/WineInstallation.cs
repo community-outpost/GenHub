@@ -43,7 +43,7 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : GameIn
     public bool IsWineInstalled { get; private set; }
 
     /// <inheritdoc/>
-    public override void Fetch()
+    public override sealed void Fetch()
     {
         logger?.LogInformation("Starting Wine/Proton installation detection on Linux");
 
@@ -58,52 +58,12 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : GameIn
             }
 
             IsWineInstalled = true;
-            logger?.LogDebug("Found {PrefixCount} Wine prefixes", winePrefixes.Count());
+            logger?.LogDebug("Found {PrefixCount} Wine prefixes", winePrefixes.Count);
 
             foreach (var winePrefix in winePrefixes)
             {
                 logger?.LogDebug("Checking Wine prefix: {WinePrefix}", winePrefix);
-
-                var commonPaths = new[]
-                {
-                    Path.Combine(winePrefix, "drive_c", "Program Files", "EA Games"),
-                    Path.Combine(winePrefix, "drive_c", "Program Files (x86)", "EA Games"),
-                    Path.Combine(winePrefix, "drive_c", "Program Files", "Command and Conquer"),
-                    Path.Combine(winePrefix, "drive_c", "Program Files (x86)", "Command and Conquer"),
-                };
-
-                foreach (var basePath in commonPaths.Where(Directory.Exists))
-                {
-                    // Check for Generals
-                    if (!HasGenerals)
-                    {
-                        var generalsPath = Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName);
-                        if (Directory.Exists(generalsPath) && IsValidGameInstallation(generalsPath, "generals.exe"))
-                        {
-                            HasGenerals = true;
-                            GeneralsPath = generalsPath;
-                            InstallationPath = basePath;
-                            logger?.LogInformation("Found Wine Generals installation: {GeneralsPath}", GeneralsPath);
-                        }
-                    }
-
-                    // Check for Zero Hour
-                    if (!HasZeroHour)
-                    {
-                        var zeroHourPath = Path.Combine(basePath, GameClientConstants.ZeroHourDirectoryName);
-                        if (Directory.Exists(zeroHourPath) && IsValidGameInstallation(zeroHourPath, "generals.exe"))
-                        {
-                            HasZeroHour = true;
-                            ZeroHourPath = zeroHourPath;
-                            if (string.IsNullOrEmpty(InstallationPath))
-                            {
-                                InstallationPath = basePath;
-                            }
-
-                            logger?.LogInformation("Found Wine Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
-                        }
-                    }
-                }
+                DetectGamesInPrefix(winePrefix);
             }
 
             logger?.LogInformation(
@@ -115,6 +75,61 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : GameIn
         {
             logger?.LogError(ex, "Error occurred during Wine installation detection on Linux");
             IsWineInstalled = false;
+        }
+    }
+
+    private void DetectGamesInPrefix(string winePrefix)
+    {
+        var commonPaths = new[]
+        {
+            Path.Combine(winePrefix, "drive_c", "Program Files", "EA Games"),
+            Path.Combine(winePrefix, "drive_c", "Program Files (x86)", "EA Games"),
+            Path.Combine(winePrefix, "drive_c", "Program Files", "Command and Conquer"),
+            Path.Combine(winePrefix, "drive_c", "Program Files (x86)", "Command and Conquer"),
+        };
+
+        foreach (var basePath in commonPaths.Where(Directory.Exists))
+        {
+            DetectGeneralsInBasePath(basePath);
+            DetectZeroHourInBasePath(basePath);
+        }
+    }
+
+    private void DetectGeneralsInBasePath(string basePath)
+    {
+        if (HasGenerals)
+        {
+            return;
+        }
+
+        var generalsPath = Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName);
+        if (Directory.Exists(generalsPath) && IsValidGameInstallation(generalsPath, "generals.exe"))
+        {
+            HasGenerals = true;
+            GeneralsPath = generalsPath;
+            InstallationPath = basePath;
+            logger?.LogInformation("Found Wine Generals installation: {GeneralsPath}", GeneralsPath);
+        }
+    }
+
+    private void DetectZeroHourInBasePath(string basePath)
+    {
+        if (HasZeroHour)
+        {
+            return;
+        }
+
+        var zeroHourPath = Path.Combine(basePath, GameClientConstants.ZeroHourDirectoryName);
+        if (Directory.Exists(zeroHourPath) && IsValidGameInstallation(zeroHourPath, "generals.exe"))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = zeroHourPath;
+            if (string.IsNullOrEmpty(InstallationPath))
+            {
+                InstallationPath = basePath;
+            }
+
+            logger?.LogInformation("Found Wine Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
         }
     }
 

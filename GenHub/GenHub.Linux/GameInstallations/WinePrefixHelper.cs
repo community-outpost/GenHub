@@ -46,14 +46,11 @@ public static class WinePrefixHelper
                 // Check subdirectories for additional prefixes
                 try
                 {
-                    var subdirectories = Directory.GetDirectories(winePath);
+                    var subdirectories = Directory.GetDirectories(winePath).Where(IsValidWinePrefix);
                     foreach (var subdir in subdirectories)
                     {
-                        if (IsValidWinePrefix(subdir))
-                        {
-                            winePrefixes.Add(subdir);
-                            logger?.LogDebug("Found Wine prefix: {WinePrefix}", subdir);
-                        }
+                        winePrefixes.Add(subdir);
+                        logger?.LogDebug("Found Wine prefix: {WinePrefix}", subdir);
                     }
                 }
                 catch (Exception ex)

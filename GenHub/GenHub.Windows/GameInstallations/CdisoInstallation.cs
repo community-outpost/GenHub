@@ -44,7 +44,7 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : GameInstall
     public bool IsCdisoInstalled { get; private set; }
 
     /// <inheritdoc/>
-    public override void Fetch()
+    public override sealed void Fetch()
     {
         logger?.LogInformation("Starting CD/ISO installation detection");
 
@@ -60,61 +60,8 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : GameInstall
             InstallationPath = generalsPath!;
             IsCdisoInstalled = true;
 
-            // Check for Generals
-            if (!HasGenerals)
-            {
-                var gamePath = Path.Combine(generalsPath!, GameClientConstants.GeneralsDirectoryName);
-                if (Directory.Exists(gamePath))
-                {
-                    // Check for any common Generals executable (generals.exe, generalsv.exe, etc.)
-                    string[] generalsExecutables =
-                    [
-                        GameClientConstants.GeneralsExecutable,
-                        GameClientConstants.SuperHackersGeneralsExecutable,
-                    ];
-
-                    if (HasAnyExecutable(gamePath, generalsExecutables))
-                    {
-                        HasGenerals = true;
-                        GeneralsPath = gamePath;
-                        logger?.LogInformation("Found CD/ISO Generals installation: {GeneralsPath}", GeneralsPath);
-                    }
-                }
-            }
-
-            // Check for Zero Hour
-            // Registry returns parent folder, so Zero Hour could be:
-            // 1. A subdirectory: {generalsPath}\Command and Conquer Generals Zero Hour
-            // 2. The base path itself if the registry path already points to Zero Hour
-            if (!HasZeroHour)
-            {
-                // Possible Zero Hour executables (Generals.exe, generalszh.exe, etc.)
-                var zeroHourExecutables = new[]
-                {
-                    GameClientConstants.ZeroHourExecutable,
-                    GameClientConstants.GeneralsExecutable,
-                    GameClientConstants.SuperHackersZeroHourExecutable,
-                };
-
-                // First, check if the base path itself is Zero Hour (registry path might already be the ZH folder)
-                if (HasAnyExecutable(generalsPath!, zeroHourExecutables))
-                {
-                    HasZeroHour = true;
-                    ZeroHourPath = generalsPath!;
-                    logger?.LogInformation("Found CD/ISO Zero Hour installation at base path: {ZeroHourPath}", ZeroHourPath);
-                }
-                else
-                {
-                    // Otherwise, check for Zero Hour as a subdirectory
-                    var gamePath = Path.Combine(generalsPath!, GameClientConstants.ZeroHourDirectoryName);
-                    if (Directory.Exists(gamePath) && HasAnyExecutable(gamePath, zeroHourExecutables))
-                    {
-                        HasZeroHour = true;
-                        ZeroHourPath = gamePath;
-                        logger?.LogInformation("Found CD/ISO Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
-                    }
-                }
-            }
+            DetectGeneralsAtInstallPath(generalsPath!);
+            DetectZeroHourAtInstallPath(generalsPath!);
 
             logger?.LogInformation(
                 "CD/ISO detection completed: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
@@ -145,6 +92,71 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger) : GameInstall
         }
 
         return false;
+    }
+
+    private void DetectGeneralsAtInstallPath(string installPath)
+    {
+        if (HasGenerals)
+        {
+            return;
+        }
+
+        var gamePath = Path.Combine(installPath, GameClientConstants.GeneralsDirectoryName);
+        if (!Directory.Exists(gamePath))
+        {
+            return;
+        }
+
+        // Check for any common Generals executable (generals.exe, generalsv.exe, etc.)
+        string[] generalsExecutables =
+        [
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersGeneralsExecutable,
+        ];
+
+        if (HasAnyExecutable(gamePath, generalsExecutables))
+        {
+            HasGenerals = true;
+            GeneralsPath = gamePath;
+            logger?.LogInformation("Found CD/ISO Generals installation: {GeneralsPath}", GeneralsPath);
+        }
+    }
+
+    // Registry returns parent folder, so Zero Hour could be:
+    // 1. A subdirectory: {installPath}\Command and Conquer Generals Zero Hour
+    // 2. The base path itself if the registry path already points to Zero Hour
+    private void DetectZeroHourAtInstallPath(string installPath)
+    {
+        if (HasZeroHour)
+        {
+            return;
+        }
+
+        // Possible Zero Hour executables (Generals.exe, generalszh.exe, etc.)
+        var zeroHourExecutables = new[]
+        {
+            GameClientConstants.ZeroHourExecutable,
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersZeroHourExecutable,
+        };
+
+        // First, check if the base path itself is Zero Hour (registry path might already be the ZH folder)
+        if (HasAnyExecutable(installPath, zeroHourExecutables))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = installPath;
+            logger?.LogInformation("Found CD/ISO Zero Hour installation at base path: {ZeroHourPath}", ZeroHourPath);
+            return;
+        }
+
+        // Otherwise, check for Zero Hour as a subdirectory
+        var gamePath = Path.Combine(installPath, GameClientConstants.ZeroHourDirectoryName);
+        if (Directory.Exists(gamePath) && HasAnyExecutable(gamePath, zeroHourExecutables))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = gamePath;
+            logger?.LogInformation("Found CD/ISO Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
+        }
     }
 
     /// <summary>

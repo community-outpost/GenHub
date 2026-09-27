@@ -147,6 +147,21 @@ public class NetworkSecurityHelperTests
     }
 
     /// <summary>
+    /// Verifies the URI overload blocks loopback and local scopes and passes public hosts.
+    /// </summary>
+    /// <param name="url">The URL to validate.</param>
+    /// <param name="expected">The expected validation result.</param>
+    [Theory]
+    [InlineData("http://127.0.0.1/test.png", true)]
+    [InlineData("http://localhost/test.png", true)]
+    [InlineData("http://cache.localhost/test.png", true)]
+    [InlineData("http://example.com/test.png", false)]
+    public void IsBlockedHostName_Uri_ReturnsExpected(string url, bool expected)
+    {
+        Assert.Equal(expected, NetworkSecurityHelper.IsBlockedHostName(new Uri(url)));
+    }
+
+    /// <summary>
     /// Verifies IPv6 transition embeddings of unsafe IPv4 addresses are blocked.
     /// </summary>
     /// <param name="address">The IPv6 address to validate.</param>

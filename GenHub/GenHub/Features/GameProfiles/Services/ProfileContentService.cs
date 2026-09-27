@@ -3,7 +3,6 @@ using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
@@ -34,8 +33,7 @@ namespace GenHub.Features.GameProfiles.Services;
 public sealed class ProfileContentService(
     IGameProfileManager profileManager,
     IContentManifestPool manifestPool,
-    IDependencyResolver dependencyResolver,
-    IGameInstallationService installationService,
+    ProfileContentResolutionServices resolutionServices,
     IContentOrchestrator contentOrchestrator,
     INotificationService notificationService,
     ILogger<ProfileContentService> logger,
@@ -339,7 +337,7 @@ public sealed class ProfileContentService(
             List<string> enabledContentIds = resolution.Data.EnabledContentIds;
 
             // Find a suitable game installation
-            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+            var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
             if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
             {
                 return ProfileOperationResult<GameProfile>.CreateFailure("No game installations found. Please configure a game installation first.");
@@ -1055,7 +1053,7 @@ public sealed class ProfileContentService(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var completeResolution = await dependencyResolver.ResolveDependenciesWithManifestsAsync(
+            var completeResolution = await resolutionServices.DependencyResolver.ResolveDependenciesWithManifestsAsync(
                 contentIdsWithAcquiredDependencies,
                 cancellationToken);
             if (completeResolution.Failed)
@@ -1066,7 +1064,7 @@ public sealed class ProfileContentService(
 
             // Resolve the selected item's closure independently. Existing profile content must
             // not decide the new foundation; only the selected item and its dependencies do.
-            var requestedResolution = await dependencyResolver.ResolveDependenciesWithManifestsAsync(
+            var requestedResolution = await resolutionServices.DependencyResolver.ResolveDependenciesWithManifestsAsync(
                 acquisition.Data,
                 cancellationToken);
             if (requestedResolution.Failed)
@@ -1198,7 +1196,7 @@ public sealed class ProfileContentService(
         GameType requiredGameType,
         CancellationToken cancellationToken)
     {
-        var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+        var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
         var installations = installationsResult.Success && installationsResult.Data != null
             ? installationsResult.Data
             : [];

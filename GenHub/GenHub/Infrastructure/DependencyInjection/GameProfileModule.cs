@@ -47,6 +47,7 @@ public static class GameProfileModule
         services.AddScoped<IProfileLauncherFacade, ProfileLauncherFacade>();
         services.AddScoped<IProfileEditorFacade, ProfileEditorFacade>();
         services.AddScoped<IDependencyResolver, DependencyResolver>();
+        services.AddScoped<ProfileContentResolutionServices>();
         services.AddScoped<IProfileContentService, ProfileContentService>();
         services.AddSingleton<IGameSettingsService, GameSettingsService>();
         services.AddSingleton<IContentDisplayFormatter, ContentDisplayFormatter>();

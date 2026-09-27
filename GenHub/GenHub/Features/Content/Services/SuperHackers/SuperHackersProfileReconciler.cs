@@ -40,17 +40,11 @@ public class SuperHackersProfileReconciler(
     ILocalizationService? localizationService = null)
     : PublisherProfileReconcilerBase(
         logger,
-        updateService,
-        manifestPool,
-        contentOrchestrator,
-        reconciliationService,
-        notificationService,
-        dialogService,
-        userSettingsService,
+        new PublisherContentServices(updateService, manifestPool, contentOrchestrator, reconciliationService),
+        new PublisherInteractionServices(notificationService, dialogService, userSettingsService, localizationService),
         profileManager,
         PublisherReconcilerText.SuperHackers,
-        telemetryService,
-        localizationService),
+        telemetryService),
     ISuperHackersProfileReconciler
 {
     /// <inheritdoc/>

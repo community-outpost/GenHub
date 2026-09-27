@@ -4,7 +4,6 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
-using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
@@ -33,7 +32,6 @@ namespace GenHub.Features.Content.Services.Catalog;
 public class GenericCatalogProfileReconciler(
     ILogger<GenericCatalogProfileReconciler> logger,
     IGameProfileManager profileManager,
-    IPublisherSubscriptionStore subscriptionStore,
     GenericCatalogContentServices contentServices,
     INotificationService notificationService,
     IDialogService dialogService,
@@ -56,7 +54,7 @@ public class GenericCatalogProfileReconciler(
                 return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
-            var subResult = await subscriptionStore.GetSubscriptionsAsync(cancellationToken);
+            var subResult = await contentServices.SubscriptionStore.GetSubscriptionsAsync(cancellationToken);
             if (!subResult.Success || subResult.Data == null || subResult.Data.Count == 0)
             {
                 return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);

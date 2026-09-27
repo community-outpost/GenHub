@@ -18,14 +18,16 @@ public partial class LocalizationParityTests
 {
     /// <summary>
     /// Scans every production C# file in the solution for localization
-    /// <c>GetString</c> resource keys and verifies that each key exists in the
-    /// default Strings.resx resource file. The scan matches full file contents
-    /// so keys split across line breaks are detected, only counts receivers
-    /// that resolve to the localization service (plus bare helper calls), and
-    /// excludes test projects and build output directories.
+    /// <c>GetString</c> and <c>GetLocalizedString</c> resource keys and verifies
+    /// that each key exists in the default Strings.resx resource file. The scan
+    /// matches full file contents so keys split across line breaks are detected,
+    /// only counts <c>GetString</c> receivers that resolve to the localization
+    /// service (plus bare helper calls), counts every <c>GetLocalizedString</c>
+    /// call regardless of receiver, and excludes test projects and build output
+    /// directories.
     /// </summary>
     [Fact]
-    public void CSharp_GetStringCalls_ShouldReferenceExistingKeys()
+    public void CSharp_LocalizationCalls_ShouldReferenceExistingKeys()
     {
         var defaultKeys = LoadKeys("default");
         var keyPattern = CSharpGetStringRegex();
@@ -40,8 +42,9 @@ public partial class LocalizationParityTests
             var content = File.ReadAllText(file);
             foreach (Match match in keyPattern.Matches(content))
             {
+                var method = match.Groups["method"].Value;
                 var receiver = match.Groups["receiver"].Value;
-                if (receiver.Length != 0 && !IsLocalizationReceiver(receiver))
+                if (!IsLocalizationCall(method, receiver))
                 {
                     continue;
                 }
@@ -70,6 +73,16 @@ public partial class LocalizationParityTests
             s.Contains("Tests", StringComparison.Ordinal));
     }
 
+    private static bool IsLocalizationCall(string method, string receiver)
+    {
+        if (method.Equals("GetLocalizedString", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return receiver.Length == 0 || IsLocalizationReceiver(receiver);
+    }
+
     private static bool IsLocalizationReceiver(string receiver)
     {
         return receiver.Contains("localiz", StringComparison.OrdinalIgnoreCase) ||
@@ -90,6 +103,6 @@ public partial class LocalizationParityTests
         return count;
     }
 
-    [GeneratedRegex("(?<![\\w.])(?:(?<receiver>[A-Za-z_][A-Za-z0-9_]*)\\??\\.\\s*)?GetString\\(\\s*\"(?<key>[A-Za-z0-9_\\.]+)\"")]
+    [GeneratedRegex("(?<![\\w.])(?:(?<receiver>[A-Za-z_][A-Za-z0-9_]*)\\??\\.\\s*)?(?<method>GetLocalizedString|GetString)\\(\\s*\"(?<key>[A-Za-z0-9_\\.]+)\"")]
     private static partial Regex CSharpGetStringRegex();
 }

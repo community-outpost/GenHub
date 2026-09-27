@@ -148,7 +148,7 @@ public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = nu
     }
 
     /// <inheritdoc/>
-    public override void Fetch()
+    public override sealed void Fetch()
     {
         Task.Run(() => FetchAsync(CancellationToken.None)).GetAwaiter().GetResult();
     }

@@ -35,7 +35,7 @@ public partial class AddLocalContentWindow : GenHubWindow
     {
         base.OnDataContextChanged(e);
 
-        // The hosted AddLocalContentView wires the browse delegates and drag/drop;
+        // The hosted view wires the browse delegates and drag/drop handling, while
         // the window only closes itself when the view model requests it.
         if (DataContext is AddLocalContentViewModel vm)
         {

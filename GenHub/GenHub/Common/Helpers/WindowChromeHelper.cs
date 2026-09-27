@@ -3,7 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using System;
+using System.Linq;
 
 namespace GenHub.Common.Helpers;
 
@@ -153,7 +155,7 @@ public static class WindowChromeHelper
             return;
         }
 
-        var adornerLayer = AdornerLayer.GetAdornerLayer(window);
+        var adornerLayer = FindAdornerLayer(window);
         if (adornerLayer?.Children is null)
         {
             return;
@@ -188,6 +190,28 @@ public static class WindowChromeHelper
 
         adornerLayer.Children.Add(grips);
         AttachResizeGrips(window, grips);
+    }
+
+    /// <summary>
+    /// Resolves the adorner layer hosting the window content.
+    /// <see cref="AdornerLayer.GetAdornerLayer"/> walks visual ancestors, so it
+    /// always returns null for a <see cref="Window"/> (the visual root); the layer
+    /// lives inside the window template below the root instead.
+    /// </summary>
+    /// <param name="window">The window whose adorner layer to resolve.</param>
+    /// <returns>The adorner layer, or null when the window is not shown yet.</returns>
+    private static AdornerLayer? FindAdornerLayer(Window window)
+    {
+        if ((window.Content as Visual) is { } content)
+        {
+            var fromContent = AdornerLayer.GetAdornerLayer(content);
+            if (fromContent is not null)
+            {
+                return fromContent;
+            }
+        }
+
+        return window.GetVisualDescendants().OfType<AdornerLayer>().FirstOrDefault();
     }
 
     private static void OnAdaptForPlatformChanged(Window window, AvaloniaPropertyChangedEventArgs args)

@@ -56,11 +56,7 @@ public class SuperHackersDiscoverer(
                 (SuperHackersConstants.GeneralsGamePatch2Owner, SuperHackersConstants.GeneralsGamePatch2Repo, ContentType.Patch, null, SuperHackersConstants.GeneralsGamePatch2DisplayName),
             };
 
-            var matchingTargets = targets.Where(t =>
-                (!query.ContentType.HasValue || query.ContentType.Value == t.ContentType) &&
-                (!query.TargetGame.HasValue || t.TargetGame == null || query.TargetGame.Value == t.TargetGame.Value) &&
-                (string.IsNullOrWhiteSpace(query.AuthorName) || query.AuthorName.Equals(t.Owner, StringComparison.OrdinalIgnoreCase)) &&
-                (string.IsNullOrWhiteSpace(query.GitHubAuthor) || query.GitHubAuthor.Equals(t.Owner, StringComparison.OrdinalIgnoreCase))).ToList();
+            var matchingTargets = targets.Where(t => TargetMatchesQuery(t, query)).ToList();
 
             foreach (var (owner, repo, contentType, targetGame, displayName) in matchingTargets)
             {
@@ -117,6 +113,16 @@ public class SuperHackersDiscoverer(
             logger.LogError(ex, "Failed to search SuperHackers content");
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"Search failed: {ex.Message}");
         }
+    }
+
+    private static bool TargetMatchesQuery(
+        (string Owner, string Repo, ContentType ContentType, GameType? TargetGame, string DisplayName) target,
+        ContentSearchQuery query)
+    {
+        return (!query.ContentType.HasValue || query.ContentType.Value == target.ContentType) &&
+            (!query.TargetGame.HasValue || target.TargetGame == null || query.TargetGame.Value == target.TargetGame.Value) &&
+            (string.IsNullOrWhiteSpace(query.AuthorName) || query.AuthorName.Equals(target.Owner, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrWhiteSpace(query.GitHubAuthor) || query.GitHubAuthor.Equals(target.Owner, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool MatchesSearchTerm(GitHubRelease release, string repo, string displayName, string? searchTerm)

@@ -18,66 +18,20 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <summary>
 /// ViewModel for ModBuilder settings panel.
 /// </summary>
-public partial class SettingsPanelViewModel : ObservableObject
+public partial class SettingsPanelViewModel(
+    IBuildCacheService buildCacheService,
+    INotificationService notificationService,
+    ILogger<SettingsPanelViewModel> logger,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
-    private readonly IBuildCacheService _buildCacheService;
-    private readonly INotificationService _notificationService;
-    private readonly ILogger<SettingsPanelViewModel> _logger;
-    private readonly ILocalizationService? _localizationService;
-
     /// <summary>
-    /// Initializes a new instance of the <see cref="SettingsPanelViewModel"/> class.
+    /// Initializes the view model asynchronously by loading cache statistics.
+    /// Called by the composition site after construction.
     /// </summary>
-    /// <param name="buildCacheService">The build cache service.</param>
-    /// <param name="notificationService">The notification service.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="localizationService">The optional localization service for user-facing notifications.</param>
-    public SettingsPanelViewModel(
-        IBuildCacheService buildCacheService,
-        INotificationService notificationService,
-        ILogger<SettingsPanelViewModel> logger,
-        ILocalizationService? localizationService = null)
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task InitializeAsync()
     {
-        _buildCacheService = buildCacheService;
-        _notificationService = notificationService;
-        _logger = logger;
-        _localizationService = localizationService;
-
-        // Initialize compression levels
-        CompressionLevels.Add(CompressionLevel.NoCompression);
-        CompressionLevels.Add(CompressionLevel.Fastest);
-        CompressionLevels.Add(CompressionLevel.Optimal);
-        CompressionLevels.Add(CompressionLevel.SmallestSize);
-        SelectedCompressionLevel = CompressionLevel.Fastest;
-
-        // Initialize thread count options
-        var processorCount = Environment.ProcessorCount;
-        for (int i = 1; i <= processorCount; i++)
-        {
-            ThreadCountOptions.Add(i);
-        }
-
-        SelectedThreadCount = Math.Max(1, processorCount - 1);
-
-        // Initialize buffer size options (in KB)
-        BufferSizeOptions.Add(16);
-        BufferSizeOptions.Add(32);
-        BufferSizeOptions.Add(64);
-        BufferSizeOptions.Add(128);
-        BufferSizeOptions.Add(256);
-        SelectedBufferSize = 64;
-
-        // Initialize font size options
-        FontSizeOptions.Add(10);
-        FontSizeOptions.Add(11);
-        FontSizeOptions.Add(12);
-        FontSizeOptions.Add(13);
-        FontSizeOptions.Add(14);
-        FontSizeOptions.Add(16);
-        SelectedFontSize = 12;
-
-        // Load cache statistics
-        _ = LoadCacheStatisticsAsync();
+        await LoadCacheStatisticsAsync();
     }
 
     // ============================================
@@ -138,7 +92,7 @@ public partial class SettingsPanelViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load cache statistics");
+            logger.LogError(ex, "Failed to load cache statistics");
         }
     }
 
@@ -170,18 +124,18 @@ public partial class SettingsPanelViewModel : ObservableObject
 
             await LoadCacheStatisticsAsync();
 
-            _notificationService.ShowSuccess(
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheCleared.Title", "Cache Cleared"),
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheCleared.Message", "Build cache has been successfully cleared."));
+            notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheCleared.Title", "Cache Cleared"),
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheCleared.Message", "Build cache has been successfully cleared."));
 
-            _logger.LogInformation("Build cache cleared successfully");
+            logger.LogInformation("Build cache cleared successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to clear cache");
-            _notificationService.ShowError(
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheClearFailed.Title", "Cache Clear Failed"),
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheClearFailed.Message", $"Failed to clear cache: {ex.Message}", ex.Message));
+            logger.LogError(ex, "Failed to clear cache");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheClearFailed.Title", "Cache Clear Failed"),
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheClearFailed.Message", $"Failed to clear cache: {ex.Message}", ex.Message));
         }
         finally
         {
@@ -202,25 +156,25 @@ public partial class SettingsPanelViewModel : ObservableObject
         {
             IsCacheOperationInProgress = true;
 
-            _notificationService.ShowInfo(
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilding.Title", "Rebuilding Cache"),
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilding.Message", "Cache index is being rebuilt..."));
+            notificationService.ShowInfo(
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilding.Title", "Rebuilding Cache"),
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilding.Message", "Cache index is being rebuilt..."));
 
-            _buildCacheService.Clear();
+            buildCacheService.Clear();
             await LoadCacheStatisticsAsync();
 
-            _notificationService.ShowSuccess(
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilt.Title", "Cache Rebuilt"),
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilt.Message", "Cache index has been successfully rebuilt."));
+            notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilt.Title", "Cache Rebuilt"),
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuilt.Message", "Cache index has been successfully rebuilt."));
 
-            _logger.LogInformation("Cache index rebuilt successfully");
+            logger.LogInformation("Cache index rebuilt successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to rebuild cache");
-            _notificationService.ShowError(
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuildFailed.Title", "Cache Rebuild Failed"),
-                _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuildFailed.Message", $"Failed to rebuild cache: {ex.Message}", ex.Message));
+            logger.LogError(ex, "Failed to rebuild cache");
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuildFailed.Title", "Cache Rebuild Failed"),
+                localizationService.GetLocalizedString("Tools.ModBuilder.Notification.CacheRebuildFailed.Message", $"Failed to rebuild cache: {ex.Message}", ex.Message));
         }
         finally
         {
@@ -235,35 +189,41 @@ public partial class SettingsPanelViewModel : ObservableObject
     /// <summary>
     /// Gets the list of compression levels.
     /// </summary>
-    public ObservableCollection<CompressionLevel> CompressionLevels { get; } = [];
+    public ObservableCollection<CompressionLevel> CompressionLevels { get; } =
+    [
+        CompressionLevel.NoCompression,
+        CompressionLevel.Fastest,
+        CompressionLevel.Optimal,
+        CompressionLevel.SmallestSize,
+    ];
 
     /// <summary>
     /// Gets or sets the selected compression level.
     /// </summary>
     [ObservableProperty]
-    private CompressionLevel _selectedCompressionLevel;
+    private CompressionLevel _selectedCompressionLevel = CompressionLevel.Fastest;
 
     /// <summary>
     /// Gets the list of thread count options.
     /// </summary>
-    public ObservableCollection<int> ThreadCountOptions { get; } = [];
+    public ObservableCollection<int> ThreadCountOptions { get; } = new(Enumerable.Range(1, Environment.ProcessorCount));
 
     /// <summary>
     /// Gets or sets the selected thread count.
     /// </summary>
     [ObservableProperty]
-    private int _selectedThreadCount;
+    private int _selectedThreadCount = Math.Max(1, Environment.ProcessorCount - 1);
 
     /// <summary>
     /// Gets the list of buffer size options (in KB).
     /// </summary>
-    public ObservableCollection<int> BufferSizeOptions { get; } = [];
+    public ObservableCollection<int> BufferSizeOptions { get; } = [16, 32, 64, 128, 256];
 
     /// <summary>
     /// Gets or sets the selected buffer size (in KB).
     /// </summary>
     [ObservableProperty]
-    private int _selectedBufferSize;
+    private int _selectedBufferSize = 64;
 
     // ============================================
     // UI Preferences
@@ -272,13 +232,13 @@ public partial class SettingsPanelViewModel : ObservableObject
     /// <summary>
     /// Gets the list of font size options.
     /// </summary>
-    public ObservableCollection<int> FontSizeOptions { get; } = [];
+    public ObservableCollection<int> FontSizeOptions { get; } = [10, 11, 12, 13, 14, 16];
 
     /// <summary>
     /// Gets or sets the selected font size.
     /// </summary>
     [ObservableProperty]
-    private int _selectedFontSize;
+    private int _selectedFontSize = 12;
 
     /// <summary>
     /// Gets or sets a value indicating whether animations are enabled.
@@ -334,10 +294,10 @@ public partial class SettingsPanelViewModel : ObservableObject
         EnableAutoScroll = true;
         EnableSyntaxHighlighting = true;
 
-        _notificationService.ShowSuccess(
-            _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.SettingsReset.Title", "Settings Reset"),
-            _localizationService.GetLocalizedString("Tools.ModBuilder.Notification.SettingsReset.Message", "All settings have been reset to defaults."));
+        notificationService.ShowSuccess(
+            localizationService.GetLocalizedString("Tools.ModBuilder.Notification.SettingsReset.Title", "Settings Reset"),
+            localizationService.GetLocalizedString("Tools.ModBuilder.Notification.SettingsReset.Message", "All settings have been reset to defaults."));
 
-        _logger.LogInformation("Settings reset to defaults");
+        logger.LogInformation("Settings reset to defaults");
     }
 }

@@ -153,6 +153,11 @@ public static class MapManagerConstants
     public const string DeleteFailedTitle = ToolConstants.DeleteFailedTitle;
 
     /// <summary>
+    /// Resource key for the delete failure notification title.
+    /// </summary>
+    public const string DeleteFailedTitleKey = "Tools.MapManager.Notification.DeleteFailed.Title";
+
+    /// <summary>
     /// Category identifier for map uploads.
     /// </summary>
     public const string UploadCategory = "maps";

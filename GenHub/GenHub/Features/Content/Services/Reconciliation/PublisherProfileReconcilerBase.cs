@@ -1,10 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
@@ -31,17 +28,11 @@ namespace GenHub.Features.Content.Services.Reconciliation;
 /// </summary>
 public abstract class PublisherProfileReconcilerBase(
     ILogger logger,
-    IContentUpdateService updateService,
-    IContentManifestPool manifestPool,
-    IContentOrchestrator contentOrchestrator,
-    IContentReconciliationService reconciliationService,
-    INotificationService notificationService,
-    IDialogService dialogService,
-    IUserSettingsService userSettingsService,
+    PublisherContentServices contentServices,
+    PublisherInteractionServices interactionServices,
     IGameProfileManager profileManager,
     PublisherReconcilerText text,
-    ITelemetryService? telemetryService = null,
-    ILocalizationService? localizationService = null) : IPublisherReconciler
+    ITelemetryService? telemetryService = null) : IPublisherReconciler
 {
     /// <inheritdoc/>
     public string PublisherType => text.PublisherType;
@@ -60,7 +51,7 @@ public abstract class PublisherProfileReconcilerBase(
                 triggeringProfileId);
 
             // Step 1: Check for updates
-            var updateResult = await updateService.CheckForUpdatesAsync(cancellationToken);
+            var updateResult = await contentServices.UpdateService.CheckForUpdatesAsync(cancellationToken);
 
             if (!updateResult.Success)
             {
@@ -88,7 +79,7 @@ public abstract class PublisherProfileReconcilerBase(
                 updateResult.LatestVersion);
 
             // Check if this specific version is skipped
-            var settings = userSettingsService.Get();
+            var settings = interactionServices.UserSettingsService.Get();
             if (settings.IsVersionSkipped(text.PublisherType, updateResult.LatestVersion ?? string.Empty))
             {
                 logger.LogInformation("{Prefix} User opted to skip version {Version}. Skipping.", text.LogPrefix, updateResult.LatestVersion);
@@ -108,14 +99,14 @@ public abstract class PublisherProfileReconcilerBase(
             var progressNotificationId = Guid.NewGuid();
             var progressNotification = new NotificationMessage(
                 NotificationType.Info,
-                localizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback),
+                interactionServices.LocalizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback),
                 string.Format(text.ProgressBodyFormat, text.ContextDisplayName, updateResult.LatestVersion),
                 autoDismissMilliseconds: null,
                 isPersistent: true)
             {
                 Id = progressNotificationId,
             };
-            notificationService.Show(progressNotification);
+            interactionServices.NotificationService.Show(progressNotification);
 
             try
             {
@@ -126,7 +117,7 @@ public abstract class PublisherProfileReconcilerBase(
                     logger.LogWarning("{Prefix} No existing {Publisher} manifests found in pool", text.LogPrefix, text.PublisherDisplayName);
                 }
 
-                logger.LogInformation(
+                logger.LogDebug(
                     "{Prefix} Found {Count} existing {Publisher} manifests to replace",
                     text.LogPrefix,
                     oldManifests.Count,
@@ -146,25 +137,25 @@ public abstract class PublisherProfileReconcilerBase(
                         [TelemetryConstants.Properties.ErrorMessage] = acquireResult.FirstError,
                     });
 
-                    notificationService.ShowError(
-                        localizationService.GetLocalizedString(text.AcquireFailedTitleKey, text.AcquireFailedTitleFallback),
-                        localizationService.GetLocalizedString("Content.Notification.DownloadUpdateFailed.Message", $"Failed to download update: {acquireResult.FirstError}", acquireResult.FirstError),
+                    interactionServices.NotificationService.ShowError(
+                        interactionServices.LocalizationService.GetLocalizedString(text.AcquireFailedTitleKey, text.AcquireFailedTitleFallback),
+                        interactionServices.LocalizationService.GetLocalizedString("Content.Notification.DownloadUpdateFailed.Message", $"Failed to download update: {acquireResult.FirstError}", acquireResult.FirstError),
                         NotificationDurations.Critical);
 
                     return OperationResult<PublisherReconciliationResult>.CreateFailure(
                         string.Format(text.AcquireFailedFormat, text.ContextDisplayName, acquireResult.FirstError));
                 }
 
-                var newManifests = acquireResult.Data!;
+                var newManifests = acquireResult.Data;
                 logger.LogInformation(
                     "{Prefix} Successfully acquired {Count} new manifests",
                     text.LogPrefix,
                     newManifests.Count);
 
-                notificationService.Update(
+                interactionServices.NotificationService.Update(
                     progressNotificationId,
-                    localizationService.GetLocalizedString("Content.Notification.ApplyingUpdate.Message", "Applying update to profiles..."),
-                    localizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback));
+                    interactionServices.LocalizationService.GetLocalizedString("Content.Notification.ApplyingUpdate.Message", "Applying update to profiles..."),
+                    interactionServices.LocalizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback));
 
                 // Step 5: Update affected profiles based on strategy
                 var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
@@ -179,12 +170,12 @@ public abstract class PublisherProfileReconcilerBase(
                         triggeringProfileId),
                     new PublisherReconciliationContext(
                         profileManager,
-                        reconciliationService,
-                        notificationService,
+                        contentServices.ReconciliationService,
+                        interactionServices.NotificationService,
                         logger,
                         text.ContextDisplayName,
                         text.LogPrefix,
-                        localizationService),
+                        interactionServices.LocalizationService),
                     cancellationToken);
 
                 if (!updateOutcome.Proceed)
@@ -209,7 +200,7 @@ public abstract class PublisherProfileReconcilerBase(
                 // Step 6: Run garbage collection (only if old versions were deleted AND no failures occurred)
                 if (shouldDeleteOldVersions && !anyFailure)
                 {
-                    await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+                    await contentServices.ReconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
                 }
                 else if (shouldDeleteOldVersions && anyFailure)
                 {
@@ -228,9 +219,9 @@ public abstract class PublisherProfileReconcilerBase(
                 });
 
                 // Step 7: Show success notification
-                notificationService.ShowSuccess(
-                    localizationService.GetLocalizedString(text.UpdatedTitleKey, text.UpdatedTitleFallback),
-                    localizationService.GetLocalizedString("Content.Notification.PublisherUpdated.Message", $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.", updateResult.LatestVersion, profilesUpdated, strategy == UpdateStrategy.CreateNewProfile ? localizationService.GetLocalizedString("Content.Notification.ProfilesCreated.Word", "created") : localizationService.GetLocalizedString("Content.Notification.ProfilesUpdated.Word", "updated")),
+                interactionServices.NotificationService.ShowSuccess(
+                    interactionServices.LocalizationService.GetLocalizedString(text.UpdatedTitleKey, text.UpdatedTitleFallback),
+                    interactionServices.LocalizationService.GetLocalizedString("Content.Notification.PublisherUpdated.Message", $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.", updateResult.LatestVersion, profilesUpdated, strategy == UpdateStrategy.CreateNewProfile ? interactionServices.LocalizationService.GetLocalizedString("Content.Notification.ProfilesCreated.Word", "created") : interactionServices.LocalizationService.GetLocalizedString("Content.Notification.ProfilesUpdated.Word", "updated")),
                     NotificationDurations.Long);
 
                 logger.LogInformation(
@@ -246,20 +237,20 @@ public abstract class PublisherProfileReconcilerBase(
             }
             finally
             {
-                notificationService.Dismiss(progressNotificationId);
+                interactionServices.NotificationService.Dismiss(progressNotificationId);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("{Prefix} Reconciliation cancelled", text.LogPrefix);
+            logger.LogInformation(ex, "{Prefix} Reconciliation cancelled", text.LogPrefix);
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "{Prefix} Reconciliation failed unexpectedly", text.LogPrefix);
-            notificationService.ShowError(
-                localizationService.GetLocalizedString(text.ErrorTitleKey, text.ErrorTitleFallback),
-                localizationService.GetLocalizedString("Content.Notification.UpdateError.Message", $"An error occurred during update: {ex.Message}", ex.Message),
+            interactionServices.NotificationService.ShowError(
+                interactionServices.LocalizationService.GetLocalizedString(text.ErrorTitleKey, text.ErrorTitleFallback),
+                interactionServices.LocalizationService.GetLocalizedString("Content.Notification.UpdateError.Message", $"An error occurred during update: {ex.Message}", ex.Message),
                 NotificationDurations.Critical);
             return OperationResult<PublisherReconciliationResult>.CreateFailure($"Reconciliation failed: {ex.Message}");
         }
@@ -299,7 +290,7 @@ public abstract class PublisherProfileReconcilerBase(
     private async Task<List<ContentManifest>> FindPublisherManifestsAsync(
         CancellationToken cancellationToken)
     {
-        var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        var manifestsResult = await contentServices.ManifestPool.GetAllManifestsAsync(cancellationToken);
         if (!manifestsResult.Success || manifestsResult.Data == null)
         {
             return [];
@@ -338,10 +329,10 @@ public abstract class PublisherProfileReconcilerBase(
                 ? $"[{currentItemIndex}/{totalItems}] {itemName}: {status}"
                 : $"{itemName}: {status}";
 
-            notificationService.Update(
+            interactionServices.NotificationService.Update(
                 notificationId,
                 message,
-                localizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback));
+                interactionServices.LocalizationService.GetLocalizedString(text.ProgressTitleKey, text.ProgressTitleFallback));
         });
     }
 
@@ -362,7 +353,7 @@ public abstract class PublisherProfileReconcilerBase(
                 currentItemIndex,
                 totalItems);
 
-            var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress, cancellationToken);
+            var acquireOp = await contentServices.ContentOrchestrator.AcquireContentAsync(result, progress, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (!acquireOp.Success)
             {
@@ -393,7 +384,7 @@ public abstract class PublisherProfileReconcilerBase(
                 ContentType = ContentType.GameClient,
             };
 
-            var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
+            var searchResult = await contentServices.ContentOrchestrator.SearchAsync(query, cancellationToken);
 
             // Layers beneath the orchestrator still report cancellation as a failed result,
             // so a failure raised while shutting down must not be surfaced as a real error.
@@ -450,9 +441,9 @@ public abstract class PublisherProfileReconcilerBase(
             return (true, strategy, shouldDeleteOldVersions);
         }
 
-        var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
-            localizationService.GetLocalizedString(text.PromptTitleKey, text.PromptTitleFallback),
-            localizationService.GetLocalizedString(text.PromptBodyKey, string.Format(text.PromptBodyFormat, updateResult.LatestVersion), updateResult.LatestVersion),
+        var dialogResult = await interactionServices.DialogService.ShowUpdateOptionDialogAsync(
+            interactionServices.LocalizationService.GetLocalizedString(text.PromptTitleKey, text.PromptTitleFallback),
+            interactionServices.LocalizationService.GetLocalizedString(text.PromptBodyKey, string.Format(text.PromptBodyFormat, updateResult.LatestVersion), updateResult.LatestVersion),
             shouldDeleteOldVersions);
 
         if (dialogResult == null)
@@ -466,7 +457,7 @@ public abstract class PublisherProfileReconcilerBase(
 
             if (dialogResult.IsDoNotAskAgain)
             {
-                await userSettingsService.TryUpdateAndSaveAsync(s =>
+                await interactionServices.UserSettingsService.TryUpdateAndSaveAsync(s =>
                 {
                     s.SkipVersion(text.PublisherType, updateResult.LatestVersion ?? string.Empty);
                     return true;
@@ -482,7 +473,7 @@ public abstract class PublisherProfileReconcilerBase(
         if (dialogResult.IsDoNotAskAgain)
         {
             logger.LogInformation("{Prefix} Saving user preference for {Publisher} updates", text.LogPrefix, text.PublisherDisplayName);
-            await userSettingsService.TryUpdateAndSaveAsync(s =>
+            await interactionServices.UserSettingsService.TryUpdateAndSaveAsync(s =>
             {
                 s.SetAutoUpdatePreference(text.PublisherType, true);
                 var sub = s.GetSubscription(text.PublisherType);

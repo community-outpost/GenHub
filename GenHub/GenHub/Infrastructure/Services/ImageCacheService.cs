@@ -241,10 +241,7 @@ public sealed class ImageCacheService : IImageCacheService
             return false;
         }
 
-        if (uri.IsLoopback ||
-            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
+        if (NetworkSecurityHelper.IsBlockedHostName(uri))
         {
             return false;
         }

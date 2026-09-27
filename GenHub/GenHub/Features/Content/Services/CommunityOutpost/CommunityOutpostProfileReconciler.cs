@@ -28,17 +28,11 @@ public class CommunityOutpostProfileReconciler(
     ILocalizationService? localizationService = null)
     : PublisherProfileReconcilerBase(
         logger,
-        updateService,
-        manifestPool,
-        contentOrchestrator,
-        reconciliationService,
-        notificationService,
-        dialogService,
-        userSettingsService,
+        new PublisherContentServices(updateService, manifestPool, contentOrchestrator, reconciliationService),
+        new PublisherInteractionServices(notificationService, dialogService, userSettingsService, localizationService),
         profileManager,
         PublisherReconcilerText.CommunityOutpost,
-        telemetryService,
-        localizationService),
+        telemetryService),
     ICommunityOutpostProfileReconciler
 {
 }
