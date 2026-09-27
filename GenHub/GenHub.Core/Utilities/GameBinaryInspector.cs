@@ -25,6 +25,44 @@ namespace GenHub.Core.Utilities;
 /// </summary>
 public static class GameBinaryInspector
 {
+    /// <summary>
+    /// Accumulates marker counts across overlapping scan windows.
+    /// </summary>
+    private sealed class SniffAccumulator
+    {
+        private readonly byte[] _overlap = new byte[GameBinaryConstants.ScanOverlapSize];
+        private readonly byte[] _window = new byte[GameBinaryConstants.ScanOverlapSize + GameBinaryConstants.ScanChunkSize];
+        private int _overlapUsed;
+        private long _consumed;
+
+        /// <summary>Gets the accumulated marker counts.</summary>
+        public (int Title, int ChallengeMenu, int Generals, int DotNet) Counts { get; private set; }
+
+        /// <summary>
+        /// Scans one chunk and accumulates marker counts.
+        /// </summary>
+        /// <param name="chunk">The chunk buffer.</param>
+        /// <param name="read">The number of valid bytes in the chunk.</param>
+        public void Accumulate(byte[] chunk, int read)
+        {
+            Buffer.BlockCopy(_overlap, 0, _window, 0, _overlapUsed);
+            Buffer.BlockCopy(chunk, 0, _window, _overlapUsed, read);
+
+            var windowLength = _overlapUsed + read;
+            var found = SniffWindow(_window.AsSpan(0, windowLength), windowBase: _consumed - _overlapUsed, overlap: _overlapUsed);
+            var counts = Counts;
+            counts.Title += found.Title;
+            counts.ChallengeMenu += found.ChallengeMenu;
+            counts.Generals += found.Generals;
+            counts.DotNet += found.DotNet;
+            Counts = counts;
+
+            _consumed += read;
+            _overlapUsed = Math.Min(GameBinaryConstants.ScanOverlapSize, _overlapUsed + read);
+            Buffer.BlockCopy(_window, windowLength - _overlapUsed, _overlap, 0, _overlapUsed);
+        }
+    }
+
     private static readonly byte[] AnsiTitle = Encoding.ASCII.GetBytes(GameBinaryConstants.ZeroHourTitle);
     private static readonly byte[] Utf16Title = Encoding.Unicode.GetBytes(GameBinaryConstants.ZeroHourTitle);
     private static readonly byte[] ChallengeMarker = Encoding.ASCII.GetBytes(GameBinaryConstants.ChallengeMenuMarker);
@@ -39,25 +77,10 @@ public static class GameBinaryInspector
     /// <returns>The role and game-type verdict, or a failure when the file cannot be read.</returns>
     public static OperationResult<GameBinaryVerdict> Inspect(string path)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        var earlyResult = ValidateInspectionPath(path);
+        if (earlyResult is not null)
         {
-            return OperationResult<GameBinaryVerdict>.CreateFailure("A file path is required for binary inspection.");
-        }
-
-        var gated = ApplyFileNameGates(path);
-        if (gated is not null)
-        {
-            return OperationResult<GameBinaryVerdict>.CreateSuccess(gated);
-        }
-
-        if (Directory.Exists(path))
-        {
-            return OperationResult<GameBinaryVerdict>.CreateFailure($"'{path}' is a directory, not a file.");
-        }
-
-        if (!File.Exists(path))
-        {
-            return OperationResult<GameBinaryVerdict>.CreateFailure($"File '{path}' does not exist.");
+            return earlyResult;
         }
 
         try
@@ -66,15 +89,14 @@ public static class GameBinaryInspector
             var header = new byte[Math.Min(GameBinaryConstants.PeHeaderRetainSize, stream.Length)];
             var headerRead = stream.ReadAtLeast(header.AsSpan(), header.Length, throwOnEndOfStream: false);
 
-            var magic = ClassifyMagic(new ReadOnlySpan<byte>(header, 0, headerRead));
-            if (!magic.IsExecutable)
+            var (earlyVerdict, isPe) = ClassifyHeader(header, headerRead);
+            if (earlyVerdict is not null)
             {
-                return OperationResult<GameBinaryVerdict>.CreateSuccess(
-                    new GameBinaryVerdict(GameBinaryRole.NotExecutable, GameType.Unknown, "No executable magic bytes."));
+                return OperationResult<GameBinaryVerdict>.CreateSuccess(earlyVerdict);
             }
 
             var counts = SniffStream(stream);
-            var verdict = DecideFromBytes(magic.IsPe, header, headerRead, stream, counts);
+            var verdict = DecideFromBytes(isPe, header, headerRead, stream, counts);
             return OperationResult<GameBinaryVerdict>.CreateSuccess(verdict);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
@@ -93,25 +115,10 @@ public static class GameBinaryInspector
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.IsNullOrWhiteSpace(path))
+        var earlyResult = ValidateInspectionPath(path);
+        if (earlyResult is not null)
         {
-            return OperationResult<GameBinaryVerdict>.CreateFailure("A file path is required for binary inspection.");
-        }
-
-        var gated = ApplyFileNameGates(path);
-        if (gated is not null)
-        {
-            return OperationResult<GameBinaryVerdict>.CreateSuccess(gated);
-        }
-
-        if (Directory.Exists(path))
-        {
-            return OperationResult<GameBinaryVerdict>.CreateFailure($"'{path}' is a directory, not a file.");
-        }
-
-        if (!File.Exists(path))
-        {
-            return OperationResult<GameBinaryVerdict>.CreateFailure($"File '{path}' does not exist.");
+            return earlyResult;
         }
 
         try
@@ -120,15 +127,14 @@ public static class GameBinaryInspector
             var header = new byte[Math.Min(GameBinaryConstants.PeHeaderRetainSize, stream.Length)];
             var headerRead = await stream.ReadAtLeastAsync(header.AsMemory(), header.Length, throwOnEndOfStream: false, cancellationToken).ConfigureAwait(false);
 
-            var magic = ClassifyMagic(new ReadOnlySpan<byte>(header, 0, headerRead));
-            if (!magic.IsExecutable)
+            var (earlyVerdict, isPe) = ClassifyHeader(header, headerRead);
+            if (earlyVerdict is not null)
             {
-                return OperationResult<GameBinaryVerdict>.CreateSuccess(
-                    new GameBinaryVerdict(GameBinaryRole.NotExecutable, GameType.Unknown, "No executable magic bytes."));
+                return OperationResult<GameBinaryVerdict>.CreateSuccess(earlyVerdict);
             }
 
             var counts = await SniffStreamAsync(stream, cancellationToken).ConfigureAwait(false);
-            var verdict = DecideFromBytes(magic.IsPe, header, headerRead, stream, counts);
+            var verdict = DecideFromBytes(isPe, header, headerRead, stream, counts);
             return OperationResult<GameBinaryVerdict>.CreateSuccess(verdict);
         }
         catch (OperationCanceledException)
@@ -193,6 +199,43 @@ public static class GameBinaryInspector
         return null;
     }
 
+    private static OperationResult<GameBinaryVerdict>? ValidateInspectionPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return OperationResult<GameBinaryVerdict>.CreateFailure("A file path is required for binary inspection.");
+        }
+
+        var gated = ApplyFileNameGates(path);
+        if (gated is not null)
+        {
+            return OperationResult<GameBinaryVerdict>.CreateSuccess(gated);
+        }
+
+        if (Directory.Exists(path))
+        {
+            return OperationResult<GameBinaryVerdict>.CreateFailure($"'{path}' is a directory, not a file.");
+        }
+
+        if (!File.Exists(path))
+        {
+            return OperationResult<GameBinaryVerdict>.CreateFailure($"File '{path}' does not exist.");
+        }
+
+        return null;
+    }
+
+    private static (GameBinaryVerdict? EarlyVerdict, bool IsPe) ClassifyHeader(byte[] header, int headerRead)
+    {
+        var magic = ClassifyMagic(new ReadOnlySpan<byte>(header, 0, headerRead));
+        if (!magic.IsExecutable)
+        {
+            return (new GameBinaryVerdict(GameBinaryRole.NotExecutable, GameType.Unknown, "No executable magic bytes."), false);
+        }
+
+        return (null, magic.IsPe);
+    }
+
     private static GameBinaryVerdict? ApplyFileNameGates(string path)
     {
         var fileName = Path.GetFileName(path);
@@ -217,15 +260,8 @@ public static class GameBinaryInspector
 
     private static (int Title, int ChallengeMenu, int Generals, int DotNet) SniffStream(FileStream stream)
     {
-        var title = 0;
-        var challenge = 0;
-        var generals = 0;
-        var dotnet = 0;
         var chunk = new byte[GameBinaryConstants.ScanChunkSize];
-        var overlap = new byte[GameBinaryConstants.ScanOverlapSize];
-        var window = new byte[GameBinaryConstants.ScanOverlapSize + GameBinaryConstants.ScanChunkSize];
-        var overlapUsed = 0;
-        long consumed = 0;
+        var accumulator = new SniffAccumulator();
 
         stream.Seek(0, SeekOrigin.Begin);
         while (true)
@@ -236,35 +272,16 @@ public static class GameBinaryInspector
                 break;
             }
 
-            Buffer.BlockCopy(overlap, 0, window, 0, overlapUsed);
-            Buffer.BlockCopy(chunk, 0, window, overlapUsed, read);
-
-            var windowLength = overlapUsed + read;
-            var found = SniffWindow(window.AsSpan(0, windowLength), windowBase: consumed - overlapUsed, overlap: overlapUsed);
-            title += found.Title;
-            challenge += found.ChallengeMenu;
-            generals += found.Generals;
-            dotnet += found.DotNet;
-
-            consumed += read;
-            overlapUsed = Math.Min(GameBinaryConstants.ScanOverlapSize, overlapUsed + read);
-            Buffer.BlockCopy(window, windowLength - overlapUsed, overlap, 0, overlapUsed);
+            accumulator.Accumulate(chunk, read);
         }
 
-        return (title, challenge, generals, dotnet);
+        return accumulator.Counts;
     }
 
     private static async Task<(int Title, int ChallengeMenu, int Generals, int DotNet)> SniffStreamAsync(FileStream stream, CancellationToken cancellationToken)
     {
-        var title = 0;
-        var challenge = 0;
-        var generals = 0;
-        var dotnet = 0;
         var chunk = new byte[GameBinaryConstants.ScanChunkSize];
-        var overlap = new byte[GameBinaryConstants.ScanOverlapSize];
-        var window = new byte[GameBinaryConstants.ScanOverlapSize + GameBinaryConstants.ScanChunkSize];
-        var overlapUsed = 0;
-        long consumed = 0;
+        var accumulator = new SniffAccumulator();
 
         stream.Seek(0, SeekOrigin.Begin);
         while (true)
@@ -276,22 +293,10 @@ public static class GameBinaryInspector
                 break;
             }
 
-            Buffer.BlockCopy(overlap, 0, window, 0, overlapUsed);
-            Buffer.BlockCopy(chunk, 0, window, overlapUsed, read);
-
-            var windowLength = overlapUsed + read;
-            var found = SniffWindow(window.AsSpan(0, windowLength), windowBase: consumed - overlapUsed, overlap: overlapUsed);
-            title += found.Title;
-            challenge += found.ChallengeMenu;
-            generals += found.Generals;
-            dotnet += found.DotNet;
-
-            consumed += read;
-            overlapUsed = Math.Min(GameBinaryConstants.ScanOverlapSize, overlapUsed + read);
-            Buffer.BlockCopy(window, windowLength - overlapUsed, overlap, 0, overlapUsed);
+            accumulator.Accumulate(chunk, read);
         }
 
-        return (title, challenge, generals, dotnet);
+        return accumulator.Counts;
     }
 
     private static (int Title, int ChallengeMenu, int Generals, int DotNet) SniffWindow(ReadOnlySpan<byte> window, long windowBase, int overlap)

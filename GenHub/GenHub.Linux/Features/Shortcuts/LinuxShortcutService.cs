@@ -89,29 +89,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        try
-        {
-            var shortcutPath = GetShortcutPath(profile);
-
-            if (File.Exists(shortcutPath))
-            {
-                File.Delete(shortcutPath);
-                logger.LogInformation(
-                    "Removed desktop shortcut for profile {ProfileName} at {ShortcutPath}",
-                    profile.Name,
-                    shortcutPath);
-
-                return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-            }
-
-            logger.LogWarning("Shortcut not found at {ShortcutPath}", shortcutPath);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            logger.LogError(ex, "Failed to remove desktop shortcut for profile {ProfileName}", profile.Name);
-            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to remove shortcut: {ex.Message}"));
-        }
+        return ShortcutFileHelper.RemoveShortcutFileAsync(GetShortcutPath(profile), profile.Name, logger);
     }
 
     /// <inheritdoc />

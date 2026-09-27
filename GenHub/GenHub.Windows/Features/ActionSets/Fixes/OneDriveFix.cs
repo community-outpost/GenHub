@@ -177,20 +177,35 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         }
     }
 
-    private static void CopyDirectoryRecursive(string source, string target)
+    private static void CreateTargetDirectories(string source, string target)
     {
         foreach (var dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(source, dirPath);
             Directory.CreateDirectory(Path.Combine(target, relative));
         }
+    }
+
+    private static string PrepareTargetFile(string source, string target, string filePath)
+    {
+        var relative = Path.GetRelativePath(source, filePath);
+        var targetFile = Path.Combine(target, relative);
+        var targetDir = Path.GetDirectoryName(targetFile);
+        if (!string.IsNullOrEmpty(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        return targetFile;
+    }
+
+    private static void CopyDirectoryRecursive(string source, string target)
+    {
+        CreateTargetDirectories(source, target);
 
         foreach (var filePath in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
         {
-            var relative = Path.GetRelativePath(source, filePath);
-            var targetFile = Path.Combine(target, relative);
-            var targetDir = Path.GetDirectoryName(targetFile);
-            if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
+            var targetFile = PrepareTargetFile(source, target, filePath);
             File.Copy(filePath, targetFile, overwrite: true);
         }
     }
@@ -200,18 +215,12 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         int count = 0;
         long bytes = 0;
 
-        foreach (var dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(source, dirPath);
-            Directory.CreateDirectory(Path.Combine(target, relative));
-        }
+        CreateTargetDirectories(source, target);
 
         foreach (var filePath in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(source, filePath);
-            var targetFile = Path.Combine(target, relative);
-            var targetDir = Path.GetDirectoryName(targetFile);
-            if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
+            var targetFile = PrepareTargetFile(source, target, filePath);
 
             var srcInfo = new FileInfo(filePath);
             if (!File.Exists(targetFile) || srcInfo.LastWriteTimeUtc > new FileInfo(targetFile).LastWriteTimeUtc)
