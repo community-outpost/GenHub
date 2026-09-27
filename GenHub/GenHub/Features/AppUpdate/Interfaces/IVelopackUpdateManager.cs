@@ -73,13 +73,17 @@ public interface IVelopackUpdateManager
     /// Applies the downloaded update and restarts the application.
     /// </summary>
     /// <param name="updateInfo">The update information.</param>
-    void ApplyUpdatesAndRestart(UpdateInfo updateInfo);
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the apply and restart operation.</returns>
+    Task ApplyUpdatesAndRestartAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Applies the downloaded update and exits the application.
     /// </summary>
     /// <param name="updateInfo">The update information.</param>
-    void ApplyUpdatesAndExit(UpdateInfo updateInfo);
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the apply and exit operation.</returns>
+    Task ApplyUpdatesAndExitAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets a value indicating whether an update is pending restart.

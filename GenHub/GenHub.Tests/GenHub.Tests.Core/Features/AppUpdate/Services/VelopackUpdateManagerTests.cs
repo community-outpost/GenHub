@@ -195,31 +195,33 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
-    /// Tests that ApplyUpdatesAndRestart throws InvalidOperationException when UpdateManager is not initialized.
+    /// Tests that ApplyUpdatesAndRestartAsync throws InvalidOperationException when UpdateManager is not initialized.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public void ApplyUpdatesAndRestart_WhenNotInitialized_ShouldThrowInvalidOperationException()
+    public async Task ApplyUpdatesAndRestartAsync_WhenNotInitialized_ShouldThrowInvalidOperationExceptionAsync()
     {
         // Arrange
         var manager = CreateManager();
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(
-            () => manager.ApplyUpdatesAndRestart(null!));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ApplyUpdatesAndRestartAsync(null!));
     }
 
     /// <summary>
-    /// Tests that ApplyUpdatesAndExit throws InvalidOperationException when UpdateManager is not initialized.
+    /// Tests that ApplyUpdatesAndExitAsync throws InvalidOperationException when UpdateManager is not initialized.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public void ApplyUpdatesAndExit_WhenNotInitialized_ShouldThrowInvalidOperationException()
+    public async Task ApplyUpdatesAndExitAsync_WhenNotInitialized_ShouldThrowInvalidOperationExceptionAsync()
     {
         // Arrange
         var manager = CreateManager();
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(
-            () => manager.ApplyUpdatesAndExit(null!));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => manager.ApplyUpdatesAndExitAsync(null!));
     }
 
     /// <summary>

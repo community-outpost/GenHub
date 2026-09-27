@@ -19,50 +19,30 @@ namespace GenHub.Features.Telemetry.Services;
 /// <summary>
 /// Core telemetry service that manages the bounded event queue, client-side scrubbing, breadcrumbs, and sink dispatching.
 /// </summary>
-public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDisposable
+public sealed class TelemetryService(
+    ILogger<TelemetryService> logger,
+    ITelemetrySanitizer sanitizer,
+    IUserSettingsService userSettingsService,
+    IEnumerable<ITelemetrySink> sinks) : ITelemetryService, IAsyncDisposable, IDisposable
 {
-    private readonly ILogger<TelemetryService> _logger;
-    private readonly ITelemetrySanitizer _sanitizer;
-    private readonly IUserSettingsService _userSettingsService;
-    private readonly IReadOnlyList<ITelemetrySink> _sinks;
+    private readonly IReadOnlyList<ITelemetrySink> _sinks = (sinks ?? []).ToList();
 
-    private readonly Channel<TelemetryEvent> _channel;
+    private readonly Channel<TelemetryEvent> _channel = Channel.CreateBounded<TelemetryEvent>(new BoundedChannelOptions(TelemetryConstants.MaxQueueCapacity)
+    {
+        FullMode = BoundedChannelFullMode.DropOldest,
+        SingleReader = true,
+        SingleWriter = false,
+    });
+
     private readonly ConcurrentQueue<Breadcrumb> _breadcrumbs = new();
     private readonly CancellationTokenSource _cts = new();
-    private readonly Task _processingTask;
     private readonly object _installationIdLock = new();
+    private readonly object _processingTaskLock = new();
+    private Task? _processingTask;
     private string? _cachedInstallationId;
     private int _inFlightCount;
     private Task? _installationIdSaveTask;
     private int _disposed;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="TelemetryService"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="sanitizer">The telemetry data sanitizer.</param>
-    /// <param name="userSettingsService">The user settings service.</param>
-    /// <param name="sinks">The registered telemetry destination sinks.</param>
-    public TelemetryService(
-        ILogger<TelemetryService> logger,
-        ITelemetrySanitizer sanitizer,
-        IUserSettingsService userSettingsService,
-        IEnumerable<ITelemetrySink> sinks)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _sanitizer = sanitizer ?? throw new ArgumentNullException(nameof(sanitizer));
-        _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
-        _sinks = (sinks ?? []).ToList();
-
-        _channel = Channel.CreateBounded<TelemetryEvent>(new BoundedChannelOptions(TelemetryConstants.MaxQueueCapacity)
-        {
-            FullMode = BoundedChannelFullMode.DropOldest,
-            SingleReader = true,
-            SingleWriter = false,
-        });
-
-        _processingTask = Task.Run(() => ProcessChannelAsync(_cts.Token), _cts.Token);
-    }
 
     /// <inheritdoc/>
     public TelemetryLevel CurrentLevel
@@ -71,11 +51,11 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         {
             try
             {
-                return _userSettingsService.Get().TelemetryPreference;
+                return userSettingsService.Get().TelemetryPreference;
             }
             catch (Exception ex)
             {
-                _logger.LogTrace(ex, "Failed to retrieve telemetry preference from user settings");
+                logger.LogTrace(ex, "Failed to retrieve telemetry preference from user settings");
                 return TelemetryLevel.Disabled;
             }
         }
@@ -106,13 +86,14 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
         try
         {
+            _ = EnsureProcessingTaskStarted();
             var installationId = GetOrCreateInstallationId();
-            var sanitizedProperties = _sanitizer.SanitizeProperties(properties);
+            var sanitizedProperties = sanitizer.SanitizeProperties(properties);
 
             string? sessionId = null;
             if (properties?.TryGetValue(TelemetryConstants.Properties.SessionId, out var rawSessionId) is true && rawSessionId != null)
             {
-                sessionId = _sanitizer.SanitizeString(rawSessionId.ToString());
+                sessionId = sanitizer.SanitizeString(rawSessionId.ToString());
             }
 
             var eventProps = new Dictionary<string, object?>(sanitizedProperties);
@@ -131,7 +112,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
             var telemetryEvent = new TelemetryEvent
             {
-                EventName = _sanitizer.SanitizeString(eventName),
+                EventName = sanitizer.SanitizeString(eventName),
                 Timestamp = DateTimeOffset.UtcNow,
                 Level = level,
                 InstallationId = installationId,
@@ -145,7 +126,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         }
         catch (Exception ex)
         {
-            _logger.LogTrace(ex, "Failed to track telemetry event {EventName}", eventName);
+            logger.LogTrace(ex, "Failed to track telemetry event {EventName}", eventName);
         }
     }
 
@@ -165,9 +146,10 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
         try
         {
+            _ = EnsureProcessingTaskStarted();
             var installationId = GetOrCreateInstallationId();
-            var sanitizedMessage = _sanitizer.SanitizeString(exception.Message);
-            var sanitizedStackTrace = _sanitizer.SanitizeStackTrace(exception.StackTrace);
+            var sanitizedMessage = sanitizer.SanitizeString(exception.Message);
+            var sanitizedStackTrace = sanitizer.SanitizeStackTrace(exception.StackTrace);
             var breadcrumbs = GetRecentBreadcrumbs();
 
             var combinedProperties = new Dictionary<string, object?>(properties ?? new Dictionary<string, object?>())
@@ -199,7 +181,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
                 combinedProperties.TryAdd(TelemetryConstants.Properties.PullRequestNumber, AppConstants.PullRequestNumber);
             }
 
-            var sanitizedProperties = _sanitizer.SanitizeProperties(combinedProperties);
+            var sanitizedProperties = sanitizer.SanitizeProperties(combinedProperties);
 
             var telemetryEvent = new TelemetryEvent
             {
@@ -216,7 +198,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         }
         catch (Exception ex)
         {
-            _logger.LogTrace(ex, "Failed to track exception");
+            logger.LogTrace(ex, "Failed to track exception");
         }
     }
 
@@ -232,10 +214,10 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         {
             var breadcrumb = new Breadcrumb
             {
-                Message = _sanitizer.SanitizeString(message),
+                Message = sanitizer.SanitizeString(message),
                 Category = category ?? "general",
                 Timestamp = DateTimeOffset.UtcNow,
-                Data = data != null ? _sanitizer.SanitizeProperties(data) : null,
+                Data = data != null ? sanitizer.SanitizeProperties(data) : null,
             };
 
             _breadcrumbs.Enqueue(breadcrumb);
@@ -247,7 +229,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         }
         catch (Exception ex)
         {
-            _logger.LogTrace(ex, "Failed to add breadcrumb");
+            logger.LogTrace(ex, "Failed to add breadcrumb");
         }
     }
 
@@ -262,6 +244,8 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     {
         try
         {
+            _ = EnsureProcessingTaskStarted();
+
             // Allow queued channel items and in-flight sink tasks to drain before flushing sink buffers
             var spinCount = 0;
             while ((_channel.Reader.Count > 0 || Volatile.Read(ref _inFlightCount) > 0) && spinCount < 40 && !cancellationToken.IsCancellationRequested)
@@ -278,7 +262,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogTrace(ex, "Error while awaiting installation ID persistence");
+                    logger.LogTrace(ex, "Error while awaiting installation ID persistence");
                 }
             }
 
@@ -295,7 +279,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         }
         catch (Exception ex)
         {
-            _logger.LogTrace(ex, "Error while flushing telemetry sinks");
+            logger.LogTrace(ex, "Error while flushing telemetry sinks");
             return OperationResult<bool>.CreateFailure(ex.Message);
         }
     }
@@ -308,18 +292,10 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             return;
         }
 
+        // Best-effort shutdown signal only: never block the disposing thread.
+        // DisposeAsync owns the graceful drain path.
         _channel.Writer.TryComplete();
-        _cts.CancelAfter(TimeSpan.FromSeconds(2));
-
-        try
-        {
-            _processingTask.Wait(TimeSpan.FromSeconds(2), _cts.Token);
-        }
-        catch
-        {
-            // Suppress background task cancellation exceptions on shutdown
-        }
-
+        _cts.Cancel();
         _cts.Dispose();
     }
 
@@ -335,8 +311,8 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
         try
         {
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            await _processingTask.WaitAsync(timeoutCts.Token).ConfigureAwait(false);
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(TelemetryConstants.FlushTimeoutSeconds));
+            await EnsureProcessingTaskStarted().WaitAsync(timeoutCts.Token).ConfigureAwait(false);
             await FlushAsync(timeoutCts.Token).ConfigureAwait(false);
         }
         catch
@@ -364,7 +340,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
             try
             {
-                var settings = _userSettingsService.Get();
+                var settings = userSettingsService.Get();
                 if (!string.IsNullOrWhiteSpace(settings.AnonymousInstallationId))
                 {
                     _cachedInstallationId = settings.AnonymousInstallationId;
@@ -372,8 +348,8 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
                 }
 
                 var newId = Guid.NewGuid().ToString("N");
-                _userSettingsService.Update(s => s.AnonymousInstallationId = newId);
-                _installationIdSaveTask = _userSettingsService.SaveAsync(CancellationToken.None);
+                userSettingsService.Update(s => s.AnonymousInstallationId = newId);
+                _installationIdSaveTask = userSettingsService.SaveAsync(CancellationToken.None);
                 _cachedInstallationId = newId;
                 return newId;
             }
@@ -381,6 +357,15 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             {
                 return Guid.Empty.ToString("N");
             }
+        }
+    }
+
+    private Task EnsureProcessingTaskStarted()
+    {
+        lock (_processingTaskLock)
+        {
+            _processingTask ??= Task.Run(() => ProcessChannelAsync(_cts.Token), _cts.Token);
+            return _processingTask;
         }
     }
 
@@ -418,7 +403,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         }
         catch (Exception ex)
         {
-            _logger.LogTrace(ex, "Unexpected error in telemetry event processing channel");
+            logger.LogTrace(ex, "Unexpected error in telemetry event processing channel");
         }
     }
 
@@ -437,7 +422,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             }
             catch (Exception ex)
             {
-                _logger.LogTrace(ex, "Telemetry sink {SinkName} failed emitting event", sink.Name);
+                logger.LogTrace(ex, "Telemetry sink {SinkName} failed emitting event", sink.Name);
             }
         }
     }

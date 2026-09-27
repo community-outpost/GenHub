@@ -1052,35 +1052,35 @@ public class GameProcessManager(
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return "Native";
+            return TelemetryConstants.Runners.Native;
         }
 
-        if (envVars?.TryGetValue("PROTON_VERSION", out var configProton) is true && !string.IsNullOrWhiteSpace(configProton))
+        if (envVars?.TryGetValue(WineConstants.ProtonVersionEnvironmentVariable, out var configProton) is true && !string.IsNullOrWhiteSpace(configProton))
         {
-            return $"Proton-{configProton}";
+            return $"{TelemetryConstants.Runners.ProtonPrefix}{configProton}";
         }
 
-        if (Environment.GetEnvironmentVariable("PROTON_VERSION") is { Length: > 0 } proton)
+        if (Environment.GetEnvironmentVariable(WineConstants.ProtonVersionEnvironmentVariable) is { Length: > 0 } proton)
         {
-            return $"Proton-{proton}";
+            return $"{TelemetryConstants.Runners.ProtonPrefix}{proton}";
         }
 
-        if (envVars?.ContainsKey("WINEPREFIX") is true || Environment.GetEnvironmentVariable("WINEPREFIX") is { Length: > 0 })
+        if (envVars?.ContainsKey(WineConstants.PrefixEnvironmentVariable) is true || Environment.GetEnvironmentVariable(WineConstants.PrefixEnvironmentVariable) is { Length: > 0 })
         {
-            return "Wine";
+            return TelemetryConstants.Runners.Wine;
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            return "Linux-Runner";
+            return TelemetryConstants.Runners.Linux;
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return "macOS-Runner";
+            return TelemetryConstants.Runners.MacOS;
         }
 
-        return "Native";
+        return TelemetryConstants.Runners.Native;
     }
 
     private static IReadOnlyDictionary<string, string>? MergeEnvironmentVariables(

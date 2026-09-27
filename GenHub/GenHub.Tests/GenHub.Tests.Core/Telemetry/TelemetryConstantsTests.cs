@@ -27,6 +27,15 @@ public class TelemetryConstantsTests
         Assert.Equal("/i/v0/e/", TelemetryConstants.DefaultPostHogCapturePath);
         Assert.Equal("PR-", TelemetryConstants.PullRequestChannelPrefix);
         Assert.Equal("567732", TelemetryConstants.DefaultPostHogProjectId);
+        Assert.Equal(2, TelemetryConstants.FlushTimeoutSeconds);
+        Assert.Equal("Release", TelemetryConstants.ReleaseChannel);
+        Assert.Equal("Native", TelemetryConstants.Runners.Native);
+        Assert.Equal("Wine", TelemetryConstants.Runners.Wine);
+        Assert.Equal("Proton-", TelemetryConstants.Runners.ProtonPrefix);
+        Assert.Equal("Linux-Runner", TelemetryConstants.Runners.Linux);
+        Assert.Equal("macOS-Runner", TelemetryConstants.Runners.MacOS);
+        Assert.Equal("Package", TelemetryConstants.ContentTypes.Package);
+        Assert.Equal("desktop", TelemetryConstants.ShortcutTypes.Desktop);
     }
 
     /// <summary>

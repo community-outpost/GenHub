@@ -16,6 +16,12 @@ public static class TelemetryConstants
     public const int DefaultFlushIntervalSeconds = 30;
 
     /// <summary>
+    /// Maximum seconds to wait for pending telemetry to flush before process exit or shutdown.
+    /// Events still queued after this timeout are dropped.
+    /// </summary>
+    public const int FlushTimeoutSeconds = 2;
+
+    /// <summary>
     /// Maximum capacity of the in-memory bounded channel before dropping oldest events.
     /// </summary>
     public const int MaxQueueCapacity = 500;
@@ -79,6 +85,11 @@ public static class TelemetryConstants
     /// Prefix for pull-request update channels (e.g. "PR-123").
     /// </summary>
     public const string PullRequestChannelPrefix = "PR-";
+
+    /// <summary>
+    /// Fallback update channel for stable release builds.
+    /// </summary>
+    public const string ReleaseChannel = "Release";
 
     /// <summary>
     /// Default PostHog event capture endpoint.
@@ -430,5 +441,44 @@ public static class TelemetryConstants
     {
         /// <summary>Profile launch reported failure without an exception.</summary>
         public const string LaunchFailed = "launch_failed";
+    }
+
+    /// <summary>
+    /// Game runner values for the runner telemetry property.
+    /// </summary>
+    public static class Runners
+    {
+        /// <summary>Game runs natively without a compatibility layer.</summary>
+        public const string Native = "Native";
+
+        /// <summary>Game runs through Wine.</summary>
+        public const string Wine = "Wine";
+
+        /// <summary>Prefix for Proton runner values, followed by the Proton version (e.g. "Proton-9.0").</summary>
+        public const string ProtonPrefix = "Proton-";
+
+        /// <summary>Game runs through the Linux compatibility runner.</summary>
+        public const string Linux = "Linux-Runner";
+
+        /// <summary>Game runs through the macOS compatibility runner.</summary>
+        public const string MacOS = "macOS-Runner";
+    }
+
+    /// <summary>
+    /// Content type values for the content type telemetry property.
+    /// </summary>
+    public static class ContentTypes
+    {
+        /// <summary>Generic downloadable package.</summary>
+        public const string Package = "Package";
+    }
+
+    /// <summary>
+    /// Shortcut type values for the shortcut type telemetry property.
+    /// </summary>
+    public static class ShortcutTypes
+    {
+        /// <summary>Desktop shortcut.</summary>
+        public const string Desktop = "desktop";
     }
 }

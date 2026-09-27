@@ -1061,7 +1061,7 @@ public class DownloadService(
             [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
             [TelemetryConstants.Properties.DurationSeconds] = Math.Round(totalElapsedSeconds, 2),
             [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
-            [TelemetryConstants.Properties.ContentType] = "Package",
+            [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Package,
         };
 
         telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, downloadProperties);
@@ -1071,7 +1071,7 @@ public class DownloadService(
     {
         var properties = new Dictionary<string, object?>
         {
-            [TelemetryConstants.Properties.ContentType] = "Package",
+            [TelemetryConstants.Properties.ContentType] = TelemetryConstants.ContentTypes.Package,
             [TelemetryConstants.Properties.ErrorMessage] = errorMessage,
         };
 

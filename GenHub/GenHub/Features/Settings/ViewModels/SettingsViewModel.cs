@@ -50,11 +50,6 @@ namespace GenHub.Features.Settings.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject, IDisposable
 {
-    /// <summary>
-    /// Gets the available telemetry consent levels for selection in the UI.
-    /// </summary>
-    public static IEnumerable<TelemetryLevel> AvailableTelemetryLevels => Enum.GetValues<TelemetryLevel>();
-
     private enum CasCleanupOutcome
     {
         Success,
@@ -452,6 +447,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Gets the current application version for display.
     /// </summary>
     public static string CurrentVersion => AppConstants.FullDisplayVersion;
+
+    /// <summary>
+    /// Gets the available telemetry consent levels for selection in the UI.
+    /// </summary>
+    public static IReadOnlyList<TelemetryLevel> AvailableTelemetryLevels => Enum.GetValues<TelemetryLevel>();
 
     /// <summary>
     /// Gets the available themes for selection in the UI.

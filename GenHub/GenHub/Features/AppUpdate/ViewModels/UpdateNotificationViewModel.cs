@@ -1185,7 +1185,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
             await Task.Delay(1500); // Brief delay to show completion message
 
-            _velopackUpdateManager.ApplyUpdatesAndRestart(_currentUpdateInfo);
+            await _velopackUpdateManager.ApplyUpdatesAndRestartAsync(_currentUpdateInfo, _cancellationTokenSource.Token);
         }
         catch (Exception ex)
         {
