@@ -18,7 +18,6 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
-using GenHub.Core.Models.Results.Validation;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Tools.WndEditor.ViewModels;
