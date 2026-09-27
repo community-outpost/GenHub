@@ -271,9 +271,11 @@ public static class ContentPipelineModule
         services.AddSingleton<GitHubDiscoverer>();
         services.AddSingleton<GitHubReleasesDiscoverer>();
         services.AddSingleton<GitHubTopicsDiscoverer>();
+        services.AddSingleton<SuperHackersDiscoverer>();
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<GitHubDiscoverer>());
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<GitHubReleasesDiscoverer>());
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<GitHubTopicsDiscoverer>());
+        services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<SuperHackersDiscoverer>());
 
         // Register GitHub resolver
         services.AddTransient<IContentResolver, GitHubResolver>();
