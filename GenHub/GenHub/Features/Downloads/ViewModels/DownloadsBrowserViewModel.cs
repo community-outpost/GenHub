@@ -2855,7 +2855,7 @@ public sealed partial class DownloadsBrowserViewModel(
                         [TelemetryConstants.Properties.ContentName] = targetItem.Name,
                         [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
                         [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName,
-                        [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? "Failed to apply update",
+                        [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage,
                     });
                     return false;
                 }
