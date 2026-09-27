@@ -30,13 +30,9 @@ public class CsvContentProvider(
         ?? discoverers.FirstOrDefault(d => string.Equals(d.SourceName, CsvConstants.SourceName, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("CSV discoverer not found");
 
-    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
-        string.Equals(r.ResolverId, CsvConstants.ResolverId, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("CSV resolver not found");
+    private readonly IContentResolver _resolver = ResolveResolver(resolvers, CsvConstants.ResolverId);
 
-    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
-        string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("HTTP deliverer not found");
+    private readonly IContentDeliverer _deliverer = ResolveDeliverer(deliverers, ContentSourceNames.HttpDeliverer);
 
     /// <inheritdoc />
     public override string SourceName => PublisherTypeConstants.CsvRegistry;

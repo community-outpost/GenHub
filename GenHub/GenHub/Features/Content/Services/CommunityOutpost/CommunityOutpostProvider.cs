@@ -37,19 +37,12 @@ public class CommunityOutpostProvider(
     ILogger<CommunityOutpostProvider> logger)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
-            d.SourceName.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("No Community Outpost discoverer found");
+    private readonly IContentDiscoverer _discoverer = ResolveDiscoverer(discoverers, CommunityOutpostConstants.PublisherType);
 
-    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
-            r.ResolverId == CommunityOutpostConstants.PublisherId)
-            ?? throw new InvalidOperationException(
-                $"No Community Outpost resolver found with ResolverId '{CommunityOutpostConstants.PublisherId}'");
+    private readonly IContentResolver _resolver = ResolveResolver(resolvers, CommunityOutpostConstants.PublisherId);
 
     // Use CommunityOutpostDeliverer for specialized ZIP extraction and manifest factory invocation
-    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
-            d.SourceName?.Equals(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new InvalidOperationException("No Community Outpost deliverer found");
+    private readonly IContentDeliverer _deliverer = ResolveDeliverer(deliverers, CommunityOutpostConstants.PublisherId);
 
     /// <inheritdoc/>
     public override string SourceName => CommunityOutpostConstants.PublisherType;

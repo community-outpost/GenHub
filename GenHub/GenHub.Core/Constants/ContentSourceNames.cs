@@ -8,6 +8,11 @@ public static class ContentSourceNames
     // Discoverers
 
     /// <summary>
+    /// Source name for the local file system content provider.
+    /// </summary>
+    public const string LocalFileSystemProvider = "LocalFileSystem";
+
+    /// <summary>
     /// Source name for CNC Labs map discoverer.
     /// </summary>
     public const string CNCLabsDiscoverer = "CNC Labs Maps";

@@ -28,19 +28,16 @@ public class LocalFileSystemContentProvider(
     IConfigurationProviderService configurationProvider)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _fileSystemDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No FileSystem discoverer found");
+    private readonly IContentDiscoverer _fileSystemDiscoverer = ResolveDiscoverer(discoverers, ContentSourceNames.FileSystemDiscoverer);
 
-    private readonly IContentResolver _localResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.LocalResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No Local resolver found");
+    private readonly IContentResolver _localResolver = ResolveResolver(resolvers, ContentSourceNames.LocalResolverId);
 
-    private readonly IContentDeliverer _fileSystemDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No FileSystem deliverer found");
+    private readonly IContentDeliverer _fileSystemDeliverer = ResolveDeliverer(deliverers, ContentSourceNames.FileSystemDeliverer);
 
     private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     /// <inheritdoc />
-    public override string SourceName => "LocalFileSystem";
+    public override string SourceName => ContentSourceNames.LocalFileSystemProvider;
 
     /// <inheritdoc />
     public override string Description => "Local file system content provider";

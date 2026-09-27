@@ -37,13 +37,9 @@ public class SuperHackersProvider(
 {
     private const string LatestTagFallback = "latest";
 
-    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
-            r.ResolverId?.Equals(SuperHackersConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub resolver found for SuperHackers");
+    private readonly IContentResolver _resolver = ResolveResolver(resolvers, SuperHackersConstants.ResolverId);
 
-    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
-            d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub deliverer found for SuperHackers");
+    private readonly IContentDeliverer _deliverer = ResolveDeliverer(deliverers, ContentSourceNames.GitHubDeliverer);
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.TheSuperHackers;

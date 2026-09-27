@@ -28,14 +28,11 @@ public class CNCLabsContentProvider(
     IInstallationInstructionsService installationInstructionsService)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _cncLabsDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.CNCLabsDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("CNC Labs discoverer not found", nameof(discoverers));
+    private readonly IContentDiscoverer _cncLabsDiscoverer = ResolveDiscoverer(discoverers, ContentSourceNames.CNCLabsDiscoverer);
 
-    private readonly IContentResolver _cncLabsResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.CNCLabsResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("CNC Labs resolver not found", nameof(resolvers));
+    private readonly IContentResolver _cncLabsResolver = ResolveResolver(resolvers, ContentSourceNames.CNCLabsResolverId);
 
-    private readonly IContentDeliverer _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
+    private readonly IContentDeliverer _httpDeliverer = ResolveDeliverer(deliverers, ContentSourceNames.HttpDeliverer);
 
     /// <inheritdoc />
     /// <remarks>

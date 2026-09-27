@@ -179,6 +179,9 @@ public static class GameClientConstants
     /// <summary>Name for Generals installation dependency requirement.</summary>
     public const string GeneralsInstallationDependencyName = "Generals Installation (Required)";
 
+    /// <summary>Name for Generals 1.08 installation dependency requirement.</summary>
+    public const string Generals108InstallationDependencyName = "Generals 1.08 (Required)";
+
     // ===== Version Strings =====
 
     /// <summary>Version string used for automatically detected clients.</summary>

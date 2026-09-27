@@ -70,7 +70,7 @@ public class CsvContentProviderTests
             Mock.Of<IInstallationInstructionsService>());
 
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*CSV resolver not found*");
+            .WithMessage("*No content resolver found for*");
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public class CsvContentProviderTests
             Mock.Of<IInstallationInstructionsService>());
 
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*deliverer not found*");
+            .WithMessage("*No content deliverer found for*");
     }
 
     /// <summary>

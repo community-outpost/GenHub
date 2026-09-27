@@ -38,17 +38,11 @@ public class GenLauncherProvider(
     ILogger<GenLauncherProvider> logger)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
-        d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("No GenLauncher discoverer found");
+    private readonly IContentDiscoverer _discoverer = ResolveDiscoverer(discoverers, PublisherTypeConstants.GenLauncher);
 
-    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
-        r.ResolverId.Equals(GenLauncherConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException($"No GenLauncher resolver found with ResolverId '{GenLauncherConstants.PublisherId}'");
+    private readonly IContentResolver _resolver = ResolveResolver(resolvers, GenLauncherConstants.PublisherId);
 
-    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
-        d.SourceName.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("No GenLauncher deliverer found");
+    private readonly IContentDeliverer _deliverer = ResolveDeliverer(deliverers, PublisherTypeConstants.GenLauncher);
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.GenLauncher;

@@ -29,7 +29,7 @@ public class GitHubContentProvider(
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     /// <inheritdoc />
-    public override string SourceName => "GitHub";
+    public override string SourceName => GitHubTopicsConstants.DiscovererSourceName;
 
     /// <inheritdoc />
     public override string Description => "GitHub releases and repository content";
@@ -44,21 +44,15 @@ public class GitHubContentProvider(
 
     /// <inheritdoc />
     protected override IContentDiscoverer Discoverer =>
-        discoverers.FirstOrDefault(d =>
-            d.SourceName?.Equals(ContentSourceNames.GitHubDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub discoverer found. Ensure a discoverer with 'GitHub' in its SourceName is registered.");
+        ResolveDiscoverer(discoverers, ContentSourceNames.GitHubDiscoverer);
 
     /// <inheritdoc />
     protected override IContentResolver Resolver =>
-        resolvers.FirstOrDefault(r =>
-            r.ResolverId?.Equals(ContentSourceNames.GitHubResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub resolver found. Ensure a resolver with 'GitHub' in its ResolverId is registered.");
+        ResolveResolver(resolvers, ContentSourceNames.GitHubResolverId);
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer =>
-        deliverers.FirstOrDefault(d =>
-            d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub deliverer found. Ensure a deliverer with 'GitHub Content Deliverer' in its SourceName is registered.");
+        ResolveDeliverer(deliverers, ContentSourceNames.GitHubDeliverer);
 
     /// <inheritdoc />
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(

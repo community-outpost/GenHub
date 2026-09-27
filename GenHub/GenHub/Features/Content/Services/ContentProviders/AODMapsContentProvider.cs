@@ -30,17 +30,11 @@ public class AODMapsContentProvider(
     IInstallationInstructionsService installationInstructionsService)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _aodMapsDiscoverer = discoverers.FirstOrDefault(d =>
-        string.Equals(d.SourceName, AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("AODMaps discoverer not found");
+    private readonly IContentDiscoverer _aodMapsDiscoverer = ResolveDiscoverer(discoverers, AODMapsConstants.DiscovererSourceName);
 
-    private readonly IContentResolver _aodMapsResolver = resolvers.FirstOrDefault(r =>
-        string.Equals(r.ResolverId, AODMapsConstants.ResolverId, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("AODMaps resolver not found");
+    private readonly IContentResolver _aodMapsResolver = ResolveResolver(resolvers, AODMapsConstants.ResolverId);
 
-    private readonly IContentDeliverer _httpDeliverer = deliverers.FirstOrDefault(d =>
-        string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("HTTP deliverer not found");
+    private readonly IContentDeliverer _httpDeliverer = ResolveDeliverer(deliverers, ContentSourceNames.HttpDeliverer);
 
     /// <inheritdoc />
     /// <remarks>

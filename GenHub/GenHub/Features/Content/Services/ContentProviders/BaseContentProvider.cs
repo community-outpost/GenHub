@@ -270,6 +270,48 @@ public abstract class BaseContentProvider : IContentProvider
     }
 
     /// <summary>
+    /// Resolves the discoverer with the given source name from the registered components.
+    /// </summary>
+    /// <param name="discoverers">The registered discoverers.</param>
+    /// <param name="sourceName">The expected source name.</param>
+    /// <returns>The matching discoverer.</returns>
+    protected static IContentDiscoverer ResolveDiscoverer(IEnumerable<IContentDiscoverer> discoverers, string sourceName)
+    {
+        ArgumentNullException.ThrowIfNull(discoverers);
+
+        return discoverers.FirstOrDefault(d => string.Equals(d.SourceName, sourceName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"No content discoverer found for '{sourceName}'");
+    }
+
+    /// <summary>
+    /// Resolves the resolver with the given resolver ID from the registered components.
+    /// </summary>
+    /// <param name="resolvers">The registered resolvers.</param>
+    /// <param name="resolverId">The expected resolver ID.</param>
+    /// <returns>The matching resolver.</returns>
+    protected static IContentResolver ResolveResolver(IEnumerable<IContentResolver> resolvers, string resolverId)
+    {
+        ArgumentNullException.ThrowIfNull(resolvers);
+
+        return resolvers.FirstOrDefault(r => string.Equals(r.ResolverId, resolverId, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"No content resolver found for '{resolverId}'");
+    }
+
+    /// <summary>
+    /// Resolves the deliverer with the given source name from the registered components.
+    /// </summary>
+    /// <param name="deliverers">The registered deliverers.</param>
+    /// <param name="sourceName">The expected source name.</param>
+    /// <returns>The matching deliverer.</returns>
+    protected static IContentDeliverer ResolveDeliverer(IEnumerable<IContentDeliverer> deliverers, string sourceName)
+    {
+        ArgumentNullException.ThrowIfNull(deliverers);
+
+        return deliverers.FirstOrDefault(d => string.Equals(d.SourceName, sourceName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"No content deliverer found for '{sourceName}'");
+    }
+
+    /// <summary>
     /// Rolls back prepared content and registered manifests when post-preparation steps fail.
     /// </summary>
     /// <param name="originalManifest">The original requested manifest.</param>
@@ -426,6 +468,9 @@ public abstract class BaseContentProvider : IContentProvider
 
     /// <summary>
     /// Delivers content using the specified deliverer without manifest factory enrichment.
+    /// Used by resolver-based providers whose manifests are already complete at resolve
+    /// time; search-based providers use <see cref="DeliverAndEnrichContentAsync"/> instead
+    /// so extracted payloads are re-scanned into manifests.
     /// </summary>
     /// <param name="deliverer">The content deliverer.</param>
     /// <param name="manifest">The content manifest.</param>

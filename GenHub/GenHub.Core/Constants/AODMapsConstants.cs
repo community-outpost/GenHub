@@ -30,6 +30,9 @@ public static class AODMapsConstants
     /// <summary>Gets the resolver ID for AODMaps.</summary>
     public const string ResolverId = "AODMaps";
 
+    /// <summary>Gets the fallback content name when slugification yields nothing.</summary>
+    public const string DefaultContentName = "content";
+
     /// <summary>Gets the base URL for AODMaps.</summary>
     public const string BaseUrl = "https://aodmaps.com";
 

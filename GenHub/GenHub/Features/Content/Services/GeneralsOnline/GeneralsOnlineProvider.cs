@@ -120,24 +120,15 @@ public class GeneralsOnlineProvider(
 
     /// <inheritdoc />
     protected override IContentDiscoverer Discoverer =>
-        discoverers.First(d =>
-            d.SourceName.Equals(
-                GeneralsOnlineConstants.DiscovererSourceName,
-                StringComparison.OrdinalIgnoreCase));
+        ResolveDiscoverer(discoverers, GeneralsOnlineConstants.DiscovererSourceName);
 
     /// <inheritdoc />
     protected override IContentResolver Resolver =>
-        resolvers.First(r =>
-            r.ResolverId.Equals(
-                GeneralsOnlineConstants.ResolverId,
-                StringComparison.OrdinalIgnoreCase));
+        ResolveResolver(resolvers, GeneralsOnlineConstants.ResolverId);
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer =>
-        deliverers.First(d =>
-            d.SourceName.Equals(
-                GeneralsOnlineConstants.DelivererSourceName,
-                StringComparison.OrdinalIgnoreCase));
+        ResolveDeliverer(deliverers, GeneralsOnlineConstants.DelivererSourceName);
 
     /// <inheritdoc/>
     /// <remarks>

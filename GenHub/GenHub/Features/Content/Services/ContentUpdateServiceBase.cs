@@ -27,6 +27,9 @@ public abstract class ContentUpdateServiceBase(ILogger<ContentUpdateServiceBase>
     /// <inheritdoc />
     /// <remarks>
     /// Checks for available content updates.
+    /// Implementations must return <c>ContentUpdateCheckResult.CreateFailure</c> for
+    /// check failures and never throw except for cooperative cancellation
+    /// (<c>OperationCanceledException</c>), so direct callers get a uniform contract.
     /// </remarks>
     public abstract Task<ContentUpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken);
 
