@@ -35,18 +35,20 @@ public sealed class CommunityOutpostVariantGroupingTests
     }
 
     /// <summary>
-    /// Verifies legacy manifests without a version still form a versionless group.
+    /// Verifies manifests without a version fail closed instead of sharing a versionless group across distinct releases.
     /// </summary>
     /// <param name="version">The version to check.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void BuildVariantGroupId_WithoutVersion_ReturnsVersionlessGroupId(string? version)
+    public void BuildVariantGroupId_WithoutVersion_ReturnsNull(string? version)
     {
-        var groupId = CommunityOutpostVariantGrouping.BuildVariantGroupId(ContentType.Addon, "cbpr", version);
+        var firstRelease = CommunityOutpostVariantGrouping.BuildVariantGroupId(ContentType.Addon, "cbpr", version);
+        var secondRelease = CommunityOutpostVariantGrouping.BuildVariantGroupId(ContentType.Addon, "cbpr", version);
 
-        Assert.Equal("communityoutpost.addon.cbpr", groupId);
+        Assert.Null(firstRelease);
+        Assert.Null(secondRelease);
     }
 
     /// <summary>
@@ -190,6 +192,93 @@ public sealed class CommunityOutpostVariantGroupingTests
 
         Assert.Null(CommunityOutpostVariantGrouping.GetContentCode(manifest));
         Assert.Null(CommunityOutpostVariantGrouping.GetContentCode(null));
+    }
+
+    /// <summary>
+    /// Verifies compound tagged codes normalize through the registry like factory-generated codes.
+    /// </summary>
+    [Fact]
+    public void GetContentCode_WithCompoundTag_ReturnsNormalizedCode()
+    {
+        var manifest = CreateManifest("1.0.communityoutpost.addon.cbhd-1080p");
+        manifest.Metadata.Tags.Add("contentCode:hleizerohourru");
+
+        var code = CommunityOutpostVariantGrouping.GetContentCode(manifest);
+
+        Assert.Equal("hlei", code);
+    }
+
+    /// <summary>
+    /// Verifies unknown tagged codes fall through to the manifest id instead of grouping under an unknown code.
+    /// </summary>
+    [Fact]
+    public void GetContentCode_WithUnknownTag_FallsBackToManifestId()
+    {
+        var manifest = CreateManifest("1.0.communityoutpost.addon.cbpr-1080p");
+        manifest.Metadata.Tags.Add("contentCode:zzzunknown");
+
+        var code = CommunityOutpostVariantGrouping.GetContentCode(manifest);
+
+        Assert.Equal("cbpr", code);
+    }
+
+    /// <summary>
+    /// Verifies unknown tagged codes with an unresolvable id fail closed.
+    /// </summary>
+    [Fact]
+    public void GetContentCode_WithUnknownTagAndId_ReturnsNull()
+    {
+        var manifest = CreateManifest("1.0.test.mod.zzzunknown");
+        manifest.Metadata.Tags.Add("contentCode:zzzunknown");
+
+        Assert.Null(CommunityOutpostVariantGrouping.GetContentCode(manifest));
+    }
+
+    /// <summary>
+    /// Verifies the combined gate resolves the code for variant manifests.
+    /// </summary>
+    [Fact]
+    public void TryGetVariantContentCode_WithVariantManifest_ReturnsTrueAndCode()
+    {
+        var manifest = CreateManifest("1.0.communityoutpost.addon.cbpr-1080p");
+        manifest.Metadata.Tags.Add("contentCode:cbpr");
+        manifest.Metadata.Tags.Add("variant:1080p");
+
+        var result = CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode);
+
+        Assert.True(result);
+        Assert.Equal("cbpr", contentCode);
+    }
+
+    /// <summary>
+    /// Verifies the combined gate rejects singles without variant signals.
+    /// </summary>
+    [Fact]
+    public void TryGetVariantContentCode_WithSingle_ReturnsFalse()
+    {
+        var manifest = CreateManifest("1.0.communityoutpost.addon.cbhd");
+
+        var result = CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode);
+
+        Assert.False(result);
+        Assert.Null(contentCode);
+    }
+
+    /// <summary>
+    /// Verifies the combined gate rejects other publishers and null manifests.
+    /// </summary>
+    [Fact]
+    public void TryGetVariantContentCode_WithForeignOrNullManifest_ReturnsFalse()
+    {
+        var foreign = CreateManifest("1.0.test.addon.cbpr-1080p");
+        foreign.Publisher = new PublisherInfo { PublisherType = "test" };
+        foreign.Metadata.Tags.Add("contentCode:cbpr");
+        foreign.Metadata.Tags.Add("variant:1080p");
+
+        Assert.False(CommunityOutpostVariantGrouping.TryGetVariantContentCode(foreign, out var foreignCode));
+        Assert.Null(foreignCode);
+        Assert.False(CommunityOutpostVariantGrouping.TryGetVariantContentCode(null, out var nullCode));
+        Assert.Null(nullCode);
     }
 
     private static ContentManifest CreateManifest(string id)

@@ -23,7 +23,7 @@ internal static class CommunityOutpostVariantGrouping
     /// <param name="contentType">The content type carried by the manifests.</param>
     /// <param name="contentCode">The GenPatcher content code (for example cbpr).</param>
     /// <param name="version">The release version. May be null for legacy manifests.</param>
-    /// <returns>The group id, or null when the content code is missing.</returns>
+    /// <returns>The group id, or null when the content code or version is missing. A missing version fails closed: distinct releases must never share a group id.</returns>
     internal static string? BuildVariantGroupId(ContentType contentType, string? contentCode, string? version)
     {
         if (string.IsNullOrWhiteSpace(contentCode))
@@ -31,10 +31,15 @@ internal static class CommunityOutpostVariantGrouping
             return null;
         }
 
+        var normalizedVersion = NormalizeVersion(version);
+        if (normalizedVersion == null)
+        {
+            return null;
+        }
+
         var normalizedCode = contentCode.Trim().ToLowerInvariant();
         var baseId = $"{CommunityOutpostConstants.PublisherType}.{contentType.ToString().ToLowerInvariant()}.{normalizedCode}";
-        var normalizedVersion = NormalizeVersion(version);
-        return normalizedVersion == null ? baseId : $"{baseId}.{normalizedVersion}";
+        return $"{baseId}.{normalizedVersion}";
     }
 
     /// <summary>
@@ -109,6 +114,24 @@ internal static class CommunityOutpostVariantGrouping
     }
 
     /// <summary>
+    /// Resolves the variant content code for a Community Outpost variant manifest.
+    /// </summary>
+    /// <param name="manifest">The manifest to inspect.</param>
+    /// <param name="contentCode">The resolved content code when the manifest is a variant.</param>
+    /// <returns>True for Community Outpost variant manifests; otherwise false.</returns>
+    internal static bool TryGetVariantContentCode(ContentManifest? manifest, out string? contentCode)
+    {
+        contentCode = null;
+        if (!IsCommunityOutpostManifest(manifest))
+        {
+            return false;
+        }
+
+        contentCode = GetContentCode(manifest);
+        return IsVariantManifest(manifest, contentCode);
+    }
+
+    /// <summary>
     /// Resolves the GenPatcher content code for a stored manifest.
     /// </summary>
     /// <param name="manifest">The manifest to inspect.</param>
@@ -127,7 +150,11 @@ internal static class CommunityOutpostVariantGrouping
             var code = tagged[ManifestTagConstants.ContentCodePrefix.Length..].Trim();
             if (!string.IsNullOrEmpty(code))
             {
-                return code.ToLowerInvariant();
+                var normalizedTag = GenPatcherContentRegistry.NormalizeContentCode(code);
+                if (!string.IsNullOrEmpty(normalizedTag) && GenPatcherContentRegistry.IsKnownCode(normalizedTag))
+                {
+                    return normalizedTag.ToLowerInvariant();
+                }
             }
         }
 

@@ -424,7 +424,7 @@ public sealed class DownloadedContentDiscovererTests
     {
         var pro1080 = CreateCommunityOutpostManifest("1.0.communityoutpost.addon.cbpr-1080p", "Control Bar Pro (ExiLe) - 1080p", "1.0", "1080p");
         var pro720 = CreateCommunityOutpostManifest("1.0.communityoutpost.addon.cbpr-720p", "Control Bar Pro (ExiLe) - 720p", "1.0", "720p");
-        var nextRelease = CreateCommunityOutpostManifest("1.0.communityoutpost.addon.cbpr-1080p", "Control Bar Pro (ExiLe) - 1080p", "v2026.07.15", "1080p");
+        var nextRelease = CreateCommunityOutpostManifest("1.1.communityoutpost.addon.cbpr-1080p", "Control Bar Pro (ExiLe) - 1080p", "v2026.07.15", "1080p");
 
         var discoverer = CreateDiscoverer([pro1080, pro720, nextRelease]);
 

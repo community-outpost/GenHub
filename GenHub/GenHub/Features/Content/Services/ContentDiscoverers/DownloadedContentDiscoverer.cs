@@ -198,13 +198,9 @@ public sealed class DownloadedContentDiscoverer(
         // Legacy Community Outpost pool entries predate variant group stamping; derive it so
         // the resolution/language variants of one release collapse into one card. Singles keep
         // a null group id so they render as plain cards without a picker.
-        if (CommunityOutpostVariantGrouping.IsCommunityOutpostManifest(manifest))
+        if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))
         {
-            var contentCode = CommunityOutpostVariantGrouping.GetContentCode(manifest);
-            if (CommunityOutpostVariantGrouping.IsVariantManifest(manifest, contentCode))
-            {
-                return CommunityOutpostVariantGrouping.BuildVariantGroupId(manifest.ContentType, contentCode, manifest.Version);
-            }
+            return CommunityOutpostVariantGrouping.BuildVariantGroupId(manifest.ContentType, contentCode, manifest.Version);
         }
 
         return null;
@@ -222,13 +218,9 @@ public sealed class DownloadedContentDiscoverer(
             return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.Version);
         }
 
-        if (CommunityOutpostVariantGrouping.IsCommunityOutpostManifest(manifest))
+        if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))
         {
-            var contentCode = CommunityOutpostVariantGrouping.GetContentCode(manifest);
-            if (CommunityOutpostVariantGrouping.IsVariantManifest(manifest, contentCode))
-            {
-                return CommunityOutpostVariantGrouping.BuildVariantFamilyName(contentCode);
-            }
+            return CommunityOutpostVariantGrouping.BuildVariantFamilyName(contentCode);
         }
 
         return null;

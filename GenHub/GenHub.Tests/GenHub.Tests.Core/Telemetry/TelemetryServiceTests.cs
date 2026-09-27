@@ -55,6 +55,45 @@ public class TelemetryServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a null logger fails fast at construction.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithNullLogger_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new TelemetryService(
+            null!,
+            _sanitizer,
+            _mockUserSettingsService.Object,
+            [_mockSink.Object]));
+    }
+
+    /// <summary>
+    /// Verifies that a null sanitizer fails fast at construction.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithNullSanitizer_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new TelemetryService(
+            _mockLogger.Object,
+            null!,
+            _mockUserSettingsService.Object,
+            [_mockSink.Object]));
+    }
+
+    /// <summary>
+    /// Verifies that a null user settings service fails fast at construction.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithNullUserSettingsService_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new TelemetryService(
+            _mockLogger.Object,
+            _sanitizer,
+            null!,
+            [_mockSink.Object]));
+    }
+
+    /// <summary>
     /// Verifies that TrackEvent does not emit when telemetry is Disabled.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
